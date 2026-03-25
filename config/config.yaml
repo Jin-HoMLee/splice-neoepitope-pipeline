@@ -1,0 +1,87 @@
+# ============================================================
+# Splice Neoepitope Pipeline — Configuration
+# ============================================================
+
+# -----------------------------------------------------------------
+# Cancer types to analyse (TCGA project IDs)
+# -----------------------------------------------------------------
+cancer_types:
+  - TCGA-BRCA
+  - TCGA-LUAD
+  - TCGA-LAML
+
+# Cancer types that have matched normal samples (used for Fisher's test)
+cancer_types_with_normal:
+  - TCGA-BRCA
+  - TCGA-LUAD
+
+# -----------------------------------------------------------------
+# GDC Data Portal API
+# -----------------------------------------------------------------
+gdc:
+  files_endpoint: "https://api.gdc.cancer.gov/files"
+  data_endpoint:  "https://api.gdc.cancer.gov/data"
+  # Maximum files to download per cancer type (set to null for all)
+  max_files_per_project: null
+
+# -----------------------------------------------------------------
+# Reference genome
+# -----------------------------------------------------------------
+reference:
+  genome: "GRCh38"
+  # Local paths (populated after download / placed by the user)
+  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
+  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
+  # Output: reference junction list derived from GENCODE GTF
+  junction_bed: "resources/reference_junctions.bed"
+
+# -----------------------------------------------------------------
+# Contig assembly
+# -----------------------------------------------------------------
+assembly:
+  upstream_nt:   26   # nt upstream of the splice junction
+  downstream_nt: 24   # nt downstream of the splice junction
+  contig_length: 50   # total contig length (upstream + downstream)
+
+# -----------------------------------------------------------------
+# In-silico translation
+# -----------------------------------------------------------------
+translation:
+  peptide_length: 16   # aa length of each output peptide
+  reading_frames:      # 1-based nucleotide offsets for the three ORFs
+    - 0                # frame 1: start at nt position 1 (0-indexed: 0)
+    - 1                # frame 2: start at nt position 2
+    - 2                # frame 3: start at nt position 3
+
+# -----------------------------------------------------------------
+# Epitope prediction (NetMHCPan 4.1)
+# -----------------------------------------------------------------
+netmhcpan:
+  # Path to the NetMHCPan executable (must be installed separately;
+  # see README.md for the DTU academic licence form URL)
+  executable: "netMHCpan"
+  hla_allele: "HLA-A02:01"   # default allele (most prevalent)
+  peptide_length: 9           # sliding-window 9-mer mode
+  ic50_strong:  50            # nM threshold for strong binders
+  ic50_weak:   500            # nM threshold for weak binders
+  output_format: "nM"         # IC50 output format
+
+# -----------------------------------------------------------------
+# Junction read-count filtering
+# -----------------------------------------------------------------
+filtering:
+  # Keep junctions with mapped read count > mean read count in the file
+  strategy: "mean"
+
+# -----------------------------------------------------------------
+# Output directories
+# -----------------------------------------------------------------
+output:
+  raw_data:     "results/raw_data"
+  junctions:    "results/junctions"
+  contigs:      "results/contigs"
+  peptides:     "results/peptides"
+  predictions:  "results/predictions"
+  analysis:     "results/analysis"
+  reports:      "results/reports"
+  logs:         "logs"

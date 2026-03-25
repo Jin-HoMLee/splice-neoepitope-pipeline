@@ -1,0 +1,10 @@
+name: splice-neoepitope-biotools
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bedtools >=2.31
+  - samtools >=1.18
+  - pysam >=0.22
+  - python >=3.11
