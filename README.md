@@ -75,46 +75,150 @@ TCGA RNA-Seq data (GDC API)
 
 ## Installation and Setup
 
-### Prerequisites
+### 1. System Requirements
 
-- [Conda](https://docs.conda.io/) or [Mamba](https://mamba.readthedocs.io/)
-  (recommended: Miniforge)
-- [Snakemake](https://snakemake.readthedocs.io/) ≥ 7.0
-- NetMHCPan 4.1 (see below)
+| Requirement | Minimum | Notes |
+|-------------|---------|-------|
+| OS | Linux (x86-64) or macOS | Windows is not supported |
+| CPU | 4 cores | More cores speed up parallel steps |
+| RAM | 16 GB | 32 GB recommended for LUAD/BRCA |
+| Disk | 50 GB free | Reference genome + TCGA downloads |
+| Python | 3.11+ | Managed automatically via conda |
+| Git | any | For cloning this repository |
 
-### Install Snakemake
+---
+
+### 2. Install Conda (Miniforge — recommended)
+
+Miniforge is a minimal Conda installer that defaults to the `conda-forge`
+channel and ships with the faster `mamba` solver.
 
 ```bash
-conda create -n snakemake -c conda-forge -c bioconda snakemake
-conda activate snakemake
+# Download the installer for your OS
+# Linux:
+curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+  -o Miniforge3.sh
+# macOS (Apple Silicon):
+# curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh \
+#   -o Miniforge3.sh
+# macOS (Intel):
+# curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-x86_64.sh \
+#   -o Miniforge3.sh
+
+# Run the installer (accept the licence; let it initialise your shell)
+bash Miniforge3.sh -b -p "$HOME/miniforge3"
+source "$HOME/miniforge3/etc/profile.d/conda.sh"
+conda init bash   # or: conda init zsh
+
+# Reload your shell, then verify
+conda --version   # should print: conda 24.x.x or similar
 ```
 
-### Clone the Repository
+> **Already have Anaconda or Miniconda?**  That works too.
+> Make sure `conda-forge` and `bioconda` channels are added:
+> ```bash
+> conda config --add channels bioconda
+> conda config --add channels conda-forge
+> conda config --set channel_priority strict
+> ```
+
+---
+
+### 3. Install Snakemake
+
+Create a dedicated conda environment that contains Snakemake 7.x and the
+`snakemake-executor-plugin-cluster-generic` plugin (needed for cluster runs):
+
+```bash
+conda create -n snakemake -c conda-forge -c bioconda \
+  "snakemake>=7.0,<9" \
+  snakemake-executor-plugin-cluster-generic \
+  python=3.11 \
+  -y
+
+conda activate snakemake
+
+# Verify
+snakemake --version   # expected output: 7.x.x or 8.x.x
+```
+
+> The pipeline conda environments (`workflow/envs/python.yaml`,
+> `workflow/envs/biotools.yaml`) are created automatically the first time
+> Snakemake runs each rule — you do **not** need to install biopython,
+> bedtools, etc. manually.
+
+---
+
+### 4. Clone the Repository
 
 ```bash
 git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
 cd splice-neoepitope-pipeline
 ```
 
+Verify the expected layout is in place:
+
+```bash
+ls -1
+# Expected output:
+# LICENSE  README.md  Snakefile  config/  docs/  resources/  workflow/
+```
+
+---
+
+### 5. Quick Sanity Check
+
+With the `snakemake` environment active, confirm Snakemake can parse the
+workflow without errors:
+
+```bash
+conda activate snakemake
+snakemake --cores 1 --use-conda -n 2>&1 | head -20
+```
+
+You should see a list of jobs (or a note that all outputs are up to date).
+If Snakemake prints a Python traceback, check that the `snakemake` conda
+environment is active and that all files were cloned correctly.
+
 ---
 
 ## NetMHCPan 4.1 Installation
 
-NetMHCPan 4.1 is **free for academic use** but requires registration.
+NetMHCPan 4.1 is **free for academic use** but requires registration with DTU
+Bioinformatics.
 
-1. Complete the licence form at:
-   **<https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/>**
-2. Download the package (you will receive a download link by e-mail).
-3. Follow the installation instructions in the downloaded archive.
-4. Ensure the `netMHCpan` executable is on your `PATH`, or set the
-   `netmhcpan.executable` path in `config/config.yaml`.
+1. **Register and download** — fill in the form at
+   **<https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/>**.
+   You will receive a download link by e-mail within minutes.
 
-```bash
-# Test that NetMHCPan is accessible
-netMHCpan -h
-```
+2. **Unpack the archive**:
+   ```bash
+   tar -xzf netMHCpan-4.1b.Linux.tar.gz   # filename may differ slightly
+   cd netMHCpan-4.1
+   ```
 
----
+3. **Set the install directory** — edit the first line of the `netMHCpan`
+   script to point to its location:
+   ```bash
+   # Open the script in a text editor and set:
+   #   setenv  NMHCPAN  /full/path/to/netMHCpan-4.1
+   # e.g.
+   sed -i "s|/usr/cbs/packages/netMHCpan/4.1|$(pwd)|" netMHCpan
+   ```
+
+4. **Add to PATH** (or set `netmhcpan.executable` in `config/config.yaml`):
+   ```bash
+   export PATH="$(pwd):$PATH"
+   # Add this line to ~/.bashrc or ~/.bash_profile to make it permanent
+   ```
+
+5. **Verify**:
+   ```bash
+   netMHCpan -h 2>&1 | head -5
+   # Should print: # NetMHCpan version 4.1b ...
+   ```
+
+
 
 ## Reference Data
 
