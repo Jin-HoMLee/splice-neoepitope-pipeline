@@ -54,17 +54,21 @@ translation:
     - 2                # frame 3: start at nt position 3
 
 # -----------------------------------------------------------------
-# Epitope prediction (NetMHCPan 4.1)
+# Epitope prediction (MHCflurry 2.x)
 # -----------------------------------------------------------------
-netmhcpan:
-  # Path to the NetMHCPan executable (must be installed separately;
-  # see README.md for the DTU academic licence form URL)
-  executable: "netMHCpan"
-  hla_allele: "HLA-A02:01"   # default allele (most prevalent)
+# MHCflurry is an open-source MHC-I binding predictor that achieves
+# state-of-the-art performance without requiring academic registration.
+# It can be installed via pip and is included in the python conda env.
+mhcflurry:
+  hla_allele: "HLA-A*02:01"   # default allele (most prevalent)
   peptide_length: 9           # sliding-window 9-mer mode
   ic50_strong:  50            # nM threshold for strong binders
   ic50_weak:   500            # nM threshold for weak binders
-  output_format: "nM"         # IC50 output format
+  # MHCflurry supports multiple prediction modes:
+  #   "affinity"        - binding affinity only (IC50)
+  #   "presentation"    - presentation score (recommended)
+  #   "processing"      - antigen processing score
+  prediction_mode: "affinity"
 
 # -----------------------------------------------------------------
 # Junction read-count filtering

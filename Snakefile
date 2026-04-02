@@ -11,7 +11,7 @@
 #   2. filter     – remove low-read and known (reference) junctions
 #   3. assemble   – build 50 nt contigs around each novel junction
 #   4. translate  – in-silico translation into 16-mer peptides (3 reading frames)
-#   5. predict    – NetMHCPan 4.1 epitope prediction
+#   5. predict    – MHCflurry 2.x epitope prediction
 #   6. analysis   – Fisher's exact test, summary statistics, report generation
 #
 # Usage

@@ -138,7 +138,7 @@ def plot_binder_breakdown(predictions_df: pd.DataFrame, cancer_type: str) -> plt
     """Stacked bar chart showing strong vs. weak binders per sample type.
 
     Args:
-        predictions_df: NetMHCPan predictions DataFrame.
+        predictions_df: MHCflurry predictions DataFrame.
         cancer_type:    Cancer type label.
 
     Returns:
@@ -248,7 +248,7 @@ def generate_report(
 
     Args:
         stats_tsv:           Per-sample statistics TSV.
-        predictions_tsv:     NetMHCPan predictions TSV.
+        predictions_tsv:     MHCflurry predictions TSV.
         novel_junctions_tsv: Novel junctions TSV.
         output_html:         Destination HTML report.
         cancer_type:         TCGA project ID.

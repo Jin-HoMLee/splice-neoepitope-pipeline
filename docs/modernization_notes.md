@@ -87,29 +87,39 @@ GENCODE releases.
 
 ---
 
-## 4. Epitope Predictor: NetMHCPan 2.8 → NetMHCPan 4.1
+## 4. Epitope Predictor: NetMHCPan 2.8 → MHCflurry 2.x
 
 | Aspect | Original (2015) | Modern |
 |--------|----------------|--------|
-| Version | NetMHCPan 2.8 | NetMHCPan 4.1 |
-| Neural network | Shallow ANN | EL (eluted ligand) + BA (binding affinity) |
+| Version | NetMHCPan 2.8 | MHCflurry 2.x |
+| License | Academic registration required | Open source (Apache 2.0) |
+| Installation | Manual download + registration | `pip install mhcflurry` |
+| Neural network | Shallow ANN | Deep neural network with antigen processing |
 | Pan-allele coverage | Limited | >16,000 alleles |
 | Training data | ~170,000 peptides | >850,000 MS ligandomics peptides |
 
 ### Rationale
-NetMHCPan 4.1 represents a major methodological advance over 2.8.  It was
-trained on mass-spectrometry eluted ligand data in addition to binding affinity
-measurements, leading to improved predictions of naturally presented peptides.
-It also covers far more HLA alleles.
+MHCflurry 2.x is an open-source MHC-I binding predictor that achieves
+state-of-the-art performance comparable to NetMHCPan 4.1.  Unlike NetMHCPan,
+it does not require academic registration or institutional email addresses,
+making it accessible to all users.  MHCflurry can be installed via pip and
+its models are downloaded automatically.
 
 ### Behavioural differences
 - **Different IC50 values**: Absolute IC50 predictions will differ between
-  versions.  Peptides classified as strong binders by version 2.8 may not
-  all be classified identically by version 4.1, and vice versa.
-- **Output format**: The column layout of NetMHCPan 4.1 output differs from
-  2.8; `run_netmhcpan.py` parses the 4.1 format.
-- **License**: NetMHCPan 4.1 is free for academic use but requires a
-  separate registration at DTU Bioinformatics.
+  MHCflurry and NetMHCPan.  Peptides classified as strong binders by one tool
+  may not all be classified identically by the other.
+- **Output format**: MHCflurry output includes affinity (IC50 in nM) and
+  percentile rank; the `run_mhcflurry.py` script parses this format.
+- **Model download**: MHCflurry requires a one-time model download
+  (`mhcflurry-downloads fetch`) which caches ~1 GB of trained models.
+- **No registration**: Unlike NetMHCPan, MHCflurry requires no registration
+  or licence agreement.
+
+### Reference
+> O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved Pan-Allele Prediction
+> of MHC Class I-Presented Peptides by Incorporating Antigen Processing.
+> *Cell Systems*, 11(1), 42-48.e7.
 
 ---
 
@@ -184,7 +194,7 @@ with ``alternative="greater"``.
 | Reference annotation | UCSC RefSeq hg19 | GENCODE v47 GRCh38 | Comprehensive, reproducible |
 | Data source | TCGA HTTP (retired) | GDC Data Portal API | TCGA HTTP was retired in 2016 |
 | Aligner | TopHat2 | STAR (GDC harmonised) | GDC re-aligned all data |
-| Epitope predictor | NetMHCPan 2.8 | NetMHCPan 4.1 | Improved accuracy, more alleles |
+| Epitope predictor | NetMHCPan 2.8 | MHCflurry 2.x | Open source, no registration, SOTA |
 | Biopython API | Bio.Alphabet | Bio.Seq only | Bio.Alphabet removed in ≥1.78 |
 | Workflow | Manual scripts | Snakemake | Reproducibility, parallelism |
 | Environments | None | Conda | Reproducibility |

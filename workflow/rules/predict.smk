@@ -1,11 +1,11 @@
 # =============================================================================
-# Rule module: Step 5 — Epitope prediction with NetMHCPan 4.1
+# Rule module: Step 5 — Epitope prediction with MHCflurry 2.x
 # =============================================================================
 
-rule run_netmhcpan:
-    """Run NetMHCPan 4.1 on the 16-mer peptides FASTA.
-    NetMHCPan internally slides a 9-mer window across each peptide.
-    Output: parsed TSV with columns: peptide, allele, IC50_nM, rank,
+rule run_mhcflurry:
+    """Run MHCflurry 2.x on the 16-mer peptides FASTA.
+    MHCflurry slides a 9-mer window across each peptide internally.
+    Output: parsed TSV with columns: peptide, allele, IC50_nM, percentile_rank,
             binder_class (strong / weak / non)."""
     input:
         peptides_fasta=rules.translate_peptides.output.peptides_fasta,
@@ -16,13 +16,11 @@ rule run_netmhcpan:
     log:
         os.path.join(OUT["logs"], "predict", "{cancer_type}_predict.log"),
     params:
-        executable=config["netmhcpan"]["executable"],
-        hla_allele=config["netmhcpan"]["hla_allele"],
-        peptide_length=config["netmhcpan"]["peptide_length"],
-        ic50_strong=config["netmhcpan"]["ic50_strong"],
-        ic50_weak=config["netmhcpan"]["ic50_weak"],
-        output_format=config["netmhcpan"]["output_format"],
+        hla_allele=config["mhcflurry"]["hla_allele"],
+        peptide_length=config["mhcflurry"]["peptide_length"],
+        ic50_strong=config["mhcflurry"]["ic50_strong"],
+        ic50_weak=config["mhcflurry"]["ic50_weak"],
     conda:
         "../envs/python.yaml"
     script:
-        "../scripts/run_netmhcpan.py"
+        "../scripts/run_mhcflurry.py"

@@ -7,7 +7,7 @@ rule statistical_analysis:
     tumour-vs-normal enrichment (BRCA, LUAD); calculate normalised counts.
     Output: per-cancer-type statistics TSV."""
     input:
-        predictions_tsv=rules.run_netmhcpan.output.predictions_tsv,
+        predictions_tsv=rules.run_mhcflurry.output.predictions_tsv,
         manifest=os.path.join(OUT["raw_data"], "{cancer_type}", "manifest.tsv"),
     output:
         stats_tsv=os.path.join(
@@ -17,8 +17,8 @@ rule statistical_analysis:
         os.path.join(OUT["logs"], "analysis", "{cancer_type}_stats.log"),
     params:
         cancer_types_with_normal=config["cancer_types_with_normal"],
-        ic50_strong=config["netmhcpan"]["ic50_strong"],
-        ic50_weak=config["netmhcpan"]["ic50_weak"],
+        ic50_strong=config["mhcflurry"]["ic50_strong"],
+        ic50_weak=config["mhcflurry"]["ic50_weak"],
     conda:
         "../envs/python.yaml"
     script:
@@ -33,7 +33,7 @@ rule generate_report:
     - Annotation with junction coordinates and gene names"""
     input:
         stats_tsv=rules.statistical_analysis.output.stats_tsv,
-        predictions_tsv=rules.run_netmhcpan.output.predictions_tsv,
+        predictions_tsv=rules.run_mhcflurry.output.predictions_tsv,
         novel_junctions=rules.filter_junctions.output.novel_junctions,
     output:
         report_html=os.path.join(

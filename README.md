@@ -15,14 +15,13 @@ RNA-Seq.
 1. [Scientific Background](#scientific-background)
 2. [Pipeline Overview](#pipeline-overview)
 3. [Installation and Setup](#installation-and-setup)
-4. [NetMHCPan 4.1 Installation](#netmhcpan-41-installation)
-5. [Reference Data](#reference-data)
-6. [Running the Pipeline](#running-the-pipeline)
-7. [Configuration](#configuration)
-8. [Output Description](#output-description)
-9. [Modernisation Changelog](#modernisation-changelog)
-10. [Project Structure](#project-structure)
-11. [Citation](#citation)
+4. [Reference Data](#reference-data)
+5. [Running the Pipeline](#running-the-pipeline)
+6. [Configuration](#configuration)
+7. [Output Description](#output-description)
+8. [Modernisation Changelog](#modernisation-changelog)
+9. [Project Structure](#project-structure)
+10. [Citation](#citation)
 
 ---
 
@@ -39,7 +38,7 @@ This pipeline:
 2. Identifies novel (non-reference) splice junctions enriched in tumour samples.
 3. Constructs short nucleotide contigs spanning each junction.
 4. Translates the contigs into peptides in all three reading frames.
-5. Predicts MHC-I binding affinity using NetMHCPan 4.1.
+5. Predicts MHC-I binding affinity using MHCflurry 2.x.
 6. Statistically evaluates enrichment of predicted epitopes in tumour vs. normal.
 
 Cancer types analysed: **BRCA** (breast adenocarcinoma), **LUAD** (lung
@@ -65,7 +64,7 @@ TCGA RNA-Seq data (GDC API)
   16-mer peptides (3 reading frames, truncated at stop codons)
         │
         ▼ Step 5: Predict
-  NetMHCPan 4.1 → IC50 binding affinities (HLA-A*02:01, 9-mers)
+  MHCflurry 2.x → IC50 binding affinities (HLA-A*02:01, 9-mers)
         │
         ▼ Step 6: Analyse
   Fisher's exact test, summary statistics, HTML report
@@ -182,43 +181,39 @@ environment is active and that all files were cloned correctly.
 
 ---
 
-## NetMHCPan 4.1 Installation
+## MHCflurry (Epitope Predictor)
 
-NetMHCPan 4.1 is **free for academic use** but requires registration with DTU
-Bioinformatics.
+This pipeline uses **MHCflurry 2.x**, an open-source, state-of-the-art MHC-I
+binding predictor that does not require academic registration.  MHCflurry is
+installed automatically via the conda environment — no manual setup needed.
 
-1. **Register and download** — fill in the form at
-   **<https://services.healthtech.dtu.dk/services/NetMHCpan-4.1/>**.
-   You will receive a download link by e-mail within minutes.
+### First-time setup: Download models
 
-2. **Unpack the archive**:
-   ```bash
-   tar -xzf netMHCpan-4.1b.Linux.tar.gz   # filename may differ slightly
-   cd netMHCpan-4.1
-   ```
+After the first Snakemake run creates the conda environment, download the
+MHCflurry trained models:
 
-3. **Set the install directory** — edit the first line of the `netMHCpan`
-   script to point to its location:
-   ```bash
-   # Open the script in a text editor and set:
-   #   setenv  NMHCPAN  /full/path/to/netMHCpan-4.1
-   # e.g.
-   sed -i "s|/usr/cbs/packages/netMHCpan/4.1|$(pwd)|" netMHCpan
-   ```
+```bash
+# Activate the pipeline's Python environment
+conda activate .snakemake/conda/<hash>   # or run within a Snakemake job
+mhcflurry-downloads fetch
+```
 
-4. **Add to PATH** (or set `netmhcpan.executable` in `config/config.yaml`):
-   ```bash
-   export PATH="$(pwd):$PATH"
-   # Add this line to ~/.bashrc or ~/.bash_profile to make it permanent
-   ```
+Alternatively, you can run this once before the pipeline:
 
-5. **Verify**:
-   ```bash
-   netMHCpan -h 2>&1 | head -5
-   # Should print: # NetMHCpan version 4.1b ...
-   ```
+```bash
+pip install mhcflurry
+mhcflurry-downloads fetch
+```
 
+The models (~1 GB) are cached in `~/.local/share/mhcflurry/` and reused.
 
+### Reference
+
+> O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved Pan-Allele Prediction
+> of MHC Class I-Presented Peptides by Incorporating Antigen Processing.
+> *Cell Systems*, 11(1), 42-48.e7.
+
+---
 
 ## Reference Data
 
@@ -284,10 +279,9 @@ All parameters are in `config/config.yaml`.  Key options:
 | `cancer_types` | BRCA, LUAD, LAML | TCGA project IDs to analyse |
 | `reference.genome_fasta` | `resources/…` | Path to GRCh38 FASTA |
 | `reference.gencode_gtf` | `resources/…` | Path to GENCODE GTF |
-| `netmhcpan.executable` | `netMHCpan` | Path to NetMHCPan binary |
-| `netmhcpan.hla_allele` | `HLA-A02:01` | HLA allele for prediction |
-| `netmhcpan.ic50_strong` | `50` | Strong binder threshold (nM) |
-| `netmhcpan.ic50_weak` | `500` | Weak binder threshold (nM) |
+| `mhcflurry.hla_allele` | `HLA-A*02:01` | HLA allele for prediction |
+| `mhcflurry.ic50_strong` | `50` | Strong binder threshold (nM) |
+| `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
 | `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
 | `filtering.strategy` | `mean` | Read-count filter strategy |
@@ -315,7 +309,7 @@ results/
 │       └── peptides.fa           # 16-mer peptide FASTA
 ├── predictions/
 │   └── {cancer_type}/
-│       └── predictions.tsv       # NetMHCPan results
+│       └── predictions.tsv       # MHCflurry results
 ├── analysis/
 │   └── {cancer_type}/
 │       └── statistics.tsv        # Fisher's test + epitope counts
@@ -339,7 +333,7 @@ pipeline to this modernised implementation.  See
 | Reference annotation | UCSC RefSeq hg19 | **GENCODE v47 GRCh38** | Comprehensive, programmatically reproducible |
 | Data source | TCGA HTTP directory (retired) | **GDC Data Portal REST API** | TCGA HTTP retired in 2016 |
 | RNA-Seq aligner | TopHat2 | **STAR** (GDC harmonised) | GDC re-aligned all TCGA data with STAR |
-| Epitope predictor | NetMHCPan **2.8** | **NetMHCPan 4.1** | Improved accuracy; eluted-ligand training data |
+| Epitope predictor | NetMHCPan **2.8** | **MHCflurry 2.x** | Open source; no registration; SOTA accuracy |
 | Biopython API | `Bio.Alphabet` | **`Bio.Seq` only** | `Bio.Alphabet` removed in Biopython ≥1.78 |
 | Workflow management | Manual shell scripts | **Snakemake** | Reproducibility, parallelism, DAG tracking |
 | Environment management | None | **Conda** (per rule) | Reproducible software environments |
@@ -363,18 +357,18 @@ splice-neoepitope-pipeline/
 │   │   ├── filter.smk                # Step 2: Novel junction filtering
 │   │   ├── assemble.smk              # Step 3: Contig assembly
 │   │   ├── translate.smk             # Step 4: Peptide translation
-│   │   ├── predict.smk               # Step 5: NetMHCPan prediction
+│   │   ├── predict.smk               # Step 5: MHCflurry prediction
 │   │   └── analysis.smk              # Step 6: Statistics + reports
 │   ├── envs/
 │   │   ├── biotools.yaml             # bedtools, samtools, pysam
-│   │   └── python.yaml               # Python, biopython, pandas, scipy, ...
+│   │   └── python.yaml               # Python, biopython, mhcflurry, pandas, scipy, ...
 │   └── scripts/
 │       ├── download_gdc_data.py      # GDC API download
 │       ├── filter_junctions.py       # Novel junction filtering
 │       ├── build_reference_junctions.py  # GENCODE reference junction list
 │       ├── assemble_contigs.py       # 50 nt contig assembly
 │       ├── translate_peptides.py     # In-silico translation (modern Biopython)
-│       ├── run_netmhcpan.py          # NetMHCPan 4.1 wrapper + parser
+│       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
 │       ├── statistical_analysis.py   # Fisher's exact test + summary stats
 │       └── generate_report.py        # HTML report generation
 ├── docs/
@@ -398,10 +392,9 @@ And the key tools used:
   Snakemake. *F1000Research*, 10, 33.
 - **bedtools**: Quinlan & Hall (2010). BEDTools: a flexible suite of utilities
   for comparing genomic features. *Bioinformatics*, 26(6), 841–842.
-- **NetMHCPan 4.1**: Reynisson et al. (2020). NetMHCpan-4.1 and
-  NetMHCIIpan-4.0: improved predictions of MHC antigen presentation by
-  concurrent motif deconvolution and integration of MS MHC eluted ligand data.
-  *Nucleic Acids Research*, 48(W1), W449–W454.
+- **MHCflurry 2.0**: O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved
+  Pan-Allele Prediction of MHC Class I-Presented Peptides by Incorporating
+  Antigen Processing. *Cell Systems*, 11(1), 42-48.e7.
 - **Biopython**: Cock et al. (2009). Biopython: freely available Python tools
   for computational molecular biology and bioinformatics. *Bioinformatics*,
   25(11), 1422–1423.

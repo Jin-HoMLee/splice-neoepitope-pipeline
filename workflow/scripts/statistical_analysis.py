@@ -63,7 +63,7 @@ def _count_epitopes_per_sample(
     """Count strong/weak/total binders per sample (source_header).
 
     Args:
-        predictions_df: DataFrame from NetMHCPan output TSV.
+        predictions_df: DataFrame from MHCflurry output TSV.
         ic50_strong:    Strong-binder IC50 threshold.
         ic50_weak:      Weak-binder IC50 threshold.
 
@@ -171,7 +171,7 @@ def analyse_cancer_type(
     """Run per-cancer-type statistical analysis.
 
     Args:
-        predictions_tsv:          NetMHCPan predictions TSV.
+        predictions_tsv:          MHCflurry predictions TSV.
         manifest_tsv:             GDC manifest TSV with sample metadata.
         output_tsv:               Destination statistics TSV.
         cancer_type:              TCGA project ID.
@@ -297,7 +297,7 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Statistical analysis of NetMHCPan epitope predictions."
+        description="Statistical analysis of MHCflurry epitope predictions."
     )
     sub = parser.add_subparsers(dest="mode", required=True)
 
