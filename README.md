@@ -99,11 +99,11 @@ channel and ships with the faster `mamba` solver.
 curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
   -o Miniforge3.sh
 # macOS (Apple Silicon):
-# curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh \
-#   -o Miniforge3.sh
+curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh \
+  -o Miniforge3.sh
 # macOS (Intel):
-# curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-x86_64.sh \
-#   -o Miniforge3.sh
+curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-x86_64.sh \
+  -o Miniforge3.sh
 
 # Run the installer (accept the licence; let it initialise your shell)
 bash Miniforge3.sh -b -p "$HOME/miniforge3"
@@ -169,7 +169,7 @@ ls -1
 ### 5. Quick Sanity Check
 
 With the `snakemake` environment active, confirm Snakemake can parse the
-workflow without errors:
+workflow without errors (make sure to download the `gencode.v47.annotation.gtf.gz` and `GRCh38.primary_assembly.genome.fa` files according to [/resources/README.md](/resources/README.md) before running):
 
 ```bash
 conda activate snakemake
