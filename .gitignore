@@ -213,3 +213,6 @@ resources/*.fa.*
 resources/*.gtf
 resources/*.gtf.*
 resources/*.bed
+
+# data files
+data/
