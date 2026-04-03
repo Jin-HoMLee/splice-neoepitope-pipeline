@@ -1,4 +1,5 @@
 sample_id	sample_type	fastq1	fastq2
+
 # Example entries — replace with your actual sample data
 # Delete these comment lines and add your samples below
 #
@@ -16,3 +17,5 @@ sample_id	sample_type	fastq1	fastq2
 # Example single-end samples:
 # tumor_sample_03	Primary Tumor	data/tumor_03.fastq.gz	
 # normal_sample_02	Solid Tissue Normal	data/normal_02.fastq.gz	
+
+SRR12345678	Primary Tumor	data/SRR12345678_1.fastq	data/SRR12345678_2.fastq
