@@ -228,7 +228,7 @@ data_source: "local"   # Use local FASTQ alignment instead of GDC download
 
 ```bash
 # Install SRA toolkit
-conda install -c bioconda sra-tools
+conda install -c conda-forge -c bioconda sra-tools
 
 # Download example breast cancer RNA-Seq (SRR12345678 is a placeholder)
 fasterq-dump SRR12345678 --split-files --outdir data/
