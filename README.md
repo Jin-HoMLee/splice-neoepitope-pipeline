@@ -15,7 +15,9 @@ RNA-Seq.
 1. [Scientific Background](#scientific-background)
 2. [Pipeline Overview](#pipeline-overview)
 3. [Installation and Setup](#installation-and-setup)
-4. [GDC Authentication](#gdc-authentication-required-for-tcga-data)
+4. [Data Source Options](#data-source-options)
+   - [Option A: Local Alignment (Recommended)](#option-a-local-alignment-recommended---no-institutional-access-required)
+   - [Option B: GDC Download](#option-b-gdc-download-requires-institutional-access)
 5. [MHCflurry](#mhcflurry-epitope-predictor)
 6. [Reference Data](#reference-data)
 7. [Running the Pipeline](#running-the-pipeline)
@@ -36,7 +38,7 @@ recognisable as foreign by the immune system.  These **neoepitopes** are
 candidate targets for cancer immunotherapy.
 
 This pipeline:
-1. Downloads TCGA RNA-Seq splice-junction quantification data.
+1. Generates splice junction quantification from RNA-Seq data (local alignment or GDC download).
 2. Identifies novel (non-reference) splice junctions enriched in tumour samples.
 3. Constructs short nucleotide contigs spanning each junction.
 4. Translates the contigs into peptides in all three reading frames.
@@ -51,9 +53,9 @@ adenocarcinoma), **LAML** (acute myeloid leukemia).
 ## Pipeline Overview
 
 ```
-TCGA RNA-Seq data (GDC API)
+RNA-Seq data (local FASTQ files or GDC API)
         │
-        ▼ Step 1: Download
+        ▼ Step 1: Align/Download
   Splice junction quantification files (.tsv)
         │
         ▼ Step 2: Filter
@@ -183,22 +185,138 @@ environment is active and that all files were cloned correctly.
 
 ---
 
-## GDC Authentication (Required for TCGA Data)
+## Data Source Options
 
-**TCGA data on the GDC Data Portal is controlled-access** and requires
-authentication. You will need an eRA Commons account linked to dbGaP access
-for TCGA. Without a valid token, downloads will fail with `403 Forbidden`.
+This pipeline supports two data source modes:
 
-### Step 1: Obtain dbGaP Access
+| Mode | Institutional Access | Description |
+|------|---------------------|-------------|
+| **Local Alignment** | ❌ Not required | Align your own FASTQ files using STAR |
+| **GDC Download** | ✅ Required | Download pre-computed files from GDC |
+
+---
+
+### Option A: Local Alignment (Recommended) — No Institutional Access Required
+
+This mode uses **STAR** (the same aligner used by GDC) to generate splice
+junction quantification from raw FASTQ files. You can use:
+
+- Your own RNA-Seq data
+- Publicly available datasets from SRA, GEO, or ENCODE
+- Any GRCh38/hg38-aligned RNA-Seq data
+
+#### Step 1: Set Data Source Mode
+
+Edit `config/config.yaml`:
+
+```yaml
+data_source: "local"   # Use local FASTQ alignment instead of GDC download
+```
+
+#### Step 2: Obtain RNA-Seq FASTQ Data
+
+**Public RNA-Seq datasets (no access restrictions):**
+
+| Source | URL | Description |
+|--------|-----|-------------|
+| **SRA/ENA** | https://www.ncbi.nlm.nih.gov/sra | Millions of publicly available RNA-Seq runs |
+| **GEO** | https://www.ncbi.nlm.nih.gov/geo | Gene Expression Omnibus |
+| **ENCODE** | https://www.encodeproject.org | High-quality RNA-Seq from cell lines |
+| **GTEx** | https://gtexportal.org | Normal tissue RNA-Seq (open access) |
+
+**Example: Download SRA data with `fasterq-dump`:**
+
+```bash
+# Install SRA toolkit
+conda install -c bioconda sra-tools
+
+# Download example breast cancer RNA-Seq (SRR12345678 is a placeholder)
+fasterq-dump SRR12345678 --split-files --outdir data/
+
+# This creates:
+#   data/SRR12345678_1.fastq
+#   data/SRR12345678_2.fastq
+```
+
+**Example datasets for testing:**
+
+| Accession | Description | Sample Type |
+|-----------|-------------|-------------|
+| SRP064305 | TCGA-BRCA-adjacent (public) | Breast cancer |
+| SRP066790 | Lung adenocarcinoma cell lines | Lung cancer |
+| SRP055401 | AML cell lines | Leukemia |
+
+> **Tip**: Search GEO for `"RNA-Seq" AND "cancer" AND "Homo sapiens"` to find
+> publicly available cancer RNA-Seq datasets.
+
+#### Step 3: Create Sample Manifest
+
+Create a TSV file listing your samples at `config/samples.tsv`:
+
+```tsv
+sample_id	sample_type	fastq1	fastq2
+tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
+tumor_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
+normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+```
+
+**Column descriptions:**
+
+| Column | Required | Description |
+|--------|----------|-------------|
+| `sample_id` | Yes | Unique identifier for the sample |
+| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` for Fisher's test |
+| `fastq1` | Yes | Path to read 1 FASTQ (can be gzipped) |
+| `fastq2` | No | Path to read 2 FASTQ for paired-end data (leave empty for single-end) |
+
+#### Step 4: Run the Pipeline
+
+```bash
+snakemake --cores 8 --use-conda
+```
+
+The pipeline will:
+1. Build a STAR genome index (first run only, ~30 min)
+2. Align each sample (~10-30 min per sample)
+3. Continue with filtering, translation, and prediction
+
+#### System Requirements for Local Alignment
+
+| Resource | Minimum | Recommended | Notes |
+|----------|---------|-------------|-------|
+| RAM | 32 GB | 64 GB | STAR indexing needs ~32 GB |
+| Disk | 100 GB | 200 GB | Genome index + FASTQ files |
+| CPU | 4 cores | 16 cores | Alignment is parallelised |
+
+---
+
+### Option B: GDC Download (Requires Institutional Access)
+
+This mode downloads pre-computed splice junction quantification files from the
+GDC Data Portal. **TCGA data is controlled-access** and requires:
+
+1. An eRA Commons account
+2. dbGaP access approved for TCGA
+3. A GDC authentication token
+
+#### Step 1: Set Data Source Mode
+
+Edit `config/config.yaml`:
+
+```yaml
+data_source: "gdc"   # Download from GDC (requires authentication)
+```
+
+#### Step 2: Obtain dbGaP Access
 
 1. Apply for controlled-access TCGA data via [dbGaP](https://dbgap.ncbi.nlm.nih.gov/)
 2. Your institution's signing official must approve the Data Access Request (DAR)
 3. This process typically takes 1–4 weeks
 
 > **Note**: If you already have TCGA access through another project (e.g.,
-> via your institution's blanket approval), you can skip to Step 2.
+> via your institution's blanket approval), you can skip to Step 3.
 
-### Step 2: Download Your GDC Token
+#### Step 3: Download Your GDC Token
 
 1. Go to **https://portal.gdc.cancer.gov/**
 2. Click **Login** (top right) and authenticate via eRA Commons / NIH
@@ -208,7 +326,7 @@ for TCGA. Without a valid token, downloads will fail with `403 Forbidden`.
 The token is valid for **30 days**; you'll need to download a new one after
 it expires.
 
-### Step 3: Configure the Pipeline
+#### Step 4: Configure the Pipeline
 
 Edit `config/config.yaml` and set the path to your token file:
 
@@ -225,7 +343,7 @@ mv ~/Downloads/gdc-user-token*.txt ~/.gdc-user-token.txt
 chmod 600 ~/.gdc-user-token.txt   # restrict permissions
 ```
 
-### Troubleshooting
+#### Troubleshooting GDC Downloads
 
 | Error | Cause | Solution |
 |-------|-------|----------|

@@ -21,13 +21,54 @@ rule build_reference_junctions:
         "../scripts/build_reference_junctions.py"
 
 
-def _junction_files(wildcards):
+def _junction_files_gdc(wildcards):
     """Return the list of raw junction quantification files for this cancer
-    type, discovered after the download checkpoint resolves."""
+    type, discovered after the GDC download checkpoint resolves."""
     checkpoint_output = checkpoints.download_gdc_files.get(**wildcards).output.data_dir
     return glob_wildcards(
         os.path.join(checkpoint_output, "{file_id}.tsv")
     ).file_id
+
+
+def _junction_files_local(wildcards):
+    """Return the list of junction files for local alignment mode."""
+    samples_file = config.get("local_samples", {}).get("samples_tsv")
+    if not samples_file:
+        return []
+    samples_path = Path(samples_file)
+    if not samples_path.exists():
+        return []
+    sample_ids = []
+    with samples_path.open() as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            if not row["sample_id"].startswith("#"):
+                sample_ids.append(row["sample_id"])
+    return sample_ids
+
+
+def _get_junction_files_input(wildcards):
+    """Get junction files based on data source mode."""
+    if wildcards.cancer_type == "local" or config.get("data_source") == "local":
+        sample_ids = _junction_files_local(wildcards)
+        return expand(
+            os.path.join(OUT["raw_data"], "local", "files", "{sample_id}.tsv"),
+            sample_id=sample_ids,
+        )
+    else:
+        file_ids = _junction_files_gdc(wildcards)
+        return expand(
+            os.path.join(OUT["raw_data"], wildcards.cancer_type, "files", "{file_id}.tsv"),
+            file_id=file_ids,
+        )
+
+
+def _get_manifest_input(wildcards):
+    """Get manifest file based on data source mode."""
+    if wildcards.cancer_type == "local" or config.get("data_source") == "local":
+        return os.path.join(OUT["raw_data"], "local", "manifest.tsv")
+    else:
+        return os.path.join(OUT["raw_data"], wildcards.cancer_type, "manifest.tsv")
 
 
 rule filter_junctions:
@@ -35,13 +76,12 @@ rule filter_junctions:
       1. Keep junctions with read count > mean read count in that file
          (removes low-read background noise).
       2. Remove junctions present in the reference (GENCODE) junction list.
-    The output is a TSV of novel junctions per sample."""
+    The output is a TSV of novel junctions per sample.
+    
+    Works with both GDC downloads and local STAR alignments."""
     input:
-        junction_files=lambda wc: expand(
-            os.path.join(OUT["raw_data"], wc.cancer_type, "files", "{file_id}.tsv"),
-            file_id=_junction_files(wc),
-        ),
-        manifest=os.path.join(OUT["raw_data"], "{cancer_type}", "manifest.tsv"),
+        junction_files=_get_junction_files_input,
+        manifest=_get_manifest_input,
         reference_junctions=config["reference"]["junction_bed"],
     output:
         novel_junctions=os.path.join(

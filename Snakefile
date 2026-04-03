@@ -5,14 +5,19 @@
 # Modernised reimplementation of the 2015 neoepitope prediction pipeline
 # (Jin-Ho Lee, Seoul National University).
 #
+# Data source modes
+# ─────────────────
+#   "gdc"   — Download pre-computed junction files from GDC (requires dbGaP access)
+#   "local" — Align your own FASTQ files using STAR (open access)
+#
 # Workflow steps
 # ──────────────
-#   1. download   – fetch TCGA splice-junction quantification data via GDC API
-#   2. filter     – remove low-read and known (reference) junctions
-#   3. assemble   – build 50 nt contigs around each novel junction
-#   4. translate  – in-silico translation into 16-mer peptides (3 reading frames)
-#   5. predict    – MHCflurry 2.x epitope prediction
-#   6. analysis   – Fisher's exact test, summary statistics, report generation
+#   1. download/align — fetch TCGA data via GDC API OR align local FASTQ with STAR
+#   2. filter         — remove low-read and known (reference) junctions
+#   3. assemble       — build 50 nt contigs around each novel junction
+#   4. translate      — in-silico translation into 16-mer peptides (3 reading frames)
+#   5. predict        — MHCflurry 2.x epitope prediction
+#   6. analysis       — Fisher's exact test, summary statistics, report generation
 #
 # Usage
 # ──────
@@ -20,18 +25,23 @@
 #
 # Configuration
 # ─────────────
-#   Edit config/config.yaml to change cancer types, file paths, thresholds, etc.
+#   Edit config/config.yaml to set data_source mode and other parameters.
 #
 # =============================================================================
+
+from pathlib import Path
+import csv
 
 configfile: "config/config.yaml"
 
 # ── convenience aliases ──────────────────────────────────────────────────────
+DATA_SOURCE  = config.get("data_source", "local")
 CANCER_TYPES = config["cancer_types"]
-OUT           = config["output"]
+OUT          = config["output"]
 
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/download.smk"
+include: "workflow/rules/local_alignment.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"
@@ -39,14 +49,38 @@ include: "workflow/rules/predict.smk"
 include: "workflow/rules/analysis.smk"
 
 
+# ── helper functions for data source switching ───────────────────────────────
+
+def get_local_sample_ids():
+    """Get sample IDs from local samples TSV."""
+    samples_file = config.get("local_samples", {}).get("samples_tsv")
+    if not samples_file:
+        return []
+    samples_path = Path(samples_file)
+    if not samples_path.exists():
+        return []
+    with samples_path.open() as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        return [row["sample_id"] for row in reader if not row["sample_id"].startswith("#")]
+
+
+def get_data_types():
+    """Return list of data identifiers based on data source mode."""
+    if DATA_SOURCE == "local":
+        return ["local"]
+    else:
+        return CANCER_TYPES
+
+
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        # Per-cancer type final report
+        # Per data-type final report
         expand(
-            "{reports}/{cancer_type}/report.html",
+            "{reports}/{data_type}/report.html",
             reports=OUT["reports"],
-            cancer_type=CANCER_TYPES,
+            data_type=get_data_types(),
         ),
         # Cross-cancer summary table
         os.path.join(OUT["reports"], "summary_table.tsv"),
+

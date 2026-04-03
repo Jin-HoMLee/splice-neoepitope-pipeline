@@ -1,0 +1,18 @@
+sample_id	sample_type	fastq1	fastq2
+# Example entries — replace with your actual sample data
+# Delete these comment lines and add your samples below
+#
+# For tumor vs normal comparison (Fisher's exact test):
+#   - Use "Primary Tumor" for tumor samples
+#   - Use "Solid Tissue Normal" for normal samples
+#
+# For single-end RNA-Seq, leave the fastq2 column empty
+#
+# Example paired-end samples:
+# tumor_sample_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
+# tumor_sample_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
+# normal_sample_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+#
+# Example single-end samples:
+# tumor_sample_03	Primary Tumor	data/tumor_03.fastq.gz	
+# normal_sample_02	Solid Tissue Normal	data/normal_02.fastq.gz	

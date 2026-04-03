@@ -3,8 +3,18 @@
 # ============================================================
 
 # -----------------------------------------------------------------
+# Data source mode: "gdc" or "local"
+# -----------------------------------------------------------------
+# "gdc"   — Download pre-computed splice junction files from GDC (requires
+#           institutional dbGaP access and a GDC authentication token)
+# "local" — Align your own RNA-Seq FASTQ files using STAR (no institutional
+#           access required; uses publicly available or your own data)
+data_source: "local"
+
+# -----------------------------------------------------------------
 # Cancer types to analyse (TCGA project IDs)
 # -----------------------------------------------------------------
+# Used only when data_source is "gdc"
 cancer_types:
   - TCGA-BRCA
   - TCGA-LUAD
@@ -16,7 +26,25 @@ cancer_types_with_normal:
   - TCGA-LUAD
 
 # -----------------------------------------------------------------
-# GDC Data Portal API
+# Local alignment mode (when data_source is "local")
+# -----------------------------------------------------------------
+# Provide your own RNA-Seq FASTQ files and let the pipeline align them
+# using STAR. This is the open-access alternative to GDC downloads.
+#
+# Create a TSV file with columns:
+#   sample_id    sample_type    fastq1    fastq2
+#
+# Example (samples.tsv):
+#   sample_id    sample_type         fastq1                    fastq2
+#   tumor_01     Primary Tumor       data/tumor_01_R1.fq.gz    data/tumor_01_R2.fq.gz
+#   normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
+#
+# For single-end data, leave fastq2 empty.
+local_samples:
+  samples_tsv: "config/samples.tsv"
+
+# -----------------------------------------------------------------
+# GDC Data Portal API (when data_source is "gdc")
 # -----------------------------------------------------------------
 gdc:
   files_endpoint: "https://api.gdc.cancer.gov/files"
