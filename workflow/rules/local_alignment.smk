@@ -10,18 +10,21 @@
 # STAR is the same aligner used by the GDC to process TCGA data, ensuring
 # compatibility with downstream analysis steps.
 #
-# To use local alignment mode:
+# To use local alignment mode with STAR:
 #   1. Set `data_source: "local"` in config/config.yaml
-#   2. Provide a samples TSV file listing FASTQ paths
-#   3. Run the pipeline
+#   2. Set `local_samples.aligner: "star"` in config/config.yaml
+#   3. Provide a samples TSV file listing FASTQ paths
+#   4. Run the pipeline
+#
+# Note: STAR requires ~32 GB RAM. For lower-memory systems, use HISAT2 instead.
 #
 # =============================================================================
 
 import os
 
 
-# Only define these rules if local_samples config exists
-if config.get("local_samples"):
+# Only define these rules if local_samples config exists and aligner is star
+if config.get("local_samples") and config.get("local_samples", {}).get("aligner", "star") == "star":
 
     rule star_index:
         """Build STAR genome index for local alignment.

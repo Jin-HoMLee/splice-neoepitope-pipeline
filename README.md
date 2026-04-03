@@ -84,10 +84,14 @@ RNA-Seq data (local FASTQ files or GDC API)
 |-------------|---------|-------|
 | OS | Linux (x86-64) or macOS | Windows is not supported |
 | CPU | 4 cores | More cores speed up parallel steps |
-| RAM | 16 GB | 32 GB recommended for LUAD/BRCA |
-| Disk | 50 GB free | Reference genome + TCGA downloads |
+| RAM | **8 GB** | Using HISAT2 aligner (or 32 GB for STAR) |
+| Disk | 50 GB free | Reference genome + data files |
 | Python | 3.11+ | Managed automatically via conda |
 | Git | any | For cloning this repository |
+
+> **Note**: The default aligner is now HISAT2, which requires only ~8 GB RAM.
+> If you have a high-memory system (32+ GB), you can optionally use STAR for
+> maximum accuracy.
 
 ---
 
@@ -198,19 +202,33 @@ This pipeline supports two data source modes:
 
 ### Option A: Local Alignment (Recommended) — No Institutional Access Required
 
-This mode uses **STAR** (the same aligner used by GDC) to generate splice
-junction quantification from raw FASTQ files. You can use:
+This mode generates splice junction quantification from raw FASTQ files using
+either **STAR** or **HISAT2**. You can use:
 
 - Your own RNA-Seq data
 - Publicly available datasets from SRA, GEO, or ENCODE
 - Any GRCh38/hg38-aligned RNA-Seq data
 
-#### Step 1: Set Data Source Mode
+#### Choose Your Aligner
+
+| Aligner | RAM Required | Index Size | Best For |
+|---------|--------------|------------|----------|
+| **HISAT2** | ~8 GB | ~8 GB | Laptops, small servers, limited resources |
+| **STAR** | ~32 GB | ~30 GB | Full accuracy, high-memory systems |
+
+> **Recommendation**: Start with **HISAT2** if you have limited RAM. HISAT2
+> produces compatible splice junction output with ~8 GB RAM vs STAR's ~32 GB.
+
+#### Step 1: Set Data Source Mode and Aligner
 
 Edit `config/config.yaml`:
 
 ```yaml
-data_source: "local"   # Use local FASTQ alignment instead of GDC download
+data_source: "local"   # Use local FASTQ alignment
+
+local_samples:
+  samples_tsv: "config/samples.tsv"
+  aligner: "hisat2"    # "hisat2" (8 GB RAM) or "star" (32 GB RAM)
 ```
 
 #### Step 2: Obtain RNA-Seq FASTQ Data
@@ -276,17 +294,48 @@ snakemake --cores 8 --use-conda
 ```
 
 The pipeline will:
-1. Build a STAR genome index (first run only, ~30 min)
+1. Build genome index (first run only: ~10 min for HISAT2, ~30 min for STAR)
 2. Align each sample (~10-30 min per sample)
 3. Continue with filtering, translation, and prediction
 
-#### System Requirements for Local Alignment
+#### System Requirements by Aligner
+
+**HISAT2 (Recommended for most users):**
+
+| Resource | Minimum | Recommended | Notes |
+|----------|---------|-------------|-------|
+| RAM | **8 GB** | 16 GB | HISAT2 indexing needs only ~8 GB |
+| Disk | 50 GB | 100 GB | Smaller index (~8 GB) |
+| CPU | 4 cores | 8 cores | Alignment is parallelised |
+
+**STAR (Full accuracy mode):**
 
 | Resource | Minimum | Recommended | Notes |
 |----------|---------|-------------|-------|
 | RAM | 32 GB | 64 GB | STAR indexing needs ~32 GB |
-| Disk | 100 GB | 200 GB | Genome index + FASTQ files |
+| Disk | 100 GB | 200 GB | Larger index (~30 GB) |
 | CPU | 4 cores | 16 cores | Alignment is parallelised |
+
+---
+
+### Option B: Cloud-Based Alignment (For users without local resources)
+
+If you don't have a machine with sufficient RAM, you can run the alignment
+step on cloud platforms:
+
+| Platform | Cost | Description |
+|----------|------|-------------|
+| **Galaxy** | Free | [usegalaxy.org](https://usegalaxy.org) — Run HISAT2/STAR in browser |
+| **Google Colab** | Free tier | Use free GPU instances with ~12 GB RAM |
+| **AWS** | Pay-per-use | r5.xlarge instance (~$0.25/hr, 32 GB RAM) |
+| **Google Cloud** | Pay-per-use | n2-highmem-4 (~$0.20/hr, 32 GB RAM) |
+
+**Galaxy Workflow (Free):**
+1. Upload your FASTQ files to [usegalaxy.org](https://usegalaxy.org)
+2. Search for "HISAT2" or "STAR" in the tool panel
+3. Run alignment with GRCh38/hg38 genome
+4. Download the junction output file (`.tsv` or `.bed`)
+5. Place in `results/raw_data/local/files/` and continue with the pipeline
 
 ---
 

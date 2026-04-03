@@ -8,11 +8,16 @@
 # Data source modes
 # ─────────────────
 #   "gdc"   — Download pre-computed junction files from GDC (requires dbGaP access)
-#   "local" — Align your own FASTQ files using STAR (open access)
+#   "local" — Align your own FASTQ files using STAR or HISAT2 (open access)
+#
+# Aligner options (for local mode)
+# ────────────────────────────────
+#   "star"   — Full accuracy, requires ~32 GB RAM (default)
+#   "hisat2" — Lower memory (~8 GB), good for laptops/small servers
 #
 # Workflow steps
 # ──────────────
-#   1. download/align — fetch TCGA data via GDC API OR align local FASTQ with STAR
+#   1. download/align — fetch TCGA data via GDC API OR align local FASTQ
 #   2. filter         — remove low-read and known (reference) junctions
 #   3. assemble       — build 50 nt contigs around each novel junction
 #   4. translate      — in-silico translation into 16-mer peptides (3 reading frames)
@@ -38,10 +43,12 @@ configfile: "config/config.yaml"
 DATA_SOURCE  = config.get("data_source", "local")
 CANCER_TYPES = config["cancer_types"]
 OUT          = config["output"]
+ALIGNER      = config.get("local_samples", {}).get("aligner", "star")
 
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/download.smk"
 include: "workflow/rules/local_alignment.smk"
+include: "workflow/rules/hisat2_alignment.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"

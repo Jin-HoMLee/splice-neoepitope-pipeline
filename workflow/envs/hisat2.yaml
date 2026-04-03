@@ -1,0 +1,11 @@
+name: splice-neoepitope-hisat2
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - hisat2 >=2.2.1
+  - samtools >=1.18
+  - python >=3.11
+  - pandas
+  - regtools >=1.0.0
