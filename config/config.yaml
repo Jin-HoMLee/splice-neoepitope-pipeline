@@ -23,6 +23,10 @@ gdc:
   data_endpoint:  "https://api.gdc.cancer.gov/data"
   # Maximum files to download per cancer type (set to null for all)
   max_files_per_project: null
+  # GDC authentication token file (required for controlled-access data)
+  # Obtain from: https://portal.gdc.cancer.gov/ → login → Download Token
+  # Save the downloaded token file and set the path here
+  token_file: null   # e.g. "~/.gdc-user-token.txt"
 
 # -----------------------------------------------------------------
 # Reference genome

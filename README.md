@@ -15,13 +15,15 @@ RNA-Seq.
 1. [Scientific Background](#scientific-background)
 2. [Pipeline Overview](#pipeline-overview)
 3. [Installation and Setup](#installation-and-setup)
-4. [Reference Data](#reference-data)
-5. [Running the Pipeline](#running-the-pipeline)
-6. [Configuration](#configuration)
-7. [Output Description](#output-description)
-8. [Modernisation Changelog](#modernisation-changelog)
-9. [Project Structure](#project-structure)
-10. [Citation](#citation)
+4. [GDC Authentication](#gdc-authentication-required-for-tcga-data)
+5. [MHCflurry](#mhcflurry-epitope-predictor)
+6. [Reference Data](#reference-data)
+7. [Running the Pipeline](#running-the-pipeline)
+8. [Configuration](#configuration)
+9. [Output Description](#output-description)
+10. [Modernisation Changelog](#modernisation-changelog)
+11. [Project Structure](#project-structure)
+12. [Citation](#citation)
 
 ---
 
@@ -178,6 +180,58 @@ snakemake --cores 1 --use-conda -n 2>&1 | head -20
 You should see a list of jobs (or a note that all outputs are up to date).
 If Snakemake prints a Python traceback, check that the `snakemake` conda
 environment is active and that all files were cloned correctly.
+
+---
+
+## GDC Authentication (Required for TCGA Data)
+
+**TCGA data on the GDC Data Portal is controlled-access** and requires
+authentication. You will need an eRA Commons account linked to dbGaP access
+for TCGA. Without a valid token, downloads will fail with `403 Forbidden`.
+
+### Step 1: Obtain dbGaP Access
+
+1. Apply for controlled-access TCGA data via [dbGaP](https://dbgap.ncbi.nlm.nih.gov/)
+2. Your institution's signing official must approve the Data Access Request (DAR)
+3. This process typically takes 1–4 weeks
+
+> **Note**: If you already have TCGA access through another project (e.g.,
+> via your institution's blanket approval), you can skip to Step 2.
+
+### Step 2: Download Your GDC Token
+
+1. Go to **https://portal.gdc.cancer.gov/**
+2. Click **Login** (top right) and authenticate via eRA Commons / NIH
+3. After login, click your username (top right) → **Download Token**
+4. Save the downloaded file (e.g., `gdc-user-token.txt`)
+
+The token is valid for **30 days**; you'll need to download a new one after
+it expires.
+
+### Step 3: Configure the Pipeline
+
+Edit `config/config.yaml` and set the path to your token file:
+
+```yaml
+gdc:
+  # ... other settings ...
+  token_file: "~/.gdc-user-token.txt"   # path to your GDC token
+```
+
+Alternatively, place the token in your home directory:
+
+```bash
+mv ~/Downloads/gdc-user-token*.txt ~/.gdc-user-token.txt
+chmod 600 ~/.gdc-user-token.txt   # restrict permissions
+```
+
+### Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `403 Forbidden` | No token or expired | Download a fresh token from GDC |
+| `403 Forbidden` | No dbGaP access | Apply for TCGA access via dbGaP |
+| Token file not found | Wrong path | Check `gdc.token_file` in config.yaml |
 
 ---
 

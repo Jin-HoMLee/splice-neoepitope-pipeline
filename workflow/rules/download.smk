@@ -22,7 +22,12 @@ rule download_gdc_manifest:
 checkpoint download_gdc_files:
     """Download every file listed in the manifest.  Uses a checkpoint so
     Snakemake re-evaluates the DAG once the exact set of downloaded files is
-    known."""
+    known.
+
+    **Authentication**: TCGA data is controlled-access and requires a GDC
+    token. See README.md section 'GDC Authentication' for instructions.
+    Set `gdc.token_file` in config/config.yaml to the path of your token file.
+    """
     input:
         manifest=rules.download_gdc_manifest.output.manifest,
     output:
@@ -32,6 +37,7 @@ checkpoint download_gdc_files:
         os.path.join(OUT["logs"], "download", "{cancer_type}_files.log"),
     params:
         gdc_data_endpoint=config["gdc"]["data_endpoint"],
+        gdc_token_file=config["gdc"].get("token_file", None),
     conda:
         "../envs/python.yaml"
     script:

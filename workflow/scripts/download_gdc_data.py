@@ -11,6 +11,11 @@ The Snakemake rule that invokes this script sets ``snakemake.rule`` to either
 action to perform.  When run outside Snakemake (e.g., for testing), supply
 ``--mode manifest|files`` on the command line.
 
+**Authentication**: TCGA data on GDC is controlled-access and requires a valid
+GDC token. Obtain one from https://portal.gdc.cancer.gov/ (login → Token →
+Download). Set the path to the downloaded token file in config/config.yaml
+under ``gdc.token_file``.
+
 GDC API reference: https://docs.gdc.cancer.gov/API/Users_Guide/
 """
 
@@ -49,6 +54,34 @@ _FIELDS = [
     "md5sum",
     "file_size",
 ]
+
+
+def _load_gdc_token(token_file: str | Path | None) -> str | None:
+    """Load GDC authentication token from file.
+
+    Args:
+        token_file: Path to the GDC token file, or None.
+
+    Returns:
+        The token string (stripped of whitespace), or None if no file provided.
+
+    Raises:
+        FileNotFoundError: If the token file path is provided but does not exist.
+    """
+    if token_file is None:
+        return None
+    token_path = Path(token_file).expanduser()
+    if not token_path.exists():
+        raise FileNotFoundError(
+            f"GDC token file not found: {token_path}\n"
+            "Obtain a token from https://portal.gdc.cancer.gov/ (login → Token → Download)\n"
+            "and set the path in config/config.yaml under gdc.token_file"
+        )
+    token = token_path.read_text().strip()
+    if not token:
+        raise ValueError(f"GDC token file is empty: {token_path}")
+    log.info("Loaded GDC authentication token from %s", token_path)
+    return token
 
 
 def _build_filters(project_id: str) -> dict:
@@ -182,17 +215,26 @@ def download_files(
     manifest_path: str | Path,
     output_dir: str | Path,
     data_endpoint: str = GDC_DATA_ENDPOINT,
+    token_file: str | Path | None = None,
     chunk_size: int = 1 << 20,
 ) -> None:
     """Download every file listed in the manifest using the GDC data endpoint.
 
     Files that already exist on disk (by file_id sub-directory) are skipped.
 
+    **Authentication**: TCGA Splice Junction Quantification files are controlled-
+    access data and require a valid GDC authentication token. Obtain one from
+    https://portal.gdc.cancer.gov/ (login with eRA Commons → Token → Download).
+
     Args:
         manifest_path:  Path to the manifest TSV.
         output_dir:     Directory in which to save downloaded files.
         data_endpoint:  GDC data API endpoint URL.
+        token_file:     Path to GDC token file (required for controlled-access data).
         chunk_size:     HTTP streaming chunk size in bytes.
+
+    Raises:
+        FileNotFoundError: If token_file is set but does not exist.
     """
     import csv
 
@@ -200,11 +242,25 @@ def download_files(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load authentication token
+    token = _load_gdc_token(token_file)
+    headers = {}
+    if token:
+        headers["X-Auth-Token"] = token
+        log.info("Using GDC authentication token for controlled-access downloads")
+    else:
+        log.warning(
+            "No GDC token provided. Downloads will fail for controlled-access data.\n"
+            "To fix: obtain a token from https://portal.gdc.cancer.gov/ and set\n"
+            "gdc.token_file in config/config.yaml"
+        )
+
     with manifest_path.open() as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         records = list(reader)
 
     log.info("Downloading %d files to %s", len(records), output_dir)
+    failed_count = 0
     for i, rec in enumerate(records, 1):
         file_id = rec["file_id"]
         file_name = rec.get("file_name", file_id + ".tsv")
@@ -217,20 +273,32 @@ def download_files(
         url = f"{data_endpoint}/{file_id}"
         log.info("[%d/%d] Downloading %s → %s", i, len(records), file_id, dest)
         try:
-            with requests.get(url, stream=True, timeout=120) as r:
+            with requests.get(url, headers=headers, stream=True, timeout=120) as r:
                 r.raise_for_status()
                 with dest.open("wb") as out:
                     for chunk in r.iter_content(chunk_size=chunk_size):
                         out.write(chunk)
         except requests.RequestException as exc:
             log.error("Failed to download %s: %s", file_id, exc)
+            failed_count += 1
+            if "403" in str(exc) and not token:
+                log.error(
+                    "403 Forbidden — this is controlled-access data. "
+                    "Provide a GDC token via gdc.token_file in config/config.yaml"
+                )
             if dest.exists():
                 dest.unlink()
             continue
 
         time.sleep(0.1)
 
-    log.info("Download complete.")
+    if failed_count > 0:
+        log.warning(
+            "Download completed with %d failures out of %d files.",
+            failed_count, len(records)
+        )
+    else:
+        log.info("Download complete — all %d files successful.", len(records))
 
 
 # ---------------------------------------------------------------------------
@@ -258,11 +326,13 @@ def _snakemake_main() -> None:
         data_dir = snakemake.output.data_dir  # type: ignore[name-defined]  # noqa: F821
         done_file = snakemake.output.done  # type: ignore[name-defined]  # noqa: F821
         data_endpoint = snakemake.params.gdc_data_endpoint  # type: ignore[name-defined]  # noqa: F821
+        token_file = snakemake.params.get("gdc_token_file", None)  # type: ignore[name-defined]  # noqa: F821
 
         download_files(
             manifest_path=manifest_in,
             output_dir=data_dir,
             data_endpoint=data_endpoint,
+            token_file=token_file,
         )
         Path(done_file).touch()
 
@@ -297,6 +367,11 @@ def _cli_main() -> None:
         default=GDC_DATA_ENDPOINT,
         help="GDC data API endpoint",
     )
+    d.add_argument(
+        "--token-file",
+        default=None,
+        help="Path to GDC authentication token file (required for controlled-access data)",
+    )
 
     args = parser.parse_args()
 
@@ -312,6 +387,7 @@ def _cli_main() -> None:
             manifest_path=args.manifest,
             output_dir=args.output_dir,
             data_endpoint=args.data_endpoint,
+            token_file=args.token_file,
         )
 
 
