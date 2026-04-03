@@ -156,7 +156,28 @@ snakemake --version   # expected output: 7.x.x or 8.x.x
 
 ---
 
-### 4. Clone the Repository
+### 4. MHCflurry: First-time Setup (Download Models)
+
+After the first Snakemake run creates the conda environment, download the MHCflurry trained models:
+
+```bash
+# Activate the pipeline's Python environment
+conda activate .snakemake/conda/<hash>   # or run within a Snakemake job
+mhcflurry-downloads fetch
+```
+
+Alternatively, you can run this once before the pipeline:
+
+```bash
+pip install mhcflurry
+mhcflurry-downloads fetch
+```
+
+The models (~1 GB) are cached in `~/.local/share/mhcflurry/` and reused.
+
+---
+
+### 5. Clone the Repository
 
 ```bash
 git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
@@ -173,7 +194,7 @@ ls -1
 
 ---
 
-### 5. Quick Sanity Check
+### 6. Quick Sanity Check
 
 With the `snakemake` environment active, confirm Snakemake can parse the
 workflow without errors (make sure to download the `gencode.v47.annotation.gtf.gz` and `GRCh38.primary_assembly.genome.fa` files according to [/resources/README.md](/resources/README.md) before running):
@@ -408,25 +429,6 @@ This pipeline uses **MHCflurry 2.x**, an open-source, state-of-the-art MHC-I
 binding predictor that does not require academic registration.  MHCflurry is
 installed automatically via the conda environment — no manual setup needed.
 
-### First-time setup: Download models
-
-After the first Snakemake run creates the conda environment, download the
-MHCflurry trained models:
-
-```bash
-# Activate the pipeline's Python environment
-conda activate .snakemake/conda/<hash>   # or run within a Snakemake job
-mhcflurry-downloads fetch
-```
-
-Alternatively, you can run this once before the pipeline:
-
-```bash
-pip install mhcflurry
-mhcflurry-downloads fetch
-```
-
-The models (~1 GB) are cached in `~/.local/share/mhcflurry/` and reused.
 
 ### Reference
 
