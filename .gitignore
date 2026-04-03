@@ -2,7 +2,6 @@
 __pycache__/
 *.py[codz]
 *$py.class
-.snakemake/
 
 # C extensions
 *.so
@@ -207,12 +206,14 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Ignore large reference data files
+# Ignore large data files
 resources/*.fa
 resources/*.fa.*
 resources/*.gtf
 resources/*.gtf.*
 resources/*.bed
-
-# data files
+resources/hisat2_index/
 data/
+
+# Snakemake
+.snakemake/
