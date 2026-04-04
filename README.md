@@ -17,7 +17,8 @@ RNA-Seq.
 3. [Installation and Setup](#installation-and-setup)
 4. [Data Source Options](#data-source-options)
    - [Option A: Local Alignment (Recommended)](#option-a-local-alignment-recommended---no-institutional-access-required)
-   - [Option B: GDC Download](#option-b-gdc-download-requires-institutional-access)
+   - [Option B: Cloud-Based Execution (Google Cloud)](#option-b-cloud-based-alignment-for-users-without-local-resources)
+   - [Option C: GDC Download](#option-b-gdc-download-requires-institutional-access)
 5. [MHCflurry](#mhcflurry-epitope-predictor)
 6. [Reference Data](#reference-data)
 7. [Running the Pipeline](#running-the-pipeline)
@@ -341,26 +342,63 @@ The pipeline will:
 
 ### Option B: Cloud-Based Alignment (For users without local resources)
 
-If you don't have a machine with sufficient RAM, you can run the alignment
-step on cloud platforms:
+If you don't have a machine with sufficient RAM, you can run the **entire pipeline**
+on cloud platforms. We provide a comprehensive guide for Google Cloud Platform.
 
 | Platform | Cost | Description |
 |----------|------|-------------|
+| **Google Cloud** ⭐ | Pay-per-use | **[Full guide](docs/google_cloud_guide.md)** — Recommended |
 | **Galaxy** | Free | [usegalaxy.org](https://usegalaxy.org) — Run HISAT2/STAR in browser |
-| **Google Colab** | Free tier | Use free GPU instances with ~12 GB RAM |
-| **AWS** | Pay-per-use | r5.xlarge instance (~$0.25/hr, 32 GB RAM) |
-| **Google Cloud** | Pay-per-use | n2-highmem-4 (~$0.20/hr, 32 GB RAM) |
+| **AWS** | Pay-per-use | EC2 instances |
 
-**Galaxy Workflow (Free):**
+#### Google Cloud Platform (Recommended)
+
+We provide a **[complete step-by-step guide](docs/google_cloud_guide.md)** for running
+the pipeline on Google Cloud, including:
+
+- **VM setup** — One-click instance creation with correct specs
+- **Cost estimates** — ~$1–5 for small test runs, ~$10–30 for full analysis
+- **Data transfer** — Upload/download FASTQ files and results
+- **Spot VMs** — Save 60–80% with preemptible instances
+- **Troubleshooting** — Memory, disk, and SSH issues
+
+**Quick start (Google Cloud):**
+
+```bash
+# 1. Create a VM (16 GB RAM, sufficient for HISAT2)
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-standard-4 \
+    --boot-disk-size=100GB \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+
+# 2. Connect
+gcloud compute ssh splice-pipeline --zone=us-central1-a
+
+# 3. On the VM, follow the standard installation steps from this README
+# ... (install conda, clone repo, configure samples, run pipeline)
+
+# 4. Download results when done
+gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
+
+# 5. Delete VM to stop billing
+gcloud compute instances delete splice-pipeline --zone=us-central1-a
+```
+
+📖 **See [docs/google_cloud_guide.md](docs/google_cloud_guide.md) for the full guide.**
+
+#### Galaxy Workflow (Free, browser-based)
+
 1. Upload your FASTQ files to [usegalaxy.org](https://usegalaxy.org)
 2. Search for "HISAT2" or "STAR" in the tool panel
 3. Run alignment with GRCh38/hg38 genome
 4. Download the junction output file (`.tsv` or `.bed`)
-5. Place in `results/raw_data/local/files/` and continue with the pipeline
+5. Place in `results/raw_data/local/files/` and continue with the pipeline locally
 
 ---
 
-### Option B: GDC Download (Requires Institutional Access)
+### Option C: GDC Download (Requires Institutional Access)
 
 This mode downloads pre-computed splice junction quantification files from the
 GDC Data Portal. **TCGA data is controlled-access** and requires:

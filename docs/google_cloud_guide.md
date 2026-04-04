@@ -1,0 +1,542 @@
+# Running the Pipeline on Google Cloud Platform
+
+This guide provides step-by-step instructions for running the splice neoepitope
+pipeline on Google Cloud Platform (GCP), ideal for users who:
+- Don't have sufficient local resources (32+ GB RAM for STAR, or 8 GB for HISAT2)
+- Need to process large-scale datasets
+- Want reproducible cloud-based analyses
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Cost Estimation](#cost-estimation)
+3. [Prerequisites](#prerequisites)
+4. [Option A: Compute Engine VM (Recommended)](#option-a-compute-engine-vm-recommended)
+5. [Option B: Google Cloud Life Sciences API](#option-b-google-cloud-life-sciences-api)
+6. [Option C: Google Batch](#option-c-google-batch)
+7. [Data Transfer](#data-transfer)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+| Approach | Best For | Complexity | Cost |
+|----------|----------|------------|------|
+| **Compute Engine VM** | Interactive development, small datasets | Low | ~$0.20–$1.00/hr |
+| **Life Sciences API** | Automated batch workflows | Medium | ~$0.10–$0.50/hr |
+| **Google Batch** | Large-scale parallelisation | Medium-High | Variable |
+
+For most users, we recommend **Option A (Compute Engine VM)** as it's the
+simplest to set up and provides a familiar Linux environment.
+
+---
+
+## Cost Estimation
+
+| Machine Type | vCPUs | RAM | Hourly Cost* | Best For |
+|--------------|-------|-----|--------------|----------|
+| `e2-standard-2` | 2 | 8 GB | ~$0.07 | HISAT2 alignment (small samples) |
+| `n2-standard-4` | 4 | 16 GB | ~$0.19 | HISAT2 alignment (typical) |
+| `n2-highmem-4` | 4 | 32 GB | ~$0.26 | STAR alignment |
+| `n2-highmem-8` | 8 | 64 GB | ~$0.52 | STAR alignment (large samples) |
+
+*Prices as of 2024; actual costs vary by region. Spot/preemptible VMs are ~60–80% cheaper.
+
+**Estimated total costs per analysis:**
+- Small test run (2 samples, HISAT2): ~$1–5
+- Full analysis (10 samples, HISAT2): ~$10–30
+- Full analysis (10 samples, STAR): ~$30–100
+
+---
+
+## Prerequisites
+
+### 1. Google Cloud Account
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
+2. Create a Google Cloud account (if you don't have one)
+3. New users get **$300 free credits** for 90 days
+
+### 2. Create a Project
+
+```bash
+# Install Google Cloud CLI (if not already installed)
+# https://cloud.google.com/sdk/docs/install
+
+# Authenticate
+gcloud auth login
+
+# Create a new project (or use existing)
+gcloud projects create splice-neoepitope-project --name="Splice Neoepitope"
+
+# Set as active project
+gcloud config set project splice-neoepitope-project
+
+# Enable billing (required for Compute Engine)
+# Do this in the Cloud Console: https://console.cloud.google.com/billing
+```
+
+### 3. Enable Required APIs
+
+```bash
+gcloud services enable compute.googleapis.com
+gcloud services enable storage.googleapis.com
+```
+
+---
+
+## Option A: Compute Engine VM (Recommended)
+
+This is the simplest approach — create a Linux VM and run the pipeline as you
+would on any local machine.
+
+### Step 1: Create a VM Instance
+
+**Using Cloud Console (GUI):**
+
+1. Go to **Compute Engine** → **VM instances** → **Create Instance**
+2. Configure:
+   - **Name**: `splice-pipeline`
+   - **Region**: Choose closest to you (or `us-central1` for lowest cost)
+   - **Machine type**: 
+     - For HISAT2: `n2-standard-4` (4 vCPUs, 16 GB RAM) — ~$0.19/hr
+     - For STAR: `n2-highmem-4` (4 vCPUs, 32 GB RAM) — ~$0.26/hr
+   - **Boot disk**: 
+     - OS: Ubuntu 22.04 LTS
+     - Size: **100 GB** (or more for large datasets)
+     - Type: SSD persistent disk (for faster I/O)
+   - **Firewall**: Allow HTTP/HTTPS (optional, for downloading data)
+3. Click **Create**
+
+**Using gcloud CLI:**
+
+```bash
+# For HISAT2 (8 GB RAM sufficient, using 16 GB for comfort)
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-standard-4 \
+    --boot-disk-size=100GB \
+    --boot-disk-type=pd-ssd \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+
+# For STAR (32 GB RAM required)
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-highmem-4 \
+    --boot-disk-size=150GB \
+    --boot-disk-type=pd-ssd \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+```
+
+**💡 Cost-Saving Tip: Use Spot VMs**
+
+Spot (preemptible) VMs are ~60–80% cheaper but can be terminated with 30s notice:
+
+```bash
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-highmem-4 \
+    --boot-disk-size=150GB \
+    --boot-disk-type=pd-ssd \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud \
+    --provisioning-model=SPOT \
+    --instance-termination-action=STOP
+```
+
+### Step 2: Connect to the VM
+
+```bash
+gcloud compute ssh splice-pipeline --zone=us-central1-a
+```
+
+Or use the **SSH** button in the Cloud Console.
+
+### Step 3: Install Dependencies
+
+Once connected to the VM:
+
+```bash
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install required system packages
+sudo apt install -y git curl wget
+
+# Install Miniforge (conda)
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh -b -p $HOME/miniforge3
+rm Miniforge3-*.sh
+
+# Initialize conda
+~/miniforge3/bin/conda init bash
+source ~/.bashrc
+
+# Install Snakemake
+conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 -y
+```
+
+### Step 4: Clone and Configure the Pipeline
+
+```bash
+# Clone the repository
+git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
+cd splice-neoepitope-pipeline
+
+# Verify structure
+ls -la
+
+# Verify Snakemake
+snakemake --version
+```
+
+### Step 5: Upload Your Data
+
+**Option A: Upload from local machine using gcloud**
+
+```bash
+# From your LOCAL machine (not the VM):
+gcloud compute scp /path/to/your/sample_R1.fq.gz splice-pipeline:~/splice-neoepitope-pipeline/data/ --zone=us-central1-a
+gcloud compute scp /path/to/your/sample_R2.fq.gz splice-pipeline:~/splice-neoepitope-pipeline/data/ --zone=us-central1-a
+```
+
+**Option B: Download directly from SRA (recommended)**
+
+```bash
+# On the VM — install SRA Toolkit
+conda install -c bioconda sra-tools -y
+
+# Download example breast cancer RNA-Seq data
+mkdir -p data
+cd data
+
+# Download a small test sample (SRR1234567 is a placeholder — use real accession)
+# Example: SRR10971381 (breast cancer cell line, ~2 GB)
+fastq-dump --split-files --gzip SRR10971381
+
+# Rename to match expected format
+mv SRR10971381_1.fastq.gz tumor_01_R1.fq.gz
+mv SRR10971381_2.fastq.gz tumor_01_R2.fq.gz
+
+cd ..
+```
+
+**Option C: Use Google Cloud Storage**
+
+```bash
+# Create a bucket (from your local machine or Cloud Shell)
+gsutil mb gs://splice-pipeline-data
+
+# Upload data to bucket
+gsutil cp /path/to/your/*.fq.gz gs://splice-pipeline-data/
+
+# On the VM, download from bucket
+gsutil cp gs://splice-pipeline-data/*.fq.gz ~/splice-neoepitope-pipeline/data/
+```
+
+### Step 6: Configure samples.tsv
+
+```bash
+cd ~/splice-neoepitope-pipeline
+
+# Edit samples.tsv
+nano config/samples.tsv
+```
+
+Add your samples:
+```tsv
+sample_id	sample_type	fastq1	fastq2
+tumor_01	Primary Tumor	data/tumor_01_R1.fq.gz	data/tumor_01_R2.fq.gz
+normal_01	Solid Tissue Normal	data/normal_01_R1.fq.gz	data/normal_01_R2.fq.gz
+```
+
+### Step 7: Run the Pipeline
+
+```bash
+# Dry run first
+snakemake --cores 4 --use-conda -n
+
+# Full run (use all available cores)
+snakemake --cores $(nproc) --use-conda
+
+# Or run in background with logging
+nohup snakemake --cores $(nproc) --use-conda > pipeline.log 2>&1 &
+tail -f pipeline.log
+```
+
+### Step 8: Download Results
+
+```bash
+# From your LOCAL machine:
+gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
+```
+
+### Step 9: Stop/Delete the VM
+
+**Important: Stop your VM when not in use to avoid charges!**
+
+```bash
+# Stop (preserves disk, ~$5/month for 100 GB SSD)
+gcloud compute instances stop splice-pipeline --zone=us-central1-a
+
+# Start again later
+gcloud compute instances start splice-pipeline --zone=us-central1-a
+
+# Delete completely (when finished)
+gcloud compute instances delete splice-pipeline --zone=us-central1-a
+```
+
+---
+
+## Option B: Google Cloud Life Sciences API
+
+For automated batch processing without maintaining a VM. This approach submits
+the pipeline as a job that runs to completion.
+
+### Step 1: Enable Life Sciences API
+
+```bash
+gcloud services enable lifesciences.googleapis.com
+```
+
+### Step 2: Create a Snakemake Profile for GCP
+
+Create `~/.config/snakemake/gcp/config.yaml`:
+
+```yaml
+# Google Cloud Life Sciences profile
+executor: google-lifesciences
+google-lifesciences-region: us-central1
+default-resources:
+  - runtime=120  # minutes
+  - mem_mb=16000
+jobs: 50
+use-conda: true
+```
+
+### Step 3: Run with Life Sciences
+
+```bash
+# Set up Google credentials
+gcloud auth application-default login
+
+# Run pipeline
+snakemake --profile gcp --google-lifesciences-region us-central1
+```
+
+---
+
+## Option C: Google Batch
+
+Google Batch is the newer, more scalable option for large workloads.
+
+### Step 1: Enable Batch API
+
+```bash
+gcloud services enable batch.googleapis.com
+```
+
+### Step 2: Create Snakemake Profile
+
+Create `~/.config/snakemake/googlebatch/config.yaml`:
+
+```yaml
+executor: googlebatch
+googlebatch-region: us-central1
+googlebatch-project: splice-neoepitope-project
+default-resources:
+  - googlebatch_boot_disk_size=50
+  - googlebatch_machine_type=n2-standard-4
+use-conda: true
+```
+
+### Step 3: Run with Google Batch
+
+```bash
+snakemake --profile googlebatch
+```
+
+---
+
+## Data Transfer
+
+### Uploading Large Datasets
+
+For datasets > 10 GB, use `gsutil` with parallel uploads:
+
+```bash
+# Enable parallel composite uploads
+gsutil -o GSUtil:parallel_composite_upload_threshold=150M \
+    cp -r ./large_data_folder gs://your-bucket/
+```
+
+### Downloading from SRA on GCP
+
+The SRA maintains a mirror on Google Cloud for faster downloads:
+
+```bash
+# Use the GCP SRA mirror
+prefetch --location GCP SRR10971381
+```
+
+---
+
+## Troubleshooting
+
+### VM runs out of memory
+
+```bash
+# Check memory usage
+free -h
+
+# Solutions:
+# 1. Switch to HISAT2 (requires only 8 GB)
+# Edit config/config.yaml:
+#   local_samples:
+#     aligner: "hisat2"
+
+# 2. Use a larger machine type
+gcloud compute instances set-machine-type splice-pipeline \
+    --machine-type=n2-highmem-8 \
+    --zone=us-central1-a
+```
+
+### Pipeline crashes with "disk full"
+
+```bash
+# Check disk usage
+df -h
+
+# Resize disk (VM must be stopped first)
+gcloud compute instances stop splice-pipeline --zone=us-central1-a
+gcloud compute disks resize splice-pipeline --size=200GB --zone=us-central1-a
+gcloud compute instances start splice-pipeline --zone=us-central1-a
+```
+
+### SSH connection drops during long runs
+
+Use `tmux` or `screen` to keep sessions alive:
+
+```bash
+# Install tmux
+sudo apt install tmux
+
+# Start a tmux session
+tmux new -s pipeline
+
+# Run your pipeline
+snakemake --cores $(nproc) --use-conda
+
+# Detach: Ctrl+B, then D
+# Reattach later:
+tmux attach -t pipeline
+```
+
+### Spot VM was preempted
+
+Spot VMs can be terminated at any time. To handle this:
+
+1. Use Snakemake's built-in checkpointing (jobs restart from last checkpoint)
+2. Use regular VMs for the final/critical stages
+3. Save intermediate results to Cloud Storage periodically
+
+---
+
+## Quick Reference
+
+```bash
+# Create VM (HISAT2, 16 GB RAM)
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-standard-4 \
+    --boot-disk-size=100GB \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+
+# Connect
+gcloud compute ssh splice-pipeline --zone=us-central1-a
+
+# Stop (saves money, keeps disk)
+gcloud compute instances stop splice-pipeline --zone=us-central1-a
+
+# Start
+gcloud compute instances start splice-pipeline --zone=us-central1-a
+
+# Delete (removes everything)
+gcloud compute instances delete splice-pipeline --zone=us-central1-a
+
+# Transfer files TO VM
+gcloud compute scp localfile.txt splice-pipeline:~/path/ --zone=us-central1-a
+
+# Transfer files FROM VM
+gcloud compute scp splice-pipeline:~/path/file.txt ./ --zone=us-central1-a
+```
+
+---
+
+## Example: Full Workflow
+
+Here's a complete example from start to finish:
+
+```bash
+# 1. Create VM
+gcloud compute instances create splice-pipeline \
+    --zone=us-central1-a \
+    --machine-type=n2-standard-4 \
+    --boot-disk-size=100GB \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+
+# 2. Connect
+gcloud compute ssh splice-pipeline --zone=us-central1-a
+
+# 3. Setup (run on VM)
+sudo apt update && sudo apt install -y git curl
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
+bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
+rm Miniforge3-Linux-x86_64.sh
+~/miniforge3/bin/conda init bash
+source ~/.bashrc
+conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 -y
+conda install -c bioconda sra-tools -y
+
+# 4. Clone pipeline
+git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
+cd splice-neoepitope-pipeline
+
+# 5. Download test data from SRA
+mkdir -p data
+fastq-dump --split-files --gzip -O data SRR10971381
+mv data/SRR10971381_1.fastq.gz data/tumor_01_R1.fq.gz
+mv data/SRR10971381_2.fastq.gz data/tumor_01_R2.fq.gz
+
+# 6. Configure samples
+cat > config/samples.tsv << 'EOF'
+sample_id	sample_type	fastq1	fastq2
+tumor_01	Primary Tumor	data/tumor_01_R1.fq.gz	data/tumor_01_R2.fq.gz
+EOF
+
+# 7. Run pipeline
+snakemake --cores 4 --use-conda
+
+# 8. Exit VM (Ctrl+D or type 'exit')
+
+# 9. Download results (from LOCAL machine)
+gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./gcp_results/ --zone=us-central1-a
+
+# 10. Delete VM when done
+gcloud compute instances delete splice-pipeline --zone=us-central1-a
+```
+
+---
+
+## See Also
+
+- [Google Cloud Compute Engine Documentation](https://cloud.google.com/compute/docs)
+- [Snakemake Cloud Execution](https://snakemake.readthedocs.io/en/stable/executing/cloud.html)
+- [GCP Free Tier](https://cloud.google.com/free)
