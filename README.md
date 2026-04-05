@@ -268,7 +268,7 @@ local_samples:
 
 ```bash
 # Install SRA toolkit
-conda install -c conda-forge -c bioconda sra-tools
+conda install -c conda-forge -c bioconda sra-tools=3.1.1
 
 # Download example breast cancer RNA-Seq (SRR12345678 is a placeholder)
 fasterq-dump SRR12345678 --split-files --outdir data/

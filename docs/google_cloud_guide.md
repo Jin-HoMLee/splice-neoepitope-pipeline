@@ -209,21 +209,19 @@ gcloud compute scp /path/to/your/sample_R2.fq.gz splice-pipeline:~/splice-neoepi
 
 ```bash
 # On the VM — install SRA Toolkit
-conda install -c bioconda sra-tools -y
+# Note: use version 3.1.1; newer versions (3.4.x) have a segfault bug on GCP VMs
+conda install -c bioconda sra-tools=3.1.1 -y
 
 # Download example breast cancer RNA-Seq data
 mkdir -p data
-cd data
 
-# Download a small test sample (SRR1234567 is a placeholder — use real accession)
-# Example: SRR10971381 (breast cancer cell line, ~2 GB)
-fastq-dump --split-files --gzip SRR10971381
+# Download a sample (replace SRR10971381 with your accession)
+# Example: SRR37781424 (Luminal A breast cancer tumor, ~3.3 GB SRA)
+fasterq-dump SRR10971381 --split-files --outdir data/
 
 # Rename to match expected format
-mv SRR10971381_1.fastq.gz tumor_01_R1.fq.gz
-mv SRR10971381_2.fastq.gz tumor_01_R2.fq.gz
-
-cd ..
+mv data/SRR10971381_1.fastq data/tumor_01_R1.fastq
+mv data/SRR10971381_2.fastq data/tumor_01_R2.fastq
 ```
 
 **Option C: Use Google Cloud Storage**
@@ -251,8 +249,8 @@ nano config/samples.tsv
 Add your samples:
 ```tsv
 sample_id	sample_type	fastq1	fastq2
-tumor_01	Primary Tumor	data/tumor_01_R1.fq.gz	data/tumor_01_R2.fq.gz
-normal_01	Solid Tissue Normal	data/normal_01_R1.fq.gz	data/normal_01_R2.fq.gz
+tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
+normal_01	Solid Tissue Normal	data/normal_01_R1.fastq	data/normal_01_R2.fastq
 ```
 
 ### Step 7: Run the Pipeline
@@ -503,7 +501,7 @@ rm Miniforge3-Linux-x86_64.sh
 ~/miniforge3/bin/conda init bash
 source ~/.bashrc
 conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 -y
-conda install -c bioconda sra-tools -y
+conda install -c bioconda sra-tools=3.1.1 -y
 
 # 4. Clone pipeline
 git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
@@ -511,9 +509,9 @@ cd splice-neoepitope-pipeline
 
 # 5. Download test data from SRA
 mkdir -p data
-fastq-dump --split-files --gzip -O data SRR10971381
-mv data/SRR10971381_1.fastq.gz data/tumor_01_R1.fq.gz
-mv data/SRR10971381_2.fastq.gz data/tumor_01_R2.fq.gz
+fasterq-dump SRR10971381 --split-files --outdir data/
+mv data/SRR10971381_1.fastq data/tumor_01_R1.fastq
+mv data/SRR10971381_2.fastq data/tumor_01_R2.fastq
 
 # 6. Configure samples
 cat > config/samples.tsv << 'EOF'

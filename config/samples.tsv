@@ -18,4 +18,4 @@ sample_id	sample_type	fastq1	fastq2
 # tumor_sample_03	Primary Tumor	data/tumor_03.fastq.gz	
 # normal_sample_02	Solid Tissue Normal	data/normal_02.fastq.gz	
 
-SRR12345678	Primary Tumor	data/SRR12345678_1.fastq	data/SRR12345678_2.fastq
+SRR37781424	Primary Tumor	data/SRR37781424_1.fastq	data/SRR37781424_2.fastq
