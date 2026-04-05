@@ -177,8 +177,8 @@ rm Miniforge3-*.sh
 ~/miniforge3/bin/conda init bash
 source ~/.bashrc
 
-# Install Snakemake
-conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 -y
+# Install Snakemake and samtools
+conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 samtools -y
 ```
 
 ### Step 4: Clone and Configure the Pipeline
@@ -195,7 +195,28 @@ ls -la
 snakemake --version
 ```
 
-### Step 5: Upload Your Data
+### Step 5: Download Reference Files
+
+Download the GRCh38 genome and GENCODE annotation into the `resources/` directory.
+These files are required before running the pipeline (~3.1 GB uncompressed + 57 MB).
+
+```bash
+cd ~/splice-neoepitope-pipeline/resources
+
+# Download GENCODE v47 GTF annotation (~57 MB)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz
+
+# Download GRCh38 primary assembly genome (~840 MB compressed, ~3.1 GB uncompressed)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz
+gunzip GRCh38.primary_assembly.genome.fa.gz
+
+# Index the genome (required by bedtools getfasta in the assembly step)
+samtools faidx GRCh38.primary_assembly.genome.fa
+
+cd ..
+```
+
+### Step 6: Upload Your Data
 
 **Option A: Upload from local machine using gcloud**
 
@@ -237,7 +258,7 @@ gsutil cp /path/to/your/*.fq.gz gs://splice-pipeline-data/
 gsutil cp gs://splice-pipeline-data/*.fq.gz ~/splice-neoepitope-pipeline/data/
 ```
 
-### Step 6: Configure samples.tsv
+### Step 7: Configure samples.tsv
 
 ```bash
 cd ~/splice-neoepitope-pipeline
@@ -253,7 +274,7 @@ tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
 normal_01	Solid Tissue Normal	data/normal_01_R1.fastq	data/normal_01_R2.fastq
 ```
 
-### Step 7: Run the Pipeline
+### Step 8: Run the Pipeline
 
 ```bash
 # Dry run first
@@ -267,14 +288,14 @@ nohup snakemake --cores $(nproc) --use-conda > pipeline.log 2>&1 &
 tail -f pipeline.log
 ```
 
-### Step 8: Download Results
+### Step 9: Download Results
 
 ```bash
 # From your LOCAL machine:
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
 ```
 
-### Step 9: Stop/Delete the VM
+### Step 10: Stop/Delete the VM
 
 **Important: Stop your VM when not in use to avoid charges!**
 
@@ -494,40 +515,48 @@ gcloud compute instances create splice-pipeline \
 gcloud compute ssh splice-pipeline --zone=us-central1-a
 
 # 3. Setup (run on VM)
-sudo apt update && sudo apt install -y git curl
+sudo apt update && sudo apt install -y git curl wget
 curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
 bash Miniforge3-Linux-x86_64.sh -b -p $HOME/miniforge3
 rm Miniforge3-Linux-x86_64.sh
 ~/miniforge3/bin/conda init bash
 source ~/.bashrc
-conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 -y
+conda install -n base -c conda-forge -c bioconda "snakemake>=7.0,<9" python=3.11 samtools -y
 conda install -c bioconda sra-tools=3.1.1 -y
 
 # 4. Clone pipeline
 git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
 cd splice-neoepitope-pipeline
 
-# 5. Download test data from SRA
+# 5. Download reference files
+cd resources
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz
+gunzip GRCh38.primary_assembly.genome.fa.gz
+samtools faidx GRCh38.primary_assembly.genome.fa
+cd ..
+
+# 6. Download RNA-Seq data from SRA
 mkdir -p data
 fasterq-dump SRR10971381 --split-files --outdir data/
 mv data/SRR10971381_1.fastq data/tumor_01_R1.fastq
 mv data/SRR10971381_2.fastq data/tumor_01_R2.fastq
 
-# 6. Configure samples
+# 7. Configure samples
 cat > config/samples.tsv << 'EOF'
 sample_id	sample_type	fastq1	fastq2
-tumor_01	Primary Tumor	data/tumor_01_R1.fq.gz	data/tumor_01_R2.fq.gz
+tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
 EOF
 
-# 7. Run pipeline
+# 8. Run pipeline
 snakemake --cores 4 --use-conda
 
-# 8. Exit VM (Ctrl+D or type 'exit')
+# 9. Exit VM (Ctrl+D or type 'exit')
 
-# 9. Download results (from LOCAL machine)
+# 10. Download results (from LOCAL machine)
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./gcp_results/ --zone=us-central1-a
 
-# 10. Delete VM when done
+# 11. Delete VM when done
 gcloud compute instances delete splice-pipeline --zone=us-central1-a
 ```
 
