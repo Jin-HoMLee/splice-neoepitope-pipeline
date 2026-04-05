@@ -28,13 +28,13 @@ Active branch: `copilot/modernize-cancer-neoepitope-pipeline`
 `workflow/scripts/assemble_contigs.py` imports `pandas` but it was not listed in `workflow/envs/biotools.yaml`.
 **Fix:** added `pandas >= 2.0` to `workflow/envs/biotools.yaml`.
 
-### 4. `statistical_analysis.py` — sample_type NaN in local mode
-In the `else` branch (local mode / no normal samples), the script merged `source_header` against `manifest["file_id"]` — these never match because `source_header` is a full `junc_id|coords|sample_type|frame` string. `sample_type` stayed NaN (float), crashing `generate_report.py` on `.str.contains()`.
-**Fix:** parse `sample_type` directly from the 3rd pipe-separated field of `source_header` in `workflow/scripts/statistical_analysis.py`.
-
 ### 3. `run_mhcflurry.py` — mhcflurry 2.2.0 API change
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array of affinities instead of a DataFrame. Column names also changed: `mhcflurry_affinity` → `prediction`, `mhcflurry_affinity_percentile` → `prediction_percentile`.
 **Fix:** switched to `predict_to_dataframe()` (returns a proper DataFrame with percentile ranks) and updated column name references in `workflow/scripts/run_mhcflurry.py`.
+
+### 4. `statistical_analysis.py` — sample_type NaN in local mode
+In the `else` branch (local mode / no normal samples), the script merged `source_header` against `manifest["file_id"]` — these never match because `source_header` is a full `junc_id|coords|sample_type|frame` string. `sample_type` stayed NaN (float), crashing `generate_report.py` on `.str.contains()`.
+**Fix:** parse `sample_type` directly from the 3rd pipe-separated field of `source_header` in `workflow/scripts/statistical_analysis.py`.
 
 ## auto_stop.sh
 Shuts down the VM after the pipeline finishes (success or error) to save costs.

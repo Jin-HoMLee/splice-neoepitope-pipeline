@@ -217,3 +217,10 @@ data/
 
 # Snakemake
 .snakemake/
+# Pipeline outputs
+results/
+resources/mhcflurry_models.done
+
+# Logs
+pipeline.log
+auto_stop.log
