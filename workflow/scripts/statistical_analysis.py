@@ -205,13 +205,11 @@ def analyse_cancer_type(
     if cancer_type in cancer_types_with_normal:
         result = _fisher_test_tumour_vs_normal(per_sample, manifest_df)
     else:
-        result = per_sample.merge(
-            manifest_df[["file_id", "sample_type"]],
-            left_on="source_header",
-            right_on="file_id",
-            how="left",
+        result = per_sample.copy()
+        # source_header format: junc_id|coords|sample_type|frame
+        result["sample_type"] = (
+            result["source_header"].str.split("|").str[2].fillna("Unknown")
         )
-        result["sample_type"]      = result.get("sample_type", "Unknown")
         result["fisher_pvalue"]    = np.nan
         result["fisher_oddsratio"] = np.nan
 
