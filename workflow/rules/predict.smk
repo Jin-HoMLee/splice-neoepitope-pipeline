@@ -2,6 +2,20 @@
 # Rule module: Step 5 — Epitope prediction with MHCflurry 2.x
 # =============================================================================
 
+rule download_mhcflurry_models:
+    """Download MHCflurry trained models (~1 GB) on first run.
+    Models are cached in ~/.local/share/mhcflurry/ and reused across runs.
+    A sentinel file is written to resources/ to prevent re-downloading."""
+    output:
+        sentinel=touch("resources/mhcflurry_models.done"),
+    log:
+        os.path.join(OUT["logs"], "predict", "mhcflurry_downloads.log"),
+    conda:
+        "../envs/python.yaml"
+    shell:
+        "mhcflurry-downloads fetch > {log} 2>&1"
+
+
 rule run_mhcflurry:
     """Run MHCflurry 2.x on the 16-mer peptides FASTA.
     MHCflurry slides a 9-mer window across each peptide internally.
@@ -9,6 +23,7 @@ rule run_mhcflurry:
             binder_class (strong / weak / non)."""
     input:
         peptides_fasta=rules.translate_peptides.output.peptides_fasta,
+        mhcflurry_models=rules.download_mhcflurry_models.output.sentinel,
     output:
         predictions_tsv=os.path.join(
             OUT["predictions"], "{cancer_type}", "predictions.tsv"
