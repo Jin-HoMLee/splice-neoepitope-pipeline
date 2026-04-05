@@ -276,17 +276,23 @@ normal_01	Solid Tissue Normal	data/normal_01_R1.fastq	data/normal_01_R2.fastq
 
 ### Step 8: Run the Pipeline
 
+The pipeline takes several hours. Use `tmux` so it keeps running if your SSH connection drops:
+
 ```bash
-# Dry run first
+# Start a tmux session
+tmux new -s pipeline
+
+# Inside tmux: dry run first
 snakemake --cores 4 --use-conda -n
 
-# Full run (use all available cores)
-snakemake --cores $(nproc) --use-conda
-
-# Or run in background with logging
-nohup snakemake --cores $(nproc) --use-conda > pipeline.log 2>&1 &
-tail -f pipeline.log
+# Inside tmux: full run with logging
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 ```
+
+To detach from tmux without stopping the pipeline: press `Ctrl+B`, then `D`.
+To reattach after reconnecting via SSH: `tmux attach -t pipeline`
+
+> **Why tmux instead of nohup?** With `nohup`, you lose visibility into the running pipeline after disconnecting. With `tmux`, you can reattach at any time and see live output.
 
 ### Step 9: Download Results
 

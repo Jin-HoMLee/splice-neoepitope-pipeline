@@ -158,7 +158,10 @@ def _run_mhcflurry_predictions(
     # Run predictions in batches for efficiency
     log.info("Running MHCflurry predictions for %d peptides...", len(peptides))
 
-    results = predictor.predict(
+    # predict_to_dataframe() returns a DataFrame with columns:
+    # peptide, allele, prediction, prediction_low, prediction_high, prediction_percentile
+    # (mhcflurry 2.2.x renamed mhcflurry_affinity → prediction)
+    results = predictor.predict_to_dataframe(
         peptides=peptides,
         alleles=[mhcflurry_allele] * len(peptides),
     )
@@ -233,8 +236,8 @@ def run_prediction(
     for _, row in predictions_df.iterrows():
         pep = row["peptide"]
         peptide_to_prediction[pep] = {
-            "ic50_nM": row["mhcflurry_affinity"],
-            "percentile_rank": row.get("mhcflurry_affinity_percentile", float("nan")),
+            "ic50_nM": row["prediction"],
+            "percentile_rank": row.get("prediction_percentile", float("nan")),
         }
 
     # Step 4: Build output records

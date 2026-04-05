@@ -5,7 +5,8 @@ channels:
   - defaults
 dependencies:
   - hisat2 >=2.2.1
-  - samtools >=1.18
-  - python >=3.11
+  - python >=3.11,<3.13
   - pandas
   - regtools >=1.0.0
+  # samtools intentionally omitted — conflicts with regtools via libdeflate version;
+  # samtools from the base conda env is used instead (installed during setup)
