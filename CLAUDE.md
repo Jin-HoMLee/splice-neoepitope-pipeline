@@ -32,6 +32,17 @@ Active branch: `copilot/modernize-cancer-neoepitope-pipeline`
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array of affinities instead of a DataFrame. Column names also changed: `mhcflurry_affinity` → `prediction`, `mhcflurry_affinity_percentile` → `prediction_percentile`.
 **Fix:** switched to `predict_to_dataframe()` (returns a proper DataFrame with percentile ranks) and updated column name references in `workflow/scripts/run_mhcflurry.py`.
 
+## auto_stop.sh
+Shuts down the VM after the pipeline finishes (success or error) to save costs.
+Uses `sudo shutdown -h now` — **not** `gcloud compute instances stop`, which fails with
+`ACCESS_TOKEN_SCOPE_INSUFFICIENT` because the VM service account lacks the compute API scope.
+Guest-initiated OS shutdown stops the instance without triggering automatic restart.
+
+Run as:
+```bash
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+```
+
 ## sra-tools Note
 Use version `3.1.1` — newer versions (3.4.x) have a segfault bug on GCP VMs.
 ```
