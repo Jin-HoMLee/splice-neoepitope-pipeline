@@ -45,17 +45,6 @@ CANCER_TYPES = config["cancer_types"]
 OUT          = config["output"]
 ALIGNER      = config.get("local_samples", {}).get("aligner", "star")
 
-# ── include rule modules ─────────────────────────────────────────────────────
-include: "workflow/rules/download.smk"
-include: "workflow/rules/local_alignment.smk"
-include: "workflow/rules/hisat2_alignment.smk"
-include: "workflow/rules/filter.smk"
-include: "workflow/rules/assemble.smk"
-include: "workflow/rules/translate.smk"
-include: "workflow/rules/predict.smk"
-include: "workflow/rules/analysis.smk"
-
-
 # ── helper functions for data source switching ───────────────────────────────
 
 def get_local_sample_ids():
@@ -77,6 +66,17 @@ def get_data_types():
         return ["local"]
     else:
         return CANCER_TYPES
+
+
+# ── include rule modules ─────────────────────────────────────────────────────
+include: "workflow/rules/download.smk"
+include: "workflow/rules/local_alignment.smk"
+include: "workflow/rules/hisat2_alignment.smk"
+include: "workflow/rules/filter.smk"
+include: "workflow/rules/assemble.smk"
+include: "workflow/rules/translate.smk"
+include: "workflow/rules/predict.smk"
+include: "workflow/rules/analysis.smk"
 
 
 # ── final target ─────────────────────────────────────────────────────────────

@@ -54,7 +54,7 @@ rule summarise_all:
     input:
         stats=expand(
             os.path.join(OUT["analysis"], "{cancer_type}", "statistics.tsv"),
-            cancer_type=CANCER_TYPES,
+            cancer_type=get_data_types(),
         ),
     output:
         summary=os.path.join(OUT["reports"], "summary_table.tsv"),
