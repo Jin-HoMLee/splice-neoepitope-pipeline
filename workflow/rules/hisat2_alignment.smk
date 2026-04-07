@@ -25,26 +25,32 @@ import os
 # Only define these rules if local_samples config exists and aligner is hisat2
 if config.get("local_samples") and config.get("local_samples", {}).get("aligner", "star") == "hisat2":
 
+    # Configurable index directory — allows test (chr22) and production (full genome)
+    # to maintain separate indices without overwriting each other.
+    # Override via config: local_samples.hisat2_index_dir: "resources/test/hisat2_index"
+    _HISAT2_INDEX_DIR = config.get("local_samples", {}).get("hisat2_index_dir", "resources/hisat2_index")
+
     rule hisat2_index:
         """Build HISAT2 genome index for local alignment.
-        
+
         This rule only runs once; the index is reused for all samples.
-        HISAT2 index generation requires ~8 GB RAM for the human genome.
+        HISAT2 index generation requires ~8 GB RAM for the full human genome,
+        or ~1 GB for a single-chromosome test reference (e.g. chr22).
         """
         input:
             genome=config["reference"]["genome_fasta"],
         output:
-            index_dir=directory("resources/hisat2_index"),
-            done=touch("resources/hisat2_index/index.done"),
+            index_dir=directory(_HISAT2_INDEX_DIR),
+            done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
         log:
             os.path.join(OUT["logs"], "hisat2", "hisat2_index.log"),
         threads: 8
         resources:
-            mem_mb=8000,  # HISAT2 needs only ~8 GB for human genome indexing
+            mem_mb=8000,
         conda:
             "../envs/hisat2.yaml"
         params:
-            index_prefix="resources/hisat2_index/genome",
+            index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         shell:
             """
             mkdir -p {output.index_dir}
@@ -96,8 +102,8 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
         Uses regtools to extract junctions from the BAM file.
         """
         input:
-            index_dir="resources/hisat2_index",
-            index_done="resources/hisat2_index/index.done",
+            index_dir=_HISAT2_INDEX_DIR,
+            index_done=os.path.join(_HISAT2_INDEX_DIR, "index.done"),
             fastq1=get_fastq1_hisat2,
             fastq2=get_fastq2_hisat2,
         output:
@@ -106,7 +112,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
         log:
             os.path.join(OUT["logs"], "hisat2", "{sample}_align.log"),
         params:
-            index_prefix="resources/hisat2_index/genome",
+            index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
             output_prefix=lambda w: os.path.join(OUT["raw_data"], "local", "files", f"{w.sample}"),
         threads: 8
         resources:
