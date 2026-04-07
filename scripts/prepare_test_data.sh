@@ -7,7 +7,7 @@
 # What this downloads:
 #   1. chr22 FASTA         — UCSC hg38 (~52 MB uncompressed)
 #   2. chr22 GTF           — GENCODE v47 basic, stream-filtered to chr22 (~400 MB download)
-#   3. Test FASTQs         — 500K read pairs from SRR37781424 via ENA (no sra-tools needed)
+#   3. Test FASTQs         — 500K read pairs from ERR188273 via ENA (no sra-tools needed)
 #
 # Runtime: 15–30 min depending on connection speed (GTF download dominates).
 #
