@@ -93,10 +93,15 @@ else
     curl -L --progress-bar "$R2_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_tumor_R2.fastq.gz"
     set -o pipefail
 
-    if [[ ! -f "$DATA/test_tumor_R1.fastq.gz" || ! -f "$DATA/test_tumor_R2.fastq.gz" ]]; then
-        echo "ERROR: one or both FASTQ files are missing after download." >&2
-        exit 1
-    fi
+    # Check both files exist and are non-empty
+    # (gzip -t is intentionally omitted: head closes the pipe before gzip can
+    # write its end-of-file marker, producing a truncated-but-readable archive)
+    for f in "$DATA/test_tumor_R1.fastq.gz" "$DATA/test_tumor_R2.fastq.gz"; do
+        if [[ ! -s "$f" ]]; then
+            echo "ERROR: $f is missing or empty after download." >&2
+            exit 1
+        fi
+    done
     echo "    Saved: $DATA/test_tumor_R1.fastq.gz and $DATA/test_tumor_R2.fastq.gz"
 fi
 
