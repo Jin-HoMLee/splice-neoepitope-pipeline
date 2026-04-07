@@ -18,15 +18,16 @@ RNA-Seq.
 4. [Data Source Options](#data-source-options)
    - [Option A: Local Alignment (Recommended)](#option-a-local-alignment-recommended---no-institutional-access-required)
    - [Option B: Cloud-Based Execution (Google Cloud)](#option-b-cloud-based-alignment-for-users-without-local-resources)
-   - [Option C: GDC Download](#option-b-gdc-download-requires-institutional-access)
+   - [Option C: GDC Download](#option-c-gdc-download-requires-institutional-access)
 5. [MHCflurry](#mhcflurry-epitope-predictor)
 6. [Reference Data](#reference-data)
-7. [Running the Pipeline](#running-the-pipeline)
-8. [Configuration](#configuration)
-9. [Output Description](#output-description)
-10. [Modernisation Changelog](#modernisation-changelog)
-11. [Project Structure](#project-structure)
-12. [Citation](#citation)
+7. [Local Testing (chr22 subset)](#local-testing-chr22-subset)
+8. [Running the Pipeline](#running-the-pipeline)
+9. [Configuration](#configuration)
+10. [Output Description](#output-description)
+11. [Modernisation Changelog](#modernisation-changelog)
+12. [Project Structure](#project-structure)
+13. [Citation](#citation)
 
 ---
 
@@ -243,30 +244,30 @@ local_samples:
 | **ENCODE** | https://www.encodeproject.org | High-quality RNA-Seq from cell lines |
 | **GTEx** | https://gtexportal.org | Normal tissue RNA-Seq (open access) |
 
-**Example: Download SRA data with `fasterq-dump`:**
+**Downloading public RNA-Seq data:**
+
+ENA (European Nucleotide Archive) provides direct HTTPS access to FASTQ files
+and is the most reliable option, especially on macOS:
 
 ```bash
-# Install SRA toolkit
-conda install -c conda-forge -c bioconda sra-tools=3.1.1
-
-# Download example breast cancer RNA-Seq (SRR12345678 is a placeholder)
-fasterq-dump SRR12345678 --split-files --outdir data/
-
-# This creates:
-#   data/SRR12345678_1.fastq
-#   data/SRR12345678_2.fastq
+# Stream from ENA — no extra tools needed, works on all platforms
+# Replace ERR188273 with your accession; adjust the FTP path accordingly
+curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR188/ERR188273/ERR188273_1.fastq.gz" \
+    -o data/sample_R1.fastq.gz
+curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR188/ERR188273/ERR188273_2.fastq.gz" \
+    -o data/sample_R2.fastq.gz
 ```
 
-**Example datasets for testing:**
+Alternatively, use `fasterq-dump` from sra-tools if you already have it
+installed (note: conda installation of sra-tools can be unreliable on macOS
+arm64 — ENA download is preferred in that case):
 
-| Accession | Description | Sample Type |
-|-----------|-------------|-------------|
-| SRP064305 | TCGA-BRCA-adjacent (public) | Breast cancer |
-| SRP066790 | Lung adenocarcinoma cell lines | Lung cancer |
-| SRP055401 | AML cell lines | Leukemia |
+```bash
+fasterq-dump SRR12345678 --split-files --outdir data/
+```
 
 > **Tip**: Search GEO for `"RNA-Seq" AND "cancer" AND "Homo sapiens"` to find
-> publicly available cancer RNA-Seq datasets.
+> publicly available cancer RNA-Seq datasets. Check ENA for direct FASTQ URLs.
 
 #### Step 3: Create Sample Manifest
 
@@ -470,6 +471,37 @@ generated automatically by the pipeline.
 
 ---
 
+## Local Testing (chr22 subset)
+
+Before running a full analysis, you can smoke-test the pipeline end-to-end
+using a tiny chr22-only reference and a small FASTQ subset.  The test runs in
+~2 minutes on a MacBook Air M1 (8 GB RAM) and exercises every pipeline step.
+
+### Step 1: Download test data (one-time setup, ~15–30 min)
+
+```bash
+bash scripts/prepare_test_data.sh
+```
+
+This downloads:
+- chr22 FASTA from UCSC hg38 (~52 MB)
+- GENCODE v47 GTF filtered to chr22 (streamed, no full file stored)
+- 500K read pairs from ERR188273 via ENA HTTPS (no sra-tools needed)
+
+### Step 2: Run the test pipeline
+
+```bash
+conda activate snakemake
+snakemake --cores 4 --use-conda --configfile config/test_config.yaml
+```
+
+Expected output: ~400 novel junctions → ~940 peptides → ~80 strong MHC binders.
+
+> **Note**: Only reads mapping to chr22 are used, so junction counts are much
+> lower than a full-genome run — this is expected.
+
+---
+
 ## Running the Pipeline
 
 ### Dry run (check the DAG without executing)
@@ -589,30 +621,41 @@ splice-neoepitope-pipeline/
 ├── LICENSE
 ├── .gitignore
 ├── Snakefile                         # Main Snakemake workflow
+├── auto_stop.sh                      # VM shutdown after pipeline completes (GCP)
 ├── config/
-│   └── config.yaml                   # All configurable parameters
+│   ├── config.yaml                   # Production configuration
+│   ├── samples.tsv                   # Sample manifest (production)
+│   ├── test_config.yaml              # chr22 test configuration (local testing)
+│   └── test_samples.tsv              # Sample manifest for test run
+├── scripts/
+│   └── prepare_test_data.sh          # One-time setup: download chr22 test data
 ├── workflow/
 │   ├── rules/
-│   │   ├── download.smk              # Step 1: GDC data download
+│   │   ├── download.smk              # Step 1a: GDC data download
+│   │   ├── local_alignment.smk       # Step 1b: STAR local alignment
+│   │   ├── hisat2_alignment.smk      # Step 1b: HISAT2 local alignment
 │   │   ├── filter.smk                # Step 2: Novel junction filtering
 │   │   ├── assemble.smk              # Step 3: Contig assembly
 │   │   ├── translate.smk             # Step 4: Peptide translation
 │   │   ├── predict.smk               # Step 5: MHCflurry prediction
 │   │   └── analysis.smk              # Step 6: Statistics + reports
 │   ├── envs/
-│   │   ├── biotools.yaml             # bedtools, samtools, pysam
-│   │   └── python.yaml               # Python, biopython, mhcflurry, pandas, scipy, ...
+│   │   ├── hisat2.yaml               # hisat2, samtools, regtools
+│   │   ├── biotools.yaml             # bedtools, biopython, pandas
+│   │   ├── star.yaml                 # STAR aligner
+│   │   └── python.yaml               # mhcflurry, pandas, scipy, ...
 │   └── scripts/
 │       ├── download_gdc_data.py      # GDC API download
 │       ├── filter_junctions.py       # Novel junction filtering
 │       ├── build_reference_junctions.py  # GENCODE reference junction list
 │       ├── assemble_contigs.py       # 50 nt contig assembly
-│       ├── translate_peptides.py     # In-silico translation (modern Biopython)
+│       ├── translate_peptides.py     # In-silico translation
 │       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
 │       ├── statistical_analysis.py   # Fisher's exact test + summary stats
 │       └── generate_report.py        # HTML report generation
 ├── docs/
-│   └── modernization_notes.md        # Detailed change log
+│   ├── modernization_notes.md        # Detailed change log
+│   └── google_cloud_guide.md         # GCP setup and cost guide
 └── resources/
     └── README.md                     # Instructions for reference data
 ```

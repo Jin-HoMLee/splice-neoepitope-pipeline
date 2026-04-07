@@ -1,0 +1,2 @@
+sample_id	sample_type	fastq1	fastq2
+test_tumor	Primary Tumor	data/test/test_tumor_R1.fastq.gz	data/test/test_tumor_R2.fastq.gz

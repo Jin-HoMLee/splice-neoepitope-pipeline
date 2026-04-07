@@ -1,0 +1,71 @@
+# ============================================================
+# Splice Neoepitope Pipeline — Test Configuration (chr22)
+# ============================================================
+#
+# Minimal configuration for local development and testing on macOS.
+# Uses chr22 only: ~52 MB FASTA, ~1 GB HISAT2 index, fast builds.
+#
+# Usage:
+#   snakemake --cores 4 --use-conda --configfile config/test_config.yaml
+#
+# Prepare test data first (one-time setup):
+#   bash scripts/prepare_test_data.sh
+# ============================================================
+
+data_source: "local"
+
+local_samples:
+  samples_tsv: "config/test_samples.tsv"
+  aligner: "hisat2"
+  hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
+
+reference:
+  genome: "GRCh38_chr22"
+  genome_fasta: "resources/test/chr22.fa"
+  gencode_gtf:  "resources/test/chr22.gtf.gz"
+  junction_bed: "resources/test/chr22_reference_junctions.bed"
+
+# All other parameters (assembly, translation, mhcflurry, filtering) are
+# inherited unchanged from the defaults in config.yaml.
+assembly:
+  upstream_nt:   26
+  downstream_nt: 24
+  contig_length: 50
+
+translation:
+  peptide_length: 16
+  reading_frames:
+    - 0
+    - 1
+    - 2
+
+mhcflurry:
+  hla_allele: "HLA-A*02:01"
+  peptide_length: 9
+  ic50_strong:  50
+  ic50_weak:   500
+  prediction_mode: "affinity"
+
+filtering:
+  strategy: "mean"
+
+cancer_types:
+  - local
+
+cancer_types_with_normal: []
+
+gdc:
+  files_endpoint: "https://api.gdc.cancer.gov/files"
+  data_endpoint:  "https://api.gdc.cancer.gov/data"
+  max_files_per_project: null
+  token_file: null
+
+output:
+  raw_data:     "results/test/raw_data"
+  junctions:    "results/test/junctions"
+  contigs:      "results/test/contigs"
+  peptides:     "results/test/peptides"
+  predictions:  "results/test/predictions"
+  analysis:     "results/test/analysis"
+  reports:      "results/test/reports"
+  logs:         "logs/test"

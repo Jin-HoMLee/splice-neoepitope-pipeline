@@ -294,6 +294,19 @@ To reattach after reconnecting via SSH: `tmux attach -t pipeline`
 
 > **Why tmux instead of nohup?** With `nohup`, you lose visibility into the running pipeline after disconnecting. With `tmux`, you can reattach at any time and see live output.
 
+**Tip: auto-shutdown to save costs**
+
+`auto_stop.sh` shuts down the VM automatically once the pipeline finishes
+(whether it succeeds or errors), so you don't get charged for idle time:
+
+```bash
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+```
+
+> **Note**: `auto_stop.sh` uses `sudo shutdown -h now` (OS-initiated shutdown),
+> not `gcloud compute instances stop`. The VM service account does not have the
+> Compute API scope needed for `gcloud` commands from inside the VM.
+
 ### Step 9: Download Results
 
 ```bash
@@ -554,8 +567,8 @@ sample_id	sample_type	fastq1	fastq2
 tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
 EOF
 
-# 8. Run pipeline
-snakemake --cores 4 --use-conda
+# 8. Run pipeline (auto-shuts down VM when done to save costs)
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
 
 # 9. Exit VM (Ctrl+D or type 'exit')
 
