@@ -123,14 +123,14 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
             """
             # Create output directory
             mkdir -p $(dirname {output.junctions})
-            
+
             # Determine if paired-end
             if [[ -n "{input.fastq2}" ]]; then
                 FASTQ_ARGS="-1 {input.fastq1} -2 {input.fastq2}"
             else
                 FASTQ_ARGS="-U {input.fastq1}"
             fi
-            
+
             # Run HISAT2 alignment and pipe to BAM
             hisat2 \\
                 -p {threads} \\
@@ -138,7 +138,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
                 $FASTQ_ARGS \\
                 2>> {log} | \\
                 samtools sort -@ {threads} -o {params.output_prefix}.bam - 2>> {log}
-            
+
             # Index the BAM
             samtools index {params.output_prefix}.bam 2>> {log}
             
@@ -148,8 +148,8 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
                 -a 8 \\
                 -m 50 \\
                 -M 500000 \\
-                {params.output_prefix}.bam \\
                 -o {params.output_prefix}_junctions.bed \\
+                {params.output_prefix}.bam \\
                 2>> {log}
             
             # Convert regtools BED to pipeline format

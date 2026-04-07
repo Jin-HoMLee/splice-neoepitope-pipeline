@@ -213,6 +213,7 @@ resources/*.gtf
 resources/*.gtf.*
 resources/*.bed
 resources/hisat2_index/
+resources/test/
 data/
 
 # Snakemake
