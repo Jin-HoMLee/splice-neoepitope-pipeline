@@ -1,0 +1,11 @@
+name: splice-neoepitope-biotools
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bedtools >=2.31
+  - pandas >=2.0
+  - python >=3.11,<3.13
+  # samtools and pysam removed — not used by any script in this env;
+  # samtools from the base conda env is available via PATH if needed

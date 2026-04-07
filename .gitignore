@@ -205,3 +205,22 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Ignore large data files
+resources/*.fa
+resources/*.fa.*
+resources/*.gtf
+resources/*.gtf.*
+resources/*.bed
+resources/hisat2_index/
+data/
+
+# Snakemake
+.snakemake/
+# Pipeline outputs
+results/
+resources/mhcflurry_models.done
+
+# Logs
+pipeline.log
+auto_stop.log
