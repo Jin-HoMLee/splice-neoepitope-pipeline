@@ -7,7 +7,8 @@
 # What this downloads:
 #   1. chr22 FASTA         — UCSC hg38 (~52 MB uncompressed)
 #   2. chr22 GTF           — GENCODE v47 basic, stream-filtered to chr22 (~400 MB download)
-#   3. Test FASTQs         — 500K read pairs from ERR188273 via ENA (no sra-tools needed)
+#   3. Test FASTQs         — 500K reads each from a matched gastric cancer tumor/normal pair
+#                            (SRR9143066 tumor, SRR9143065 normal) via ENA HTTPS
 #
 # Runtime: 15–30 min depending on connection speed (GTF download dominates).
 #
@@ -52,57 +53,52 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Test FASTQs — 500K read pairs from ERR188273 via ENA
+# 3. Test FASTQs — matched gastric cancer tumor/normal pair via ENA
 # ---------------------------------------------------------------------------
-# ERR188273 is a GEUVADIS paired-end human RNA-Seq sample (LCL NA06985),
-# used in the original HISAT2 paper and reliably available on ENA.
-# We use it instead of SRR37781424 because ENA may not yet mirror very recent
-# SRR accessions. The specific sample doesn't matter for a functional test —
-# any human paired-end RNA-Seq will produce chr22 reads.
+# SRR9143066: gastric cancer surgical section (Primary Tumor)
+# SRR9143065: normal stomach tissue adjacent to tumor (Solid Tissue Normal)
+# Both are Illumina HiSeq 3000, single-end reads.
+# Source: ENA, freely available without controlled-access requirements.
 #
-# We stream each file and keep only the first 500K reads (each read = 4 lines).
+# We stream each file and keep only the first 500K reads (4 lines per read).
 # Disable pipefail around the streaming pipeline: head exits after N lines,
 # sending SIGPIPE to zcat/curl — this is expected and not an error.
+# (gzip -t is intentionally omitted: head closes the pipe before gzip can
+# write its end-of-file marker, producing a truncated-but-readable archive)
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== [3/3] Downloading 500K read pairs from ERR188273 (ENA) ==="
-echo "    Streaming via HTTPS — no sra-tools required."
-if [[ -f "$DATA/test_tumor_R1.fastq.gz" && -f "$DATA/test_tumor_R2.fastq.gz" ]]; then
-    echo "    Already exists — skipping."
+echo "=== [3/3] Downloading 500K reads each from SRR9143066 (tumor) and SRR9143065 (normal) ==="
+echo "    Streaming via ENA HTTPS — no sra-tools required."
+
+TUMOR_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz"
+NORMAL_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/005/SRR9143065/SRR9143065.fastq.gz"
+
+if [[ -f "$DATA/test_tumor.fastq.gz" ]]; then
+    echo "    Tumor FASTQ already exists — skipping."
 else
-    # Fetch the canonical ENA FTP URLs for this accession
-    ENA_REPORT=$(curl -sf \
-        "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=ERR188273&result=read_run&fields=fastq_ftp&format=tsv" \
-        || true)
-    FTP_FIELD=$(echo "$ENA_REPORT" | tail -1 | cut -f2)
-
-    R1_URL="https://$(echo "$FTP_FIELD" | tr ';' '\n' | grep '_1\.fastq\.gz' || true)"
-    R2_URL="https://$(echo "$FTP_FIELD" | tr ';' '\n' | grep '_2\.fastq\.gz' || true)"
-
-    if [[ -z "${R1_URL#https://}" || -z "${R2_URL#https://}" ]]; then
-        echo "ERROR: could not resolve ENA download URLs for ERR188273." >&2
-        echo "       ENA API response: $ENA_REPORT" >&2
+    echo "    Downloading tumor (SRR9143066)..."
+    set +o pipefail
+    curl -L --progress-bar "$TUMOR_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_tumor.fastq.gz"
+    set -o pipefail
+    if [[ ! -s "$DATA/test_tumor.fastq.gz" ]]; then
+        echo "ERROR: $DATA/test_tumor.fastq.gz is missing or empty after download." >&2
         exit 1
     fi
+    echo "    Saved: $DATA/test_tumor.fastq.gz"
+fi
 
-    echo "    R1: $R1_URL"
-    echo "    R2: $R2_URL"
-
+if [[ -f "$DATA/test_normal.fastq.gz" ]]; then
+    echo "    Normal FASTQ already exists — skipping."
+else
+    echo "    Downloading normal (SRR9143065)..."
     set +o pipefail
-    curl -L --progress-bar "$R1_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_tumor_R1.fastq.gz"
-    curl -L --progress-bar "$R2_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_tumor_R2.fastq.gz"
+    curl -L --progress-bar "$NORMAL_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_normal.fastq.gz"
     set -o pipefail
-
-    # Check both files exist and are non-empty
-    # (gzip -t is intentionally omitted: head closes the pipe before gzip can
-    # write its end-of-file marker, producing a truncated-but-readable archive)
-    for f in "$DATA/test_tumor_R1.fastq.gz" "$DATA/test_tumor_R2.fastq.gz"; do
-        if [[ ! -s "$f" ]]; then
-            echo "ERROR: $f is missing or empty after download." >&2
-            exit 1
-        fi
-    done
-    echo "    Saved: $DATA/test_tumor_R1.fastq.gz and $DATA/test_tumor_R2.fastq.gz"
+    if [[ ! -s "$DATA/test_normal.fastq.gz" ]]; then
+        echo "ERROR: $DATA/test_normal.fastq.gz is missing or empty after download." >&2
+        exit 1
+    fi
+    echo "    Saved: $DATA/test_normal.fastq.gz"
 fi
 
 # ---------------------------------------------------------------------------
