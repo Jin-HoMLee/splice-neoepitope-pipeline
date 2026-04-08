@@ -124,11 +124,14 @@ if [[ -f "$FASTA" ]]; then
     echo "    GRCh38 FASTA already exists — skipping."
 else
     echo "    Downloading GRCh38 primary assembly FASTA (~830 MB compressed)..."
-    curl -L --progress-bar \
+    curl --fail -L --progress-bar \
         "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz" \
         -o "$FASTA_GZ"
     echo "    Decompressing FASTA (~3.1 GB uncompressed)..."
     gunzip "$FASTA_GZ"
+    if [[ ! -s "$FASTA" ]]; then
+        echo "ERROR: FASTA decompression produced an empty file." >&2; exit 1
+    fi
     echo "    Saved: $FASTA"
 fi
 
@@ -139,9 +142,12 @@ if [[ -f "$GTF" ]]; then
     echo "    GENCODE GTF already exists — skipping."
 else
     echo "    Downloading GENCODE v47 annotation GTF (~50 MB compressed)..."
-    curl -L --progress-bar \
+    curl --fail -L --progress-bar \
         "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz" \
         -o "$GTF"
+    if ! gzip -t "$GTF" 2>/dev/null; then
+        echo "ERROR: GTF download appears corrupt (failed gzip integrity check)." >&2; exit 1
+    fi
     echo "    Saved: $GTF"
 fi
 
