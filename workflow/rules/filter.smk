@@ -90,7 +90,7 @@ rule filter_junctions:
     log:
         os.path.join(OUT["logs"], "filter", "{cancer_type}_filter.log"),
     params:
-        strategy=config["filtering"]["strategy"],
+        min_normal_reads=config["filtering"]["min_normal_reads"],
     conda:
         "../envs/python.yaml"
     script:

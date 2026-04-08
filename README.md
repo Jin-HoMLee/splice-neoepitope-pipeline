@@ -41,11 +41,10 @@ candidate targets for cancer immunotherapy.
 
 This pipeline:
 1. Generates splice junction quantification from RNA-Seq data (local alignment or GDC download).
-2. Identifies novel (non-reference) splice junctions enriched in tumour samples.
-3. Constructs short nucleotide contigs spanning each junction.
+2. Classifies junctions by origin: removes annotated (GENCODE) junctions, then separates tumor-specific from patient-specific junctions using the matched normal sample.
+3. Constructs short nucleotide contigs spanning each tumor-specific junction.
 4. Translates the contigs into peptides in all three reading frames.
 5. Predicts MHC-I binding affinity using MHCflurry 2.x.
-6. Statistically evaluates enrichment of predicted epitopes in tumour vs. normal.
 
 Cancer types analysed: **BRCA** (breast adenocarcinoma), **LUAD** (lung
 adenocarcinoma), **LAML** (acute myeloid leukemia).
@@ -60,8 +59,11 @@ RNA-Seq data (local FASTQ files or GDC API)
         ▼ Step 1: Align/Download
   Splice junction quantification files (.tsv)
         │
-        ▼ Step 2: Filter
-  Novel junctions (read count > mean; not in GENCODE reference)
+        ▼ Step 2: Classify by origin
+  - Remove annotated junctions (GENCODE reference)
+  - Compare tumor vs. matched normal:
+      patient_specific (in normal) → excluded
+      tumor_specific   (not in normal) → keep
         │
         ▼ Step 3: Assemble
   50 nt contigs (26 nt upstream + 24 nt downstream, bedtools getfasta)
@@ -72,8 +74,8 @@ RNA-Seq data (local FASTQ files or GDC API)
         ▼ Step 5: Predict
   MHCflurry 2.x → IC50 binding affinities (HLA-A*02:01, 9-mers)
         │
-        ▼ Step 6: Analyse
-  Fisher's exact test, summary statistics, HTML report
+        ▼ Step 6: Report
+  Junction origin summary + top binders HTML report
 ```
 
 ---
@@ -285,7 +287,7 @@ normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq
 | Column | Required | Description |
 |--------|----------|-------------|
 | `sample_id` | Yes | Unique identifier for the sample |
-| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` for Fisher's test |
+| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` — used for junction origin classification |
 | `fastq1` | Yes | Path to read 1 FASTQ (can be gzipped) |
 | `fastq2` | No | Path to read 2 FASTQ for paired-end data (leave empty for single-end) |
 
@@ -356,8 +358,9 @@ gcloud compute instances create splice-pipeline \
 # 2. Connect
 gcloud compute ssh splice-pipeline --zone=us-central1-a
 
-# 3. On the VM, follow the standard installation steps from this README
-# ... (install conda, clone repo, configure samples, run pipeline)
+# 3. On the VM, install conda, clone repo, configure samples, then run:
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+# The VM shuts down automatically when the pipeline finishes.
 
 # 4. Download results when done
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
@@ -486,7 +489,9 @@ bash scripts/prepare_test_data.sh
 This downloads:
 - chr22 FASTA from UCSC hg38 (~52 MB)
 - GENCODE v47 GTF filtered to chr22 (streamed, no full file stored)
-- 500K read pairs from ERR188273 via ENA HTTPS (no sra-tools needed)
+- 500K reads each from a matched gastric cancer pair via ENA HTTPS (no sra-tools needed):
+  - **SRR9143066** — Primary Tumor (gastric cancer surgical section)
+  - **SRR9143065** — Solid Tissue Normal (adjacent stomach tissue)
 
 ### Step 2: Run the test pipeline
 
@@ -495,7 +500,7 @@ conda activate snakemake
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 ```
 
-Expected output: ~400 novel junctions → ~940 peptides → ~80 strong MHC binders.
+Expected output: ~234 unannotated junctions (231 tumor_specific, 3 patient_specific) → ~79 contigs → ~11 strong MHC binders.
 
 > **Note**: Only reads mapping to chr22 are used, so junction counts are much
 > lower than a full-genome run — this is expected.
@@ -556,7 +561,7 @@ All parameters are in `config/config.yaml`.  Key options:
 | `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
 | `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
-| `filtering.strategy` | `mean` | Read-count filter strategy |
+| `filtering.min_normal_reads` | `2` | Min reads in normal to trust a junction as patient-specific |
 
 ---
 
@@ -568,27 +573,24 @@ All outputs are written to the `results/` directory:
 results/
 ├── raw_data/
 │   └── {cancer_type}/
-│       ├── manifest.tsv          # GDC file manifest
-│       └── files/                # Downloaded junction quantification TSVs
+│       ├── manifest.tsv          # Sample manifest (file_id → sample_type)
+│       └── files/                # Junction quantification TSVs per sample
 ├── junctions/
 │   └── {cancer_type}/
-│       └── novel_junctions.tsv   # Filtered novel junctions
+│       └── novel_junctions.tsv   # Classified junctions (junction_origin column:
+│                                 #   tumor_specific | patient_specific)
 ├── contigs/
 │   └── {cancer_type}/
-│       └── contigs.fa            # 50 nt FASTA contigs
+│       └── contigs.fa            # 50 nt FASTA contigs (tumor_specific only)
 ├── peptides/
 │   └── {cancer_type}/
 │       └── peptides.fa           # 16-mer peptide FASTA
 ├── predictions/
 │   └── {cancer_type}/
 │       └── predictions.tsv       # MHCflurry results
-├── analysis/
-│   └── {cancer_type}/
-│       └── statistics.tsv        # Fisher's test + epitope counts
 └── reports/
-    ├── summary_table.tsv         # Cross-cancer summary
     └── {cancer_type}/
-        └── report.html           # Per-cancer HTML report
+        └── report.html           # Junction origin summary + top binders
 ```
 
 ---
@@ -638,7 +640,7 @@ splice-neoepitope-pipeline/
 │   │   ├── assemble.smk              # Step 3: Contig assembly
 │   │   ├── translate.smk             # Step 4: Peptide translation
 │   │   ├── predict.smk               # Step 5: MHCflurry prediction
-│   │   └── analysis.smk              # Step 6: Statistics + reports
+│   │   └── analysis.smk              # Step 6: Report generation
 │   ├── envs/
 │   │   ├── hisat2.yaml               # hisat2, samtools, regtools
 │   │   ├── biotools.yaml             # bedtools, biopython, pandas
@@ -651,7 +653,6 @@ splice-neoepitope-pipeline/
 │       ├── assemble_contigs.py       # 50 nt contig assembly
 │       ├── translate_peptides.py     # In-silico translation
 │       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
-│       ├── statistical_analysis.py   # Fisher's exact test + summary stats
 │       └── generate_report.py        # HTML report generation
 ├── docs/
 │   ├── modernization_notes.md        # Detailed change log

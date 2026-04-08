@@ -18,11 +18,11 @@
 # Workflow steps
 # ──────────────
 #   1. download/align — fetch TCGA data via GDC API OR align local FASTQ
-#   2. filter         — remove low-read and known (reference) junctions
-#   3. assemble       — build 50 nt contigs around each novel junction
+#   2. filter         — classify junctions by origin (tumor_specific / patient_specific)
+#   3. assemble       — build 50 nt contigs around tumor_specific junctions
 #   4. translate      — in-silico translation into 16-mer peptides (3 reading frames)
 #   5. predict        — MHCflurry 2.x epitope prediction
-#   6. analysis       — Fisher's exact test, summary statistics, report generation
+#   6. report         — junction origin summary + top binders HTML report
 #
 # Usage
 # ──────
@@ -82,12 +82,9 @@ include: "workflow/rules/analysis.smk"
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        # Per data-type final report
         expand(
             "{reports}/{data_type}/report.html",
             reports=OUT["reports"],
             data_type=get_data_types(),
         ),
-        # Cross-cancer summary table
-        os.path.join(OUT["reports"], "summary_table.tsv"),
 

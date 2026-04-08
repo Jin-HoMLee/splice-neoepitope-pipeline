@@ -285,23 +285,17 @@ tmux new -s pipeline
 # Inside tmux: dry run first
 snakemake --cores 4 --use-conda -n
 
-# Inside tmux: full run with logging
-snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
+# Inside tmux: full run — pipeline logs to pipeline.log, VM shuts down when done
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
 ```
+
+> **Always include `; bash auto_stop.sh`** at the end of your run command.
+> The VM will not stop automatically otherwise, and you will be billed for idle time.
 
 To detach from tmux without stopping the pipeline: press `Ctrl+B`, then `D`.
 To reattach after reconnecting via SSH: `tmux attach -t pipeline`
 
 > **Why tmux instead of nohup?** With `nohup`, you lose visibility into the running pipeline after disconnecting. With `tmux`, you can reattach at any time and see live output.
-
-**Tip: auto-shutdown to save costs**
-
-`auto_stop.sh` shuts down the VM automatically once the pipeline finishes
-(whether it succeeds or errors), so you don't get charged for idle time:
-
-```bash
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
-```
 
 > **Note**: `auto_stop.sh` uses `sudo shutdown -h now` (OS-initiated shutdown),
 > not `gcloud compute instances stop`. The VM service account does not have the

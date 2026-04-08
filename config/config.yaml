@@ -20,10 +20,6 @@ cancer_types:
   - TCGA-LUAD
   - TCGA-LAML
 
-# Cancer types that have matched normal samples (used for Fisher's test)
-cancer_types_with_normal:
-  - TCGA-BRCA
-  - TCGA-LUAD
 
 # -----------------------------------------------------------------
 # Local alignment mode (when data_source is "local")
@@ -111,8 +107,8 @@ mhcflurry:
 # Junction read-count filtering
 # -----------------------------------------------------------------
 filtering:
-  # Keep junctions with mapped read count > mean read count in the file
-  strategy: "mean"
+  # Minimum reads in the normal sample to trust a junction as patient-specific
+  min_normal_reads: 2
 
 # -----------------------------------------------------------------
 # Output directories
