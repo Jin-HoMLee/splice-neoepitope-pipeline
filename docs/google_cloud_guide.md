@@ -113,6 +113,11 @@ would on any local machine.
 
 **Using gcloud CLI:**
 
+> **Zone availability:** `us-central1-a` is used as the example zone below, but
+> capacity for specific machine types varies. If you get a quota or availability
+> error, try another zone (e.g. `us-central1-c`, `europe-west1-b`, `us-east1-b`).
+> Run `gcloud compute zones list` to see all available zones.
+
 ```bash
 # For HISAT2 (8 GB RAM sufficient, using 16 GB for comfort)
 gcloud compute instances create splice-pipeline \
@@ -286,7 +291,7 @@ tmux new -s pipeline
 snakemake --cores 4 --use-conda -n
 
 # Inside tmux: full run — pipeline logs to pipeline.log, VM shuts down when done
-snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
 ```
 
 > **Always include `; bash auto_stop.sh`** at the end of your run command.

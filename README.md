@@ -28,26 +28,21 @@ RNA-Seq.
 11. [Modernisation Changelog](#modernisation-changelog)
 12. [Project Structure](#project-structure)
 13. [Citation](#citation)
+14. [Further Reading](#further-reading)
 
 ---
 
 ## Scientific Background
 
-Cancer cells frequently harbour somatic mutations and aberrant splicing events.
-Novel splice junctions — those not present in the reference transcriptome —
-can produce peptide sequences that are absent from normal tissues and therefore
-recognisable as foreign by the immune system.  These **neoepitopes** are
-candidate targets for cancer immunotherapy.
+Tumors frequently exhibit splice junctions absent from matched normal tissue.
+These tumor-specific junctions can produce novel peptide sequences — **neoepitopes** —
+that are recognisable as foreign by the immune system and are candidate targets for
+cancer immunotherapy.
 
-This pipeline:
-1. Generates splice junction quantification from RNA-Seq data (local alignment or GDC download).
-2. Classifies junctions by origin: removes annotated (GENCODE) junctions, then separates tumor-specific from patient-specific junctions using the matched normal sample.
-3. Constructs short nucleotide contigs spanning each tumor-specific junction.
-4. Translates the contigs into peptides in all three reading frames.
-5. Predicts MHC-I binding affinity using MHCflurry 2.x.
+This pipeline identifies those junctions from RNA-seq data, filters them against the
+matched normal sample, and predicts which resulting peptides bind MHC class I molecules.
 
-Cancer types analysed: **BRCA** (breast adenocarcinoma), **LUAD** (lung
-adenocarcinoma), **LAML** (acute myeloid leukemia).
+> For full biological background and study design, see [`docs/INTRODUCTION.md`](docs/INTRODUCTION.md).
 
 ---
 
@@ -199,7 +194,7 @@ This pipeline supports two data source modes:
 
 | Mode | Institutional Access | Description |
 |------|---------------------|-------------|
-| **Local Alignment** | ❌ Not required | Align your own FASTQ files using STAR |
+| **Local Alignment** | ❌ Not required | Align your own FASTQ files using HISAT2 or STAR |
 | **GDC Download** | ✅ Required | Download pre-computed files from GDC |
 
 ---
@@ -606,7 +601,7 @@ pipeline to this modernised implementation.  See
 | Reference genome | hg19 | **GRCh38/hg38** | Current standard assembly |
 | Reference annotation | UCSC RefSeq hg19 | **GENCODE v47 GRCh38** | Comprehensive, programmatically reproducible |
 | Data source | TCGA HTTP directory (retired) | **GDC Data Portal REST API** | TCGA HTTP retired in 2016 |
-| RNA-Seq aligner | TopHat2 | **STAR** (GDC harmonised) | GDC re-aligned all TCGA data with STAR |
+| RNA-Seq aligner | TopHat2 | **HISAT2** (default) / **STAR** (optional) | HISAT2 for low-memory runs; STAR planned for production (issue #17) |
 | Epitope predictor | NetMHCPan **2.8** | **MHCflurry 2.x** | Open source; no registration; SOTA accuracy |
 | Biopython API | `Bio.Alphabet` | **`Bio.Seq` only** | `Bio.Alphabet` removed in Biopython ≥1.78 |
 | Workflow management | Manual shell scripts | **Snakemake** | Reproducibility, parallelism, DAG tracking |
@@ -655,8 +650,11 @@ splice-neoepitope-pipeline/
 │       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
 │       └── generate_report.py        # HTML report generation
 ├── docs/
-│   ├── modernization_notes.md        # Detailed change log
-│   └── google_cloud_guide.md         # GCP setup and cost guide
+│   ├── INTRODUCTION.md               # Biological background and study design
+│   ├── METHODS.md                    # Technical pipeline description
+│   ├── DISCUSSIONS.md                # Design tradeoffs and future directions
+│   ├── google_cloud_guide.md         # GCP setup and cost guide
+│   └── modernization_notes.md        # Detailed change log from 2015 pipeline
 └── resources/
     └── README.md                     # Instructions for reference data
 ```
@@ -685,3 +683,16 @@ And the key tools used:
 - **GENCODE**: Frankish et al. (2023). GENCODE: reference annotation for the
   human and mouse genomes in 2023. *Nucleic Acids Research*, 51(D1),
   D942–D949.
+
+---
+
+## Further Reading
+
+Detailed documentation for the pipeline is available in the `docs/` directory:
+
+| Document | Contents |
+|----------|----------|
+| [`docs/INTRODUCTION.md`](docs/INTRODUCTION.md) | Biological background, motivation, and study design |
+| [`docs/METHODS.md`](docs/METHODS.md) | Technical pipeline description with diagrams and formulas |
+| [`docs/DISCUSSIONS.md`](docs/DISCUSSIONS.md) | Design tradeoffs, known limitations, and future directions |
+| [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) | Step-by-step GCP setup and run guide |
