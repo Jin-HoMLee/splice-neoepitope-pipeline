@@ -48,11 +48,10 @@ mhcflurry:
 
 filtering:
   strategy: "mean"
+  min_normal_reads: 2
 
 cancer_types:
   - local
-
-cancer_types_with_normal: []
 
 gdc:
   files_endpoint: "https://api.gdc.cancer.gov/files"

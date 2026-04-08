@@ -20,10 +20,6 @@ cancer_types:
   - TCGA-LUAD
   - TCGA-LAML
 
-# Cancer types that have matched normal samples (used for Fisher's test)
-cancer_types_with_normal:
-  - TCGA-BRCA
-  - TCGA-LUAD
 
 # -----------------------------------------------------------------
 # Local alignment mode (when data_source is "local")
