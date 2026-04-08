@@ -28,7 +28,11 @@ if command -v conda &>/dev/null; then
     echo "      Skipping Miniforge3 installation."
 else
     echo "[1/2] Installing Miniforge3..."
-    MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+    # Miniforge uses "MacOSX" where uname returns "Darwin"
+    _OS=$(uname)
+    _ARCH=$(uname -m)
+    [[ "$_OS" == "Darwin" ]] && _OS="MacOSX"
+    MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-${_OS}-${_ARCH}.sh"
     MINIFORGE_INSTALLER="/tmp/Miniforge3.sh"
 
     curl -L --progress-bar "$MINIFORGE_URL" -o "$MINIFORGE_INSTALLER"

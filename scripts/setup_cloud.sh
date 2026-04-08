@@ -28,7 +28,12 @@ REPO_BRANCH="main"
 # Parse optional --repo-branch argument
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --repo-branch) REPO_BRANCH="$2"; shift 2 ;;
+        --repo-branch)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --repo-branch requires a value, e.g. --repo-branch main" >&2
+                exit 1
+            fi
+            REPO_BRANCH="$2"; shift 2 ;;
         *) echo "Unknown argument: $1" >&2; exit 1 ;;
     esac
 done
