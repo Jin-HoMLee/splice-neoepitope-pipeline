@@ -113,6 +113,8 @@ mhcflurry:
 filtering:
   # Keep junctions with mapped read count > mean read count in the file
   strategy: "mean"
+  # Minimum reads in the normal sample to trust a junction as patient-specific
+  min_normal_reads: 2
 
 # -----------------------------------------------------------------
 # Output directories
