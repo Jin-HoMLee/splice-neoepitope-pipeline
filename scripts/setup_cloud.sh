@@ -51,7 +51,7 @@ echo ""
 # ---------------------------------------------------------------------------
 echo "[1/5] Installing system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget
+sudo apt-get install -y git curl wget tmux
 echo "    Done."
 
 # ---------------------------------------------------------------------------
