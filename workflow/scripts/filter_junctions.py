@@ -218,7 +218,8 @@ def classify_junctions(
             log.warning("No data rows found in %s", path)
             continue
 
-        # Read-count filter: keep junctions above mean read count in this file
+        # Keep only junctions with read count above the per-file mean,
+        # reducing noise from low-evidence junctions.
         mean_reads = sum(r for _, r in rows) / len(rows)
         rows = [(jid, r) for jid, r in rows if r > mean_reads]
 

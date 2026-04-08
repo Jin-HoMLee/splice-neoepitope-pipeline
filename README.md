@@ -358,8 +358,9 @@ gcloud compute instances create splice-pipeline \
 # 2. Connect
 gcloud compute ssh splice-pipeline --zone=us-central1-a
 
-# 3. On the VM, follow the standard installation steps from this README
-# ... (install conda, clone repo, configure samples, run pipeline)
+# 3. On the VM, install conda, clone repo, configure samples, then run:
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+# The VM shuts down automatically when the pipeline finishes.
 
 # 4. Download results when done
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
@@ -560,7 +561,6 @@ All parameters are in `config/config.yaml`.  Key options:
 | `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
 | `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
-| `filtering.strategy` | `mean` | Read-count filter strategy |
 | `filtering.min_normal_reads` | `2` | Min reads in normal to trust a junction as patient-specific |
 
 ---
