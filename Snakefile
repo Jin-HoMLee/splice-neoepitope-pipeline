@@ -18,11 +18,11 @@
 # Workflow steps
 # ──────────────
 #   1. download/align — fetch TCGA data via GDC API OR align local FASTQ
-#   2. filter         — classify junctions by provenance (tumor_specific / patient_specific)
+#   2. filter         — classify junctions by origin (tumor_specific / patient_specific)
 #   3. assemble       — build 50 nt contigs around tumor_specific junctions
 #   4. translate      — in-silico translation into 16-mer peptides (3 reading frames)
 #   5. predict        — MHCflurry 2.x epitope prediction
-#   6. report         — provenance summary + top binders HTML report
+#   6. report         — junction origin summary + top binders HTML report
 #
 # Usage
 # ──────

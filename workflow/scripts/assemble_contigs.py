@@ -183,7 +183,7 @@ def assemble_contigs(
         )
 
     if df.empty:
-        log.warning("No tumor_specific junctions remain after provenance filter")
+        log.warning("No tumor_specific junctions remain after origin filter")
         output_fasta.touch()
         return
 

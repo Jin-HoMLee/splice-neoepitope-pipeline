@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""filter_junctions.py — Classify splice junctions by provenance.
+"""filter_junctions.py — Classify splice junctions by origin.
 
-Junction provenance hierarchy:
+Junction origin hierarchy:
   all junctions
     └─ annotated         (in GENCODE)              → discarded
     └─ unannotated       (not in GENCODE)
@@ -166,7 +166,7 @@ def classify_junctions(
     output_path: str | Path,
     min_normal_reads: int = 2,
 ) -> None:
-    """Classify all junction quantification files by provenance.
+    """Classify all junction quantification files by origin.
 
     Tumor junctions that survive the reference filter are labeled:
       - ``tumor_specific``  — absent in the matched normal
@@ -304,7 +304,7 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Classify splice junctions by provenance (tumor_specific / patient_specific)."
+        description="Classify splice junctions by origin (tumor_specific / patient_specific)."
     )
     parser.add_argument(
         "--junction-files", nargs="+", required=True,
