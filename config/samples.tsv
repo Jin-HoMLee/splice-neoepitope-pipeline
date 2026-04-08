@@ -1,21 +1,18 @@
 sample_id	sample_type	fastq1	fastq2
-
-# Example entries — replace with your actual sample data
-# Delete these comment lines and add your samples below
+# ---------------------------------------------------------------------------
+# Sample manifest — replace with your own samples.
 #
-# For tumor vs normal comparison (Fisher's exact test):
-#   - Use "Primary Tumor" for tumor samples
-#   - Use "Solid Tissue Normal" for normal samples
+# Column descriptions:
+#   sample_id    Unique sample identifier (used as file names in results)
+#   sample_type  "Primary Tumor" or "Solid Tissue Normal"
+#                  Primary Tumor        — junctions used for neoepitope prediction
+#                  Solid Tissue Normal  — used to filter out patient-specific junctions
+#   fastq1       Path to FASTQ file (or read 1 for paired-end)
+#   fastq2       Path to read 2 FASTQ for paired-end data (leave empty for single-end)
 #
-# For single-end RNA-Seq, leave the fastq2 column empty
-#
-# Example paired-end samples:
-# tumor_sample_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
-# tumor_sample_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
-# normal_sample_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
-#
-# Example single-end samples:
-# tumor_sample_03	Primary Tumor	data/tumor_03.fastq.gz	
-# normal_sample_02	Solid Tissue Normal	data/normal_02.fastq.gz	
-
-SRR37781424	Primary Tumor	data/SRR37781424_1.fastq	data/SRR37781424_2.fastq
+# Example below: matched gastric cancer tumor/normal pair (SRR9143066 / SRR9143065)
+# Source: https://www.ebi.ac.uk/ena/browser/view/SRR9143066
+# Download with: bash scripts/prepare_production_data.sh
+# ---------------------------------------------------------------------------
+gastric_tumor	Primary Tumor	data/gastric_tumor.fastq.gz
+gastric_normal	Solid Tissue Normal	data/gastric_normal.fastq.gz
