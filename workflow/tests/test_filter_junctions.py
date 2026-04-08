@@ -209,7 +209,10 @@ class TestClassifyJunctions:
 
         tumor_f = files_dir / "tumor.tsv"
         normal_f = files_dir / "normal.tsv"
-        self._write_junction_file(tumor_f, [("chr22:101:200:+", 100)])
+        self._write_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100),
+            ("chr22:401:500:+", 1),  # noise — keeps annotated junction above mean
+        ])
         self._write_junction_file(normal_f, [])
 
         manifest = tmp_path / "manifest.tsv"
