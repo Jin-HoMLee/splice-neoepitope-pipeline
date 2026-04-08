@@ -28,7 +28,6 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
-import sys
 from pathlib import Path
 
 import pandas as pd
