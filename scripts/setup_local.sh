@@ -35,7 +35,16 @@ else
     MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-${_OS}-${_ARCH}.sh"
     MINIFORGE_INSTALLER="/tmp/Miniforge3.sh"
 
-    curl -L --progress-bar "$MINIFORGE_URL" -o "$MINIFORGE_INSTALLER"
+    curl --fail --location --retry 3 --retry-delay 2 --progress-bar \
+        "$MINIFORGE_URL" -o "$MINIFORGE_INSTALLER"
+    if [[ ! -s "$MINIFORGE_INSTALLER" ]]; then
+        echo "Error: Miniforge installer download failed or produced an empty file." >&2
+        rm -f "$MINIFORGE_INSTALLER"; exit 1
+    fi
+    if ! head -n 1 "$MINIFORGE_INSTALLER" | grep -q '^#!/'; then
+        echo "Error: Downloaded Miniforge installer does not appear to be a shell script." >&2
+        rm -f "$MINIFORGE_INSTALLER"; exit 1
+    fi
     bash "$MINIFORGE_INSTALLER" -b -p "$HOME/miniforge3"
     rm "$MINIFORGE_INSTALLER"
 
