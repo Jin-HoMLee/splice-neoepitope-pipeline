@@ -215,6 +215,7 @@ def _build_strong_table_html(
 
         rows.append(
             f"<tr>"
+            f"<td>{row['source_header']}</td>"
             f"<td>{row['peptide_9mer']}</td>"
             f"<td>{row['allele']}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
@@ -228,9 +229,14 @@ def _build_strong_table_html(
         "<span class='nt-pep-up'>peptide (upstream)</span> "
         "<span class='nt-pep-down'>peptide (downstream)</span>"
     )
+    percentile_header = (
+        "<th title='Percentage of random peptides that bind worse than this one. "
+        "Lower is better — &lt;2% is the standard binder threshold.'>Percentile rank ▾</th>"
+    )
     table = (
         f"<table><thead><tr>"
-        f"<th>9-mer</th><th>Allele</th><th>IC50 (nM)</th><th>Percentile rank</th>"
+        f"<th>Source</th><th>9-mer</th><th>Allele</th><th>IC50 (nM)</th>"
+        f"{percentile_header}"
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
     )
