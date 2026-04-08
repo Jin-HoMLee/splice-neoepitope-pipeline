@@ -10,8 +10,13 @@
 #   4. Clones the pipeline repository (if not already present)
 #   5. Downloads the full GRCh38 reference FASTA + GENCODE v47 GTF
 #
-# Usage (run from your home directory on the VM):
-#   bash setup_cloud.sh [--repo-branch <branch>]
+# Usage:
+#   Fresh VM (before the repo is cloned — run from your home directory):
+#     curl -fsSL https://raw.githubusercontent.com/Jin-HoMLee/splice-neoepitope-pipeline/main/scripts/setup_cloud.sh \
+#         -o setup_cloud.sh && bash setup_cloud.sh [--repo-branch <branch>]
+#
+#   After cloning the repository:
+#     bash scripts/setup_cloud.sh [--repo-branch <branch>]
 #
 # After this script finishes:
 #   cd splice-neoepitope-pipeline
