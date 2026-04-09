@@ -7,9 +7,9 @@ Update this file only when something is **not derivable from the code or git his
 Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin-Ho Lee, Seoul National University). Identifies tumor-specific splice junctions from RNA-Seq data and predicts MHC-binding neoepitopes.
 
 ## Infrastructure
-- Running on a GCP Compute Engine VM (`splice-pipeline`, `us-central1-a`)
-- See `docs/google_cloud_guide.md` for full setup instructions
-- Pipeline is run with `snakemake --cores $(nproc) --use-conda` inside a `tmux` session
+- Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
+- Current production VM: `splice-prod-test`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
+- Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 
 ## Pipeline Design Decisions
 

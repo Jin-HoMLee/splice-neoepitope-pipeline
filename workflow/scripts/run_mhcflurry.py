@@ -66,25 +66,67 @@ def _read_peptides_fasta(fasta_path: str | Path) -> Iterator[tuple[str, str]]:
         yield record.description, str(record.seq)
 
 
+# Convention mirrors the frame tokens written by translate_peptides.py
+_FRAME_OFFSETS = {"frame1": 0, "frame2": 1, "frame3": 2}
+
+
+def _parse_frame_offset(header: str) -> int | None:
+    """Extract the 0-based reading frame offset from a peptide FASTA header.
+
+    Headers from translate_peptides.py end with ``|frame1``, ``|frame2``, or
+    ``|frame3``, corresponding to 0-based offsets 0, 1, 2.
+
+    Returns None if the frame token is absent or unrecognised (no junction
+    filter applied).
+    """
+    for part in header.split("|"):
+        if part in _FRAME_OFFSETS:
+            return _FRAME_OFFSETS[part]
+    return None
+
+
 def _generate_9mers(
     peptide_16mer: str,
     window_size: int = 9,
+    frame_offset: int | None = None,
+    upstream_nt: int = 26,
 ) -> list[tuple[int, str]]:
-    """Generate all 9-mer sub-peptides from a 16-mer using a sliding window.
+    """Generate 9-mer sub-peptides from a 16-mer that span the splice junction.
+
+    Only 9-mers containing at least one complete amino acid from each side of
+    the junction are returned.  A 9-mer at 0-indexed position i with frame
+    offset f starts at nucleotide f + i*3 in the 50 nt contig.  The junction
+    falls between nucleotides upstream_nt-1 and upstream_nt (default 25/26).
+
+    Spanning condition: 2 <= f + i*3 <= 23  (with defaults upstream_nt=26,
+    window_size=9).
 
     Args:
         peptide_16mer: The 16-mer amino acid sequence.
         window_size:   Length of each sub-peptide (default 9).
+        frame_offset:  0-based reading frame offset used to translate the contig.
+                       If None, all 9-mers are returned (no junction filter).
+        upstream_nt:   Number of upstream nucleotides in the contig (default 26).
 
     Returns:
         List of (position, 9-mer) tuples where position is 1-indexed.
     """
+    min_start = upstream_nt - (window_size - 1) * 3      # = 2 for defaults
+    max_start = upstream_nt - 3                           # = 23 for defaults
+
     nmers = []
     for i in range(len(peptide_16mer) - window_size + 1):
         nmer = peptide_16mer[i : i + window_size]
         # Skip peptides containing stop codons or invalid characters
         if "*" in nmer or "X" in nmer:
             continue
+        # Keep only 9-mers that span the junction: must include at least one
+        # complete codon from the upstream exon and one from the downstream exon.
+        # Without this, purely exonic 9-mers match normal proteins (false positives).
+        if frame_offset is not None:
+            start_nt = frame_offset + i * 3
+            if not (min_start <= start_nt <= max_start):
+                continue
         nmers.append((i + 1, nmer))  # 1-indexed position
     return nmers
 
@@ -199,7 +241,8 @@ def run_prediction(
     peptide_to_source: dict[str, list[dict]] = {}
 
     for header, seq_16mer in _read_peptides_fasta(peptides_fasta):
-        for pos, nmer in _generate_9mers(seq_16mer, peptide_length):
+        frame_offset = _parse_frame_offset(header)
+        for pos, nmer in _generate_9mers(seq_16mer, peptide_length, frame_offset):
             record = {
                 "source_header": header,
                 "peptide_16mer": seq_16mer,

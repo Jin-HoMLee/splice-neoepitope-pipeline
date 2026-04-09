@@ -7,8 +7,8 @@
 # -----------------------------------------------------------------
 # "gdc"   — Download pre-computed splice junction files from GDC (requires
 #           institutional dbGaP access and a GDC authentication token)
-# "local" — Align your own RNA-Seq FASTQ files using STAR (no institutional
-#           access required; uses publicly available or your own data)
+# "local" — Align your own RNA-Seq FASTQ files using HISAT2 or STAR (no
+#           institutional access required; uses publicly available or your own data)
 data_source: "local"
 
 # -----------------------------------------------------------------

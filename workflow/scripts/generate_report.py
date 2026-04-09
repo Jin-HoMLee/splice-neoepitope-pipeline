@@ -18,10 +18,12 @@ Usage (Snakemake):
 """
 
 import argparse
+import html
 import logging
 from pathlib import Path
 
 import pandas as pd
+from Bio import SeqIO
 
 logging.basicConfig(
     level=logging.INFO,
@@ -114,6 +116,14 @@ _HTML_TEMPLATE = """\
     .split-right {{ flex: 1; background: #eafaf1; padding: 10px 12px; text-align: center; }}
     .discard {{ color: #c0392b; }}
     .keep    {{ color: #27ae60; }}
+
+    /* Contig visualisation */
+    .contig  {{ font-family: monospace; font-size: 0.85em; white-space: nowrap; }}
+    .nt-up   {{ color: #555; }}
+    .nt-down {{ color: #555; }}
+    .nt-pep-up   {{ background: #d6eaf8; color: #1a5276; font-weight: bold; }}
+    .nt-pep-down {{ background: #d5f5e3; color: #1e8449; font-weight: bold; }}
+    .junction-mark {{ color: #e74c3c; font-weight: bold; }}
   </style>
 </head>
 <body>
@@ -149,6 +159,93 @@ _HTML_TEMPLATE = """\
 """
 
 
+def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
+    """Parse contigs FASTA into {contig_key: sequence} dict.
+
+    The contig key matches source_header in predictions minus the '|frame{N}' suffix.
+    """
+    contigs: dict[str, str] = {}
+    for record in SeqIO.parse(contigs_fasta, "fasta"):
+        contigs[record.description] = str(record.seq).upper()
+    return contigs
+
+
+def _render_contig(seq: str, start_nt: int, end_nt_incl: int,
+                   upstream_nt: int = 26) -> str:
+    """Render a 50 nt contig as HTML with junction marker and peptide highlighted."""
+    html_parts = []
+    for i, nt in enumerate(seq):
+        if i == upstream_nt:
+            html_parts.append('<span class="junction-mark">|</span>')
+        in_pep = start_nt <= i <= end_nt_incl
+        if in_pep and i < upstream_nt:
+            html_parts.append(f'<span class="nt-pep-up">{nt}</span>')
+        elif in_pep:
+            html_parts.append(f'<span class="nt-pep-down">{nt}</span>')
+        elif i < upstream_nt:
+            html_parts.append(f'<span class="nt-up">{nt}</span>')
+        else:
+            html_parts.append(f'<span class="nt-down">{nt}</span>')
+    return f'<span class="contig">{"".join(html_parts)}</span>'
+
+
+def _build_strong_table_html(
+    pred_df: pd.DataFrame,
+    contigs: dict[str, str],
+    upstream_nt: int = 26,
+    max_rows: int = 50,
+) -> str:
+    """Build the top strong binders table with a contig visualisation column."""
+    strong_df = pred_df[pred_df["binder_class"] == "strong"].sort_values("ic50_nM")
+    if strong_df.empty:
+        return "<p><em>No strong binders found.</em></p>"
+
+    rows = []
+    for _, row in strong_df.head(max_rows).iterrows():
+        header = row["source_header"]
+        contig_key = header.rsplit("|", 1)[0]  # strip |frame{N}
+        frame_part = header.rsplit("|", 1)[-1]
+        frame_offset = (int(frame_part[5:]) - 1) if frame_part.startswith("frame") and frame_part[5:].isdigit() else 0
+
+        position_0 = int(row["position"]) - 1  # convert to 0-indexed
+        start_nt = frame_offset + position_0 * 3
+        end_nt_incl = start_nt + 26  # 9 aa × 3 nt − 1
+
+        seq = contigs.get(contig_key, "")
+        contig_html = _render_contig(seq, start_nt, end_nt_incl, upstream_nt) if seq else "<em>n/a</em>"
+
+        rows.append(
+            f"<tr>"
+            f"<td>{html.escape(str(row['source_header']))}</td>"
+            f"<td>{html.escape(str(row['peptide_9mer']))}</td>"
+            f"<td>{html.escape(str(row['allele']))}</td>"
+            f"<td>{row['ic50_nM']:.1f}</td>"
+            f"<td>{row['percentile_rank']:.3f}</td>"
+            f"<td>{contig_html}</td>"
+            f"</tr>"
+        )
+
+    legend = (
+        "upstream <span class='junction-mark'>|</span> downstream — "
+        "<span class='nt-pep-up'>peptide (upstream)</span> "
+        "<span class='nt-pep-down'>peptide (downstream)</span>"
+    )
+    percentile_header = (
+        "<th title='Percentage of random peptides that bind worse than this one. "
+        "Lower is better — &lt;2% is the standard binder threshold.'>Percentile rank ▾</th>"
+    )
+    table = (
+        f"<table><thead><tr>"
+        f"<th>Source</th><th>9-mer</th><th>Allele</th><th>IC50 (nM)</th>"
+        f"{percentile_header}"
+        f"<th>Contig ({legend})</th>"
+        f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+    )
+    if len(strong_df) > max_rows:
+        table += f"<p><em>Showing {max_rows} of {len(strong_df)} rows.</em></p>"
+    return table
+
+
 def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
     if df.empty:
         return "<p><em>No data.</em></p>"
@@ -166,6 +263,7 @@ def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
     output_html: str | Path,
+    contigs_fasta: str | Path | None = None,
     ic50_strong: float = 50.0,
 ) -> None:
     """Generate the summary HTML report.
@@ -174,6 +272,7 @@ def generate_report(
         novel_junctions_tsv: Classified junctions TSV (with junction_origin column).
         predictions_tsv:     MHCflurry predictions TSV.
         output_html:         Destination HTML file.
+        contigs_fasta:       Contig FASTA for junction visualisation (optional).
         ic50_strong:         Strong-binder IC50 threshold (nM).
     """
     output_html = Path(output_html)
@@ -181,6 +280,7 @@ def generate_report(
 
     junc_df = pd.read_csv(novel_junctions_tsv, sep="\t")
     pred_df = pd.read_csv(predictions_tsv, sep="\t")
+    contigs = _load_contigs(contigs_fasta) if contigs_fasta else {}
 
     # --- Junction origin summary ---
     if junc_df.empty or "junction_origin" not in junc_df.columns:
@@ -211,14 +311,11 @@ def generate_report(
         binder_counts.columns = ["binder_class", "count"]
         binder_html = _df_to_html(binder_counts)
 
-    # --- Top strong binders ---
+    # --- Top strong binders with contig visualisation ---
     if pred_df.empty:
         strong_html = "<p><em>No predictions available.</em></p>"
     else:
-        strong_df = pred_df[pred_df["binder_class"] == "strong"].sort_values("ic50_nM")
-        strong_cols = [c for c in ["source_header", "peptide_9mer", "allele", "ic50_nM", "rank"]
-                       if c in strong_df.columns]
-        strong_html = _df_to_html(strong_df[strong_cols], max_rows=50)
+        strong_html = _build_strong_table_html(pred_df, contigs)
 
     html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
@@ -243,6 +340,7 @@ def _snakemake_main() -> None:
         novel_junctions_tsv=snakemake.input.novel_junctions,  # type: ignore[name-defined]  # noqa: F821
         predictions_tsv=snakemake.input.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_html=snakemake.output.report_html,  # type: ignore[name-defined]  # noqa: F821
+        contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -254,6 +352,7 @@ def _cli_main() -> None:
     parser.add_argument("--novel-junctions", required=True, help="Classified junctions TSV")
     parser.add_argument("--predictions", required=True, help="MHCflurry predictions TSV")
     parser.add_argument("--output", required=True, help="Output HTML report")
+    parser.add_argument("--contigs-fasta", default=None, help="Contigs FASTA for junction visualisation")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     args = parser.parse_args()
 
@@ -261,6 +360,7 @@ def _cli_main() -> None:
         novel_junctions_tsv=args.novel_junctions,
         predictions_tsv=args.predictions,
         output_html=args.output,
+        contigs_fasta=args.contigs_fasta,
         ic50_strong=args.ic50_strong,
     )
 

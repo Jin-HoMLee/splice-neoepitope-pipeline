@@ -10,6 +10,7 @@ rule generate_report:
     input:
         novel_junctions=rules.filter_junctions.output.novel_junctions,
         predictions_tsv=rules.run_mhcflurry.output.predictions_tsv,
+        contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
     output:
         report_html=os.path.join(
             OUT["reports"], "{cancer_type}", "report.html"
