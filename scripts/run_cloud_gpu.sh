@@ -177,7 +177,7 @@ log "  Monitor with:"
 log "    gcloud compute ssh ${CPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
 while true; do
     DONE="$(ssh_cmd "${CPU_VM}" --command \
-        "grep -c 'steps (100%) done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
+        "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
     if [[ "${DONE}" -ge 1 ]]; then
         log "  Pipeline finished (100% done detected in log)."
