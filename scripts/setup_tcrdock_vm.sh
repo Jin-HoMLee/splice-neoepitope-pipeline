@@ -3,11 +3,13 @@
 # setup_tcrdock_vm.sh — Set up TCRdock + AlphaFold v2 on a GCP GPU VM
 # =============================================================================
 #
+# Designed for use with GCP Deep Learning VM images (common-cu128-ubuntu-2204)
+# which have CUDA 12.8 + NVIDIA drivers pre-installed. Skips driver setup.
+#
 # Run this script once on a fresh GPU VM (Linux x64, NVIDIA T4) to install:
-#   1. NVIDIA drivers + CUDA toolkit
-#   2. Miniconda (if not already present)
-#   3. TCRdock and its dependencies
-#   4. AlphaFold v2 parameters (~3.5 GB, CC BY 4.0)
+#   1. Miniconda (if not already present)
+#   2. TCRdock and its dependencies
+#   3. AlphaFold v2 parameters (~3.5 GB, CC BY 4.0)
 #
 # After this script completes, update config/config.yaml:
 #   tcrdock:
@@ -35,21 +37,15 @@ PYTHON_VERSION="3.8"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # ---------------------------------------------------------------------------
-# Step 1 — NVIDIA driver + CUDA
+# Step 1 — Verify GPU is visible (CUDA pre-installed on Deep Learning VM image)
 # ---------------------------------------------------------------------------
-log "Step 1: Checking NVIDIA driver..."
-
-if ! command -v nvidia-smi &>/dev/null; then
-    log "Installing NVIDIA driver and CUDA toolkit..."
-    # Install CUDA 11.8 (compatible with AlphaFold v2 + TCRdock)
-    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
-    sudo dpkg -i cuda-keyring_1.0-1_all.deb
-    sudo apt-get update -q
-    sudo apt-get install -y cuda-11-8 2>&1 | tail -5
-    rm cuda-keyring_1.0-1_all.deb
-    log "NVIDIA driver installed. A reboot may be required if this is a first install."
+log "Step 1: Checking GPU..."
+if command -v nvidia-smi &>/dev/null; then
+    log "  GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+    log "  CUDA: $(nvcc --version 2>/dev/null | grep release | awk '{print $6}' | tr -d ',')"
 else
-    log "NVIDIA driver already present: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+    echo "ERROR: nvidia-smi not found. Use a Deep Learning VM image with CUDA pre-installed." >&2
+    exit 1
 fi
 
 # ---------------------------------------------------------------------------
@@ -96,15 +92,16 @@ log "Installing BLAST (required by TCRdock)..."
 conda run -n "${CONDA_ENV}" python "${TCRDOCK_DIR}/download_blast.py"
 
 # Install AlphaFold Python dependencies into the TCRdock environment
+# JAX with CUDA 12 support (compatible with Deep Learning VM CUDA 12.8 image)
 log "Installing AlphaFold dependencies..."
 conda run -n "${CONDA_ENV}" pip install \
-    "jax[cuda11_pip]==0.3.25" \
+    "jax[cuda12_pip]" \
     -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
     -q
 conda run -n "${CONDA_ENV}" pip install \
-    dm-haiku==0.0.9 \
-    dm-tree==0.1.8 \
-    ml-collections==0.1.1 \
+    dm-haiku \
+    dm-tree \
+    ml-collections \
     biopython==1.79 \
     -q
 

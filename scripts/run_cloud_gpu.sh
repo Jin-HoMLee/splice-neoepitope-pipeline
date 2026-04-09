@@ -48,8 +48,8 @@ ZONE="europe-west1-b"
 MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-t4,count=1"
 DISK_SIZE="50GB"
-IMAGE_FAMILY="ubuntu-2204-lts"
-IMAGE_PROJECT="ubuntu-os-cloud"
+IMAGE_FAMILY="common-cu128-ubuntu-2204-nvidia-570"  # CUDA 12.8 pre-installed
+IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 
 # GCS bucket for VM-to-VM result transfer (created automatically if absent)
