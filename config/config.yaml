@@ -103,43 +103,16 @@ mhcflurry:
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
 # -----------------------------------------------------------------
-# Predicts the 3D structure of the TCR-peptide-MHC ternary complex for the
-# top-ranked neoepitope candidate using TCRdock (AlphaFold v2 backend).
+# Disabled by default. All settings live in config/tcrdock_gpu.yaml.
+# Enable by passing that file as a second --configfile on the GPU VM:
 #
-# Requires Linux x64 + NVIDIA GPU — NOT compatible with macOS arm64 (M1/M2).
-# Set enabled: false (default) to skip this step in local / CPU-only runs.
-# Enable on the GCP Spot GPU VM only.
+#   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
+#       --configfile config/config.yaml \
+#       --configfile config/tcrdock_gpu.yaml
 #
-# Fallback values are used until real HLA types (#23) and TCR sequences (#24)
-# are available from patient data. The fallback TCR is the DMF5 TCR, a
-# well-characterised HLA-A*02:01-restricted TCR used here as a structural demo.
-# Reference: Borbulevych et al. (2011), Immunity 34(4):533-44.
-#
-# Once #24 (TRUST4 + ProTCR) is implemented, n_candidates and candidate
-# selection should switch from top MHC IC50 to top ProTCR score.
+# See scripts/setup_tcrdock_vm.sh for GPU VM setup instructions.
 tcrdock:
-  enabled: false          # set true on GPU VM only
-  n_candidates: 1         # number of top strong binders to model
-  tcrdock_dir: null       # path to TCRdock install, e.g. "/opt/tcrdock"
-  alphafold_params_dir: null  # path to AlphaFold params/, e.g. "/opt/af_params"
-
-  # Fallback HLA alleles (used until HLA typing step #23 is implemented)
-  # Most prevalent class I allele per family (global frequencies)
-  fallback_hla:
-    A: "HLA-A*02:01"   # ~30%
-    B: "HLA-B*07:02"   # ~13%
-    C: "HLA-C*07:02"   # ~28%
-
-  # Fallback TCR — DMF5 TCR (HLA-A*02:01-restricted, MART-1 specific)
-  # Used as structural demo until TRUST4 TCR extraction (#24) is implemented.
-  # Source: VDJdb; Borbulevych et al. (2011) Immunity 34(4):533-44.
-  fallback_tcr:
-    va_gene:  "TRAV12-2"
-    ja_gene:  "TRAJ21"
-    cdr3a:    "CAVNFGGGKLI"
-    vb_gene:  "TRBV6-5"
-    jb_gene:  "TRBJ2-7"
-    cdr3b:    "CASSLAGGRPEQYF"
+  enabled: false
 
 # -----------------------------------------------------------------
 # Junction read-count filtering
