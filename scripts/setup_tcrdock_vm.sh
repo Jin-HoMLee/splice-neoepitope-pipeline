@@ -49,21 +49,25 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2 — Miniconda
+# Step 2 — Conda (prefer Miniforge already installed by run_cloud_gpu.sh)
 # ---------------------------------------------------------------------------
-log "Step 2: Checking Miniconda..."
+log "Step 2: Checking conda..."
 
-if ! command -v conda &>/dev/null; then
-    log "Installing Miniconda..."
-    wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
-    bash /tmp/miniconda.sh -b -p "${HOME}/miniconda3"
-    rm /tmp/miniconda.sh
-    eval "$("${HOME}/miniconda3/bin/conda" shell.bash hook)"
-    conda init bash
-    log "Miniconda installed at ${HOME}/miniconda3"
-else
-    log "Miniconda already present: $(conda --version)"
+# Prefer Miniforge (installed by run_cloud_gpu.sh); fall back to installing it
+if [[ -f "${HOME}/miniforge3/bin/conda" ]]; then
+    log "  Using Miniforge at ${HOME}/miniforge3"
+    source "${HOME}/miniforge3/etc/profile.d/conda.sh"
+elif command -v conda &>/dev/null; then
+    log "  Using conda: $(conda --version)"
     eval "$(conda shell.bash hook)"
+else
+    log "  Installing Miniforge3..."
+    curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+        -o /tmp/miniforge.sh
+    bash /tmp/miniforge.sh -b -p "${HOME}/miniforge3"
+    rm /tmp/miniforge.sh
+    source "${HOME}/miniforge3/etc/profile.d/conda.sh"
+    log "  Miniforge installed at ${HOME}/miniforge3"
 fi
 
 # ---------------------------------------------------------------------------
