@@ -1,81 +1,60 @@
-"""Tests for run_mhcflurry.py — 9-mer generation and junction-spanning filter."""
+"""Tests for run_mhcflurry.py — TSV I/O and binder classification."""
 
-from run_mhcflurry import _generate_9mers, _parse_frame_offset
+import pandas as pd
+import pytest
 
-
-class TestParseFrameOffset:
-    def test_frame1(self):
-        header = "chr22:100:200:+|chr22:100-200:+|Primary Tumor|frame1"
-        assert _parse_frame_offset(header) == 0
-
-    def test_frame2(self):
-        header = "chr22:100:200:+|chr22:100-200:+|Primary Tumor|frame2"
-        assert _parse_frame_offset(header) == 1
-
-    def test_frame3(self):
-        header = "chr22:100:200:+|chr22:100-200:+|Primary Tumor|frame3"
-        assert _parse_frame_offset(header) == 2
-
-    def test_no_frame_token(self):
-        header = "some_header_without_frame"
-        assert _parse_frame_offset(header) is None
-
-    def test_invalid_frame_token_returns_none(self):
-        for bad in ("frame0", "frame4", "frame10"):
-            header = f"chr22:100:200:+|{bad}"
-            assert _parse_frame_offset(header) is None, f"expected None for {bad}"
+from run_mhcflurry import classify, run_prediction
 
 
-class TestGenerate9mers:
-    # A 16-mer with no stop codons or invalid characters
-    SEQ = "ACDEFGHIKLMNPQRS"  # 16 standard amino acids
+class TestRunPredictionEmpty:
+    """run_prediction should write an empty TSV when input has no rows."""
 
-    def test_no_filter_returns_all_8_positions(self):
-        # Without frame_offset, all 8 windows (16 - 9 + 1) are returned
-        result = _generate_9mers(self.SEQ, window_size=9, frame_offset=None)
-        assert len(result) == 8
+    def test_empty_input_writes_empty_output(self, tmp_path):
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
 
-    def test_positions_are_1_indexed(self):
-        result = _generate_9mers(self.SEQ, window_size=9, frame_offset=None)
-        positions = [pos for pos, _ in result]
-        assert positions == [1, 2, 3, 4, 5, 6, 7, 8]
+        output_tsv = tmp_path / "predictions.tsv"
+        # Skip actual MHCflurry model loading — empty input short-circuits before it
+        run_prediction(
+            peptides_tsv=peptides_tsv,
+            output_tsv=output_tsv,
+            allele="HLA-A*02:01",
+            ic50_strong=50.0,
+            ic50_weak=500.0,
+        )
 
-    def test_junction_filter_frame0_drops_position1_and_last(self):
-        # frame_offset=0, upstream_nt=26: valid start_nt range is [2, 23]
-        # position i (0-indexed): start_nt = 0 + i*3
-        # i=0 → start_nt=0  (< 2) → excluded
-        # i=1 → start_nt=3  ✓
-        # i=7 → start_nt=21 ✓
-        # i=8 would be start_nt=24 (> 23) → excluded, but 16-mer only has 8 windows
-        result = _generate_9mers(self.SEQ, window_size=9, frame_offset=0, upstream_nt=26)
-        positions = [pos for pos, _ in result]
-        assert 1 not in positions  # start_nt=0, purely upstream
-        assert 2 in positions      # start_nt=3, spans junction
+        df = pd.read_csv(output_tsv, sep="\t")
+        assert df.empty
+        assert list(df.columns) == [
+            "contig_key", "start_nt", "peptide", "allele",
+            "ic50_nM", "percentile_rank", "binder_class",
+        ]
 
-    def test_junction_filter_frame1_drops_position1(self):
-        # frame_offset=1: start_nt = 1 + i*3
-        # i=0 → start_nt=1 (< 2) → excluded
-        # i=1 → start_nt=4 ✓
-        result = _generate_9mers(self.SEQ, window_size=9, frame_offset=1, upstream_nt=26)
-        positions = [pos for pos, _ in result]
-        assert 1 not in positions
-        assert 2 in positions
+    def test_output_file_is_created(self, tmp_path):
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+        output_tsv = tmp_path / "subdir" / "predictions.tsv"
 
-    def test_junction_filter_frame2_includes_position1(self):
-        # frame_offset=2: start_nt = 2 + i*3
-        # i=0 → start_nt=2, which equals min_start=2 → included
-        result = _generate_9mers(self.SEQ, window_size=9, frame_offset=2, upstream_nt=26)
-        positions = [pos for pos, _ in result]
-        assert 1 in positions
+        run_prediction(
+            peptides_tsv=peptides_tsv,
+            output_tsv=output_tsv,
+        )
+        assert output_tsv.exists()
 
-    def test_stop_codon_excluded(self):
-        seq = "ACDEFGHIK*MNPQRS"
-        result = _generate_9mers(seq, window_size=9, frame_offset=None)
-        nmers = [nmer for _, nmer in result]
-        assert all("*" not in nmer for nmer in nmers)
 
-    def test_x_excluded(self):
-        seq = "ACDEFGHIKXMNPQRS"
-        result = _generate_9mers(seq, window_size=9, frame_offset=None)
-        nmers = [nmer for _, nmer in result]
-        assert all("X" not in nmer for nmer in nmers)
+class TestBinderClassification:
+    """Classification thresholds: strong <= 50, weak <= 500, non otherwise."""
+
+    @pytest.mark.parametrize("ic50,expected", [
+        (10.0, "strong"),
+        (49.9, "strong"),
+        (50.0, "strong"),   # boundary: ic50 <= ic50_strong → strong
+        (50.1, "weak"),
+        (499.9, "weak"),
+        (500.0, "weak"),    # boundary: ic50 <= ic50_weak → weak
+        (500.1, "non"),
+        (9999.0, "non"),
+    ])
+    def test_classify_boundaries(self, ic50, expected):
+        """Test the production classify() function boundary behaviour."""
+        assert classify(ic50) == expected

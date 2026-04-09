@@ -1,0 +1,35 @@
+{
+  "junctions": {
+    "total_unannotated": 234,
+    "by_origin": {
+      "tumor_specific": 231,
+      "patient_specific": 3
+    }
+  },
+  "contigs": {
+    "n_contigs": 79
+  },
+  "peptides": {
+    "n_total": 1371,
+    "n_unique": 1348
+  },
+  "predictions": {
+    "by_class": {
+      "non": 1319,
+      "weak": 41,
+      "strong": 11
+    },
+    "strong_peptides": [
+      "AVCELCYKV",
+      "FLTSYQCEA",
+      "KLIKNNASL",
+      "KMAKSHDAV",
+      "KSPQFLPAV",
+      "LLYKGSLLL",
+      "RLHLFTLGV",
+      "SALGLLAPV",
+      "SLLLFNDFV",
+      "SLSHCVMSL"
+    ]
+  }
+}

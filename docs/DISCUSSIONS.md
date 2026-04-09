@@ -52,6 +52,25 @@ junction-boundary candidates worth investigating further.
 
 ---
 
+## Contig upstream length: 26 nt vs. 24 nt
+
+The current contig design uses 26 nt upstream + 24 nt downstream. With `upstream_nt=26`,
+the spanning condition is `2 ≤ start ≤ 23`, which means the first valid 27 nt window
+across all three reading frames starts at `start=2` (frame 2). The nucleotides at
+positions 0 and 1 are never the start of any valid junction-spanning window — they
+contribute only as interior nucleotides of later windows.
+
+Reducing `upstream_nt` to 24 would make `min_start=0`, so frame 0 windows starting at
+`start=0` would be valid and no upstream nucleotides are wasted. This is a cleaner
+design. The trade-off is 2 fewer nucleotides of upstream context per contig, which is
+biologically negligible given that the junction-spanning filter already requires multiple
+complete upstream codons.
+
+This change requires re-running contig assembly and all downstream steps on production
+data, so it is deferred to a future release.
+
+---
+
 ## Normal sample filtering: junction level vs. peptide level
 
 Tumor-specific junctions are currently defined by absence in the matched normal sample

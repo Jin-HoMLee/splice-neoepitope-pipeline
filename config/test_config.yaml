@@ -32,16 +32,8 @@ assembly:
   downstream_nt: 24
   contig_length: 50
 
-translation:
-  peptide_length: 16
-  reading_frames:
-    - 0
-    - 1
-    - 2
-
 mhcflurry:
   hla_allele: "HLA-A*02:01"
-  peptide_length: 9
   ic50_strong:  50
   ic50_weak:   500
   prediction_mode: "affinity"

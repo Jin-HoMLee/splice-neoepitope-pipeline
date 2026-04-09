@@ -77,14 +77,12 @@ assembly:
   contig_length: 50   # total contig length (upstream + downstream)
 
 # -----------------------------------------------------------------
-# In-silico translation
+# Junction-spanning 9-mer extraction
 # -----------------------------------------------------------------
-translation:
-  peptide_length: 16   # aa length of each output peptide
-  reading_frames:      # 1-based nucleotide offsets for the three ORFs
-    - 0                # frame 1: start at nt position 1 (0-indexed: 0)
-    - 1                # frame 2: start at nt position 2
-    - 2                # frame 3: start at nt position 3
+# Reads all three reading frames and retains only 27 nt windows
+# whose first codon is fully upstream and last codon is fully
+# downstream of the splice junction. upstream_nt is shared with
+# the assembly section above.
 
 # -----------------------------------------------------------------
 # Epitope prediction (MHCflurry 2.x)
@@ -94,7 +92,6 @@ translation:
 # It can be installed via pip and is included in the python conda env.
 mhcflurry:
   hla_allele: "HLA-A*02:01"   # default allele (most prevalent)
-  peptide_length: 9           # sliding-window 9-mer mode
   ic50_strong:  50            # nM threshold for strong binders
   ic50_weak:   500            # nM threshold for weak binders
   # MHCflurry supports multiple prediction modes:

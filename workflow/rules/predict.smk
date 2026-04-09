@@ -17,12 +17,11 @@ rule download_mhcflurry_models:
 
 
 rule run_mhcflurry:
-    """Run MHCflurry 2.x on the 16-mer peptides FASTA.
-    MHCflurry slides a 9-mer window across each peptide internally.
-    Output: parsed TSV with columns: peptide, allele, IC50_nM, percentile_rank,
-            binder_class (strong / weak / non)."""
+    """Run MHCflurry 2.x on junction-spanning 9-mers.
+    Output: TSV with columns: contig_key, start_nt, peptide, allele, IC50_nM,
+            percentile_rank, binder_class (strong / weak / non)."""
     input:
-        peptides_fasta=rules.translate_peptides.output.peptides_fasta,
+        peptides_tsv=rules.translate_peptides.output.peptides_tsv,
         mhcflurry_models=rules.download_mhcflurry_models.output.sentinel,
     output:
         predictions_tsv=os.path.join(
@@ -32,7 +31,6 @@ rule run_mhcflurry:
         os.path.join(OUT["logs"], "predict", "{cancer_type}_predict.log"),
     params:
         hla_allele=config["mhcflurry"]["hla_allele"],
-        peptide_length=config["mhcflurry"]["peptide_length"],
         ic50_strong=config["mhcflurry"]["ic50_strong"],
         ic50_weak=config["mhcflurry"]["ic50_weak"],
     conda:

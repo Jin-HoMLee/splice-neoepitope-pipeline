@@ -1,56 +1,97 @@
-"""Tests for translate_peptides.py — in-silico translation logic."""
+"""Tests for translate_peptides.py — junction-spanning 9-mer extraction."""
 
-from translate_peptides import translate_contig
+from translate_peptides import extract_spanning_9mers
+
+# Default config: upstream_nt=26, so min_start=2, max_start=23
+UPSTREAM_NT = 26
 
 
-class TestTranslateContig:
-    def test_frame0_basic(self):
-        # ATG = Met, GGG = Gly, ... simple 50 nt contig, no stop codon
-        # Use a known sequence: 48 nt → 16 aa in frame 0
-        seq = "ATG" * 16  # 48 nt, all Met
-        results = translate_contig(seq, reading_frames=[0], peptide_length=16)
-        assert len(results) == 1
-        frame, peptide = results[0]
-        assert frame == 0
-        assert peptide == "M" * 16
+def _no_stop_contig(length: int = 50) -> str:
+    """Return a contig of given length with no stop codons in any frame.
 
-    def test_all_three_frames(self):
-        # GCC (Ala) repeated: no stop codons in any reading frame
-        # Frame 0: GCC GCC... = Ala; Frame 1: CCG CCG... = Pro; Frame 2: CGC CGC... = Arg
-        seq = "GCC" * 17  # 51 nt
-        results = translate_contig(seq, reading_frames=[0, 1, 2], peptide_length=16)
-        frames_returned = {r[0] for r in results}
-        assert frames_returned == {0, 1, 2}
+    'GCC' * n: frame0=Ala, frame1=Pro (CCG), frame2=Arg (CGC) — all non-stop.
+    """
+    return ("GCC" * (length // 3 + 1))[:length]
 
-    def test_stop_codon_truncates_peptide(self):
-        # TAA is a stop codon; peptide should be truncated before it
-        # Frame 0: ATG ATG TAA ... → "MM" (2 aa) — too short, filtered out
-        # Use a longer prefix: 8× ATG then TAA
-        seq = "ATG" * 8 + "TAA" + "ATG" * 5
-        results = translate_contig(seq, reading_frames=[0], peptide_length=16)
-        assert len(results) == 1
-        frame, peptide = results[0]
-        assert "*" not in peptide
-        assert len(peptide) == 8
 
-    def test_immediate_stop_codon_excluded(self):
-        # TAA at position 0 in frame 0 → no peptide for that frame
-        seq = "TAA" + "ATG" * 20
-        results = translate_contig(seq, reading_frames=[0], peptide_length=16)
-        assert len(results) == 0
+class TestExtractSpanning9mers:
+    def test_returns_list_of_tuples(self):
+        seq = _no_stop_contig(50)
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT)
+        assert isinstance(result, list)
+        for item in result:
+            start_nt, peptide = item
+            assert isinstance(start_nt, int)
+            assert isinstance(peptide, str)
+            assert len(peptide) == 9
 
-    def test_short_peptide_filtered_out(self):
-        # Only 6 aa before stop → below _MIN_PEPTIDE_LENGTH (8), excluded
-        seq = "ATG" * 6 + "TAA" + "ATG" * 10
-        results = translate_contig(seq, reading_frames=[0], peptide_length=16)
-        assert len(results) == 0
+    def test_all_starts_within_valid_range(self):
+        # min_start=2, max_start=23
+        seq = _no_stop_contig(50)
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT)
+        for start_nt, _ in result:
+            assert 2 <= start_nt <= 23, f"start_nt={start_nt} outside [2, 23]"
 
-    def test_peptide_trimmed_to_target_length(self):
-        seq = "ATG" * 20  # 60 nt → 20 aa in frame 0, trimmed to 16
-        results = translate_contig(seq, reading_frames=[0], peptide_length=16)
-        assert len(results) == 1
-        assert len(results[0][1]) == 16
+    def test_frame0_start_zero_excluded(self):
+        # Frame 0 first window starts at 0 < min_start=2 → excluded
+        seq = _no_stop_contig(50)
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT, reading_frames=[0])
+        starts = [s for s, _ in result]
+        assert 0 not in starts
 
-    def test_empty_sequence_returns_nothing(self):
-        results = translate_contig("", reading_frames=[0, 1, 2], peptide_length=16)
-        assert results == []
+    def test_frame2_start_two_included(self):
+        # Frame 2 first window starts at 2 == min_start=2 → included
+        seq = _no_stop_contig(50)
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT, reading_frames=[2])
+        starts = [s for s, _ in result]
+        assert 2 in starts
+
+    def test_window_start_24_excluded(self):
+        # start=24 > max_start=23 → excluded in all frames
+        seq = _no_stop_contig(50)
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT)
+        starts = [s for s, _ in result]
+        assert 24 not in starts
+
+    def test_stop_codon_excluded(self):
+        # Insert a stop codon (TAA) starting at nt 6 (frame 0, window index 2).
+        # Any 27 nt window containing nt 6-8 is discarded for frame 0.
+        seq = list(_no_stop_contig(50))
+        seq[6], seq[7], seq[8] = "T", "A", "A"  # TAA at nt 6-8
+        result = extract_spanning_9mers("".join(seq), upstream_nt=UPSTREAM_NT, reading_frames=[0])
+        for _, peptide in result:
+            assert "*" not in peptide
+
+    def test_x_ambiguous_excluded(self):
+        seq = list(_no_stop_contig(50))
+        # Write 'N' at nt 6-8 in frame 0 → will translate to X
+        seq[6], seq[7], seq[8] = "N", "N", "N"
+        result = extract_spanning_9mers("".join(seq), upstream_nt=UPSTREAM_NT, reading_frames=[0])
+        for _, peptide in result:
+            assert "X" not in peptide
+
+    def test_short_contig_no_results(self):
+        # Contig shorter than 27 nt (min window size) → no results
+        result = extract_spanning_9mers("GCC" * 8, upstream_nt=UPSTREAM_NT)
+        assert result == []
+
+    def test_empty_sequence_returns_empty(self):
+        result = extract_spanning_9mers("", upstream_nt=UPSTREAM_NT)
+        assert result == []
+
+    def test_single_frame_subset(self):
+        seq = _no_stop_contig(50)
+        all_frames = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT, reading_frames=[0, 1, 2])
+        frame0_only = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT, reading_frames=[0])
+        # frame0_only should be a strict subset
+        assert set(frame0_only).issubset(set(all_frames))
+        assert len(frame0_only) < len(all_frames)
+
+    def test_known_peptide_sequence(self):
+        # 50 nt of "AAA": all Lys (K) in frame 0.
+        # Valid starts in frame 0: 3, 6, 9, 12, 15, 18, 21.
+        seq = "A" * 50
+        result = extract_spanning_9mers(seq, upstream_nt=UPSTREAM_NT, reading_frames=[0])
+        assert all(peptide == "K" * 9 for _, peptide in result)
+        starts = sorted(s for s, _ in result)
+        assert starts == [3, 6, 9, 12, 15, 18, 21]

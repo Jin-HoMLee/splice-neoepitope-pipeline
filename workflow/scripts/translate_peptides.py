@@ -1,42 +1,35 @@
 #!/usr/bin/env python3
-"""translate_peptides.py — In-silico translation of 50 nt contigs into 16-mer
-peptides using modern Biopython (≥1.78).
+"""translate_peptides.py — Extract junction-spanning 9-mer peptides from 50 nt
+splice-junction contigs.
 
-**Important**: This implementation deliberately avoids ``Bio.Alphabet``, which
-was removed in Biopython 1.78.  All translation is performed via
-``Bio.Seq.Seq.translate()`` without any alphabet argument.
+For each contig, the junction breakpoint sits at nucleotide ``upstream_nt``
+(default 26).  For each of the three reading frames (offsets 0, 1, 2), the
+script identifies all 27 nt windows (= 9 codons) whose first codon is fully
+upstream of the junction and whose last codon is fully downstream.
 
-For each 50 nt contig, three reading frames are used:
-  * Frame 1: translation begins at nucleotide position 1 (0-indexed: 0)
-  * Frame 2: translation begins at nucleotide position 2 (0-indexed: 1)
-  * Frame 3: translation begins at nucleotide position 3 (0-indexed: 2)
+Spanning condition for a window starting at nucleotide ``start``:
+    upstream_nt - 24  <=  start  <=  upstream_nt - 3
 
-Each frame yields at most ``floor((50 - frame_offset) / 3)`` codons, which is
-16 codons (amino acids) for frame offsets 0 and 1, and 16 for frame offset 2
-as well (48 nt / 3 = 16).
+With defaults (upstream_nt = 26):  2 <= start <= 23.
 
-Peptide post-processing:
-  * Truncate at the first stop codon (``*``) if present.
-  * Record the position of the first methionine (M) if present (but do not
-    truncate — the original paper notes start/stop truncation for M only for
-    display; we include the full peptide up to the stop).
-  * Peptides shorter than 8 aa after truncation are discarded.
+Each valid window is translated directly to a 9-mer.  Windows containing a
+stop codon or ambiguous amino acid (X) are discarded.
 
-Output: FASTA file of 16-mer (or truncated) peptides.
+Output: TSV with columns  contig_key | start_nt | peptide
 
 Usage (standalone):
   python translate_peptides.py \\
       --contigs-fasta results/contigs/TCGA-BRCA/contigs.fa \\
-      --output results/peptides/TCGA-BRCA/peptides.fa \\
-      --reading-frames 0 1 2 --peptide-length 16
+      --output results/peptides/TCGA-BRCA/peptides.tsv \\
+      --upstream-nt 26
 
 Usage (Snakemake):
   Called automatically by the ``translate_peptides`` rule.
 """
 
 import argparse
+import csv
 import logging
-import sys
 from pathlib import Path
 
 from Bio.Seq import Seq
@@ -48,12 +41,13 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Minimum peptide length to keep after truncation
-_MIN_PEPTIDE_LENGTH = 8
+_PEPTIDE_LENGTH = 9
+_CODON_SIZE = 3
+_WINDOW_NT = _PEPTIDE_LENGTH * _CODON_SIZE  # 27 nt
 
 
 # ---------------------------------------------------------------------------
-# FASTA helpers
+# FASTA helper
 # ---------------------------------------------------------------------------
 
 def _parse_fasta(fasta_path: str | Path) -> list[tuple[str, str]]:
@@ -77,94 +71,95 @@ def _parse_fasta(fasta_path: str | Path) -> list[tuple[str, str]]:
 
 
 # ---------------------------------------------------------------------------
-# Translation logic
+# Junction-spanning 9-mer extraction
 # ---------------------------------------------------------------------------
 
-def translate_contig(
+def extract_spanning_9mers(
     contig_seq: str,
-    reading_frames: list[int],
-    peptide_length: int,
+    upstream_nt: int = 26,
+    reading_frames: list[int] | None = None,
 ) -> list[tuple[int, str]]:
-    """Translate a nucleotide contig into peptides in the specified reading frames.
+    """Extract junction-spanning 9-mers from a 50 nt contig.
 
-    Uses the modern ``Bio.Seq`` API (no ``Bio.Alphabet``).
+    For each reading frame, finds all 27 nt windows satisfying the spanning
+    condition: first codon fully upstream, last codon fully downstream.
 
     Args:
-        contig_seq:    Nucleotide sequence string (upper-case).
-        reading_frames: List of 0-based frame offsets (e.g. [0, 1, 2]).
-        peptide_length: Target amino acid length (default 16).
+        contig_seq:     Nucleotide sequence (upper-case, typically 50 nt).
+        upstream_nt:    Position of the junction breakpoint (number of upstream
+                        nucleotides). Must match config[assembly][upstream_nt].
+        reading_frames: 0-based frame offsets to consider. Defaults to [0, 1, 2].
 
     Returns:
-        List of (frame_offset, peptide_string) tuples.  Only non-empty
-        peptides that pass the minimum length filter are returned.
+        List of (start_nt, peptide) tuples. start_nt is the 0-based nucleotide
+        start of the 27 nt window in the contig.
     """
+    if reading_frames is None:
+        reading_frames = [0, 1, 2]
+
+    min_start = upstream_nt - (_PEPTIDE_LENGTH - 1) * _CODON_SIZE  # = 2 for defaults
+    max_start = upstream_nt - _CODON_SIZE                           # = 23 for defaults
+
     results: list[tuple[int, str]] = []
     for frame in reading_frames:
-        # Slice the contig to the correct reading frame
-        sub = contig_seq[frame:]
-        # Trim to a multiple of 3
-        trimmed = sub[: len(sub) - (len(sub) % 3)]
-        if len(trimmed) < 3:
-            continue
+        start = frame
+        while start + _WINDOW_NT <= len(contig_seq):
+            if min_start <= start <= max_start:
+                window = contig_seq[start : start + _WINDOW_NT]
+                peptide = str(Seq(window).translate())
+                if "*" not in peptide and "X" not in peptide:
+                    results.append((start, peptide))
+            start += _CODON_SIZE
 
-        # Translate using Bio.Seq (no alphabet argument — modern API)
-        aa_seq = str(Seq(trimmed).translate())
-
-        # Truncate at first stop codon
-        stop_pos = aa_seq.find("*")
-        if stop_pos == 0:
-            continue  # stop codon immediately — no peptide
-        if stop_pos > 0:
-            aa_seq = aa_seq[:stop_pos]
-
-        # Trim to target peptide length
-        peptide = aa_seq[:peptide_length]
-
-        if len(peptide) < _MIN_PEPTIDE_LENGTH:
-            continue
-
-        results.append((frame, peptide))
     return results
 
 
+# ---------------------------------------------------------------------------
+# Main pipeline function
+# ---------------------------------------------------------------------------
+
 def translate_all(
     contigs_fasta: str | Path,
-    output_fasta: str | Path,
+    output_tsv: str | Path,
+    upstream_nt: int = 26,
     reading_frames: list[int] | None = None,
-    peptide_length: int = 16,
 ) -> None:
-    """Translate all contigs in a FASTA file and write peptides to output FASTA.
+    """Extract junction-spanning 9-mers from all contigs and write to TSV.
 
     Args:
         contigs_fasta:  Input FASTA of 50 nt contigs.
-        output_fasta:   Output FASTA of translated peptides.
-        reading_frames: List of 0-based frame offsets.  Defaults to [0, 1, 2].
-        peptide_length: Target peptide length in amino acids.
+        output_tsv:     Output TSV (columns: contig_key, start_nt, peptide).
+        upstream_nt:    Junction breakpoint position. Must match
+                        config[assembly][upstream_nt].
+        reading_frames: 0-based frame offsets. Defaults to [0, 1, 2].
     """
     if reading_frames is None:
         reading_frames = [0, 1, 2]
 
     contigs_fasta = Path(contigs_fasta)
-    output_fasta = Path(output_fasta)
-    output_fasta.parent.mkdir(parents=True, exist_ok=True)
+    output_tsv = Path(output_tsv)
+    output_tsv.parent.mkdir(parents=True, exist_ok=True)
 
     records = _parse_fasta(contigs_fasta)
-    log.info("Translating %d contigs in frames %s", len(records), reading_frames)
+    log.info(
+        "Extracting junction-spanning 9-mers from %d contigs (upstream_nt=%d)",
+        len(records), upstream_nt,
+    )
 
     n_peptides = 0
-    with output_fasta.open("w") as out:
+    with output_tsv.open("w", newline="") as fh:
+        writer = csv.writer(fh, delimiter="\t")
+        writer.writerow(["contig_key", "start_nt", "peptide"])
         for header, seq in records:
             if not seq:
                 continue
-            peptides = translate_contig(seq, reading_frames, peptide_length)
-            for frame, peptide in peptides:
-                pep_header = f">{header}|frame{frame + 1}"
-                out.write(f"{pep_header}\n{peptide}\n")
+            for start_nt, peptide in extract_spanning_9mers(seq, upstream_nt, reading_frames):
+                writer.writerow([header, start_nt, peptide])
                 n_peptides += 1
 
     log.info(
-        "Wrote %d peptide sequences from %d contigs to %s",
-        n_peptides, len(records), output_fasta,
+        "Wrote %d junction-spanning 9-mers from %d contigs to %s",
+        n_peptides, len(records), output_tsv,
     )
 
 
@@ -178,33 +173,27 @@ def _snakemake_main() -> None:
 
     translate_all(
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
-        output_fasta=snakemake.output.peptides_fasta,  # type: ignore[name-defined]  # noqa: F821
-        reading_frames=snakemake.params.reading_frames,  # type: ignore[name-defined]  # noqa: F821
-        peptide_length=snakemake.params.peptide_length,  # type: ignore[name-defined]  # noqa: F821
+        output_tsv=snakemake.output.peptides_tsv,  # type: ignore[name-defined]  # noqa: F821
+        upstream_nt=snakemake.params.upstream_nt,  # type: ignore[name-defined]  # noqa: F821
     )
 
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Translate 50 nt contigs to 16-mer peptides (3 reading frames)."
+        description="Extract junction-spanning 9-mers from 50 nt splice-junction contigs."
     )
     parser.add_argument("--contigs-fasta", required=True, help="Input contigs FASTA")
-    parser.add_argument("--output", required=True, help="Output peptides FASTA")
+    parser.add_argument("--output", required=True, help="Output peptides TSV")
     parser.add_argument(
-        "--reading-frames", type=int, nargs="+", default=[0, 1, 2],
-        help="0-based reading frame offsets (default: 0 1 2)",
-    )
-    parser.add_argument(
-        "--peptide-length", type=int, default=16,
-        help="Target peptide length in amino acids (default: 16)",
+        "--upstream-nt", type=int, default=26,
+        help="Junction breakpoint position (default: 26)",
     )
     args = parser.parse_args()
 
     translate_all(
         contigs_fasta=args.contigs_fasta,
-        output_fasta=args.output,
-        reading_frames=args.reading_frames,
-        peptide_length=args.peptide_length,
+        output_tsv=args.output,
+        upstream_nt=args.upstream_nt,
     )
 
 
