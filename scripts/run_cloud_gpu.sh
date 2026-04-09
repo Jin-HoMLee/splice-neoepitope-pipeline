@@ -47,7 +47,7 @@ GPU_VM="splice-tcrdock-spot"
 ZONE="europe-west1-b"
 MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-t4,count=1"
-DISK_SIZE="50GB"
+DISK_SIZE="100GB"
 IMAGE_FAMILY="common-cu128-ubuntu-2204-nvidia-570"  # CUDA 12.8 pre-installed
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
