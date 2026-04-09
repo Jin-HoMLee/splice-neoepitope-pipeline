@@ -47,7 +47,7 @@ ZONE="europe-west1-b"
 MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-t4,count=1"
 DISK_SIZE="50GB"
-IMAGE_FAMILY="ubuntu-2004-lts"
+IMAGE_FAMILY="ubuntu-2204-lts"
 IMAGE_PROJECT="ubuntu-os-cloud"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 REPO_DIR='$HOME/splice-neoepitope-pipeline'  # evaluated on the VM

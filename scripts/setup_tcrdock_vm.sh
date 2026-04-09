@@ -42,7 +42,7 @@ log "Step 1: Checking NVIDIA driver..."
 if ! command -v nvidia-smi &>/dev/null; then
     log "Installing NVIDIA driver and CUDA toolkit..."
     # Install CUDA 11.8 (compatible with AlphaFold v2 + TCRdock)
-    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
     sudo dpkg -i cuda-keyring_1.0-1_all.deb
     sudo apt-get update -q
     sudo apt-get install -y cuda-11-8 2>&1 | tail -5
