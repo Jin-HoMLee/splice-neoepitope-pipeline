@@ -183,10 +183,23 @@ def compare(current: dict, golden: dict) -> list[str]:
 def test_results_match_golden():
     """Pytest: current pipeline outputs must match the committed golden snapshot.
 
+    This test requires local pipeline outputs (results/test/) and is skipped
+    automatically in CI where those files are not present.  Run it locally
+    after executing the test pipeline:
+
+        snakemake --cores 4 --use-conda --configfile config/test_config.yaml
+        pytest workflow/tests/test_regression.py
+
     If this test fails after a deliberate pipeline change, update the snapshot:
         python workflow/tests/test_regression.py --update-golden
     then commit golden/test_metrics.json together with the code change.
     """
+    import pytest
+
+    sentinel = RESULTS / "junctions" / "local" / "novel_junctions.tsv"
+    if not sentinel.exists():
+        pytest.skip("Pipeline results not found — run the test pipeline first")
+
     assert GOLDEN_FILE.exists(), (
         f"Golden snapshot not found: {GOLDEN_FILE}\n"
         "Run the test pipeline first, then:\n"
