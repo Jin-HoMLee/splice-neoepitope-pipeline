@@ -222,7 +222,7 @@ cd "\$HOME/splice-neoepitope-pipeline"
 for dir in ${RESULT_DIRS[*]}; do
     if [[ -d "results/\${dir}" ]]; then
         echo "  Uploading results/\${dir}/ ..."
-        gsutil -m cp -r "results/\${dir}" "${GCS_PATH}/\${dir}"
+        gcloud storage cp -r "results/\${dir}" "${GCS_PATH}/\${dir}"
     else
         echo "  results/\${dir}/ not found — skipping."
     fi
@@ -323,7 +323,7 @@ ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 mkdir -p results
-gsutil -m cp -r "${GCS_PATH}/*" results/
+gcloud storage cp -r "${GCS_PATH}/*" results/
 echo "Download complete."
 EOF
 
