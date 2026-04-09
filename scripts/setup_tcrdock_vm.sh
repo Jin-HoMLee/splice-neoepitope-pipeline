@@ -107,6 +107,7 @@ conda run -n "${CONDA_ENV}" pip install \
     dm-tree \
     ml-collections \
     biopython==1.79 \
+    tensorflow \
     -q
 
 log "TCRdock environment ready."
