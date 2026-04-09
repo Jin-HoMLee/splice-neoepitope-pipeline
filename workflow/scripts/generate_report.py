@@ -18,6 +18,7 @@ Usage (Snakemake):
 """
 
 import argparse
+import html
 import logging
 from pathlib import Path
 
@@ -215,9 +216,9 @@ def _build_strong_table_html(
 
         rows.append(
             f"<tr>"
-            f"<td>{row['source_header']}</td>"
-            f"<td>{row['peptide_9mer']}</td>"
-            f"<td>{row['allele']}</td>"
+            f"<td>{html.escape(str(row['source_header']))}</td>"
+            f"<td>{html.escape(str(row['peptide_9mer']))}</td>"
+            f"<td>{html.escape(str(row['allele']))}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{row['percentile_rank']:.3f}</td>"
             f"<td>{contig_html}</td>"
