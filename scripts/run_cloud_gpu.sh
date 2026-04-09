@@ -177,14 +177,16 @@ log "  Monitor with:"
 log "    gcloud compute ssh ${CPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
 while true; do
     DONE="$(ssh_cmd "${CPU_VM}" --command \
-        "grep -c 'steps (100%) done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0")"
+        "grep -c 'steps (100%) done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
     if [[ "${DONE}" -ge 1 ]]; then
         log "  Pipeline finished (100% done detected in log)."
         break
     fi
     # Also check if snakemake failed (VM still running but pipeline errored)
     FAILED="$(ssh_cmd "${CPU_VM}" --command \
-        "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0")"
+        "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
     if [[ "${FAILED}" -ge 1 ]]; then
         echo "ERROR: Pipeline appears to have failed. Check pipeline.log on ${CPU_VM}." >&2
         exit 1
