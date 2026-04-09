@@ -230,9 +230,8 @@ done
 echo "Upload complete."
 EOF
 
-log "Stopping ${CPU_VM} to save cost..."
-gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}"
-log "  ${CPU_VM} stopped."
+log "Stopping ${CPU_VM} in background to save cost..."
+gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" &
 
 # ===========================================================================
 # Phase 3 — GPU Spot VM: TCRdock structural validation
