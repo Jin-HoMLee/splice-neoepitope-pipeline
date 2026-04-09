@@ -50,7 +50,6 @@ Usage (Snakemake):
 
 import argparse
 import csv
-import json
 import logging
 import subprocess
 import sys
@@ -110,17 +109,18 @@ def build_tcrdock_input(
 ) -> Path:
     """Write TCRdock input TSV for the selected candidates.
 
-    TCRdock expects a TSV with columns:
-        organism  mhc_class  mhc  peptide  va_gene  ja_gene  cdr3a
-        vb_gene  jb_gene  cdr3b
+    Column names and formats verified against TCRdock's own example TSV
+    (examples/benchmark/single_target.tsv):
+      pdbid  organism  mhc_class  mhc  peptide  va  ja  cdr3a  vb  jb  cdr3b
 
-    Fallback HLA uses the A-family allele (HLA-A*02:01 by default) since
-    MHCflurry predictions are currently run for a single allele. When HLA
-    typing (#23) is implemented, the per-sample allele should be used instead.
+    Notes:
+    - mhc: no "HLA-" prefix (e.g. "A*02:01" not "HLA-A*02:01")
+    - va/ja/vb/jb: gene name with "*01" allele suffix (e.g. "TRAV12-2*01")
+    - pdbid: arbitrary label, used only for output file naming
 
     Args:
         candidates:   DataFrame of top candidates from select_top_candidates().
-        fallback_hla: Dict with keys A, B, C (allele strings).
+        fallback_hla: Dict with keys A, B, C (allele strings, MHCflurry format).
         fallback_tcr: Dict with va_gene, ja_gene, cdr3a, vb_gene, jb_gene, cdr3b.
         output_dir:   Directory to write the input TSV.
 
@@ -130,21 +130,25 @@ def build_tcrdock_input(
     output_dir.mkdir(parents=True, exist_ok=True)
     input_tsv = output_dir / "tcrdock_input.tsv"
 
+    def _add_allele(gene: str) -> str:
+        """Append *01 if no allele suffix is already present."""
+        return gene if "*" in gene else gene + "*01"
+
     rows = []
-    for _, row in candidates.iterrows():
-        # Use the allele from the prediction; fall back to config A-family allele
-        # Convert MHCflurry format (HLA-A*02:01) to TCRdock format (HLA-A*02:01)
+    for i, row in candidates.iterrows():
         allele = row.get("allele", fallback_hla["A"])
+        mhc = allele.replace("HLA-", "")  # "HLA-A*02:01" → "A*02:01"
         rows.append({
+            "pdbid":     f"neoepitope_{i}",
             "organism":  "human",
             "mhc_class": "1",
-            "mhc":       allele,
+            "mhc":       mhc,
             "peptide":   row["peptide"],
-            "va_gene":   fallback_tcr["va_gene"],
-            "ja_gene":   fallback_tcr["ja_gene"],
+            "va":        _add_allele(fallback_tcr["va_gene"]),
+            "ja":        _add_allele(fallback_tcr["ja_gene"]),
             "cdr3a":     fallback_tcr["cdr3a"],
-            "vb_gene":   fallback_tcr["vb_gene"],
-            "jb_gene":   fallback_tcr["jb_gene"],
+            "vb":        _add_allele(fallback_tcr["vb_gene"]),
+            "jb":        _add_allele(fallback_tcr["jb_gene"]),
             "cdr3b":     fallback_tcr["cdr3b"],
         })
 
@@ -180,27 +184,51 @@ def run_tcrdock(
     """
     tcrdock_dir = Path(tcrdock_dir).expanduser()
     alphafold_params_dir = Path(alphafold_params_dir).expanduser()
-    predict_script = tcrdock_dir / "predict.py"
 
-    if not predict_script.exists():
-        raise FileNotFoundError(
-            f"TCRdock predict.py not found at {predict_script}. "
-            f"Check config[tcrdock][tcrdock_dir]."
-        )
+    setup_script   = tcrdock_dir / "setup_for_alphafold.py"
+    predict_script = tcrdock_dir / "run_prediction.py"
 
-    cmd = [
-        sys.executable, str(predict_script),
+    for script in (setup_script, predict_script):
+        if not script.exists():
+            raise FileNotFoundError(
+                f"{script.name} not found at {script}. "
+                f"Check config[tcrdock][tcrdock_dir]."
+            )
+
+    # TCRdock requires JAX + dm-haiku in the 'tcrdock' conda env, not python.yaml.
+    tcrdock_python = Path.home() / "miniforge3" / "envs" / "tcrdock" / "bin" / "python"
+    if not tcrdock_python.exists():
+        tcrdock_python = Path(sys.executable)
+        log.warning("tcrdock conda env Python not found; falling back to %s", tcrdock_python)
+
+    def _run(cmd: list, label: str) -> None:
+        log.info("Running %s: %s", label, " ".join(cmd))
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(tcrdock_dir))
+        if result.stdout:
+            log.info("%s stdout:\n%s", label, result.stdout[-2000:])
+        if result.returncode != 0:
+            log.error("%s stderr:\n%s", label, result.stderr[-2000:])
+            raise RuntimeError(f"{label} exited with code {result.returncode}")
+
+    # Step 1: setup_for_alphafold.py — builds AlphaFold template inputs.
+    # --new_docking: 1 AlphaFold run per target instead of 3 (sufficient for validation).
+    setup_dir = output_dir / "alphafold_setup"
+    _run([
+        str(tcrdock_python), str(setup_script),
         "--targets_tsvfile", str(input_tsv),
+        "--output_dir",      str(setup_dir),
+        "--new_docking",
+    ], "setup_for_alphafold.py")
+
+    # Step 2: run_prediction.py — runs AlphaFold inference.
+    # alphafold_params_dir must contain a params/ subdirectory with *.npz files.
+    _run([
+        str(tcrdock_python), str(predict_script),
+        "--targets",       str(setup_dir / "targets.tsv"),
         "--outfile_prefix", str(output_dir / "tcrdock_out"),
-        "--params_dir", str(alphafold_params_dir),
-    ]
-
-    log.info("Running TCRdock: %s", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        log.error("TCRdock failed:\n%s", result.stderr)
-        raise RuntimeError(f"TCRdock exited with code {result.returncode}")
+        "--model_names",   "model_2_ptm",
+        "--data_dir",      str(alphafold_params_dir),
+    ], "run_prediction.py")
 
     log.info("TCRdock completed successfully.")
     return output_dir
@@ -219,63 +247,48 @@ def collect_outputs(
 ) -> None:
     """Collect TCRdock PDB and docking scores into pipeline output files.
 
-    TCRdock writes one PDB per candidate. This function:
-      1. Copies the top candidate PDB to output_pdb.
-      2. Parses docking geometry from the TCRdock score file and writes
-         a clean TSV to output_scores.
+    run_prediction.py produces:
+      - {prefix}_final.tsv: one row per AlphaFold run, with pLDDT/PAE metric
+        columns and a *_pdb_file column pointing to the predicted PDB.
 
     Args:
         tcrdock_output_dir: Directory containing TCRdock output files.
         candidates:         DataFrame of candidates (same order as input TSV).
         output_pdb:         Destination PDB path (top candidate only).
         output_scores:      Destination docking scores TSV.
-        fallback_tcr:       TCR config dict (for annotating the scores TSV).
+        fallback_tcr:       TCR config dict (unused here, kept for signature compat).
     """
-    # TCRdock names PDB files by row index: tcrdock_out_0.pdb, tcrdock_out_1.pdb ...
-    top_pdb = tcrdock_output_dir / "tcrdock_out_0.pdb"
-    if not top_pdb.exists():
-        # Try alternative naming conventions
+    final_tsv = tcrdock_output_dir / "tcrdock_out_final.tsv"
+    if not final_tsv.exists():
+        raise FileNotFoundError(
+            f"TCRdock final TSV not found at {final_tsv}. "
+            f"run_prediction.py may have failed silently."
+        )
+
+    scores_df = pd.read_csv(final_tsv, sep="\t")
+
+    # PDB path is in the *_pdb_file column written by run_prediction.py
+    pdb_col = next((c for c in scores_df.columns if c.endswith("_pdb_file")), None)
+    top_pdb = None
+    if pdb_col and pd.notna(scores_df[pdb_col].iloc[0]):
+        top_pdb = Path(scores_df[pdb_col].iloc[0])
+
+    if top_pdb is None or not top_pdb.exists():
         pdbs = sorted(tcrdock_output_dir.glob("*.pdb"))
         if not pdbs:
-            raise FileNotFoundError(
-                f"No PDB files found in {tcrdock_output_dir}. TCRdock may have failed."
-            )
+            raise FileNotFoundError(f"No PDB files found in {tcrdock_output_dir}.")
         top_pdb = pdbs[0]
+        log.warning("PDB column not found in final TSV; using %s", top_pdb)
 
     output_pdb.parent.mkdir(parents=True, exist_ok=True)
     output_pdb.write_bytes(top_pdb.read_bytes())
     log.info("Top candidate PDB written to %s", output_pdb)
 
-    # Parse docking geometry from TCRdock JSON/TSV score output
-    score_files = list(tcrdock_output_dir.glob("*score*.json")) + \
-                  list(tcrdock_output_dir.glob("*geometry*.tsv"))
-
-    score_rows = []
-    for i, (_, cand) in enumerate(candidates.iterrows()):
-        row = {
-            "peptide":          cand["peptide"],
-            "allele":           cand.get("allele", ""),
-            "ic50_nM":          cand["ic50_nM"],
-            "va_gene":          fallback_tcr["va_gene"],
-            "ja_gene":          fallback_tcr["ja_gene"],
-            "cdr3a":            fallback_tcr["cdr3a"],
-            "vb_gene":          fallback_tcr["vb_gene"],
-            "jb_gene":          fallback_tcr["jb_gene"],
-            "cdr3b":            fallback_tcr["cdr3b"],
-            "pdb_file":         f"tcrdock_out_{i}.pdb",
-            "docking_geometry": "",
-        }
-        # If a JSON score file exists for this candidate, extract geometry
-        json_file = tcrdock_output_dir / f"tcrdock_out_{i}_scores.json"
-        if json_file.exists():
-            try:
-                scores = json.loads(json_file.read_text())
-                row["docking_geometry"] = json.dumps(scores)
-            except Exception:
-                pass
-        score_rows.append(row)
-
-    pd.DataFrame(score_rows).to_csv(output_scores, sep="\t", index=False)
+    # Write docking scores: pLDDT and PAE columns from the final TSV
+    metric_cols = [c for c in scores_df.columns if
+                   any(k in c for k in ("plddt", "pae", "ptm"))]
+    keep_cols = [c for c in ["peptide", "mhc"] + metric_cols if c in scores_df.columns]
+    scores_df[keep_cols].to_csv(output_scores, sep="\t", index=False)
     log.info("Docking scores written to %s", output_scores)
 
 

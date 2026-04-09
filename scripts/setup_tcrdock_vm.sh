@@ -120,17 +120,19 @@ mkdir -p "${AF_PARAMS_DIR}"
 
 AF_PARAMS_URL="https://storage.googleapis.com/alphafold/alphafold_params_colab_2022-12-06.tar"
 
-if [[ ! -f "${AF_PARAMS_DIR}/params_model_1_multimer_v3.npz" ]]; then
+if [[ ! -f "${AF_PARAMS_DIR}/params/params_model_1_multimer_v3.npz" ]]; then
     log "Downloading AlphaFold params (this may take 10-20 min)..."
     wget -q --show-progress \
         "${AF_PARAMS_URL}" \
         -O /tmp/af_params.tar
     log "Extracting AlphaFold params..."
-    tar -xf /tmp/af_params.tar -C "${AF_PARAMS_DIR}"
+    # AlphaFold expects data_dir/params/*.npz — extract into the params/ subdirectory.
+    mkdir -p "${AF_PARAMS_DIR}/params"
+    tar -xf /tmp/af_params.tar -C "${AF_PARAMS_DIR}/params"
     rm /tmp/af_params.tar
-    log "AlphaFold params extracted to ${AF_PARAMS_DIR}"
+    log "AlphaFold params extracted to ${AF_PARAMS_DIR}/params"
 else
-    log "AlphaFold params already present at ${AF_PARAMS_DIR}"
+    log "AlphaFold params already present at ${AF_PARAMS_DIR}/params"
 fi
 
 # ---------------------------------------------------------------------------
