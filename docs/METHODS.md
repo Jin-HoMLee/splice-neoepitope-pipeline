@@ -105,15 +105,29 @@ Codons (frame offset = 0, each codon spans 3 nt):
 
 9-mer sliding window positions (start_nt = i × 3 for frame offset 0):
 
-  i=0  start_nt= 0  covers nt  0–26  → last codon spans junction by 1 nt
-                                         but first 8 amino acids are purely upstream
-                                         ✗ FALSE POSITIVE (matches normal protein)
+  i=0  start_nt= 0  covers nt  0–26
+       AA 0–7: nt  0–23  entirely upstream (8 normal amino acids)
+       AA 8:   nt 24–26  chimeric codon: 2 nt upstream + 1 nt downstream
+                                         ✗ FALSE POSITIVE — see note below
 
-  i=1  start_nt= 3  covers nt  3–29  → contains complete codons from both sides ✓
+  i=1  start_nt= 3  covers nt  3–29
+       AA 0:   nt  3– 5  entirely upstream (complete upstream codon) ✓
+       ...
+       AA 8:   nt 27–29  entirely downstream (complete downstream codon) ✓
+
   i=2  start_nt= 6  covers nt  6–32  ✓
   ...
-  i=7  start_nt=21  covers nt 21–47  → contains complete codons from both sides ✓
+  i=7  start_nt=21  covers nt 21–47  ✓
 ```
+
+**Why a chimeric codon is not enough (i=0 subtlety).**
+At i=0, the 9th amino acid's codon straddles the junction (2 upstream nt + 1 downstream
+nt).  In principle this codon could encode a novel amino acid not seen in the normal
+protein.  In practice it frequently does not — the downstream exon may contribute a
+nucleotide that still encodes the same amino acid by chance (codon degeneracy).  This is
+exactly what happened with `YLADLYHFV`: the last codon still encoded valine (V), so all
+9 amino acids matched the normal SH3BP1 sequence.  A chimeric codon gives no reliable
+guarantee of novelty; only a **complete downstream codon** does.
 
 ### 5.2 Spanning condition
 
@@ -125,7 +139,8 @@ start_nt = f + i × 3
 
 Keep if:   upstream_nt - (window_size - 1) × 3   ≤   start_nt   ≤   upstream_nt - 3
            ───────────────────────────────────        ───────────────────────────────
-           ensures ≥ 1 downstream codon             ensures ≥ 1 upstream codon
+           ensures last AA is fully downstream       ensures first AA is fully upstream
+           (complete downstream codon)               (complete upstream codon)
 
 With defaults (upstream_nt = 26, window_size = 9):
            2   ≤   start_nt   ≤   23
