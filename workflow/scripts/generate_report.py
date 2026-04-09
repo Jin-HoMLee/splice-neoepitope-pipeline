@@ -71,6 +71,27 @@ _PIPELINE_DIAGRAM = """\
 </div>
 """
 
+_MOLSTAR_VIEWER = """\
+<div id="molstar-container" style="width:100%;height:500px;position:relative;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin:1em 0;"></div>
+<script type="text/javascript">
+  // Mol* viewer — loads the inlined PDB and renders the TCR-peptide-MHC complex.
+  // Mol* is MIT-licensed and loaded from the official CDN (no registration required).
+  document.addEventListener("DOMContentLoaded", function() {{
+    molstar.Viewer.create("molstar-container", {{
+      layoutIsExpanded: false,
+      layoutShowControls: true,
+      layoutShowRemoteState: false,
+      layoutShowSequence: true,
+      layoutShowLog: false,
+      layoutShowLeftPanel: true,
+    }}).then(function(viewer) {{
+      var pdbData = {pdb_data};
+      viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "{peptide} / {allele}" }});
+    }});
+  }});
+</script>
+"""
+
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -78,6 +99,10 @@ _HTML_TEMPLATE = """\
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
+  <!-- Mol* molecular viewer (MIT license) — only used when TCRdock structural
+       validation is enabled (config[tcrdock][enabled]: true). -->
+  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>
+  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>
   <style>
     body  {{ font-family: Arial, sans-serif; margin: 2em; color: #333; }}
     h1    {{ color: #2c3e50; }}
@@ -148,6 +173,8 @@ _HTML_TEMPLATE = """\
 
   <h2>Top strong binders (IC50 &lt; {ic50_strong} nM)</h2>
   {strong_table}
+
+  {structure_section}
 
   <hr/>
   <p><small>Pipeline source:
@@ -254,12 +281,59 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
 # Report generation
 # ---------------------------------------------------------------------------
 
+def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
+    """Build the Mol* 3D viewer section for the top TCRdock candidate.
+
+    The PDB is inlined as a JSON string so the HTML report is fully
+    self-contained and does not depend on local file paths at view time.
+
+    Args:
+        pdb_path: Path to the TCRdock-predicted PDB file.
+        pred_df:  MHCflurry predictions DataFrame (used for annotation).
+
+    Returns:
+        HTML string containing the Mol* viewer and inlined PDB.
+    """
+    try:
+        pdb_text = pdb_path.read_text()
+    except OSError as exc:
+        log.warning("Could not read PDB file %s: %s", pdb_path, exc)
+        return "<p><em>Structure not available.</em></p>"
+
+    # Annotate with the top candidate's peptide and allele
+    top = pred_df[pred_df["binder_class"] == "strong"].sort_values("ic50_nM").head(1)
+    if top.empty:
+        peptide, allele = "top candidate", ""
+    else:
+        peptide = html.escape(str(top.iloc[0]["peptide"]))
+        allele  = html.escape(str(top.iloc[0]["allele"]))
+
+    # Inline PDB as a JSON string (safe for embedding in JS)
+    import json as _json
+    pdb_json = _json.dumps(pdb_text)
+
+    viewer_html = _MOLSTAR_VIEWER.format(
+        pdb_data=pdb_json,
+        peptide=peptide,
+        allele=allele,
+    )
+    return (
+        "<h2>TCR-peptide-MHC structure (TCRdock)</h2>"
+        "<p>Predicted 3D structure of the TCR-peptide-MHC ternary complex for "
+        f"the top neoepitope candidate (<strong>{peptide}</strong> / {allele}). "
+        "Rendered with <a href='https://molstar.org'>Mol*</a>. "
+        "TCR sequences: DMF5 fallback (see config).</p>"
+        + viewer_html
+    )
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
     output_html: str | Path,
     contigs_fasta: str | Path | None = None,
     ic50_strong: float = 50.0,
+    tcrdock_pdb: str | Path | None = None,
 ) -> None:
     """Generate the summary HTML report.
 
@@ -269,6 +343,8 @@ def generate_report(
         output_html:         Destination HTML file.
         contigs_fasta:       Contig FASTA for junction visualisation (optional).
         ic50_strong:         Strong-binder IC50 threshold (nM).
+        tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
+                             an embedded Mol* 3D viewer is added to the report.
     """
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
@@ -312,11 +388,18 @@ def generate_report(
     else:
         strong_html = _build_strong_table_html(pred_df, contigs)
 
+    # --- TCRdock 3D structure viewer (optional) ---
+    if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
+        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df)
+    else:
+        structure_section = ""
+
     html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
         binder_table=binder_html,
         strong_table=strong_html,
+        structure_section=structure_section,
         ic50_strong=int(ic50_strong),
     )
     output_html.write_text(html, encoding="utf-8")
@@ -337,6 +420,7 @@ def _snakemake_main() -> None:
         output_html=snakemake.output.report_html,  # type: ignore[name-defined]  # noqa: F821
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
+        tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
