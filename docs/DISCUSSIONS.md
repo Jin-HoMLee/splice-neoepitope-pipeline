@@ -62,12 +62,18 @@ contribute only as interior nucleotides of later windows.
 
 Reducing `upstream_nt` to 24 would make `min_start=0`, so frame 0 windows starting at
 `start=0` would be valid and no upstream nucleotides are wasted. This is a cleaner
-design. The trade-off is 2 fewer nucleotides of upstream context per contig, which is
-biologically negligible given that the junction-spanning filter already requires multiple
-complete upstream codons.
+design. However, `upstream_nt=26` is deliberately retained for the following reason:
 
-This change requires re-running contig assembly and all downstream steps on production
-data, so it is deferred to a future release.
+**Chimeric codon data preservation.** The 2 extra upstream nucleotides (nt 0 and 1) are
+excluded from valid window starts under the current complete-codon rule, but they remain
+in the contig sequence. This preserves the raw data needed to handle chimeric codons —
+codons that straddle the splice junction with 1 or 2 nucleotides on one side — if the
+pipeline is extended to translate them in a future release.
+
+A more principled future change would be to extend the downstream flank symmetrically
+from 24 to 26 nt (giving 26 + 26 = 52 nt contigs), providing chimeric codon coverage on
+**both** sides of the junction. This would also simplify the config to a single
+`flank_nt` value instead of separate `upstream_nt` / `downstream_nt`.
 
 ---
 
