@@ -20,6 +20,11 @@ class TestParseFrameOffset:
         header = "some_header_without_frame"
         assert _parse_frame_offset(header) is None
 
+    def test_invalid_frame_token_returns_none(self):
+        for bad in ("frame0", "frame4", "frame10"):
+            header = f"chr22:100:200:+|{bad}"
+            assert _parse_frame_offset(header) is None, f"expected None for {bad}"
+
 
 class TestGenerate9mers:
     # A 16-mer with no stop codons or invalid characters

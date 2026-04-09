@@ -66,17 +66,22 @@ def _read_peptides_fasta(fasta_path: str | Path) -> Iterator[tuple[str, str]]:
         yield record.description, str(record.seq)
 
 
+# Convention mirrors the frame tokens written by translate_peptides.py
+_FRAME_OFFSETS = {"frame1": 0, "frame2": 1, "frame3": 2}
+
+
 def _parse_frame_offset(header: str) -> int | None:
     """Extract the 0-based reading frame offset from a peptide FASTA header.
 
     Headers from translate_peptides.py end with ``|frame1``, ``|frame2``, or
     ``|frame3``, corresponding to 0-based offsets 0, 1, 2.
 
-    Returns None if the frame token is absent (no junction filter applied).
+    Returns None if the frame token is absent or unrecognised (no junction
+    filter applied).
     """
     for part in header.split("|"):
-        if part.startswith("frame") and part[5:].isdigit():
-            return int(part[5:]) - 1  # frame1 → 0, frame2 → 1, frame3 → 2
+        if part in _FRAME_OFFSETS:
+            return _FRAME_OFFSETS[part]
     return None
 
 
