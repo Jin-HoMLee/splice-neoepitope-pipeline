@@ -32,7 +32,7 @@ set -euo pipefail
 TCRDOCK_DIR="${HOME}/tcrdock"
 AF_PARAMS_DIR="${HOME}/af_params"
 CONDA_ENV="tcrdock"
-PYTHON_VERSION="3.8"
+PYTHON_VERSION="3.10"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -83,32 +83,23 @@ else
     git -C "${TCRDOCK_DIR}" pull
 fi
 
-# Create dedicated conda environment for TCRdock (Python 3.8 required)
+# Create dedicated conda environment for TCRdock
 if ! conda env list | grep -q "^${CONDA_ENV} "; then
     log "Creating conda environment '${CONDA_ENV}' (Python ${PYTHON_VERSION})..."
     conda create -y -n "${CONDA_ENV}" python="${PYTHON_VERSION}"
 fi
 
-log "Installing TCRdock Python dependencies..."
-conda run -n "${CONDA_ENV}" pip install -r "${TCRDOCK_DIR}/requirements.txt" -q
-
 log "Installing BLAST (required by TCRdock)..."
 conda run -n "${CONDA_ENV}" python "${TCRDOCK_DIR}/download_blast.py"
 
-# Install AlphaFold Python dependencies into the TCRdock environment
-# JAX with CUDA 12 support (compatible with Deep Learning VM CUDA 12.8 image)
-log "Installing AlphaFold dependencies..."
-conda run -n "${CONDA_ENV}" pip install \
-    "jax[cuda12_pip]" \
-    -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
-    -q
-conda run -n "${CONDA_ENV}" pip install \
-    dm-haiku \
-    dm-tree \
-    ml-collections \
-    biopython==1.79 \
-    tensorflow \
-    -q
+# Install TCRdock + AlphaFold dependencies.
+# requirements_colab_af232.txt is pinned for Python 3.10 + CUDA 12 + JAX 0.4.14.
+# matplotlib==3.3.4 is excluded because it cannot build from source on Python 3.10;
+# a newer compatible version is installed instead.
+log "Installing TCRdock + AlphaFold Python dependencies..."
+grep -v "^matplotlib" "${TCRDOCK_DIR}/requirements_colab_af232.txt" > /tmp/tcrdock_req.txt
+conda run -n "${CONDA_ENV}" pip install -r /tmp/tcrdock_req.txt -q
+conda run -n "${CONDA_ENV}" pip install matplotlib -q
 
 log "TCRdock environment ready."
 
