@@ -7,11 +7,11 @@
 #
 #   Phase 1 — CPU VM (splice-prod-test)
 #     Start VM, pull branch, run pipeline steps 1-5 (alignment → MHCflurry)
-#     in a tmux session, then poll until the VM auto-stops when done.
+#     in a tmux session, poll pipeline.log until 100% done (VM stays running).
 #
 #   Phase 2 — Copy results
-#     Restart CPU VM briefly, copy the results directories needed by TCRdock
-#     (junctions, contigs, predictions — not raw BAMs), then stop CPU VM.
+#     Copy the results directories needed by TCRdock (junctions, contigs,
+#     predictions — not raw BAMs) while VM is still up, then stop CPU VM.
 #
 #   Phase 3 — GPU Spot VM (splice-tcrdock-spot)
 #     Create VM, install conda + Snakemake + CUDA + TCRdock + AlphaFold params,
@@ -52,10 +52,11 @@ IMAGE_FAMILY="ubuntu-2204-lts"
 IMAGE_PROJECT="ubuntu-os-cloud"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 
-# Local temp directory for result transfer between VMs
-TRANSFER_DIR="/tmp/splice-results-transfer"
+# GCS bucket for VM-to-VM result transfer (created automatically if absent)
+GCS_BUCKET="tcrdock-handoff"
+GCS_PATH="gs://${GCS_BUCKET}/results"
 
-# Results subdirectories to copy (excludes raw_data/ which contains large BAMs)
+# Results subdirectories to upload (excludes raw_data/ which contains large BAMs)
 RESULT_DIRS=("junctions" "contigs" "peptides" "predictions" "reports")
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
@@ -108,7 +109,19 @@ log "  CPU VM:  ${CPU_VM}"
 log "  GPU VM:  ${GPU_VM}"
 log "  Zone:    ${ZONE}"
 log "  Branch:  ${BRANCH}"
+log "  Bucket:  gs://${GCS_BUCKET}"
 log "================================================================"
+
+# ---------------------------------------------------------------------------
+# Ensure GCS handoff bucket exists
+# ---------------------------------------------------------------------------
+if gsutil ls "gs://${GCS_BUCKET}" &>/dev/null; then
+    log "GCS bucket gs://${GCS_BUCKET} already exists."
+else
+    log "Creating GCS bucket gs://${GCS_BUCKET}..."
+    gsutil mb -l "${ZONE%-*}" "gs://${GCS_BUCKET}"
+    log "  Bucket created."
+fi
 
 # ===========================================================================
 # Phase 1 — CPU pipeline (steps 1-5)
@@ -142,7 +155,7 @@ git pull origin "${BRANCH}"
 # Kill any stale pipeline tmux session
 tmux kill-session -t pipeline 2>/dev/null || true
 
-# Start fresh tmux session: run pipeline, then shut down
+# Start fresh tmux session: run pipeline (no shutdown — orchestrator handles that)
 tmux new-session -d -s pipeline "
     source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
     conda activate snakemake
@@ -152,8 +165,7 @@ tmux new-session -d -s pipeline "
         --rerun-triggers mtime \\
         --configfile config/config.yaml \\
         2>&1 | tee pipeline.log
-    echo 'Pipeline finished — shutting down.'
-    sudo shutdown -h now
+    echo 'Pipeline finished.'
 "
 
 echo "Pipeline started in tmux session 'pipeline'."
@@ -187,25 +199,21 @@ done
 log ""
 log "=== Phase 2: Copying results from ${CPU_VM} ==="
 
-# Copy result directories (exclude raw_data/ — BAMs are large and not needed)
-rm -rf "${TRANSFER_DIR}"
-mkdir -p "${TRANSFER_DIR}"
-
-# VM is still running from Phase 1 — copy immediately, then stop
-log "Copying results from ${CPU_VM} to local temp (${TRANSFER_DIR})..."
-for dir in "${RESULT_DIRS[@]}"; do
-    REMOTE_PATH="\$HOME/splice-neoepitope-pipeline/results/${dir}"
-    LOCAL_PATH="${TRANSFER_DIR}/${dir}"
-    log "  Copying results/${dir}/ ..."
-    gcloud compute scp \
-        --tunnel-through-iap \
-        --recurse \
-        --zone="${ZONE}" \
-        "${CPU_VM}:~/splice-neoepitope-pipeline/results/${dir}" \
-        "${LOCAL_PATH}" 2>/dev/null || {
-            log "  results/${dir}/ not found on CPU VM — skipping."
-        }
+# VM is still running from Phase 1 — upload results to GCS directly, then stop
+log "Uploading results from ${CPU_VM} to gs://${GCS_BUCKET}..."
+ssh_cmd "${CPU_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+for dir in ${RESULT_DIRS[*]}; do
+    if [[ -d "results/\${dir}" ]]; then
+        echo "  Uploading results/\${dir}/ ..."
+        gsutil -m cp -r "results/\${dir}" "${GCS_PATH}/\${dir}"
+    else
+        echo "  results/\${dir}/ not found — skipping."
+    fi
 done
+echo "Upload complete."
+EOF
 
 log "Stopping ${CPU_VM} to save cost..."
 gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}"
@@ -294,23 +302,15 @@ cd "$HOME/splice-neoepitope-pipeline"
 bash scripts/setup_tcrdock_vm.sh
 EOF
 
-# Copy results from local temp to GPU VM
-log "Copying results to GPU VM..."
-for dir in "${RESULT_DIRS[@]}"; do
-    LOCAL_PATH="${TRANSFER_DIR}/${dir}"
-    if [[ -d "${LOCAL_PATH}" ]]; then
-        log "  Uploading results/${dir}/ ..."
-        gcloud compute scp \
-            --tunnel-through-iap \
-            --recurse \
-            --zone="${ZONE}" \
-            "${LOCAL_PATH}" \
-            "${GPU_VM}:~/splice-neoepitope-pipeline/results/${dir}"
-    fi
-done
-
-log "Cleaning up local transfer directory..."
-rm -rf "${TRANSFER_DIR}"
+# Download results from GCS directly onto GPU VM
+log "Downloading results from gs://${GCS_BUCKET} onto GPU VM..."
+ssh_cmd "${GPU_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+mkdir -p results
+gsutil -m cp -r "${GCS_PATH}/*" results/
+echo "Download complete."
+EOF
 
 # Run Snakemake with TCRdock overlay — only TCRdock + report rules will run
 # (all earlier outputs are already present from the CPU pipeline)
