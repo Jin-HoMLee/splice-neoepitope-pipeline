@@ -13,8 +13,8 @@ Reference:
 The script:
   1. Reads junction-spanning 9-mers from the TSV produced by translate_peptides.py.
   2. Runs MHCflurry affinity prediction for the specified HLA allele.
-  3. Classifies each 9-mer as a strong binder (IC50 < 50 nM), weak binder
-     (IC50 < 500 nM), or non-binder.
+  3. Classifies each 9-mer as a strong binder (IC50 <= 50 nM), weak binder
+     (IC50 <= 500 nM), or non-binder.
 
 Output TSV columns:
   contig_key  start_nt  peptide  allele  ic50_nM  percentile_rank  binder_class
