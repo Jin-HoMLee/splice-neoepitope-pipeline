@@ -63,9 +63,9 @@ _PIPELINE_DIAGRAM = """\
   <div class="arrow">↓</div>
   <div class="step">Contig assembly<br/><small>50 nt per junction</small></div>
   <div class="arrow">↓</div>
-  <div class="step">In-silico translation<br/><small>3 reading frames → 16-mer peptides</small></div>
+  <div class="step">In-silico translation<br/><small>3 reading frames → junction-spanning 9-mers</small></div>
   <div class="arrow">↓</div>
-  <div class="step">MHCflurry epitope prediction<br/><small>9-mer sliding window</small></div>
+  <div class="step">MHCflurry epitope prediction<br/><small>IC50 affinity per 9-mer</small></div>
   <div class="arrow">↓</div>
   <div class="step io">Neoepitope candidates<br/><small>strong / weak binders</small></div>
 </div>
@@ -162,7 +162,7 @@ _HTML_TEMPLATE = """\
 def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
     """Parse contigs FASTA into {contig_key: sequence} dict.
 
-    The contig key matches source_header in predictions minus the '|frame{N}' suffix.
+    The contig key matches the contig_key column in the predictions TSV.
     """
     contigs: dict[str, str] = {}
     for record in SeqIO.parse(contigs_fasta, "fasta"):
@@ -202,13 +202,8 @@ def _build_strong_table_html(
 
     rows = []
     for _, row in strong_df.head(max_rows).iterrows():
-        header = row["source_header"]
-        contig_key = header.rsplit("|", 1)[0]  # strip |frame{N}
-        frame_part = header.rsplit("|", 1)[-1]
-        frame_offset = (int(frame_part[5:]) - 1) if frame_part.startswith("frame") and frame_part[5:].isdigit() else 0
-
-        position_0 = int(row["position"]) - 1  # convert to 0-indexed
-        start_nt = frame_offset + position_0 * 3
+        contig_key = row["contig_key"]
+        start_nt = int(row["start_nt"])
         end_nt_incl = start_nt + 26  # 9 aa × 3 nt − 1
 
         seq = contigs.get(contig_key, "")
@@ -216,8 +211,8 @@ def _build_strong_table_html(
 
         rows.append(
             f"<tr>"
-            f"<td>{html.escape(str(row['source_header']))}</td>"
-            f"<td>{html.escape(str(row['peptide_9mer']))}</td>"
+            f"<td>{html.escape(str(row['contig_key']))}</td>"
+            f"<td>{html.escape(str(row['peptide']))}</td>"
             f"<td>{html.escape(str(row['allele']))}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{row['percentile_rank']:.3f}</td>"
