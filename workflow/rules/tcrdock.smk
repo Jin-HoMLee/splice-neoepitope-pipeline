@@ -45,8 +45,7 @@ if _TCRDOCK_ENABLED:
             os.path.join(OUT["logs"], "tcrdock", "{cancer_type}_tcrdock.log"),
         params:
             n_candidates=config["tcrdock"]["n_candidates"],
-            tcrdock_dir=config["tcrdock"]["tcrdock_dir"],
-            alphafold_params_dir=config["tcrdock"]["alphafold_params_dir"],
+            docker_image=config["tcrdock"]["docker_image"],
             fallback_hla=config["tcrdock"]["fallback_hla"],
             fallback_tcr=config["tcrdock"]["fallback_tcr"],
         conda:

@@ -52,7 +52,6 @@ import argparse
 import csv
 import logging
 import subprocess
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -168,70 +167,73 @@ def build_tcrdock_input(
 def run_tcrdock(
     input_tsv: Path,
     output_dir: Path,
-    tcrdock_dir: str | Path,
-    alphafold_params_dir: str | Path,
+    docker_image: str,
 ) -> Path:
-    """Run TCRdock and return the directory containing output PDB files.
+    """Run TCRdock via Docker and return the output directory.
+
+    Uses the official TCRdock Docker image which bundles CUDA 11.8, cuDNN 8,
+    Python 3.10, JAX 0.3.25, haiku 0.0.10, AlphaFold params, and BLAST.
+    The host only needs Docker with the NVIDIA Container Toolkit.
+
+    All TCRdock paths are inside the container at /opt/TCRdock/.
+    Input/output files are passed via a single volume mount: output_dir → /data.
 
     Args:
-        input_tsv:            TCRdock input TSV (from build_tcrdock_input).
-        output_dir:           Directory to write TCRdock outputs.
-        tcrdock_dir:          Path to TCRdock installation.
-        alphafold_params_dir: Path to AlphaFold v2 params/ directory.
+        input_tsv:     TCRdock input TSV (from build_tcrdock_input). Must be
+                       inside output_dir (it is, by construction).
+        output_dir:    Directory for all intermediate and final outputs.
+        docker_image:  Docker image name (e.g. "tcrdock:latest").
 
     Returns:
-        Path to TCRdock output directory.
+        Path to the output directory.
     """
-    tcrdock_dir = Path(tcrdock_dir).expanduser().resolve()
-    alphafold_params_dir = Path(alphafold_params_dir).expanduser().resolve()
-    input_tsv = input_tsv.resolve()
+    input_tsv  = input_tsv.resolve()
     output_dir = output_dir.resolve()
 
-    setup_script   = tcrdock_dir / "setup_for_alphafold.py"
-    predict_script = tcrdock_dir / "run_prediction.py"
+    # Both input_tsv and setup_dir must be under output_dir so a single volume
+    # mount covers everything.
+    assert input_tsv.is_relative_to(output_dir), (
+        f"input_tsv {input_tsv} must be inside output_dir {output_dir}"
+    )
 
-    for script in (setup_script, predict_script):
-        if not script.exists():
-            raise FileNotFoundError(
-                f"{script.name} not found at {script}. "
-                f"Check config[tcrdock][tcrdock_dir]."
-            )
+    def _container_path(host_path: Path) -> str:
+        """Translate a host path inside output_dir to its /data/... equivalent."""
+        return "/data/" + str(host_path.relative_to(output_dir))
 
-    # TCRdock requires JAX + dm-haiku in the 'tcrdock' conda env, not python.yaml.
-    tcrdock_python = Path.home() / "miniforge3" / "envs" / "tcrdock" / "bin" / "python"
-    if not tcrdock_python.exists():
-        tcrdock_python = Path(sys.executable)
-        log.warning("tcrdock conda env Python not found; falling back to %s", tcrdock_python)
-
-    def _run(cmd: list, label: str) -> None:
-        log.info("Running %s: %s", label, " ".join(cmd))
-        # cwd=tcrdock_dir so TCRdock's internal relative paths (BLAST db, templates) resolve.
-        # All file arguments must be absolute paths.
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(tcrdock_dir))
+    def _docker_run(container_cmd: list, label: str) -> None:
+        cmd = [
+            "sudo", "docker", "run", "--rm", "--gpus", "all",
+            "-v", f"{output_dir}:/data",
+            docker_image,
+        ] + container_cmd
+        log.info("Running %s:\n  %s", label, " ".join(cmd))
+        result = subprocess.run(cmd, capture_output=True, text=True)
         if result.stdout:
             log.info("%s stdout:\n%s", label, result.stdout[-2000:])
         if result.returncode != 0:
             log.error("%s stderr:\n%s", label, result.stderr[-2000:])
             raise RuntimeError(f"{label} exited with code {result.returncode}")
 
-    # Step 1: setup_for_alphafold.py — builds AlphaFold template inputs.
-    # --new_docking: 1 AlphaFold run per target instead of 3 (sufficient for validation).
     setup_dir = output_dir / "alphafold_setup"
-    _run([
-        str(tcrdock_python), str(setup_script),
-        "--targets_tsvfile", str(input_tsv),
-        "--output_dir",      str(setup_dir),
+    setup_dir.mkdir(parents=True, exist_ok=True)
+
+    # Step 1: setup_for_alphafold.py — builds AlphaFold template inputs.
+    # --new_docking: 1 AlphaFold run per target instead of 3.
+    _docker_run([
+        "python", "/opt/TCRdock/setup_for_alphafold.py",
+        "--targets_tsvfile", _container_path(input_tsv),
+        "--output_dir",      _container_path(setup_dir),
         "--new_docking",
     ], "setup_for_alphafold.py")
 
     # Step 2: run_prediction.py — runs AlphaFold inference.
-    # alphafold_params_dir must contain a params/ subdirectory with *.npz files.
-    _run([
-        str(tcrdock_python), str(predict_script),
-        "--targets",       str(setup_dir / "targets.tsv"),
-        "--outfile_prefix", str(output_dir / "tcrdock_out"),
-        "--model_names",   "model_2_ptm",
-        "--data_dir",      str(alphafold_params_dir),
+    # AlphaFold params and the fine-tuned TCR model are inside the image.
+    _docker_run([
+        "python", "/opt/TCRdock/run_prediction.py",
+        "--targets",           _container_path(setup_dir / "targets.tsv"),
+        "--outfile_prefix",    _container_path(output_dir / "tcrdock_out"),
+        "--model_names",       "model_2_ptm",
+        "--data_dir",          "/opt/TCRdock/alphafold_params",
     ], "run_prediction.py")
 
     log.info("TCRdock completed successfully.")
@@ -304,8 +306,7 @@ def run_structural_validation(
     predictions_tsv: str | Path,
     output_pdb: str | Path,
     output_scores: str | Path,
-    tcrdock_dir: str | Path,
-    alphafold_params_dir: str | Path,
+    docker_image: str,
     n_candidates: int = 1,
     fallback_hla: dict | None = None,
     fallback_tcr: dict | None = None,
@@ -313,14 +314,13 @@ def run_structural_validation(
     """Run TCRdock structural validation on top neoepitope candidates.
 
     Args:
-        predictions_tsv:      MHCflurry predictions TSV.
-        output_pdb:           Output PDB file (top candidate).
-        output_scores:        Output docking scores TSV.
-        tcrdock_dir:          Path to TCRdock installation.
-        alphafold_params_dir: Path to AlphaFold v2 params/.
-        n_candidates:         Number of top candidates to model.
-        fallback_hla:         Fallback HLA alleles dict (keys: A, B, C).
-        fallback_tcr:         Fallback TCR sequences dict.
+        predictions_tsv: MHCflurry predictions TSV.
+        output_pdb:      Output PDB file (top candidate).
+        output_scores:   Output docking scores TSV.
+        docker_image:    TCRdock Docker image name (e.g. "tcrdock:latest").
+        n_candidates:    Number of top candidates to model.
+        fallback_hla:    Fallback HLA alleles dict (keys: A, B, C).
+        fallback_tcr:    Fallback TCR sequences dict.
     """
     if fallback_hla is None:
         fallback_hla = {"A": "HLA-A*02:01", "B": "HLA-B*07:02", "C": "HLA-C*07:02"}
@@ -350,7 +350,7 @@ def run_structural_validation(
     input_tsv = build_tcrdock_input(candidates, fallback_hla, fallback_tcr, work_dir)
 
     # Step 3: Run TCRdock
-    tcrdock_output_dir = run_tcrdock(input_tsv, work_dir, tcrdock_dir, alphafold_params_dir)
+    tcrdock_output_dir = run_tcrdock(input_tsv, work_dir, docker_image)
 
     # Step 4: Collect outputs
     collect_outputs(tcrdock_output_dir, candidates, output_pdb, output_scores, fallback_tcr)
@@ -368,8 +368,7 @@ def _snakemake_main() -> None:
         predictions_tsv=snakemake.input.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_pdb=snakemake.output.pdb,  # type: ignore[name-defined]  # noqa: F821
         output_scores=snakemake.output.scores_tsv,  # type: ignore[name-defined]  # noqa: F821
-        tcrdock_dir=snakemake.params.tcrdock_dir,  # type: ignore[name-defined]  # noqa: F821
-        alphafold_params_dir=snakemake.params.alphafold_params_dir,  # type: ignore[name-defined]  # noqa: F821
+        docker_image=snakemake.params.docker_image,  # type: ignore[name-defined]  # noqa: F821
         n_candidates=snakemake.params.n_candidates,  # type: ignore[name-defined]  # noqa: F821
         fallback_hla=snakemake.params.fallback_hla,  # type: ignore[name-defined]  # noqa: F821
         fallback_tcr=snakemake.params.fallback_tcr,  # type: ignore[name-defined]  # noqa: F821
@@ -383,26 +382,16 @@ def _cli_main() -> None:
     parser.add_argument("--predictions-tsv", required=True)
     parser.add_argument("--output-pdb", required=True)
     parser.add_argument("--output-scores", required=True)
-    parser.add_argument("--tcrdock-dir", required=True)
-    parser.add_argument("--alphafold-params", required=True)
+    parser.add_argument("--docker-image", default="tcrdock:latest")
     parser.add_argument("--n-candidates", type=int, default=1)
-    parser.add_argument("--fallback-hla", type=json.loads,
-                        default={"A": "HLA-A*02:01", "B": "HLA-B*07:02", "C": "HLA-C*07:02"})
-    parser.add_argument("--fallback-tcr", type=json.loads,
-                        default={"va_gene": "TRAV12-2", "ja_gene": "TRAJ21",
-                                 "cdr3a": "CAVNFGGGKLI", "vb_gene": "TRBV6-5",
-                                 "jb_gene": "TRBJ2-7", "cdr3b": "CASSLAGGRPEQYF"})
     args = parser.parse_args()
 
     run_structural_validation(
         predictions_tsv=args.predictions_tsv,
         output_pdb=args.output_pdb,
         output_scores=args.output_scores,
-        tcrdock_dir=args.tcrdock_dir,
-        alphafold_params_dir=args.alphafold_params,
+        docker_image=args.docker_image,
         n_candidates=args.n_candidates,
-        fallback_hla=args.fallback_hla,
-        fallback_tcr=args.fallback_tcr,
     )
 
 

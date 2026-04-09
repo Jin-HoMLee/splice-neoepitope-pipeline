@@ -17,8 +17,7 @@
 tcrdock:
   enabled: true
   n_candidates: 1
-  tcrdock_dir: "~/tcrdock"            # set by setup_tcrdock_vm.sh
-  alphafold_params_dir: "~/af_params" # set by setup_tcrdock_vm.sh
+  docker_image: "tcrdock:latest"  # built by setup_tcrdock_vm.sh
 
   # Fallback HLA alleles — overridden by HLA typing (#23) when available
   fallback_hla:

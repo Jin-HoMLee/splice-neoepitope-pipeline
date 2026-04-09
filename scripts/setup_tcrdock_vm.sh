@@ -1,149 +1,104 @@
 #!/usr/bin/env bash
 # =============================================================================
-# setup_tcrdock_vm.sh — Set up TCRdock + AlphaFold v2 on a GCP GPU VM
+# setup_tcrdock_vm.sh — Set up TCRdock via Docker on a GCP GPU VM
 # =============================================================================
 #
-# Designed for use with GCP Deep Learning VM images (common-cu128-ubuntu-2204)
-# which have CUDA 12.8 + NVIDIA drivers pre-installed. Skips driver setup.
+# Installs Docker + NVIDIA Container Toolkit, then builds the official
+# TCRdock Docker image (CUDA 11.8 + cuDNN 8 + Python 3.10 + JAX 0.3.25).
+# Running a CUDA 11.8 container on a host with a newer driver (e.g. 12.8)
+# is supported by NVIDIA's forward-compatibility guarantee.
 #
-# Run this script once on a fresh GPU VM (Linux x64, NVIDIA T4) to install:
-#   1. Miniconda (if not already present)
-#   2. TCRdock and its dependencies
-#   3. AlphaFold v2 parameters (~3.5 GB, CC BY 4.0)
-#
-# After this script completes, update config/config.yaml:
-#   tcrdock:
-#     enabled: true
-#     tcrdock_dir: "$TCRDOCK_DIR"
-#     alphafold_params_dir: "$AF_PARAMS_DIR"
-#
-# Then run the pipeline:
-#   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime
+# The image bundles TCRdock, AlphaFold params, and BLAST — no host-side
+# dependency management required.
 #
 # Usage:
 #   bash scripts/setup_tcrdock_vm.sh
 #
-# Expected runtime: ~20-30 min (AlphaFold weights download dominates)
-# Expected disk: ~6 GB (TCRdock + weights)
+# Expected runtime: ~30-45 min (Docker image build + param downloads)
+# Expected disk:    ~20 GB (base image + pip deps + AlphaFold params)
 # =============================================================================
 
 set -euo pipefail
 
+DOCKER_IMAGE="tcrdock:latest"
 TCRDOCK_DIR="${HOME}/tcrdock"
-AF_PARAMS_DIR="${HOME}/af_params"
-CONDA_ENV="tcrdock"
-PYTHON_VERSION="3.10"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # ---------------------------------------------------------------------------
-# Step 1 — Verify GPU is visible (CUDA pre-installed on Deep Learning VM image)
+# Step 1 — Verify GPU
 # ---------------------------------------------------------------------------
 log "Step 1: Checking GPU..."
 if command -v nvidia-smi &>/dev/null; then
     log "  GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
-    log "  CUDA: $(nvcc --version 2>/dev/null | grep release | awk '{print $6}' | tr -d ',')"
+    log "  Driver: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)"
 else
-    echo "ERROR: nvidia-smi not found. Use a Deep Learning VM image with CUDA pre-installed." >&2
+    echo "ERROR: nvidia-smi not found." >&2
     exit 1
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2 — Conda (prefer Miniforge already installed by run_cloud_gpu.sh)
+# Step 2 — Docker
 # ---------------------------------------------------------------------------
-log "Step 2: Checking conda..."
+log "Step 2: Checking Docker..."
 
-# Prefer Miniforge (installed by run_cloud_gpu.sh); fall back to installing it
-if [[ -f "${HOME}/miniforge3/bin/conda" ]]; then
-    log "  Using Miniforge at ${HOME}/miniforge3"
-    source "${HOME}/miniforge3/etc/profile.d/conda.sh"
-elif command -v conda &>/dev/null; then
-    log "  Using conda: $(conda --version)"
-    eval "$(conda shell.bash hook)"
+if ! command -v docker &>/dev/null; then
+    log "  Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker "${USER}"
+    log "  Docker installed."
 else
-    log "  Installing Miniforge3..."
-    curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
-        -o /tmp/miniforge.sh
-    bash /tmp/miniforge.sh -b -p "${HOME}/miniforge3"
-    rm /tmp/miniforge.sh
-    source "${HOME}/miniforge3/etc/profile.d/conda.sh"
-    log "  Miniforge installed at ${HOME}/miniforge3"
+    log "  Docker already installed: $(docker --version)"
 fi
 
+# Configure NVIDIA Container Runtime if not already done
+if ! sudo docker info 2>/dev/null | grep -q "nvidia"; then
+    log "  Configuring NVIDIA Container Runtime..."
+    sudo nvidia-ctk runtime configure --runtime=docker
+    sudo systemctl restart docker
+fi
+
+log "  GPU passthrough: $(sudo docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 \
+    nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+
 # ---------------------------------------------------------------------------
-# Step 3 — TCRdock
+# Step 3 — TCRdock repo (for the Dockerfile)
 # ---------------------------------------------------------------------------
-log "Step 3: Installing TCRdock..."
+log "Step 3: Checking TCRdock repo..."
 
 if [[ ! -d "${TCRDOCK_DIR}" ]]; then
     git clone https://github.com/phbradley/TCRdock.git "${TCRDOCK_DIR}"
-    log "TCRdock cloned to ${TCRDOCK_DIR}"
+    log "  Cloned to ${TCRDOCK_DIR}"
 else
-    log "TCRdock already present at ${TCRDOCK_DIR}, pulling latest..."
     git -C "${TCRDOCK_DIR}" pull
+    log "  Updated at ${TCRDOCK_DIR}"
 fi
 
-# Create dedicated conda environment for TCRdock
-if ! conda env list | grep -q "^${CONDA_ENV} "; then
-    log "Creating conda environment '${CONDA_ENV}' (Python ${PYTHON_VERSION})..."
-    conda create -y -n "${CONDA_ENV}" python="${PYTHON_VERSION}"
-fi
-
-log "Installing BLAST (required by TCRdock)..."
-conda run -n "${CONDA_ENV}" python "${TCRDOCK_DIR}/download_blast.py"
-
-# Install TCRdock + AlphaFold dependencies.
-# requirements_colab_af232.txt is pinned for Python 3.10 + CUDA 12 + JAX 0.4.14.
-# matplotlib==3.3.4 is excluded because it cannot build from source on Python 3.10;
-# a newer compatible version is installed instead.
-log "Installing TCRdock + AlphaFold Python dependencies..."
-grep -v "^matplotlib" "${TCRDOCK_DIR}/requirements_colab_af232.txt" > /tmp/tcrdock_req.txt
-conda run -n "${CONDA_ENV}" pip install -r /tmp/tcrdock_req.txt -q
-conda run -n "${CONDA_ENV}" pip install matplotlib -q
-
-log "TCRdock environment ready."
-
 # ---------------------------------------------------------------------------
-# Step 4 — AlphaFold v2 parameters
+# Step 4 — Build Docker image
 # ---------------------------------------------------------------------------
-log "Step 4: Downloading AlphaFold v2 parameters (~3.5 GB)..."
+log "Step 4: Building TCRdock Docker image (this takes ~30-45 min)..."
+log "  The image includes CUDA 11.8 + cuDNN 8, Python 3.10, JAX 0.3.25,"
+log "  AlphaFold params, and BLAST — no host-side deps needed."
 
-mkdir -p "${AF_PARAMS_DIR}"
-
-AF_PARAMS_URL="https://storage.googleapis.com/alphafold/alphafold_params_colab_2022-12-06.tar"
-
-if [[ ! -f "${AF_PARAMS_DIR}/params/params_model_1_multimer_v3.npz" ]]; then
-    log "Downloading AlphaFold params (this may take 10-20 min)..."
-    wget -q --show-progress \
-        "${AF_PARAMS_URL}" \
-        -O /tmp/af_params.tar
-    log "Extracting AlphaFold params..."
-    # AlphaFold expects data_dir/params/*.npz — extract into the params/ subdirectory.
-    mkdir -p "${AF_PARAMS_DIR}/params"
-    tar -xf /tmp/af_params.tar -C "${AF_PARAMS_DIR}/params"
-    rm /tmp/af_params.tar
-    log "AlphaFold params extracted to ${AF_PARAMS_DIR}/params"
+if sudo docker image inspect "${DOCKER_IMAGE}" &>/dev/null; then
+    log "  Image '${DOCKER_IMAGE}' already exists — skipping build."
 else
-    log "AlphaFold params already present at ${AF_PARAMS_DIR}/params"
+    sudo docker build -t "${DOCKER_IMAGE}" -f "${TCRDOCK_DIR}/docker/Dockerfile" "${TCRDOCK_DIR}"
+    log "  Image built: ${DOCKER_IMAGE}"
 fi
 
 # ---------------------------------------------------------------------------
-# Done — print config snippet
+# Done
 # ---------------------------------------------------------------------------
 log "================================================================"
 log "Setup complete!"
 log ""
-log "Update the paths in config/tcrdock_gpu.yaml if they differ:"
-log "  tcrdock_dir:          ${TCRDOCK_DIR}"
-log "  alphafold_params_dir: ${AF_PARAMS_DIR}"
+log "TCRdock Docker image: ${DOCKER_IMAGE}"
 log ""
-log "Then run the pipeline with TCRdock enabled:"
+log "Run the pipeline with TCRdock enabled:"
 log ""
 log "  snakemake --cores \$(nproc) --use-conda --rerun-triggers mtime \\"
 log "      --configfile config/config.yaml \\"
 log "      --configfile config/tcrdock_gpu.yaml"
-log ""
-log "To run without TCRdock (CPU-only, local):"
-log ""
-log "  snakemake --cores \$(nproc) --use-conda --rerun-triggers mtime"
 log "================================================================"
