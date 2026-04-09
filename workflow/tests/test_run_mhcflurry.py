@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from run_mhcflurry import run_prediction
+from run_mhcflurry import classify, run_prediction
 
 
 class TestRunPredictionEmpty:
@@ -43,7 +43,7 @@ class TestRunPredictionEmpty:
 
 
 class TestBinderClassification:
-    """Classification thresholds: strong < 50, weak < 500, non otherwise."""
+    """Classification thresholds: strong <= 50, weak <= 500, non otherwise."""
 
     @pytest.mark.parametrize("ic50,expected", [
         (10.0, "strong"),
@@ -56,15 +56,5 @@ class TestBinderClassification:
         (9999.0, "non"),
     ])
     def test_classify_boundaries(self, ic50, expected):
-        """Inline the classify logic to verify boundary behaviour."""
-        ic50_strong = 50.0
-        ic50_weak = 500.0
-
-        def classify(x: float) -> str:
-            if x <= ic50_strong:
-                return "strong"
-            if x <= ic50_weak:
-                return "weak"
-            return "non"
-
+        """Test the production classify() function boundary behaviour."""
         assert classify(ic50) == expected

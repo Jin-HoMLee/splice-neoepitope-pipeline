@@ -115,6 +115,23 @@ def _run_mhcflurry_predictions(
 
 
 # ---------------------------------------------------------------------------
+# Binder classification
+# ---------------------------------------------------------------------------
+
+def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -> str:
+    """Classify a peptide as a strong, weak, or non-binder by IC50 (nM).
+
+    Boundaries are inclusive: IC50 <= ic50_strong → strong,
+    IC50 <= ic50_weak → weak, otherwise non.
+    """
+    if ic50 <= ic50_strong:
+        return "strong"
+    if ic50 <= ic50_weak:
+        return "weak"
+    return "non"
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -167,13 +184,6 @@ def run_prediction(
     }
 
     # Step 3: Build output — join predictions back to all rows
-    def classify(ic50: float) -> str:
-        if ic50 <= ic50_strong:
-            return "strong"
-        if ic50 <= ic50_weak:
-            return "weak"
-        return "non"
-
     output_records = []
     for _, row in peptides_df.iterrows():
         pred = peptide_to_prediction.get(
@@ -186,7 +196,7 @@ def run_prediction(
             "allele":          allele,
             "ic50_nM":         pred["ic50_nM"],
             "percentile_rank": pred["percentile_rank"],
-            "binder_class":    classify(pred["ic50_nM"]),
+            "binder_class":    classify(pred["ic50_nM"], ic50_strong, ic50_weak),
         })
 
     df = pd.DataFrame(

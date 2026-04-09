@@ -1,6 +1,5 @@
 """Tests for translate_peptides.py — junction-spanning 9-mer extraction."""
 
-import pytest
 from translate_peptides import extract_spanning_9mers
 
 # Default config: upstream_nt=26, so min_start=2, max_start=23
