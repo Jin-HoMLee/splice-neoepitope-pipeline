@@ -123,6 +123,14 @@ else
     log "  Bucket created."
 fi
 
+# Grant the default compute service account write access so VMs can upload/download
+PROJECT_NUMBER="$(gcloud projects describe "$(gcloud config get-value project)" \
+    --format='value(projectNumber)' 2>/dev/null)"
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+log "Granting ${COMPUTE_SA} objectAdmin on gs://${GCS_BUCKET}..."
+gsutil iam ch "serviceAccount:${COMPUTE_SA}:objectAdmin" "gs://${GCS_BUCKET}" 2>/dev/null || \
+    log "  Warning: could not set bucket IAM (may already be set)."
+
 # ===========================================================================
 # Phase 1 — CPU pipeline (steps 1-5)
 # ===========================================================================
