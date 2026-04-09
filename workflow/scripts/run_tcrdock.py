@@ -178,7 +178,8 @@ def run_tcrdock(
     Returns:
         Path to TCRdock output directory.
     """
-    tcrdock_dir = Path(tcrdock_dir)
+    tcrdock_dir = Path(tcrdock_dir).expanduser()
+    alphafold_params_dir = Path(alphafold_params_dir).expanduser()
     predict_script = tcrdock_dir / "predict.py"
 
     if not predict_script.exists():
