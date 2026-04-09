@@ -191,7 +191,12 @@ while true; do
         echo "ERROR: Pipeline appears to have failed. Check pipeline.log on ${CPU_VM}." >&2
         exit 1
     fi
+    # Show last 3 lines of pipeline.log so the user can see what's happening
+    PROGRESS="$(ssh_cmd "${CPU_VM}" --command \
+        "tail -3 \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null" \
+        2>/dev/null | grep -v '^$' | sed 's/^/    /')"
     log "  Still running — checking again in 60s..."
+    [[ -n "${PROGRESS}" ]] && echo "${PROGRESS}"
     sleep 60
 done
 
