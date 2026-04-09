@@ -68,7 +68,6 @@ RNA-Seq data (local FASTQ files or GDC API)
         │
         ▼ Step 5: Predict
   Junction-spanning 9-mer filter → MHCflurry 2.x → IC50 binding affinities (HLA-A*02:01)
-  (filter currently applied here; will move to Step 4 in issue #20)
         │
         ▼ Step 6: Report
   Junction origin summary + top binders HTML report
@@ -604,7 +603,7 @@ pipeline to this modernised implementation.  See
 | Data source | TCGA HTTP directory (retired) | **GDC Data Portal REST API** | TCGA HTTP retired in 2016 |
 | RNA-Seq aligner | TopHat2 | **HISAT2** (default) / **STAR** (optional) | HISAT2 for low-memory runs; STAR planned for production (issue #17) |
 | Epitope predictor | NetMHCPan **2.8** | **MHCflurry 2.x** | Open source; no registration; SOTA accuracy |
-| Junction-spanning filter | None (all 9-mers included) | **Complete-codon rule** — only 9-mers with ≥1 full codon from each exon retained (issue #18); will move to contig assembly step (issue #20) | Eliminates purely exonic false positives (e.g. `YLADLYHFV` = SH3BP1) |
+| Junction-spanning filter | None (all 9-mers included) | **Complete-codon rule** — only 9-mers with ≥1 full codon from each exon retained (issue #18); applied at translation step (issue #20) | Eliminates purely exonic false positives (e.g. `YLADLYHFV` = SH3BP1) |
 | Biopython API | `Bio.Alphabet` | **`Bio.Seq` only** | `Bio.Alphabet` removed in Biopython ≥1.78 |
 | Workflow management | Manual shell scripts | **Snakemake** | Reproducibility, parallelism, DAG tracking |
 | Environment management | None | **Conda** (per rule) | Reproducible software environments |
