@@ -182,8 +182,10 @@ def run_tcrdock(
     Returns:
         Path to TCRdock output directory.
     """
-    tcrdock_dir = Path(tcrdock_dir).expanduser()
-    alphafold_params_dir = Path(alphafold_params_dir).expanduser()
+    tcrdock_dir = Path(tcrdock_dir).expanduser().resolve()
+    alphafold_params_dir = Path(alphafold_params_dir).expanduser().resolve()
+    input_tsv = input_tsv.resolve()
+    output_dir = output_dir.resolve()
 
     setup_script   = tcrdock_dir / "setup_for_alphafold.py"
     predict_script = tcrdock_dir / "run_prediction.py"
@@ -203,6 +205,8 @@ def run_tcrdock(
 
     def _run(cmd: list, label: str) -> None:
         log.info("Running %s: %s", label, " ".join(cmd))
+        # cwd=tcrdock_dir so TCRdock's internal relative paths (BLAST db, templates) resolve.
+        # All file arguments must be absolute paths.
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(tcrdock_dir))
         if result.stdout:
             log.info("%s stdout:\n%s", label, result.stdout[-2000:])
