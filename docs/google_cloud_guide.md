@@ -17,7 +17,8 @@ pipeline on Google Cloud Platform (GCP), ideal for users who:
 5. [Option B: Google Cloud Life Sciences API](#option-b-google-cloud-life-sciences-api)
 6. [Option C: Google Batch](#option-c-google-batch)
 7. [Data Transfer](#data-transfer)
-8. [Troubleshooting](#troubleshooting)
+8. [Automated GPU Pipeline (TCRdock)](#automated-gpu-pipeline-tcrdock)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -413,6 +414,75 @@ The SRA maintains a mirror on Google Cloud for faster downloads:
 # Use the GCP SRA mirror
 prefetch --location GCP SRR10971381
 ```
+
+---
+
+## Automated GPU Pipeline (TCRdock)
+
+The `scripts/run_cloud_gpu.sh` script automates the full three-phase lifecycle
+for running the pipeline with TCRdock structural validation:
+
+| Phase | VM | What happens |
+|-------|-----|-------------|
+| **1 — CPU** | `neoepitope-predict-cpu` | Steps 1–5 (alignment → MHCflurry) |
+| **2 — Copy** | GCS bucket | Results uploaded; CPU VM stopped |
+| **3 — GPU** | `mhc-p-tcr-structure-spot-gpu` (Spot T4) | TCRdock + report; results uploaded; VM auto-stops |
+
+### Quick start
+
+```bash
+# Test run (chr22, ~1 hour)
+bash scripts/run_cloud_gpu.sh --mode test
+
+# Production run
+bash scripts/run_cloud_gpu.sh --mode prod
+
+# Detached mode — closes laptop safely, orchestrator VM manages everything
+bash scripts/run_cloud_gpu.sh --mode test --detach
+
+# Specify branch and zone
+bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west1-b
+```
+
+### Retrieving results
+
+```bash
+# Test
+gcloud storage cp -r gs://tcrdock-handoff/results/test/reports ./tcrdock_report
+open tcrdock_report/local/report.html
+
+# Production
+gcloud storage cp -r gs://tcrdock-handoff/results/reports ./tcrdock_report
+open tcrdock_report/local/report.html
+```
+
+### How it works
+
+1. **CPU VM** is created (or started) automatically. `setup_cloud.sh` installs
+   conda + Snakemake. The pipeline runs steps 1–5 in a tmux session while the
+   script polls `pipeline.log` for completion.
+2. Results are uploaded to `gs://tcrdock-handoff/` and the CPU VM is stopped.
+3. A **GPU Spot VM** (n1-standard-4 + NVIDIA T4) is created.
+   `setup_tcrdock_vm.sh` builds the TCRdock Docker image (~25 GB: CUDA 11.8,
+   AlphaFold params, BLAST). Results are downloaded from GCS, TCRdock runs,
+   and the HTML report is regenerated with the embedded Mol* 3D viewer. Final
+   results are uploaded to GCS and the VM auto-stops.
+
+### Detached mode
+
+With `--detach`, the script launches a tiny `e2-micro` orchestrator VM that
+runs the three phases via internal networking. You can close your laptop — the
+orchestrator manages everything and shuts itself down when done.
+
+### Cost estimate
+
+| Component | Duration | Hourly rate | Total |
+|-----------|----------|-------------|-------|
+| CPU VM (n1-standard-4) | ~1–3 hr | ~$0.19 | ~$0.20–0.60 |
+| GPU Spot VM (n1-standard-4 + T4) | ~30 min | ~$0.35 (Spot) | ~$0.20 |
+| GCS bucket storage | — | negligible | — |
+| Orchestrator (e2-micro, detach only) | ~2–4 hr | ~$0.01 | ~$0.02 |
+| **Total (test run)** | | | **~$0.40–0.80** |
 
 ---
 
