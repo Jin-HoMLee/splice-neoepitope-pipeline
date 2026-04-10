@@ -155,7 +155,7 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
         --metadata=enable-oslogin=FALSE
     wait_for_ssh "${CPU_VM}"
     log "  Running setup_cloud.sh (this takes 20-60 min)..."
-    ssh_cmd "${CPU_VM}" -- bash -s --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
+    ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
     log "  Setup complete."
 fi
 
