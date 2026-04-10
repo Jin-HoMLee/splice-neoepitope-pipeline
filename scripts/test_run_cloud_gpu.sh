@@ -323,8 +323,7 @@ snakemake \
     --cores "$(nproc)" \
     --use-conda \
     --rerun-triggers mtime \
-    --configfile config/test_config.yaml \
-    --configfile config/tcrdock_gpu.yaml \
+    --configfile config/test_config.yaml config/tcrdock_gpu.yaml \
     2>&1 | tee tcrdock.log
 
 echo "TCRdock finished — shutting down GPU VM..."

@@ -26,6 +26,14 @@ This is the clinically correct approach: a junction present in matched normal ti
 
 When no normal sample is present, all unannotated junctions are labeled `tumor_specific` with a warning — the pipeline still runs.
 
+## Snakemake 8 `--configfile` Gotcha
+In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --configfile B`) causes the second invocation to replace the first due to argparse `nargs="+"` semantics. Only the last file is loaded.
+**Fix:** pass multiple config files in a **single** `--configfile` invocation:
+```bash
+snakemake --configfile config/test_config.yaml config/tcrdock_gpu.yaml   # correct
+# NOT: --configfile config/test_config.yaml --configfile config/tcrdock_gpu.yaml
+```
+
 ## Known Dependency Issues (Fixed)
 
 ### `hisat2.yaml` — samtools/libdeflate conflict

@@ -107,8 +107,7 @@ mhcflurry:
 # Enable by passing that file as a second --configfile on the GPU VM:
 #
 #   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
-#       --configfile config/config.yaml \
-#       --configfile config/tcrdock_gpu.yaml
+#       --configfile config/config.yaml config/tcrdock_gpu.yaml
 #
 # See scripts/setup_tcrdock_vm.sh for GPU VM setup instructions.
 tcrdock:
