@@ -291,20 +291,13 @@ tmux new -s pipeline
 snakemake --cores 4 --use-conda -n
 
 # Inside tmux: full run — pipeline logs to pipeline.log, VM shuts down when done
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log
 ```
-
-> **Always include `; bash auto_stop.sh`** at the end of your run command.
-> The VM will not stop automatically otherwise, and you will be billed for idle time.
 
 To detach from tmux without stopping the pipeline: press `Ctrl+B`, then `D`.
 To reattach after reconnecting via SSH: `tmux attach -t pipeline`
 
 > **Why tmux instead of nohup?** With `nohup`, you lose visibility into the running pipeline after disconnecting. With `tmux`, you can reattach at any time and see live output.
-
-> **Note**: `auto_stop.sh` uses `sudo shutdown -h now` (OS-initiated shutdown),
-> not `gcloud compute instances stop`. The VM service account does not have the
-> Compute API scope needed for `gcloud` commands from inside the VM.
 
 ### Step 9: Download Results
 
@@ -567,7 +560,7 @@ tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
 EOF
 
 # 8. Run pipeline (auto-shuts down VM when done to save costs)
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log
 
 # 9. Exit VM (Ctrl+D or type 'exit')
 

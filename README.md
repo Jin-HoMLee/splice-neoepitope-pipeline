@@ -354,8 +354,7 @@ gcloud compute instances create splice-pipeline \
 gcloud compute ssh splice-pipeline --zone=us-central1-a
 
 # 3. On the VM, install conda, clone repo, configure samples, then run:
-snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
-# The VM shuts down automatically when the pipeline finishes.
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 
 # 4. Download results when done
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
@@ -619,7 +618,6 @@ splice-neoepitope-pipeline/
 ├── LICENSE
 ├── .gitignore
 ├── Snakefile                         # Main Snakemake workflow
-├── auto_stop.sh                      # VM shutdown after pipeline completes (GCP)
 ├── config/
 │   ├── config.yaml                   # Production configuration
 │   ├── samples.tsv                   # Sample manifest (production)

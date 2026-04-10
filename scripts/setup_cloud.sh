@@ -22,7 +22,7 @@
 #   cd splice-neoepitope-pipeline
 #   Edit config/samples.tsv with your sample FASTQ paths
 #   conda activate snakemake
-#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 #
 set -euo pipefail
 
@@ -172,7 +172,7 @@ echo "  2. Activate the Snakemake environment:"
 echo "       conda activate snakemake"
 echo "  3. From inside a tmux session, run the pipeline:"
 echo "       cd $REPO_DIR"
-echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh"
+echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
 echo ""
 echo "     The VM will shut down automatically when the pipeline finishes."
 echo "     To detach from tmux without stopping the run: Ctrl+B, then D."

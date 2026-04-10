@@ -44,16 +44,6 @@ snakemake --configfile config/test_config.yaml config/tcrdock_gpu.yaml   # corre
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array instead of a DataFrame.
 **Fix:** use `predict_to_dataframe()` instead.
 
-## auto_stop.sh
-Shuts down the VM after the pipeline finishes to save costs.
-Uses `sudo shutdown -h now` — **not** `gcloud compute instances stop`, which fails with
-`ACCESS_TOKEN_SCOPE_INSUFFICIENT` because the VM service account lacks the compute API scope.
-
-Run as:
-```bash
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
-```
-
 ## sra-tools Note
 Use version `3.1.1` on GCP VMs — newer versions (3.4.x) have a segfault bug.
 On macOS arm64, sra-tools conda installation is unreliable due to libcurl/openssl conflicts. Use ENA HTTPS download instead (see `scripts/prepare_test_data.sh`).
