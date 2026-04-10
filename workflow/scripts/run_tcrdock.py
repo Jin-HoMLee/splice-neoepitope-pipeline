@@ -244,6 +244,79 @@ def run_tcrdock(
 # Output parsing
 # ---------------------------------------------------------------------------
 
+_CHAIN_LABELS = ["A", "B", "C", "D", "E", "F"]
+_CHAIN_NAMES  = ["MHC", "peptide", "TCR-alpha", "TCR-beta"]
+
+
+def relabel_pdb_chains(pdb_text: str, target_chainseq: str) -> str:
+    """Reassign chain IDs in an AlphaFold flat-chain PDB.
+
+    AlphaFold concatenates all sequences into a single chain (A). This function
+    reassigns chain IDs based on the per-chain sequence lengths from TCRdock's
+    target_chainseq column (slash-separated: MHC / peptide / TCR-alpha / TCR-beta).
+
+    The reassignment walks the ATOM records in file order, tracking unique
+    residue numbers. Once the cumulative count of unique residues reaches the
+    boundary for one chain it switches to the next label.
+
+    Args:
+        pdb_text:        Raw PDB file text (single-chain AlphaFold output).
+        target_chainseq: Slash-separated sequences, one per chain.
+
+    Returns:
+        PDB text with corrected chain IDs.
+    """
+    chain_seqs = [s for s in target_chainseq.split("/") if s]
+    chain_lengths = [len(s) for s in chain_seqs]
+
+    out_lines: list[str] = []
+    seen_residues: list[int] = []          # unique residue numbers in order seen
+    # build residue→chain-index map lazily
+    residue_to_chain: dict[int, str] = {}
+    cumulative = 0
+    chain_boundaries: list[int] = []
+    for length in chain_lengths:
+        cumulative += length
+        chain_boundaries.append(cumulative)
+
+    def _chain_for_residue(resnum: int) -> str:
+        if resnum not in residue_to_chain:
+            if resnum not in seen_residues:
+                seen_residues.append(resnum)
+            idx = seen_residues.index(resnum)
+            chain_idx = 0
+            for boundary in chain_boundaries:
+                if idx < boundary:
+                    break
+                chain_idx += 1
+            label = _CHAIN_LABELS[min(chain_idx, len(_CHAIN_LABELS) - 1)]
+            residue_to_chain[resnum] = label
+        return residue_to_chain[resnum]
+
+    for line in pdb_text.splitlines(keepends=True):
+        record = line[:6].strip()
+        if record in ("ATOM", "HETATM"):
+            try:
+                resnum = int(line[22:26])
+            except ValueError:
+                out_lines.append(line)
+                continue
+            new_chain = _chain_for_residue(resnum)
+            line = line[:21] + new_chain + line[22:]
+        elif record == "TER":
+            # Update chain ID in TER record (col 22) if present
+            if len(line) > 22 and line[22:26].strip().isdigit():
+                try:
+                    resnum = int(line[22:26])
+                    new_chain = residue_to_chain.get(resnum, line[21])
+                    line = line[:21] + new_chain + line[22:]
+                except ValueError:
+                    pass
+        out_lines.append(line)
+
+    return "".join(out_lines)
+
+
 def collect_outputs(
     tcrdock_output_dir: Path,
     candidates: pd.DataFrame,
@@ -287,7 +360,24 @@ def collect_outputs(
         log.warning("PDB column not found in final TSV; using %s", top_pdb)
 
     output_pdb.parent.mkdir(parents=True, exist_ok=True)
-    output_pdb.write_bytes(top_pdb.read_bytes())
+
+    # Relabel chains using target_chainseq from AlphaFold setup TSV so that
+    # Mol* renders MHC / peptide / TCR-alpha / TCR-beta as distinct chains.
+    setup_tsv = tcrdock_output_dir / "alphafold_setup" / "targets.tsv"
+    pdb_text = top_pdb.read_text()
+    if setup_tsv.exists():
+        try:
+            setup_df = pd.read_csv(setup_tsv, sep="\t")
+            chain_seq = setup_df["target_chainseq"].iloc[0]
+            pdb_text = relabel_pdb_chains(pdb_text, chain_seq)
+            log.info("PDB chains relabeled: %s",
+                     " / ".join(f"{_CHAIN_LABELS[i]}={_CHAIN_NAMES[i]}"
+                                for i in range(min(len(_CHAIN_NAMES),
+                                                   len(chain_seq.split("/"))))))
+        except Exception as exc:
+            log.warning("Could not relabel PDB chains: %s — using raw output", exc)
+
+    output_pdb.write_text(pdb_text)
     log.info("Top candidate PDB written to %s", output_pdb)
 
     # Write docking scores: pLDDT and PAE columns from the final TSV
