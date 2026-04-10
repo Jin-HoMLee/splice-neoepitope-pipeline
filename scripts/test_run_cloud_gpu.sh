@@ -142,7 +142,7 @@ ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_clou
 log "  Setup complete."
 
 log "Downloading test data (chr22 + 500K reads) on ${CPU_VM}..."
-ssh_cmd "${CPU_VM}" -- bash -s < scripts/prepare_test_data.sh
+ssh_cmd "${CPU_VM}" -- bash -c "cd \$HOME/splice-neoepitope-pipeline && bash -s" < scripts/prepare_test_data.sh
 log "  Test data ready."
 
 log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
