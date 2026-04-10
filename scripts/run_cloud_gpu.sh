@@ -326,7 +326,7 @@ log "  This downloads ~3.5 GB of AlphaFold params — may take 15-20 min."
 ssh_cmd "${GPU_VM}" -- bash -s <<'EOF'
 set -euo pipefail
 cd "$HOME/splice-neoepitope-pipeline"
-bash scripts/setup_tcrdock_vm.sh
+bash scripts/setup_tcrdock_vm.sh config/config.yaml
 EOF
 
 # Download results from GCS directly onto GPU VM

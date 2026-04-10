@@ -15,7 +15,7 @@
 # dependency management required.
 #
 # Usage:
-#   bash scripts/setup_tcrdock_vm.sh
+#   bash scripts/setup_tcrdock_vm.sh [config/config.yaml]
 #
 # Expected runtime: ~20-30 min (Docker image build + param downloads)
 # Expected disk:    ~25 GB (base image + pip deps + AlphaFold params)
@@ -26,6 +26,7 @@ set -euo pipefail
 DOCKER_IMAGE="tcrdock:latest"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+BASE_CONFIG="${1:-config/config.yaml}"   # caller can override, e.g. config/test_config.yaml
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -94,6 +95,5 @@ log ""
 log "Run the pipeline with TCRdock enabled:"
 log ""
 log "  snakemake --cores \$(nproc) --use-conda --rerun-triggers mtime \\"
-log "      --configfile config/config.yaml \\"
-log "      --configfile config/tcrdock_gpu.yaml"
+log "      --configfile ${BASE_CONFIG} config/tcrdock_gpu.yaml"
 log "================================================================"
