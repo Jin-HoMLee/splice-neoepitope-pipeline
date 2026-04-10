@@ -163,6 +163,11 @@ log "Running setup_cloud.sh on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
 log "  Setup complete."
 
+# Download sample FASTQs if not already present
+log "Downloading sample FASTQs on ${CPU_VM} (skipped if already present)..."
+ssh_cmd "${CPU_VM}" -- bash -s < scripts/prepare_test_data.sh
+log "  FASTQs ready."
+
 # Pull latest branch and start pipeline in a tmux session
 log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
