@@ -5,7 +5,7 @@
 #
 # Three phases:
 #
-#   Phase 1 — CPU VM (splice-prod-test)
+#   Phase 1 — CPU VM (neoepitope-predict-cpu)
 #     Start VM, pull branch, run pipeline steps 1-5 (alignment → MHCflurry)
 #     in a tmux session, poll pipeline.log until 100% done (VM stays running).
 #
@@ -13,7 +13,7 @@
 #     Copy the results directories needed by TCRdock (junctions, contigs,
 #     predictions — not raw BAMs) while VM is still up, then stop CPU VM.
 #
-#   Phase 3 — GPU Spot VM (splice-tcrdock-spot)
+#   Phase 3 — GPU Spot VM (neoepitope-structure-gpu)
 #     Create VM, install conda + Snakemake + CUDA + TCRdock + AlphaFold params,
 #     copy results in, run only the TCRdock + report rules (earlier steps are
 #     already satisfied by the copied results), then VM auto-stops.
@@ -32,9 +32,9 @@
 #
 # After the run, copy results from the GPU VM before deleting it:
 #   gcloud compute scp --tunnel-through-iap --recurse \
-#       splice-tcrdock-spot:~/splice-neoepitope-pipeline/results/local/reports \
+#       neoepitope-structure-gpu:~/splice-neoepitope-pipeline/results/local/reports \
 #       ./tcrdock_report --zone=europe-west1-b
-#   gcloud compute instances delete splice-tcrdock-spot --zone=europe-west1-b --quiet
+#   gcloud compute instances delete neoepitope-structure-gpu --zone=europe-west1-b --quiet
 # =============================================================================
 
 set -euo pipefail
@@ -42,8 +42,8 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-CPU_VM="splice-prod-test"
-GPU_VM="splice-tcrdock-spot"
+CPU_VM="neoepitope-predict-cpu"
+GPU_VM="neoepitope-structure-gpu"
 ZONE="europe-west1-b"
 MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-t4,count=1"

@@ -8,7 +8,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 
 ## Infrastructure
 - Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
-- Current production VM: `splice-prod-test`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
+- Current production VM: `neoepitope-predict-cpu`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 
 ## Pipeline Design Decisions
