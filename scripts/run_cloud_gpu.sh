@@ -137,15 +137,26 @@ gsutil iam ch "serviceAccount:${COMPUTE_SA}:objectAdmin" "gs://${GCS_BUCKET}" 2>
 log ""
 log "=== Phase 1: CPU pipeline (steps 1-5) ==="
 
-# Start CPU VM if it is stopped
+# Start or create CPU VM
 CPU_STATUS="$(vm_status "${CPU_VM}")"
 if [[ "${CPU_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${CPU_VM}..."
     gcloud compute instances start "${CPU_VM}" --zone="${ZONE}"
 elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
-    echo "ERROR: CPU VM '${CPU_VM}' not found in zone ${ZONE}." >&2
-    echo "       Create it with scripts/setup_cloud.sh first." >&2
-    exit 1
+    log "CPU VM ${CPU_VM} not found — creating it..."
+    gcloud compute instances create "${CPU_VM}" \
+        --zone="${ZONE}" \
+        --machine-type="${MACHINE_TYPE}" \
+        --image-family="ubuntu-2204-lts" \
+        --image-project="ubuntu-os-cloud" \
+        --boot-disk-size="50GB" \
+        --boot-disk-type=pd-standard \
+        --scopes=cloud-platform \
+        --metadata=enable-oslogin=FALSE
+    wait_for_ssh "${CPU_VM}"
+    log "  Running setup_cloud.sh (this takes 20-60 min)..."
+    ssh_cmd "${CPU_VM}" -- bash -s --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
+    log "  Setup complete."
 fi
 
 wait_for_ssh "${CPU_VM}"
