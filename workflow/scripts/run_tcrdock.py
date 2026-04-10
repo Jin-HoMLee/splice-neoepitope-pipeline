@@ -192,9 +192,10 @@ def run_tcrdock(
 
     # Both input_tsv and setup_dir must be under output_dir so a single volume
     # mount covers everything.
-    assert input_tsv.is_relative_to(output_dir), (
-        f"input_tsv {input_tsv} must be inside output_dir {output_dir}"
-    )
+    if not input_tsv.is_relative_to(output_dir):
+        raise ValueError(
+            f"input_tsv {input_tsv} must be inside output_dir {output_dir}"
+        )
 
     def _container_path(host_path: Path) -> str:
         """Translate a host path inside output_dir to its /data/... equivalent."""

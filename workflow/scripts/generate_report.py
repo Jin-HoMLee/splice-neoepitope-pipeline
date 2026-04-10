@@ -18,7 +18,8 @@ Usage (Snakemake):
 """
 
 import argparse
-import html
+import html as html_mod
+import json
 import logging
 from pathlib import Path
 
@@ -132,6 +133,37 @@ def _build_chain_legend(chains: list[str], peptide: str, allele: str) -> str:
         "<thead><tr><th>Chain</th><th>Component</th><th>Details</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table>"
     )
+
+
+def _build_compnd_records(pdb_text: str, peptide: str, allele: str) -> str:
+    """Build PDB COMPND records so Mol* shows meaningful chain names.
+
+    PDB format: cols 1-6 = "COMPND", col 7 = blank, cols 8-10 = continuation
+    (blank for the first line, right-justified integer from line 2 onwards),
+    col 11+ = compound text.  Lines are padded to 80 characters.
+    PDB is ASCII-only so Greek letters are transliterated.
+    """
+    compnd_texts: list[str] = []
+    for idx, cid in enumerate(_extract_chain_ids(pdb_text)):
+        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
+        name = name.replace("\u03b1", "alpha").replace("\u03b2", "beta")
+        if "MHC" in name and allele:
+            name = f"{name} ({allele})"
+        elif "Peptide" in name and peptide:
+            name = f"Peptide ({peptide})"
+        mol_num = idx + 1
+        compnd_texts.append(f"MOL_ID: {mol_num};")
+        compnd_texts.append(f"MOLECULE: {name};")
+        compnd_texts.append(f"CHAIN: {cid};")
+    if not compnd_texts:
+        return pdb_text
+    compnd_lines = []
+    for i, text in enumerate(compnd_texts):
+        if i == 0:
+            compnd_lines.append(f"COMPND    {text}".ljust(80))
+        else:
+            compnd_lines.append(f"COMPND {i + 1:>3d} {text}".ljust(80))
+    return "\n".join(compnd_lines) + "\n" + pdb_text
 
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -288,9 +320,9 @@ def _build_strong_table_html(
 
         rows.append(
             f"<tr>"
-            f"<td>{html.escape(str(row['contig_key']))}</td>"
-            f"<td>{html.escape(str(row['peptide']))}</td>"
-            f"<td>{html.escape(str(row['allele']))}</td>"
+            f"<td>{html_mod.escape(str(row['contig_key']))}</td>"
+            f"<td>{html_mod.escape(str(row['peptide']))}</td>"
+            f"<td>{html_mod.escape(str(row['allele']))}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{row['percentile_rank']:.3f}</td>"
             f"<td>{contig_html}</td>"
@@ -355,42 +387,13 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     if top.empty:
         peptide, allele = "top candidate", ""
     else:
-        peptide = html.escape(str(top.iloc[0]["peptide"]))
-        allele  = html.escape(str(top.iloc[0]["allele"]))
+        peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
+        allele  = html_mod.escape(str(top.iloc[0]["allele"]))
 
-    # Inject COMPND records so Mol* shows meaningful chain names
-    # instead of "Polymer 1", "Polymer 2", etc.
-    # PDB format: cols 1-6 = "COMPND", col 7 = blank, cols 8-10 = continuation
-    # (blank for the first line, right-justified integer from line 2 onwards),
-    # col 11+ = compound text.  Lines are padded to 80 characters.
-    # PDB is ASCII-only so Greek letters are transliterated.
-    compnd_texts: list[str] = []
-    for idx, cid in enumerate(_extract_chain_ids(pdb_text)):
-        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
-        # ASCII transliteration for PDB records
-        name = name.replace("\u03b1", "alpha").replace("\u03b2", "beta")
-        if "MHC" in name and allele:
-            name = f"{name} ({allele})"
-        elif "Peptide" in name and peptide:
-            name = f"Peptide ({peptide})"
-        mol_num = idx + 1
-        compnd_texts.append(f"MOL_ID: {mol_num};")
-        compnd_texts.append(f"MOLECULE: {name};")
-        compnd_texts.append(f"CHAIN: {cid};")
-    if compnd_texts:
-        compnd_lines = []
-        for i, text in enumerate(compnd_texts):
-            if i == 0:
-                # First line: cols 8-10 blank
-                compnd_lines.append(f"COMPND    {text}".ljust(80))
-            else:
-                # Continuation lines: number right-justified in cols 8-10
-                compnd_lines.append(f"COMPND {i + 1:>3d} {text}".ljust(80))
-        pdb_text = "\n".join(compnd_lines) + "\n" + pdb_text
+    pdb_text = _build_compnd_records(pdb_text, peptide, allele)
 
     # Inline PDB as a JSON string (safe for embedding in JS)
-    import json as _json
-    pdb_json = _json.dumps(pdb_text)
+    pdb_json = json.dumps(pdb_text)
 
     chains = _extract_chain_ids(pdb_text)
     chain_legend = _build_chain_legend(chains, peptide, allele)
@@ -477,7 +480,7 @@ def generate_report(
     else:
         structure_section = ""
 
-    html = _HTML_TEMPLATE.format(
+    report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
         binder_table=binder_html,
@@ -485,7 +488,7 @@ def generate_report(
         structure_section=structure_section,
         ic50_strong=int(ic50_strong),
     )
-    output_html.write_text(html, encoding="utf-8")
+    output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
 
 
