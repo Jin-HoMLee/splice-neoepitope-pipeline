@@ -58,8 +58,8 @@ echo "    Done."
 # 2. Check / install conda (Miniforge3)
 # ---------------------------------------------------------------------------
 echo ""
-if command -v conda &>/dev/null; then
-    echo "[2/5] conda already installed at: $(conda info --base)"
+if [[ -f "$HOME/miniforge3/bin/conda" ]]; then
+    echo "[2/5] conda already installed at: $HOME/miniforge3"
     echo "      Skipping Miniforge3 installation."
 else
     echo "[2/5] Installing Miniforge3..."
