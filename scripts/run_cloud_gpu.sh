@@ -21,13 +21,18 @@
 #   --mode prod   Full genome, production config (default)
 #   --mode test   chr22, 500K reads — fast validation (~1 hour)
 #
+# Detached mode (--detach):
+#   Launches a tiny e2-micro "orchestrator" VM that runs this script in a
+#   tmux session. You can close your laptop — the orchestrator manages all
+#   three phases using internal networking, then auto-stops when done.
+#
 # Requirements:
 #   - gcloud CLI authenticated: gcloud auth login
 #   - Active project: gcloud config set project <PROJECT_ID>
 #   - T4 GPU quota in the target zone (PREEMPTIBLE_NVIDIA_T4_GPUS >= 1)
 #
 # Usage:
-#   bash scripts/run_cloud_gpu.sh [--mode test|prod] [--branch <branch>] [--zone <zone>]
+#   bash scripts/run_cloud_gpu.sh [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]
 #
 # After the run, download the report:
 #   gcloud storage cp -r gs://tcrdock-handoff/results/test/reports ./tcrdock_report   # test
@@ -49,11 +54,14 @@ DISK_SIZE="100GB"
 IMAGE_FAMILY="common-cu128-ubuntu-2204-nvidia-570"  # CUDA 12.8 pre-installed
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
+ORCH_VM="neoepitope-orchestrator"
 
 GCS_BUCKET="tcrdock-handoff"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
 MODE="prod"
+DETACH=false
+CLOUD_INTERNAL=false
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -63,9 +71,11 @@ while [[ $# -gt 0 ]]; do
         --mode)   MODE="${2:?--mode requires test or prod}";     shift 2 ;;
         --branch) BRANCH="${2:?--branch requires a value}";      shift 2 ;;
         --zone)   ZONE="${2:?--zone requires a value}";          shift 2 ;;
+        --detach) DETACH=true;                                    shift ;;
+        --_cloud-internal) CLOUD_INTERNAL=true;                   shift ;;
         *)
             echo "Unknown argument: $1" >&2
-            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>]" >&2
+            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]" >&2
             exit 1 ;;
     esac
 done
@@ -98,7 +108,11 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 ssh_cmd() {
     local vm="$1"; shift
-    gcloud compute ssh "${vm}" --zone="${ZONE}" --tunnel-through-iap "$@"
+    if [[ "${CLOUD_INTERNAL}" == true ]]; then
+        gcloud compute ssh "${vm}" --zone="${ZONE}" --internal-ip "$@"
+    else
+        gcloud compute ssh "${vm}" --zone="${ZONE}" --tunnel-through-iap "$@"
+    fi
 }
 
 wait_for_ssh() {
@@ -129,7 +143,90 @@ log "  Zone:    ${ZONE}"
 log "  Branch:  ${BRANCH}"
 log "  Config:  ${CONFIG_FILE}"
 log "  Bucket:  gs://${GCS_BUCKET}"
+if [[ "${DETACH}" == true ]]; then
+    log "  Detach:  yes (orchestrator VM: ${ORCH_VM})"
+fi
 log "================================================================"
+
+# ===========================================================================
+# Detached mode — offload to an orchestrator VM so you can close your laptop
+# ===========================================================================
+if [[ "${DETACH}" == true ]]; then
+    log ""
+    log "=== Detached mode: launching orchestrator VM ==="
+
+    ORCH_STATUS="$(vm_status "${ORCH_VM}")"
+    if [[ "${ORCH_STATUS}" == "NOT_FOUND" ]]; then
+        log "Creating orchestrator VM ${ORCH_VM} (e2-micro)..."
+        gcloud compute instances create "${ORCH_VM}" \
+            --zone="${ZONE}" \
+            --machine-type="e2-micro" \
+            --image-family="ubuntu-2204-lts" \
+            --image-project="ubuntu-os-cloud" \
+            --boot-disk-size="10GB" \
+            --boot-disk-type=pd-standard \
+            --scopes=cloud-platform \
+            --metadata=enable-oslogin=FALSE
+        log "  Orchestrator VM created."
+    elif [[ "${ORCH_STATUS}" == "TERMINATED" ]]; then
+        log "Starting orchestrator VM ${ORCH_VM}..."
+        gcloud compute instances start "${ORCH_VM}" --zone="${ZONE}"
+    else
+        log "Orchestrator VM ${ORCH_VM} already running (status: ${ORCH_STATUS})."
+    fi
+
+    wait_for_ssh "${ORCH_VM}"
+
+    log "Cloning / updating repo on orchestrator VM (branch: ${BRANCH})..."
+    ssh_cmd "${ORCH_VM}" -- bash -s <<ORCH_SETUP
+set -euo pipefail
+# Ensure tmux and git are available
+sudo apt-get update -qq && sudo apt-get install -y -qq tmux git >/dev/null 2>&1 || true
+REPO_DIR="\$HOME/splice-neoepitope-pipeline"
+if [[ -d "\${REPO_DIR}/.git" ]]; then
+    git -C "\${REPO_DIR}" fetch --all --prune
+    git -C "\${REPO_DIR}" checkout "${BRANCH}"
+    git -C "\${REPO_DIR}" pull origin "${BRANCH}"
+else
+    git clone --branch "${BRANCH}" "${REPO_URL}" "\${REPO_DIR}"
+fi
+ORCH_SETUP
+
+    log "Starting pipeline in detached tmux session on ${ORCH_VM}..."
+    ssh_cmd "${ORCH_VM}" -- bash -s <<ORCH_RUN
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+tmux kill-session -t orchestrator 2>/dev/null || true
+tmux new-session -d -s orchestrator "
+    bash scripts/run_cloud_gpu.sh \\
+        --mode ${MODE} \\
+        --branch ${BRANCH} \\
+        --zone ${ZONE} \\
+        --_cloud-internal \\
+        2>&1 | tee orchestrator.log
+    echo 'Orchestrator finished — shutting down.'
+    sudo shutdown -h now
+"
+ORCH_RUN
+
+    log "================================================================"
+    log "Pipeline is running on ${ORCH_VM}. You can close your laptop."
+    log ""
+    log "Monitor progress:"
+    log "  gcloud compute ssh ${ORCH_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/orchestrator.log"
+    log ""
+    log "Attach to tmux session:"
+    log "  gcloud compute ssh ${ORCH_VM} --zone=${ZONE} --tunnel-through-iap -- tmux attach -t orchestrator"
+    log ""
+    log "When done, results are uploaded to GCS automatically:"
+    log "  gcloud storage cp -r ${GCS_PATH}/reports ./tcrdock_report"
+    log "  open tcrdock_report/local/report.html"
+    log ""
+    log "The orchestrator VM auto-stops when finished. To delete it:"
+    log "  gcloud compute instances delete ${ORCH_VM} --zone=${ZONE} --quiet"
+    log "================================================================"
+    exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # Ensure GCS handoff bucket exists
