@@ -1,0 +1,53 @@
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# TCRdock pipeline image — omits openmm/pdbfixer (Amber relaxation is not
+# used by run_prediction.py, so these are not required for structure prediction).
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y git wget && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+
+# Clone TCRdock v2.0.0
+RUN git clone --depth 1 --branch v2.0.0 https://github.com/phbradley/TCRdock.git
+
+# Install Miniconda (Python 3.10)
+RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-py310_23.3.1-0-Linux-x86_64.sh \
+        -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -u -p /opt/miniconda3 && \
+    rm /tmp/miniconda.sh
+ENV PATH="/opt/miniconda3/bin:$PATH"
+
+# Python dependencies (pinned to match TCRdock v2 / AlphaFold 2.3.2 requirements)
+RUN pip install --upgrade --no-cache-dir \
+    absl-py==1.0.0 \
+    biopython==1.79 \
+    chex==0.0.7 \
+    dm-haiku==0.0.10 \
+    dm-tree==0.1.8 \
+    immutabledict==2.0.0 \
+    jax==0.3.25 \
+    "https://storage.googleapis.com/jax-releases/cuda11/jaxlib-0.3.25+cuda11.cudnn805-cp310-cp310-manylinux2014_x86_64.whl" \
+    ml-collections==0.1.0 \
+    numpy==1.24.3 \
+    pandas==2.0.3 \
+    scipy==1.11.1 \
+    tensorflow-cpu==2.13.0 \
+    matplotlib
+
+RUN chmod -R a+rw /opt/TCRdock
+
+WORKDIR /opt/TCRdock
+
+# Download AlphaFold params (model_2_ptm only) and BLAST
+RUN mkdir -p alphafold_params/params && \
+    wget -q -O alphafold_params/params/params_model_2_ptm.npz \
+        "https://www.dropbox.com/s/e3uz9mwxkmmv35z/params_model_2_ptm.npz" && \
+    wget -q -O alphafold_params/params/tcrpmhc_run4_af_mhc_params_891.pkl \
+        "https://www.dropbox.com/s/jph8v1mfni1q4y8/tcrpmhc_run4_af_mhc_params_891.pkl" && \
+    python download_blast.py
+
+WORKDIR /data

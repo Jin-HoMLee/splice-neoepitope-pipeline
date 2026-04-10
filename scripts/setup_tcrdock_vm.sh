@@ -3,10 +3,13 @@
 # setup_tcrdock_vm.sh — Set up TCRdock via Docker on a GCP GPU VM
 # =============================================================================
 #
-# Installs Docker + NVIDIA Container Toolkit, then builds the official
+# Installs Docker + NVIDIA Container Toolkit, then builds the pipeline
 # TCRdock Docker image (CUDA 11.8 + cuDNN 8 + Python 3.10 + JAX 0.3.25).
 # Running a CUDA 11.8 container on a host with a newer driver (e.g. 12.8)
 # is supported by NVIDIA's forward-compatibility guarantee.
+#
+# Uses docker/Dockerfile.pipeline (omits openmm/pdbfixer — not needed for
+# structure prediction, only for optional Amber relaxation).
 #
 # The image bundles TCRdock, AlphaFold params, and BLAST — no host-side
 # dependency management required.
@@ -14,14 +17,15 @@
 # Usage:
 #   bash scripts/setup_tcrdock_vm.sh
 #
-# Expected runtime: ~30-45 min (Docker image build + param downloads)
-# Expected disk:    ~20 GB (base image + pip deps + AlphaFold params)
+# Expected runtime: ~20-30 min (Docker image build + param downloads)
+# Expected disk:    ~25 GB (base image + pip deps + AlphaFold params)
 # =============================================================================
 
 set -euo pipefail
 
 DOCKER_IMAGE="tcrdock:latest"
-TCRDOCK_DIR="${HOME}/tcrdock"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
@@ -62,29 +66,20 @@ log "  GPU passthrough: $(sudo docker run --rm --gpus all nvidia/cuda:11.8.0-bas
     nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
 
 # ---------------------------------------------------------------------------
-# Step 3 — TCRdock repo (for the Dockerfile)
+# Step 3 — Build Docker image
 # ---------------------------------------------------------------------------
-log "Step 3: Checking TCRdock repo..."
-
-if [[ ! -d "${TCRDOCK_DIR}" ]]; then
-    git clone https://github.com/phbradley/TCRdock.git "${TCRDOCK_DIR}"
-    log "  Cloned to ${TCRDOCK_DIR}"
-else
-    git -C "${TCRDOCK_DIR}" pull
-    log "  Updated at ${TCRDOCK_DIR}"
-fi
-
-# ---------------------------------------------------------------------------
-# Step 4 — Build Docker image
-# ---------------------------------------------------------------------------
-log "Step 4: Building TCRdock Docker image (this takes ~30-45 min)..."
+log "Step 3: Building TCRdock Docker image (this takes ~20-30 min)..."
+log "  Using docker/Dockerfile.pipeline (no openmm/pdbfixer — not needed"
+log "  for prediction, only for optional Amber relaxation)."
 log "  The image includes CUDA 11.8 + cuDNN 8, Python 3.10, JAX 0.3.25,"
 log "  AlphaFold params, and BLAST — no host-side deps needed."
 
 if sudo docker image inspect "${DOCKER_IMAGE}" &>/dev/null; then
     log "  Image '${DOCKER_IMAGE}' already exists — skipping build."
 else
-    sudo docker build -t "${DOCKER_IMAGE}" -f "${TCRDOCK_DIR}/docker/Dockerfile" "${TCRDOCK_DIR}"
+    sudo docker build -t "${DOCKER_IMAGE}" \
+        -f "${REPO_DIR}/docker/Dockerfile.pipeline" \
+        "${REPO_DIR}"
     log "  Image built: ${DOCKER_IMAGE}"
 fi
 
