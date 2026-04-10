@@ -153,13 +153,15 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
         --boot-disk-type=pd-standard \
         --scopes=cloud-platform \
         --metadata=enable-oslogin=FALSE
-    wait_for_ssh "${CPU_VM}"
-    log "  Running setup_cloud.sh (this takes 20-60 min)..."
-    ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
-    log "  Setup complete."
 fi
 
 wait_for_ssh "${CPU_VM}"
+
+# Always run setup_cloud.sh — it is idempotent and ensures the VM is ready
+# (skips steps that are already done, so this is fast on an existing VM)
+log "Running setup_cloud.sh on ${CPU_VM}..."
+ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
+log "  Setup complete."
 
 # Pull latest branch and start pipeline in a tmux session
 log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
