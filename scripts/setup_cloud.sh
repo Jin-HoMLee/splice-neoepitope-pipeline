@@ -92,7 +92,7 @@ fi
 # 3. Create / update the snakemake environment
 # ---------------------------------------------------------------------------
 echo ""
-if conda env list | grep -q "^snakemake "; then
+if [[ -d "$HOME/miniforge3/envs/snakemake" ]]; then
     echo "[3/5] 'snakemake' environment already exists — skipping creation."
 else
     echo "[3/5] Creating 'snakemake' conda environment..."
