@@ -468,7 +468,7 @@ cd "\$HOME/splice-neoepitope-pipeline"
 
 # Remove the CPU-generated report so Snakemake regenerates it with the
 # TCRdock structural view via generate_report_with_structure.
-rm -f ${RESULTS_DIR}/*/report.html
+find ${RESULTS_DIR} -name report.html -delete
 
 source "\$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate snakemake
