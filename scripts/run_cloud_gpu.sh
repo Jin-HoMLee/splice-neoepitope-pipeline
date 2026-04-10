@@ -109,7 +109,8 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 ssh_cmd() {
     local vm="$1"; shift
     if [[ "${CLOUD_INTERNAL}" == true ]]; then
-        gcloud compute ssh "${vm}" --zone="${ZONE}" --internal-ip "$@"
+        gcloud compute ssh "${vm}" --zone="${ZONE}" --internal-ip \
+            --ssh-key-expire-after=24h --quiet "$@"
     else
         gcloud compute ssh "${vm}" --zone="${ZONE}" --tunnel-through-iap "$@"
     fi
@@ -182,6 +183,10 @@ if [[ "${DETACH}" == true ]]; then
 set -euo pipefail
 # Ensure tmux and git are available
 sudo apt-get update -qq && sudo apt-get install -y -qq tmux git >/dev/null 2>&1 || true
+# Pre-generate SSH key so gcloud compute ssh doesn't prompt interactively
+if [[ ! -f "\$HOME/.ssh/google_compute_engine" ]]; then
+    ssh-keygen -t rsa -f "\$HOME/.ssh/google_compute_engine" -N "" -q
+fi
 REPO_DIR="\$HOME/splice-neoepitope-pipeline"
 if [[ -d "\${REPO_DIR}/.git" ]]; then
     git -C "\${REPO_DIR}" fetch --all --prune
@@ -231,20 +236,30 @@ fi
 # ---------------------------------------------------------------------------
 # Ensure GCS handoff bucket exists
 # ---------------------------------------------------------------------------
-if gsutil ls "gs://${GCS_BUCKET}" &>/dev/null; then
+if gcloud storage ls "gs://${GCS_BUCKET}" &>/dev/null; then
     log "GCS bucket gs://${GCS_BUCKET} already exists."
 else
     log "Creating GCS bucket gs://${GCS_BUCKET}..."
-    gsutil mb -l "${ZONE%-*}" "gs://${GCS_BUCKET}"
+    gcloud storage buckets create "gs://${GCS_BUCKET}" --location="${ZONE%-*}"
     log "  Bucket created."
 fi
 
-PROJECT_NUMBER="$(gcloud projects describe "$(gcloud config get-value project)" \
-    --format='value(projectNumber)' 2>/dev/null)"
-COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-log "Granting ${COMPUTE_SA} objectAdmin on gs://${GCS_BUCKET}..."
-gsutil iam ch "serviceAccount:${COMPUTE_SA}:objectAdmin" "gs://${GCS_BUCKET}" 2>/dev/null || \
-    log "  Warning: could not set bucket IAM (may already be set)."
+PROJECT_NUMBER="$(curl -sH 'Metadata-Flavor: Google' \
+    http://metadata.google.internal/computeMetadata/v1/project/numeric-project-id 2>/dev/null \
+    || gcloud projects describe "$(gcloud config get-value project 2>/dev/null)" \
+       --format='value(projectNumber)' 2>/dev/null \
+    || true)"
+if [[ -n "${PROJECT_NUMBER}" ]]; then
+    COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+    log "Granting ${COMPUTE_SA} objectAdmin on gs://${GCS_BUCKET}..."
+    gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" \
+        --member="serviceAccount:${COMPUTE_SA}" --role="roles/storage.objectAdmin" \
+        2>/dev/null || \
+        log "  Warning: could not set bucket IAM (may already be set)."
+else
+    log "  Warning: could not determine project number — skipping bucket IAM grant."
+    log "  (If uploads fail later, run: gsutil iam ch serviceAccount:<SA>:objectAdmin gs://${GCS_BUCKET})"
+fi
 
 # ===========================================================================
 # Phase 1 — CPU pipeline (steps 1-5)
@@ -353,8 +368,9 @@ else
 fi
 EOF
 
-log "Stopping ${CPU_VM} in background to save cost..."
-gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" &
+log "Stopping ${CPU_VM} to save cost..."
+gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" || \
+    log "  Warning: could not stop ${CPU_VM} — stop it manually to avoid charges."
 
 # ===========================================================================
 # Phase 3 — GPU Spot VM: TCRdock structural validation
