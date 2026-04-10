@@ -12,7 +12,27 @@
 - Identified visual issue in report: AlphaFold outputs all residues as a single chain A, so Mol* rendered the ternary complex without chain-colour distinction. Added `relabel_pdb_chains()` to `run_tcrdock.py`, which reassigns chain IDs (A=MHC, B=peptide, C=TCR-alpha, D=TCR-beta) using the chain lengths from TCRdock's `alphafold_setup/targets.tsv`.
 - Updated `setup_tcrdock_vm.sh` to build from `docker/Dockerfile.pipeline` instead of cloning TCRdock separately for the (broken) official Dockerfile.
 
-**Next:** Re-run pipeline via `run_cloud_gpu.sh` to validate the chain-relabelling fix in the full report.
+### 2026-04-10 15:30 — Mol* COMPND fix
+
+Fixed Mol* sequence panel showing generic "Polymer 1/2/3/4" instead of meaningful chain names. Root cause: PDB COMPND records had off-by-one column positions (continuation number in cols 9–11 instead of PDB-standard 8–10) and the first line incorrectly included a continuation number. Also padded lines to 80 chars and transliterated Unicode α/β to ASCII for PDB compliance. Confirmed fix locally — Mol* now shows "MHC heavy chain", "Peptide", "TCR alpha", "TCR beta".
+
+### 2026-04-10 17:00 — Pre-PR refactoring
+
+Code cleanup before creating PR for #25:
+- `generate_report.py`: fixed `html` module shadowing (local variable named `html` overrode the stdlib import → renamed to `report_html`, import aliased to `html_mod`). Moved `import json` from function body to top-level. Extracted COMPND record building into `_build_compnd_records()` helper.
+- `run_tcrdock.py`: replaced `assert` with `raise ValueError` for input validation.
+- All 57 tests passing.
+
+### 2026-04-10 18:00 — Documentation updates
+
+Updated all project documentation for the branch:
+- README.md: pipeline diagram (now 7 steps), TOC, config table with `tcrdock.*` parameters, output tree with `tcrdock/` directory, project structure with `docker/` and new files, citations for TCRdock and Mol*.
+- `docs/google_cloud_guide.md`: new "Automated GPU Pipeline (TCRdock)" section with quick start, retrieval, how-it-works, detached mode, cost estimate. Reordered TOC so Troubleshooting is last.
+- CLAUDE.md: added "TCRdock via Docker" and "PDB chain relabelling" decision notes.
+
+### 2026-04-10 19:00 — Final cloud test
+
+Kicked off `run_cloud_gpu.sh` for end-to-end validation on GCP. Pending result before creating PR for #25.
 
 ---
 
