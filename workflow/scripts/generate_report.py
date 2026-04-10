@@ -86,11 +86,52 @@ _MOLSTAR_VIEWER = """\
       layoutShowLeftPanel: true,
     }}).then(function(viewer) {{
       var pdbData = {pdb_data};
-      viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "{peptide} / {allele}" }});
+      viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "TCR-pMHC complex" }});
     }});
   }});
 </script>
 """
+
+# Chain ID → biological component name (standard TCRdock output order)
+_VIEWER_CHAIN_NAMES = {
+    "A": "MHC heavy chain",
+    "B": "Peptide",
+    "C": "TCR \u03b1-chain",
+    "D": "TCR \u03b2-chain",
+}
+
+
+def _extract_chain_ids(pdb_text: str) -> list[str]:
+    """Extract unique chain IDs from PDB ATOM records, in order of appearance."""
+    chains: list[str] = []
+    for line in pdb_text.splitlines():
+        if line.startswith(("ATOM", "HETATM")) and len(line) > 21:
+            cid = line[21]
+            if cid not in chains:
+                chains.append(cid)
+    return chains
+
+
+def _build_chain_legend(chains: list[str], peptide: str, allele: str) -> str:
+    """Build an HTML table mapping chain IDs to biological components."""
+    rows = []
+    for cid in chains:
+        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
+        detail = ""
+        if "MHC" in name:
+            detail = allele
+        elif name == "Peptide":
+            detail = f"<code>{peptide}</code>"
+        rows.append(
+            f"<tr><td><strong>{cid}</strong></td><td>{name}</td><td>{detail}</td></tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<table class="chain-legend">'
+        "<thead><tr><th>Chain</th><th>Component</th><th>Details</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
 
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
@@ -149,6 +190,15 @@ _HTML_TEMPLATE = """\
     .nt-pep-up   {{ background: #d6eaf8; color: #1a5276; font-weight: bold; }}
     .nt-pep-down {{ background: #d5f5e3; color: #1e8449; font-weight: bold; }}
     .junction-mark {{ color: #e74c3c; font-weight: bold; }}
+
+    /* Chain legend */
+    .chain-legend {{
+      margin: 1em 0; border-collapse: collapse; width: auto;
+      font-size: 0.92em;
+    }}
+    .chain-legend th {{ background: #f2f2f2; padding: 5px 14px; }}
+    .chain-legend td {{ padding: 5px 14px; }}
+    .chain-legend code {{ background: #eee; padding: 1px 4px; border-radius: 3px; }}
   </style>
 </head>
 <body>
@@ -312,17 +362,20 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     import json as _json
     pdb_json = _json.dumps(pdb_text)
 
-    viewer_html = _MOLSTAR_VIEWER.format(
-        pdb_data=pdb_json,
-        peptide=peptide,
-        allele=allele,
-    )
+    chains = _extract_chain_ids(pdb_text)
+    chain_legend = _build_chain_legend(chains, peptide, allele)
+
+    viewer_html = _MOLSTAR_VIEWER.format(pdb_data=pdb_json)
     return (
         "<h2>TCR-peptide-MHC structure (TCRdock)</h2>"
         "<p>Predicted 3D structure of the TCR-peptide-MHC ternary complex for "
         f"the top neoepitope candidate (<strong>{peptide}</strong> / {allele}). "
+        "Each chain is colored separately &mdash; hover over a region in the "
+        "3D view to see chain details, or expand the sequence panel "
+        "(top of the viewer) to browse per-chain sequences. "
         "Rendered with <a href='https://molstar.org'>Mol*</a>. "
         "TCR sequences: DMF5 fallback (see config).</p>"
+        + chain_legend
         + viewer_html
     )
 
