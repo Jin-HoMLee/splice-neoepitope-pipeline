@@ -358,6 +358,36 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
         peptide = html.escape(str(top.iloc[0]["peptide"]))
         allele  = html.escape(str(top.iloc[0]["allele"]))
 
+    # Inject COMPND records so Mol* shows meaningful chain names
+    # instead of "Polymer 1", "Polymer 2", etc.
+    # PDB format: cols 1-6 = "COMPND", col 7 = blank, cols 8-10 = continuation
+    # (blank for the first line, right-justified integer from line 2 onwards),
+    # col 11+ = compound text.  Lines are padded to 80 characters.
+    # PDB is ASCII-only so Greek letters are transliterated.
+    compnd_texts: list[str] = []
+    for idx, cid in enumerate(_extract_chain_ids(pdb_text)):
+        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
+        # ASCII transliteration for PDB records
+        name = name.replace("\u03b1", "alpha").replace("\u03b2", "beta")
+        if "MHC" in name and allele:
+            name = f"{name} ({allele})"
+        elif "Peptide" in name and peptide:
+            name = f"Peptide ({peptide})"
+        mol_num = idx + 1
+        compnd_texts.append(f"MOL_ID: {mol_num};")
+        compnd_texts.append(f"MOLECULE: {name};")
+        compnd_texts.append(f"CHAIN: {cid};")
+    if compnd_texts:
+        compnd_lines = []
+        for i, text in enumerate(compnd_texts):
+            if i == 0:
+                # First line: cols 8-10 blank
+                compnd_lines.append(f"COMPND    {text}".ljust(80))
+            else:
+                # Continuation lines: number right-justified in cols 8-10
+                compnd_lines.append(f"COMPND {i + 1:>3d} {text}".ljust(80))
+        pdb_text = "\n".join(compnd_lines) + "\n" + pdb_text
+
     # Inline PDB as a JSON string (safe for embedding in JS)
     import json as _json
     pdb_json = _json.dumps(pdb_text)
@@ -485,6 +515,7 @@ def _cli_main() -> None:
     parser.add_argument("--predictions", required=True, help="MHCflurry predictions TSV")
     parser.add_argument("--output", required=True, help="Output HTML report")
     parser.add_argument("--contigs-fasta", default=None, help="Contigs FASTA for junction visualisation")
+    parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     args = parser.parse_args()
 
@@ -494,6 +525,7 @@ def _cli_main() -> None:
         output_html=args.output,
         contigs_fasta=args.contigs_fasta,
         ic50_strong=args.ic50_strong,
+        tcrdock_pdb=args.tcrdock_pdb,
     )
 
 
