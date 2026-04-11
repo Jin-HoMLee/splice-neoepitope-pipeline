@@ -42,12 +42,19 @@ RUN chmod -R a+rw /opt/TCRdock
 
 WORKDIR /opt/TCRdock
 
-# Download AlphaFold params (model_2_ptm only) and BLAST
+# Download AlphaFold params (model_2_ptm only) and BLAST.
+# ?dl=1 forces Dropbox to serve the raw file instead of an HTML landing page.
 RUN mkdir -p alphafold_params/params && \
     wget -q -O alphafold_params/params/params_model_2_ptm.npz \
-        "https://www.dropbox.com/s/e3uz9mwxkmmv35z/params_model_2_ptm.npz" && \
+        "https://www.dropbox.com/s/e3uz9mwxkmmv35z/params_model_2_ptm.npz?dl=1" && \
     wget -q -O alphafold_params/params/tcrpmhc_run4_af_mhc_params_891.pkl \
-        "https://www.dropbox.com/s/jph8v1mfni1q4y8/tcrpmhc_run4_af_mhc_params_891.pkl" && \
+        "https://www.dropbox.com/s/jph8v1mfni1q4y8/tcrpmhc_run4_af_mhc_params_891.pkl?dl=1" && \
+    for f in alphafold_params/params/params_model_2_ptm.npz \
+             alphafold_params/params/tcrpmhc_run4_af_mhc_params_891.pkl; do \
+        size=$(stat -c%s "$f"); \
+        if [ "$size" -lt 1024 ]; then echo "FAIL: $f is only $size bytes" >&2; exit 1; fi; \
+        if head -c 512 "$f" | grep -qi '<html'; then echo "FAIL: $f is HTML, not a model file" >&2; exit 1; fi; \
+    done && \
     python download_blast.py
 
 WORKDIR /data
