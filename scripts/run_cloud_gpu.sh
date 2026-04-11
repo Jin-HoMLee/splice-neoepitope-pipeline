@@ -35,8 +35,8 @@
 #   bash scripts/run_cloud_gpu.sh [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]
 #
 # After the run, download the report:
-#   gcloud storage cp -r gs://tcrdock-handoff/results/test/reports ./tcrdock_report   # test
-#   gcloud storage cp -r gs://tcrdock-handoff/results/reports ./tcrdock_report        # prod
+#   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/test/reports ./tcrdock_report   # test
+#   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/reports ./tcrdock_report        # prod
 #   open tcrdock_report/local/report.html
 # =============================================================================
 
@@ -56,7 +56,7 @@ IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
 
-GCS_BUCKET="tcrdock-handoff"
+GCS_BUCKET="$(gcloud config get-value project 2>/dev/null)-tcrdock-handoff"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
 MODE="prod"
