@@ -15,7 +15,7 @@
 #
 # After this script finishes, run the pipeline with:
 #   conda activate snakemake
-#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 #
 set -euo pipefail
 
@@ -59,4 +59,4 @@ echo "=== Downloads complete! ==="
 echo ""
 echo "Run the pipeline with:"
 echo "    conda activate snakemake"
-echo "    snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh"
+echo "    snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"

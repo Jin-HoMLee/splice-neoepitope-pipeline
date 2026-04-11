@@ -18,7 +18,8 @@ Usage (Snakemake):
 """
 
 import argparse
-import html
+import html as html_mod
+import json
 import logging
 from pathlib import Path
 
@@ -71,6 +72,99 @@ _PIPELINE_DIAGRAM = """\
 </div>
 """
 
+_MOLSTAR_VIEWER = """\
+<div id="molstar-container" style="width:100%;height:500px;position:relative;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin:1em 0;"></div>
+<script type="text/javascript">
+  // Mol* viewer — loads the inlined PDB and renders the TCR-peptide-MHC complex.
+  // Mol* is MIT-licensed and loaded from the official CDN (no registration required).
+  document.addEventListener("DOMContentLoaded", function() {{
+    molstar.Viewer.create("molstar-container", {{
+      layoutIsExpanded: false,
+      layoutShowControls: true,
+      layoutShowRemoteState: false,
+      layoutShowSequence: true,
+      layoutShowLog: false,
+      layoutShowLeftPanel: true,
+    }}).then(function(viewer) {{
+      var pdbData = {pdb_data};
+      viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "TCR-pMHC complex" }});
+    }});
+  }});
+</script>
+"""
+
+# Chain ID → biological component name (standard TCRdock output order)
+_VIEWER_CHAIN_NAMES = {
+    "A": "MHC heavy chain",
+    "B": "Peptide",
+    "C": "TCR \u03b1-chain",
+    "D": "TCR \u03b2-chain",
+}
+
+
+def _extract_chain_ids(pdb_text: str) -> list[str]:
+    """Extract unique chain IDs from PDB ATOM records, in order of appearance."""
+    chains: list[str] = []
+    for line in pdb_text.splitlines():
+        if line.startswith(("ATOM", "HETATM")) and len(line) > 21:
+            cid = line[21]
+            if cid not in chains:
+                chains.append(cid)
+    return chains
+
+
+def _build_chain_legend(chains: list[str], peptide: str, allele: str) -> str:
+    """Build an HTML table mapping chain IDs to biological components."""
+    rows = []
+    for cid in chains:
+        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
+        detail = ""
+        if "MHC" in name:
+            detail = allele
+        elif name == "Peptide":
+            detail = f"<code>{peptide}</code>"
+        rows.append(
+            f"<tr><td><strong>{cid}</strong></td><td>{name}</td><td>{detail}</td></tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<table class="chain-legend">'
+        "<thead><tr><th>Chain</th><th>Component</th><th>Details</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _build_compnd_records(pdb_text: str, peptide: str, allele: str) -> str:
+    """Build PDB COMPND records so Mol* shows meaningful chain names.
+
+    PDB format: cols 1-6 = "COMPND", col 7 = blank, cols 8-10 = continuation
+    (blank for the first line, right-justified integer from line 2 onwards),
+    col 11+ = compound text.  Lines are padded to 80 characters.
+    PDB is ASCII-only so Greek letters are transliterated.
+    """
+    compnd_texts: list[str] = []
+    for idx, cid in enumerate(_extract_chain_ids(pdb_text)):
+        name = _VIEWER_CHAIN_NAMES.get(cid, f"Chain {cid}")
+        name = name.replace("\u03b1", "alpha").replace("\u03b2", "beta")
+        if "MHC" in name and allele:
+            name = f"{name} ({allele})"
+        elif "Peptide" in name and peptide:
+            name = f"Peptide ({peptide})"
+        mol_num = idx + 1
+        compnd_texts.append(f"MOL_ID: {mol_num};")
+        compnd_texts.append(f"MOLECULE: {name};")
+        compnd_texts.append(f"CHAIN: {cid};")
+    if not compnd_texts:
+        return pdb_text
+    compnd_lines = []
+    for i, text in enumerate(compnd_texts):
+        if i == 0:
+            compnd_lines.append(f"COMPND    {text}".ljust(80))
+        else:
+            compnd_lines.append(f"COMPND {i + 1:>3d} {text}".ljust(80))
+    return "\n".join(compnd_lines) + "\n" + pdb_text
+
 _HTML_TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -78,6 +172,7 @@ _HTML_TEMPLATE = """\
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
+  {molstar_assets}
   <style>
     body  {{ font-family: Arial, sans-serif; margin: 2em; color: #333; }}
     h1    {{ color: #2c3e50; }}
@@ -124,6 +219,15 @@ _HTML_TEMPLATE = """\
     .nt-pep-up   {{ background: #d6eaf8; color: #1a5276; font-weight: bold; }}
     .nt-pep-down {{ background: #d5f5e3; color: #1e8449; font-weight: bold; }}
     .junction-mark {{ color: #e74c3c; font-weight: bold; }}
+
+    /* Chain legend */
+    .chain-legend {{
+      margin: 1em 0; border-collapse: collapse; width: auto;
+      font-size: 0.92em;
+    }}
+    .chain-legend th {{ background: #f2f2f2; padding: 5px 14px; }}
+    .chain-legend td {{ padding: 5px 14px; }}
+    .chain-legend code {{ background: #eee; padding: 1px 4px; border-radius: 3px; }}
   </style>
 </head>
 <body>
@@ -148,6 +252,8 @@ _HTML_TEMPLATE = """\
 
   <h2>Top strong binders (IC50 &lt; {ic50_strong} nM)</h2>
   {strong_table}
+
+  {structure_section}
 
   <hr/>
   <p><small>Pipeline source:
@@ -211,9 +317,9 @@ def _build_strong_table_html(
 
         rows.append(
             f"<tr>"
-            f"<td>{html.escape(str(row['contig_key']))}</td>"
-            f"<td>{html.escape(str(row['peptide']))}</td>"
-            f"<td>{html.escape(str(row['allele']))}</td>"
+            f"<td>{html_mod.escape(str(row['contig_key']))}</td>"
+            f"<td>{html_mod.escape(str(row['peptide']))}</td>"
+            f"<td>{html_mod.escape(str(row['allele']))}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{row['percentile_rank']:.3f}</td>"
             f"<td>{contig_html}</td>"
@@ -254,12 +360,66 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
 # Report generation
 # ---------------------------------------------------------------------------
 
+def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
+    """Build the Mol* 3D viewer section for the top TCRdock candidate.
+
+    The PDB is inlined as a JSON string so the HTML report is fully
+    self-contained and does not depend on local file paths at view time.
+
+    Args:
+        pdb_path: Path to the TCRdock-predicted PDB file.
+        pred_df:  MHCflurry predictions DataFrame (used for annotation).
+
+    Returns:
+        HTML string containing the Mol* viewer and inlined PDB.
+    """
+    try:
+        pdb_text = pdb_path.read_text()
+    except OSError as exc:
+        log.warning("Could not read PDB file %s: %s", pdb_path, exc)
+        return "<p><em>Structure not available.</em></p>"
+
+    # Annotate with the top candidate's peptide and allele.
+    # Match run_tcrdock.py's candidate selection: best strong binder, falling
+    # back to weak. Exclude non-binders to stay in sync.
+    binders = pred_df[pred_df["binder_class"].isin(("strong", "weak"))]
+    top = binders.sort_values("ic50_nM").head(1)
+    if top.empty:
+        peptide, allele = "NA", "NA"
+    else:
+        peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
+        allele  = html_mod.escape(str(top.iloc[0]["allele"]))
+
+    pdb_text = _build_compnd_records(pdb_text, peptide, allele)
+
+    # Inline PDB as a JSON string (safe for embedding in JS)
+    pdb_json = json.dumps(pdb_text)
+
+    chains = _extract_chain_ids(pdb_text)
+    chain_legend = _build_chain_legend(chains, peptide, allele)
+
+    viewer_html = _MOLSTAR_VIEWER.format(pdb_data=pdb_json)
+    return (
+        "<h2>TCR-peptide-MHC structure (TCRdock)</h2>"
+        "<p>Predicted 3D structure of the TCR-peptide-MHC ternary complex for "
+        f"the top neoepitope candidate (<strong>{peptide}</strong> / {allele}). "
+        "Each chain is colored separately &mdash; hover over a region in the "
+        "3D view to see chain details, or expand the sequence panel "
+        "(top of the viewer) to browse per-chain sequences. "
+        "Rendered with <a href='https://molstar.org'>Mol*</a>. "
+        "TCR sequences: DMF5 fallback (see config).</p>"
+        + chain_legend
+        + viewer_html
+    )
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
     output_html: str | Path,
     contigs_fasta: str | Path | None = None,
     ic50_strong: float = 50.0,
+    tcrdock_pdb: str | Path | None = None,
 ) -> None:
     """Generate the summary HTML report.
 
@@ -269,6 +429,8 @@ def generate_report(
         output_html:         Destination HTML file.
         contigs_fasta:       Contig FASTA for junction visualisation (optional).
         ic50_strong:         Strong-binder IC50 threshold (nM).
+        tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
+                             an embedded Mol* 3D viewer is added to the report.
     """
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
@@ -312,14 +474,33 @@ def generate_report(
     else:
         strong_html = _build_strong_table_html(pred_df, contigs)
 
-    html = _HTML_TEMPLATE.format(
+    # --- TCRdock 3D structure viewer (optional) ---
+    if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
+        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df)
+    else:
+        structure_section = ""
+
+    # Only load Mol* assets when a structure section is present
+    if structure_section:
+        molstar_assets = (
+            '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
+            '       structural validation produced a PDB for the report. -->\n'
+            '  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>\n'
+            '  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>'
+        )
+    else:
+        molstar_assets = ""
+
+    report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
         binder_table=binder_html,
         strong_table=strong_html,
+        structure_section=structure_section,
         ic50_strong=int(ic50_strong),
+        molstar_assets=molstar_assets,
     )
-    output_html.write_text(html, encoding="utf-8")
+    output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
 
 
@@ -337,6 +518,7 @@ def _snakemake_main() -> None:
         output_html=snakemake.output.report_html,  # type: ignore[name-defined]  # noqa: F821
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
+        tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -348,6 +530,7 @@ def _cli_main() -> None:
     parser.add_argument("--predictions", required=True, help="MHCflurry predictions TSV")
     parser.add_argument("--output", required=True, help="Output HTML report")
     parser.add_argument("--contigs-fasta", default=None, help="Contigs FASTA for junction visualisation")
+    parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     args = parser.parse_args()
 
@@ -357,6 +540,7 @@ def _cli_main() -> None:
         output_html=args.output,
         contigs_fasta=args.contigs_fasta,
         ic50_strong=args.ic50_strong,
+        tcrdock_pdb=args.tcrdock_pdb,
     )
 
 
