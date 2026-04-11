@@ -40,9 +40,7 @@ Usage (standalone, Linux + GPU only):
   python run_tcrdock.py \\
       --predictions-tsv results/predictions/local/predictions.tsv \\
       --output-pdb results/predictions/local/tcrdock/top_candidate.pdb \\
-      --output-scores results/predictions/local/tcrdock/docking_scores.tsv \\
-      --tcrdock-dir /opt/tcrdock \\
-      --alphafold-params /opt/af_params
+      --output-scores results/predictions/local/tcrdock/docking_scores.tsv
 
 Usage (Snakemake):
   Called automatically by the run_tcrdock rule when tcrdock.enabled is true.
