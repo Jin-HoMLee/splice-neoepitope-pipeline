@@ -379,10 +379,13 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
         log.warning("Could not read PDB file %s: %s", pdb_path, exc)
         return "<p><em>Structure not available.</em></p>"
 
-    # Annotate with the top candidate's peptide and allele
-    top = pred_df[pred_df["binder_class"] == "strong"].sort_values("ic50_nM").head(1)
+    # Annotate with the top candidate's peptide and allele.
+    # Match run_tcrdock.py's candidate selection: best strong binder, falling
+    # back to weak. Exclude non-binders to stay in sync.
+    binders = pred_df[pred_df["binder_class"].isin(("strong", "weak"))]
+    top = binders.sort_values("ic50_nM").head(1)
     if top.empty:
-        peptide, allele = "top candidate", ""
+        peptide, allele = "NA", "NA"
     else:
         peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
         allele  = html_mod.escape(str(top.iloc[0]["allele"]))
