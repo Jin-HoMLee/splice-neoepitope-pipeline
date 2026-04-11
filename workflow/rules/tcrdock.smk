@@ -8,16 +8,16 @@
 # Requirements
 # ------------
 #   - Linux x64 with NVIDIA GPU (AlphaFold v2 backend)
-#   - TCRdock installed at config[tcrdock][tcrdock_dir]
-#   - AlphaFold params at config[tcrdock][alphafold_params_dir]
+#   - Docker with access to the configured TCRdock image at
+#     config[tcrdock][docker_image]
 #
 # This rule is skipped entirely when config[tcrdock][enabled] is false,
 # so local / macOS arm64 / CPU-only runs are unaffected.
 #
 # Outputs
 # -------
-#   structures/{cancer_type}/top_candidate.pdb   — predicted ternary complex
-#   structures/{cancer_type}/docking_scores.tsv  — docking geometry metrics
+#   results/predictions/{cancer_type}/tcrdock/top_candidate.pdb   — predicted ternary complex
+#   results/predictions/{cancer_type}/tcrdock/docking_scores.tsv  — docking geometry metrics
 
 _TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
 
