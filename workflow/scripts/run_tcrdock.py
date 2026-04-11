@@ -201,7 +201,7 @@ def run_tcrdock(
 
     def _docker_run(container_cmd: list, label: str) -> None:
         cmd = [
-            "sudo", "docker", "run", "--rm", "--gpus", "all",
+            "docker", "run", "--rm", "--gpus", "all",
             "-v", f"{output_dir}:/data",
             docker_image,
         ] + container_cmd
