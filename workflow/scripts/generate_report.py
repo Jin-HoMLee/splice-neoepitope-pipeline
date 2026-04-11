@@ -172,10 +172,7 @@ _HTML_TEMPLATE = """\
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
-  <!-- Mol* molecular viewer (MIT license) — only used when TCRdock structural
-       validation is enabled (config[tcrdock][enabled]: true). -->
-  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>
-  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>
+  {molstar_assets}
   <style>
     body  {{ font-family: Arial, sans-serif; margin: 2em; color: #333; }}
     h1    {{ color: #2c3e50; }}
@@ -480,6 +477,17 @@ def generate_report(
     else:
         structure_section = ""
 
+    # Only load Mol* assets when a structure section is present
+    if structure_section:
+        molstar_assets = (
+            '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
+            '       structural validation produced a PDB for the report. -->\n'
+            '  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>\n'
+            '  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>'
+        )
+    else:
+        molstar_assets = ""
+
     report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
@@ -487,6 +495,7 @@ def generate_report(
         strong_table=strong_html,
         structure_section=structure_section,
         ic50_strong=int(ic50_strong),
+        molstar_assets=molstar_assets,
     )
     output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
