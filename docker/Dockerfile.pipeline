@@ -36,7 +36,7 @@ RUN pip install --upgrade --no-cache-dir \
     pandas==2.0.3 \
     scipy==1.11.1 \
     tensorflow-cpu==2.13.0 \
-    matplotlib
+    matplotlib==3.10.8
 
 RUN chmod -R a+rw /opt/TCRdock
 
