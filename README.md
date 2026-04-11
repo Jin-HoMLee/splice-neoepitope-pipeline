@@ -609,7 +609,7 @@ All parameters are in `config/config.yaml`.  Key options:
 | `tcrdock.enabled` | `false` | Enable TCRdock structural validation (GPU required) |
 | `tcrdock.docker_image` | `tcrdock:latest` | Docker image built by `setup_tcrdock_vm.sh` |
 | `tcrdock.n_candidates` | `1` | Number of top candidates to model |
-| `tcrdock.fallback_hla` | `HLA-A*02:01` | HLA allele for TCRdock (until HLA typing #23) |
+| `tcrdock.fallback_hla` | `{A: HLA-A*02:01, B: HLA-B*07:02, C: HLA-C*07:02}` | Fallback HLA alleles as A/B/C mapping (until HLA typing #23) |
 | `tcrdock.fallback_tcr` | DMF5 TCR | Fallback TCR sequences (until TRUST4 #24) |
 
 ---
