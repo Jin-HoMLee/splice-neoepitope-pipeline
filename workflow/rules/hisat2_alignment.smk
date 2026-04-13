@@ -94,12 +94,10 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
 
 
     rule hisat2_align:
-        """Run HISAT2 alignment on a single sample to generate junction quantification.
-        
-        Input: FASTQ files (single-end or paired-end)
-        Output: Junction quantification TSV in pipeline-compatible format
-        
-        Uses regtools to extract junctions from the BAM file.
+        """Run HISAT2 alignment on a single sample and produce a sorted+indexed BAM.
+
+        The BAM is declared as `temp()` so Snakemake cleans it up after all
+        consumers (extract_junctions, arcashla_extract, ...) have finished.
         """
         input:
             index_dir=_HISAT2_INDEX_DIR,
@@ -107,61 +105,73 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
             fastq1=get_fastq1_hisat2,
             fastq2=get_fastq2_hisat2,
         output:
-            junctions=os.path.join(OUT["raw_data"], "local", "files", "{sample}.tsv"),
-            done=touch(os.path.join(OUT["raw_data"], "local", "files", "{sample}.done")),
+            bam=temp(os.path.join(OUT["raw_data"], "local", "files", "{sample}.bam")),
+            bai=temp(os.path.join(OUT["raw_data"], "local", "files", "{sample}.bam.bai")),
         log:
             os.path.join(OUT["logs"], "hisat2", "{sample}_align.log"),
         params:
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
-            output_prefix=lambda w: os.path.join(OUT["raw_data"], "local", "files", f"{w.sample}"),
         threads: 8
         resources:
-            mem_mb=8000,  # HISAT2 alignment needs only ~8 GB
+            mem_mb=8000,
         conda:
             "../envs/hisat2.yaml"
         shell:
             """
-            # Create output directory
-            mkdir -p $(dirname {output.junctions})
+            mkdir -p $(dirname {output.bam})
 
-            # Determine if paired-end
             if [[ -n "{input.fastq2}" ]]; then
                 FASTQ_ARGS="-1 {input.fastq1} -2 {input.fastq2}"
             else
                 FASTQ_ARGS="-U {input.fastq1}"
             fi
 
-            # Run HISAT2 alignment and pipe to BAM
             hisat2 \\
                 -p {threads} \\
                 -x {params.index_prefix} \\
                 $FASTQ_ARGS \\
                 2>> {log} | \\
-                samtools sort -@ {threads} -o {params.output_prefix}.bam - 2>> {log}
+                samtools sort -@ {threads} -o {output.bam} - 2>> {log}
 
-            # Index the BAM
-            samtools index {params.output_prefix}.bam 2>> {log}
-            
-            # Extract junctions using regtools
+            samtools index {output.bam} 2>> {log}
+            """
+
+
+    rule extract_junctions:
+        """Extract splice junctions from an HISAT2 BAM using regtools.
+
+        Reads regtools BED output and reformats to the pipeline's
+        `junction_id \\t mapped_reads` TSV.
+        """
+        input:
+            bam=rules.hisat2_align.output.bam,
+            bai=rules.hisat2_align.output.bai,
+        output:
+            junctions=os.path.join(OUT["raw_data"], "local", "files", "{sample}.tsv"),
+            done=touch(os.path.join(OUT["raw_data"], "local", "files", "{sample}.done")),
+        log:
+            os.path.join(OUT["logs"], "hisat2", "{sample}_extract_junctions.log"),
+        params:
+            bed=lambda w: os.path.join(OUT["raw_data"], "local", "files", f"{w.sample}_junctions.bed"),
+        conda:
+            "../envs/hisat2.yaml"
+        shell:
+            """
             regtools junctions extract \\
                 -s XS \\
                 -a 8 \\
                 -m 50 \\
                 -M 500000 \\
-                -o {params.output_prefix}_junctions.bed \\
-                {params.output_prefix}.bam \\
+                -o {params.bed} \\
+                {input.bam} \\
                 2>> {log}
-            
-            # Convert regtools BED to pipeline format
-            # regtools BED: chrom, start, end, name, score(reads), strand
-            # Pipeline format: junction_id(chr:start:end:strand) \\t mapped_reads
+
             awk -F'\\t' '{{
                 if ($5 > 0) print $1":"$2":"$3":"$6"\\t"$5
-            }}' {params.output_prefix}_junctions.bed > {output.junctions}
-            
-            # Clean up intermediate files
-            rm -f {params.output_prefix}.bam {params.output_prefix}.bam.bai {params.output_prefix}_junctions.bed
-            
+            }}' {params.bed} > {output.junctions}
+
+            rm -f {params.bed}
+
             echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
             """
 
