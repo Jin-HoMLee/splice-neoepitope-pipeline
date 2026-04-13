@@ -55,27 +55,12 @@ sudo apt-get install -y git curl wget tmux
 echo "    Done."
 
 # ---------------------------------------------------------------------------
-# 1b. Install NumPy in gcloud SDK Python to silence IAP tunnel warnings
+# 1b. Install NumPy to silence IAP tunnel warnings
 # ---------------------------------------------------------------------------
 echo ""
-echo "[1b/5] Installing NumPy in gcloud SDK Python..."
-GCLOUD_ROOT="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
-GCLOUD_PYTHON=""
-
-# Try standard location first (e.g., /opt/google-cloud-sdk)
-if [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/bin/python3" ]]; then
-    GCLOUD_PYTHON="${GCLOUD_ROOT}/bin/python3"
-# Try snap location (e.g., /snap/google-cloud-cli/XXX)
-elif [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3" ]]; then
-    GCLOUD_PYTHON="${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3"
-fi
-
-if [[ -n "${GCLOUD_PYTHON}" ]]; then
-    "${GCLOUD_PYTHON}" -m pip install --quiet numpy 2>/dev/null || \
-        echo "    Note: NumPy installation failed (non-critical; tunnel will still work)."
-else
-    echo "    gcloud SDK Python not found (non-critical; will proceed anyway)."
-fi
+echo "[1b/5] Installing NumPy to improve IAP tunnel performance..."
+sudo apt-get install -y python3-numpy >/dev/null 2>&1 || \
+    echo "    Note: NumPy installation failed (non-critical; tunnel will still work)."
 echo "    Done."
 
 # ---------------------------------------------------------------------------

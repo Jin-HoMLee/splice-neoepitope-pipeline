@@ -31,26 +31,11 @@ BASE_CONFIG="${1:-config/config.yaml}"   # caller can override, e.g. config/test
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # ---------------------------------------------------------------------------
-# Step 0.5 — Install NumPy in gcloud SDK Python to silence IAP tunnel warnings
+# Step 0.5 — Install NumPy to silence IAP tunnel warnings
 # ---------------------------------------------------------------------------
-log "Step 0.5: Installing NumPy in gcloud SDK Python..."
-GCLOUD_ROOT="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
-GCLOUD_PYTHON=""
-
-# Try standard location first (e.g., /opt/google-cloud-sdk)
-if [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/bin/python3" ]]; then
-    GCLOUD_PYTHON="${GCLOUD_ROOT}/bin/python3"
-# Try snap location (e.g., /snap/google-cloud-cli/XXX)
-elif [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3" ]]; then
-    GCLOUD_PYTHON="${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3"
-fi
-
-if [[ -n "${GCLOUD_PYTHON}" ]]; then
-    "${GCLOUD_PYTHON}" -m pip install --quiet numpy 2>/dev/null || \
-        log "  Note: NumPy installation failed (non-critical; tunnel will still work)."
-else
-    log "  gcloud SDK Python not found (non-critical; will proceed anyway)."
-fi
+log "Step 0.5: Installing NumPy to improve IAP tunnel performance..."
+sudo apt-get update -qq && sudo apt-get install -y python3-numpy >/dev/null 2>&1 || \
+    log "  Note: NumPy installation failed (non-critical; tunnel will still work)."
 
 # ---------------------------------------------------------------------------
 # Step 1 — Verify GPU
