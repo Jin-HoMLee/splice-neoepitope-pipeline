@@ -20,15 +20,16 @@ RNA-Seq.
    - [Option B: Cloud-Based Execution (Google Cloud)](#option-b-cloud-based-alignment-for-users-without-local-resources)
    - [Option C: GDC Download](#option-c-gdc-download-requires-institutional-access)
 5. [MHCflurry](#mhcflurry-epitope-predictor)
-6. [Reference Data](#reference-data)
-7. [Local Testing (chr22 subset)](#local-testing-chr22-subset)
-8. [Running the Pipeline](#running-the-pipeline)
-9. [Configuration](#configuration)
-10. [Output Description](#output-description)
-11. [Modernisation Changelog](#modernisation-changelog)
-12. [Project Structure](#project-structure)
-13. [Citation](#citation)
-14. [Further Reading](#further-reading)
+6. [TCRdock Structural Validation (Optional)](#tcrdock-structural-validation-optional)
+7. [Reference Data](#reference-data)
+8. [Local Testing (chr22 subset)](#local-testing-chr22-subset)
+9. [Running the Pipeline](#running-the-pipeline)
+10. [Configuration](#configuration)
+11. [Output Description](#output-description)
+12. [Modernisation Changelog](#modernisation-changelog)
+13. [Project Structure](#project-structure)
+14. [Citation](#citation)
+15. [Further Reading](#further-reading)
 
 ---
 
@@ -69,8 +70,11 @@ RNA-Seq data (local FASTQ files or GDC API)
         ▼ Step 5: Predict
   Junction-spanning 9-mer filter → MHCflurry 2.x → IC50 binding affinities (HLA-A*02:01)
         │
-        ▼ Step 6: Report
-  Junction origin summary + top binders HTML report
+        ▼ Step 6: TCRdock structural validation (optional, GPU)
+  TCR-peptide-MHC ternary complex 3D structure (AlphaFold v2 backend)
+        │
+        ▼ Step 7: Report
+  Junction origin summary + top binders + Mol* 3D viewer HTML report
 ```
 
 ---
@@ -354,8 +358,7 @@ gcloud compute instances create splice-pipeline \
 gcloud compute ssh splice-pipeline --zone=us-central1-a
 
 # 3. On the VM, install conda, clone repo, configure samples, then run:
-snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
-# The VM shuts down automatically when the pipeline finishes.
+snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 
 # 4. Download results when done
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
@@ -451,6 +454,52 @@ installed automatically via the conda environment — no manual setup needed.
 > O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved Pan-Allele Prediction
 > of MHC Class I-Presented Peptides by Incorporating Antigen Processing.
 > *Cell Systems*, 11(1), 42-48.e7.
+
+---
+
+## TCRdock Structural Validation (Optional)
+
+When enabled, the pipeline predicts the 3D structure of the TCR-peptide-MHC
+ternary complex for the top neoepitope candidate using **TCRdock** (Bradley
+et al.), a modified AlphaFold v2 multimer backend adapted for TCR:pMHC
+complexes.
+
+- **Requires**: Linux x86-64, NVIDIA GPU (T4 or better), Docker with NVIDIA Container Toolkit
+- **Not compatible** with macOS or CPU-only machines
+- **Disabled by default** — local / CPU-only runs are unaffected
+
+The predicted structure is embedded in the HTML report as an interactive
+[Mol*](https://molstar.org) 3D viewer with labeled chains (MHC heavy chain,
+peptide, TCR α-chain, TCR β-chain).
+
+### Running TCRdock
+
+**Automated (recommended):** Use the cloud GPU script which handles the full
+CPU → GPU lifecycle:
+
+```bash
+bash scripts/run_cloud_gpu.sh --mode test    # chr22 test run
+bash scripts/run_cloud_gpu.sh --mode prod    # full production run
+bash scripts/run_cloud_gpu.sh --mode test --detach  # detached (close laptop)
+```
+
+See [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) for details.
+
+**Manual (on a GPU VM):**
+
+```bash
+# 1. Set up Docker + TCRdock image
+bash scripts/setup_tcrdock_vm.sh config/config.yaml
+
+# 2. Run pipeline with TCRdock overlay
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
+    --configfile config/config.yaml config/tcrdock_gpu.yaml
+```
+
+### Reference
+
+> Bradley P (2023). Structure-based prediction of T cell receptor:peptide-MHC
+> interactions. *eLife*, 12, e82813.
 
 ---
 
@@ -557,6 +606,11 @@ All parameters are in `config/config.yaml`.  Key options:
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
 | `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
 | `filtering.min_normal_reads` | `2` | Min reads in normal to trust a junction as patient-specific |
+| `tcrdock.enabled` | `false` | Enable TCRdock structural validation (GPU required) |
+| `tcrdock.docker_image` | `tcrdock:latest` | Docker image built by `setup_tcrdock_vm.sh` |
+| `tcrdock.n_candidates` | `1` | Number of top candidates to model |
+| `tcrdock.fallback_hla` | `{A: HLA-A*02:01, B: HLA-B*07:02, C: HLA-C*07:02}` | Fallback HLA alleles as A/B/C mapping (until HLA typing #23) |
+| `tcrdock.fallback_tcr` | DMF5 TCR | Fallback TCR sequences (until TRUST4 #24) |
 
 ---
 
@@ -582,10 +636,14 @@ results/
 │       └── peptides.fa           # 16-mer peptide FASTA
 ├── predictions/
 │   └── {cancer_type}/
-│       └── predictions.tsv       # MHCflurry results
+│       ├── predictions.tsv       # MHCflurry results
+│       └── tcrdock/              # (when TCRdock is enabled)
+│           ├── top_candidate.pdb # Predicted TCR-pMHC ternary complex
+│           └── docking_scores.tsv # pLDDT/PAE quality metrics
 └── reports/
     └── {cancer_type}/
         └── report.html           # Junction origin summary + top binders
+                                  # (+ Mol* 3D viewer when TCRdock is enabled)
 ```
 
 ---
@@ -619,14 +677,19 @@ splice-neoepitope-pipeline/
 ├── LICENSE
 ├── .gitignore
 ├── Snakefile                         # Main Snakemake workflow
-├── auto_stop.sh                      # VM shutdown after pipeline completes (GCP)
 ├── config/
 │   ├── config.yaml                   # Production configuration
+│   ├── tcrdock_gpu.yaml              # TCRdock GPU overlay (enables tcrdock.enabled)
 │   ├── samples.tsv                   # Sample manifest (production)
 │   ├── test_config.yaml              # chr22 test configuration (local testing)
 │   └── test_samples.tsv              # Sample manifest for test run
 ├── scripts/
-│   └── prepare_test_data.sh          # One-time setup: download chr22 test data
+│   ├── prepare_test_data.sh          # One-time setup: download chr22 test data
+│   ├── run_cloud_gpu.sh              # Automated CPU→GPU cloud lifecycle
+│   ├── setup_cloud.sh                # CPU VM setup (conda, snakemake)
+│   └── setup_tcrdock_vm.sh           # GPU VM setup (Docker, TCRdock image)
+├── docker/
+│   └── Dockerfile.pipeline           # TCRdock Docker image (CUDA 11.8 + AlphaFold)
 ├── workflow/
 │   ├── rules/
 │   │   ├── download.smk              # Step 1a: GDC data download
@@ -636,7 +699,8 @@ splice-neoepitope-pipeline/
 │   │   ├── assemble.smk              # Step 3: Contig assembly
 │   │   ├── translate.smk             # Step 4: Peptide translation
 │   │   ├── predict.smk               # Step 5: MHCflurry prediction
-│   │   └── analysis.smk              # Step 6: Report generation
+│   │   ├── tcrdock.smk               # Step 6: TCRdock structural validation (optional, GPU)
+│   │   └── analysis.smk              # Step 7: Report generation
 │   ├── envs/
 │   │   ├── hisat2.yaml               # hisat2, samtools, regtools
 │   │   ├── biotools.yaml             # bedtools, biopython, pandas
@@ -649,7 +713,8 @@ splice-neoepitope-pipeline/
 │       ├── assemble_contigs.py       # 50 nt contig assembly
 │       ├── translate_peptides.py     # In-silico translation
 │       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
-│       └── generate_report.py        # HTML report generation
+│       ├── run_tcrdock.py            # TCRdock Docker wrapper + PDB chain relabelling
+│       └── generate_report.py        # HTML report + Mol* 3D viewer
 ├── docs/
 │   ├── INTRODUCTION.md               # Biological background and study design
 │   ├── METHODS.md                    # Technical pipeline description
@@ -681,6 +746,11 @@ And the key tools used:
 - **Biopython**: Cock et al. (2009). Biopython: freely available Python tools
   for computational molecular biology and bioinformatics. *Bioinformatics*,
   25(11), 1422–1423.
+- **TCRdock**: Bradley P (2023). Structure-based prediction of T cell
+  receptor:peptide-MHC interactions. *eLife*, 12, e82813.
+- **Mol\***: Sehnal D et al. (2021). Mol\* Viewer: modern web app for 3D
+  visualization and analysis of large biomolecular structures.
+  *Nucleic Acids Research*, 49(W1), W431–W437.
 - **GENCODE**: Frankish et al. (2023). GENCODE: reference annotation for the
   human and mouse genomes in 2023. *Nucleic Acids Research*, 51(D1),
   D942–D949.

@@ -17,7 +17,8 @@ pipeline on Google Cloud Platform (GCP), ideal for users who:
 5. [Option B: Google Cloud Life Sciences API](#option-b-google-cloud-life-sciences-api)
 6. [Option C: Google Batch](#option-c-google-batch)
 7. [Data Transfer](#data-transfer)
-8. [Troubleshooting](#troubleshooting)
+8. [Automated GPU Pipeline (TCRdock)](#automated-gpu-pipeline-tcrdock)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -290,21 +291,28 @@ tmux new -s pipeline
 # Inside tmux: dry run first
 snakemake --cores 4 --use-conda -n
 
-# Inside tmux: full run — pipeline logs to pipeline.log, VM shuts down when done
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+# Inside tmux: full run — pipeline logs to pipeline.log
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log
 ```
-
-> **Always include `; bash auto_stop.sh`** at the end of your run command.
-> The VM will not stop automatically otherwise, and you will be billed for idle time.
 
 To detach from tmux without stopping the pipeline: press `Ctrl+B`, then `D`.
 To reattach after reconnecting via SSH: `tmux attach -t pipeline`
 
+> **Important:** The VM will NOT shut down automatically — remember to stop it
+> when the run finishes (see [Step 10](#step-10-stopdelete-the-vm)).
+
 > **Why tmux instead of nohup?** With `nohup`, you lose visibility into the running pipeline after disconnecting. With `tmux`, you can reattach at any time and see live output.
 
-> **Note**: `auto_stop.sh` uses `sudo shutdown -h now` (OS-initiated shutdown),
-> not `gcloud compute instances stop`. The VM service account does not have the
-> Compute API scope needed for `gcloud` commands from inside the VM.
+> **Prefer a fully automated workflow?** `run_cloud_gpu.sh` handles the full
+> lifecycle — CPU steps, GCS handoff, GPU TCRdock, and automatic VM shutdown:
+> ```bash
+> # From your local machine (VMs are managed automatically):
+> bash scripts/run_cloud_gpu.sh --mode prod
+>
+> # Detached mode — runs on an orchestrator VM so you can close your laptop:
+> bash scripts/run_cloud_gpu.sh --mode prod --detach
+> ```
+> See [Automated GPU Pipeline](#automated-gpu-pipeline-tcrdock) for details.
 
 ### Step 9: Download Results
 
@@ -420,6 +428,77 @@ The SRA maintains a mirror on Google Cloud for faster downloads:
 # Use the GCP SRA mirror
 prefetch --location GCP SRR10971381
 ```
+
+---
+
+## Automated GPU Pipeline (TCRdock)
+
+The `scripts/run_cloud_gpu.sh` script automates the full three-phase lifecycle
+for running the pipeline with TCRdock structural validation:
+
+| Phase | VM | What happens |
+|-------|-----|-------------|
+| **1 — CPU** | `neoepitope-predict-cpu` | Steps 1–5 (alignment → MHCflurry) |
+| **2 — Copy** | GCS bucket | Results uploaded; CPU VM stopped |
+| **3 — GPU** | `mhc-p-tcr-structure-spot-gpu` (Spot T4) | TCRdock + report; results uploaded; VM auto-stops |
+
+### Quick start
+
+```bash
+# Test run (chr22, ~1 hour)
+bash scripts/run_cloud_gpu.sh --mode test
+
+# Production run
+bash scripts/run_cloud_gpu.sh --mode prod
+
+# Detached mode — closes laptop safely, orchestrator VM manages everything
+bash scripts/run_cloud_gpu.sh --mode test --detach
+
+# Specify branch and zone
+bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west1-b
+```
+
+### Retrieving results
+
+The bucket name is derived from your GCP project ID (`<PROJECT_ID>-tcrdock-handoff`):
+
+```bash
+# Test
+gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/test/reports ./tcrdock_report
+open tcrdock_report/local/report.html
+
+# Production
+gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/reports ./tcrdock_report
+open tcrdock_report/local/report.html
+```
+
+### How it works
+
+1. **CPU VM** is created (or started) automatically. `setup_cloud.sh` installs
+   conda + Snakemake. The pipeline runs steps 1–5 in a tmux session while the
+   script polls `pipeline.log` for completion.
+2. Results are uploaded to `gs://<PROJECT_ID>-tcrdock-handoff/` and the CPU VM is stopped.
+3. A **GPU Spot VM** (n1-standard-4 + NVIDIA T4) is created.
+   `setup_tcrdock_vm.sh` builds the TCRdock Docker image (~25 GB: CUDA 11.8,
+   AlphaFold params, BLAST). Results are downloaded from GCS, TCRdock runs,
+   and the HTML report is regenerated with the embedded Mol* 3D viewer. Final
+   results are uploaded to GCS and the VM auto-stops.
+
+### Detached mode
+
+With `--detach`, the script launches a tiny `e2-micro` orchestrator VM that
+runs the three phases via internal networking. You can close your laptop — the
+orchestrator manages everything and shuts itself down when done.
+
+### Cost estimate
+
+| Component | Duration | Hourly rate | Total |
+|-----------|----------|-------------|-------|
+| CPU VM (n1-standard-4) | ~1–3 hr | ~$0.19 | ~$0.20–0.60 |
+| GPU Spot VM (n1-standard-4 + T4) | ~30 min | ~$0.35 (Spot) | ~$0.20 |
+| GCS bucket storage | — | negligible | — |
+| Orchestrator (e2-micro, detach only) | ~2–4 hr | ~$0.01 | ~$0.02 |
+| **Total (test run)** | | | **~$0.40–0.80** |
 
 ---
 
@@ -566,16 +645,19 @@ sample_id	sample_type	fastq1	fastq2
 tumor_01	Primary Tumor	data/tumor_01_R1.fastq	data/tumor_01_R2.fastq
 EOF
 
-# 8. Run pipeline (auto-shuts down VM when done to save costs)
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
+# 8. Run pipeline (VM will NOT auto-stop — remember to delete it when done)
+snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log
 
 # 9. Exit VM (Ctrl+D or type 'exit')
 
 # 10. Download results (from LOCAL machine)
 gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./gcp_results/ --zone=us-central1-a
 
-# 11. Delete VM when done
+# 11. Delete VM when done to avoid charges
 gcloud compute instances delete splice-pipeline --zone=us-central1-a
+
+# Or: use the automated workflow instead (handles VM lifecycle + TCRdock):
+# bash scripts/run_cloud_gpu.sh --mode prod --detach
 ```
 
 ---

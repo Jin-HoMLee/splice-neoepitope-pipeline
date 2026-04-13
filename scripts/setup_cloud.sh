@@ -22,7 +22,7 @@
 #   cd splice-neoepitope-pipeline
 #   Edit config/samples.tsv with your sample FASTQ paths
 #   conda activate snakemake
-#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh
+#   snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
 #
 set -euo pipefail
 
@@ -58,8 +58,8 @@ echo "    Done."
 # 2. Check / install conda (Miniforge3)
 # ---------------------------------------------------------------------------
 echo ""
-if command -v conda &>/dev/null; then
-    echo "[2/5] conda already installed at: $(conda info --base)"
+if [[ -f "$HOME/miniforge3/bin/conda" ]]; then
+    echo "[2/5] conda already installed at: $HOME/miniforge3"
     echo "      Skipping Miniforge3 installation."
 else
     echo "[2/5] Installing Miniforge3..."
@@ -92,7 +92,7 @@ fi
 # 3. Create / update the snakemake environment
 # ---------------------------------------------------------------------------
 echo ""
-if conda env list | grep -q "^snakemake "; then
+if [[ -d "$HOME/miniforge3/envs/snakemake" ]]; then
     echo "[3/5] 'snakemake' environment already exists — skipping creation."
 else
     echo "[3/5] Creating 'snakemake' conda environment..."
@@ -172,7 +172,8 @@ echo "  2. Activate the Snakemake environment:"
 echo "       conda activate snakemake"
 echo "  3. From inside a tmux session, run the pipeline:"
 echo "       cd $REPO_DIR"
-echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log ; bash auto_stop.sh"
+echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
 echo ""
-echo "     The VM will shut down automatically when the pipeline finishes."
+echo "     The VM will NOT shut down automatically — stop it manually when done"
+echo "     to avoid charges. (The automated run_cloud_gpu.sh handles shutdown.)"
 echo "     To detach from tmux without stopping the run: Ctrl+B, then D."

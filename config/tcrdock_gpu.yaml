@@ -1,0 +1,35 @@
+# =============================================================================
+# TCRdock GPU overlay config — for use on the GCP Spot GPU VM only
+# =============================================================================
+#
+# This file overrides the tcrdock section of config/config.yaml.
+# Pass it as a second --configfile argument on the GPU VM:
+#
+#   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
+#       --configfile config/config.yaml config/tcrdock_gpu.yaml
+#
+# Paths below match the output of scripts/setup_tcrdock_vm.sh.
+# DO NOT set enabled: true in config/config.yaml — keep that as the
+# local/CPU default. This file is the only place TCRdock is enabled.
+# =============================================================================
+
+tcrdock:
+  enabled: true
+  n_candidates: 1
+  docker_image: "tcrdock:latest"  # built by setup_tcrdock_vm.sh
+
+  # Fallback HLA alleles — overridden by HLA typing (#23) when available
+  fallback_hla:
+    A: "HLA-A*02:01"
+    B: "HLA-B*07:02"
+    C: "HLA-C*07:02"
+
+  # Fallback TCR — DMF5 (HLA-A*02:01-restricted, structural demo)
+  # Overridden by TRUST4 TCR extraction (#24) when available
+  fallback_tcr:
+    va_gene:  "TRAV12-2"
+    ja_gene:  "TRAJ21"
+    cdr3a:    "CAVNFGGGKLI"
+    vb_gene:  "TRBV6-5"
+    jb_gene:  "TRBJ2-7"
+    cdr3b:    "CASSLAGGRPEQYF"

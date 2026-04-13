@@ -77,6 +77,11 @@ include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"
 include: "workflow/rules/predict.smk"
 include: "workflow/rules/analysis.smk"
+include: "workflow/rules/tcrdock.smk"
+
+# When TCRdock is enabled, prefer the structure report over the plain report.
+if config.get("tcrdock", {}).get("enabled", False):
+    ruleorder: generate_report_with_structure > generate_report
 
 
 # ── final target ─────────────────────────────────────────────────────────────

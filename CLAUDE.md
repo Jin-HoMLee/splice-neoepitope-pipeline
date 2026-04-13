@@ -8,7 +8,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 
 ## Infrastructure
 - Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
-- Current production VM: `splice-prod-test`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
+- Current production VM: `neoepitope-predict-cpu`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 
 ## Pipeline Design Decisions
@@ -26,6 +26,20 @@ This is the clinically correct approach: a junction present in matched normal ti
 
 When no normal sample is present, all unannotated junctions are labeled `tumor_specific` with a warning — the pipeline still runs.
 
+### TCRdock via Docker
+TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather than a conda env. The conda approach failed due to irreconcilable cuDNN/JAX/openmm version conflicts. The Docker image bundles CUDA 11.8, cuDNN 8, Python 3.10, JAX 0.3.25, AlphaFold params, and BLAST — the host only needs the NVIDIA Container Toolkit. Running CUDA 11.8 inside the container on a host with a newer driver (e.g. 12.8) is supported by NVIDIA's forward-compatibility guarantee.
+
+### PDB chain relabelling
+AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
+
+## Snakemake 8 `--configfile` Gotcha
+In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --configfile B`) causes the second invocation to replace the first due to argparse `nargs="+"` semantics. Only the last file is loaded.
+**Fix:** pass multiple config files in a **single** `--configfile` invocation:
+```bash
+snakemake --configfile config/test_config.yaml config/tcrdock_gpu.yaml   # correct
+# NOT: --configfile config/test_config.yaml --configfile config/tcrdock_gpu.yaml
+```
+
 ## Known Dependency Issues (Fixed)
 
 ### `hisat2.yaml` — samtools/libdeflate conflict
@@ -35,16 +49,6 @@ When no normal sample is present, all unannotated junctions are labeled `tumor_s
 ### `run_mhcflurry.py` — mhcflurry 2.2.0 API change
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array instead of a DataFrame.
 **Fix:** use `predict_to_dataframe()` instead.
-
-## auto_stop.sh
-Shuts down the VM after the pipeline finishes to save costs.
-Uses `sudo shutdown -h now` — **not** `gcloud compute instances stop`, which fails with
-`ACCESS_TOKEN_SCOPE_INSUFFICIENT` because the VM service account lacks the compute API scope.
-
-Run as:
-```bash
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime 2>&1 | tee pipeline.log ; bash auto_stop.sh
-```
 
 ## sra-tools Note
 Use version `3.1.1` on GCP VMs — newer versions (3.4.x) have a segfault bug.
