@@ -27,6 +27,18 @@ from pathlib import Path
 # Only define these rules when running in fastq mode
 if config.get("data_source") == "fastq":
 
+    # ── Shared variables ─────────────────────────────────────────────────────
+    # Aligner name encoded as subdirectory so the directory structure makes
+    # clear which tool produced each file. Declared at the top of this block
+    # so all rules below (including the alignment_complete checkpoint) share
+    # the same definitions.
+    _ALIGNER_NAME       = config.get("alignment", {}).get("aligner")
+    _BAM_OUTPATH   = os.path.join(OUT["raw_data"], "{patient_id}", "files", _ALIGNER_NAME, "{sample}.bam")
+    _BAI_OUTPATH   = os.path.join(OUT["raw_data"], "{patient_id}", "files", _ALIGNER_NAME, "{sample}.bam.bai")
+    _JUNCTION_TSV_OUTPATH    = os.path.join(OUT["raw_data"], "{patient_id}", "files", _ALIGNER_NAME, "{sample}.tsv")
+    _JUNCTION_DONE_OUTPATH      = os.path.join(OUT["raw_data"], "{patient_id}", "files", _ALIGNER_NAME, "{sample}.done")
+
+
     # ── Shared TSV reader ────────────────────────────────────────────────────
 
     def _read_samples_tsv(samples_tsv, patient_id=None):
@@ -52,6 +64,24 @@ if config.get("data_source") == "fastq":
         if patient_id is not None:
             rows = [r for r in rows if r["patient_id"] == patient_id]
         return rows
+
+
+    # ── Shared FASTQ input functions ─────────────────────────────────────────
+    # These are aligner-agnostic: they look up fastq paths from the TSV only.
+
+    def _get_fastq1(wildcards):
+        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
+            if s["sample_id"] == wildcards.sample:
+                return s["fastq1"]
+        raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
+
+
+    def _get_fastq2(wildcards):
+        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
+            if s["sample_id"] == wildcards.sample:
+                fastq2 = s.get("fastq2", "")
+                return [fastq2] if fastq2 else []
+        return []
 
 
     # ── Shared manifest + checkpoint ─────────────────────────────────────────
@@ -91,7 +121,8 @@ if config.get("data_source") == "fastq":
         input:
             manifest=os.path.join(OUT["raw_data"], "{patient_id}", "manifest.tsv"),
             samples=lambda wildcards: expand(
-                os.path.join(OUT["raw_data"], wildcards.patient_id, "files", "{sample}.tsv"),
+                _JUNCTION_TSV_OUTPATH,
+                patient_id=wildcards.patient_id,
                 sample=[s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)],
             ),
         output:
@@ -100,32 +131,9 @@ if config.get("data_source") == "fastq":
         shell:
             "touch {output.done}"
 
-
-    # ── Shared FASTQ input functions ─────────────────────────────────────────
-    # These are aligner-agnostic: they look up fastq paths from the TSV only.
-
-    def _get_fastq1(wildcards):
-        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-            if s["sample_id"] == wildcards.sample:
-                return s["fastq1"]
-        raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
-
-
-    def _get_fastq2(wildcards):
-        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-            if s["sample_id"] == wildcards.sample:
-                fastq2 = s.get("fastq2", "")
-                return [fastq2] if fastq2 else []
-        return []
-
-
-    # Shared output paths for both align rules — defined once to avoid drift.
-    _JUNCTION_OUTPUT = os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv")
-    _JUNCTION_DONE   = os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")
-
     # ── HISAT2 ───────────────────────────────────────────────────────────────
 
-    if config.get("alignment", {}).get("aligner") == "hisat2":
+    if _ALIGNER_NAME == "hisat2":
 
         # Configurable index directory — allows test (chr22) and production
         # (full genome) to maintain separate indices without overwriting.
@@ -165,12 +173,10 @@ if config.get("data_source") == "fastq":
 
 
         rule hisat2_align:
-            """Run HISAT2 alignment on a single sample.
+            """Run HISAT2 alignment on a single sample and produce a sorted+indexed BAM.
 
-            Input:  FASTQ files (single-end or paired-end)
-            Output: Junction quantification TSV in pipeline-compatible format
-
-            Uses regtools to extract junctions from the BAM file.
+            The BAM is declared as temp() so Snakemake cleans it up after all
+            consumers (extract_junctions, arcashla_genotype) have finished.
             """
             input:
                 index_dir=_HISAT2_INDEX_DIR,
@@ -178,15 +184,12 @@ if config.get("data_source") == "fastq":
                 fastq1=_get_fastq1,
                 fastq2=_get_fastq2,
             output:
-                junctions=_JUNCTION_OUTPUT,
-                done=touch(_JUNCTION_DONE),
+                bam=temp(_BAM_OUTPATH),
+                bai=temp(_BAI_OUTPATH),
             log:
                 os.path.join(OUT["logs"], "hisat2", "{patient_id}_{sample}_align.log"),
             params:
                 index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
-                output_prefix=lambda wildcards: os.path.join(
-                    OUT["raw_data"], wildcards.patient_id, "files", wildcards.sample
-                ),
             threads: 8
             resources:
                 mem_mb=8000,
@@ -194,7 +197,7 @@ if config.get("data_source") == "fastq":
                 "../envs/hisat2.yaml"
             shell:
                 """
-                mkdir -p $(dirname {output.junctions})
+                mkdir -p $(dirname {output.bam})
 
                 if [[ -n "{input.fastq2}" ]]; then
                     FASTQ_ARGS="-1 {input.fastq1} -2 {input.fastq2}"
@@ -207,24 +210,49 @@ if config.get("data_source") == "fastq":
                     -x {params.index_prefix} \\
                     $FASTQ_ARGS \\
                     2>> {log} | \\
-                    samtools sort -@ {threads} -o {params.output_prefix}.bam - 2>> {log}
+                    samtools sort -@ {threads} -o {output.bam} - 2>> {log}
 
-                samtools index {params.output_prefix}.bam 2>> {log}
+                samtools index {output.bam} 2>> {log}
+                """
 
+
+        rule extract_junctions:
+            """Extract splice junctions from an HISAT2 BAM using regtools.
+
+            Reads regtools BED output and reformats to the pipeline's
+            junction_id\\tmapped_reads TSV format.
+            """
+            input:
+                bam=_BAM_OUTPATH,
+                bai=_BAI_OUTPATH,
+            output:
+                junctions=_JUNCTION_TSV_OUTPATH,
+                done=touch(_JUNCTION_DONE_OUTPATH),
+            log:
+                os.path.join(OUT["logs"], "hisat2", "{patient_id}_{sample}_extract_junctions.log"),
+            params:
+                bed=lambda wildcards: os.path.join(
+                    OUT["raw_data"], wildcards.patient_id, "files", _ALIGNER_NAME,
+                    f"{wildcards.sample}_junctions.bed"
+                ),
+            conda:
+                "../envs/hisat2.yaml"
+            shell:
+                """
                 regtools junctions extract \\
                     -s XS \\
                     -a 8 \\
                     -m 50 \\
                     -M 500000 \\
-                    -o {params.output_prefix}_junctions.bed \\
-                    {params.output_prefix}.bam \\
+                    -o {params.bed} \\
+                    {input.bam} \\
                     2>> {log}
 
                 awk -F'\\t' '{{
                     if ($5 > 0) print $1":"$2":"$3":"$6"\\t"$5
-                }}' {params.output_prefix}_junctions.bed > {output.junctions}
+                }}' {params.bed} > {output.junctions}
 
-                rm -f {params.output_prefix}.bam {params.output_prefix}.bam.bai {params.output_prefix}_junctions.bed
+                rm -f {params.bed}
 
                 echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
                 """
@@ -232,7 +260,7 @@ if config.get("data_source") == "fastq":
 
     # ── STAR ─────────────────────────────────────────────────────────────────
 
-    elif config.get("alignment", {}).get("aligner") == "star":
+    elif _ALIGNER_NAME == "star":
 
         _STAR_INDEX_DIR = config.get("alignment", {}).get(
             "star_index_dir", "resources/star_index"
@@ -282,8 +310,8 @@ if config.get("data_source") == "fastq":
         rule star_align:
             """Run STAR alignment on a single sample.
 
-            Input:  FASTQ files (single-end or paired-end)
-            Output: Junction quantification TSV in GDC-compatible format
+            Produces both a sorted+indexed BAM (temp(), for HLA typing) and a
+            junction quantification TSV derived from STAR's native SJ.out.tab.
             """
             input:
                 index_dir=_STAR_INDEX_DIR,
@@ -291,13 +319,15 @@ if config.get("data_source") == "fastq":
                 fastq1=_get_fastq1,
                 fastq2=_get_fastq2,
             output:
-                junctions=_JUNCTION_OUTPUT,
-                done=touch(_JUNCTION_DONE),
+                bam=temp(_BAM_OUTPATH),
+                bai=temp(_BAI_OUTPATH),
+                junctions=_JUNCTION_TSV_OUTPATH,
+                done=touch(_JUNCTION_DONE_OUTPATH),
             log:
                 os.path.join(OUT["logs"], "star", "{patient_id}_{sample}_align.log"),
             params:
                 output_prefix=lambda wildcards: os.path.join(
-                    OUT["raw_data"], wildcards.patient_id, "files", f"{wildcards.sample}_"
+                    OUT["raw_data"], wildcards.patient_id, "files", _ALIGNER_NAME, f"{wildcards.sample}_"
                 ),
             threads: 8
             resources:
@@ -306,6 +336,8 @@ if config.get("data_source") == "fastq":
                 "../envs/star.yaml"
             shell:
                 """
+                mkdir -p $(dirname {output.bam})
+
                 READCMD=""
                 if [[ "{input.fastq1}" == *.gz ]]; then
                     READCMD="--readFilesCommand zcat"
@@ -323,11 +355,15 @@ if config.get("data_source") == "fastq":
                     --readFilesIn $FASTQ_FILES \\
                     $READCMD \\
                     --outFileNamePrefix {params.output_prefix} \\
-                    --outSAMtype None \\
+                    --outSAMtype BAM SortedByCoordinate \\
                     --outSJfilterReads Unique \\
                     --outSJfilterCountUniqueMin 1 1 1 1 \\
                     --outSJfilterCountTotalMin 1 1 1 1 \\
                     2>&1 | tee {log}
+
+                samtools index {params.output_prefix}Aligned.sortedByCoord.out.bam 2>> {log}
+                mv {params.output_prefix}Aligned.sortedByCoord.out.bam {output.bam}
+                mv {params.output_prefix}Aligned.sortedByCoord.out.bam.bai {output.bai}
 
                 awk -F'\\t' '{{
                     strand = ".";
@@ -336,7 +372,7 @@ if config.get("data_source") == "fastq":
                     if ($7 > 0) print $1":"$2":"$3":"strand"\\t"$7
                 }}' {params.output_prefix}SJ.out.tab > {output.junctions}
 
-                echo "Converted $(wc -l < {output.junctions}) junctions from STAR output"
+                echo "Converted $(wc -l < {output.junctions}) junctions from STAR output" >> {log}
                 """
 
     else:
