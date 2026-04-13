@@ -183,6 +183,11 @@ if [[ "${DETACH}" == true ]]; then
 set -euo pipefail
 # Ensure tmux and git are available
 sudo apt-get update -qq && sudo apt-get install -y -qq tmux git >/dev/null 2>&1 || true
+# Install NumPy in gcloud SDK Python to silence IAP tunnel warnings
+GCLOUD_ROOT="\$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
+if [[ -n "\${GCLOUD_ROOT}" && -x "\${GCLOUD_ROOT}/bin/python3" ]]; then
+    "\${GCLOUD_ROOT}/bin/python3" -m pip install --quiet numpy 2>/dev/null || true
+fi
 # Pre-generate SSH key so gcloud compute ssh doesn't prompt interactively
 if [[ ! -f "\$HOME/.ssh/google_compute_engine" ]]; then
     ssh-keygen -t rsa -f "\$HOME/.ssh/google_compute_engine" -N "" -q
