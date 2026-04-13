@@ -41,8 +41,8 @@ mhcflurry:
 filtering:
   min_normal_reads: 2
 
-cancer_types:
-  - local
+# patient_id inherited from config.yaml ("patient_001") — same
+# matched gastric tumor/normal pair, just downsampled for testing.
 
 gdc:
   files_endpoint: "https://api.gdc.cancer.gov/files"

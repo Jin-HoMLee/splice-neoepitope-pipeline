@@ -12,13 +12,19 @@
 data_source: "local"
 
 # -----------------------------------------------------------------
-# Cancer types to analyse (TCGA project IDs)
+# Patient identifier
 # -----------------------------------------------------------------
-# Used only when data_source is "gdc"
-cancer_types:
-  - TCGA-BRCA
-  - TCGA-LUAD
-  - TCGA-LAML
+# Unique label for this patient/experiment. Used as an output path
+# segment so results for different patients stay separated
+# (e.g. results/predictions/<patient_id>/). The pipeline is
+# patient-centric: one run = one patient, and ALL samples listed
+# in `local_samples.samples_tsv` below are assumed to belong to
+# this patient (typically a matched tumor/normal pair).
+#
+# Default "patient_001" matches the example gastric cancer pair
+# in config/samples.tsv (SRR9143066 tumor / SRR9143065 normal).
+# Replace with your own identifier before running on real data.
+patient_id: "patient_001"
 
 
 # -----------------------------------------------------------------
