@@ -1,0 +1,12 @@
+name: splice-neoepitope-arcashla
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - arcas-hla =0.5.0   # pin: 0.6+ changed the genotype.json schema
+  - samtools >=1.20
+  - bedtools >=2.31
+  - pigz
+  - git                # arcasHLA reference fetcher shells out to git
+  - python >=3.11,<3.13
