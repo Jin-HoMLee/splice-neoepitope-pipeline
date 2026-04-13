@@ -34,37 +34,12 @@
 #
 # =============================================================================
 
-from pathlib import Path
-import csv
-
 configfile: "config/config.yaml"
 
 # ── convenience aliases ──────────────────────────────────────────────────────
-DATA_SOURCE  = config.get("data_source", "local")
-CANCER_TYPES = config["cancer_types"]
-OUT          = config["output"]
-
-# ── helper functions for data source switching ───────────────────────────────
-
-def get_local_sample_ids():
-    """Get sample IDs from local samples TSV."""
-    samples_file = config.get("samples_tsv")
-    if not samples_file:
-        return []
-    samples_path = Path(samples_file)
-    if not samples_path.exists():
-        return []
-    with samples_path.open() as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        return [row["sample_id"] for row in reader if not row["sample_id"].startswith("#")]
-
-
-def get_data_types():
-    """Return list of data identifiers based on data source mode."""
-    if DATA_SOURCE == "local":
-        return ["local"]
-    else:
-        return CANCER_TYPES
+DATA_SOURCE = config.get("data_source", "local")
+PATIENT_ID  = config["patient_id"]
+OUT         = config["output"]
 
 
 # ── include rule modules ─────────────────────────────────────────────────────
@@ -86,9 +61,5 @@ if config.get("tcrdock", {}).get("enabled", False):
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        expand(
-            "{reports}/{data_type}/report.html",
-            reports=OUT["reports"],
-            data_type=get_data_types(),
-        ),
+        f"{OUT['reports']}/{PATIENT_ID}/report.html",
 
