@@ -73,10 +73,7 @@ if config.get("data_source") == "local" and config.get("alignment", {}).get("ali
     def get_local_samples():
         """Read samples from the local samples TSV file."""
         import csv
-        samples_file = config.get("samples_tsv")
-        if not samples_file:
-            return []
-        samples_file = Path(samples_file)
+        samples_file = Path(config["samples_tsv"])
         if not samples_file.exists():
             return []
         with samples_file.open() as f:
@@ -177,7 +174,7 @@ if config.get("data_source") == "local" and config.get("alignment", {}).get("ali
         log:
             os.path.join(OUT["logs"], "star", "manifest.log"),
         params:
-            samples_tsv=config.get("samples_tsv", ""),
+            samples_tsv=config["samples_tsv"],
         conda:
             "../envs/python.yaml"
         run:
