@@ -12,7 +12,7 @@
 #
 # To use local alignment mode with STAR:
 #   1. Set `data_source: "local"` in config/config.yaml
-#   2. Set `local_samples.aligner: "star"` in config/config.yaml
+#   2. Set `alignment.aligner: "star"` in config/config.yaml
 #   3. Provide a samples TSV file listing FASTQ paths
 #   4. Run the pipeline
 #
@@ -23,8 +23,8 @@
 import os
 
 
-# Only define these rules if local_samples config exists and aligner is star
-if config.get("local_samples") and config.get("local_samples", {}).get("aligner", "star") == "star":
+# Only define these rules when running in local mode with star
+if config.get("data_source") == "local" and config.get("alignment", {}).get("aligner") == "star":
 
     rule star_index:
         """Build STAR genome index for local alignment.
@@ -73,7 +73,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
     def get_local_samples():
         """Read samples from the local samples TSV file."""
         import csv
-        samples_file = config.get("local_samples", {}).get("samples_tsv")
+        samples_file = config.get("samples_tsv")
         if not samples_file:
             return []
         samples_file = Path(samples_file)
@@ -177,7 +177,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
         log:
             os.path.join(OUT["logs"], "star", "manifest.log"),
         params:
-            samples_tsv=config.get("local_samples", {}).get("samples_tsv", ""),
+            samples_tsv=config.get("samples_tsv", ""),
         conda:
             "../envs/python.yaml"
         run:

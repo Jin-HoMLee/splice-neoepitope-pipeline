@@ -18,8 +18,9 @@
 # loads first via the `configfile:` directive in the Snakefile
 # before merging this file on top (recursive merge, per-key).
 
-local_samples:
-  samples_tsv: "config/test_samples.tsv"
+samples_tsv: "config/test_samples.tsv"
+
+alignment:
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
 
 reference:

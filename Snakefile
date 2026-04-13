@@ -43,13 +43,12 @@ configfile: "config/config.yaml"
 DATA_SOURCE  = config.get("data_source", "local")
 CANCER_TYPES = config["cancer_types"]
 OUT          = config["output"]
-ALIGNER      = config.get("local_samples", {}).get("aligner", "star")
 
 # ── helper functions for data source switching ───────────────────────────────
 
 def get_local_sample_ids():
     """Get sample IDs from local samples TSV."""
-    samples_file = config.get("local_samples", {}).get("samples_tsv")
+    samples_file = config.get("samples_tsv")
     if not samples_file:
         return []
     samples_path = Path(samples_file)

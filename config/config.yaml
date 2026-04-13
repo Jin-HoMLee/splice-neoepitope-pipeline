@@ -18,7 +18,7 @@ data_source: "local"
 # segment so results for different patients stay separated
 # (e.g. results/predictions/<patient_id>/). The pipeline is
 # patient-centric: one run = one patient, and ALL samples listed
-# in `local_samples.samples_tsv` below are assumed to belong to
+# in `samples_tsv` below are assumed to belong to
 # this patient (typically a matched tumor/normal pair).
 #
 # Default "patient_001" matches the example gastric cancer pair
@@ -28,16 +28,9 @@ patient_id: "patient_001"
 
 
 # -----------------------------------------------------------------
-# Local alignment mode (when data_source is "local")
+# Sample manifest (used when data_source is "local")
 # -----------------------------------------------------------------
-# Provide your own RNA-Seq FASTQ files and let the pipeline align them
-# using STAR or HISAT2. This is the open-access alternative to GDC downloads.
-#
-# Aligner options:
-#   "star"   — Full accuracy, requires ~32 GB RAM (default)
-#   "hisat2" — Lower memory (~8 GB), good for laptops/small servers
-#
-# Create a TSV file with columns:
+# Path to a TSV listing the RNA-Seq FASTQs for this patient. Columns:
 #   sample_id    sample_type    fastq1    fastq2
 #
 # Example (samples.tsv):
@@ -46,9 +39,20 @@ patient_id: "patient_001"
 #   normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
 #
 # For single-end data, leave fastq2 empty.
-local_samples:
-  samples_tsv: "config/samples.tsv"
-  aligner: "hisat2"   # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
+samples_tsv: "config/samples.tsv"
+
+# -----------------------------------------------------------------
+# Alignment (used when data_source is "local")
+# -----------------------------------------------------------------
+# How to align the FASTQs listed in samples_tsv above. This is the
+# open-access alternative to GDC downloads.
+#
+# Aligner options:
+#   "star"   — Full accuracy, requires ~32 GB RAM (default)
+#   "hisat2" — Lower memory (~8 GB), good for laptops/small servers
+alignment:
+  aligner: "hisat2"                           # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
+  hisat2_index_dir: "resources/hisat2_index"  # where the prebuilt HISAT2 index lives
 
 # -----------------------------------------------------------------
 # GDC Data Portal API (when data_source is "gdc")

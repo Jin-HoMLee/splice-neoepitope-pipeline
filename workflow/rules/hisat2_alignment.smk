@@ -14,7 +14,7 @@
 #
 # To use HISAT2 instead of STAR:
 #   1. Set `data_source: "local"` in config/config.yaml
-#   2. Set `local_samples.aligner: "hisat2"` in config/config.yaml
+#   2. Set `alignment.aligner: "hisat2"` in config/config.yaml
 #   3. Run the pipeline
 #
 # =============================================================================
@@ -22,13 +22,13 @@
 import os
 
 
-# Only define these rules if local_samples config exists and aligner is hisat2
-if config.get("local_samples") and config.get("local_samples", {}).get("aligner", "star") == "hisat2":
+# Only define these rules when running in local mode with hisat2
+if config.get("data_source") == "local" and config.get("alignment", {}).get("aligner") == "hisat2":
 
     # Configurable index directory — allows test (chr22) and production (full genome)
     # to maintain separate indices without overwriting each other.
-    # Override via config: local_samples.hisat2_index_dir: "resources/test/hisat2_index"
-    _HISAT2_INDEX_DIR = config.get("local_samples", {}).get("hisat2_index_dir", "resources/hisat2_index")
+    # Override via config: alignment.hisat2_index_dir: "resources/test/hisat2_index"
+    _HISAT2_INDEX_DIR = config.get("alignment", {}).get("hisat2_index_dir", "resources/hisat2_index")
 
     rule hisat2_index:
         """Build HISAT2 genome index for local alignment.
@@ -65,7 +65,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
     def get_local_samples_hisat2():
         """Read samples from the local samples TSV file."""
         import csv
-        samples_file = config.get("local_samples", {}).get("samples_tsv")
+        samples_file = config.get("samples_tsv")
         if not samples_file:
             return []
         samples_file = Path(samples_file)
@@ -177,7 +177,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
         log:
             os.path.join(OUT["logs"], "hisat2", "manifest.log"),
         params:
-            samples_tsv=config.get("local_samples", {}).get("samples_tsv", ""),
+            samples_tsv=config.get("samples_tsv", ""),
         conda:
             "../envs/python.yaml"
         run:

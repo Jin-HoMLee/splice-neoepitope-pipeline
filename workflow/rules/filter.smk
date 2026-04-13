@@ -32,7 +32,7 @@ def _junction_files_gdc(wildcards):
 
 def _junction_files_local(wildcards):
     """Return the list of junction files for local alignment mode."""
-    samples_file = config.get("local_samples", {}).get("samples_tsv")
+    samples_file = config.get("samples_tsv")
     if not samples_file:
         return []
     samples_path = Path(samples_file)
