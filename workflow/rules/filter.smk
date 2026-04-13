@@ -3,6 +3,10 @@
 # filtering
 # =============================================================================
 
+import csv
+from pathlib import Path
+
+
 rule build_reference_junctions:
     """Parse the GENCODE GRCh38 GTF and extract all annotated donor/acceptor
     splice-junction pairs.  Output is a sorted BED-like file:
@@ -49,26 +53,23 @@ def _junction_files_local(wildcards):
 
 def _get_junction_files_input(wildcards):
     """Get junction files based on data source mode."""
-    if wildcards.cancer_type == "local" or config.get("data_source") == "local":
+    if config.get("data_source") == "local":
         sample_ids = _junction_files_local(wildcards)
         return expand(
-            os.path.join(OUT["raw_data"], "local", "files", "{sample_id}.tsv"),
+            os.path.join(OUT["raw_data"], wildcards.patient_id, "files", "{sample_id}.tsv"),
             sample_id=sample_ids,
         )
     else:
         file_ids = _junction_files_gdc(wildcards)
         return expand(
-            os.path.join(OUT["raw_data"], wildcards.cancer_type, "files", "{file_id}.tsv"),
+            os.path.join(OUT["raw_data"], wildcards.patient_id, "files", "{file_id}.tsv"),
             file_id=file_ids,
         )
 
 
 def _get_manifest_input(wildcards):
     """Get manifest file based on data source mode."""
-    if wildcards.cancer_type == "local" or config.get("data_source") == "local":
-        return os.path.join(OUT["raw_data"], "local", "manifest.tsv")
-    else:
-        return os.path.join(OUT["raw_data"], wildcards.cancer_type, "manifest.tsv")
+    return os.path.join(OUT["raw_data"], wildcards.patient_id, "manifest.tsv")
 
 
 rule filter_junctions:
@@ -77,7 +78,7 @@ rule filter_junctions:
          (removes low-read background noise).
       2. Remove junctions present in the reference (GENCODE) junction list.
     The output is a TSV of novel junctions per sample.
-    
+
     Works with both GDC downloads and local STAR alignments."""
     input:
         junction_files=_get_junction_files_input,
@@ -85,10 +86,10 @@ rule filter_junctions:
         reference_junctions=config["reference"]["junction_bed"],
     output:
         novel_junctions=os.path.join(
-            OUT["junctions"], "{cancer_type}", "novel_junctions.tsv"
+            OUT["junctions"], "{patient_id}", "novel_junctions.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "filter", "{cancer_type}_filter.log"),
+        os.path.join(OUT["logs"], "filter", "{patient_id}_filter.log"),
     params:
         min_normal_reads=config["filtering"]["min_normal_reads"],
     conda:
