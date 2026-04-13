@@ -60,8 +60,18 @@ echo "    Done."
 echo ""
 echo "[1b/5] Installing NumPy in gcloud SDK Python..."
 GCLOUD_ROOT="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
+GCLOUD_PYTHON=""
+
+# Try standard location first (e.g., /opt/google-cloud-sdk)
 if [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/bin/python3" ]]; then
-    "${GCLOUD_ROOT}/bin/python3" -m pip install --quiet numpy 2>/dev/null || \
+    GCLOUD_PYTHON="${GCLOUD_ROOT}/bin/python3"
+# Try snap location (e.g., /snap/google-cloud-cli/XXX)
+elif [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3" ]]; then
+    GCLOUD_PYTHON="${GCLOUD_ROOT}/platform/bundledpythonunix/bin/python3"
+fi
+
+if [[ -n "${GCLOUD_PYTHON}" ]]; then
+    "${GCLOUD_PYTHON}" -m pip install --quiet numpy 2>/dev/null || \
         echo "    Note: NumPy installation failed (non-critical; tunnel will still work)."
 else
     echo "    gcloud SDK Python not found (non-critical; will proceed anyway)."
