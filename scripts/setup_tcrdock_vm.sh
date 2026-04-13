@@ -31,6 +31,18 @@ BASE_CONFIG="${1:-config/config.yaml}"   # caller can override, e.g. config/test
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # ---------------------------------------------------------------------------
+# Step 0.5 — Install NumPy in gcloud SDK Python to silence IAP tunnel warnings
+# ---------------------------------------------------------------------------
+log "Step 0.5: Installing NumPy in gcloud SDK Python..."
+GCLOUD_ROOT="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
+if [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/bin/python3" ]]; then
+    "${GCLOUD_ROOT}/bin/python3" -m pip install --quiet numpy 2>/dev/null || \
+        log "  Note: NumPy installation failed (non-critical; tunnel will still work)."
+else
+    log "  gcloud SDK Python not found (non-critical; will proceed anyway)."
+fi
+
+# ---------------------------------------------------------------------------
 # Step 1 — Verify GPU
 # ---------------------------------------------------------------------------
 log "Step 1: Checking GPU..."

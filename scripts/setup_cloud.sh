@@ -55,6 +55,20 @@ sudo apt-get install -y git curl wget tmux
 echo "    Done."
 
 # ---------------------------------------------------------------------------
+# 1b. Install NumPy in gcloud SDK Python to silence IAP tunnel warnings
+# ---------------------------------------------------------------------------
+echo ""
+echo "[1b/5] Installing NumPy in gcloud SDK Python..."
+GCLOUD_ROOT="$(gcloud info --format='value(installation.sdk_root)' 2>/dev/null || true)"
+if [[ -n "${GCLOUD_ROOT}" && -x "${GCLOUD_ROOT}/bin/python3" ]]; then
+    "${GCLOUD_ROOT}/bin/python3" -m pip install --quiet numpy 2>/dev/null || \
+        echo "    Note: NumPy installation failed (non-critical; tunnel will still work)."
+else
+    echo "    gcloud SDK Python not found (non-critical; will proceed anyway)."
+fi
+echo "    Done."
+
+# ---------------------------------------------------------------------------
 # 2. Check / install conda (Miniforge3)
 # ---------------------------------------------------------------------------
 echo ""
