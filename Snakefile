@@ -59,8 +59,7 @@ PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/download.smk"
-include: "workflow/rules/star_alignment.smk"
-include: "workflow/rules/hisat2_alignment.smk"
+include: "workflow/rules/alignment.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"
@@ -72,12 +71,9 @@ include: "workflow/rules/tcrdock.smk"
 if config.get("tcrdock", {}).get("enabled", False):
     ruleorder: generate_report_with_structure > generate_report
 
-# In fastq mode the aligner manifest rules take precedence over the GDC download rule.
+# In fastq mode the alignment manifest rule takes precedence over the GDC download rule.
 if config.get("data_source") == "fastq":
-    if config.get("alignment", {}).get("aligner") == "hisat2":
-        ruleorder: create_hisat2_manifest > download_gdc_manifest
-    else:
-        ruleorder: create_star_manifest > download_gdc_manifest
+    ruleorder: create_alignment_manifest > download_gdc_manifest
 
 
 # ── final target ─────────────────────────────────────────────────────────────
