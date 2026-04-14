@@ -21,6 +21,7 @@
 # =============================================================================
 
 import os
+from pathlib import Path
 
 
 # Only define these rules when running in fastq mode with star
