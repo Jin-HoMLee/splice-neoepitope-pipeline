@@ -37,6 +37,7 @@ samples_tsv: "config/samples.tsv"
 alignment:
   aligner: "hisat2"                           # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
   hisat2_index_dir: "resources/hisat2_index"  # where the prebuilt HISAT2 index lives
+  star_index_dir: "resources/star_index"      # where the prebuilt STAR index lives
 
 # -----------------------------------------------------------------
 # GDC Data Portal API (when data_source is "gdc")

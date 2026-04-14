@@ -234,6 +234,10 @@ if config.get("data_source") == "fastq":
 
     else:  # default aligner: star
 
+        _STAR_INDEX_DIR = config.get("alignment", {}).get(
+            "star_index_dir", "resources/star_index"
+        )
+
         rule star_index:
             """Build STAR genome index (one-time; reused for all samples).
 
@@ -243,8 +247,8 @@ if config.get("data_source") == "fastq":
                 genome=config["reference"]["genome_fasta"],
                 gtf=config["reference"]["gencode_gtf"],
             output:
-                index_dir=directory("resources/star_index"),
-                done=touch("resources/star_index/index.done"),
+                index_dir=directory(_STAR_INDEX_DIR),
+                done=touch(os.path.join(_STAR_INDEX_DIR, "index.done")),
             log:
                 os.path.join(OUT["logs"], "star", "star_index.log"),
             threads: 8
@@ -282,8 +286,8 @@ if config.get("data_source") == "fastq":
             Output: Junction quantification TSV in GDC-compatible format
             """
             input:
-                index_dir="resources/star_index",
-                index_done="resources/star_index/index.done",
+                index_dir=_STAR_INDEX_DIR,
+                index_done=os.path.join(_STAR_INDEX_DIR, "index.done"),
                 fastq1=_get_fastq1,
                 fastq2=_get_fastq2,
             output:
