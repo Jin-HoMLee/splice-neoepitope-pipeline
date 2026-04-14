@@ -223,6 +223,7 @@ results/
 resources/mhcflurry_models.done
 
 # Logs
+logs/
 pipeline.log
 
 # macOS metadata
