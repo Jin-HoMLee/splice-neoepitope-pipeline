@@ -165,7 +165,6 @@ if (
             os.path.join(OUT["logs"], "hla_typing", "aggregate_{patient_id}.log"),
         params:
             samples_tsv=config["samples_tsv"],
-            loci=config.get("hla", {}).get("loci", ["A", "B", "C"]),
             min_reads=config.get("hla", {}).get("min_reads_per_locus", 30),
             fallback=config.get("hla", {}).get("fallback_alleles", {}),
         conda:
