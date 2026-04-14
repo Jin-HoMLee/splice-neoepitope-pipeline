@@ -37,7 +37,7 @@
 # After the run, download the report:
 #   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/test/reports ./tcrdock_report   # test
 #   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/reports ./tcrdock_report        # prod
-#   open tcrdock_report/local/report.html
+#   open tcrdock_report/[patient_id]/report.html
 # =============================================================================
 
 set -euo pipefail
@@ -225,7 +225,7 @@ ORCH_RUN
     log ""
     log "When done, results are uploaded to GCS automatically:"
     log "  gcloud storage cp -r ${GCS_PATH}/reports ./tcrdock_report"
-    log "  open tcrdock_report/local/report.html"
+    log "  open tcrdock_report/[patient_id]/report.html"
     log ""
     log "The orchestrator VM auto-stops when finished. To delete it:"
     log "  gcloud compute instances delete ${ORCH_VM} --zone=${ZONE} --quiet"
@@ -496,7 +496,7 @@ log "All phases complete. GPU VM will stop shortly."
 log ""
 log "To retrieve the report:"
 log "  gcloud storage cp -r ${GCS_PATH}/reports ./tcrdock_report"
-log "  open tcrdock_report/local/report.html"
+log "  open tcrdock_report/[patient_id]/report.html"
 log ""
 log "To delete the GPU VM and stop disk charges:"
 log "    gcloud compute instances delete ${GPU_VM} --zone=${ZONE} --quiet"
