@@ -2,14 +2,12 @@
 # Rule module: HLA typing with arcasHLA
 # =============================================================================
 #
-# Runs arcasHLA on per-sample HISAT2 BAMs to predict patient-specific HLA-A/B/C
-# alleles, then aggregates per cancer_type using a normal-first policy. The
-# resulting alleles.tsv is consumed by run_mhcflurry to make predictions
+# Runs arcasHLA on per-sample BAMs (HISAT2 or STAR) to predict patient-specific
+# HLA-A/B/C alleles, then aggregates per patient using a normal-first policy.
+# The resulting alleles.tsv is consumed by run_mhcflurry to make predictions
 # patient-specific instead of relying on a hardcoded default allele.
 #
-# v1 scope: local mode with HISAT2 aligner. STAR / production paths are a
-# follow-up (the arcasHLA rule just needs a BAM input, so adding STAR later
-# is a small change). If hla.enabled is false, these rules are not defined
+# Enabled via config.hla.enabled: true. If false, these rules are not defined
 # and run_mhcflurry uses the fallback alleles from config.
 #
 # =============================================================================
@@ -19,23 +17,20 @@ import os
 
 if (
     config.get("hla", {}).get("enabled", False)
-    and config.get("local_samples")
-    and config.get("local_samples", {}).get("aligner", "star") == "hisat2"
+    and config.get("data_source") == "fastq"
 ):
 
-    # Keep hla_typing outputs alongside other results so test mode
-    # (results/test/...) and production (results/...) stay separated.
-    if OUT["raw_data"].startswith("results/test"):
-        _HLA_TYPING_DIR = "results/test/hla_typing"
-    else:
-        _HLA_TYPING_DIR = "results/hla_typing"
+    # Derive HLA typing output directory from the raw_data path so that test
+    # mode (results/test/...) and production (results/...) stay separated
+    # without hardcoding either path.
+    _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["raw_data"]), "hla_typing")
 
     _ARCASHLA_REF_DONE = "resources/arcashla_reference.done"
 
 
     def _sample_is_paired(sample_id):
         """Return True if the sample has a non-empty fastq2 in samples_tsv."""
-        for s in get_local_samples_hisat2():
+        for s in _read_samples_tsv(config["samples_tsv"]):
             if s["sample_id"] == sample_id:
                 return bool((s.get("fastq2") or "").strip())
         return False
@@ -69,17 +64,17 @@ if (
         written so the aggregator can apply fallback alleles downstream.
         """
         input:
-            bam=os.path.join(OUT["raw_data"], "local", "files", "{sample}.bam"),
-            bai=os.path.join(OUT["raw_data"], "local", "files", "{sample}.bam.bai"),
+            bam=_BAM_OUTPATH,
+            bai=_BAI_OUTPATH,
             ref_done=_ARCASHLA_REF_DONE,
         output:
-            json=os.path.join(_HLA_TYPING_DIR, "{sample}", "{sample}.genotype.json"),
-            genolog=os.path.join(_HLA_TYPING_DIR, "{sample}", "{sample}.genotype.log"),
-            done=touch(os.path.join(_HLA_TYPING_DIR, "{sample}", "{sample}.done")),
+            json=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "{sample}", "{sample}.genotype.json"),
+            genolog=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "{sample}", "{sample}.genotype.log"),
+            done=touch(os.path.join(_HLA_TYPING_DIR, "{patient_id}", "{sample}", "{sample}.done")),
         log:
-            os.path.join(OUT["logs"], "hla_typing", "{sample}.log"),
+            os.path.join(OUT["logs"], "hla_typing", "{patient_id}_{sample}.log"),
         params:
-            outdir=lambda w: os.path.join(_HLA_TYPING_DIR, w.sample),
+            outdir=lambda w: os.path.join(_HLA_TYPING_DIR, w.patient_id, w.sample),
             single_flag=lambda w: "" if _sample_is_paired(w.sample) else "--single",
         threads: 4
         conda:
@@ -140,21 +135,21 @@ if (
 
 
     def _aggregate_hla_inputs(wildcards):
-        sample_ids = [s["sample_id"] for s in get_local_samples_hisat2()]
+        sample_ids = [s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)]
         return {
             "jsons": expand(
-                os.path.join(_HLA_TYPING_DIR, "{sample}", "{sample}.genotype.json"),
+                os.path.join(_HLA_TYPING_DIR, wildcards.patient_id, "{sample}", "{sample}.genotype.json"),
                 sample=sample_ids,
             ),
             "genologs": expand(
-                os.path.join(_HLA_TYPING_DIR, "{sample}", "{sample}.genotype.log"),
+                os.path.join(_HLA_TYPING_DIR, wildcards.patient_id, "{sample}", "{sample}.genotype.log"),
                 sample=sample_ids,
             ),
         }
 
 
     rule aggregate_hla_alleles:
-        """Aggregate per-sample arcasHLA calls into a per-cancer_type alleles TSV.
+        """Aggregate per-sample arcasHLA calls into a per-patient alleles TSV.
 
         Applies the normal-first policy (prefer Solid Tissue Normal / Blood
         Derived Normal samples over tumor samples, since HLA is germline) and
@@ -164,12 +159,12 @@ if (
         input:
             unpack(_aggregate_hla_inputs),
         output:
-            alleles=os.path.join(_HLA_TYPING_DIR, "{cancer_type}", "alleles.tsv"),
-            qc=os.path.join(_HLA_TYPING_DIR, "{cancer_type}", "hla_qc.tsv"),
+            alleles=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "alleles.tsv"),
+            qc=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "hla_qc.tsv"),
         log:
-            os.path.join(OUT["logs"], "hla_typing", "aggregate_{cancer_type}.log"),
+            os.path.join(OUT["logs"], "hla_typing", "aggregate_{patient_id}.log"),
         params:
-            samples_tsv=config.get("local_samples", {}).get("samples_tsv", ""),
+            samples_tsv=config["samples_tsv"],
             loci=config.get("hla", {}).get("loci", ["A", "B", "C"]),
             min_reads=config.get("hla", {}).get("min_reads_per_locus", 30),
             fallback=config.get("hla", {}).get("fallback_alleles", {}),
