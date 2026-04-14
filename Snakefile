@@ -45,12 +45,14 @@ OUT = config["output"]
 # truth for what to run. All rows sharing the same patient_id are treated as
 # a matched set (e.g. tumor + normal for one patient).
 def _read_patient_ids(samples_tsv):
+    patient_ids = set()
     with open(samples_tsv) as f:
-        return list({
-            row["patient_id"]
-            for row in csv.DictReader(f, delimiter="\t")
-            if not row["patient_id"].startswith("#")
-        })
+        for row in csv.DictReader(f, delimiter="\t"):
+            pid = (row.get("patient_id") or "").strip()
+            if not pid or pid.startswith("#"):
+                continue
+            patient_ids.add(pid)
+    return sorted(patient_ids)
 
 PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
