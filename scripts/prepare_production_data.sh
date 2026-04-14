@@ -25,33 +25,40 @@ mkdir -p "$DATA"
 TUMOR_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz"
 NORMAL_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/005/SRR9143065/SRR9143065.fastq.gz"
 
+TUMOR_DEST="$DATA/SRR9143066.fastq.gz"
+NORMAL_DEST="$DATA/SRR9143065.fastq.gz"
+
 echo "=== Downloading production FASTQs ==="
 echo "    Tumor:  SRR9143066 (~several GB — may take 30–60 min)"
 echo "    Normal: SRR9143065 (~several GB — may take 30–60 min)"
 echo ""
 
-if [[ -f "$DATA/gastric_tumor.fastq.gz" ]]; then
+# Migrate old filenames if present
+[[ -f "$DATA/gastric_tumor.fastq.gz"  && ! -f "$TUMOR_DEST"  ]] && mv "$DATA/gastric_tumor.fastq.gz"  "$TUMOR_DEST"
+[[ -f "$DATA/gastric_normal.fastq.gz" && ! -f "$NORMAL_DEST" ]] && mv "$DATA/gastric_normal.fastq.gz" "$NORMAL_DEST"
+
+if [[ -f "$TUMOR_DEST" ]]; then
     echo "    Tumor FASTQ already exists — skipping."
 else
     echo "    Downloading tumor (SRR9143066)..."
-    curl --fail -L --progress-bar "$TUMOR_URL" -o "$DATA/gastric_tumor.fastq.gz"
-    if ! gzip -t "$DATA/gastric_tumor.fastq.gz" 2>/dev/null; then
+    curl --fail -L --progress-bar "$TUMOR_URL" -o "$TUMOR_DEST"
+    if ! gzip -t "$TUMOR_DEST" 2>/dev/null; then
         echo "ERROR: Tumor FASTQ download appears corrupt." >&2; exit 1
     fi
-    echo "    Saved: $DATA/gastric_tumor.fastq.gz"
+    echo "    Saved: $TUMOR_DEST"
 fi
 
 echo ""
 
-if [[ -f "$DATA/gastric_normal.fastq.gz" ]]; then
+if [[ -f "$NORMAL_DEST" ]]; then
     echo "    Normal FASTQ already exists — skipping."
 else
     echo "    Downloading normal (SRR9143065)..."
-    curl --fail -L --progress-bar "$NORMAL_URL" -o "$DATA/gastric_normal.fastq.gz"
-    if ! gzip -t "$DATA/gastric_normal.fastq.gz" 2>/dev/null; then
+    curl --fail -L --progress-bar "$NORMAL_URL" -o "$NORMAL_DEST"
+    if ! gzip -t "$NORMAL_DEST" 2>/dev/null; then
         echo "ERROR: Normal FASTQ download appears corrupt." >&2; exit 1
     fi
-    echo "    Saved: $DATA/gastric_normal.fastq.gz"
+    echo "    Saved: $NORMAL_DEST"
 fi
 
 echo ""
