@@ -2,6 +2,9 @@
 # Rule module: Step 1 — Download splice-junction quantification data from GDC
 # =============================================================================
 
+import os
+
+
 rule download_gdc_manifest:
     """Query the GDC API and build a manifest of splice-junction files for
     one patient (treated as a TCGA project ID in GDC mode until multi-cohort
