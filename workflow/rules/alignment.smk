@@ -119,6 +119,10 @@ if config.get("data_source") == "fastq":
         return []
 
 
+    # Shared output paths for both align rules — defined once to avoid drift.
+    _JUNCTION_OUTPUT = os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv")
+    _JUNCTION_DONE   = os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")
+
     # ── HISAT2 ───────────────────────────────────────────────────────────────
 
     if config.get("alignment", {}).get("aligner") == "hisat2":
@@ -174,8 +178,8 @@ if config.get("data_source") == "fastq":
                 fastq1=_get_fastq1,
                 fastq2=_get_fastq2,
             output:
-                junctions=os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv"),
-                done=touch(os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")),
+                junctions=_JUNCTION_OUTPUT,
+                done=touch(_JUNCTION_DONE),
             log:
                 os.path.join(OUT["logs"], "hisat2", "{patient_id}_{sample}_align.log"),
             params:
@@ -283,8 +287,8 @@ if config.get("data_source") == "fastq":
                 fastq1=_get_fastq1,
                 fastq2=_get_fastq2,
             output:
-                junctions=os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv"),
-                done=touch(os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")),
+                junctions=_JUNCTION_OUTPUT,
+                done=touch(_JUNCTION_DONE),
             log:
                 os.path.join(OUT["logs"], "star", "{patient_id}_{sample}_align.log"),
             params:
