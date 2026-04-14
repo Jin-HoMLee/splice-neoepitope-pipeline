@@ -69,9 +69,14 @@ if config.get("data_source") == "fastq" and config.get("alignment", {}).get("ali
         samples_file = Path(config["samples_tsv"])
         if not samples_file.exists():
             return []
+        rows = []
         with samples_file.open() as f:
-            rows = [r for r in csv.DictReader(f, delimiter="\t")
-                    if not r["patient_id"].startswith("#")]
+            for r in csv.DictReader(f, delimiter="\t"):
+                pid = (r.get("patient_id") or "").strip()
+                if not pid or pid.startswith("#"):
+                    continue
+                r["patient_id"] = pid
+                rows.append(r)
         if patient_id is not None:
             rows = [r for r in rows if r["patient_id"] == patient_id]
         return rows
