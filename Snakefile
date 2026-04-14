@@ -36,14 +36,28 @@
 
 configfile: "config/config.yaml"
 
+import csv
+
 # ── convenience aliases ──────────────────────────────────────────────────────
-PATIENT_ID  = config["patient_id"]
-OUT         = config["output"]
+OUT = config["output"]
+
+# Derive patient IDs from the samples TSV — the TSV is the single source of
+# truth for what to run. All rows sharing the same patient_id are treated as
+# a matched set (e.g. tumor + normal for one patient).
+def _read_patient_ids(samples_tsv):
+    with open(samples_tsv) as f:
+        return list({
+            row["patient_id"]
+            for row in csv.DictReader(f, delimiter="\t")
+            if not row["patient_id"].startswith("#")
+        })
+
+PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
 
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/download.smk"
-include: "workflow/rules/local_alignment.smk"
+include: "workflow/rules/star_alignment.smk"
 include: "workflow/rules/hisat2_alignment.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
@@ -56,9 +70,16 @@ include: "workflow/rules/tcrdock.smk"
 if config.get("tcrdock", {}).get("enabled", False):
     ruleorder: generate_report_with_structure > generate_report
 
+# In fastq mode the aligner manifest rules take precedence over the GDC download rule.
+if config.get("data_source") == "fastq":
+    if config.get("alignment", {}).get("aligner") == "hisat2":
+        ruleorder: create_hisat2_manifest > download_gdc_manifest
+    else:
+        ruleorder: create_star_manifest > download_gdc_manifest
+
 
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        f"{OUT['reports']}/{PATIENT_ID}/report.html",
+        expand("{reports}/{patient_id}/report.html", reports=OUT["reports"], patient_id=PATIENT_IDS),
 

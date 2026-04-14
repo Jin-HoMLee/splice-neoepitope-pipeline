@@ -1,9 +1,13 @@
-sample_id	sample_type	fastq1	fastq2
+patient_id	sample_id	sample_type	fastq1	fastq2
 # ---------------------------------------------------------------------------
 # Sample manifest — replace with your own samples.
 #
 # Column descriptions:
-#   sample_id    Unique sample identifier (used as file names in results)
+#   patient_id   Unique patient/experiment identifier. All rows with the same
+#                patient_id are treated as a matched set (e.g. tumor + normal).
+#                Used as an output path segment: results/predictions/<patient_id>/
+#   sample_id    Unique sample identifier (used as file names in results).
+#                Use the original accession (e.g. SRR9143066) where possible.
 #   sample_type  "Primary Tumor" or "Solid Tissue Normal"
 #                  Primary Tumor        — junctions used for neoepitope prediction
 #                  Solid Tissue Normal  — used to filter out patient-specific junctions
@@ -14,5 +18,5 @@ sample_id	sample_type	fastq1	fastq2
 # Source: https://www.ebi.ac.uk/ena/browser/view/SRR9143066
 # Download with: bash scripts/prepare_production_data.sh
 # ---------------------------------------------------------------------------
-gastric_tumor	Primary Tumor	data/gastric_tumor.fastq.gz
-gastric_normal	Solid Tissue Normal	data/gastric_normal.fastq.gz
+patient_001	SRR9143066	Primary Tumor	data/SRR9143066.fastq.gz
+patient_001	SRR9143065	Solid Tissue Normal	data/SRR9143065.fastq.gz

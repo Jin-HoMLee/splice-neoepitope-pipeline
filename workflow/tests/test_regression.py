@@ -59,17 +59,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS = REPO_ROOT / "results" / "test"
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
-# Read patient_id from config/config.yaml so this stays in sync automatically.
-# test_config.yaml inherits this value via Snakemake's recursive config merge.
-def _read_patient_id() -> str:
-    config_path = REPO_ROOT / "config" / "config.yaml"
-    for line in config_path.read_text().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("patient_id:"):
-            return stripped.split(":", 1)[1].strip().strip("'\"")
-    raise RuntimeError(f"patient_id not found in {config_path}")
+# Read the first patient_id from test_samples.tsv — the same source of truth
+# the pipeline uses, so this stays in sync automatically.
+def _first_patient_id() -> str:
+    tsv = REPO_ROOT / "config" / "test_samples.tsv"
+    with tsv.open() as f:
+        for row in csv.DictReader(f, delimiter="\t"):
+            if not row["patient_id"].startswith("#"):
+                return row["patient_id"]
+    raise RuntimeError(f"No patient_id found in {tsv}")
 
-PATIENT_ID = _read_patient_id()
+PATIENT_ID = _first_patient_id()
 GOLDEN_FILE = GOLDEN_DIR / "test_metrics.json"
 
 

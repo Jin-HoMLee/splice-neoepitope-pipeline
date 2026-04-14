@@ -73,32 +73,40 @@ echo "    Streaming via ENA HTTPS — no sra-tools required."
 TUMOR_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz"
 NORMAL_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/005/SRR9143065/SRR9143065.fastq.gz"
 
-if [[ -f "$DATA/test_tumor.fastq.gz" ]]; then
+# Destination paths — must match fastq1/fastq2 in config/test_samples.tsv
+TUMOR_DEST="$DATA/SRR9143066_test.fastq.gz"
+NORMAL_DEST="$DATA/SRR9143065_test.fastq.gz"
+
+# Migrate old filenames if present
+[[ -f "$DATA/test_tumor.fastq.gz"  && ! -f "$TUMOR_DEST"  ]] && mv "$DATA/test_tumor.fastq.gz"  "$TUMOR_DEST"
+[[ -f "$DATA/test_normal.fastq.gz" && ! -f "$NORMAL_DEST" ]] && mv "$DATA/test_normal.fastq.gz" "$NORMAL_DEST"
+
+if [[ -f "$TUMOR_DEST" ]]; then
     echo "    Tumor FASTQ already exists — skipping."
 else
     echo "    Downloading tumor (SRR9143066)..."
     set +o pipefail
-    curl -L --progress-bar "$TUMOR_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_tumor.fastq.gz"
+    curl -L --progress-bar "$TUMOR_URL" | zcat | head -n 2000000 | gzip > "$TUMOR_DEST"
     set -o pipefail
-    if [[ ! -s "$DATA/test_tumor.fastq.gz" ]]; then
-        echo "ERROR: $DATA/test_tumor.fastq.gz is missing or empty after download." >&2
+    if [[ ! -s "$TUMOR_DEST" ]]; then
+        echo "ERROR: $TUMOR_DEST is missing or empty after download." >&2
         exit 1
     fi
-    echo "    Saved: $DATA/test_tumor.fastq.gz"
+    echo "    Saved: $TUMOR_DEST"
 fi
 
-if [[ -f "$DATA/test_normal.fastq.gz" ]]; then
+if [[ -f "$NORMAL_DEST" ]]; then
     echo "    Normal FASTQ already exists — skipping."
 else
     echo "    Downloading normal (SRR9143065)..."
     set +o pipefail
-    curl -L --progress-bar "$NORMAL_URL" | zcat | head -n 2000000 | gzip > "$DATA/test_normal.fastq.gz"
+    curl -L --progress-bar "$NORMAL_URL" | zcat | head -n 2000000 | gzip > "$NORMAL_DEST"
     set -o pipefail
-    if [[ ! -s "$DATA/test_normal.fastq.gz" ]]; then
-        echo "ERROR: $DATA/test_normal.fastq.gz is missing or empty after download." >&2
+    if [[ ! -s "$NORMAL_DEST" ]]; then
+        echo "ERROR: $NORMAL_DEST is missing or empty after download." >&2
         exit 1
     fi
-    echo "    Saved: $DATA/test_normal.fastq.gz"
+    echo "    Saved: $NORMAL_DEST"
 fi
 
 # ---------------------------------------------------------------------------
