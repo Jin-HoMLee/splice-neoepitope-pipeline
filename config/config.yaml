@@ -85,8 +85,22 @@ assembly:
 # MHCflurry is an open-source MHC-I binding predictor that achieves
 # state-of-the-art performance without requiring academic registration.
 # It can be installed via pip and is included in the python conda env.
+# -----------------------------------------------------------------
+# HLA typing (arcasHLA)
+# -----------------------------------------------------------------
+# When enabled, patient-specific HLA-A/B/C alleles are typed from
+# the aligned BAM files and used for epitope prediction.
+# Requires data_source: "fastq".
+# When disabled, fallback_alleles are used for all predictions.
+hla:
+  enabled: true
+  min_reads_per_locus: 50    # minimum reads to trust a typed allele
+  fallback_alleles:          # used when hla.enabled is false, or as a
+    A: "HLA-A*02:01"         # safety net when typing fails for a locus
+    B: "HLA-B*07:02"
+    C: "HLA-C*07:02"
+
 mhcflurry:
-  hla_allele: "HLA-A*02:01"   # default allele (most prevalent)
   ic50_strong:  50            # nM threshold for strong binders
   ic50_weak:   500            # nM threshold for weak binders
   # MHCflurry supports multiple prediction modes:
