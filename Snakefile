@@ -37,7 +37,6 @@
 configfile: "config/config.yaml"
 
 # ── convenience aliases ──────────────────────────────────────────────────────
-DATA_SOURCE = config.get("data_source", "fastq")
 PATIENT_ID  = config["patient_id"]
 OUT         = config["output"]
 
