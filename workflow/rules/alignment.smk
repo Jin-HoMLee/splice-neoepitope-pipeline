@@ -232,7 +232,7 @@ if config.get("data_source") == "fastq":
 
     # ── STAR ─────────────────────────────────────────────────────────────────
 
-    else:  # default aligner: star
+    elif config.get("alignment", {}).get("aligner") == "star":
 
         _STAR_INDEX_DIR = config.get("alignment", {}).get(
             "star_index_dir", "resources/star_index"
@@ -338,3 +338,10 @@ if config.get("data_source") == "fastq":
 
                 echo "Converted $(wc -l < {output.junctions}) junctions from STAR output"
                 """
+
+    else:
+        _aligner = config.get("alignment", {}).get("aligner", "<unset>")
+        raise ValueError(
+            f"Unknown aligner '{_aligner}'. "
+            "Set config.alignment.aligner to 'star' or 'hisat2'."
+        )
