@@ -101,6 +101,24 @@ if config.get("data_source") == "fastq":
             "touch {output.done}"
 
 
+    # ── Shared FASTQ input functions ─────────────────────────────────────────
+    # These are aligner-agnostic: they look up fastq paths from the TSV only.
+
+    def _get_fastq1(wildcards):
+        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
+            if s["sample_id"] == wildcards.sample:
+                return s["fastq1"]
+        raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
+
+
+    def _get_fastq2(wildcards):
+        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
+            if s["sample_id"] == wildcards.sample:
+                fastq2 = s.get("fastq2", "")
+                return [fastq2] if fastq2 else []
+        return []
+
+
     # ── HISAT2 ───────────────────────────────────────────────────────────────
 
     if config.get("alignment", {}).get("aligner") == "hisat2":
@@ -142,21 +160,6 @@ if config.get("data_source") == "fastq":
                 """
 
 
-        def _get_fastq1_hisat2(wildcards):
-            for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-                if s["sample_id"] == wildcards.sample:
-                    return s["fastq1"]
-            raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
-
-
-        def _get_fastq2_hisat2(wildcards):
-            for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-                if s["sample_id"] == wildcards.sample:
-                    fastq2 = s.get("fastq2", "")
-                    return [fastq2] if fastq2 else []
-            return []
-
-
         rule hisat2_align:
             """Run HISAT2 alignment on a single sample.
 
@@ -168,8 +171,8 @@ if config.get("data_source") == "fastq":
             input:
                 index_dir=_HISAT2_INDEX_DIR,
                 index_done=os.path.join(_HISAT2_INDEX_DIR, "index.done"),
-                fastq1=_get_fastq1_hisat2,
-                fastq2=_get_fastq2_hisat2,
+                fastq1=_get_fastq1,
+                fastq2=_get_fastq2,
             output:
                 junctions=os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv"),
                 done=touch(os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")),
@@ -268,21 +271,6 @@ if config.get("data_source") == "fastq":
                 """
 
 
-        def _get_fastq1_star(wildcards):
-            for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-                if s["sample_id"] == wildcards.sample:
-                    return s["fastq1"]
-            raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
-
-
-        def _get_fastq2_star(wildcards):
-            for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
-                if s["sample_id"] == wildcards.sample:
-                    fastq2 = s.get("fastq2", "")
-                    return [fastq2] if fastq2 else []
-            return []
-
-
         rule star_align:
             """Run STAR alignment on a single sample.
 
@@ -292,8 +280,8 @@ if config.get("data_source") == "fastq":
             input:
                 index_dir="resources/star_index",
                 index_done="resources/star_index/index.done",
-                fastq1=_get_fastq1_star,
-                fastq2=_get_fastq2_star,
+                fastq1=_get_fastq1,
+                fastq2=_get_fastq2,
             output:
                 junctions=os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.tsv"),
                 done=touch(os.path.join(OUT["raw_data"], "{patient_id}", "files", "{sample}.done")),
