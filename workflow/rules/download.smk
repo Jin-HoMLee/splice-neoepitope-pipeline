@@ -2,14 +2,18 @@
 # Rule module: Step 1 — Download splice-junction quantification data from GDC
 # =============================================================================
 
+import os
+
+
 rule download_gdc_manifest:
-    """Query the GDC API and build a manifest of splice-junction files for one
-    cancer type.  The manifest is a TSV with columns: file_id, file_name,
-    sample_type, project_id."""
+    """Query the GDC API and build a manifest of splice-junction files for
+    one patient (treated as a TCGA project ID in GDC mode until multi-cohort
+    support is reintroduced). The manifest is a TSV with columns: file_id,
+    file_name, sample_type, project_id."""
     output:
-        manifest=os.path.join(OUT["raw_data"], "{cancer_type}", "manifest.tsv"),
+        manifest=os.path.join(OUT["raw_data"], "{patient_id}", "manifest.tsv"),
     log:
-        os.path.join(OUT["logs"], "download", "{cancer_type}_manifest.log"),
+        os.path.join(OUT["logs"], "download", "{patient_id}_manifest.log"),
     params:
         gdc_files_endpoint=config["gdc"]["files_endpoint"],
         max_files=config["gdc"]["max_files_per_project"],
@@ -31,10 +35,10 @@ checkpoint download_gdc_files:
     input:
         manifest=rules.download_gdc_manifest.output.manifest,
     output:
-        done=os.path.join(OUT["raw_data"], "{cancer_type}", "download.done"),
-        data_dir=directory(os.path.join(OUT["raw_data"], "{cancer_type}", "files")),
+        done=os.path.join(OUT["raw_data"], "{patient_id}", "download.done"),
+        data_dir=directory(os.path.join(OUT["raw_data"], "{patient_id}", "files")),
     log:
-        os.path.join(OUT["logs"], "download", "{cancer_type}_files.log"),
+        os.path.join(OUT["logs"], "download", "{patient_id}_files.log"),
     params:
         gdc_data_endpoint=config["gdc"]["data_endpoint"],
         gdc_token_file=config["gdc"].get("token_file", None),

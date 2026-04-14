@@ -513,7 +513,7 @@ free -h
 # Solutions:
 # 1. Switch to HISAT2 (requires only 8 GB)
 # Edit config/config.yaml:
-#   local_samples:
+#   alignment:
 #     aligner: "hisat2"
 
 # 2. Use a larger machine type

@@ -16,8 +16,8 @@
 #
 # Outputs
 # -------
-#   results/predictions/{cancer_type}/tcrdock/top_candidate.pdb   — predicted ternary complex
-#   results/predictions/{cancer_type}/tcrdock/docking_scores.tsv  — docking geometry metrics
+#   results/predictions/{patient_id}/tcrdock/top_candidate.pdb   — predicted ternary complex
+#   results/predictions/{patient_id}/tcrdock/docking_scores.tsv  — docking geometry metrics
 
 _TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
 
@@ -36,13 +36,13 @@ if _TCRDOCK_ENABLED:
             predictions_tsv=rules.run_mhcflurry.output.predictions_tsv,
         output:
             pdb=os.path.join(
-                OUT["predictions"], "{cancer_type}", "tcrdock", "top_candidate.pdb"
+                OUT["predictions"], "{patient_id}", "tcrdock", "top_candidate.pdb"
             ),
             scores_tsv=os.path.join(
-                OUT["predictions"], "{cancer_type}", "tcrdock", "docking_scores.tsv"
+                OUT["predictions"], "{patient_id}", "tcrdock", "docking_scores.tsv"
             ),
         log:
-            os.path.join(OUT["logs"], "tcrdock", "{cancer_type}_tcrdock.log"),
+            os.path.join(OUT["logs"], "tcrdock", "{patient_id}_tcrdock.log"),
         params:
             n_candidates=config["tcrdock"]["n_candidates"],
             docker_image=config["tcrdock"]["docker_image"],
@@ -68,10 +68,10 @@ if _TCRDOCK_ENABLED:
             scores_tsv=rules.run_tcrdock.output.scores_tsv,
         output:
             report_html=os.path.join(
-                OUT["reports"], "{cancer_type}", "report.html"
+                OUT["reports"], "{patient_id}", "report.html"
             ),
         log:
-            os.path.join(OUT["logs"], "report", "{cancer_type}_report.log"),
+            os.path.join(OUT["logs"], "report", "{patient_id}_report.log"),
         params:
             ic50_strong=config["mhcflurry"]["ic50_strong"],
         conda:

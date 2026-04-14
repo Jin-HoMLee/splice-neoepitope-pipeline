@@ -12,11 +12,15 @@
 #   bash scripts/prepare_test_data.sh
 # ============================================================
 
-data_source: "local"
+# Only keys that differ from config.yaml are set here. Everything
+# else (data_source, patient_id, aligner, assembly, mhcflurry,
+# filtering, gdc) is inherited from config.yaml, which Snakemake
+# loads first via the `configfile:` directive in the Snakefile
+# before merging this file on top (recursive merge, per-key).
 
-local_samples:
-  samples_tsv: "config/test_samples.tsv"
-  aligner: "hisat2"
+samples_tsv: "config/test_samples.tsv"
+
+alignment:
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
 
 reference:
@@ -24,31 +28,6 @@ reference:
   genome_fasta: "resources/test/chr22.fa"
   gencode_gtf:  "resources/test/chr22.gtf.gz"
   junction_bed: "resources/test/chr22_reference_junctions.bed"
-
-# All other parameters (assembly, translation, mhcflurry, filtering) are
-# inherited unchanged from the defaults in config.yaml.
-assembly:
-  upstream_nt:   26
-  downstream_nt: 24
-  contig_length: 50
-
-mhcflurry:
-  hla_allele: "HLA-A*02:01"
-  ic50_strong:  50
-  ic50_weak:   500
-  prediction_mode: "affinity"
-
-filtering:
-  min_normal_reads: 2
-
-cancer_types:
-  - local
-
-gdc:
-  files_endpoint: "https://api.gdc.cancer.gov/files"
-  data_endpoint:  "https://api.gdc.cancer.gov/data"
-  max_files_per_project: null
-  token_file: null
 
 output:
   raw_data:     "results/test/raw_data"

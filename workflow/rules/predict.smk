@@ -25,10 +25,10 @@ rule run_mhcflurry:
         mhcflurry_models=rules.download_mhcflurry_models.output.sentinel,
     output:
         predictions_tsv=os.path.join(
-            OUT["predictions"], "{cancer_type}", "predictions.tsv"
+            OUT["predictions"], "{patient_id}", "predictions.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "predict", "{cancer_type}_predict.log"),
+        os.path.join(OUT["logs"], "predict", "{patient_id}_predict.log"),
     params:
         hla_allele=config["mhcflurry"]["hla_allele"],
         ic50_strong=config["mhcflurry"]["ic50_strong"],

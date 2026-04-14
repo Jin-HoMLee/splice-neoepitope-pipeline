@@ -13,10 +13,10 @@ rule generate_report:
         contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
     output:
         report_html=os.path.join(
-            OUT["reports"], "{cancer_type}", "report.html"
+            OUT["reports"], "{patient_id}", "report.html"
         ),
     log:
-        os.path.join(OUT["logs"], "report", "{cancer_type}_report.log"),
+        os.path.join(OUT["logs"], "report", "{patient_id}_report.log"),
     params:
         ic50_strong=config["mhcflurry"]["ic50_strong"],
     conda:

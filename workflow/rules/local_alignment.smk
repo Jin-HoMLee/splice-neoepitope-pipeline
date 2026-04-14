@@ -11,8 +11,8 @@
 # compatibility with downstream analysis steps.
 #
 # To use local alignment mode with STAR:
-#   1. Set `data_source: "local"` in config/config.yaml
-#   2. Set `local_samples.aligner: "star"` in config/config.yaml
+#   1. Set `data_source: "fastq"` in config/config.yaml
+#   2. Set `alignment.aligner: "star"` in config/config.yaml
 #   3. Provide a samples TSV file listing FASTQ paths
 #   4. Run the pipeline
 #
@@ -21,10 +21,11 @@
 # =============================================================================
 
 import os
+from pathlib import Path
 
 
-# Only define these rules if local_samples config exists and aligner is star
-if config.get("local_samples") and config.get("local_samples", {}).get("aligner", "star") == "star":
+# Only define these rules when running in fastq mode with star
+if config.get("data_source") == "fastq" and config.get("alignment", {}).get("aligner") == "star":
 
     rule star_index:
         """Build STAR genome index for local alignment.
@@ -73,10 +74,7 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
     def get_local_samples():
         """Read samples from the local samples TSV file."""
         import csv
-        samples_file = config.get("local_samples", {}).get("samples_tsv")
-        if not samples_file:
-            return []
-        samples_file = Path(samples_file)
+        samples_file = Path(config["samples_tsv"])
         if not samples_file.exists():
             return []
         with samples_file.open() as f:
@@ -113,12 +111,12 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
             fastq1=get_fastq1,
             fastq2=get_fastq2,
         output:
-            junctions=os.path.join(OUT["raw_data"], "local", "files", "{sample}.tsv"),
-            done=touch(os.path.join(OUT["raw_data"], "local", "files", "{sample}.done")),
+            junctions=os.path.join(OUT["raw_data"], PATIENT_ID, "files", "{sample}.tsv"),
+            done=touch(os.path.join(OUT["raw_data"], PATIENT_ID, "files", "{sample}.done")),
         log:
             os.path.join(OUT["logs"], "star", "{sample}_align.log"),
         params:
-            output_prefix=lambda w: os.path.join(OUT["raw_data"], "local", "files", f"{w.sample}_"),
+            output_prefix=lambda w: os.path.join(OUT["raw_data"], PATIENT_ID, "files", f"{w.sample}_"),
         threads: 8
         resources:
             mem_mb=32000,
@@ -168,49 +166,50 @@ if config.get("local_samples") and config.get("local_samples", {}).get("aligner"
 
     rule create_local_manifest:
         """Create a manifest TSV from the local samples configuration.
-        
+
         This mirrors the GDC manifest format so downstream rules can use the
         same filtering logic regardless of data source.
         """
         output:
-            manifest=os.path.join(OUT["raw_data"], "local", "manifest.tsv"),
+            manifest=os.path.join(OUT["raw_data"], PATIENT_ID, "manifest.tsv"),
         log:
             os.path.join(OUT["logs"], "star", "manifest.log"),
         params:
-            samples_tsv=config.get("local_samples", {}).get("samples_tsv", ""),
+            samples_tsv=config["samples_tsv"],
+            patient_id=PATIENT_ID,
         conda:
             "../envs/python.yaml"
         run:
             import csv
             from pathlib import Path
-            
+
             samples_file = Path(params.samples_tsv)
             output_path = Path(output.manifest)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with samples_file.open() as fin, output_path.open("w") as fout:
                 reader = csv.DictReader(fin, delimiter="\t")
                 fout.write("file_id\tfile_name\tsample_type\tproject_id\n")
                 for row in reader:
                     sample_id = row["sample_id"]
                     sample_type = row.get("sample_type", "Unknown")
-                    fout.write(f"{sample_id}\t{sample_id}.tsv\t{sample_type}\tlocal\n")
+                    fout.write(f"{sample_id}\t{sample_id}.tsv\t{sample_type}\t{params.patient_id}\n")
 
 
     # Checkpoint to collect all aligned samples
     checkpoint local_alignment_complete:
         """Checkpoint that triggers after all local samples are aligned.
-        
+
         This replaces the GDC download checkpoint for local mode.
         """
         input:
-            manifest=os.path.join(OUT["raw_data"], "local", "manifest.tsv"),
+            manifest=os.path.join(OUT["raw_data"], PATIENT_ID, "manifest.tsv"),
             samples=lambda w: expand(
-                os.path.join(OUT["raw_data"], "local", "files", "{sample}.tsv"),
+                os.path.join(OUT["raw_data"], PATIENT_ID, "files", "{sample}.tsv"),
                 sample=[s["sample_id"] for s in get_local_samples()]
             ),
         output:
-            done=os.path.join(OUT["raw_data"], "local", "download.done"),
-            data_dir=directory(os.path.join(OUT["raw_data"], "local", "files")),
+            done=os.path.join(OUT["raw_data"], PATIENT_ID, "download.done"),
+            data_dir=directory(os.path.join(OUT["raw_data"], PATIENT_ID, "files")),
         shell:
             "touch {output.done}"

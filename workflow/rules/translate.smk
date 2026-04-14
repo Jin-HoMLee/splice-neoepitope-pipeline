@@ -7,15 +7,15 @@ rule translate_peptides:
     For each contig, all 27 nt windows satisfying the spanning condition
     (first codon fully upstream, last codon fully downstream) are translated
     in all three reading frames.
-    Output: TSV file of junction-spanning 9-mers per cancer type."""
+    Output: TSV file of junction-spanning 9-mers per patient."""
     input:
         contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
     output:
         peptides_tsv=os.path.join(
-            OUT["peptides"], "{cancer_type}", "peptides.tsv"
+            OUT["peptides"], "{patient_id}", "peptides.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "translate", "{cancer_type}_translate.log"),
+        os.path.join(OUT["logs"], "translate", "{patient_id}_translate.log"),
     params:
         upstream_nt=config["assembly"]["upstream_nt"],
     conda:
