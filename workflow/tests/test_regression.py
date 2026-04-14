@@ -59,9 +59,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS = REPO_ROOT / "results" / "test"
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
-# Must match `patient_id` in config/config.yaml. The test dataset is run
-# under the default config.yaml value, which test_config.yaml inherits.
-PATIENT_ID = "patient_001"
+# Read patient_id from config/config.yaml so this stays in sync automatically.
+# test_config.yaml inherits this value via Snakemake's recursive config merge.
+def _read_patient_id() -> str:
+    config_path = REPO_ROOT / "config" / "config.yaml"
+    for line in config_path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("patient_id:"):
+            return stripped.split(":", 1)[1].strip().strip("'\"")
+    raise RuntimeError(f"patient_id not found in {config_path}")
+
+PATIENT_ID = _read_patient_id()
 GOLDEN_FILE = GOLDEN_DIR / "test_metrics.json"
 
 
