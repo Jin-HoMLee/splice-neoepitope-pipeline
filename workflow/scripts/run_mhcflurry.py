@@ -19,19 +19,11 @@ The script:
 Output TSV columns:
   contig_key  start_nt  peptide  allele  ic50_nM  percentile_rank  binder_class
 
-Usage (standalone):
-  python run_mhcflurry.py \\
-      --peptides-tsv results/peptides/TCGA-BRCA/peptides.tsv \\
-      --output results/predictions/TCGA-BRCA/predictions.tsv \\
-      --allele HLA-A*02:01 \\
-      --ic50-strong 50 \\
-      --ic50-weak 500
-
 Usage (Snakemake):
   Called automatically by the ``run_mhcflurry`` rule.
 """
 
-import argparse
+import csv
 import logging
 from pathlib import Path
 
@@ -43,6 +35,45 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Allele resolution
+# ---------------------------------------------------------------------------
+
+def _read_alleles_tsv(alleles_tsv: str | Path) -> list[str]:
+    """Read alleles from an arcasHLA alleles.tsv and return a deduplicated list.
+
+    The TSV has columns: locus, allele1, allele2.  Both alleles per locus are
+    included; duplicates (homozygous loci where allele1 == allele2) are removed
+    to avoid redundant predictions.
+    """
+    alleles = []
+    with open(alleles_tsv) as f:
+        for row in csv.DictReader(f, delimiter="\t"):
+            for col in ("allele1", "allele2"):
+                a = (row.get(col) or "").strip()
+                if a and a not in alleles:
+                    alleles.append(a)
+    log.info("Loaded %d alleles from %s: %s", len(alleles), alleles_tsv, alleles)
+    return alleles
+
+
+def _alleles_from_fallback(fallback: dict) -> list[str]:
+    """Convert the fallback_alleles config dict to a deduplicated allele list.
+
+    Args:
+        fallback: dict of {locus: allele_string}, e.g. {"A": "HLA-A*02:01", ...}
+    """
+    seen: set[str] = set()
+    alleles = []
+    for allele in fallback.values():
+        a = (allele or "").strip()
+        if a and a not in seen:
+            seen.add(a)
+            alleles.append(a)
+    log.info("Using fallback alleles: %s", alleles)
+    return alleles
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +169,7 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 def run_prediction(
     peptides_tsv: str | Path,
     output_tsv: str | Path,
-    allele: str = "HLA-A*02:01",
+    alleles: list[str],
     ic50_strong: float = 50.0,
     ic50_weak: float = 500.0,
 ) -> None:
@@ -147,7 +178,7 @@ def run_prediction(
     Args:
         peptides_tsv:   TSV of junction-spanning 9-mers (contig_key, start_nt, peptide).
         output_tsv:     Destination TSV file.
-        allele:         HLA allele (MHCflurry format, e.g., HLA-A*02:01).
+        alleles:        HLA alleles to run predictions for.
         ic50_strong:    Strong-binder IC50 threshold (nM).
         ic50_weak:      Weak-binder IC50 threshold (nM).
     """
@@ -172,32 +203,33 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Run MHCflurry predictions on unique peptides
-    predictions_df = _run_mhcflurry_predictions(unique_peptides, allele)
-
-    peptide_to_prediction = {
-        row["peptide"]: {
-            "ic50_nM": row["prediction"],
-            "percentile_rank": row.get("prediction_percentile", float("nan")),
-        }
-        for _, row in predictions_df.iterrows()
-    }
-
-    # Step 3: Build output — join predictions back to all rows
+    # Step 2: Run MHCflurry predictions per allele, collect all output rows
     output_records = []
-    for _, row in peptides_df.iterrows():
-        pred = peptide_to_prediction.get(
-            row["peptide"], {"ic50_nM": float("inf"), "percentile_rank": float("nan")}
-        )
-        output_records.append({
-            "contig_key":      row["contig_key"],
-            "start_nt":        row["start_nt"],
-            "peptide":         row["peptide"],
-            "allele":          allele,
-            "ic50_nM":         pred["ic50_nM"],
-            "percentile_rank": pred["percentile_rank"],
-            "binder_class":    classify(pred["ic50_nM"], ic50_strong, ic50_weak),
-        })
+    for allele in alleles:
+        predictions_df = _run_mhcflurry_predictions(unique_peptides, allele)
+
+        peptide_to_prediction = {
+            row["peptide"]: {
+                "ic50_nM": row["prediction"],
+                "percentile_rank": row.get("prediction_percentile", float("nan")),
+            }
+            for _, row in predictions_df.iterrows()
+        }
+
+        # Step 3: Join predictions back to all rows for this allele
+        for _, row in peptides_df.iterrows():
+            pred = peptide_to_prediction.get(
+                row["peptide"], {"ic50_nM": float("inf"), "percentile_rank": float("nan")}
+            )
+            output_records.append({
+                "contig_key":      row["contig_key"],
+                "start_nt":        row["start_nt"],
+                "peptide":         row["peptide"],
+                "allele":          allele,
+                "ic50_nM":         pred["ic50_nM"],
+                "percentile_rank": pred["percentile_rank"],
+                "binder_class":    classify(pred["ic50_nM"], ic50_strong, ic50_weak),
+            })
 
     df = pd.DataFrame(
         output_records,
@@ -215,45 +247,30 @@ def run_prediction(
 
 
 # ---------------------------------------------------------------------------
-# Snakemake / CLI entry point
+# Snakemake entry point
 # ---------------------------------------------------------------------------
 
 def _snakemake_main() -> None:
-    log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
-    logging.getLogger().addHandler(logging.FileHandler(log_file))
+    logging.getLogger().addHandler(logging.FileHandler(snakemake.log[0]))  # type: ignore[name-defined]  # noqa: F821
+
+    # Resolve alleles: from typed alleles.tsv or from config fallback_alleles
+    alleles_tsv = getattr(snakemake.input, "alleles_tsv", None)  # type: ignore[name-defined]  # noqa: F821
+    if alleles_tsv:
+        alleles = _read_alleles_tsv(alleles_tsv)
+    else:
+        alleles = _alleles_from_fallback(snakemake.params.fallback_alleles)  # type: ignore[name-defined]  # noqa: F821
 
     run_prediction(
         peptides_tsv=snakemake.input.peptides_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_tsv=snakemake.output.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
-        allele=snakemake.params.hla_allele,  # type: ignore[name-defined]  # noqa: F821
+        alleles=alleles,
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         ic50_weak=float(snakemake.params.ic50_weak),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
-def _cli_main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Run MHCflurry epitope prediction on junction-spanning 9-mers."
-    )
-    parser.add_argument("--peptides-tsv", required=True, help="Input peptides TSV")
-    parser.add_argument("--output", required=True, help="Output predictions TSV")
-    parser.add_argument("--allele", default="HLA-A*02:01", help="HLA allele")
-    parser.add_argument("--ic50-strong", type=float, default=50.0)
-    parser.add_argument("--ic50-weak", type=float, default=500.0)
-    args = parser.parse_args()
-
-    run_prediction(
-        peptides_tsv=args.peptides_tsv,
-        output_tsv=args.output,
-        allele=args.allele,
-        ic50_strong=args.ic50_strong,
-        ic50_weak=args.ic50_weak,
-    )
-
-
-if __name__ == "__main__":
-    try:
-        snakemake  # type: ignore[name-defined]  # noqa: F821
-        _snakemake_main()
-    except NameError:
-        _cli_main()
+try:
+    snakemake  # type: ignore[name-defined]  # noqa: F821
+    _snakemake_main()
+except NameError:
+    pass  # imported directly (e.g. for testing)
