@@ -53,7 +53,7 @@ def _junction_files_local(wildcards):
 
 def _get_junction_files_input(wildcards):
     """Get junction files based on data source mode."""
-    if config.get("data_source") == "local":
+    if config.get("data_source") == "fastq":
         sample_ids = _junction_files_local(wildcards)
         return expand(
             os.path.join(OUT["raw_data"], wildcards.patient_id, "files", "{sample_id}.tsv"),

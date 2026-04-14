@@ -13,7 +13,7 @@
 #   - Still produces compatible junction quantification output
 #
 # To use HISAT2 instead of STAR:
-#   1. Set `data_source: "local"` in config/config.yaml
+#   1. Set `data_source: "fastq"` in config/config.yaml
 #   2. Set `alignment.aligner: "hisat2"` in config/config.yaml
 #   3. Run the pipeline
 #
@@ -22,8 +22,8 @@
 import os
 
 
-# Only define these rules when running in local mode with hisat2
-if config.get("data_source") == "local" and config.get("alignment", {}).get("aligner") == "hisat2":
+# Only define these rules when running in fastq mode with hisat2
+if config.get("data_source") == "fastq" and config.get("alignment", {}).get("aligner") == "hisat2":
 
     # Configurable index directory — allows test (chr22) and production (full genome)
     # to maintain separate indices without overwriting each other.

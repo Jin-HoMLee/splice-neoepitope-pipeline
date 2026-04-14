@@ -3,13 +3,13 @@
 # ============================================================
 
 # -----------------------------------------------------------------
-# Data source mode: "gdc" or "local"
+# Data source mode: "gdc" or "fastq"
 # -----------------------------------------------------------------
 # "gdc"   — Download pre-computed splice junction files from GDC (requires
 #           institutional dbGaP access and a GDC authentication token)
-# "local" — Align your own RNA-Seq FASTQ files using HISAT2 or STAR (no
+# "fastq" — Align your own RNA-Seq FASTQ files using HISAT2 or STAR (no
 #           institutional access required; uses publicly available or your own data)
-data_source: "local"
+data_source: "fastq"
 
 # -----------------------------------------------------------------
 # Patient identifier
@@ -28,7 +28,7 @@ patient_id: "patient_001"
 
 
 # -----------------------------------------------------------------
-# Sample manifest (used when data_source is "local")
+# Sample manifest (used when data_source is "fastq")
 # -----------------------------------------------------------------
 # Path to a TSV listing the RNA-Seq FASTQs for this patient. Columns:
 #   sample_id    sample_type    fastq1    fastq2
@@ -42,7 +42,7 @@ patient_id: "patient_001"
 samples_tsv: "config/samples.tsv"
 
 # -----------------------------------------------------------------
-# Alignment (used when data_source is "local")
+# Alignment (used when data_source is "fastq")
 # -----------------------------------------------------------------
 # How to align the FASTQs listed in samples_tsv above. This is the
 # open-access alternative to GDC downloads.

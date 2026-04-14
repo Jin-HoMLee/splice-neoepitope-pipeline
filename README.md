@@ -227,7 +227,7 @@ either **STAR** or **HISAT2**. You can use:
 Edit `config/config.yaml`:
 
 ```yaml
-data_source: "local"   # Use local FASTQ alignment
+data_source: "fastq"   # Align your own FASTQ files
 
 samples_tsv: "config/samples.tsv"
 

@@ -11,7 +11,7 @@
 # compatibility with downstream analysis steps.
 #
 # To use local alignment mode with STAR:
-#   1. Set `data_source: "local"` in config/config.yaml
+#   1. Set `data_source: "fastq"` in config/config.yaml
 #   2. Set `alignment.aligner: "star"` in config/config.yaml
 #   3. Provide a samples TSV file listing FASTQ paths
 #   4. Run the pipeline
@@ -23,8 +23,8 @@
 import os
 
 
-# Only define these rules when running in local mode with star
-if config.get("data_source") == "local" and config.get("alignment", {}).get("aligner") == "star":
+# Only define these rules when running in fastq mode with star
+if config.get("data_source") == "fastq" and config.get("alignment", {}).get("aligner") == "star":
 
     rule star_index:
         """Build STAR genome index for local alignment.
