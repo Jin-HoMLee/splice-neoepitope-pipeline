@@ -65,8 +65,10 @@ def _first_patient_id() -> str:
     tsv = REPO_ROOT / "config" / "test_samples.tsv"
     with tsv.open() as f:
         for row in csv.DictReader(f, delimiter="\t"):
-            if not row["patient_id"].startswith("#"):
-                return row["patient_id"]
+            pid = (row.get("patient_id") or "").strip()
+            if not pid or pid.startswith("#"):
+                continue
+            return pid
     raise RuntimeError(f"No patient_id found in {tsv}")
 
 PATIENT_ID = _first_patient_id()
