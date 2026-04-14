@@ -28,7 +28,6 @@ Input (via Snakemake)
   snakemake.output.alleles — output alleles TSV path
   snakemake.output.qc      — output QC TSV path
   snakemake.params.samples_tsv  — path to the samples TSV
-  snakemake.params.loci         — list of loci, e.g. ["A", "B", "C"]
   snakemake.params.min_reads    — minimum reads per locus for confidence
   snakemake.params.fallback     — dict of fallback alleles per locus
 """
@@ -120,11 +119,13 @@ def normalise_allele(raw: str) -> str:
 # Main aggregation
 # ---------------------------------------------------------------------------
 
+_LOCI = ["A", "B", "C"]
+
+
 def aggregate(
     jsons: list[str],
     genologs: list[str],
     samples_tsv: str,
-    loci: list[str],
     min_reads: int,
     fallback: dict[str, str],
     out_alleles: str,
@@ -149,7 +150,7 @@ def aggregate(
     allele_rows = []
     qc_rows = []
 
-    for locus in loci:
+    for locus in _LOCI:
         hla_key = f"HLA-{locus}"
 
         def _get_calls(sample_list):
@@ -243,7 +244,6 @@ def _snakemake_main() -> None:
         jsons=snakemake.input.jsons,        # noqa: F821
         genologs=snakemake.input.genologs,  # noqa: F821
         samples_tsv=snakemake.params.samples_tsv,
-        loci=snakemake.params.loci,
         min_reads=snakemake.params.min_reads,
         fallback=snakemake.params.fallback,
         out_alleles=snakemake.output.alleles,
