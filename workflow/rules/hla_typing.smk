@@ -37,10 +37,17 @@ if (
 
 
     rule download_arcashla_reference:
-        """Fetch the arcasHLA IMGT/HLA reference database (one-time, ~200 MB).
+        """Fetch the arcasHLA IMGT/HLA reference database (one-time, ~1.5 GB clone).
 
-        Mirrors the download_mhcflurry_models pattern: a sentinel file prevents
-        re-downloading on subsequent runs.
+        Clones the IMGTHLA git repo, builds the genotyping reference in
+        dat/ref/, then deletes the clone.  Mirrors the download_mhcflurry_models
+        pattern: a sentinel file prevents re-downloading on subsequent runs.
+
+        arcasHLA 0.5.x may exit non-zero on the final build_convert() step
+        (allele nomenclature tables) due to a race between the clone deletion
+        and a late file read.  The genotyping reference in dat/ref/ is complete
+        before that step runs, so we treat a non-zero exit as a warning and
+        verify that hla_transcripts.json is present before writing the sentinel.
         """
         output:
             sentinel=touch(_ARCASHLA_REF_DONE),
@@ -51,7 +58,47 @@ if (
         shell:
             """
             mkdir -p $(dirname {log})
-            arcasHLA reference --update > {log} 2>&1
+
+            # Locate the arcasHLA dat/ directory relative to the executable
+            ARCASHLA_BIN=$(which arcasHLA)
+            DAT_DIR=$(ls -d $(dirname $ARCASHLA_BIN)/../share/arcas-hla-*/dat 2>/dev/null | head -1)
+            REF_DIR="$DAT_DIR/ref"
+            IMGTHLA_DIR="$DAT_DIR/IMGTHLA"
+
+            # arcasHLA genotype's check_ref() looks for dat/IMGTHLA/hla.dat to
+            # decide whether to re-clone the database.  The actual genotyping
+            # only uses dat/ref/ (pre-built index), so we only need hla.dat to
+            # exist — content does not matter.  Check both files before skipping.
+            if [ -f "$REF_DIR/hla_transcripts.json" ] && [ -f "$IMGTHLA_DIR/hla.dat" ]; then
+                echo "arcasHLA reference and IMGTHLA already present — skipping download" | tee -a {log}
+            else
+                echo "arcasHLA reference or IMGTHLA missing — running arcasHLA reference --update (~3.8 GB download)" | tee -a {log}
+                # Log IMGTHLA clone progress every 10 s to the log file.
+                ( while true; do
+                    SIZE=$(du -sh "$IMGTHLA_DIR" 2>/dev/null | cut -f1)
+                    [ -n "$SIZE" ] && echo "[download] IMGTHLA: $SIZE" >> {log}
+                    sleep 10
+                  done ) &
+                MONITOR_PID=$!
+                # arcasHLA 0.5.x may exit non-zero on the final build_convert()
+                # step (known upstream bug), so we use || true and verify manually.
+                arcasHLA reference --update >> {log} 2>&1 || true
+                kill $MONITOR_PID 2>/dev/null || true
+                REF_DIR=$(ls -d $(dirname $ARCASHLA_BIN)/../share/arcas-hla-*/dat/ref 2>/dev/null | head -1)
+                if [ -z "$REF_DIR" ] || [ ! -f "$REF_DIR/hla_transcripts.json" ]; then
+                    echo "ERROR: arcasHLA reference not found at $REF_DIR" | tee -a {log}
+                    exit 1
+                fi
+                echo "arcasHLA reference verified: $REF_DIR" | tee -a {log}
+                # arcasHLA reference --update may leave hla.dat absent (upstream
+                # bug: git checkout -f origin fails silently).  Create a
+                # placeholder so genotype's check_ref() does not trigger a
+                # re-clone on every run.  The genotyping itself uses dat/ref/,
+                # not hla.dat.
+                mkdir -p "$IMGTHLA_DIR"
+                touch "$IMGTHLA_DIR/hla.dat"
+                echo "arcasHLA placeholder hla.dat created at $IMGTHLA_DIR/hla.dat" | tee -a {log}
+            fi
             """
 
 
@@ -82,18 +129,25 @@ if (
         shell:
             r"""
             set -uo pipefail
+            export PYTHONUNBUFFERED=1
             mkdir -p {params.outdir}
             mkdir -p $(dirname {log})
 
             # arcasHLA requires UCSC-style `chr6` contig naming. Fail fast with
             # a clear message if the BAM uses Ensembl-style naming instead.
-            if ! samtools view {input.bam} chr6 2>/dev/null | head -n1 | grep -q .; then
+            # Use -c (count) rather than `| head -n1 | grep -q .`: with pipefail
+            # set, head closing the pipe early sends SIGPIPE to samtools (exit
+            # 141), which makes the whole pipeline fail even when reads exist.
+            CHR6_COUNT=$(samtools view -c {input.bam} chr6 2>/dev/null || echo 0)
+            if [ "$CHR6_COUNT" -eq 0 ]; then
                 echo "[arcashla_genotype] ERROR: no reads aligned to 'chr6' in {input.bam}" | tee -a {log}
                 echo "[arcashla_genotype] arcasHLA requires UCSC-style 'chr6' contig naming." | tee -a {log}
                 exit 1
             fi
+            echo "[arcashla_genotype] $CHR6_COUNT reads aligned to chr6 — proceeding with HLA typing" | tee -a {log}
 
             # Stage 1: extract chr6/HLA reads into FASTQ(s)
+            echo "[arcashla_genotype] Stage 1/2: extracting HLA reads from BAM..." | tee -a {log}
             arcasHLA extract {params.single_flag} \
                 -t {threads} \
                 -o {params.outdir} \
@@ -113,6 +167,7 @@ if (
 
             # Stage 2: genotype from the extracted FASTQ(s)
             if [ -n "$FQ_INPUT" ]; then
+                echo "[arcashla_genotype] Stage 2/2: genotyping HLA-A/B/C..." | tee -a {log}
                 arcasHLA genotype {params.single_flag} \
                     -g A,B,C \
                     -t {threads} \
