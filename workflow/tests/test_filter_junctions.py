@@ -133,11 +133,11 @@ class TestClassifyJunctions:
         lines = [f"{c}\t{s}\t{e}\tjunc\t0\t{st}\n" for c, s, e, st in junctions]
         path.write_text("".join(lines))
 
-    def test_tumor_specific_labeled_correctly(self, tmp_path):
+    def test_tumor_exclusive_labeled_correctly(self, tmp_path):
         files_dir = tmp_path / "files"
         files_dir.mkdir()
 
-        # Junction only in tumor → tumor_specific.
+        # Junction only in tumor → tumor_exclusive.
         # Add a low-read noise junction so the high-read one clears the mean filter
         # (classify_junctions keeps junctions with reads > mean).
         tumor_f = files_dir / "tumor.tsv"
@@ -167,13 +167,13 @@ class TestClassifyJunctions:
 
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
-        assert df.iloc[0]["junction_origin"] == "tumor_specific"
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
 
-    def test_patient_specific_labeled_correctly(self, tmp_path):
+    def test_normal_shared_labeled_correctly(self, tmp_path):
         files_dir = tmp_path / "files"
         files_dir.mkdir()
 
-        # Same junction in both tumor and normal → patient_specific
+        # Same junction in both tumor and normal → normal_shared
         tumor_f = files_dir / "tumor.tsv"
         normal_f = files_dir / "normal.tsv"
         self._write_junction_file(tumor_f, [
@@ -201,7 +201,7 @@ class TestClassifyJunctions:
 
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
-        assert df.iloc[0]["junction_origin"] == "patient_specific"
+        assert df.iloc[0]["junction_origin"] == "normal_shared"
 
     def test_annotated_junctions_discarded(self, tmp_path):
         files_dir = tmp_path / "files"
@@ -236,7 +236,7 @@ class TestClassifyJunctions:
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 0
 
-    def test_no_normal_sample_all_labeled_tumor_specific(self, tmp_path):
+    def test_no_normal_sample_all_labeled_tumor_exclusive(self, tmp_path):
         files_dir = tmp_path / "files"
         files_dir.mkdir()
 
@@ -262,4 +262,4 @@ class TestClassifyJunctions:
 
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
-        assert df.iloc[0]["junction_origin"] == "tumor_specific"
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"

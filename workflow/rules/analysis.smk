@@ -4,7 +4,7 @@
 
 rule generate_report:
     """Generate a summary HTML report showing:
-    - Junction origin counts (tumor_specific vs patient_specific per sample)
+    - Junction origin counts (tumor_exclusive vs normal_shared per sample)
     - Neoepitope prediction summary (strong / weak / non binder counts)
     - Top strong binders table (IC50 < ic50_strong threshold)"""
     input:

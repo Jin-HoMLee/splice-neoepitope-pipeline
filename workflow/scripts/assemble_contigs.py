@@ -172,18 +172,18 @@ def assemble_contigs(
         return
 
     # Keep only tumor-specific junctions for neoepitope prediction.
-    # patient_specific junctions (also present in normal) are excluded here;
+    # normal_shared junctions (also present in normal) are excluded here;
     # they remain in the TSV for reporting but are not prediction candidates.
     if "junction_origin" in df.columns:
         n_total = len(df)
-        df = df[df["junction_origin"] == "tumor_specific"].copy()
+        df = df[df["junction_origin"] == "tumor_exclusive"].copy()
         log.info(
-            "Filtered to tumor_specific junctions: %d / %d",
+            "Filtered to tumor_exclusive junctions: %d / %d",
             len(df), n_total,
         )
 
     if df.empty:
-        log.warning("No tumor_specific junctions remain after origin filter")
+        log.warning("No tumor_exclusive junctions remain after origin filter")
         output_fasta.touch()
         return
 

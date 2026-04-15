@@ -5,11 +5,11 @@ Junction origin hierarchy:
   all junctions
     └─ annotated         (in GENCODE)              → discarded
     └─ unannotated       (not in GENCODE)
-         ├─ patient_specific  (also in normal)     → kept with label, excluded downstream
-         └─ tumor_specific    (absent in normal)   → neoepitope prediction candidates
+         ├─ normal_shared  (also in normal)     → kept with label, excluded downstream
+         └─ tumor_exclusive    (absent in normal)   → neoepitope prediction candidates
 
 When no normal sample is present, all unannotated tumor junctions are labeled
-`tumor_specific` with a warning.
+`tumor_exclusive` with a warning.
 
 Output TSV columns:
   junction_id  chrom  start  end  strand  mapped_reads  sample_id  sample_type  junction_origin
@@ -168,8 +168,8 @@ def classify_junctions(
     """Classify all junction quantification files by origin.
 
     Tumor junctions that survive the reference filter are labeled:
-      - ``tumor_specific``  — absent in the matched normal
-      - ``patient_specific`` — also present in the matched normal
+      - ``tumor_exclusive``  — absent in the matched normal
+      - ``normal_shared`` — also present in the matched normal
 
     Normal samples are used only to build the exclusion set and do not
     appear in the output TSV.
@@ -200,8 +200,8 @@ def classify_junctions(
     if not normal_files:
         log.warning(
             "No normal samples found — all unannotated tumor junctions will be "
-            "labeled 'tumor_specific'. Add a 'Solid Tissue Normal' sample to the "
-            "manifest for patient_specific filtering."
+            "labeled 'tumor_exclusive'. Add a 'Solid Tissue Normal' sample to the "
+            "manifest for normal_shared filtering."
         )
 
     # Build normal junction set
@@ -223,7 +223,7 @@ def classify_junctions(
         mean_reads = sum(r for _, r in rows) / len(rows)
         rows = [(jid, r) for jid, r in rows if r > mean_reads]
 
-        n_annotated = n_patient_specific = n_tumor_specific = 0
+        n_annotated = n_normal_shared = n_tumor_exclusive = 0
 
         for junc_id, reads in rows:
             parsed = _parse_junction_id(junc_id)
@@ -240,11 +240,11 @@ def classify_junctions(
 
             # Classify unannotated junctions
             if parsed in normal_junction_set:
-                origin = "patient_specific"
-                n_patient_specific += 1
+                origin = "normal_shared"
+                n_normal_shared += 1
             else:
-                origin = "tumor_specific"
-                n_tumor_specific += 1
+                origin = "tumor_exclusive"
+                n_tumor_exclusive += 1
 
             all_classified.append(
                 {
@@ -261,8 +261,8 @@ def classify_junctions(
             )
 
         log.info(
-            "Tumor sample %s: %d annotated (discarded), %d patient_specific, %d tumor_specific",
-            sample_id, n_annotated, n_patient_specific, n_tumor_specific,
+            "Tumor sample %s: %d annotated (discarded), %d normal_shared, %d tumor_exclusive",
+            sample_id, n_annotated, n_normal_shared, n_tumor_exclusive,
         )
 
     df = pd.DataFrame(
@@ -277,11 +277,11 @@ def classify_junctions(
     df.to_csv(output_path, sep="\t", index=False)
     log.info(
         "Wrote %d classified junction records to %s "
-        "(%d tumor_specific, %d patient_specific)",
+        "(%d tumor_exclusive, %d normal_shared)",
         len(df),
         output_path,
-        (df["junction_origin"] == "tumor_specific").sum() if not df.empty else 0,
-        (df["junction_origin"] == "patient_specific").sum() if not df.empty else 0,
+        (df["junction_origin"] == "tumor_exclusive").sum() if not df.empty else 0,
+        (df["junction_origin"] == "normal_shared").sum() if not df.empty else 0,
     )
 
 
@@ -304,7 +304,7 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Classify splice junctions by origin (tumor_specific / patient_specific)."
+        description="Classify splice junctions by origin (tumor_exclusive / normal_shared)."
     )
     parser.add_argument(
         "--junction-files", nargs="+", required=True,

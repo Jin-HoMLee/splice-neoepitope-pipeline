@@ -58,8 +58,8 @@ RNA-Seq data (local FASTQ files or GDC API)
         ▼ Step 2: Classify by origin
   - Remove annotated junctions (GENCODE reference)
   - Compare tumor vs. matched normal:
-      patient_specific (in normal) → excluded
-      tumor_specific   (not in normal) → keep
+      normal_shared (in normal) → excluded
+      tumor_exclusive   (not in normal) → keep
         │
         ▼ Step 3: Assemble
   50 nt contigs (26 nt upstream + 24 nt downstream, bedtools getfasta)
@@ -545,7 +545,7 @@ conda activate snakemake
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 ```
 
-Expected output: ~234 unannotated junctions (231 tumor_specific, 3 patient_specific) → ~79 contigs → ~11 strong MHC binders.
+Expected output: ~234 unannotated junctions (231 tumor_exclusive, 3 normal_shared) → ~79 contigs → ~11 strong MHC binders.
 
 > **Note**: Only reads mapping to chr22 are used, so junction counts are much
 > lower than a full-genome run — this is expected.
@@ -628,10 +628,10 @@ results/
 ├── junctions/
 │   └── {cancer_type}/
 │       └── novel_junctions.tsv   # Classified junctions (junction_origin column:
-│                                 #   tumor_specific | patient_specific)
+│                                 #   tumor_exclusive | normal_shared)
 ├── contigs/
 │   └── {cancer_type}/
-│       └── contigs.fa            # 50 nt FASTA contigs (tumor_specific only)
+│       └── contigs.fa            # 50 nt FASTA contigs (tumor_exclusive only)
 ├── peptides/
 │   └── {cancer_type}/
 │       └── peptides.fa           # 16-mer peptide FASTA
