@@ -18,7 +18,7 @@ class TestRunPredictionEmpty:
         run_prediction(
             peptides_tsv=peptides_tsv,
             output_tsv=output_tsv,
-            allele="HLA-A*02:01",
+            alleles=["HLA-A*02:01", "HLA-B*07:02", "HLA-C*07:02"],
             ic50_strong=50.0,
             ic50_weak=500.0,
         )
@@ -38,6 +38,7 @@ class TestRunPredictionEmpty:
         run_prediction(
             peptides_tsv=peptides_tsv,
             output_tsv=output_tsv,
+            alleles=["HLA-A*02:01", "HLA-B*07:02", "HLA-C*07:02"],
         )
         assert output_tsv.exists()
 
