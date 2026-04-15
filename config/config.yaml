@@ -96,6 +96,24 @@ mhcflurry:
   prediction_mode: "affinity"
 
 # -----------------------------------------------------------------
+# HLA typing (optional — requires data_source: "fastq")
+# -----------------------------------------------------------------
+# When enabled, OptiType is run on each sample's FASTQ to predict
+# patient-specific HLA-A/B/C alleles. The resulting alleles.tsv is
+# passed to MHCflurry instead of the single hardcoded hla_allele below.
+#
+# fallback_alleles are used for any locus where OptiType returns no
+# confident call (too few HLA reads). They are also used for all loci
+# when hla.enabled is false.
+hla:
+  enabled: false
+  min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
+  fallback_alleles:
+    A: "HLA-A*02:01"
+    B: "HLA-B*07:02"
+    C: "HLA-C*07:02"
+
+# -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
 # -----------------------------------------------------------------
 # Disabled by default. All settings live in config/tcrdock_gpu.yaml.
