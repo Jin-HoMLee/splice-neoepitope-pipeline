@@ -149,7 +149,7 @@ EOF
         params:
             samples_tsv=config["samples_tsv"],
             min_reads=config.get("hla", {}).get("min_reads_per_locus", 30),
-            fallback=config.get("hla", {}).get("fallback_alleles", {}),
+            fallback=config.get("mhcflurry", {}).get("fallback_alleles", {}),
         conda:
             "../envs/python.yaml"
         script:
