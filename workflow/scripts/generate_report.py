@@ -39,48 +39,39 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _PIPELINE_DIAGRAM = """\
-<div class="pipeline">
-  <div class="step io">RNA-Seq reads<br/><small>tumor + normal</small></div>
-  <div class="arrow">↓</div>
-  <div class="step">HISAT2 alignment<br/><small>junction extraction with regtools</small></div>
-  <div class="pipeline-fork">
-    <div class="fork-main">
-      <div class="fork-arrow">↓</div>
-      <div class="step filter">GENCODE reference filter<br/><small>remove annotated junctions</small></div>
-      <div class="fork-arrow">↓ unannotated junctions</div>
-      <div class="step split-wrap">
-        <div class="split-header">Normal sample comparison</div>
-        <div class="split-row">
-          <div class="split-left">
-            <strong>patient_specific</strong><br/>
-            <small>also in normal tissue</small><br/>
-            <span class="discard">→ excluded</span>
-          </div>
-          <div class="split-right">
-            <strong>tumor_specific</strong><br/>
-            <small>absent in normal tissue</small><br/>
-            <span class="keep">→ keep ↓</span>
-          </div>
-        </div>
-      </div>
-      <div class="fork-arrow">↓</div>
-      <div class="step">Contig assembly<br/><small>50 nt per junction</small></div>
-      <div class="fork-arrow">↓</div>
-      <div class="step">In-silico translation<br/><small>3 reading frames → 9-mers</small></div>
-      <div class="fork-arrow">↓</div>
-    </div>
-    <div class="fork-hla">
-      <div class="fork-arrow">↓</div>
-      <div class="step hla">HLA typing (arcasHLA)<br/><small>loci A, B, C</small></div>
-      <div class="fork-arrow">↓</div>
-      <div class="step hla">Patient alleles<br/><small>alleles.tsv</small></div>
-      <div class="fork-arrow hla-merge">↙ patient alleles</div>
-    </div>
-  </div>
-  <div class="step">MHCflurry epitope prediction<br/><small>IC50 affinity per 9-mer</small></div>
-  <div class="arrow">↓</div>
-  <div class="step io">Neoepitope candidates<br/><small>strong / weak binders</small></div>
-</div>
+<pre class="mermaid">
+graph TD
+    A["🔬 RNA-Seq reads<br/>(tumor + normal)"]
+    B["HISAT2 alignment<br/>(regtools junction extraction)"]
+    C["GENCODE reference filter<br/>(remove annotated junctions)"]
+    D["Unannotated junctions"]
+    E["Normal sample comparison"]
+    F["patient_specific<br/>(also in normal) ✗"]
+    G["tumor_specific<br/>(absent from normal) ✓"]
+    H["Contig assembly<br/>(50 nt per junction)"]
+    I["In-silico translation<br/>(3 reading frames → 9-mers)"]
+    J["HLA typing<br/>(arcasHLA)"]
+    K["Patient alleles<br/>(alleles.tsv)"]
+    L["MHCflurry epitope prediction<br/>(IC50 affinity per 9-mer)"]
+    M["📊 Neoepitope candidates<br/>(strong/weak binders)"]
+    
+    A --> B --> C --> D
+    D --> E
+    E --> F
+    E --> G
+    F -.->|excluded| E
+    G --> H --> I
+    I --> L
+    B --> J --> K --> L
+    L --> M
+    
+    style A fill:#eafaf1,stroke:#27ae60,stroke-width:2px
+    style M fill:#eafaf1,stroke:#27ae60,stroke-width:2px
+    style F fill:#fdecea,stroke:#c0392b,stroke-width:2px
+    style G fill:#eafaf1,stroke:#27ae60,stroke-width:2px
+    style K fill:#f5eeff,stroke:#8e44ad,stroke-width:2px
+    style J fill:#f5eeff,stroke:#8e44ad,stroke-width:2px
+</pre>
 """
 
 _MOLSTAR_VIEWER = """\
@@ -184,6 +175,7 @@ _HTML_TEMPLATE = """\
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
   {molstar_assets}
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
   <style>
     body  {{ font-family: Arial, sans-serif; margin: 2em; color: #333; }}
     h1    {{ color: #2c3e50; }}
@@ -193,52 +185,8 @@ _HTML_TEMPLATE = """\
     th    {{ background-color: #f2f2f2; }}
     tr:nth-child(even) {{ background-color: #f9f9f9; }}
 
-    /* Pipeline diagram */
-    .pipeline {{
-      display: flex; flex-direction: column; align-items: center;
-      max-width: 560px; margin: 1.5em auto;
-    }}
-    .step {{
-      background: #eaf4fb; border: 1px solid #3498db; border-radius: 6px;
-      padding: 10px 18px; text-align: center; width: 100%;
-      box-sizing: border-box; font-size: 0.95em;
-    }}
-    .step.io     {{ background: #eafaf1; border-color: #27ae60; }}
-    .step.filter {{ background: #fef9e7; border-color: #f39c12; }}
-    .arrow {{ color: #888; font-size: 1.3em; margin: 3px 0; line-height: 1; }}
-    .split-wrap {{
-      width: 100%; border: 1px solid #3498db; border-radius: 6px;
-      overflow: hidden; font-size: 0.95em;
-    }}
-    .split-header {{
-      background: #eaf4fb; padding: 8px 12px; text-align: center;
-      border-bottom: 1px solid #3498db;
-    }}
-    .split-row   {{ display: flex; }}
-    .split-left  {{
-      flex: 1; background: #fdecea; padding: 10px 12px; text-align: center;
-      border-right: 1px solid #ddd;
-    }}
-    .split-right {{ flex: 1; background: #eafaf1; padding: 10px 12px; text-align: center; }}
-    .discard {{ color: #c0392b; }}
-    .keep    {{ color: #27ae60; }}
-
-    /* HLA fork branch */
-    .pipeline-fork {{
-      display: flex; flex-direction: row; width: 100%;
-      align-items: flex-start;
-    }}
-    .fork-main {{
-      flex: 3; display: flex; flex-direction: column; align-items: center;
-      padding-right: 12px; border-right: 2px dashed #8e44ad;
-    }}
-    .fork-hla {{
-      flex: 2; display: flex; flex-direction: column; align-items: center;
-      padding-left: 12px;
-    }}
-    .fork-arrow {{ color: #888; font-size: 1.3em; margin: 3px 0; line-height: 1; text-align: center; }}
-    .hla-merge  {{ color: #8e44ad; font-size: 0.85em; }}
-    .step.hla   {{ background: #f5eeff; border-color: #8e44ad; }}
+    /* Mermaid diagram */
+    .mermaid {{ display: flex; justify-content: center; margin: 1.5em 0; }}
 
     /* Contig visualisation */
     .contig  {{ font-family: monospace; font-size: 0.85em; white-space: nowrap; }}
