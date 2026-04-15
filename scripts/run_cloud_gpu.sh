@@ -88,12 +88,16 @@ case "${MODE}" in
         CONFIG_FILE="config/test_config.yaml"
         RESULTS_DIR="results/test"
         GCS_PATH="gs://${GCS_BUCKET}/results/test"
+        LOGS_DIR="logs/test"
+        GCS_LOGS_PATH="gs://${GCS_BUCKET}/logs/test"
         PREPARE_DATA_SCRIPT="scripts/prepare_test_data.sh"
         ;;
     prod|production)
         CONFIG_FILE="config/config.yaml"
         RESULTS_DIR="results"
         GCS_PATH="gs://${GCS_BUCKET}/results"
+        LOGS_DIR="logs"
+        GCS_LOGS_PATH="gs://${GCS_BUCKET}/logs"
         PREPARE_DATA_SCRIPT="scripts/prepare_production_data.sh"
         ;;
     *)
@@ -356,15 +360,21 @@ done
 log ""
 log "=== Phase 2: Uploading results from ${CPU_VM} ==="
 
-log "Uploading ${RESULTS_DIR}/ to ${GCS_PATH}..."
+log "Uploading ${RESULTS_DIR}/ and ${LOGS_DIR}/ to GCS..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 if [[ -d "${RESULTS_DIR}" ]]; then
     gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
-    echo "Upload complete."
+    echo "Results upload complete."
 else
     echo "ERROR: ${RESULTS_DIR}/ not found." >&2; exit 1
+fi
+if [[ -d "${LOGS_DIR}" ]]; then
+    gcloud storage cp -r "${LOGS_DIR}" "${GCS_LOGS_PATH%/*}/"
+    echo "Logs upload complete."
+else
+    echo "WARNING: ${LOGS_DIR}/ not found — skipping logs upload."
 fi
 EOF
 
@@ -480,8 +490,9 @@ snakemake \\
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
     2>&1 | tee tcrdock.log
 
-echo "Uploading final results to GCS..."
+echo "Uploading final results and logs to GCS..."
 gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
+[[ -d "${LOGS_DIR}" ]] && gcloud storage cp -r "${LOGS_DIR}" "${GCS_LOGS_PATH%/*}/" || true
 echo "Upload complete."
 
 echo "TCRdock finished — shutting down GPU VM..."
