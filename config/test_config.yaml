@@ -1,9 +1,9 @@
 # ============================================================
-# Splice Neoepitope Pipeline — Test Configuration (chr22)
+# Splice Neoepitope Pipeline — Test Configuration (chr22 + chr6)
 # ============================================================
 #
 # Minimal configuration for local development and testing on macOS.
-# Uses chr22 only: ~52 MB FASTA, ~1 GB HISAT2 index, fast builds.
+# Uses chr22 (splice junctions) + chr6 (HLA typing via arcasHLA).
 #
 # Usage:
 #   snakemake --cores 4 --use-conda --configfile config/test_config.yaml
@@ -25,9 +25,9 @@ alignment:
   star_index_dir: "resources/test/star_index"        # separate from production index
 
 reference:
-  genome: "GRCh38_chr22"
-  genome_fasta: "resources/test/chr22.fa"
-  gencode_gtf:  "resources/test/chr22.gtf.gz"
+  genome: "GRCh38_chr22_chr6"
+  genome_fasta: "resources/test/chr22_chr6.fa"
+  gencode_gtf:  "resources/test/chr22_chr6.gtf.gz"
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
 output:

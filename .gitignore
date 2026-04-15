@@ -221,6 +221,7 @@ data/
 # Pipeline outputs
 results/
 resources/mhcflurry_models.done
+resources/arcashla_reference.done
 
 # Logs
 logs/
