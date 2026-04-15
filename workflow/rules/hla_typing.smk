@@ -65,12 +65,10 @@ if (
             REF_DIR="$DAT_DIR/ref"
             IMGTHLA_DIR="$DAT_DIR/IMGTHLA"
 
-            # arcasHLA genotype's check_ref() looks for dat/IMGTHLA/hla.dat to
-            # decide whether to re-clone the database.  The actual genotyping
-            # only uses dat/ref/ (pre-built index), so we only need hla.dat to
-            # exist — content does not matter.  Check both files before skipping.
-            if [ -f "$REF_DIR/hla_transcripts.json" ] && [ -f "$IMGTHLA_DIR/hla.dat" ]; then
-                echo "arcasHLA reference and IMGTHLA already present — skipping download" | tee -a {log}
+            # arcasHLA genotype needs dat/ref/hla.p.json (pickled allele data).
+            # Also check hla_transcripts.json and hla.dat (for check_ref()).
+            if [ -f "$REF_DIR/hla.p.json" ] && [ -f "$REF_DIR/hla_transcripts.json" ] && [ -f "$IMGTHLA_DIR/hla.dat" ]; then
+                echo "arcasHLA reference complete (hla.p.json + hla_transcripts.json + hla.dat) — skipping download" | tee -a {log}
             else
                 echo "arcasHLA reference or IMGTHLA missing — running arcasHLA reference --update (~3.8 GB download)" | tee -a {log}
                 # Log IMGTHLA clone progress every 10 s to the log file.
@@ -84,20 +82,26 @@ if (
                 # step (known upstream bug), so we use || true and verify manually.
                 arcasHLA reference --update >> {log} 2>&1 || true
                 kill $MONITOR_PID 2>/dev/null || true
+
+                # Workaround: IMGTHLA replaced hla.dat with hla.dat.zip but
+                # arcasHLA 0.5.0 still expects the raw file.  Unzip it and
+                # rebuild if the first attempt failed due to this.
+                IMGTHLA_DIR=$(ls -d $(dirname $ARCASHLA_BIN)/../share/arcas-hla-*/dat/IMGTHLA 2>/dev/null | head -1)
                 REF_DIR=$(ls -d $(dirname $ARCASHLA_BIN)/../share/arcas-hla-*/dat/ref 2>/dev/null | head -1)
-                if [ -z "$REF_DIR" ] || [ ! -f "$REF_DIR/hla_transcripts.json" ]; then
-                    echo "ERROR: arcasHLA reference not found at $REF_DIR" | tee -a {log}
+                if [ ! -f "$REF_DIR/hla.p.json" ] && [ -f "$IMGTHLA_DIR/hla.dat.zip" ]; then
+                    echo "hla.p.json missing — unzipping hla.dat.zip and rebuilding" | tee -a {log}
+                    unzip -o "$IMGTHLA_DIR/hla.dat.zip" -d "$IMGTHLA_DIR" >> {log} 2>&1
+                    arcasHLA reference --rebuild >> {log} 2>&1 || true
+                fi
+
+                REF_DIR=$(ls -d $(dirname $ARCASHLA_BIN)/../share/arcas-hla-*/dat/ref 2>/dev/null | head -1)
+                if [ -z "$REF_DIR" ] || [ ! -f "$REF_DIR/hla.p.json" ]; then
+                    echo "ERROR: arcasHLA reference build incomplete — hla.p.json not found" | tee -a {log}
+                    echo "  Contents of $REF_DIR:" | tee -a {log}
+                    ls -la "$REF_DIR" 2>&1 | tee -a {log}
                     exit 1
                 fi
-                echo "arcasHLA reference verified: $REF_DIR" | tee -a {log}
-                # arcasHLA reference --update may leave hla.dat absent (upstream
-                # bug: git checkout -f origin fails silently).  Create a
-                # placeholder so genotype's check_ref() does not trigger a
-                # re-clone on every run.  The genotyping itself uses dat/ref/,
-                # not hla.dat.
-                mkdir -p "$IMGTHLA_DIR"
-                touch "$IMGTHLA_DIR/hla.dat"
-                echo "arcasHLA placeholder hla.dat created at $IMGTHLA_DIR/hla.dat" | tee -a {log}
+                echo "arcasHLA reference verified: hla.p.json present at $REF_DIR" | tee -a {log}
             fi
             """
 
