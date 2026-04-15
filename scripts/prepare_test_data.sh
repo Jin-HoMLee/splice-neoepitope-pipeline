@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # scripts/prepare_test_data.sh
 #
-# One-time setup: download a chr22-only reference and a small FASTQ subset
+# One-time setup: download a chr22+chr6 reference and a small FASTQ subset
 # for end-to-end testing of the pipeline on a local macOS machine.
 #
 # What this downloads:
-#   1. chr22 FASTA         — UCSC hg38 (~52 MB uncompressed)
-#   2. chr22 GTF           — GENCODE v47 basic, stream-filtered to chr22 (~400 MB download)
+#   1. chr22 + chr6 FASTA  — UCSC hg38 (chr22 ~52 MB, chr6 ~58 MB compressed)
+#   2. chr22 + chr6 GTF    — GENCODE v47 basic, stream-filtered (~400 MB download)
 #   3. Test FASTQs         — 500K reads each from a matched gastric cancer tumor/normal pair
 #                            (SRR9143066 tumor, SRR9143065 normal) via ENA HTTPS
 #
-# Runtime: 15–30 min depending on connection speed (GTF download dominates).
+# chr6 is included so that HLA typing (arcasHLA) can be tested end-to-end:
+# the test FASTQs are whole-transcriptome and contain HLA reads, but they can
+# only map if chr6 is present in the HISAT2 index.
+#
+# Runtime: 20–40 min depending on connection speed (GTF download dominates).
 #
 # After this script finishes, run the test pipeline with:
 #   snakemake --cores 4 --use-conda --configfile config/test_config.yaml
@@ -23,11 +27,11 @@ DATA="data/test"
 mkdir -p "$RESOURCES" "$DATA"
 
 # ---------------------------------------------------------------------------
-# 1. chr22 FASTA
+# 1. chr22 + chr6 FASTA
 # ---------------------------------------------------------------------------
-echo "=== [1/3] Downloading chr22 reference FASTA (UCSC hg38) ==="
+echo "=== [1/4] Downloading chr22 + chr6 reference FASTA (UCSC hg38) ==="
 if [[ -f "$RESOURCES/chr22.fa" ]]; then
-    echo "    Already exists — skipping."
+    echo "    chr22 already exists — skipping."
 else
     curl -L --progress-bar \
         "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr22.fa.gz" \
@@ -35,21 +39,38 @@ else
     echo "    Saved: $RESOURCES/chr22.fa"
 fi
 
+if [[ -f "$RESOURCES/chr6.fa" ]]; then
+    echo "    chr6 already exists — skipping."
+else
+    curl -L --progress-bar \
+        "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr6.fa.gz" \
+        | gunzip > "$RESOURCES/chr6.fa"
+    echo "    Saved: $RESOURCES/chr6.fa"
+fi
+
+# Combine into a single reference FASTA for HISAT2 indexing
+if [[ -f "$RESOURCES/chr22_chr6.fa" ]]; then
+    echo "    Combined chr22+chr6 FASTA already exists — skipping."
+else
+    cat "$RESOURCES/chr22.fa" "$RESOURCES/chr6.fa" > "$RESOURCES/chr22_chr6.fa"
+    echo "    Saved: $RESOURCES/chr22_chr6.fa"
+fi
+
 # ---------------------------------------------------------------------------
-# 2. chr22 GTF (stream and filter — avoids storing the full 400 MB file)
+# 2. chr22 + chr6 GTF (stream and filter — avoids storing the full 400 MB file)
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== [2/3] Downloading and filtering GENCODE v47 GTF to chr22 ==="
+echo "=== [2/4] Downloading and filtering GENCODE v47 GTF to chr22 + chr6 ==="
 echo "    Streaming ~400 MB — estimated 5–15 min depending on connection."
-if [[ -f "$RESOURCES/chr22.gtf.gz" ]]; then
+if [[ -f "$RESOURCES/chr22_chr6.gtf.gz" ]]; then
     echo "    Already exists — skipping."
 else
     curl -L --progress-bar \
         "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.basic.annotation.gtf.gz" \
         | zcat \
-        | awk '$1 == "chr22" || /^#/' \
-        | gzip > "$RESOURCES/chr22.gtf.gz"
-    echo "    Saved: $RESOURCES/chr22.gtf.gz"
+        | awk '$1 == "chr22" || $1 == "chr6" || /^#/' \
+        | gzip > "$RESOURCES/chr22_chr6.gtf.gz"
+    echo "    Saved: $RESOURCES/chr22_chr6.gtf.gz"
 fi
 
 # ---------------------------------------------------------------------------
@@ -67,7 +88,7 @@ fi
 # write its end-of-file marker, producing a truncated-but-readable archive)
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== [3/3] Downloading 500K reads each from SRR9143066 (tumor) and SRR9143065 (normal) ==="
+echo "=== [3/4] Downloading 500K reads each from SRR9143066 (tumor) and SRR9143065 (normal) ==="
 echo "    Streaming via ENA HTTPS — no sra-tools required."
 
 TUMOR_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz"
@@ -110,11 +131,31 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 4. Invalidate cached HISAT2 index if reference was updated
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== [4/4] Checking HISAT2 index ==="
+INDEX_DIR="resources/test/hisat2_index"
+# The index references chr22_chr6.fa; if it was built from chr22.fa alone,
+# delete it so Snakemake rebuilds it with the combined reference.
+if [[ -f "$INDEX_DIR/index.done" ]]; then
+    if grep -q "chr22_chr6" "$INDEX_DIR/index.done" 2>/dev/null; then
+        echo "    HISAT2 index already built from chr22+chr6 — skipping."
+    else
+        echo "    Removing stale chr22-only HISAT2 index — will be rebuilt by Snakemake."
+        rm -rf "$INDEX_DIR"
+    fi
+else
+    echo "    No existing HISAT2 index found — Snakemake will build it."
+fi
+
+# ---------------------------------------------------------------------------
 echo ""
 echo "=== Setup complete! ==="
 echo ""
 echo "Run the test pipeline with:"
 echo "    snakemake --cores 4 --use-conda --configfile config/test_config.yaml"
 echo ""
-echo "Note: Only reads mapping to chr22 will generate junctions."
+echo "Note: Reads mapping to chr22 generate novel splice junctions."
+echo "      Reads mapping to chr6 enable HLA typing via arcasHLA."
 echo "      Expect fewer novel junctions than a full-genome run — this is normal."
