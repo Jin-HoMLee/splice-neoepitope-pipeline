@@ -66,6 +66,7 @@ if _TCRDOCK_ENABLED:
             contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
             pdb=rules.run_tcrdock.output.pdb,
             scores_tsv=rules.run_tcrdock.output.scores_tsv,
+            hla_qc=_hla_qc_input,
         output:
             report_html=os.path.join(
                 OUT["reports"], "{patient_id}", "report.html"

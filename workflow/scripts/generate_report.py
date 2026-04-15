@@ -43,29 +43,40 @@ _PIPELINE_DIAGRAM = """\
   <div class="step io">RNA-Seq reads<br/><small>tumor + normal</small></div>
   <div class="arrow">↓</div>
   <div class="step">HISAT2 alignment<br/><small>junction extraction with regtools</small></div>
-  <div class="arrow">↓</div>
-  <div class="step filter">GENCODE reference filter<br/><small>remove annotated junctions</small></div>
-  <div class="arrow">↓ unannotated junctions</div>
-  <div class="step split-wrap">
-    <div class="split-header">Normal sample comparison</div>
-    <div class="split-row">
-      <div class="split-left">
-        <strong>patient_specific</strong><br/>
-        <small>also in normal tissue</small><br/>
-        <span class="discard">→ excluded</span>
+  <div class="pipeline-fork">
+    <div class="fork-main">
+      <div class="fork-arrow">↓</div>
+      <div class="step filter">GENCODE reference filter<br/><small>remove annotated junctions</small></div>
+      <div class="fork-arrow">↓ unannotated junctions</div>
+      <div class="step split-wrap">
+        <div class="split-header">Normal sample comparison</div>
+        <div class="split-row">
+          <div class="split-left">
+            <strong>patient_specific</strong><br/>
+            <small>also in normal tissue</small><br/>
+            <span class="discard">→ excluded</span>
+          </div>
+          <div class="split-right">
+            <strong>tumor_specific</strong><br/>
+            <small>absent in normal tissue</small><br/>
+            <span class="keep">→ keep ↓</span>
+          </div>
+        </div>
       </div>
-      <div class="split-right">
-        <strong>tumor_specific</strong><br/>
-        <small>absent in normal tissue</small><br/>
-        <span class="keep">→ keep ↓</span>
-      </div>
+      <div class="fork-arrow">↓</div>
+      <div class="step">Contig assembly<br/><small>50 nt per junction</small></div>
+      <div class="fork-arrow">↓</div>
+      <div class="step">In-silico translation<br/><small>3 reading frames → 9-mers</small></div>
+      <div class="fork-arrow">↓</div>
+    </div>
+    <div class="fork-hla">
+      <div class="fork-arrow">↓</div>
+      <div class="step hla">HLA typing (arcasHLA)<br/><small>loci A, B, C</small></div>
+      <div class="fork-arrow">↓</div>
+      <div class="step hla">Patient alleles<br/><small>alleles.tsv</small></div>
+      <div class="fork-arrow hla-merge">↙ patient alleles</div>
     </div>
   </div>
-  <div class="arrow">↓</div>
-  <div class="step">Contig assembly<br/><small>50 nt per junction</small></div>
-  <div class="arrow">↓</div>
-  <div class="step">In-silico translation<br/><small>3 reading frames → junction-spanning 9-mers</small></div>
-  <div class="arrow">↓</div>
   <div class="step">MHCflurry epitope prediction<br/><small>IC50 affinity per 9-mer</small></div>
   <div class="arrow">↓</div>
   <div class="step io">Neoepitope candidates<br/><small>strong / weak binders</small></div>
@@ -185,7 +196,7 @@ _HTML_TEMPLATE = """\
     /* Pipeline diagram */
     .pipeline {{
       display: flex; flex-direction: column; align-items: center;
-      max-width: 420px; margin: 1.5em auto;
+      max-width: 560px; margin: 1.5em auto;
     }}
     .step {{
       background: #eaf4fb; border: 1px solid #3498db; border-radius: 6px;
@@ -211,6 +222,23 @@ _HTML_TEMPLATE = """\
     .split-right {{ flex: 1; background: #eafaf1; padding: 10px 12px; text-align: center; }}
     .discard {{ color: #c0392b; }}
     .keep    {{ color: #27ae60; }}
+
+    /* HLA fork branch */
+    .pipeline-fork {{
+      display: flex; flex-direction: row; width: 100%;
+      align-items: flex-start;
+    }}
+    .fork-main {{
+      flex: 3; display: flex; flex-direction: column; align-items: center;
+      padding-right: 12px; border-right: 2px dashed #8e44ad;
+    }}
+    .fork-hla {{
+      flex: 2; display: flex; flex-direction: column; align-items: center;
+      padding-left: 12px;
+    }}
+    .fork-arrow {{ color: #888; font-size: 1.3em; margin: 3px 0; line-height: 1; text-align: center; }}
+    .hla-merge  {{ color: #8e44ad; font-size: 0.85em; }}
+    .step.hla   {{ background: #f5eeff; border-color: #8e44ad; }}
 
     /* Contig visualisation */
     .contig  {{ font-family: monospace; font-size: 0.85em; white-space: nowrap; }}
@@ -246,6 +274,8 @@ _HTML_TEMPLATE = """\
   prediction. <strong class="discard">patient_specific</strong> junctions are
   present in normal tissue and are therefore not tumor-derived.</p>
   {origin_table}
+
+  {hla_section}
 
   <h2>Neoepitope prediction summary</h2>
   {binder_table}
@@ -360,6 +390,99 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
 # Report generation
 # ---------------------------------------------------------------------------
 
+
+def _build_hla_section(hla_qc_tsv: "str | Path | None") -> str:
+    """Build the HLA allele typing section for the report.
+
+    Args:
+        hla_qc_tsv: Path to hla_qc.tsv from aggregate_hla_alleles, or None
+                    when HLA typing was not run.
+
+    Returns:
+        HTML string for the HLA typing section.
+    """
+    heading = "<h2>HLA allele typing</h2>"
+    if hla_qc_tsv is None:
+        return (
+            heading
+            + "<p><em>HLA typing was not run (config.hla.enabled is false or "
+            "data_source is not fastq). MHCflurry used the fallback alleles "
+            "defined in config.</em></p>"
+        )
+
+    try:
+        qc_df = pd.read_csv(hla_qc_tsv, sep="\t")
+    except (FileNotFoundError, pd.errors.ParserError) as exc:
+        log.warning("Could not read HLA QC file %s: %s", hla_qc_tsv, exc)
+        return heading + "<p><em>HLA QC file not available.</em></p>"
+
+    if qc_df.empty:
+        return heading + "<p><em>No HLA allele data available.</em></p>"
+
+    _SOURCE_STYLE = {
+        "normal":   "color:#27ae60;font-weight:bold",
+        "tumor":    "color:#e67e22;font-weight:bold",
+        "fallback": "color:#c0392b;font-weight:bold",
+    }
+    rows = []
+    has_discrepancy = False
+    for _, row in qc_df.iterrows():
+        source = str(row.get("source", ""))
+        src_style = _SOURCE_STYLE.get(source, "")
+        discrepancy = str(row.get("discrepancy", "") or "")
+        if discrepancy:
+            has_discrepancy = True
+            disc_cell = (
+                f'<td><span style="color:#c0392b">'
+                f"{html_mod.escape(discrepancy)}</span></td>"
+            )
+        else:
+            disc_cell = "<td>—</td>"
+        reads = row.get("reads", 0)
+        reads_str = f"{int(reads):,}" if reads else "—"
+        rows.append(
+            f"<tr>"
+            f"<td><strong>HLA-{html_mod.escape(str(row['locus']))}</strong></td>"
+            f"<td><code>{html_mod.escape(str(row.get('allele1', '')))}</code></td>"
+            f"<td><code>{html_mod.escape(str(row.get('allele2', '')))}</code></td>"
+            f"<td><span style='{src_style}'>{html_mod.escape(source)}</span></td>"
+            f"<td>{reads_str}</td>"
+            f"{disc_cell}"
+            f"</tr>"
+        )
+
+    table = (
+        "<table><thead><tr>"
+        "<th>Locus</th><th>Allele 1</th><th>Allele 2</th>"
+        "<th title='normal = from matched normal tissue (preferred); "
+        "tumor = from tumor (normal unavailable); "
+        "fallback = config default (no confident call)'>Source</th>"
+        "<th title='Reads used for genotyping at this locus'>Reads</th>"
+        "<th>Normal/tumor discrepancy</th>"
+        "</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+
+    notes = ""
+    if has_discrepancy:
+        notes = (
+            "<p style='color:#c0392b'><strong>Warning:</strong> normal/tumor "
+            "discrepancy detected at one or more loci. The normal-tissue call "
+            "was used (normal-first policy).</p>"
+        )
+
+    return (
+        heading
+        + "<p>Patient-specific HLA-A/B/C alleles typed from RNA-Seq reads "
+        "using <a href='https://github.com/RabadanLab/arcasHLA'>arcasHLA</a>. "
+        "Normal tissue is preferred over tumor (germline HLA alleles are less "
+        "susceptible to LOH). Alleles below the minimum read threshold are "
+        "replaced by config-defined fallback alleles.</p>"
+        + table
+        + notes
+    )
+
+
 def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     """Build the Mol* 3D viewer section for the top TCRdock candidate.
 
@@ -420,6 +543,7 @@ def generate_report(
     contigs_fasta: str | Path | None = None,
     ic50_strong: float = 50.0,
     tcrdock_pdb: str | Path | None = None,
+    hla_qc_tsv: str | Path | None = None,
 ) -> None:
     """Generate the summary HTML report.
 
@@ -431,6 +555,8 @@ def generate_report(
         ic50_strong:         Strong-binder IC50 threshold (nM).
         tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
                              an embedded Mol* 3D viewer is added to the report.
+        hla_qc_tsv:          HLA QC TSV from aggregate_hla_alleles (optional).
+                             When provided, an HLA allele section is added.
     """
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
@@ -474,6 +600,9 @@ def generate_report(
     else:
         strong_html = _build_strong_table_html(pred_df, contigs)
 
+    # --- HLA allele typing section (optional) ---
+    hla_section = _build_hla_section(hla_qc_tsv)
+
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
         structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df)
@@ -494,6 +623,7 @@ def generate_report(
     report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
+        hla_section=hla_section,
         binder_table=binder_html,
         strong_table=strong_html,
         structure_section=structure_section,
@@ -512,6 +642,7 @@ def _snakemake_main() -> None:
     log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
     logging.getLogger().addHandler(logging.FileHandler(log_file))
 
+    _hla_qc = getattr(snakemake.input, "hla_qc", None)  # type: ignore[name-defined]  # noqa: F821
     generate_report(
         novel_junctions_tsv=snakemake.input.novel_junctions,  # type: ignore[name-defined]  # noqa: F821
         predictions_tsv=snakemake.input.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
@@ -519,6 +650,7 @@ def _snakemake_main() -> None:
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
+        hla_qc_tsv=_hla_qc if _hla_qc else None,  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -531,6 +663,7 @@ def _cli_main() -> None:
     parser.add_argument("--output", required=True, help="Output HTML report")
     parser.add_argument("--contigs-fasta", default=None, help="Contigs FASTA for junction visualisation")
     parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
+    parser.add_argument("--hla-qc", default=None, help="HLA QC TSV from aggregate_hla_alleles")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     args = parser.parse_args()
 
@@ -541,6 +674,7 @@ def _cli_main() -> None:
         contigs_fasta=args.contigs_fasta,
         ic50_strong=args.ic50_strong,
         tcrdock_pdb=args.tcrdock_pdb,
+        hla_qc_tsv=args.hla_qc,
     )
 
 
