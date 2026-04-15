@@ -273,23 +273,31 @@ fasterq-dump SRR12345678 --split-files --outdir data/
 
 #### Step 3: Create Sample Manifest
 
-Create a TSV file listing your samples at `config/samples.tsv`:
+Create a tab-separated value (TSV) file at `config/samples.tsv` with **no comments or headers**:
 
 ```tsv
-sample_id	sample_type	fastq1	fastq2
-tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
-tumor_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
-normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+patient_id	sample_id	sample_type	fastq1	fastq2
+patient_001	tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
+patient_001	normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+patient_002	tumor_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
+patient_002	normal_02	Solid Tissue Normal	data/normal_02_R1.fastq.gz
 ```
 
 **Column descriptions:**
 
 | Column | Required | Description |
 |--------|----------|-------------|
-| `sample_id` | Yes | Unique identifier for the sample |
-| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` — used for junction origin classification |
-| `fastq1` | Yes | Path to read 1 FASTQ (can be gzipped) |
-| `fastq2` | No | Path to read 2 FASTQ for paired-end data (leave empty for single-end) |
+| `patient_id` | Yes | Unique patient/experiment identifier. All rows with the same `patient_id` is processed together as a matched set (e.g. tumor + normal). Used as the output directory name. |
+| `sample_id` | Yes | Unique sample identifier (e.g., SRR9143066, tumor_sample_1). Used in output filenames. |
+| `sample_type` | Yes | Either `"Primary Tumor"` or `"Solid Tissue Normal"`— used for junction classification (tumor samples provide junctions; normal samples filter out patient-specific junctions). |
+| `fastq1` | Yes | Path to FASTQ file (gzip-compressed or uncompressed). For paired-end, this is read 1. |
+| `fastq2` | No | Path to read 2 FASTQ for paired-end sequencing. Leave empty for single-end data. |
+
+**Important notes:**
+- The file **must have exactly one header row** with column names in the order shown above.
+- Do **not** include comment rows (lines starting with `#`) — comments belong in this README, not in the TSV.
+- Each `patient_id` should match all related samples (tumor + normal, or multiple tumors from the same patient).
+- Paths in `fastq1` and `fastq2` are interpreted relative to the pipeline working directory (usually where you run `snakemake`).
 
 #### Step 4: Run the Pipeline
 
