@@ -174,8 +174,11 @@ _HTML_TEMPLATE = """\
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
-  <!-- Mermaid — pipeline diagram -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- Mermaid — pipeline diagram (requires network access to render).
+       Version and integrity hash are a matched pair — update both together. -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"
+          integrity="sha384-6F4Ibv/ylL12O35KFWTeGTHuBKDz5L6yjKsgv3QHQ8s4NTqlDXq7kMlYXGs7MHFc"
+          crossorigin="anonymous"></script>
   <script>mermaid.initialize({{startOnLoad: true, theme: 'default'}});</script>
   {molstar_assets}
   <style>
