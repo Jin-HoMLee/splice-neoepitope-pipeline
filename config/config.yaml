@@ -5,7 +5,7 @@
 # -----------------------------------------------------------------
 # Sample manifest
 # -----------------------------------------------------------------
-# Path to a TSV listing the RNA-Seq FASTQs for this patient. Columns:
+# Path to a TSV listing the RNA-Seq FASTQs. Columns:
 #   patient_id   sample_id    sample_type    fastq1    fastq2
 #
 # Example (samples.tsv):
