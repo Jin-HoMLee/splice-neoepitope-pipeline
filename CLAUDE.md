@@ -19,12 +19,12 @@ Normal samples are used to filter tumor junctions at the junction level, not at 
 all junctions
   └─ annotated        (in GENCODE)            → discard
   └─ unannotated      (not in GENCODE)
-       ├─ patient_specific  (also in normal)  → discard (kept in TSV for reference)
-       └─ tumor_specific    (absent in normal) → neoepitope prediction
+       ├─ normal_shared  (also in normal)  → discard (kept in TSV for reference)
+       └─ tumor_exclusive    (absent in normal) → neoepitope prediction
 ```
 This is the clinically correct approach: a junction present in matched normal tissue is not tumor-specific and should not be a neoepitope target. The Fisher's exact test (end-of-pipeline statistical comparison) was removed in favour of this upstream filtering step.
 
-When no normal sample is present, all unannotated junctions are labeled `tumor_specific` with a warning — the pipeline still runs.
+When no normal sample is present, all unannotated junctions are labeled `tumor_exclusive` with a warning — the pipeline still runs.
 
 ### TCRdock via Docker
 TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather than a conda env. The conda approach failed due to irreconcilable cuDNN/JAX/openmm version conflicts. The Docker image bundles CUDA 11.8, cuDNN 8, Python 3.10, JAX 0.3.25, AlphaFold params, and BLAST — the host only needs the NVIDIA Container Toolkit. Running CUDA 11.8 inside the container on a host with a newer driver (e.g. 12.8) is supported by NVIDIA's forward-compatibility guarantee.

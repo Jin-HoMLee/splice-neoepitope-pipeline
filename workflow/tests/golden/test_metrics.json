@@ -2,8 +2,8 @@
   "junctions": {
     "total_unannotated": 234,
     "by_origin": {
-      "tumor_specific": 231,
-      "patient_specific": 3
+      "tumor_exclusive": 231,
+      "normal_shared": 3
     }
   },
   "contigs": {

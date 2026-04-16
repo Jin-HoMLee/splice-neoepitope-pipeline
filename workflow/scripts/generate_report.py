@@ -2,7 +2,7 @@
 """generate_report.py — Generate a summary HTML report for pipeline results.
 
 Produces a self-contained HTML page showing:
-  1. Junction origin summary — counts of tumor_specific vs patient_specific
+  1. Junction origin summary — counts of tumor_exclusive vs normal_shared
      junctions per sample, so results can be quickly verified.
   2. Top strong binders — the highest-affinity predicted neoepitopes
      (IC50 < strong threshold).
@@ -50,12 +50,12 @@ _PIPELINE_DIAGRAM = """\
     <div class="split-header">Normal sample comparison</div>
     <div class="split-row">
       <div class="split-left">
-        <strong>patient_specific</strong><br/>
+        <strong>normal_shared</strong><br/>
         <small>also in normal tissue</small><br/>
         <span class="discard">→ excluded</span>
       </div>
       <div class="split-right">
-        <strong>tumor_specific</strong><br/>
+        <strong>tumor_exclusive</strong><br/>
         <small>absent in normal tissue</small><br/>
         <span class="keep">→ keep ↓</span>
       </div>
@@ -241,9 +241,9 @@ _HTML_TEMPLATE = """\
   <h2>Junction origin summary</h2>
   <p>Splice junctions detected in the tumor that are absent from the GENCODE
   reference annotation, grouped by whether they also appear in the matched normal
-  tissue. Only <strong class="keep">tumor_specific</strong> junctions — absent
+  tissue. Only <strong class="keep">tumor_exclusive</strong> junctions — absent
   from both the reference and the normal sample — are used for neoepitope
-  prediction. <strong class="discard">patient_specific</strong> junctions are
+  prediction. <strong class="discard">normal_shared</strong> junctions are
   present in normal tissue and are therefore not tumor-derived.</p>
   {origin_table}
 
@@ -442,7 +442,7 @@ def generate_report(
     # --- Junction origin summary ---
     if junc_df.empty or "junction_origin" not in junc_df.columns:
         origin_df = pd.DataFrame(
-            columns=["sample_id", "sample_type", "unannotated", "patient_specific", "tumor_specific"]
+            columns=["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
         )
     else:
         origin_rows = []
@@ -453,8 +453,8 @@ def generate_report(
                 "sample_id": sample_id,
                 "sample_type": sample_type,
                 "unannotated": len(grp),
-                "patient_specific": counts.get("patient_specific", 0),
-                "tumor_specific": counts.get("tumor_specific", 0),
+                "normal_shared": counts.get("normal_shared", 0),
+                "tumor_exclusive": counts.get("tumor_exclusive", 0),
             })
         origin_df = pd.DataFrame(origin_rows)
 

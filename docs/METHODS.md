@@ -45,22 +45,22 @@ Junctions are classified into three categories:
 all junctions
   └─ annotated          (present in GENCODE annotation)   → discard
   └─ unannotated        (absent from GENCODE annotation)
-       ├─ patient_specific   (also found in matched normal) → discard
-       └─ tumor_specific     (absent in matched normal)     → neoepitope prediction
+       ├─ normal_shared   (also found in matched normal) → excluded from prediction (retained in TSV)
+       └─ tumor_exclusive     (absent in matched normal)     → neoepitope prediction
 ```
 
 **Annotated junctions** are filtered against the GENCODE v47 GTF reference junction set.
 
-**Patient-specific junctions** are filtered by comparing tumor junctions against the
-matched normal sample. A junction present in the normal at ≥ 2 reads is considered
-patient-specific (germline or tissue-specific splicing) and discarded. These are
-retained in the output TSV for reference but excluded from prediction.
+**normal_shared junctions** are identified by comparing tumor junctions against the
+matched normal sample. A junction present in the normal at ≥ 2 reads is classified
+as `normal_shared` (germline or tissue-specific splicing) and excluded from prediction.
+These are retained in the output TSV for reporting.
 
-**Tumor-specific junctions** — unannotated and absent from the matched normal — are
+**tumor_exclusive junctions** — unannotated and absent from the matched normal — are
 carried forward to neoepitope prediction.
 
 When no matched normal sample is available, all unannotated junctions are labeled
-`tumor_specific` with a warning.
+`tumor_exclusive` with a warning.
 
 ---
 

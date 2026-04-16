@@ -24,7 +24,7 @@ the test to fail, which forces the developer to make a deliberate decision:
 What is compared
 ----------------
   junctions   total unannotated junctions and breakdown by origin
-              (tumor_specific vs patient_specific)
+              (tumor_exclusive vs normal_shared)
   contigs     number of assembled 50 nt contigs
   peptides    total and unique junction-spanning 9-mers
   predictions binder-class counts (strong / weak / non) and the exact set of
