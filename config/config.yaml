@@ -85,8 +85,9 @@ mhcflurry:
 hla:
   enabled: true
   min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
-  threads: 4                # threads per OptiType sample — keep at half of alignment.threads
-                            # so two samples run in parallel rather than serialised
+  threads: 4                # threads for razers3 read mapping per OptiType sample
+  solver: "cbc"            # ILP solver: cbc (recommended), glpk, or cplex
+  ilp_threads: 4           # threads for the ILP solver; used by CBC if supported by the build
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
