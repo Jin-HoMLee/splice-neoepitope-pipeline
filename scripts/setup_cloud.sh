@@ -29,8 +29,9 @@ set -euo pipefail
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 REPO_DIR="$HOME/splice-neoepitope-pipeline"
 REPO_BRANCH="main"
+STANDALONE=true
 
-# Parse optional --repo-branch argument
+# Parse optional arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --repo-branch)
@@ -39,6 +40,7 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             REPO_BRANCH="$2"; shift 2 ;;
+        --no-next-steps) STANDALONE=false; shift ;;
         *) echo "Unknown argument: $1" >&2; exit 1 ;;
     esac
 done
@@ -178,16 +180,19 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Setup complete! ==="
-echo ""
-echo "Next steps:"
-echo "  0. Open a new shell (or run: source ~/.bashrc) so that 'conda' is on your PATH"
-echo "  1. Edit config/samples.tsv with your sample FASTQ paths and sample types"
-echo "  2. Activate the Snakemake environment:"
-echo "       conda activate snakemake"
-echo "  3. From inside a tmux session, run the pipeline:"
-echo "       cd $REPO_DIR"
-echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
-echo ""
-echo "     The VM will NOT shut down automatically — stop it manually when done"
-echo "     to avoid charges. (The automated run_cloud_gpu.sh handles shutdown.)"
-echo "     To detach from tmux without stopping the run: Ctrl+B, then D."
+
+if [[ "${STANDALONE}" == true ]]; then
+    echo ""
+    echo "Next steps:"
+    echo "  0. Open a new shell (or run: source ~/.bashrc) so that 'conda' is on your PATH"
+    echo "  1. Edit config/samples.tsv with your sample FASTQ paths and sample types"
+    echo "  2. Activate the Snakemake environment:"
+    echo "       conda activate snakemake"
+    echo "  3. From inside a tmux session, run the pipeline:"
+    echo "       cd $REPO_DIR"
+    echo "       snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
+    echo ""
+    echo "     The VM will NOT shut down automatically — stop it manually when done"
+    echo "     to avoid charges. (The automated run_cloud_gpu.sh handles shutdown.)"
+    echo "     To detach from tmux without stopping the run: Ctrl+B, then D."
+fi

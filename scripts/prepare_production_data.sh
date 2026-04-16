@@ -19,6 +19,14 @@
 #
 set -euo pipefail
 
+STANDALONE=true
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-next-steps) STANDALONE=false; shift ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
+
 DATA="data"
 mkdir -p "$DATA"
 
@@ -63,7 +71,10 @@ fi
 
 echo ""
 echo "=== Downloads complete! ==="
-echo ""
-echo "Run the pipeline with:"
-echo "    conda activate snakemake"
-echo "    snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
+
+if [[ "${STANDALONE}" == true ]]; then
+    echo ""
+    echo "Run the pipeline with:"
+    echo "    conda activate snakemake"
+    echo "    snakemake --cores \$(nproc) --use-conda 2>&1 | tee pipeline.log"
+fi
