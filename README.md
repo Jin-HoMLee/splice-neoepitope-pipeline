@@ -606,7 +606,7 @@ All parameters are in `config/config.yaml`.  Key options:
 | `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
 | `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
-| `filtering.min_normal_reads` | `2` | Min reads in normal to trust a junction as patient-specific |
+| `filtering.min_normal_reads` | `2` | Min reads in normal to classify a junction as `normal_shared` (excluded from prediction) |
 | `tcrdock.enabled` | `false` | Enable TCRdock structural validation (GPU required) |
 | `tcrdock.docker_image` | `tcrdock:latest` | Docker image built by `setup_tcrdock_vm.sh` |
 | `tcrdock.n_candidates` | `1` | Number of top candidates to model |
