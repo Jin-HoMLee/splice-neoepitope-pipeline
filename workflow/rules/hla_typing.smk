@@ -75,7 +75,7 @@ if config.get("hla", {}).get("enabled", False):
             os.path.join(OUT["logs"], "hla_typing", "{patient_id}_{sample}.log"),
         params:
             outdir=lambda w: os.path.join(_HLA_TYPING_DIR, w.patient_id, w.sample),
-        threads: 4
+        threads: config.get("hla", {}).get("threads", 4)
         conda:
             "../envs/optitype.yaml"
         shell:

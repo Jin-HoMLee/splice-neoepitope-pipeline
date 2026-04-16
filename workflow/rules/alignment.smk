@@ -136,7 +136,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
         log:
             os.path.join(OUT["logs"], "hisat2", "hisat2_index.log"),
-        threads: 8
+        threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=8000,
         conda:
@@ -177,7 +177,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             output_prefix=lambda wildcards: os.path.join(
                 OUT["raw_data"], wildcards.patient_id, "files", wildcards.sample
             ),
-        threads: 8
+        threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=8000,
         conda:
@@ -241,7 +241,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             done=touch(os.path.join(_STAR_INDEX_DIR, "index.done")),
         log:
             os.path.join(OUT["logs"], "star", "star_index.log"),
-        threads: 8
+        threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
         conda:
@@ -289,7 +289,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             output_prefix=lambda wildcards: os.path.join(
                 OUT["raw_data"], wildcards.patient_id, "files", f"{wildcards.sample}_"
             ),
-        threads: 8
+        threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
         conda:
