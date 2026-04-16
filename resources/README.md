@@ -37,7 +37,7 @@ wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencod
 
 This file is used by `build_reference_junctions.py` to extract all known
 splice junctions, which are then used to filter out annotated junctions from
-the TCGA data.
+the RNA-Seq data.
 
 ---
 
@@ -71,8 +71,7 @@ reference:
 | GRCh38 genome FASTA (compressed) | ~840 MB |
 | GRCh38 genome FASTA (uncompressed) | ~3.1 GB |
 | GENCODE v47 GTF (compressed) | ~60 MB |
-| TCGA-BRCA junction files | ~5 GB |
-| TCGA-LUAD junction files | ~3 GB |
-| TCGA-LAML junction files | ~1 GB |
+| HISAT2 index | ~8 GB |
+| STAR index | ~30 GB |
 
-Total: approximately **12–15 GB** for all input data.
+Total: approximately **12 GB** for HISAT2 setup, **40 GB** for STAR setup.
