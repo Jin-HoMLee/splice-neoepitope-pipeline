@@ -9,7 +9,7 @@
 # patient-specific instead of relying on the hardcoded fallback allele.
 #
 # Enabled via config.hla.enabled: true. Requires data_source: "fastq".
-# If disabled, run_mhcflurry uses config.mhcflurry.hla_allele.
+# If disabled, run_mhcflurry uses config.mhcflurry.fallback_alleles.
 #
 # =============================================================================
 
@@ -134,7 +134,7 @@ EOF
         Applies a normal-first policy: HLA alleles are germline, so calls from
         Solid Tissue Normal / Blood Derived Normal are preferred over tumor
         (which may carry LOH at the HLA locus). Falls back to
-        config.hla.fallback_alleles when no sample passes the min_reads threshold.
+        config.mhcflurry.fallback_alleles when no sample passes the min_reads threshold.
 
         Writes a side hla_qc.tsv flagging the source of each locus call
         (normal / tumor / fallback) and any normal/tumor discrepancies.
