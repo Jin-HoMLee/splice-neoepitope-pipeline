@@ -19,6 +19,14 @@ import os
 if config.get("hla", {}).get("enabled", False):
 
     _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["raw_data"]), "hla_typing")
+    _OPTITYPE_SOLVER = str(config.get("hla", {}).get("solver", "cbc")).lower()
+    _OPTITYPE_ILP_THREADS = int(config.get("hla", {}).get("ilp_threads", 1))
+
+    if _OPTITYPE_SOLVER not in {"glpk", "cbc", "cplex"}:
+        raise ValueError(
+            f"Unsupported HLA solver '{_OPTITYPE_SOLVER}'. "
+            "Set config.hla.solver to one of: glpk, cbc, cplex."
+        )
 
 
     def _hla_sample_fastqs(wildcards):
@@ -75,6 +83,8 @@ if config.get("hla", {}).get("enabled", False):
             os.path.join(OUT["logs"], "hla_typing", "{patient_id}_{sample}.log"),
         params:
             outdir=lambda w: os.path.join(_HLA_TYPING_DIR, w.patient_id, w.sample),
+            solver=_OPTITYPE_SOLVER,
+            ilp_threads=_OPTITYPE_ILP_THREADS,
         threads: config.get("hla", {}).get("threads", 4)
         conda:
             "../envs/optitype.yaml"
@@ -92,8 +102,8 @@ razers3=$RAZERS3
 threads={threads}
 
 [ilp]
-solver=glpk
-threads=1
+solver={params.solver}
+threads={params.ilp_threads}
 
 [behavior]
 deletebam=true
@@ -103,6 +113,7 @@ EOF
 
             echo "[run_optitype] Sample: {wildcards.sample}" | tee -a {log}
             echo "[run_optitype] Input FASTQs: {input.fastqs}" | tee -a {log}
+            echo "[run_optitype] Solver: {params.solver} (ILP threads={params.ilp_threads}, mapping threads={threads})" | tee -a {log}
 
             OptiTypePipeline.py \
                 -i {input.fastqs} \
