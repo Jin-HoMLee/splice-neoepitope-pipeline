@@ -291,16 +291,14 @@ fi
 wait_for_ssh "${CPU_VM}"
 
 log "Running setup_cloud.sh on ${CPU_VM}..."
-ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" < scripts/setup_cloud.sh
-log "  Setup complete."
+ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
 
 log "Preparing data on ${CPU_VM} (${PREPARE_DATA_SCRIPT})..."
 ssh_cmd "${CPU_VM}" -- bash -s <<REMOTE
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
-bash ${PREPARE_DATA_SCRIPT}
+bash ${PREPARE_DATA_SCRIPT} --no-next-steps
 REMOTE
-log "  Data ready."
 
 log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
