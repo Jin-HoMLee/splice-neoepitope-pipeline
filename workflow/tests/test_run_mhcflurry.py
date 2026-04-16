@@ -128,6 +128,27 @@ class TestRunPredictionEmpty:
                 output_tsv=tmp_path / "out.tsv",
             )
 
+    def test_empty_alleles_tsv_raises(self, tmp_path):
+        """alleles_tsv with no valid allele values must raise ValueError."""
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+
+        alleles_tsv = tmp_path / "alleles.tsv"
+        with alleles_tsv.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["locus", "allele1", "allele2"], delimiter="\t"
+            )
+            writer.writeheader()
+            # Blank allele values — simulates misconfigured fallback
+            writer.writerow({"locus": "A", "allele1": "", "allele2": ""})
+
+        with pytest.raises(ValueError, match="no valid alleles"):
+            run_prediction(
+                peptides_tsv=peptides_tsv,
+                output_tsv=tmp_path / "out.tsv",
+                alleles_tsv=str(alleles_tsv),
+            )
+
 
 # ---------------------------------------------------------------------------
 # Binder classification
