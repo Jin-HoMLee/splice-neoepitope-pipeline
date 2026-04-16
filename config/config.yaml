@@ -86,7 +86,12 @@ assembly:
 # state-of-the-art performance without requiring academic registration.
 # It can be installed via pip and is included in the python conda env.
 mhcflurry:
-  hla_allele: "HLA-A*02:01"   # default allele (most prevalent)
+  # HLA-A/B/C alleles used for prediction when hla.enabled is false, or
+  # per-locus when OptiType returns no confident call (too few HLA reads).
+  fallback_alleles:
+    A: "HLA-A*02:01"
+    B: "HLA-B*07:02"
+    C: "HLA-C*07:02"
   ic50_strong:  50            # nM threshold for strong binders
   ic50_weak:   500            # nM threshold for weak binders
   # MHCflurry supports multiple prediction modes:
@@ -94,6 +99,16 @@ mhcflurry:
   #   "presentation"    - presentation score (recommended)
   #   "processing"      - antigen processing score
   prediction_mode: "affinity"
+
+# -----------------------------------------------------------------
+# HLA typing (optional — requires data_source: "fastq")
+# -----------------------------------------------------------------
+# When enabled, OptiType is run on each sample's FASTQ to predict
+# patient-specific HLA-A/B/C alleles. The resulting alleles.tsv is
+# passed to MHCflurry instead of mhcflurry.fallback_alleles.
+hla:
+  enabled: true
+  min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)

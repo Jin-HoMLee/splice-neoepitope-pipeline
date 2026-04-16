@@ -55,26 +55,30 @@ RNA-Seq data (local FASTQ files or GDC API)
         ▼ Step 1: Align/Download
   Splice junction quantification files (.tsv)
         │
-        ▼ Step 2: Classify by origin
-  - Remove annotated junctions (GENCODE reference)
-  - Compare tumor vs. matched normal:
+        ├─────────────────────────────────────────────────────┐
+        ▼                                                     ▼
+  Step 2: Classify by origin                        Step 2b: HLA typing (optional)
+  - Remove annotated junctions (GENCODE)            OptiType on normal sample FASTQs
+  - Compare tumor vs. matched normal:               → patient-specific A/B/C alleles
       normal_shared (in normal) → excluded
-      tumor_exclusive   (not in normal) → keep
+      tumor_exclusive (not in normal) → keep
+        │                                                     │
+        ▼─────────────────────────────────────────────────────┘
         │
         ▼ Step 3: Assemble
   50 nt contigs (26 nt upstream + 24 nt downstream, bedtools getfasta)
         │
         ▼ Step 4: Translate
-  16-mer peptides (3 reading frames, truncated at stop codons)
+  Junction-spanning 9-mers (3 reading frames, complete-codon filter)
         │
         ▼ Step 5: Predict
-  Junction-spanning 9-mer filter → MHCflurry 2.x → IC50 binding affinities (HLA-A*02:01)
+  MHCflurry 2.x → IC50 binding affinities per 9-mer × allele
         │
         ▼ Step 6: TCRdock structural validation (optional, GPU)
   TCR-peptide-MHC ternary complex 3D structure (AlphaFold v2 backend)
         │
         ▼ Step 7: Report
-  Junction origin summary + top binders + Mol* 3D viewer HTML report
+  Junction origin summary + HLA typing QC + top binders + Mol* 3D viewer HTML report
 ```
 
 ---
@@ -545,7 +549,7 @@ conda activate snakemake
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 ```
 
-Expected output: ~234 unannotated junctions (231 tumor_exclusive, 3 normal_shared) → ~79 contigs → ~11 strong MHC binders.
+Expected output: ~372 unannotated junctions (367 tumor_exclusive, 5 normal_shared) → ~75 contigs → ~52 strong binders across 6 patient-specific HLA alleles (A×2, B×2, C×2 from OptiType).
 
 > **Note**: Only reads mapping to chr22 are used, so junction counts are much
 > lower than a full-genome run — this is expected.
@@ -598,10 +602,11 @@ All parameters are in `config/config.yaml`.  Key options:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `cancer_types` | BRCA, LUAD, LAML | TCGA project IDs to analyse |
 | `reference.genome_fasta` | `resources/…` | Path to GRCh38 FASTA |
 | `reference.gencode_gtf` | `resources/…` | Path to GENCODE GTF |
-| `mhcflurry.hla_allele` | `HLA-A*02:01` | HLA allele for prediction |
+| `hla.enabled` | `true` | Run OptiType HLA typing on sample FASTQs |
+| `hla.min_reads_per_locus` | `30` | Minimum OptiType read count to trust a HLA call |
+| `mhcflurry.fallback_alleles` | `{A: HLA-A*02:01, B: HLA-B*07:02, C: HLA-C*07:02}` | HLA alleles used when HLA typing is disabled or a locus has too few reads |
 | `mhcflurry.ic50_strong` | `50` | Strong binder threshold (nM) |
 | `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
 | `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
@@ -610,7 +615,6 @@ All parameters are in `config/config.yaml`.  Key options:
 | `tcrdock.enabled` | `false` | Enable TCRdock structural validation (GPU required) |
 | `tcrdock.docker_image` | `tcrdock:latest` | Docker image built by `setup_tcrdock_vm.sh` |
 | `tcrdock.n_candidates` | `1` | Number of top candidates to model |
-| `tcrdock.fallback_hla` | `{A: HLA-A*02:01, B: HLA-B*07:02, C: HLA-C*07:02}` | Fallback HLA alleles as A/B/C mapping (until HLA typing #23) |
 | `tcrdock.fallback_tcr` | DMF5 TCR | Fallback TCR sequences (until TRUST4 #24) |
 
 ---
@@ -622,29 +626,35 @@ All outputs are written to the `results/` directory:
 ```
 results/
 ├── raw_data/
-│   └── {cancer_type}/
+│   └── {patient_id}/
 │       ├── manifest.tsv          # Sample manifest (file_id → sample_type)
 │       └── files/                # Junction quantification TSVs per sample
+├── hla_typing/                   # (when hla.enabled: true)
+│   └── {patient_id}/
+│       ├── {sample}/
+│       │   └── {sample}_result.tsv   # Per-sample OptiType output
+│       ├── alleles.tsv           # Aggregated patient HLA-A/B/C alleles
+│       └── hla_qc.tsv            # Per-locus source, read counts, discrepancies
 ├── junctions/
-│   └── {cancer_type}/
+│   └── {patient_id}/
 │       └── novel_junctions.tsv   # Classified junctions (junction_origin column:
 │                                 #   tumor_exclusive | normal_shared)
 ├── contigs/
-│   └── {cancer_type}/
+│   └── {patient_id}/
 │       └── contigs.fa            # 50 nt FASTA contigs (tumor_exclusive only)
 ├── peptides/
-│   └── {cancer_type}/
-│       └── peptides.fa           # 16-mer peptide FASTA
+│   └── {patient_id}/
+│       └── peptides.tsv          # Junction-spanning 9-mers (contig_key, start_nt, peptide)
 ├── predictions/
-│   └── {cancer_type}/
-│       ├── predictions.tsv       # MHCflurry results
+│   └── {patient_id}/
+│       ├── predictions.tsv       # MHCflurry results (one row per 9-mer × allele)
 │       └── tcrdock/              # (when TCRdock is enabled)
 │           ├── top_candidate.pdb # Predicted TCR-pMHC ternary complex
 │           └── docking_scores.tsv # pLDDT/PAE quality metrics
 └── reports/
-    └── {cancer_type}/
-        └── report.html           # Junction origin summary + top binders
-                                  # (+ Mol* 3D viewer when TCRdock is enabled)
+    └── {patient_id}/
+        └── report.html           # Junction origin summary + HLA typing QC
+                                  # + top binders (+ Mol* 3D viewer when TCRdock enabled)
 ```
 
 ---
@@ -697,6 +707,7 @@ splice-neoepitope-pipeline/
 │   │   ├── local_alignment.smk       # Step 1b: STAR local alignment
 │   │   ├── hisat2_alignment.smk      # Step 1b: HISAT2 local alignment
 │   │   ├── filter.smk                # Step 2: Novel junction filtering
+│   │   ├── hla_typing.smk            # Step 2b: OptiType HLA typing (optional)
 │   │   ├── assemble.smk              # Step 3: Contig assembly
 │   │   ├── translate.smk             # Step 4: Peptide translation
 │   │   ├── predict.smk               # Step 5: MHCflurry prediction
@@ -706,6 +717,7 @@ splice-neoepitope-pipeline/
 │   │   ├── hisat2.yaml               # hisat2, samtools, regtools
 │   │   ├── biotools.yaml             # bedtools, biopython, pandas
 │   │   ├── star.yaml                 # STAR aligner
+│   │   ├── optitype.yaml             # OptiType, razers3, glpk
 │   │   └── python.yaml               # mhcflurry, pandas, scipy, ...
 │   └── scripts/
 │       ├── download_gdc_data.py      # GDC API download
@@ -713,9 +725,10 @@ splice-neoepitope-pipeline/
 │       ├── build_reference_junctions.py  # GENCODE reference junction list
 │       ├── assemble_contigs.py       # 50 nt contig assembly
 │       ├── translate_peptides.py     # In-silico translation
-│       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + parser
+│       ├── aggregate_hla_alleles.py  # OptiType result aggregation + normal-first policy
+│       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + multi-allele support
 │       ├── run_tcrdock.py            # TCRdock Docker wrapper + PDB chain relabelling
-│       └── generate_report.py        # HTML report + Mol* 3D viewer
+│       └── generate_report.py        # HTML report + HLA QC section + Mol* 3D viewer
 ├── docs/
 │   ├── INTRODUCTION.md               # Biological background and study design
 │   ├── METHODS.md                    # Technical pipeline description
@@ -747,6 +760,8 @@ And the key tools used:
 - **Biopython**: Cock et al. (2009). Biopython: freely available Python tools
   for computational molecular biology and bioinformatics. *Bioinformatics*,
   25(11), 1422–1423.
+- **OptiType**: Szolek A et al. (2014). OptiType: precision HLA typing from
+  next-generation sequencing data. *Bioinformatics*, 30(23), 3310–3316.
 - **TCRdock**: Bradley P (2023). Structure-based prediction of T cell
   receptor:peptide-MHC interactions. *eLife*, 12, e82813.
 - **Mol\***: Sehnal D et al. (2021). Mol\* Viewer: modern web app for 3D

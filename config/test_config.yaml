@@ -30,6 +30,9 @@ reference:
   gencode_gtf:  "resources/test/chr22.gtf.gz"
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
+hla:
+  enabled: true   # test HLA typing on the chr22+chr6 subset
+
 output:
   raw_data:     "results/test/raw_data"
   junctions:    "results/test/junctions"

@@ -51,6 +51,8 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -73,6 +75,54 @@ def _first_patient_id() -> str:
 
 PATIENT_ID = _first_patient_id()
 GOLDEN_FILE = GOLDEN_DIR / "test_metrics.json"
+
+
+# ---------------------------------------------------------------------------
+# Config helpers
+# ---------------------------------------------------------------------------
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base (same semantics as Snakemake configfile merge)."""
+    result = dict(base)
+    for key, val in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(val, dict):
+            result[key] = _deep_merge(result[key], val)
+        else:
+            result[key] = val
+    return result
+
+
+def _load_merged_config() -> dict:
+    """Load config.yaml merged with test_config.yaml, mimicking Snakemake's merge order."""
+    base = yaml.safe_load((REPO_ROOT / "config" / "config.yaml").read_text())
+    test = yaml.safe_load((REPO_ROOT / "config" / "test_config.yaml").read_text())
+    return _deep_merge(base, test)
+
+
+def _read_run_config() -> dict:
+    """Collect the key input parameters that produced the current test outputs."""
+    cfg = _load_merged_config()
+    samples_tsv = REPO_ROOT / cfg.get("samples_tsv", "config/test_samples.tsv")
+    samples = [
+        {"sample_id": r["sample_id"], "sample_type": r["sample_type"]}
+        for r in csv.DictReader(samples_tsv.open(), delimiter="\t")
+    ]
+    ref = cfg.get("reference", {})
+    asm = cfg.get("assembly", {})
+    mhc = cfg.get("mhcflurry", {})
+    hla = cfg.get("hla", {})
+
+    return {
+        "patient_id": PATIENT_ID,
+        "samples": samples,
+        "reference_genome": ref.get("genome", "unknown"),
+        "gencode_gtf": Path(ref.get("gencode_gtf", "")).name,
+        "hla_typing_enabled": hla.get("enabled", False),
+        "upstream_nt": asm.get("upstream_nt", 26),
+        "downstream_nt": asm.get("downstream_nt", 24),
+        "ic50_strong_nM": mhc.get("ic50_strong", 50),
+        "ic50_weak_nM": mhc.get("ic50_weak", 500),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +167,7 @@ def collect_metrics() -> dict:
     strong_peptides = sorted(set(r["peptide"] for r in pred_rows if r["binder_class"] == "strong"))
 
     return {
+        "run_config": _read_run_config(),
         "junctions": {
             "total_unannotated": len(junc_rows),
             "by_origin": junc_origins,

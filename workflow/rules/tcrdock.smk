@@ -61,9 +61,7 @@ if _TCRDOCK_ENABLED:
         the report remains fully self-contained.
         """
         input:
-            novel_junctions=rules.filter_junctions.output.novel_junctions,
-            predictions_tsv=rules.run_mhcflurry.output.predictions_tsv,
-            contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
+            unpack(_generate_report_input),
             pdb=rules.run_tcrdock.output.pdb,
             scores_tsv=rules.run_tcrdock.output.scores_tsv,
         output:

@@ -39,36 +39,38 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _PIPELINE_DIAGRAM = """\
-<div class="pipeline">
-  <div class="step io">RNA-Seq reads<br/><small>tumor + normal</small></div>
-  <div class="arrow">↓</div>
-  <div class="step">HISAT2 alignment<br/><small>junction extraction with regtools</small></div>
-  <div class="arrow">↓</div>
-  <div class="step filter">GENCODE reference filter<br/><small>remove annotated junctions</small></div>
-  <div class="arrow">↓ unannotated junctions</div>
-  <div class="step split-wrap">
-    <div class="split-header">Normal sample comparison</div>
-    <div class="split-row">
-      <div class="split-left">
-        <strong>normal_shared</strong><br/>
-        <small>also in normal tissue</small><br/>
-        <span class="discard">→ excluded</span>
-      </div>
-      <div class="split-right">
-        <strong>tumor_exclusive</strong><br/>
-        <small>absent in normal tissue</small><br/>
-        <span class="keep">→ keep ↓</span>
-      </div>
-    </div>
-  </div>
-  <div class="arrow">↓</div>
-  <div class="step">Contig assembly<br/><small>50 nt per junction</small></div>
-  <div class="arrow">↓</div>
-  <div class="step">In-silico translation<br/><small>3 reading frames → junction-spanning 9-mers</small></div>
-  <div class="arrow">↓</div>
-  <div class="step">MHCflurry epitope prediction<br/><small>IC50 affinity per 9-mer</small></div>
-  <div class="arrow">↓</div>
-  <div class="step io">Neoepitope candidates<br/><small>strong / weak binders</small></div>
+<div class="mermaid">
+flowchart TD
+    reads(["RNA-seq reads<br/>tumor + normal"])
+    align["HISAT2 alignment<br/>junction extraction with regtools"]
+    hla["OptiType HLA typing<br/>normal sample - optional"]
+    ref["GENCODE reference filter<br/>remove annotated junctions"]
+    cmp["Normal sample comparison"]
+    ps["patient_specific<br/>also in normal tissue"]
+    ts["tumor_specific<br/>absent from normal tissue"]
+    asm["Contig assembly<br/>50 nt per junction"]
+    trans["In-silico translation<br/>3 reading frames - 9-mers"]
+    pred["MHCflurry prediction<br/>IC50 per 9-mer x allele"]
+    out(["Neoepitope candidates<br/>strong / weak binders"])
+
+    reads --> align
+    align --> hla
+    align --> ref
+    ref -->|unannotated junctions| cmp
+    cmp --> ps
+    cmp --> ts
+    ts --> asm
+    asm --> trans
+    trans --> pred
+    hla -->|patient-specific alleles| pred
+    pred --> out
+
+    style reads fill:#eafaf1,stroke:#27ae60
+    style out   fill:#eafaf1,stroke:#27ae60
+    style hla   fill:#f5eef8,stroke:#8e44ad
+    style ps    fill:#fdecea,stroke:#e74c3c
+    style ts    fill:#eafaf1,stroke:#27ae60
+    style ref   fill:#fef9e7,stroke:#f39c12
 </div>
 """
 
@@ -172,6 +174,12 @@ _HTML_TEMPLATE = """\
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Splice Neoepitope Report</title>
+  <!-- Mermaid — pipeline diagram (requires network access to render).
+       Version and integrity hash are a matched pair — update both together. -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"
+          integrity="sha384-6F4Ibv/ylL12O35KFWTeGTHuBKDz5L6yjKsgv3QHQ8s4NTqlDXq7kMlYXGs7MHFc"
+          crossorigin="anonymous"></script>
+  <script>mermaid.initialize({{startOnLoad: true, theme: 'default'}});</script>
   {molstar_assets}
   <style>
     body  {{ font-family: Arial, sans-serif; margin: 2em; color: #333; }}
@@ -181,36 +189,7 @@ _HTML_TEMPLATE = """\
     th, td {{ border: 1px solid #ddd; padding: 6px 10px; text-align: left; }}
     th    {{ background-color: #f2f2f2; }}
     tr:nth-child(even) {{ background-color: #f9f9f9; }}
-
-    /* Pipeline diagram */
-    .pipeline {{
-      display: flex; flex-direction: column; align-items: center;
-      max-width: 420px; margin: 1.5em auto;
-    }}
-    .step {{
-      background: #eaf4fb; border: 1px solid #3498db; border-radius: 6px;
-      padding: 10px 18px; text-align: center; width: 100%;
-      box-sizing: border-box; font-size: 0.95em;
-    }}
-    .step.io     {{ background: #eafaf1; border-color: #27ae60; }}
-    .step.filter {{ background: #fef9e7; border-color: #f39c12; }}
-    .arrow {{ color: #888; font-size: 1.3em; margin: 3px 0; line-height: 1; }}
-    .split-wrap {{
-      width: 100%; border: 1px solid #3498db; border-radius: 6px;
-      overflow: hidden; font-size: 0.95em;
-    }}
-    .split-header {{
-      background: #eaf4fb; padding: 8px 12px; text-align: center;
-      border-bottom: 1px solid #3498db;
-    }}
-    .split-row   {{ display: flex; }}
-    .split-left  {{
-      flex: 1; background: #fdecea; padding: 10px 12px; text-align: center;
-      border-right: 1px solid #ddd;
-    }}
-    .split-right {{ flex: 1; background: #eafaf1; padding: 10px 12px; text-align: center; }}
-    .discard {{ color: #c0392b; }}
-    .keep    {{ color: #27ae60; }}
+    .mermaid {{ max-width: 560px; margin: 1.5em auto; }}
 
     /* Contig visualisation */
     .contig  {{ font-family: monospace; font-size: 0.85em; white-space: nowrap; }}
@@ -247,6 +226,8 @@ _HTML_TEMPLATE = """\
   present in normal tissue and are therefore not tumor-derived.</p>
   {origin_table}
 
+  {hla_section}
+
   <h2>Neoepitope prediction summary</h2>
   {binder_table}
 
@@ -263,6 +244,81 @@ _HTML_TEMPLATE = """\
 </body>
 </html>
 """
+
+
+def _build_hla_section(hla_qc_tsv: str) -> str:
+    """Build the HLA typing results section from hla_qc.tsv.
+
+    Shows per-locus alleles, the source of each call (normal / tumor / fallback),
+    the number of HLA reads OptiType used, and any normal/tumor discrepancies.
+    """
+    try:
+        df = pd.read_csv(hla_qc_tsv, sep="\t")
+    except Exception as exc:
+        log.warning("Could not read HLA QC TSV %s: %s", hla_qc_tsv, exc)
+        return ""
+
+    if df.empty:
+        return ""
+
+    source_colours = {
+        "normal":   "#27ae60",
+        "tumor":    "#e67e22",
+        "fallback": "#c0392b",
+    }
+    rows = []
+    has_discrepancy = False
+    for _, row in df.iterrows():
+        source = str(row.get("source", ""))
+        colour = source_colours.get(source, "#888")
+        source_badge = (
+            f'<span style="color:{colour};font-weight:bold">'
+            f'{html_mod.escape(source)}</span>'
+        )
+        discrepancy = str(row.get("discrepancy", "") or "").strip()
+        if discrepancy:
+            has_discrepancy = True
+        disc_cell = (
+            f'<td style="background:#fef3cd">{html_mod.escape(discrepancy)}</td>'
+            if discrepancy else "<td>—</td>"
+        )
+        rows.append(
+            f"<tr>"
+            f"<td><strong>{html_mod.escape(str(row['locus']))}</strong></td>"
+            f"<td><code>{html_mod.escape(str(row['allele1']))}</code></td>"
+            f"<td><code>{html_mod.escape(str(row['allele2']))}</code></td>"
+            f"<td>{source_badge}</td>"
+            f"<td>{html_mod.escape(str(row.get('reads', '')))}</td>"
+            f"{disc_cell}"
+            f"</tr>"
+        )
+
+    table = (
+        "<table><thead><tr>"
+        "<th>Locus</th><th>Allele 1</th><th>Allele 2</th>"
+        "<th>Source</th><th>HLA reads</th><th>Normal/tumor discrepancy</th>"
+        "</tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
+    )
+
+    note = ""
+    if has_discrepancy:
+        note = (
+            "<p><em><strong>Note:</strong> Normal/tumor discrepancy detected in one or "
+            "more loci. Normal sample calls are used for prediction (normal-first policy). "
+            "Discrepancies may indicate loss of heterozygosity at the HLA locus in the "
+            "tumor, or low read depth in the test subset.</em></p>"
+        )
+
+    return (
+        "<h2>HLA typing (OptiType)</h2>"
+        "<p>Patient HLA-A/B/C alleles typed by OptiType from RNA-seq reads. "
+        "<strong>Normal-first policy:</strong> calls from Solid Tissue Normal are "
+        "preferred over tumor (which may carry LOH at the HLA locus). "
+        "These alleles were used for patient-specific neoepitope prediction.</p>"
+        + note + table
+    )
 
 
 def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
@@ -418,6 +474,7 @@ def generate_report(
     predictions_tsv: str | Path,
     output_html: str | Path,
     contigs_fasta: str | Path | None = None,
+    hla_qc_tsv: str | None = None,
     ic50_strong: float = 50.0,
     tcrdock_pdb: str | Path | None = None,
 ) -> None:
@@ -428,6 +485,8 @@ def generate_report(
         predictions_tsv:     MHCflurry predictions TSV.
         output_html:         Destination HTML file.
         contigs_fasta:       Contig FASTA for junction visualisation (optional).
+        hla_qc_tsv:          HLA QC TSV from aggregate_hla_alleles (optional). When
+                             provided, an HLA typing section is added to the report.
         ic50_strong:         Strong-binder IC50 threshold (nM).
         tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
                              an embedded Mol* 3D viewer is added to the report.
@@ -474,6 +533,9 @@ def generate_report(
     else:
         strong_html = _build_strong_table_html(pred_df, contigs)
 
+    # --- HLA typing section (optional) ---
+    hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
+
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
         structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df)
@@ -494,6 +556,7 @@ def generate_report(
     report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
+        hla_section=hla_section,
         binder_table=binder_html,
         strong_table=strong_html,
         structure_section=structure_section,
@@ -517,6 +580,7 @@ def _snakemake_main() -> None:
         predictions_tsv=snakemake.input.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_html=snakemake.output.report_html,  # type: ignore[name-defined]  # noqa: F821
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
+        hla_qc_tsv=getattr(snakemake.input, "hla_qc", None),  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
     )
@@ -530,6 +594,7 @@ def _cli_main() -> None:
     parser.add_argument("--predictions", required=True, help="MHCflurry predictions TSV")
     parser.add_argument("--output", required=True, help="Output HTML report")
     parser.add_argument("--contigs-fasta", default=None, help="Contigs FASTA for junction visualisation")
+    parser.add_argument("--hla-qc-tsv", default=None, help="HLA QC TSV from aggregate_hla_alleles")
     parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     args = parser.parse_args()
@@ -539,6 +604,7 @@ def _cli_main() -> None:
         predictions_tsv=args.predictions,
         output_html=args.output,
         contigs_fasta=args.contigs_fasta,
+        hla_qc_tsv=args.hla_qc_tsv,
         ic50_strong=args.ic50_strong,
         tcrdock_pdb=args.tcrdock_pdb,
     )
