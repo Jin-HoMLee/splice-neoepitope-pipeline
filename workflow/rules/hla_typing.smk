@@ -8,7 +8,7 @@
 # The resulting alleles.tsv is consumed by run_mhcflurry to make predictions
 # patient-specific instead of relying on the hardcoded fallback allele.
 #
-# Enabled via config.hla.enabled: true. Requires data_source: "fastq".
+# Enabled via config.hla.enabled: true.
 # If disabled, run_mhcflurry uses config.mhcflurry.fallback_alleles.
 #
 # =============================================================================
@@ -16,10 +16,7 @@
 import os
 
 
-if (
-    config.get("hla", {}).get("enabled", False)
-    and config.get("data_source") == "fastq"
-):
+if config.get("hla", {}).get("enabled", False):
 
     _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["raw_data"]), "hla_typing")
 

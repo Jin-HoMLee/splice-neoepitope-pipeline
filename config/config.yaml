@@ -76,7 +76,7 @@ mhcflurry:
   prediction_mode: "affinity"
 
 # -----------------------------------------------------------------
-# HLA typing (optional — requires data_source: "fastq")
+# HLA typing (optional)
 # -----------------------------------------------------------------
 # When enabled, OptiType is run on each sample's FASTQ to predict
 # patient-specific HLA-A/B/C alleles. The resulting alleles.tsv is

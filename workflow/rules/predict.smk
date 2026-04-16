@@ -2,10 +2,7 @@
 # Rule module: Step 5 — Epitope prediction with MHCflurry 2.x
 # =============================================================================
 
-_HLA_TYPING_ENABLED = (
-    config.get("hla", {}).get("enabled", False)
-    and config.get("data_source") == "fastq"
-)
+_HLA_TYPING_ENABLED = config.get("hla", {}).get("enabled", False)
 
 # When HLA typing is enabled, the patient-specific alleles.tsv produced by
 # aggregate_hla_alleles is wired in as an input so Snakemake tracks the
