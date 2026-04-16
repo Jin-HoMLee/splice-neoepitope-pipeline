@@ -9,9 +9,9 @@ Intended as a living document to be refined into a publication methods section.
 
 The pipeline identifies tumor-specific splice junctions from RNA-seq data and predicts
 peptides derived from those junctions that may bind MHC class I molecules (neoepitopes).
-The workflow is implemented in Snakemake and consists of five major stages: alignment,
-junction extraction, junction classification, contig assembly and translation, and
-MHC binding prediction.
+The workflow is implemented in Snakemake and consists of six major stages: alignment,
+junction extraction, junction classification, HLA typing, contig assembly and translation,
+and MHC binding prediction.
 
 ---
 
@@ -148,17 +148,36 @@ binder in the gastric cancer production run (`YLADLYHFV`, IC50 = 9.4 nM) was fou
 BLAST to be residues 209–217 of the normal SH3BP1 protein — a peptide the immune system
 is already tolerant to.
 
-### 5.3 MHCflurry prediction
+### 5.3 HLA typing
+
+Patient HLA-A, -B, and -C alleles are typed using OptiType (Szolek et al., 2014).
+OptiType aligns RNA-seq reads to an HLA-specific reference (IMGT/HLA) using razers3
+and solves an integer linear programme to call the most likely genotype.
+
+A **normal-first policy** is applied: calls from the Solid Tissue Normal sample are
+preferred over the Primary Tumor, as HLA alleles are germline and the tumor may carry
+loss of heterozygosity (LOH) at the HLA locus. When the normal sample provides
+insufficient reads (< 30 per locus), the tumor sample is used. If neither sample
+yields a confident call, per-locus fallback alleles from `config.mhcflurry.fallback_alleles`
+are substituted with a warning.
+
+The aggregated per-patient alleles (`alleles.tsv`) and a QC file flagging the source
+of each call and any normal/tumor discrepancies (`hla_qc.tsv`) are written to
+`results/hla_typing/{patient_id}/`.
+
+### 5.4 MHCflurry prediction
 
 Junction-spanning 9-mers are scored for MHC class I binding affinity using MHCflurry
-2.x (`Class1AffinityPredictor`). Peptides are classified as:
+2.x (`Class1AffinityPredictor`). Predictions are run for all six patient-specific
+HLA alleles (A×2, B×2, C×2) resolved by OptiType, producing one row per 9-mer × allele
+combination. When HLA typing is disabled, the fallback alleles from
+`config.mhcflurry.fallback_alleles` are used instead.
 
-- **Strong binder:** IC50 < 50 nM
-- **Weak binder:** IC50 < 500 nM
-- **Non-binder:** IC50 ≥ 500 nM
+Peptides are classified as:
 
-The default HLA allele is HLA-A\*02:01 (the most common allele in populations of
-European descent). Future work will incorporate patient-specific HLA typing.
+- **Strong binder:** IC50 ≤ 50 nM
+- **Weak binder:** IC50 ≤ 500 nM
+- **Non-binder:** IC50 > 500 nM
 
 ---
 
@@ -168,16 +187,17 @@ The pipeline produces:
 
 | File | Contents |
 |------|----------|
-| `results/junctions/<cancer_type>/novel_junctions.tsv` | All unannotated junctions with origin labels |
-| `results/predictions/<cancer_type>/predictions.tsv` | All 9-mer predictions with IC50 and binder class |
-| `results/reports/<cancer_type>/report.html` | Summary HTML report |
+| `results/hla_typing/{patient_id}/alleles.tsv` | Patient HLA-A/B/C alleles (normal-first) |
+| `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
+| `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
+| `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
+| `results/predictions/{patient_id}/predictions.tsv` | All 9-mer predictions with IC50 and binder class (one row per 9-mer × allele) |
+| `results/reports/{patient_id}/report.html` | Summary HTML report with HLA QC section |
 
 ---
 
 ## Known Limitations and Future Work
 
-- **Single HLA allele:** currently only HLA-A\*02:01 is scored. Patient-specific HLA
-  typing (e.g. via OptiType or HLA-HD) would improve clinical relevance.
 - **No proteome filter:** peptides are not cross-referenced against the full human
   proteome beyond the junction-spanning filter. A BLAST or exact-match check against
   the reference proteome would catch any remaining false positives.
@@ -186,3 +206,6 @@ The pipeline produces:
   (see issue #17).
 - **Pre-built genome index:** the HISAT2 index is currently built from scratch on each
   new VM run (~60–90 min). Using a pre-built index (issue #16) would reduce startup time.
+- **HLA typing from RNA-seq:** OptiType is run on RNA-seq reads, which may have lower
+  HLA coverage than WES/WGS. Low read depth (< 30 reads per locus) triggers fallback
+  to configured default alleles with a warning.
