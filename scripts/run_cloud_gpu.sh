@@ -316,6 +316,7 @@ tmux kill-session -t pipeline 2>/dev/null || true
 tmux new-session -d -s pipeline "
     source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
     conda activate snakemake
+    snakemake --unlock --configfile ${CONFIG_FILE} 2>/dev/null || true
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
@@ -477,6 +478,7 @@ find ${RESULTS_DIR} -name report.html -delete
 source "\$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate snakemake
 
+snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml 2>/dev/null || true
 snakemake \\
     --cores "\$(nproc)" \\
     --use-conda \\
