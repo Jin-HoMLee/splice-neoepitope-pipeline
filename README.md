@@ -15,10 +15,7 @@ RNA-Seq.
 1. [Scientific Background](#scientific-background)
 2. [Pipeline Overview](#pipeline-overview)
 3. [Installation and Setup](#installation-and-setup)
-4. [Data Source Options](#data-source-options)
-   - [Option A: Local Alignment (Recommended)](#option-a-local-alignment-recommended---no-institutional-access-required)
-   - [Option B: Cloud-Based Execution (Google Cloud)](#option-b-cloud-based-alignment-for-users-without-local-resources)
-   - [Option C: GDC Download](#option-c-gdc-download-requires-institutional-access)
+4. [Alignment](#alignment)
 5. [MHCflurry](#mhcflurry-epitope-predictor)
 6. [TCRdock Structural Validation (Optional)](#tcrdock-structural-validation-optional)
 7. [Reference Data](#reference-data)
@@ -50,9 +47,9 @@ matched normal sample, and predicts which resulting peptides bind MHC class I mo
 ## Pipeline Overview
 
 ```
-RNA-Seq data (local FASTQ files or GDC API)
+RNA-Seq FASTQ files
         │
-        ▼ Step 1: Align/Download
+        ▼ Step 1: Align (HISAT2 or STAR)
   Splice junction quantification files (.tsv)
         │
         ├─────────────────────────────────────────────────────┐
@@ -196,254 +193,63 @@ environment is active and that all files were cloned correctly.
 
 ---
 
-## Data Source Options
+## Alignment
 
-This pipeline supports two data source modes:
-
-| Mode | Institutional Access | Description |
-|------|---------------------|-------------|
-| **Local Alignment** | ❌ Not required | Align your own FASTQ files using HISAT2 or STAR |
-| **GDC Download** | ✅ Required | Download pre-computed files from GDC |
-
----
-
-### Option A: Local Alignment (Recommended) — No Institutional Access Required
-
-This mode generates splice junction quantification from raw FASTQ files using
-either **STAR** or **HISAT2**. You can use:
-
-- Your own RNA-Seq data
-- Publicly available datasets from SRA, GEO, or ENCODE
-- Any GRCh38/hg38-aligned RNA-Seq data
-
-#### Choose Your Aligner
+The pipeline aligns RNA-Seq FASTQ files using either **HISAT2** (default) or
+**STAR**. Choose based on your available RAM:
 
 | Aligner | RAM Required | Index Size | Best For |
 |---------|--------------|------------|----------|
 | **HISAT2** | ~8 GB | ~8 GB | Laptops, small servers, limited resources |
 | **STAR** | ~32 GB | ~30 GB | Full accuracy, high-memory systems |
 
-> **Recommendation**: Start with **HISAT2** if you have limited RAM. HISAT2
-> produces compatible splice junction output with ~8 GB RAM vs STAR's ~32 GB.
-
-#### Step 1: Set Data Source Mode and Aligner
-
-Edit `config/config.yaml`:
+Set your aligner in `config/config.yaml`:
 
 ```yaml
-data_source: "fastq"   # Align your own FASTQ files
-
 samples_tsv: "config/samples.tsv"
 
 alignment:
   aligner: "hisat2"    # "hisat2" (8 GB RAM) or "star" (32 GB RAM)
 ```
 
-#### Step 2: Obtain RNA-Seq FASTQ Data
+### Obtaining RNA-Seq FASTQ Data
 
-**Public RNA-Seq datasets (no access restrictions):**
+Use any publicly available cancer RNA-Seq dataset:
 
-| Source | URL | Description |
-|--------|-----|-------------|
-| **SRA/ENA** | https://www.ncbi.nlm.nih.gov/sra | Millions of publicly available RNA-Seq runs |
-| **GEO** | https://www.ncbi.nlm.nih.gov/geo | Gene Expression Omnibus |
-| **ENCODE** | https://www.encodeproject.org | High-quality RNA-Seq from cell lines |
-| **GTEx** | https://gtexportal.org | Normal tissue RNA-Seq (open access) |
+| Source | Description |
+|--------|-------------|
+| **SRA/ENA** | Millions of public RNA-Seq runs — ENA provides direct HTTPS FASTQ download |
+| **GEO** | Gene Expression Omnibus |
+| **ENCODE** | High-quality RNA-Seq from cell lines |
+| **GTEx** | Normal tissue RNA-Seq (open access) |
 
-**Downloading public RNA-Seq data:**
-
-ENA (European Nucleotide Archive) provides direct HTTPS access to FASTQ files
-and is the most reliable option, especially on macOS:
+ENA HTTPS download (most reliable, no extra tools needed):
 
 ```bash
-# Stream from ENA — no extra tools needed, works on all platforms
-# Replace ERR188273 with your accession; adjust the FTP path accordingly
-curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR188/ERR188273/ERR188273_1.fastq.gz" \
-    -o data/sample_R1.fastq.gz
-curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR188/ERR188273/ERR188273_2.fastq.gz" \
-    -o data/sample_R2.fastq.gz
+curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/SRR9143066/SRR9143066.fastq.gz" \
+    -o data/tumor.fastq.gz
 ```
 
-Alternatively, use `fasterq-dump` from sra-tools if you already have it
-installed (note: conda installation of sra-tools can be unreliable on macOS
-arm64 — ENA download is preferred in that case):
+### Sample Manifest
 
-```bash
-fasterq-dump SRR12345678 --split-files --outdir data/
-```
-
-> **Tip**: Search GEO for `"RNA-Seq" AND "cancer" AND "Homo sapiens"` to find
-> publicly available cancer RNA-Seq datasets. Check ENA for direct FASTQ URLs.
-
-#### Step 3: Create Sample Manifest
-
-Create a TSV file listing your samples at `config/samples.tsv`:
+Create `config/samples.tsv` listing your samples:
 
 ```tsv
-sample_id	sample_type	fastq1	fastq2
-tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
-tumor_02	Primary Tumor	data/tumor_02_R1.fastq.gz	data/tumor_02_R2.fastq.gz
-normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+patient_id	sample_id	sample_type	fastq1	fastq2
+patient_001	tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
+patient_001	normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
 ```
-
-**Column descriptions:**
 
 | Column | Required | Description |
 |--------|----------|-------------|
-| `sample_id` | Yes | Unique identifier for the sample |
-| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` — used for junction origin classification |
-| `fastq1` | Yes | Path to read 1 FASTQ (can be gzipped) |
-| `fastq2` | No | Path to read 2 FASTQ for paired-end data (leave empty for single-end) |
+| `patient_id` | Yes | Patient identifier — all rows with the same `patient_id` are treated as a matched set |
+| `sample_id` | Yes | Unique sample identifier |
+| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` |
+| `fastq1` | Yes | Read 1 FASTQ path (can be gzipped) |
+| `fastq2` | No | Read 2 FASTQ for paired-end data (leave empty for single-end) |
 
-#### Step 4: Run the Pipeline
-
-```bash
-snakemake --cores 8 --use-conda
-```
-
-The pipeline will:
-1. Build genome index (first run only: ~10 min for HISAT2, ~30 min for STAR)
-2. Align each sample (~10-30 min per sample)
-3. Continue with filtering, translation, and prediction
-
-#### System Requirements by Aligner
-
-**HISAT2 (Recommended for most users):**
-
-| Resource | Minimum | Recommended | Notes |
-|----------|---------|-------------|-------|
-| RAM | **8 GB** | 16 GB | HISAT2 indexing needs only ~8 GB |
-| Disk | 50 GB | 100 GB | Smaller index (~8 GB) |
-| CPU | 4 cores | 8 cores | Alignment is parallelised |
-
-**STAR (Full accuracy mode):**
-
-| Resource | Minimum | Recommended | Notes |
-|----------|---------|-------------|-------|
-| RAM | 32 GB | 64 GB | STAR indexing needs ~32 GB |
-| Disk | 100 GB | 200 GB | Larger index (~30 GB) |
-| CPU | 4 cores | 16 cores | Alignment is parallelised |
-
----
-
-### Option B: Cloud-Based Alignment (For users without local resources)
-
-If you don't have a machine with sufficient RAM, you can run the **entire pipeline**
-on cloud platforms. We provide a comprehensive guide for Google Cloud Platform.
-
-| Platform | Cost | Description |
-|----------|------|-------------|
-| **Google Cloud** ⭐ | Pay-per-use | **[Full guide](docs/google_cloud_guide.md)** — Recommended |
-| **Galaxy** | Free | [usegalaxy.org](https://usegalaxy.org) — Run HISAT2/STAR in browser |
-| **AWS** | Pay-per-use | EC2 instances |
-
-#### Google Cloud Platform (Recommended)
-
-We provide a **[complete step-by-step guide](docs/google_cloud_guide.md)** for running
-the pipeline on Google Cloud, including:
-
-- **VM setup** — One-click instance creation with correct specs
-- **Cost estimates** — ~$1–5 for small test runs, ~$10–30 for full analysis
-- **Data transfer** — Upload/download FASTQ files and results
-- **Spot VMs** — Save 60–80% with preemptible instances
-- **Troubleshooting** — Memory, disk, and SSH issues
-
-**Quick start (Google Cloud):**
-
-```bash
-# 1. Create a VM (16 GB RAM, sufficient for HISAT2)
-gcloud compute instances create splice-pipeline \
-    --zone=us-central1-a \
-    --machine-type=n2-standard-4 \
-    --boot-disk-size=100GB \
-    --image-family=ubuntu-2204-lts \
-    --image-project=ubuntu-os-cloud
-
-# 2. Connect
-gcloud compute ssh splice-pipeline --zone=us-central1-a
-
-# 3. On the VM, install conda, clone repo, configure samples, then run:
-snakemake --cores $(nproc) --use-conda 2>&1 | tee pipeline.log
-
-# 4. Download results when done
-gcloud compute scp --recurse splice-pipeline:~/splice-neoepitope-pipeline/results/ ./results/ --zone=us-central1-a
-
-# 5. Delete VM to stop billing
-gcloud compute instances delete splice-pipeline --zone=us-central1-a
-```
-
-📖 **See [docs/google_cloud_guide.md](docs/google_cloud_guide.md) for the full guide.**
-
-#### Galaxy Workflow (Free, browser-based)
-
-1. Upload your FASTQ files to [usegalaxy.org](https://usegalaxy.org)
-2. Search for "HISAT2" or "STAR" in the tool panel
-3. Run alignment with GRCh38/hg38 genome
-4. Download the junction output file (`.tsv` or `.bed`)
-5. Place in `results/raw_data/local/files/` and continue with the pipeline locally
-
----
-
-### Option C: GDC Download (Requires Institutional Access)
-
-This mode downloads pre-computed splice junction quantification files from the
-GDC Data Portal. **TCGA data is controlled-access** and requires:
-
-1. An eRA Commons account
-2. dbGaP access approved for TCGA
-3. A GDC authentication token
-
-#### Step 1: Set Data Source Mode
-
-Edit `config/config.yaml`:
-
-```yaml
-data_source: "gdc"   # Download from GDC (requires authentication)
-```
-
-#### Step 2: Obtain dbGaP Access
-
-1. Apply for controlled-access TCGA data via [dbGaP](https://dbgap.ncbi.nlm.nih.gov/)
-2. Your institution's signing official must approve the Data Access Request (DAR)
-3. This process typically takes 1–4 weeks
-
-> **Note**: If you already have TCGA access through another project (e.g.,
-> via your institution's blanket approval), you can skip to Step 3.
-
-#### Step 3: Download Your GDC Token
-
-1. Go to **https://portal.gdc.cancer.gov/**
-2. Click **Login** (top right) and authenticate via eRA Commons / NIH
-3. After login, click your username (top right) → **Download Token**
-4. Save the downloaded file (e.g., `gdc-user-token.txt`)
-
-The token is valid for **30 days**; you'll need to download a new one after
-it expires.
-
-#### Step 4: Configure the Pipeline
-
-Edit `config/config.yaml` and set the path to your token file:
-
-```yaml
-gdc:
-  # ... other settings ...
-  token_file: "~/.gdc-user-token.txt"   # path to your GDC token
-```
-
-Alternatively, place the token in your home directory:
-
-```bash
-mv ~/Downloads/gdc-user-token*.txt ~/.gdc-user-token.txt
-chmod 600 ~/.gdc-user-token.txt   # restrict permissions
-```
-
-#### Troubleshooting GDC Downloads
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `403 Forbidden` | No token or expired | Download a fresh token from GDC |
-| `403 Forbidden` | No dbGaP access | Apply for TCGA access via dbGaP |
-| Token file not found | Wrong path | Check `gdc.token_file` in config.yaml |
+> **No local resources?** See [docs/google_cloud_guide.md](docs/google_cloud_guide.md)
+> for a step-by-step guide to running the pipeline on Google Cloud.
 
 ---
 
@@ -575,13 +381,13 @@ Replace `<N>` with the number of CPU cores to use.
 ### Run a specific step
 
 ```bash
-# Only download data for TCGA-BRCA
-snakemake --cores 4 --use-conda \
-  results/raw_data/TCGA-BRCA/download.done
-
 # Only build the reference junction list
 snakemake --cores 2 --use-conda \
   resources/reference_junctions.bed
+
+# Only align one patient
+snakemake --cores 8 --use-conda \
+  results/raw_data/patient_001/download.done
 ```
 
 ### Cluster execution
@@ -669,8 +475,8 @@ pipeline to this modernised implementation.  See
 |-----------|----------------|------------|--------|
 | Reference genome | hg19 | **GRCh38/hg38** | Current standard assembly |
 | Reference annotation | UCSC RefSeq hg19 | **GENCODE v47 GRCh38** | Comprehensive, programmatically reproducible |
-| Data source | TCGA HTTP directory (retired) | **GDC Data Portal REST API** | TCGA HTTP retired in 2016 |
-| RNA-Seq aligner | TopHat2 | **HISAT2** (default) / **STAR** (optional) | HISAT2 for low-memory runs; STAR planned for production (issue #17) |
+| Input | Pre-downloaded junction files | **FASTQ files (local alignment)** | No controlled-access requirement |
+| RNA-Seq aligner | TopHat2 | **HISAT2** (default) / **STAR** (optional) | TopHat2 unmaintained; HISAT2 its successor at lower memory |
 | Epitope predictor | NetMHCPan **2.8** | **MHCflurry 2.x** | Open source; no registration; SOTA accuracy |
 | Junction-spanning filter | None (all 9-mers included) | **Complete-codon rule** — only 9-mers with ≥1 full codon from each exon retained (issue #18); applied at translation step (issue #20) | Eliminates purely exonic false positives (e.g. `YLADLYHFV` = SH3BP1) |
 | Biopython API | `Bio.Alphabet` | **`Bio.Seq` only** | `Bio.Alphabet` removed in Biopython ≥1.78 |
@@ -703,9 +509,7 @@ splice-neoepitope-pipeline/
 │   └── Dockerfile.pipeline           # TCRdock Docker image (CUDA 11.8 + AlphaFold)
 ├── workflow/
 │   ├── rules/
-│   │   ├── download.smk              # Step 1a: GDC data download
-│   │   ├── local_alignment.smk       # Step 1b: STAR local alignment
-│   │   ├── hisat2_alignment.smk      # Step 1b: HISAT2 local alignment
+│   │   ├── alignment.smk             # Step 1: HISAT2 or STAR alignment
 │   │   ├── filter.smk                # Step 2: Novel junction filtering
 │   │   ├── hla_typing.smk            # Step 2b: OptiType HLA typing (optional)
 │   │   ├── assemble.smk              # Step 3: Contig assembly
@@ -720,7 +524,6 @@ splice-neoepitope-pipeline/
 │   │   ├── optitype.yaml             # OptiType, razers3, glpk
 │   │   └── python.yaml               # mhcflurry, pandas, scipy, ...
 │   └── scripts/
-│       ├── download_gdc_data.py      # GDC API download
 │       ├── filter_junctions.py       # Novel junction filtering
 │       ├── build_reference_junctions.py  # GENCODE reference junction list
 │       ├── assemble_contigs.py       # 50 nt contig assembly

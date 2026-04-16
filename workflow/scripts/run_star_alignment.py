@@ -2,13 +2,8 @@
 """run_star_alignment.py — Generate splice junction quantification from raw
 FASTQ files using STAR aligner.
 
-This script provides an open-access alternative to downloading controlled-access
-TCGA data from the GDC portal. Users can align their own RNA-Seq FASTQ files
-locally using STAR, which produces splice junction quantification files in the
-same format expected by the downstream filtering steps.
-
-**STAR** is the same aligner used by the GDC to process TCGA RNA-Seq data, so
-results are compatible.
+This script aligns RNA-Seq FASTQ files using STAR and produces splice junction
+quantification files in the format expected by the downstream filtering steps.
 
 STAR outputs a file named `SJ.out.tab` containing splice junctions:
   - Column 1: chromosome
@@ -35,7 +30,7 @@ Usage (standalone):
       --threads 8
 
 Usage (Snakemake):
-  Called automatically by the `star_align` rule when data_source is set to "local".
+  Called automatically by the `star_align` rule.
 """
 
 import argparse

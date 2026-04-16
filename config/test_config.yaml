@@ -13,10 +13,10 @@
 # ============================================================
 
 # Only keys that differ from config.yaml are set here. Everything
-# else (data_source, patient_id, aligner, assembly, mhcflurry,
-# filtering, gdc) is inherited from config.yaml, which Snakemake
-# loads first via the `configfile:` directive in the Snakefile
-# before merging this file on top (recursive merge, per-key).
+# else (aligner, assembly, mhcflurry, filtering) is inherited from
+# config.yaml, which Snakemake loads first via the `configfile:`
+# directive in the Snakefile before merging this file on top
+# (recursive merge, per-key).
 
 samples_tsv: "config/test_samples.tsv"
 
@@ -31,7 +31,7 @@ reference:
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
 hla:
-  enabled: true   # test HLA typing on the chr22+chr6 subset
+  enabled: true
 
 output:
   raw_data:     "results/test/raw_data"

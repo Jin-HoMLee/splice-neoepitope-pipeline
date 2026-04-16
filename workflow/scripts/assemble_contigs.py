@@ -15,9 +15,9 @@ Output: FASTA file where each sequence header encodes the junction coordinates.
 
 Usage (standalone):
   python assemble_contigs.py \\
-      --novel-junctions results/junctions/TCGA-BRCA/novel_junctions.tsv \\
+      --novel-junctions results/junctions/patient_001/novel_junctions.tsv \\
       --genome-fasta resources/GRCh38.primary_assembly.genome.fa \\
-      --output results/contigs/TCGA-BRCA/contigs.fa \\
+      --output results/contigs/patient_001/contigs.fa \\
       --upstream-nt 26 --downstream-nt 24
 
 Usage (Snakemake):

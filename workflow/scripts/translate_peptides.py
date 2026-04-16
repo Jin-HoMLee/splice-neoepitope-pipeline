@@ -19,8 +19,8 @@ Output: TSV with columns  contig_key | start_nt | peptide
 
 Usage (standalone):
   python translate_peptides.py \\
-      --contigs-fasta results/contigs/TCGA-BRCA/contigs.fa \\
-      --output results/peptides/TCGA-BRCA/peptides.tsv \\
+      --contigs-fasta results/contigs/patient_001/contigs.fa \\
+      --output results/peptides/patient_001/peptides.tsv \\
       --upstream-nt 26
 
 Usage (Snakemake):

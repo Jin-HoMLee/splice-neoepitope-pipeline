@@ -2,10 +2,7 @@
 # Rule module: Step 6 — Report generation
 # =============================================================================
 
-_HLA_QC_ENABLED = (
-    config.get("hla", {}).get("enabled", False)
-    and config.get("data_source") == "fastq"
-)
+_HLA_QC_ENABLED = config.get("hla", {}).get("enabled", False)
 
 
 def _generate_report_input(wildcards):

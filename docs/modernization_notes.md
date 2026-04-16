@@ -27,43 +27,11 @@ is still ``chr1`` but scaffold naming has changed), and improved annotation.
 - **Coordinate shift**: Almost all genomic positions are offset between hg19
   and GRCh38 (liftover is required to compare results between assemblies).
 - **Novel chromosomes**: GRCh38 contains unplaced scaffolds (``chrUn_…``) that
-  are absent from hg19.  These are included in the reference junction list but
-  may rarely appear in TCGA RNA-Seq data.
-- **Sample counts differ**: The original paper analysed BRCA (729 tumour, 87
-  normal), LUAD (488 tumour, 53 normal), and LAML (154 tumour, 0 normal).  The
-  GDC now hosts updated and additional samples; the exact counts will differ.
+  are absent from hg19.  These are included in the reference junction list.
 
 ---
 
-## 2. Data Access: TCGA HTTP Directory → GDC Data Portal API
-
-| Aspect | Original (2015) | Modern |
-|--------|----------------|--------|
-| Source | TCGA Open-Access HTTP Directory | GDC Data Portal REST API |
-| URL base | `https://tcga-data.nci.nih.gov/…` | `https://api.gdc.cancer.gov/` |
-| File type | Level 3 junction quantification | Splice Junction Quantification (RNA-Seq) |
-| Aligner | TopHat2 (hg19) | STAR (GRCh38, GDC harmonised) |
-
-### Rationale
-The legacy TCGA HTTP directory was retired in 2016 when all data was migrated
-to the Genomic Data Commons (GDC).  The GDC provides a modern REST API with
-structured metadata queries, enabling reproducible programmatic access.
-
-### Behavioural differences
-- **Re-aligned reads**: GDC RNA-Seq data was re-processed using STAR against
-  GRCh38.  Junction quantification files use STAR's ``SJ.out.tab`` format
-  (or its derivative), which has slightly different column structure from
-  TopHat2's junction outputs.
-- **Junction ID format**: STAR reports junctions as 1-based genomic intervals
-  with strand information encoded differently from TopHat2.  The
-  `filter_junctions.py` script handles both ``chr:start:end:strand`` and
-  ``chr:start-end:strand`` formats.
-- **File count**: The GDC may contain more (or fewer) files per cancer type
-  as data continues to be curated.
-
----
-
-## 3. Splice-Junction Reference: Manual hg19 List → GENCODE GTF Derived
+## 2. Splice-Junction Reference: Manual hg19 List → GENCODE GTF Derived
 
 | Aspect | Original (2015) | Modern |
 |--------|----------------|--------|
@@ -84,6 +52,27 @@ GENCODE releases.
   → less "novel" signal).
 - **Reproducibility**: The reference junction list is now derived
   programmatically and versioned alongside the pipeline configuration.
+
+---
+
+## 3. Aligner: TopHat2 → HISAT2 or STAR
+
+| Aspect | Original (2015) | Modern |
+|--------|----------------|--------|
+| Aligner | TopHat2 (hg19) | HISAT2 or STAR (GRCh38), user-configurable |
+| Input | Pre-downloaded junction files | FASTQ files aligned locally |
+
+### Rationale
+TopHat2 is unmaintained and not compatible with GRCh38 workflows.  HISAT2 is
+its successor from the same group, uses substantially less memory (~8 GB vs
+TopHat2's multi-pass approach), and produces comparable accuracy.  STAR is an
+alternative for users with more RAM (~32 GB) who need maximum sensitivity.
+
+### Behavioural differences
+- **Junction ID format**: HISAT2 uses regtools to extract junctions (BED-like
+  format); STAR uses ``SJ.out.tab``.  Both are normalised to
+  ``chr:start:end:strand`` by the alignment rules before downstream processing.
+- **Memory**: HISAT2 ~8 GB; STAR ~32 GB for full GRCh38 index.
 
 ---
 
@@ -123,7 +112,28 @@ its models are downloaded automatically.
 
 ---
 
-## 5. Biopython API: Bio.Alphabet (removed) → Modern Bio.Seq
+## 5. HLA Typing: Hardcoded Allele → OptiType Per-Patient
+
+| Aspect | Original (2015) | Modern |
+|--------|----------------|--------|
+| HLA alleles | Single hardcoded allele | OptiType HLA typing per patient |
+| Source | Not documented | FASTQs (same files used for alignment) |
+
+### Rationale
+Patient-specific HLA alleles are required for accurate neoepitope prediction.
+The original pipeline used a single representative allele for all samples.
+OptiType infers HLA-A/B/C genotype from RNA-Seq reads and is run automatically
+when `hla.enabled: true` in the config.
+
+### Behavioural differences
+- **More alleles per patient**: MHCflurry is run against up to 6 alleles
+  (HLA-A/B/C heterozygous pair), increasing prediction count proportionally.
+- **Normal-first policy**: If a normal sample is present, its HLA calls are
+  used (germline is more reliable than tumour, which may have LOH).
+
+---
+
+## 6. Biopython API: Bio.Alphabet (removed) → Modern Bio.Seq
 
 | Aspect | Original (2015) | Modern |
 |--------|----------------|--------|
@@ -142,7 +152,7 @@ alphabet specification.  All translation in `translate_peptides.py` uses
 
 ---
 
-## 6. Workflow Management: Manual Shell Scripts → Snakemake
+## 7. Workflow Management: Manual Shell Scripts → Snakemake
 
 | Aspect | Original (2015) | Modern |
 |--------|----------------|--------|
@@ -157,7 +167,7 @@ pipeline reproducible and easier to extend.
 
 ---
 
-## 7. Environment Management: None → Conda
+## 8. Environment Management: None → Conda
 
 | Aspect | Original (2015) | Modern |
 |--------|----------------|--------|
@@ -170,19 +180,11 @@ specifying all software versions.
 
 ---
 
-## 8. Contig Construction: Unchanged
+## 9. Contig Construction: Unchanged
 
 The contig assembly logic (26 nt upstream + 24 nt downstream = 50 nt) and
-the three-reading-frame translation to 16-mer peptides are unchanged from the
+the three-reading-frame translation to 9-mer peptides are unchanged from the
 original pipeline description.
-
----
-
-## 9. Statistical Analysis: Equivalent
-
-The one-tailed Fisher's exact test for tumour-vs-normal epitope enrichment is
-equivalent to the original.  The implementation uses ``scipy.stats.fisher_exact``
-with ``alternative="greater"``.
 
 ---
 
@@ -192,8 +194,9 @@ with ``alternative="greater"``.
 |-----------|----------------|------------|--------|
 | Reference genome | hg19 | GRCh38/hg38 | Current standard |
 | Reference annotation | UCSC RefSeq hg19 | GENCODE v47 GRCh38 | Comprehensive, reproducible |
-| Data source | TCGA HTTP (retired) | GDC Data Portal API | TCGA HTTP was retired in 2016 |
-| Aligner | TopHat2 | STAR (GDC harmonised) | GDC re-aligned all data |
+| Input | Pre-downloaded junction files | FASTQ files | No controlled-access requirement |
+| Aligner | TopHat2 | HISAT2 or STAR | TopHat2 unmaintained; successors more accurate |
+| HLA alleles | Hardcoded | OptiType per patient | Patient-specific improves recall |
 | Epitope predictor | NetMHCPan 2.8 | MHCflurry 2.x | Open source, no registration, SOTA |
 | Biopython API | Bio.Alphabet | Bio.Seq only | Bio.Alphabet removed in ≥1.78 |
 | Workflow | Manual scripts | Snakemake | Reproducibility, parallelism |
