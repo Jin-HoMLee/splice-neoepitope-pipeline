@@ -115,7 +115,7 @@ EOF
             echo "[run_optitype] Input FASTQs: {input.fastqs}" | tee -a {log}
             echo "[run_optitype] Solver: {params.solver} (ILP threads={params.ilp_threads}, mapping threads={threads})" | tee -a {log}
 
-            OptiTypePipeline.py \
+            PYTHONUNBUFFERED=1 OptiTypePipeline.py \
                 -i {input.fastqs} \
                 --rna \
                 --prefix {wildcards.sample} \
