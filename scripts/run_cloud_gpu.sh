@@ -48,7 +48,8 @@ set -euo pipefail
 CPU_VM="neoepitope-predict-cpu"
 GPU_VM="mhc-p-tcr-structure-spot-gpu"
 ZONE="europe-west1-b"
-MACHINE_TYPE="n1-standard-4"
+CPU_MACHINE_TYPE="n1-standard-8"
+GPU_MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-t4,count=1"
 DISK_SIZE="100GB"
 IMAGE_FAMILY="common-cu128-ubuntu-2204-nvidia-570"  # CUDA 12.8 pre-installed
@@ -278,7 +279,7 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
     log "CPU VM ${CPU_VM} not found — creating it..."
     gcloud compute instances create "${CPU_VM}" \
         --zone="${ZONE}" \
-        --machine-type="${MACHINE_TYPE}" \
+        --machine-type="${CPU_MACHINE_TYPE}" \
         --image-family="ubuntu-2204-lts" \
         --image-project="ubuntu-os-cloud" \
         --boot-disk-size="50GB" \
@@ -386,7 +387,7 @@ if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
     log "Creating GPU Spot VM ${GPU_VM}..."
     gcloud compute instances create "${GPU_VM}" \
         --zone="${ZONE}" \
-        --machine-type="${MACHINE_TYPE}" \
+        --machine-type="${GPU_MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
         --maintenance-policy=TERMINATE \
         --provisioning-model=SPOT \

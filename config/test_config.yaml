@@ -23,6 +23,7 @@ samples_tsv: "config/test_samples.tsv"
 alignment:
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
   star_index_dir: "resources/test/star_index"        # separate from production index
+  threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
 
 reference:
   genome: "GRCh38_chr22"

@@ -26,6 +26,7 @@ alignment:
   aligner: "hisat2"                           # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
   hisat2_index_dir: "resources/hisat2_index"  # where the prebuilt HISAT2 index lives
   star_index_dir: "resources/star_index"      # where the prebuilt STAR index lives
+  threads: 8          # threads for index build + alignment
 
 # -----------------------------------------------------------------
 # Reference genome
@@ -84,6 +85,8 @@ mhcflurry:
 hla:
   enabled: true
   min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
+  threads: 4                # threads per OptiType sample — keep at half of alignment.threads
+                            # so two samples run in parallel rather than serialised
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
