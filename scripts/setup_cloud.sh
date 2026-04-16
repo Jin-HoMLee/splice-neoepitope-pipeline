@@ -51,7 +51,7 @@ echo ""
 # ---------------------------------------------------------------------------
 echo "[1/5] Installing system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget tmux
+sudo apt-get install -y git curl wget tmux samtools
 echo "    Done."
 
 # ---------------------------------------------------------------------------
@@ -87,6 +87,10 @@ fi
 if [[ -f "$HOME/miniforge3/etc/profile.d/conda.sh" ]]; then
     source "$HOME/miniforge3/etc/profile.d/conda.sh"
 fi
+
+# Strict channel priority prevents conda-forge/defaults mixing that causes
+# subtle env conflicts. Required for robust Snakemake conda environments.
+conda config --set channel_priority strict
 
 # ---------------------------------------------------------------------------
 # 3. Create / update the snakemake environment
@@ -141,6 +145,16 @@ else
         echo "ERROR: FASTA decompression produced an empty file." >&2; exit 1
     fi
     echo "    Saved: $FASTA"
+fi
+
+# FASTA index — required by bedtools getfasta (assemble_contigs step)
+FAI="$FASTA.fai"
+if [[ -f "$FAI" ]]; then
+    echo "    FASTA index (.fai) already exists — skipping."
+else
+    echo "    Indexing FASTA with samtools faidx..."
+    samtools faidx "$FASTA"
+    echo "    Saved: $FAI"
 fi
 
 # GENCODE v47 annotation GTF (kept gzipped — pipeline reads with zcat)

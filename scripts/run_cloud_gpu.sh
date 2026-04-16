@@ -112,6 +112,9 @@ ssh_cmd() {
         gcloud compute ssh "${vm}" --zone="${ZONE}" --internal-ip \
             --ssh-key-expire-after=24h --quiet "$@"
     else
+        # --tunnel-through-iap: connects without a public IP via Google IAP.
+        # If you see a "consider installing NumPy" warning, install it into
+        # gcloud's own virtualenv: ~/.config/gcloud/virtenv/bin/pip install numpy
         gcloud compute ssh "${vm}" --zone="${ZONE}" --tunnel-through-iap "$@"
     fi
 }
