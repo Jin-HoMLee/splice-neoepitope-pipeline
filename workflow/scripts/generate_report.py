@@ -275,12 +275,13 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
             f'<span style="color:{colour};font-weight:bold">'
             f'{html_mod.escape(source)}</span>'
         )
-        discrepancy = str(row.get("discrepancy", "") or "").strip()
+        _disc_raw = row.get("discrepancy", "")
+        discrepancy = "" if pd.isna(_disc_raw) else str(_disc_raw).strip()
         if discrepancy:
             has_discrepancy = True
         disc_cell = (
             f'<td style="background:#fef3cd">{html_mod.escape(discrepancy)}</td>'
-            if discrepancy else "<td>—</td>"
+            if discrepancy else '<td style="color:#27ae60">&#10003; concordant</td>'
         )
         rows.append(
             f"<tr>"
