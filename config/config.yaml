@@ -3,54 +3,29 @@
 # ============================================================
 
 # -----------------------------------------------------------------
-# Data source mode: "gdc" or "fastq"
-# -----------------------------------------------------------------
-# "gdc"   — Download pre-computed splice junction files from GDC (requires
-#           institutional dbGaP access and a GDC authentication token)
-# "fastq" — Align your own RNA-Seq FASTQ files using HISAT2 or STAR (no
-#           institutional access required; uses publicly available or your own data)
-data_source: "fastq"
-
-# -----------------------------------------------------------------
-# Sample manifest (used when data_source is "fastq")
+# Sample manifest
 # -----------------------------------------------------------------
 # Path to a TSV listing the RNA-Seq FASTQs for this patient. Columns:
-#   sample_id    sample_type    fastq1    fastq2
+#   patient_id   sample_id    sample_type    fastq1    fastq2
 #
 # Example (samples.tsv):
-#   sample_id    sample_type         fastq1                    fastq2
-#   tumor_01     Primary Tumor       data/tumor_01_R1.fq.gz    data/tumor_01_R2.fq.gz
-#   normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
+#   patient_id  sample_id    sample_type         fastq1                    fastq2
+#   patient_001 tumor_01     Primary Tumor       data/tumor_01_R1.fq.gz    data/tumor_01_R2.fq.gz
+#   patient_001 normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
 #
 # For single-end data, leave fastq2 empty.
 samples_tsv: "config/samples.tsv"
 
 # -----------------------------------------------------------------
-# Alignment (used when data_source is "fastq")
+# Alignment
 # -----------------------------------------------------------------
-# How to align the FASTQs listed in samples_tsv above. This is the
-# open-access alternative to GDC downloads.
-#
 # Aligner options:
-#   "star"   — Full accuracy, requires ~32 GB RAM (default)
+#   "star"   — Full accuracy, requires ~32 GB RAM
 #   "hisat2" — Lower memory (~8 GB), good for laptops/small servers
 alignment:
   aligner: "hisat2"                           # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
   hisat2_index_dir: "resources/hisat2_index"  # where the prebuilt HISAT2 index lives
   star_index_dir: "resources/star_index"      # where the prebuilt STAR index lives
-
-# -----------------------------------------------------------------
-# GDC Data Portal API (when data_source is "gdc")
-# -----------------------------------------------------------------
-gdc:
-  files_endpoint: "https://api.gdc.cancer.gov/files"
-  data_endpoint:  "https://api.gdc.cancer.gov/data"
-  # Maximum files to download per cancer type (set to null for all)
-  max_files_per_project: null
-  # GDC authentication token file (required for controlled-access data)
-  # Obtain from: https://portal.gdc.cancer.gov/ → login → Download Token
-  # Save the downloaded token file and set the path here
-  token_file: null   # e.g. "~/.gdc-user-token.txt"
 
 # -----------------------------------------------------------------
 # Reference genome
