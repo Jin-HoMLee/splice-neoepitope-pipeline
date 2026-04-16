@@ -1,35 +1,96 @@
 {
+  "run_config": {
+    "patient_id": "patient_001",
+    "samples": [
+      {
+        "sample_id": "SRR9143066_test",
+        "sample_type": "Primary Tumor"
+      },
+      {
+        "sample_id": "SRR9143065_test",
+        "sample_type": "Solid Tissue Normal"
+      }
+    ],
+    "reference_genome": "GRCh38_chr22",
+    "gencode_gtf": "chr22.gtf.gz",
+    "hla_typing_enabled": true,
+    "upstream_nt": 26,
+    "downstream_nt": 24,
+    "ic50_strong_nM": 50,
+    "ic50_weak_nM": 500
+  },
   "junctions": {
-    "total_unannotated": 234,
+    "total_unannotated": 372,
     "by_origin": {
-      "tumor_exclusive": 231,
-      "normal_shared": 3
+      "tumor_exclusive": 367,
+      "normal_shared": 5
     }
   },
   "contigs": {
-    "n_contigs": 79
+    "n_contigs": 75
   },
   "peptides": {
-    "n_total": 1371,
-    "n_unique": 1348
+    "n_total": 1310,
+    "n_unique": 1310
   },
   "predictions": {
     "by_class": {
-      "non": 1319,
-      "weak": 41,
-      "strong": 11
+      "non": 7481,
+      "weak": 327,
+      "strong": 52
     },
     "strong_peptides": [
-      "AVCELCYKV",
-      "FLTSYQCEA",
-      "KLIKNNASL",
-      "KMAKSHDAV",
-      "KSPQFLPAV",
-      "LLYKGSLLL",
-      "RLHLFTLGV",
+      "AAAGKDVLL",
+      "AAFSSSVAV",
+      "AALAVAEAL",
+      "AFQGPQPLR",
+      "ALYPFGTMR",
+      "ASRSSPSWR",
+      "CTFPWCGSR",
+      "FAAAAAAAF",
+      "FGLSAGTLL",
+      "FRDPARTSL",
+      "FTHQIIFRR",
+      "FTISHYHPK",
+      "FTQEEEEAL",
+      "GTLTMEAMR",
+      "HRGLVNQVF",
+      "IRMKSPQFL",
+      "KADEPSYHL",
+      "KQLKRQLGR",
+      "KTHRGSENR",
+      "KVTFIRNSR",
+      "KYLRLTEKR",
+      "LASSEPCAL",
+      "LAVAEALPL",
+      "LFLGRLAAR",
+      "LLLFNDFVY",
+      "LLRSGIHTR",
+      "MAMPWLLLR",
+      "MLFSALEER",
+      "QRNPHPGTL",
+      "RAGPLWGGR",
+      "RILDSMSSR",
+      "RRAPRCSNM",
+      "RREKVTWSY",
+      "RRLEARIAV",
+      "RRPAGSWRL",
+      "RRPRPTEAL",
+      "RTMPPSVAR",
+      "SALEERVGY",
       "SALGLLAPV",
-      "SLLLFNDFV",
-      "SLSHCVMSL"
+      "SARGGEVSF",
+      "SLCYVPPLR",
+      "SLFTHQIIF",
+      "SRRSGTLTM",
+      "SSSRPTSAR",
+      "SVHVGRTRR",
+      "TSYRKTFPR",
+      "VAEALPLQM",
+      "VILGSALSF",
+      "VSYEDPPNL",
+      "VYSWVWVTR",
+      "WAFQGPQPL"
     ]
   }
 }
