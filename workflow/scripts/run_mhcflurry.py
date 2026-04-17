@@ -46,6 +46,7 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -192,28 +193,50 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 # Per-process worker (module-level so ProcessPoolExecutor can pickle it)
 # ---------------------------------------------------------------------------
 
+# Predictor cache: populated once per worker process by _worker_init().
+_worker_predictor = None
+
+
+def _worker_init() -> None:
+    """One-time initialiser for each worker process.
+
+    Sets TF/BLAS thread-count env vars *before* MHCflurry (and TensorFlow) are
+    imported so that each worker uses only one intra-op/inter-op thread.
+    Without this, every subprocess spawns its own full thread pool, which
+    oversubscribes CPU cores when several workers run in parallel.
+    """
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+    os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+    global _worker_predictor
+    _worker_predictor = _load_mhcflurry_predictor()
+
+
 def _predict_allele_worker(
     allele: str,
     unique_peptides: list[str],
-    peptides_df: "pd.DataFrame",
     ic50_strong: float,
     ic50_weak: float,
 ) -> "pd.DataFrame":
-    """Load predictor fresh in this worker process and predict for one allele."""
-    predictor = _load_mhcflurry_predictor()
-    pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=predictor)
+    """Predict binding for one allele; returns a lean per-allele DataFrame.
+
+    Columns: peptide, allele, ic50_nM, percentile_rank, binder_class.
+    peptides_df (with contig_key/start_nt) is kept in the parent process to
+    avoid pickling it into every worker.
+    """
+    pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=_worker_predictor)
     pred_df = pred_df.rename(columns={
         "prediction": "ic50_nM",
         "prediction_percentile": "percentile_rank",
     })[["peptide", "ic50_nM", "percentile_rank"]]
-    merged = peptides_df.merge(pred_df, on="peptide", how="left")
-    merged["allele"] = allele
-    merged["ic50_nM"] = merged["ic50_nM"].fillna(float("inf"))
-    merged["percentile_rank"] = merged["percentile_rank"].fillna(float("nan"))
-    merged["binder_class"] = merged["ic50_nM"].apply(
+    pred_df["allele"] = allele
+    pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
+    pred_df["percentile_rank"] = pred_df["percentile_rank"].fillna(float("nan"))
+    pred_df["binder_class"] = pred_df["ic50_nM"].apply(
         lambda v: classify(v, ic50_strong, ic50_weak)
     )
-    return merged
+    return pred_df
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +288,9 @@ def run_prediction(
     else:
         raise ValueError("Either alleles or alleles_tsv must be provided.")
 
+    if threads < 1:
+        raise ValueError(f"Invalid threads value {threads!r}: threads must be >= 1.")
+
     output_tsv = Path(output_tsv)
     output_tsv.parent.mkdir(parents=True, exist_ok=True)
 
@@ -291,26 +317,26 @@ def run_prediction(
     # use ProcessPoolExecutor — each worker process loads its own predictor copy.
     # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
     # than model_load + sum(per-allele prediction time).
-    if threads < 1:
-        raise ValueError(
-            f"Invalid threads value {threads!r}: threads must be >= 1."
-        )
     max_workers = min(len(resolved_alleles), threads)
     log.info(
         "Running predictions for %d allele(s) with %d worker(s)",
         len(resolved_alleles), max_workers,
     )
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
         futures = {
             executor.submit(
                 _predict_allele_worker,
-                allele, unique_peptides, peptides_df, ic50_strong, ic50_weak,
+                allele, unique_peptides, ic50_strong, ic50_weak,
             ): allele
             for allele in resolved_alleles
         }
-        allele_dfs = [future.result() for future in as_completed(futures)]
+        pred_dfs = [future.result() for future in as_completed(futures)]
 
-    # Step 3: Write combined output
+    # Step 3: Merge per-allele predictions with peptides_df (held in parent to
+    # avoid pickling the full table into every worker), then concatenate.
+    allele_dfs = [peptides_df.merge(pred_df, on="peptide", how="left") for pred_df in pred_dfs]
+
+    # Step 4: Write combined output
     df = pd.concat(allele_dfs, ignore_index=True)[
         ["contig_key", "start_nt", "peptide", "allele",
          "ic50_nM", "percentile_rank", "binder_class"]
