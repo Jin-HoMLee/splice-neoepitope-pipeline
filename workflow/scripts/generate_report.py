@@ -10,7 +10,7 @@ Produces a self-contained HTML page showing:
 Usage (standalone):
   python generate_report.py \\
       --novel-junctions results/junctions/local/novel_junctions.tsv \\
-      --predictions results/predictions/local/predictions.tsv \\
+      --predictions results/predictions/local/mhc_affinity.tsv \\
       --output results/reports/local/report.html
 
 Usage (Snakemake):

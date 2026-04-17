@@ -59,7 +59,7 @@ include: "workflow/rules/hla_typing.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"
-include: "workflow/rules/predict.smk"
+include: "workflow/rules/mhcflurry.smk"
 include: "workflow/rules/analysis.smk"
 include: "workflow/rules/tcrdock.smk"
 

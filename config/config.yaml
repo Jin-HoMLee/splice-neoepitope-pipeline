@@ -70,6 +70,7 @@ mhcflurry:
     C: "HLA-C*07:02"
   ic50_strong:  50            # nM threshold for strong binders
   ic50_weak:   500            # nM threshold for weak binders
+  threads: 8                  # parallel allele predictions (n1-standard-8)
   # MHCflurry supports multiple prediction modes:
   #   "affinity"        - binding affinity only (IC50)
   #   "presentation"    - presentation score (recommended)

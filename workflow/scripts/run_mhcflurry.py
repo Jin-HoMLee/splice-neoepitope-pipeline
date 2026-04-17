@@ -28,7 +28,7 @@ Output TSV columns:
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/predictions.tsv \\
+      --output results/predictions/patient_001/mhc_affinity.tsv \\
       --alleles HLA-A*02:01 HLA-B*07:02 HLA-C*07:02 \\
       --ic50-strong 50 \\
       --ic50-weak 500
@@ -36,7 +36,7 @@ Usage (standalone, explicit alleles):
 Usage (standalone, alleles from HLA typing):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/predictions.tsv \\
+      --output results/predictions/patient_001/mhc_affinity.tsv \\
       --alleles-tsv results/hla_typing/patient_001/alleles.tsv
 
 Usage (Snakemake):
@@ -46,6 +46,8 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -188,6 +190,56 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 
 
 # ---------------------------------------------------------------------------
+# Per-process worker (module-level so ProcessPoolExecutor can pickle it)
+# ---------------------------------------------------------------------------
+
+# Predictor cache: populated once per worker process by _worker_init().
+_worker_predictor = None
+
+
+def _worker_init() -> None:
+    """One-time initialiser for each worker process.
+
+    Sets TF/BLAS thread-count env vars *before* MHCflurry (and TensorFlow) are
+    imported so that each worker uses only one intra-op/inter-op thread.
+    Without this, every subprocess spawns its own full thread pool, which
+    oversubscribes CPU cores when several workers run in parallel.
+    """
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+    os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+    global _worker_predictor
+    _worker_predictor = _load_mhcflurry_predictor()
+
+
+def _predict_allele_worker(
+    allele: str,
+    unique_peptides: list[str],
+    ic50_strong: float,
+    ic50_weak: float,
+) -> "pd.DataFrame":
+    """Predict binding for one allele; returns a lean per-allele DataFrame.
+
+    Columns: peptide, allele, ic50_nM, percentile_rank, binder_class.
+    peptides_df (with contig_key/start_nt) is kept in the parent process to
+    avoid pickling it into every worker.
+    """
+    pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=_worker_predictor)
+    pred_df = pred_df.rename(columns={
+        "prediction": "ic50_nM",
+        "prediction_percentile": "percentile_rank",
+    })[["peptide", "ic50_nM", "percentile_rank"]]
+    pred_df["allele"] = allele
+    pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
+    pred_df["percentile_rank"] = pred_df["percentile_rank"].fillna(float("nan"))
+    pred_df["binder_class"] = pred_df["ic50_nM"].apply(
+        lambda v: classify(v, ic50_strong, ic50_weak)
+    )
+    return pred_df
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -198,6 +250,7 @@ def run_prediction(
     alleles_tsv: str | None = None,
     ic50_strong: float = 50.0,
     ic50_weak: float = 500.0,
+    threads: int = 1,
 ) -> None:
     """Run MHCflurry on junction-spanning 9-mers and write results to TSV.
 
@@ -213,6 +266,7 @@ def run_prediction(
                         alleles are loaded from the file (takes precedence over alleles).
         ic50_strong:    Strong-binder IC50 threshold (nM).
         ic50_weak:      Weak-binder IC50 threshold (nM).
+        threads:        Number of alleles to predict in parallel (ProcessPoolExecutor worker processes).
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
@@ -233,6 +287,9 @@ def run_prediction(
         resolved_alleles = alleles
     else:
         raise ValueError("Either alleles or alleles_tsv must be provided.")
+
+    if threads < 1:
+        raise ValueError(f"Invalid threads value {threads!r}: threads must be >= 1.")
 
     output_tsv = Path(output_tsv)
     output_tsv.parent.mkdir(parents=True, exist_ok=True)
@@ -255,29 +312,31 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Load the predictor once, then run for each allele
-    predictor = _load_mhcflurry_predictor()
+    # Step 2: Run predictions for each allele in parallel.
+    # predict_to_dataframe() is not thread-safe (shared TensorFlow state), so we
+    # use ProcessPoolExecutor — each worker process loads its own predictor copy.
+    # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
+    # than model_load + sum(per-allele prediction time).
+    max_workers = min(len(resolved_alleles), threads)
+    log.info(
+        "Running predictions for %d allele(s) with %d worker(s)",
+        len(resolved_alleles), max_workers,
+    )
+    with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
+        futures = {
+            executor.submit(
+                _predict_allele_worker,
+                allele, unique_peptides, ic50_strong, ic50_weak,
+            ): allele
+            for allele in resolved_alleles
+        }
+        pred_dfs = [future.result() for future in as_completed(futures)]
 
-    allele_dfs = []
-    for allele in resolved_alleles:
-        pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=predictor)
+    # Step 3: Merge per-allele predictions with peptides_df (held in parent to
+    # avoid pickling the full table into every worker), then concatenate.
+    allele_dfs = [peptides_df.merge(pred_df, on="peptide", how="left") for pred_df in pred_dfs]
 
-        # Rename mhcflurry output columns and merge with the full peptides table
-        pred_df = pred_df.rename(columns={
-            "prediction": "ic50_nM",
-            "prediction_percentile": "percentile_rank",
-        })[["peptide", "ic50_nM", "percentile_rank"]]
-
-        merged = peptides_df.merge(pred_df, on="peptide", how="left")
-        merged["allele"] = allele
-        merged["ic50_nM"] = merged["ic50_nM"].fillna(float("inf"))
-        merged["percentile_rank"] = merged["percentile_rank"].fillna(float("nan"))
-        merged["binder_class"] = merged["ic50_nM"].apply(
-            lambda v: classify(v, ic50_strong, ic50_weak)
-        )
-        allele_dfs.append(merged)
-
-    # Step 3: Write combined output
+    # Step 4: Write combined output
     df = pd.concat(allele_dfs, ignore_index=True)[
         ["contig_key", "start_nt", "peptide", "allele",
          "ic50_nM", "percentile_rank", "binder_class"]
@@ -302,15 +361,16 @@ def _snakemake_main() -> None:
     logging.getLogger().addHandler(logging.FileHandler(log_file))
 
     # Use patient-specific alleles when HLA typing is enabled (alleles_tsv input
-    # is only wired in predict.smk when config.hla.enabled is true).
+    # is only wired in mhcflurry.smk when config.hla.enabled is true).
     alleles_tsv = getattr(snakemake.input, "alleles_tsv", None)  # type: ignore[name-defined]  # noqa: F821
     run_prediction(
         peptides_tsv=snakemake.input.peptides_tsv,  # type: ignore[name-defined]  # noqa: F821
-        output_tsv=snakemake.output.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_tsv=snakemake.output.mhc_affinity_tsv,  # type: ignore[name-defined]  # noqa: F821
         alleles=None if alleles_tsv else list(snakemake.params.fallback_alleles),  # type: ignore[name-defined]  # noqa: F821
         alleles_tsv=alleles_tsv,
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         ic50_weak=float(snakemake.params.ic50_weak),  # type: ignore[name-defined]  # noqa: F821
+        threads=int(snakemake.params.threads),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -330,6 +390,8 @@ def _cli_main() -> None:
     )
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     parser.add_argument("--ic50-weak", type=float, default=500.0)
+    parser.add_argument("--threads", type=int, default=1,
+                        help="Parallel allele prediction threads (default: 1 = serial).")
     args = parser.parse_args()
 
     if not args.alleles and not args.alleles_tsv:
@@ -342,6 +404,7 @@ def _cli_main() -> None:
         alleles_tsv=args.alleles_tsv,
         ic50_strong=args.ic50_strong,
         ic50_weak=args.ic50_weak,
+        threads=args.threads,
     )
 
 
