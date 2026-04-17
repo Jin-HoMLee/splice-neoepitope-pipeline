@@ -157,7 +157,7 @@ def collect_metrics() -> dict:
     n_unique_peptides = len(set(r["peptide"] for r in pep_rows))
 
     # Predictions -------------------------------------------------------------
-    pred_rows = _read_tsv(RESULTS / "predictions" / PATIENT_ID / "predictions.tsv")
+    pred_rows = _read_tsv(RESULTS / "predictions" / PATIENT_ID / "mhc_affinity.tsv")
     binder_counts: dict[str, int] = {}
     for r in pred_rows:
         bc = r["binder_class"]

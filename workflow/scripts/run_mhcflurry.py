@@ -28,7 +28,7 @@ Output TSV columns:
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/predictions.tsv \\
+      --output results/predictions/patient_001/mhc_affinity.tsv \\
       --alleles HLA-A*02:01 HLA-B*07:02 HLA-C*07:02 \\
       --ic50-strong 50 \\
       --ic50-weak 500
@@ -36,7 +36,7 @@ Usage (standalone, explicit alleles):
 Usage (standalone, alleles from HLA typing):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/predictions.tsv \\
+      --output results/predictions/patient_001/mhc_affinity.tsv \\
       --alleles-tsv results/hla_typing/patient_001/alleles.tsv
 
 Usage (Snakemake):
@@ -335,7 +335,7 @@ def _snakemake_main() -> None:
     alleles_tsv = getattr(snakemake.input, "alleles_tsv", None)  # type: ignore[name-defined]  # noqa: F821
     run_prediction(
         peptides_tsv=snakemake.input.peptides_tsv,  # type: ignore[name-defined]  # noqa: F821
-        output_tsv=snakemake.output.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_tsv=snakemake.output.mhc_affinity_tsv,  # type: ignore[name-defined]  # noqa: F821
         alleles=None if alleles_tsv else list(snakemake.params.fallback_alleles),  # type: ignore[name-defined]  # noqa: F821
         alleles_tsv=alleles_tsv,
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
