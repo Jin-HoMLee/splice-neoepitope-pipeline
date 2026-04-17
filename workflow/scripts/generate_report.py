@@ -79,7 +79,14 @@ _MOLSTAR_VIEWER = """\
 <script type="text/javascript">
   // Mol* viewer — loads the inlined PDB and renders the TCR-peptide-MHC complex.
   // Mol* is MIT-licensed and loaded from the official CDN (no registration required).
+  // Version is pinned to avoid breaking API changes on unpkg "latest" redirects.
   document.addEventListener("DOMContentLoaded", function() {{
+    if (typeof molstar === "undefined" || typeof molstar.Viewer === "undefined") {{
+      document.getElementById("molstar-container").innerHTML =
+        '<p style="padding:1em;color:#c0392b;">Mol* viewer failed to load — ' +
+        'check your network connection and reload the page.</p>';
+      return;
+    }}
     molstar.Viewer.create("molstar-container", {{
       layoutIsExpanded: false,
       layoutShowControls: true,
@@ -90,6 +97,9 @@ _MOLSTAR_VIEWER = """\
     }}).then(function(viewer) {{
       var pdbData = {pdb_data};
       viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "TCR-pMHC complex" }});
+    }}).catch(function(err) {{
+      document.getElementById("molstar-container").innerHTML =
+        '<p style="padding:1em;color:#c0392b;">3D viewer error: ' + err + '</p>';
     }});
   }});
 </script>
@@ -548,8 +558,8 @@ def generate_report(
         molstar_assets = (
             '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
             '       structural validation produced a PDB for the report. -->\n'
-            '  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>\n'
-            '  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>'
+            '  <script src="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.js"></script>\n'
+            '  <link rel="stylesheet" href="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.css"/>'
         )
     else:
         molstar_assets = ""
