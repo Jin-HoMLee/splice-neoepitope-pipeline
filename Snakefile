@@ -54,6 +54,8 @@ PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
 
 # ── include rule modules ─────────────────────────────────────────────────────
+include: "workflow/rules/common.smk"
+include: "workflow/rules/download.smk"
 include: "workflow/rules/alignment.smk"
 include: "workflow/rules/hla_typing.smk"
 include: "workflow/rules/filter.smk"
