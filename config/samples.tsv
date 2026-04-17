@@ -18,5 +18,11 @@ patient_id	sample_id	sample_type	fastq1	fastq2
 # Source: https://www.ebi.ac.uk/ena/browser/view/SRR9143066
 # Download with: bash scripts/prepare_production_data.sh
 # ---------------------------------------------------------------------------
+# TODO(#60): migrate patient_001 FASTQs to a project GCS staging bucket and
+# replace data/ paths with gs:// URIs for consistency with patient_002.
 patient_001	SRR9143066	Primary Tumor	data/SRR9143066.fastq.gz
 patient_001	SRR9143065	Solid Tissue Normal	data/SRR9143065.fastq.gz
+# patient_002: Boston Gene T0 tumor RNA-seq (Nov 2022), paired-end.
+# No matched normal — all unannotated junctions labeled tumor_exclusive.
+# FASTQs are openly accessible in the osteosarcoma public GCS bucket.
+patient_002	BG003082_T0	Primary Tumor	gs://osteosarc-genomics/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R1.fastq.gz	gs://osteosarc-genomics/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R2.fastq.gz
