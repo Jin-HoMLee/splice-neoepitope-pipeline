@@ -151,6 +151,91 @@ class TestRunPredictionEmpty:
 
 
 # ---------------------------------------------------------------------------
+# _worker_init and _predict_allele_worker — isolated unit tests
+# ---------------------------------------------------------------------------
+
+class TestWorker:
+    """Unit tests for the per-process worker functions.
+
+    Tests run entirely in-process: _worker_predictor is set manually and
+    _run_mhcflurry_predictions is monkeypatched, so no MHCflurry models or
+    subprocess spawning are needed.
+    """
+
+    PEPTIDES = ["ACDEFGHIK", "LMNPQRSTV", "YKLMFSTAV"]
+
+    @pytest.fixture(autouse=True)
+    def _patch_mhcflurry(self, monkeypatch):
+        import run_mhcflurry
+
+        def fake_predict(peptides, allele, predictor=None):
+            ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(allele, 9999.0)
+            return pd.DataFrame({
+                "peptide": peptides,
+                "prediction": [ic50] * len(peptides),
+                "prediction_percentile": [5.0] * len(peptides),
+            })
+
+        monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
+        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_predict)
+        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", object())
+
+    def test_worker_returns_correct_columns(self):
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 50.0, 500.0)
+        assert list(df.columns) == ["peptide", "ic50_nM", "percentile_rank", "allele", "binder_class"]
+
+    def test_worker_allele_assigned(self):
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 50.0, 500.0)
+        assert (df["allele"] == "HLA-B*07:02").all()
+
+    def test_worker_binder_class_strong(self):
+        """IC50=30 nM → strong binder (threshold 50 nM)."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 50.0, 500.0)
+        assert (df["binder_class"] == "strong").all()
+
+    def test_worker_binder_class_weak(self):
+        """IC50=300 nM → weak binder (threshold 500 nM)."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 50.0, 500.0)
+        assert (df["binder_class"] == "weak").all()
+
+    def test_worker_binder_class_non(self):
+        """Unknown allele gets IC50=9999 nM → non-binder."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 50.0, 500.0)
+        assert (df["binder_class"] == "non").all()
+
+    def test_worker_init_sets_env_vars(self, monkeypatch):
+        """_worker_init must set TF/BLAS thread-count env vars before model load."""
+        import os
+        import run_mhcflurry
+        for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                    "TF_NUM_INTRAOP_THREADS", "TF_NUM_INTEROP_THREADS"):
+            monkeypatch.delenv(var, raising=False)
+
+        run_mhcflurry._worker_init()
+
+        assert os.environ["OMP_NUM_THREADS"] == "1"
+        assert os.environ["TF_NUM_INTRAOP_THREADS"] == "1"
+        assert os.environ["TF_NUM_INTEROP_THREADS"] == "1"
+
+    def test_invalid_threads_raises(self, tmp_path):
+        """threads=0 must raise ValueError before any workers are spawned."""
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+        with pytest.raises(ValueError, match="threads"):
+            run_prediction(
+                peptides_tsv=peptides_tsv,
+                output_tsv=tmp_path / "out.tsv",
+                alleles=["HLA-A*02:01"],
+                threads=0,
+            )
+
+
+# ---------------------------------------------------------------------------
 # Binder classification
 # ---------------------------------------------------------------------------
 
