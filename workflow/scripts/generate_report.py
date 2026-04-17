@@ -81,12 +81,6 @@ _MOLSTAR_VIEWER = """\
   // Mol* is MIT-licensed and loaded from the official CDN (no registration required).
   // Version is pinned to avoid breaking API changes on unpkg "latest" redirects.
   document.addEventListener("DOMContentLoaded", function() {{
-    if (typeof molstar === "undefined" || typeof molstar.Viewer === "undefined") {{
-      document.getElementById("molstar-container").innerHTML =
-        '<p style="padding:1em;color:#c0392b;">Mol* viewer failed to load — ' +
-        'check your network connection and reload the page.</p>';
-      return;
-    }}
     molstar.Viewer.create("molstar-container", {{
       layoutIsExpanded: false,
       layoutShowControls: true,
@@ -97,9 +91,6 @@ _MOLSTAR_VIEWER = """\
     }}).then(function(viewer) {{
       var pdbData = {pdb_data};
       viewer.loadStructureFromData(pdbData, "pdb", {{ dataLabel: "TCR-pMHC complex" }});
-    }}).catch(function(err) {{
-      document.getElementById("molstar-container").innerHTML =
-        '<p style="padding:1em;color:#c0392b;">3D viewer error: ' + err + '</p>';
     }});
   }});
 </script>
