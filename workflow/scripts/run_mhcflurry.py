@@ -46,7 +46,7 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -189,6 +189,34 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 
 
 # ---------------------------------------------------------------------------
+# Per-process worker (module-level so ProcessPoolExecutor can pickle it)
+# ---------------------------------------------------------------------------
+
+def _predict_allele_worker(
+    allele: str,
+    unique_peptides: list[str],
+    peptides_df: "pd.DataFrame",
+    ic50_strong: float,
+    ic50_weak: float,
+) -> "pd.DataFrame":
+    """Load predictor fresh in this worker process and predict for one allele."""
+    predictor = _load_mhcflurry_predictor()
+    pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=predictor)
+    pred_df = pred_df.rename(columns={
+        "prediction": "ic50_nM",
+        "prediction_percentile": "percentile_rank",
+    })[["peptide", "ic50_nM", "percentile_rank"]]
+    merged = peptides_df.merge(pred_df, on="peptide", how="left")
+    merged["allele"] = allele
+    merged["ic50_nM"] = merged["ic50_nM"].fillna(float("inf"))
+    merged["percentile_rank"] = merged["percentile_rank"].fillna(float("nan"))
+    merged["binder_class"] = merged["ic50_nM"].apply(
+        lambda v: classify(v, ic50_strong, ic50_weak)
+    )
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -258,31 +286,24 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Load the predictor once, then run for each allele in parallel.
-    # MHCflurry releases the GIL during TensorFlow inference, so threads give
-    # real parallelism. The predictor object is read-only after load, making
-    # concurrent predict_to_dataframe() calls safe.
-    predictor = _load_mhcflurry_predictor()
-
-    def _predict_allele(allele: str) -> pd.DataFrame:
-        pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=predictor)
-        pred_df = pred_df.rename(columns={
-            "prediction": "ic50_nM",
-            "prediction_percentile": "percentile_rank",
-        })[["peptide", "ic50_nM", "percentile_rank"]]
-        merged = peptides_df.merge(pred_df, on="peptide", how="left")
-        merged["allele"] = allele
-        merged["ic50_nM"] = merged["ic50_nM"].fillna(float("inf"))
-        merged["percentile_rank"] = merged["percentile_rank"].fillna(float("nan"))
-        merged["binder_class"] = merged["ic50_nM"].apply(
-            lambda v: classify(v, ic50_strong, ic50_weak)
-        )
-        return merged
-
+    # Step 2: Run predictions for each allele in parallel.
+    # predict_to_dataframe() is not thread-safe (shared TensorFlow state), so we
+    # use ProcessPoolExecutor — each worker process loads its own predictor copy.
+    # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
+    # than model_load + sum(per-allele prediction time).
     max_workers = min(len(resolved_alleles), threads)
-    log.info("Running predictions for %d allele(s) with %d thread(s)", len(resolved_alleles), max_workers)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(_predict_allele, allele): allele for allele in resolved_alleles}
+    log.info(
+        "Running predictions for %d allele(s) with %d worker(s)",
+        len(resolved_alleles), max_workers,
+    )
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(
+                _predict_allele_worker,
+                allele, unique_peptides, peptides_df, ic50_strong, ic50_weak,
+            ): allele
+            for allele in resolved_alleles
+        }
         allele_dfs = [future.result() for future in as_completed(futures)]
 
     # Step 3: Write combined output
