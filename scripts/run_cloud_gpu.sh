@@ -480,7 +480,7 @@ snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml 2>/dev/nu
 snakemake \\
     --cores "\$(nproc)" \\
     --use-conda \\
-    --rerun-triggers mtime \\
+    --rerun-triggers code params \\
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
     2>&1 | tee tcrdock.log
 
