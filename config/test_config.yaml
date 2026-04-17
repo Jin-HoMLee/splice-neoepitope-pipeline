@@ -25,6 +25,9 @@ alignment:
   star_index_dir: "resources/test/star_index"        # separate from production index
   threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
 
+mhcflurry:
+  threads: 4      # M1 MacBook Air (8 GB RAM)
+
 reference:
   genome: "GRCh38_chr22"
   genome_fasta: "resources/test/chr22.fa"
