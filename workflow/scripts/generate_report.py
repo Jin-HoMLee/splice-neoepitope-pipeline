@@ -79,6 +79,7 @@ _MOLSTAR_VIEWER = """\
 <script type="text/javascript">
   // Mol* viewer — loads the inlined PDB and renders the TCR-peptide-MHC complex.
   // Mol* is MIT-licensed and loaded from the official CDN (no registration required).
+  // Version is pinned to avoid breaking API changes on unpkg "latest" redirects.
   document.addEventListener("DOMContentLoaded", function() {{
     molstar.Viewer.create("molstar-container", {{
       layoutIsExpanded: false,
@@ -548,8 +549,8 @@ def generate_report(
         molstar_assets = (
             '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
             '       structural validation produced a PDB for the report. -->\n'
-            '  <script src="https://www.unpkg.com/molstar/build/viewer/molstar.js"></script>\n'
-            '  <link rel="stylesheet" href="https://www.unpkg.com/molstar/build/viewer/molstar.css"/>'
+            '  <script src="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.js"></script>\n'
+            '  <link rel="stylesheet" href="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.css"/>'
         )
     else:
         molstar_assets = ""

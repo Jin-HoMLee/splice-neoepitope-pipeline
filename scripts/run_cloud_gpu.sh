@@ -29,7 +29,7 @@
 # Requirements:
 #   - gcloud CLI authenticated: gcloud auth login
 #   - Active project: gcloud config set project <PROJECT_ID>
-#   - T4 GPU quota in the target zone (PREEMPTIBLE_NVIDIA_T4_GPUS >= 1)
+#   - P100 GPU quota in the target zone (PREEMPTIBLE_NVIDIA_P100_GPUS >= 1)
 #
 # Usage:
 #   bash scripts/run_cloud_gpu.sh [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]
@@ -46,11 +46,11 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 CPU_VM="neoepitope-predict-cpu"
-GPU_VM="mhc-p-tcr-structure-spot-gpu"
+GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
 CPU_MACHINE_TYPE="n1-standard-8"
 GPU_MACHINE_TYPE="n1-standard-4"
-ACCELERATOR="type=nvidia-tesla-t4,count=1"
+ACCELERATOR="type=nvidia-tesla-p100,count=1"
 DISK_SIZE="100GB"
 IMAGE_FAMILY="common-cu128-ubuntu-2204-nvidia-570"  # CUDA 12.8 pre-installed
 IMAGE_PROJECT="deeplearning-platform-release"
@@ -480,7 +480,7 @@ snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml 2>/dev/nu
 snakemake \\
     --cores "\$(nproc)" \\
     --use-conda \\
-    --rerun-triggers mtime \\
+    --rerun-triggers code params \\
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
     2>&1 | tee tcrdock.log
 
