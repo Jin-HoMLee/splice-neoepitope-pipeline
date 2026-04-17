@@ -55,6 +55,8 @@ rule run_mhcflurry:
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),
         ic50_strong=config["mhcflurry"]["ic50_strong"],
         ic50_weak=config["mhcflurry"]["ic50_weak"],
+        threads=config["mhcflurry"]["threads"],
+    threads: config["mhcflurry"]["threads"]
     conda:
         "../envs/python.yaml"
     script:
