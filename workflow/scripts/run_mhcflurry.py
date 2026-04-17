@@ -243,7 +243,7 @@ def run_prediction(
                         alleles are loaded from the file (takes precedence over alleles).
         ic50_strong:    Strong-binder IC50 threshold (nM).
         ic50_weak:      Weak-binder IC50 threshold (nM).
-        threads:        Number of alleles to predict in parallel (ThreadPoolExecutor).
+        threads:        Number of alleles to predict in parallel (ProcessPoolExecutor worker processes).
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
