@@ -291,6 +291,10 @@ def run_prediction(
     # use ProcessPoolExecutor — each worker process loads its own predictor copy.
     # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
     # than model_load + sum(per-allele prediction time).
+    if threads < 1:
+        raise ValueError(
+            f"Invalid threads value {threads!r}: threads must be >= 1."
+        )
     max_workers = min(len(resolved_alleles), threads)
     log.info(
         "Running predictions for %d allele(s) with %d worker(s)",
