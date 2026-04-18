@@ -47,12 +47,13 @@ def _read_samples_tsv(samples_tsv, patient_id=None):
 #               alignment by the download_fastq rule in download.smk
 #   data/...  — local path; must already exist (test data only)
 
-def _local_fastq(path):
+def _local_fastq(path, patient_id="", sample_id=""):
     """Return the local path for a FASTQ.
 
-    gs:// paths map to data/<filename> (temp file written by download_fastq).
+    gs:// paths map to data/{patient_id}/{sample_id}/<filename> to avoid
+    collisions when two patients/samples share the same FASTQ filename.
     Local paths are returned unchanged.
     """
     if path and path.startswith("gs://"):
-        return os.path.join("data", Path(path).name)
+        return os.path.join("data", patient_id, sample_id, Path(path).name)
     return path

@@ -78,7 +78,7 @@ checkpoint alignment_complete:
 def _get_fastq1(wildcards):
     for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
         if s["sample_id"] == wildcards.sample:
-            return _local_fastq(s["fastq1"])
+            return _local_fastq(s["fastq1"], wildcards.patient_id, wildcards.sample)
     raise ValueError(f"Sample not found: {wildcards.sample} (patient: {wildcards.patient_id})")
 
 
@@ -86,7 +86,7 @@ def _get_fastq2(wildcards):
     for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
         if s["sample_id"] == wildcards.sample:
             fastq2 = (s.get("fastq2") or "").strip()
-            return [_local_fastq(fastq2)] if fastq2 else []
+            return [_local_fastq(fastq2, wildcards.patient_id, wildcards.sample)] if fastq2 else []
     return []
 
 
