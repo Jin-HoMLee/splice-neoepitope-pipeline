@@ -17,15 +17,14 @@
 # config.yaml, which Snakemake loads first via the `configfile:`
 # directive in the Snakefile before merging this file on top
 # (recursive merge, per-key).
+#
+# Outputs land in the same results/ and logs/ as production, namespaced
+# by patient_id=patient_001_test — nf-core style (no separate test output dir).
 
 samples_tsv: "config/test_samples.tsv"
 
 gcs:
   bucket: ""    # disable GCS operations for local test runs
-
-output:
-  results_dir:  "results/test"   # all patient outputs land under results/test/{patient_id}/
-  logs:         "logs/test"
 
 reference:
   genome: "GRCh38_chr22"

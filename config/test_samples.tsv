@@ -1,3 +1,3 @@
 patient_id	sample_id	sample_type	fastq1	fastq2
-patient_001	SRR9143066_test	Primary Tumor	data/test/SRR9143066_test.fastq.gz
-patient_001	SRR9143065_test	Solid Tissue Normal	data/test/SRR9143065_test.fastq.gz
+patient_001_test	SRR9143066_test	Primary Tumor	data/test/SRR9143066_test.fastq.gz
+patient_001_test	SRR9143065_test	Solid Tissue Normal	data/test/SRR9143065_test.fastq.gz
