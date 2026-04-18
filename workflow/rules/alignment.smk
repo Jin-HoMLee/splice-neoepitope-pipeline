@@ -27,9 +27,9 @@ _GCS_BUCKET = config.get("gcs", {}).get("bucket", "").rstrip("/")
 rule create_alignment_manifest:
     """Create a manifest TSV from the samples configuration."""
     output:
-        manifest=os.path.join(OUT["alignment"], "{patient_id}", "manifest.tsv"),
+        manifest=os.path.join(_RES, "{patient_id}", "alignment", "manifest.tsv"),
     log:
-        os.path.join(OUT["logs"], "alignment", "{patient_id}_manifest.log"),
+        os.path.join(_LOGS, "alignment", "{patient_id}_manifest.log"),
     params:
         samples_tsv=config["samples_tsv"],
     conda:
@@ -52,22 +52,22 @@ checkpoint alignment_complete:
     this checkpoint is aligner-agnostic.
     """
     input:
-        manifest=os.path.join(OUT["alignment"], "{patient_id}", "manifest.tsv"),
+        manifest=os.path.join(_RES, "{patient_id}", "alignment", "manifest.tsv"),
         samples=lambda wildcards: expand(
-            os.path.join(OUT["alignment"], wildcards.patient_id, "{sample}", "junctions.tsv"),
+            os.path.join(_RES, wildcards.patient_id, "alignment", "{sample}", "junctions.tsv"),
             sample=[s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)],
         ),
         uploads=lambda wildcards: (
             expand(
-                os.path.join(OUT["alignment"], wildcards.patient_id, "{sample}", "{sample}.bam.uploaded"),
+                os.path.join(_RES, wildcards.patient_id, "alignment", "{sample}", "{sample}.bam.uploaded"),
                 sample=[s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)],
             )
             if _GCS_BUCKET and config.get("alignment", {}).get("aligner") == "hisat2"
             else []
         ),
     output:
-        done=os.path.join(OUT["alignment"], "{patient_id}", "download.done"),
-        data_dir=directory(os.path.join(OUT["alignment"], "{patient_id}")),
+        done=os.path.join(_RES, "{patient_id}", "alignment", "download.done"),
+        data_dir=directory(os.path.join(_RES, "{patient_id}", "alignment")),
     shell:
         "touch {output.done}"
 
@@ -85,14 +85,14 @@ def _get_fastq1(wildcards):
 def _get_fastq2(wildcards):
     for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
         if s["sample_id"] == wildcards.sample:
-            fastq2 = s.get("fastq2", "").strip()
+            fastq2 = (s.get("fastq2") or "").strip()
             return [_local_fastq(fastq2)] if fastq2 else []
     return []
 
 
 # Shared output paths for both align rules — defined once to avoid drift.
-_JUNCTION_OUTPUT = os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "junctions.tsv")
-_JUNCTION_DONE   = os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "done")
+_JUNCTION_OUTPUT = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "junctions.tsv")
+_JUNCTION_DONE   = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "done")
 
 # ── HISAT2 ───────────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             index_dir=directory(_HISAT2_INDEX_DIR),
             done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
         log:
-            os.path.join(OUT["logs"], "hisat2", "hisat2_index.log"),
+            os.path.join(_LOGS, "hisat2", "hisat2_index.log"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=8000,
@@ -153,11 +153,11 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
-            bam=temp(os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}.bam")),
-            bai=temp(os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}.bam.bai")),
-            bed=temp(os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}_junctions.bed")),
+            bam=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam")),
+            bai=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai")),
+            bed=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed")),
         log:
-            os.path.join(OUT["logs"], "hisat2", "{patient_id}_{sample}_align.log"),
+            os.path.join(_LOGS, "hisat2", "{patient_id}_{sample}_align.log"),
         params:
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         threads: config.get("alignment", {}).get("threads", 8)
@@ -205,15 +205,15 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         rule upload_bam:
             """Upload BAM, BAI, and junction BED to GCS. Local temp files deleted once upload completes."""
             input:
-                bam=os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}.bam"),
-                bai=os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}.bam.bai"),
-                bed=os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}_junctions.bed"),
+                bam=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam"),
+                bai=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai"),
+                bed=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed"),
             output:
-                sentinel=os.path.join(OUT["alignment"], "{patient_id}", "{sample}", "{sample}.bam.uploaded"),
+                sentinel=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.uploaded"),
             params:
-                gcs_dir=lambda wildcards: f"{_GCS_BUCKET}/results/alignment/{wildcards.patient_id}/",
+                gcs_dir=lambda wildcards: f"{_GCS_BUCKET}/{_RES}/{wildcards.patient_id}/alignment/{wildcards.sample}/",
             log:
-                os.path.join(OUT["logs"], "upload", "{patient_id}_{sample}_bam.log"),
+                os.path.join(_LOGS, "upload", "{patient_id}_{sample}_bam.log"),
             shell:
                 """
                 gsutil cp {input.bam} {params.gcs_dir} 2>&1 | tee {log}
@@ -243,7 +243,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             index_dir=directory(_STAR_INDEX_DIR),
             done=touch(os.path.join(_STAR_INDEX_DIR, "index.done")),
         log:
-            os.path.join(OUT["logs"], "star", "star_index.log"),
+            os.path.join(_LOGS, "star", "star_index.log"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
@@ -287,10 +287,10 @@ elif config.get("alignment", {}).get("aligner") == "star":
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
         log:
-            os.path.join(OUT["logs"], "star", "{patient_id}_{sample}_align.log"),
+            os.path.join(_LOGS, "star", "{patient_id}_{sample}_align.log"),
         params:
             output_prefix=lambda wildcards: os.path.join(
-                OUT["alignment"], wildcards.patient_id, wildcards.sample, "star_"
+                _RES, wildcards.patient_id, "alignment", wildcards.sample, "star_"
             ),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:

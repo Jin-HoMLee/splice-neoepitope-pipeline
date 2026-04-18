@@ -29,13 +29,7 @@ gcs:
 # Output directories
 # -----------------------------------------------------------------
 output:
-  alignment:    "results/alignment"
-  junctions:    "results/junctions"
-  contigs:      "results/contigs"
-  peptides:     "results/peptides"
-  predictions:  "results/predictions"
-  analysis:     "results/analysis"
-  reports:      "results/reports"
+  results_dir:  "results"   # all patient outputs land under results/{patient_id}/
   logs:         "logs"
 
 # -----------------------------------------------------------------

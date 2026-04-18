@@ -24,13 +24,7 @@ gcs:
   bucket: ""    # disable GCS operations for local test runs
 
 output:
-  alignment:    "results/test/alignment"
-  junctions:    "results/test/junctions"
-  contigs:      "results/test/contigs"
-  peptides:     "results/test/peptides"
-  predictions:  "results/test/predictions"
-  analysis:     "results/test/analysis"
-  reports:      "results/test/reports"
+  results_dir:  "results/test"   # all patient outputs land under results/test/{patient_id}/
   logs:         "logs/test"
 
 reference:

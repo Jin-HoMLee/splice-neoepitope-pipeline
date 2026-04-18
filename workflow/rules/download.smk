@@ -29,7 +29,7 @@ if _GCS_FASTQ_MAP:
         output:
             fastq=temp("data/{filename}"),
         log:
-            os.path.join(OUT["logs"], "download", "{filename}.log"),
+            os.path.join(_LOGS, "download", "{filename}.log"),
         params:
             gcs_path=lambda wildcards: _GCS_FASTQ_MAP[wildcards.filename],
         shell:

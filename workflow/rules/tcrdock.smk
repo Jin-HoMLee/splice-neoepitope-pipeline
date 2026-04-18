@@ -36,13 +36,13 @@ if _TCRDOCK_ENABLED:
             predictions_tsv=rules.run_mhcflurry.output.mhc_affinity_tsv,
         output:
             pdb=os.path.join(
-                OUT["predictions"], "{patient_id}", "tcrdock", "top_candidate.pdb"
+                _RES, "{patient_id}", "predictions", "tcrdock", "top_candidate.pdb"
             ),
             scores_tsv=os.path.join(
-                OUT["predictions"], "{patient_id}", "tcrdock", "docking_scores.tsv"
+                _RES, "{patient_id}", "predictions", "tcrdock", "docking_scores.tsv"
             ),
         log:
-            os.path.join(OUT["logs"], "tcrdock", "{patient_id}_tcrdock.log"),
+            os.path.join(_LOGS, "tcrdock", "{patient_id}_tcrdock.log"),
         params:
             n_candidates=config["tcrdock"]["n_candidates"],
             docker_image=config["tcrdock"]["docker_image"],
@@ -66,10 +66,10 @@ if _TCRDOCK_ENABLED:
             scores_tsv=rules.run_tcrdock.output.scores_tsv,
         output:
             report_html=os.path.join(
-                OUT["reports"], "{patient_id}", "report.html"
+                _RES, "{patient_id}", "reports", "report.html"
             ),
         log:
-            os.path.join(OUT["logs"], "report", "{patient_id}_report.log"),
+            os.path.join(_LOGS, "report", "{patient_id}_report.log"),
         params:
             ic50_strong=config["mhcflurry"]["ic50_strong"],
         conda:

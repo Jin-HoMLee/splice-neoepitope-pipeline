@@ -19,7 +19,7 @@ rule build_reference_junctions:
     output:
         bed=config["reference"]["junction_bed"],
     log:
-        os.path.join(OUT["logs"], "reference", "build_reference_junctions.log"),
+        os.path.join(_LOGS, "reference", "build_reference_junctions.log"),
     conda:
         "../envs/python.yaml"
     script:
@@ -42,14 +42,14 @@ def _get_junction_files_input(wildcards):
             if pid == wildcards.patient_id and sid and not sid.startswith("#"):
                 sample_ids.append(sid)
     return expand(
-        os.path.join(OUT["alignment"], wildcards.patient_id, "{sample_id}", "junctions.tsv"),
+        os.path.join(_RES, wildcards.patient_id, "alignment", "{sample_id}", "junctions.tsv"),
         sample_id=sample_ids,
     )
 
 
 def _get_manifest_input(wildcards):
     """Return the manifest TSV path for this patient."""
-    return os.path.join(OUT["alignment"], wildcards.patient_id, "manifest.tsv")
+    return os.path.join(_RES, wildcards.patient_id, "alignment", "manifest.tsv")
 
 
 rule filter_junctions:
@@ -66,10 +66,10 @@ rule filter_junctions:
         reference_junctions=config["reference"]["junction_bed"],
     output:
         novel_junctions=os.path.join(
-            OUT["junctions"], "{patient_id}", "novel_junctions.tsv"
+            _RES, "{patient_id}", "junctions", "novel_junctions.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "filter", "{patient_id}_filter.log"),
+        os.path.join(_LOGS, "filter", "{patient_id}_filter.log"),
     params:
         min_normal_reads=config["filtering"]["min_normal_reads"],
     conda:

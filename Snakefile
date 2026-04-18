@@ -33,9 +33,12 @@
 configfile: "config/config.yaml"
 
 import csv
+import os
 
 # ── convenience aliases ──────────────────────────────────────────────────────
-OUT = config["output"]
+# All patient outputs are rooted at _RES/{patient_id}/<step>/
+_RES  = config["output"]["results_dir"]
+_LOGS = config["output"]["logs"]
 
 # Derive patient IDs from the samples TSV — the TSV is the single source of
 # truth for what to run. All rows sharing the same patient_id are treated as
@@ -77,5 +80,5 @@ if config.get("tcrdock", {}).get("enabled", False):
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        expand("{reports}/{patient_id}/report.html", reports=OUT["reports"], patient_id=PATIENT_IDS),
+        expand(os.path.join(_RES, "{patient_id}", "reports", "report.html"), patient_id=PATIENT_IDS),
 

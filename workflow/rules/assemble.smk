@@ -12,10 +12,10 @@ rule assemble_contigs:
         genome_fasta=config["reference"]["genome_fasta"],
     output:
         contigs_fasta=os.path.join(
-            OUT["contigs"], "{patient_id}", "contigs.fa"
+            _RES, "{patient_id}", "contigs", "contigs.fa"
         ),
     log:
-        os.path.join(OUT["logs"], "assemble", "{patient_id}_assemble.log"),
+        os.path.join(_LOGS, "assemble", "{patient_id}_assemble.log"),
     params:
         upstream_nt=config["assembly"]["upstream_nt"],
         downstream_nt=config["assembly"]["downstream_nt"],
