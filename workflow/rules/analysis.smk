@@ -37,7 +37,7 @@ rule generate_report:
             _RES, "{patient_id}", "reports", "report.html"
         ),
     log:
-        os.path.join(_LOGS, "report", "{patient_id}_report.log"),
+        os.path.join(_LOGS, "analysis", "{patient_id}_report.log"),
     params:
         ic50_strong=config["mhcflurry"]["ic50_strong"],
     conda:

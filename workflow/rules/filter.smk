@@ -19,7 +19,7 @@ rule build_reference_junctions:
     output:
         bed=config["reference"]["junction_bed"],
     log:
-        os.path.join(_LOGS, "reference", "build_reference_junctions.log"),
+        os.path.join(_LOGS, "filter", "build_reference_junctions.log"),
     conda:
         "../envs/python.yaml"
     script:

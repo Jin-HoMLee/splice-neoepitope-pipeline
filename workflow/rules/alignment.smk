@@ -116,7 +116,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             index_dir=directory(_HISAT2_INDEX_DIR),
             done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
         log:
-            os.path.join(_LOGS, "hisat2", "hisat2_index.log"),
+            os.path.join(_LOGS, "alignment", "hisat2_index.log"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=8000,
@@ -157,7 +157,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             bai=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai")),
             bed=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed")),
         log:
-            os.path.join(_LOGS, "hisat2", "{patient_id}_{sample}_align.log"),
+            os.path.join(_LOGS, "alignment", "{patient_id}_{sample}_align.log"),
         params:
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         threads: config.get("alignment", {}).get("threads", 8)
@@ -213,7 +213,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             params:
                 gcs_dir=lambda wildcards: f"{_GCS_BUCKET}/{_RES}/{wildcards.patient_id}/alignment/{wildcards.sample}/",
             log:
-                os.path.join(_LOGS, "upload", "{patient_id}_{sample}_bam.log"),
+                os.path.join(_LOGS, "alignment", "{patient_id}_{sample}_bam.log"),
             shell:
                 """
                 gsutil cp {input.bam} {params.gcs_dir} 2>&1 | tee {log}
@@ -243,7 +243,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             index_dir=directory(_STAR_INDEX_DIR),
             done=touch(os.path.join(_STAR_INDEX_DIR, "index.done")),
         log:
-            os.path.join(_LOGS, "star", "star_index.log"),
+            os.path.join(_LOGS, "alignment", "star_index.log"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
@@ -287,7 +287,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
         log:
-            os.path.join(_LOGS, "star", "{patient_id}_{sample}_align.log"),
+            os.path.join(_LOGS, "alignment", "{patient_id}_{sample}_align.log"),
         params:
             output_prefix=lambda wildcards: os.path.join(
                 _RES, wildcards.patient_id, "alignment", wildcards.sample, "star_"

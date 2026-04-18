@@ -28,7 +28,7 @@ rule download_mhcflurry_models:
     output:
         sentinel=touch("resources/mhcflurry_models.done"),
     log:
-        os.path.join(_LOGS, "predict", "mhcflurry_downloads.log"),
+        os.path.join(_LOGS, "mhc_affinity", "mhcflurry_downloads.log"),
     conda:
         "../envs/python.yaml"
     shell:
@@ -48,7 +48,7 @@ rule run_mhcflurry:
             _RES, "{patient_id}", "predictions", "mhc_affinity.tsv"
         ),
     log:
-        os.path.join(_LOGS, "predict", "{patient_id}_predict.log"),
+        os.path.join(_LOGS, "mhc_affinity", "{patient_id}_predict.log"),
     params:
         # Used only when hla.enabled is false (alleles_tsv input absent).
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),
