@@ -12,10 +12,10 @@ rule translate_peptides:
         contigs_fasta=rules.assemble_contigs.output.contigs_fasta,
     output:
         peptides_tsv=os.path.join(
-            OUT["peptides"], "{patient_id}", "peptides.tsv"
+            _RES, "{patient_id}", "peptides", "peptides.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "translate", "{patient_id}_translate.log"),
+        os.path.join(_LOGS, "{patient_id}", "translate_peptides", "translate.log"),
     params:
         upstream_nt=config["assembly"]["upstream_nt"],
     conda:

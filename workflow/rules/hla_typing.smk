@@ -18,7 +18,7 @@ import os
 
 if config.get("hla", {}).get("enabled", False):
 
-    _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["raw_data"]), "hla_typing")
+    _HLA_TYPING_DIR = os.path.join(_RES, "{patient_id}", "hla_typing")
     _OPTITYPE_SOLVER = str(config.get("hla", {}).get("solver", "cbc")).lower()
     _OPTITYPE_ILP_THREADS = int(config.get("hla", {}).get("ilp_threads", 1))
 
@@ -48,7 +48,7 @@ if config.get("hla", {}).get("enabled", False):
         return {
             "result_tsvs": expand(
                 os.path.join(
-                    _HLA_TYPING_DIR, wildcards.patient_id,
+                    _RES, wildcards.patient_id, "hla_typing",
                     "{sample}", "{sample}_result.tsv",
                 ),
                 sample=sample_ids,
@@ -74,15 +74,15 @@ if config.get("hla", {}).get("enabled", False):
             fastqs=_hla_sample_fastqs,
         output:
             result_tsv=os.path.join(
-                _HLA_TYPING_DIR, "{patient_id}", "{sample}", "{sample}_result.tsv"
+                _HLA_TYPING_DIR, "{sample}", "{sample}_result.tsv"
             ),
             coverage_plot=os.path.join(
-                _HLA_TYPING_DIR, "{patient_id}", "{sample}", "{sample}_coverage_plot.pdf"
+                _HLA_TYPING_DIR, "{sample}", "{sample}_coverage_plot.pdf"
             ),
         log:
-            os.path.join(OUT["logs"], "hla_typing", "{patient_id}_{sample}.log"),
+            os.path.join(_LOGS, "{patient_id}", "hla_typing", "{sample}.log"),
         params:
-            outdir=lambda w: os.path.join(_HLA_TYPING_DIR, w.patient_id, w.sample),
+            outdir=lambda w: os.path.join(_RES, w.patient_id, "hla_typing", w.sample),
             solver=_OPTITYPE_SOLVER,
             ilp_threads=_OPTITYPE_ILP_THREADS,
         threads: config.get("hla", {}).get("threads", 4)
@@ -150,10 +150,10 @@ EOF
         input:
             unpack(_aggregate_hla_inputs),
         output:
-            alleles=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "alleles.tsv"),
-            qc=os.path.join(_HLA_TYPING_DIR, "{patient_id}", "hla_qc.tsv"),
+            alleles=os.path.join(_HLA_TYPING_DIR, "alleles.tsv"),
+            qc=os.path.join(_HLA_TYPING_DIR, "hla_qc.tsv"),
         log:
-            os.path.join(OUT["logs"], "hla_typing", "aggregate_{patient_id}.log"),
+            os.path.join(_LOGS, "{patient_id}", "hla_typing", "aggregate.log"),
         params:
             samples_tsv=config["samples_tsv"],
             min_reads=config.get("hla", {}).get("min_reads_per_locus", 30),

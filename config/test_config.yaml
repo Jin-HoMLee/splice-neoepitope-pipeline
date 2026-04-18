@@ -17,16 +17,14 @@
 # config.yaml, which Snakemake loads first via the `configfile:`
 # directive in the Snakefile before merging this file on top
 # (recursive merge, per-key).
+#
+# Outputs land in the same results/ and logs/ as production, namespaced
+# by patient_id=patient_001_test — nf-core style (no separate test output dir).
 
-samples_tsv: "config/test_samples.tsv"
+samples_tsv: "config/samples/patient_001_test.tsv"
 
-alignment:
-  hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
-  star_index_dir: "resources/test/star_index"        # separate from production index
-  threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
-
-mhcflurry:
-  threads: 4      # M1 MacBook Air (8 GB RAM)
+gcs:
+  bucket: ""    # disable GCS operations for local test runs
 
 reference:
   genome: "GRCh38_chr22"
@@ -34,15 +32,13 @@ reference:
   gencode_gtf:  "resources/test/chr22.gtf.gz"
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
+alignment:
+  hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
+  star_index_dir: "resources/test/star_index"        # separate from production index
+  threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
+
 hla:
   enabled: true
 
-output:
-  raw_data:     "results/test/raw_data"
-  junctions:    "results/test/junctions"
-  contigs:      "results/test/contigs"
-  peptides:     "results/test/peptides"
-  predictions:  "results/test/predictions"
-  analysis:     "results/test/analysis"
-  reports:      "results/test/reports"
-  logs:         "logs/test"
+mhcflurry:
+  threads: 4      # M1 MacBook Air (8 GB RAM)

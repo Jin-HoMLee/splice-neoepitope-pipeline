@@ -33,9 +33,12 @@
 configfile: "config/config.yaml"
 
 import csv
+import os
 
 # ── convenience aliases ──────────────────────────────────────────────────────
-OUT = config["output"]
+# All patient outputs are rooted at _RES/{patient_id}/<step>/
+_RES  = config["output"]["results_dir"]
+_LOGS = config["output"]["logs"]
 
 # Derive patient IDs from the samples TSV — the TSV is the single source of
 # truth for what to run. All rows sharing the same patient_id are treated as
@@ -50,18 +53,31 @@ def _read_patient_ids(samples_tsv):
             patient_ids.add(pid)
     return sorted(patient_ids)
 
+if "samples_tsv" not in config:
+    raise ValueError(
+        "samples_tsv is required. Pass it at runtime:\n"
+        "  snakemake --config samples_tsv=config/samples/<patient>.tsv\n"
+        "  or set it in a configfile (e.g. config/test_config.yaml)."
+    )
+
 PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
+
+wildcard_constraints:
+    patient_id="[^/]+",
+    sample="[^/]+",
 
 
 # ── include rule modules ─────────────────────────────────────────────────────
+include: "workflow/rules/common.smk"
+include: "workflow/rules/download.smk"
 include: "workflow/rules/alignment.smk"
 include: "workflow/rules/hla_typing.smk"
-include: "workflow/rules/filter.smk"
-include: "workflow/rules/assemble.smk"
-include: "workflow/rules/translate.smk"
-include: "workflow/rules/mhcflurry.smk"
+include: "workflow/rules/filter_junctions.smk"
+include: "workflow/rules/assemble_contigs.smk"
+include: "workflow/rules/translate_peptides.smk"
+include: "workflow/rules/mhc_affinity.smk"
 include: "workflow/rules/analysis.smk"
-include: "workflow/rules/tcrdock.smk"
+include: "workflow/rules/structure.smk"
 
 # When TCRdock is enabled, prefer the structure report over the plain report.
 if config.get("tcrdock", {}).get("enabled", False):
@@ -71,5 +87,5 @@ if config.get("tcrdock", {}).get("enabled", False):
 # ── final target ─────────────────────────────────────────────────────────────
 rule all:
     input:
-        expand("{reports}/{patient_id}/report.html", reports=OUT["reports"], patient_id=PATIENT_IDS),
+        expand(os.path.join(_RES, "{patient_id}", "reports", "report.html"), patient_id=PATIENT_IDS),
 

@@ -1,0 +1,8 @@
+patient_id	sample_id	sample_type	fastq1	fastq2
+# Boston Gene osteosarcoma BG003082, paired-end RNA-seq (Nov 2022).
+# No matched RNA-seq normal — all unannotated junctions labeled tumor_exclusive.
+# WES blood normal included for HLA typing only (OptiType --rna tolerates WES).
+# FASTQs are in the osteosarcoma public GCS bucket (gs://osteosarc-genomics).
+patient_002	BG003082_T0	Primary Tumor	gs://osteosarc-genomics/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R1.fastq.gz	gs://osteosarc-genomics/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R2.fastq.gz
+# TODO: restore GCS access to osteosarc-genomics and fill in exact WES FASTQ filenames
+patient_002	BG003082_N0_WES	Blood Derived Normal	gs://osteosarc-genomics/genomics/genomics-bulk/2022.12.16/DNA/2022.12.16.dna.bostongene.WES/fastqs/normal-blood/BG003082_N0_R1.fastq.gz	gs://osteosarc-genomics/genomics/genomics-bulk/2022.12.16/DNA/2022.12.16.dna.bostongene.WES/fastqs/normal-blood/BG003082_N0_R2.fastq.gz
