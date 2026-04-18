@@ -58,13 +58,12 @@ import yaml
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RESULTS = REPO_ROOT / "results" / "test"
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
-# Read the first patient_id from test_samples.tsv — the same source of truth
-# the pipeline uses, so this stays in sync automatically.
+# Read the first patient_id from the test samplesheet — the same source of
+# truth the pipeline uses, so this stays in sync automatically.
 def _first_patient_id() -> str:
-    tsv = REPO_ROOT / "config" / "test_samples.tsv"
+    tsv = REPO_ROOT / "config" / "samples" / "patient_001_test.tsv"
     with tsv.open() as f:
         for row in csv.DictReader(f, delimiter="\t"):
             pid = (row.get("patient_id") or "").strip()
@@ -74,6 +73,7 @@ def _first_patient_id() -> str:
     raise RuntimeError(f"No patient_id found in {tsv}")
 
 PATIENT_ID = _first_patient_id()
+RESULTS = REPO_ROOT / "results" / PATIENT_ID
 GOLDEN_FILE = GOLDEN_DIR / "test_metrics.json"
 
 
@@ -142,22 +142,22 @@ def collect_metrics() -> dict:
     so the snapshot stays small and human-readable.
     """
     # Junctions ---------------------------------------------------------------
-    junc_rows = _read_tsv(RESULTS / "junctions" / PATIENT_ID / "novel_junctions.tsv")
+    junc_rows = _read_tsv(RESULTS / "junctions" / "novel_junctions.tsv")
     junc_origins: dict[str, int] = {}
     for r in junc_rows:
         origin = r["junction_origin"]
         junc_origins[origin] = junc_origins.get(origin, 0) + 1
 
     # Contigs -----------------------------------------------------------------
-    contigs_fa = RESULTS / "contigs" / PATIENT_ID / "contigs.fa"
+    contigs_fa = RESULTS / "contigs" / "contigs.fa"
     n_contigs = sum(1 for line in contigs_fa.open() if line.startswith(">"))
 
     # Peptides ----------------------------------------------------------------
-    pep_rows = _read_tsv(RESULTS / "peptides" / PATIENT_ID / "peptides.tsv")
+    pep_rows = _read_tsv(RESULTS / "peptides" / "peptides.tsv")
     n_unique_peptides = len(set(r["peptide"] for r in pep_rows))
 
     # Predictions -------------------------------------------------------------
-    pred_rows = _read_tsv(RESULTS / "predictions" / PATIENT_ID / "mhc_affinity.tsv")
+    pred_rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
     binder_counts: dict[str, int] = {}
     for r in pred_rows:
         bc = r["binder_class"]
@@ -261,7 +261,7 @@ def test_results_match_golden():
     """
     import pytest
 
-    sentinel = RESULTS / "junctions" / PATIENT_ID / "novel_junctions.tsv"
+    sentinel = RESULTS / "junctions" / "novel_junctions.tsv"
     if not sentinel.exists():
         pytest.skip("Pipeline results not found — run the test pipeline first")
 
