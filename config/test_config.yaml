@@ -21,7 +21,7 @@
 # Outputs land in the same results/ and logs/ as production, namespaced
 # by patient_id=patient_001_test — nf-core style (no separate test output dir).
 
-samples_tsv: "config/test_samples.tsv"
+samples_tsv: "config/samples/patient_001_test.tsv"
 
 gcs:
   bucket: ""    # disable GCS operations for local test runs

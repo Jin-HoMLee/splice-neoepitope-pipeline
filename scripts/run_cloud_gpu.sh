@@ -32,12 +32,11 @@
 #   - P100 GPU quota in the target zone (PREEMPTIBLE_NVIDIA_P100_GPUS >= 1)
 #
 # Usage:
-#   bash scripts/run_cloud_gpu.sh [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]
+#   bash scripts/run_cloud_gpu.sh --samples config/samples/patient_002.tsv [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]
 #
 # After the run, download the report:
-#   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/test/reports ./tcrdock_report   # test
-#   gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/reports ./tcrdock_report        # prod
-#   open tcrdock_report/[patient_id]/report.html
+#   gcloud storage cp -r gs://splice-neoepitope-project/results/{patient_id}/reports ./report   # test or prod
+#   open report/report.html
 # =============================================================================
 
 set -euo pipefail
@@ -57,10 +56,11 @@ IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
 
-GCS_BUCKET="$(gcloud config get-value project 2>/dev/null)-tcrdock-handoff"
+GCS_BUCKET="splice-neoepitope-project"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
 MODE="prod"
+SAMPLES=""
 DETACH=false
 CLOUD_INTERNAL=false
 
@@ -69,10 +69,11 @@ CLOUD_INTERNAL=false
 # ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --mode)   MODE="${2:?--mode requires test or prod}";     shift 2 ;;
-        --branch) BRANCH="${2:?--branch requires a value}";      shift 2 ;;
-        --zone)   ZONE="${2:?--zone requires a value}";          shift 2 ;;
-        --detach) DETACH=true;                                    shift ;;
+        --mode)    MODE="${2:?--mode requires test or prod}";      shift 2 ;;
+        --branch)  BRANCH="${2:?--branch requires a value}";     shift 2 ;;
+        --zone)    ZONE="${2:?--zone requires a value}";         shift 2 ;;
+        --samples) SAMPLES="${2:?--samples requires a path}";    shift 2 ;;
+        --detach)  DETACH=true;                                   shift ;;
         --_cloud-internal) CLOUD_INTERNAL=true;                   shift ;;
         *)
             echo "Unknown argument: $1" >&2
@@ -87,15 +88,17 @@ done
 case "${MODE}" in
     test)
         CONFIG_FILE="config/test_config.yaml"
-        RESULTS_DIR="results/test"
-        GCS_PATH="gs://${GCS_BUCKET}/results/test"
+        RESULTS_DIR="results"
+        GCS_PATH="gs://${GCS_BUCKET}/results"
         PREPARE_DATA_SCRIPT="scripts/prepare_test_data.sh"
+        [[ -z "${SAMPLES}" ]] && SAMPLES="config/samples/patient_001_test.tsv"
         ;;
     prod|production)
         CONFIG_FILE="config/config.yaml"
         RESULTS_DIR="results"
         GCS_PATH="gs://${GCS_BUCKET}/results"
-        PREPARE_DATA_SCRIPT="scripts/prepare_production_data.sh"
+        PREPARE_DATA_SCRIPT=""
+        [[ -z "${SAMPLES}" ]] && { echo "ERROR: --samples required for prod mode (e.g. --samples config/samples/patient_002.tsv)" >&2; exit 1; }
         ;;
     *)
         echo "ERROR: --mode must be 'test' or 'prod', got '${MODE}'" >&2
@@ -293,12 +296,14 @@ wait_for_ssh "${CPU_VM}"
 log "Running setup_cloud.sh on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
 
-log "Preparing data on ${CPU_VM} (${PREPARE_DATA_SCRIPT})..."
-ssh_cmd "${CPU_VM}" -- bash -s <<REMOTE
+if [[ -n "${PREPARE_DATA_SCRIPT}" ]]; then
+    log "Preparing data on ${CPU_VM} (${PREPARE_DATA_SCRIPT})..."
+    ssh_cmd "${CPU_VM}" -- bash -s <<REMOTE
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 bash ${PREPARE_DATA_SCRIPT} --no-next-steps
 REMOTE
+fi
 
 log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
@@ -314,12 +319,13 @@ tmux kill-session -t pipeline 2>/dev/null || true
 tmux new-session -d -s pipeline "
     source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
     conda activate snakemake
-    snakemake --unlock --configfile ${CONFIG_FILE} 2>/dev/null || true
+    snakemake --unlock --configfile ${CONFIG_FILE} --config samples_tsv=${SAMPLES} 2>/dev/null || true
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
         --rerun-triggers mtime \\
         --configfile ${CONFIG_FILE} \\
+        --config samples_tsv=${SAMPLES} \\
         2>&1 | tee pipeline.log
     echo 'Pipeline finished.'
 "
@@ -476,12 +482,13 @@ find ${RESULTS_DIR} -name report.html -delete
 source "\$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate snakemake
 
-snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml 2>/dev/null || true
+snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES} 2>/dev/null || true
 snakemake \\
     --cores "\$(nproc)" \\
     --use-conda \\
     --rerun-triggers code params \\
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
+    --config samples_tsv=${SAMPLES} \\
     2>&1 | tee tcrdock.log
 
 echo "Uploading final results to GCS..."
@@ -499,8 +506,8 @@ log "================================================================"
 log "All phases complete. GPU VM will stop shortly."
 log ""
 log "To retrieve the report:"
-log "  gcloud storage cp -r ${GCS_PATH}/reports ./tcrdock_report"
-log "  open tcrdock_report/[patient_id]/report.html"
+log "  gcloud storage cp -r ${GCS_PATH}/{patient_id}/reports ./report"
+log "  open report/report.html"
 log ""
 log "To delete the GPU VM and stop disk charges:"
 log "    gcloud compute instances delete ${GPU_VM} --zone=${ZONE} --quiet"

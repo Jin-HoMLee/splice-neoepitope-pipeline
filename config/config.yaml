@@ -3,18 +3,19 @@
 # ============================================================
 
 # -----------------------------------------------------------------
-# Sample manifest
+# Sample manifest (required — no default)
 # -----------------------------------------------------------------
-# Path to a TSV listing the RNA-Seq FASTQs. Columns:
+# Pass at runtime via --config samples_tsv=config/samples/<patient>.tsv
+# Per-patient samplesheets live in config/samples/. Columns:
 #   patient_id   sample_id    sample_type    fastq1    fastq2
 #
-# Example (samples.tsv):
-#   patient_id  sample_id    sample_type         fastq1                    fastq2
-#   patient_001 tumor_01     Primary Tumor       data/tumor_01_R1.fq.gz    data/tumor_01_R2.fq.gz
-#   patient_001 normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
+# sample_type values:
+#   "Primary Tumor"        — junctions used for neoepitope prediction
+#   "Solid Tissue Normal"  — filters out non-tumor-specific junctions
+#   "Blood Derived Normal" — used for HLA typing only (WES or RNA-seq)
 #
 # For single-end data, leave fastq2 empty.
-samples_tsv: "config/samples.tsv"
+# gs:// paths are downloaded automatically by the download_fastq rule.
 
 # -----------------------------------------------------------------
 # GCS integration (cloud runs only)

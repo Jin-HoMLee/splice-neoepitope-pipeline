@@ -53,6 +53,13 @@ def _read_patient_ids(samples_tsv):
             patient_ids.add(pid)
     return sorted(patient_ids)
 
+if "samples_tsv" not in config:
+    raise ValueError(
+        "samples_tsv is required. Pass it at runtime:\n"
+        "  snakemake --config samples_tsv=config/samples/<patient>.tsv\n"
+        "  or set it in a configfile (e.g. config/test_config.yaml)."
+    )
+
 PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
 wildcard_constraints:
