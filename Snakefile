@@ -68,9 +68,9 @@ include: "workflow/rules/hla_typing.smk"
 include: "workflow/rules/filter.smk"
 include: "workflow/rules/assemble.smk"
 include: "workflow/rules/translate.smk"
-include: "workflow/rules/mhcflurry.smk"
+include: "workflow/rules/mhc_affinity.smk"
 include: "workflow/rules/analysis.smk"
-include: "workflow/rules/tcrdock.smk"
+include: "workflow/rules/structure.smk"
 
 # When TCRdock is enabled, prefer the structure report over the plain report.
 if config.get("tcrdock", {}).get("enabled", False):
