@@ -16,7 +16,7 @@ def _run_mhcflurry_input(wildcards):
     }
     if _HLA_TYPING_ENABLED:
         d["alleles_tsv"] = os.path.join(
-            os.path.dirname(OUT["raw_data"]), "hla_typing",
+            os.path.dirname(OUT["alignment"]), "hla_typing",
             wildcards.patient_id, "alleles.tsv",
         )
     return d

@@ -19,7 +19,7 @@ def _generate_report_input(wildcards):
     }
     if _HLA_QC_ENABLED:
         d["hla_qc"] = os.path.join(
-            os.path.dirname(OUT["raw_data"]), "hla_typing",
+            os.path.dirname(OUT["alignment"]), "hla_typing",
             wildcards.patient_id, "hla_qc.tsv",
         )
     return d

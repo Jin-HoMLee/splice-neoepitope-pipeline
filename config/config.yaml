@@ -29,7 +29,7 @@ gcs:
 # Output directories
 # -----------------------------------------------------------------
 output:
-  raw_data:     "results/raw_data"
+  alignment:    "results/alignment"
   junctions:    "results/junctions"
   contigs:      "results/contigs"
   peptides:     "results/peptides"

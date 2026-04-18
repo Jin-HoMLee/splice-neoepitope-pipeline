@@ -24,7 +24,7 @@ gcs:
   bucket: ""    # disable GCS operations for local test runs
 
 output:
-  raw_data:     "results/test/raw_data"
+  alignment:    "results/test/alignment"
   junctions:    "results/test/junctions"
   contigs:      "results/test/contigs"
   peptides:     "results/test/peptides"

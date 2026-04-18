@@ -42,14 +42,14 @@ def _get_junction_files_input(wildcards):
             if pid == wildcards.patient_id and sid and not sid.startswith("#"):
                 sample_ids.append(sid)
     return expand(
-        os.path.join(OUT["raw_data"], wildcards.patient_id, "files", "{sample_id}.tsv"),
+        os.path.join(OUT["alignment"], wildcards.patient_id, "{sample_id}", "junctions.tsv"),
         sample_id=sample_ids,
     )
 
 
 def _get_manifest_input(wildcards):
     """Return the manifest TSV path for this patient."""
-    return os.path.join(OUT["raw_data"], wildcards.patient_id, "manifest.tsv")
+    return os.path.join(OUT["alignment"], wildcards.patient_id, "manifest.tsv")
 
 
 rule filter_junctions:

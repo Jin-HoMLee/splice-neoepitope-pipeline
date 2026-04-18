@@ -52,6 +52,10 @@ def _read_patient_ids(samples_tsv):
 
 PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
 
+wildcard_constraints:
+    patient_id="[^/]+",
+    sample="[^/]+",
+
 
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/common.smk"

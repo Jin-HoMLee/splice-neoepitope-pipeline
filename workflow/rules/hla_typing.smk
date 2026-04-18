@@ -18,7 +18,7 @@ import os
 
 if config.get("hla", {}).get("enabled", False):
 
-    _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["raw_data"]), "hla_typing")
+    _HLA_TYPING_DIR = os.path.join(os.path.dirname(OUT["alignment"]), "hla_typing")
     _OPTITYPE_SOLVER = str(config.get("hla", {}).get("solver", "cbc")).lower()
     _OPTITYPE_ILP_THREADS = int(config.get("hla", {}).get("ilp_threads", 1))
 
