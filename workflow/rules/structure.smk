@@ -42,7 +42,7 @@ if _TCRDOCK_ENABLED:
                 _RES, "{patient_id}", "predictions", "tcrdock", "docking_scores.tsv"
             ),
         log:
-            os.path.join(_LOGS, "structure", "{patient_id}_tcrdock.log"),
+            os.path.join(_LOGS, "{patient_id}", "structure", "tcrdock.log"),
         params:
             n_candidates=config["tcrdock"]["n_candidates"],
             docker_image=config["tcrdock"]["docker_image"],
@@ -69,7 +69,7 @@ if _TCRDOCK_ENABLED:
                 _RES, "{patient_id}", "reports", "report.html"
             ),
         log:
-            os.path.join(_LOGS, "structure", "{patient_id}_report.log"),
+            os.path.join(_LOGS, "{patient_id}", "structure", "report.log"),
         params:
             ic50_strong=config["mhcflurry"]["ic50_strong"],
         conda:

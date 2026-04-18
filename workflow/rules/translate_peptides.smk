@@ -15,7 +15,7 @@ rule translate_peptides:
             _RES, "{patient_id}", "peptides", "peptides.tsv"
         ),
     log:
-        os.path.join(_LOGS, "translate_peptides", "{patient_id}_translate.log"),
+        os.path.join(_LOGS, "{patient_id}", "translate_peptides", "translate.log"),
     params:
         upstream_nt=config["assembly"]["upstream_nt"],
     conda:

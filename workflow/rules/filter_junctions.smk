@@ -69,7 +69,7 @@ rule filter_junctions:
             _RES, "{patient_id}", "junctions", "novel_junctions.tsv"
         ),
     log:
-        os.path.join(_LOGS, "filter_junctions", "{patient_id}_filter.log"),
+        os.path.join(_LOGS, "{patient_id}", "filter_junctions", "filter.log"),
     params:
         min_normal_reads=config["filtering"]["min_normal_reads"],
     conda:

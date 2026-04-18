@@ -48,7 +48,7 @@ rule run_mhcflurry:
             _RES, "{patient_id}", "predictions", "mhc_affinity.tsv"
         ),
     log:
-        os.path.join(_LOGS, "mhc_affinity", "{patient_id}_predict.log"),
+        os.path.join(_LOGS, "{patient_id}", "mhc_affinity", "predict.log"),
     params:
         # Used only when hla.enabled is false (alleles_tsv input absent).
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),

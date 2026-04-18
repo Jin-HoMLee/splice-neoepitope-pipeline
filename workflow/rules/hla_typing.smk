@@ -80,7 +80,7 @@ if config.get("hla", {}).get("enabled", False):
                 _HLA_TYPING_DIR, "{sample}", "{sample}_coverage_plot.pdf"
             ),
         log:
-            os.path.join(_LOGS, "hla_typing", "{patient_id}_{sample}.log"),
+            os.path.join(_LOGS, "{patient_id}", "hla_typing", "{sample}.log"),
         params:
             outdir=lambda w: os.path.join(_RES, w.patient_id, "hla_typing", w.sample),
             solver=_OPTITYPE_SOLVER,
@@ -153,7 +153,7 @@ EOF
             alleles=os.path.join(_HLA_TYPING_DIR, "alleles.tsv"),
             qc=os.path.join(_HLA_TYPING_DIR, "hla_qc.tsv"),
         log:
-            os.path.join(_LOGS, "hla_typing", "aggregate_{patient_id}.log"),
+            os.path.join(_LOGS, "{patient_id}", "hla_typing", "aggregate.log"),
         params:
             samples_tsv=config["samples_tsv"],
             min_reads=config.get("hla", {}).get("min_reads_per_locus", 30),
