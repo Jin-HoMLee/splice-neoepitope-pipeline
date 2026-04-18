@@ -20,22 +20,8 @@
 
 samples_tsv: "config/test_samples.tsv"
 
-alignment:
-  hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
-  star_index_dir: "resources/test/star_index"        # separate from production index
-  threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
-
-mhcflurry:
-  threads: 4      # M1 MacBook Air (8 GB RAM)
-
-reference:
-  genome: "GRCh38_chr22"
-  genome_fasta: "resources/test/chr22.fa"
-  gencode_gtf:  "resources/test/chr22.gtf.gz"
-  junction_bed: "resources/test/chr22_reference_junctions.bed"
-
-hla:
-  enabled: true
+gcs:
+  bucket: ""    # disable GCS operations for local test runs
 
 output:
   raw_data:     "results/test/raw_data"
@@ -46,3 +32,20 @@ output:
   analysis:     "results/test/analysis"
   reports:      "results/test/reports"
   logs:         "logs/test"
+
+reference:
+  genome: "GRCh38_chr22"
+  genome_fasta: "resources/test/chr22.fa"
+  gencode_gtf:  "resources/test/chr22.gtf.gz"
+  junction_bed: "resources/test/chr22_reference_junctions.bed"
+
+alignment:
+  hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
+  star_index_dir: "resources/test/star_index"        # separate from production index
+  threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
+
+hla:
+  enabled: true
+
+mhcflurry:
+  threads: 4      # M1 MacBook Air (8 GB RAM)
