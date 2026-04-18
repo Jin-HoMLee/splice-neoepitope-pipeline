@@ -190,7 +190,7 @@ def classify_junctions(
 
     for fp in junction_files:
         fp = Path(fp)
-        sample_id = fp.stem
+        sample_id = fp.parent.name
         sample_type = manifest.get(sample_id, "Unknown")
         if "normal" in sample_type.lower():
             normal_files.append((fp, sample_id))
