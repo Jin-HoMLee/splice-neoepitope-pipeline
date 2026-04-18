@@ -19,7 +19,7 @@ rule build_reference_junctions:
     output:
         bed=config["reference"]["junction_bed"],
     log:
-        os.path.join(_LOGS, "filter", "build_reference_junctions.log"),
+        os.path.join(_LOGS, "filter_junctions", "build_reference_junctions.log"),
     conda:
         "../envs/python.yaml"
     script:
@@ -69,7 +69,7 @@ rule filter_junctions:
             _RES, "{patient_id}", "junctions", "novel_junctions.tsv"
         ),
     log:
-        os.path.join(_LOGS, "filter", "{patient_id}_filter.log"),
+        os.path.join(_LOGS, "filter_junctions", "{patient_id}_filter.log"),
     params:
         min_normal_reads=config["filtering"]["min_normal_reads"],
     conda:

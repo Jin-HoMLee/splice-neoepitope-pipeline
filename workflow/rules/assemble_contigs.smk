@@ -15,7 +15,7 @@ rule assemble_contigs:
             _RES, "{patient_id}", "contigs", "contigs.fa"
         ),
     log:
-        os.path.join(_LOGS, "assemble", "{patient_id}_assemble.log"),
+        os.path.join(_LOGS, "assemble_contigs", "{patient_id}_assemble.log"),
     params:
         upstream_nt=config["assembly"]["upstream_nt"],
         downstream_nt=config["assembly"]["downstream_nt"],
