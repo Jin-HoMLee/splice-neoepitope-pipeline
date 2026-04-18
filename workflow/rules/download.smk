@@ -33,4 +33,4 @@ if _GCS_FASTQ_MAP:
         params:
             gcs_path=lambda wildcards: _GCS_FASTQ_MAP[wildcards.filename],
         shell:
-            "gsutil cp {params.gcs_path} {output.fastq} 2>&1 | tee {log}"
+            "set -euo pipefail && mkdir -p $(dirname {output.fastq}) && gsutil cp {params.gcs_path} {output.fastq} 2>&1 | tee {log}"

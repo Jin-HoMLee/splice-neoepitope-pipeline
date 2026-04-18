@@ -67,6 +67,7 @@ class TestJunctions:
 
     def test_all_junctions_have_required_columns(self):
         rows = _read_tsv(RESULTS / "junctions" / "novel_junctions.tsv")
+        assert rows, "novel_junctions.tsv is empty"
         required = {"junction_id", "chrom", "start", "end", "strand",
                     "mapped_reads", "sample_id", "sample_type", "junction_origin"}
         assert required <= set(rows[0].keys())
@@ -132,6 +133,7 @@ class TestPeptides:
 
     def test_all_peptides_have_required_columns(self):
         rows = _read_tsv(RESULTS / "peptides" / "peptides.tsv")
+        assert rows, "peptides.tsv is empty"
         required = {"contig_key", "start_nt", "peptide"}
         assert required <= set(rows[0].keys())
 
@@ -156,6 +158,7 @@ class TestPredictions:
 
     def test_all_predictions_have_required_columns(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        assert rows, "mhc_affinity.tsv is empty"
         required = {"peptide", "allele", "ic50_nM", "binder_class"}
         assert required <= set(rows[0].keys())
 

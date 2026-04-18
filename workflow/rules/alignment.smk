@@ -126,6 +126,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         shell:
             """
+            set -euo pipefail
             mkdir -p {output.index_dir}
             hisat2-build \\
                 -p {threads} \\
@@ -167,6 +168,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             "../envs/hisat2.yaml"
         shell:
             """
+            set -euo pipefail
             mkdir -p $(dirname {output.junctions})
 
             if [[ -n "{input.fastq2}" ]]; then
@@ -216,6 +218,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_bam.log"),
             shell:
                 """
+                set -euo pipefail
                 gsutil cp {input.bam} {params.gcs_dir} 2>&1 | tee {log}
                 gsutil cp {input.bai} {params.gcs_dir} 2>> {log}
                 gsutil cp {input.bed} {params.gcs_dir} 2>> {log}
@@ -251,6 +254,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             "../envs/star.yaml"
         shell:
             """
+            set -euo pipefail
             GTF_FILE="{input.gtf}"
             if [[ "$GTF_FILE" == *.gz ]]; then
                 gunzip -c "$GTF_FILE" > resources/temp_annotation.gtf
@@ -299,6 +303,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             "../envs/star.yaml"
         shell:
             """
+            set -euo pipefail
             READCMD=""
             if [[ "{input.fastq1}" == *.gz ]]; then
                 READCMD="--readFilesCommand zcat"
