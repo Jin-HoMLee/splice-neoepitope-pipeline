@@ -30,7 +30,7 @@ if _REMOTE_FASTQ_MAP:
         output:
             fastq=temp("data/{patient_id}/{sample}/{filename}"),
         log:
-            os.path.join(_LOGS, "{patient_id}", "download", "{filename}.log"),
+            os.path.join(_LOGS, "{patient_id}", "download", "{sample}", "{filename}.log"),
         params:
             source_path=lambda wildcards: _REMOTE_FASTQ_MAP[
                 os.path.join("data", wildcards.patient_id, wildcards.sample, wildcards.filename)
