@@ -287,7 +287,7 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
         --image-family="ubuntu-2204-lts" \
         --image-project="ubuntu-os-cloud" \
         --boot-disk-size="100GB" \
-        --boot-disk-type=pd-standard \
+        --boot-disk-type=pd-ssd \
         --scopes=cloud-platform \
         --metadata=enable-oslogin=FALSE
 fi
