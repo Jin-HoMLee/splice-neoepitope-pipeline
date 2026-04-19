@@ -163,7 +163,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
-            mem_mb=8000,
+            mem_mb=24000,
         conda:
             "../envs/hisat2.yaml"
         shell:
@@ -182,7 +182,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 -x {params.index_prefix} \\
                 $FASTQ_ARGS \\
                 2>> {log} | \\
-                samtools sort -@ {threads} -o {output.bam} - 2>> {log}
+                samtools sort -@ {threads} -m 3G -o {output.bam} - 2>> {log}
 
             samtools index {output.bam} 2>> {log}
 
