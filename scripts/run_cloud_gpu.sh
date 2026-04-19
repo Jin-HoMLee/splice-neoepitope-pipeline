@@ -212,6 +212,7 @@ tmux kill-session -t orchestrator 2>/dev/null || true
 tmux new-session -d -s orchestrator "
     bash scripts/run_cloud_gpu.sh \\
         --mode ${MODE} \\
+        --samples ${SAMPLES} \\
         --branch ${BRANCH} \\
         --zone ${ZONE} \\
         --_cloud-internal \\
