@@ -241,6 +241,13 @@ ORCH_RUN
     exit 0
 fi
 
+# Stop both VMs on exit (success or failure) to avoid charges.
+trap '
+    log "Cleanup: ensuring VMs are stopped..."
+    gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+    gcloud compute instances stop "${GPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+' EXIT
+
 # ---------------------------------------------------------------------------
 # Ensure GCS handoff bucket exists
 # ---------------------------------------------------------------------------
@@ -467,11 +474,7 @@ gcloud storage cp -r "${GCS_PATH}/*" "${RESULTS_DIR}/"
 echo "Download complete."
 EOF
 
-log "Running TCRdock step on GPU VM..."
-log "  The VM will shut down automatically when finished."
-log "  Monitor with:"
-log "    gcloud compute ssh ${GPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/tcrdock.log"
-
+log "Starting TCRdock in tmux session on ${GPU_VM}..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
@@ -480,24 +483,55 @@ cd "\$HOME/splice-neoepitope-pipeline"
 # TCRdock structural view via generate_report_with_structure.
 find ${RESULTS_DIR} -name report.html -delete
 
-source "\$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate snakemake
+tmux kill-session -t tcrdock 2>/dev/null || true
+tmux new-session -d -s tcrdock "
+    source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
+    conda activate snakemake
+    snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES} 2>/dev/null || true
+    snakemake \\
+        --cores \$(nproc) \\
+        --use-conda \\
+        --rerun-triggers code params \\
+        --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
+        --config samples_tsv=${SAMPLES} \\
+        2>&1 | tee tcrdock.log
+    echo 'TCRdock pipeline finished.'
+"
+echo "TCRdock started in tmux session 'tcrdock'."
+EOF
 
-snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES} 2>/dev/null || true
-snakemake \\
-    --cores "\$(nproc)" \\
-    --use-conda \\
-    --rerun-triggers code params \\
-    --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
-    --config samples_tsv=${SAMPLES} \\
-    2>&1 | tee tcrdock.log
+log "Polling tcrdock.log for completion..."
+log "  Monitor with:"
+log "    gcloud compute ssh ${GPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/tcrdock.log"
+while true; do
+    DONE="$(ssh_cmd "${GPU_VM}" --command \
+        "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
+    if [[ "${DONE}" -ge 1 ]]; then
+        log "  TCRdock finished (100% done detected in log)."
+        break
+    fi
+    FAILED="$(ssh_cmd "${GPU_VM}" --command \
+        "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
+    if [[ "${FAILED}" -ge 1 ]]; then
+        echo "ERROR: TCRdock appears to have failed. Check tcrdock.log on ${GPU_VM}." >&2
+        exit 1
+    fi
+    PROGRESS="$(ssh_cmd "${GPU_VM}" --command \
+        "tail -3 \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null" \
+        2>/dev/null | grep -v '^$' | sed 's/^/    /')"
+    log "  Still running — checking again in 60s..."
+    [[ -n "${PROGRESS}" ]] && echo "${PROGRESS}"
+    sleep 60
+done
 
-echo "Uploading final results to GCS..."
+log "Uploading final results from ${GPU_VM} to GCS..."
+ssh_cmd "${GPU_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
 gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
 echo "Upload complete."
-
-echo "TCRdock finished — shutting down GPU VM..."
-sudo shutdown -h now
 EOF
 
 # ===========================================================================
