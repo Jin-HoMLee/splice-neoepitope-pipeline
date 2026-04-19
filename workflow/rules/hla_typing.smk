@@ -30,12 +30,13 @@ if config.get("hla", {}).get("enabled", False):
 
 
     def _hla_sample_fastqs(wildcards):
-        """Return list of FASTQ path(s) for a given sample."""
+        """Return list of local FASTQ path(s) for a given sample."""
         for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
             if s["sample_id"] == wildcards.sample:
-                fastqs = [s["fastq1"]]
-                if (s.get("fastq2") or "").strip():
-                    fastqs.append(s["fastq2"])
+                fastqs = [_local_fastq(s["fastq1"], wildcards.patient_id, wildcards.sample)]
+                fq2 = (s.get("fastq2") or "").strip()
+                if fq2:
+                    fastqs.append(_local_fastq(fq2, wildcards.patient_id, wildcards.sample))
                 return fastqs
         return []
 

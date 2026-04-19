@@ -42,18 +42,19 @@ def _read_samples_tsv(samples_tsv, patient_id=None):
 # ── GCS FASTQ path helper ─────────────────────────────────────────────────────
 #
 # Convention for samples.tsv FASTQ paths:
-#   gs://...  — publicly accessible GCS URI (project staging bucket or open
-#               foreign bucket); downloaded to data/ as a temp file before
-#               alignment by the download_fastq rule in download.smk
-#   data/...  — local path; must already exist (test data only)
+#   gs://...   — Google Cloud Storage URI; downloaded to data/ by download_fastq
+#   https://…  — public HTTPS URL (e.g. Backblaze B2 custom domain); curl download
+#   data/...   — local path; must already exist (test data only)
+
+_REMOTE_SCHEMES = ("gs://", "https://")
 
 def _local_fastq(path, patient_id="", sample_id=""):
     """Return the local path for a FASTQ.
 
-    gs:// paths map to data/{patient_id}/{sample_id}/<filename> to avoid
-    collisions when two patients/samples share the same FASTQ filename.
+    Remote paths (gs://, https://) map to data/{patient_id}/{sample_id}/<filename>
+    to avoid collisions when two patients/samples share the same FASTQ filename.
     Local paths are returned unchanged.
     """
-    if path and path.startswith("gs://"):
+    if path and any(path.startswith(s) for s in _REMOTE_SCHEMES):
         return os.path.join("data", patient_id, sample_id, Path(path).name)
     return path
