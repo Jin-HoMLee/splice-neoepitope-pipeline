@@ -51,7 +51,7 @@ echo ""
 # ---------------------------------------------------------------------------
 # 1. System dependencies
 # ---------------------------------------------------------------------------
-echo "[1/5] Installing system dependencies..."
+echo "[1/6] Installing system dependencies..."
 sudo apt-get update -qq
 sudo apt-get install -y git curl wget tmux samtools
 echo "    Done."
@@ -61,10 +61,10 @@ echo "    Done."
 # ---------------------------------------------------------------------------
 echo ""
 if [[ -f "$HOME/miniforge3/bin/conda" ]]; then
-    echo "[2/5] conda already installed at: $HOME/miniforge3"
+    echo "[2/6] conda already installed at: $HOME/miniforge3"
     echo "      Skipping Miniforge3 installation."
 else
-    echo "[2/5] Installing Miniforge3..."
+    echo "[2/6] Installing Miniforge3..."
     MINIFORGE_INSTALLER="/tmp/Miniforge3.sh"
     curl --fail --location --retry 3 --retry-delay 2 --progress-bar \
         "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" \
@@ -99,33 +99,41 @@ conda config --set channel_priority strict
 # ---------------------------------------------------------------------------
 echo ""
 if [[ -d "$HOME/miniforge3/envs/snakemake" ]]; then
-    echo "[3/5] 'snakemake' environment already exists — skipping creation."
+    echo "[3/6] 'snakemake' environment already exists — skipping creation."
 else
-    echo "[3/5] Creating 'snakemake' conda environment..."
+    echo "[3/6] Creating 'snakemake' conda environment..."
     conda create -n snakemake -c conda-forge -c bioconda \
         "snakemake>=8.0,<9" python=3.11 -y
     echo "    Created 'snakemake' environment."
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Clone the repository
+# 4. Install Backblaze B2 CLI
+# ---------------------------------------------------------------------------
+echo ""
+echo "[4/6] Installing Backblaze B2 CLI..."
+"$HOME/miniforge3/bin/pip" install b2 --quiet
+echo "    Done."
+
+# ---------------------------------------------------------------------------
+# 5. Clone the repository
 # ---------------------------------------------------------------------------
 echo ""
 if [[ -d "$REPO_DIR/.git" ]]; then
-    echo "[4/5] Repository already cloned at $REPO_DIR — pulling latest."
+    echo "[5/6] Repository already cloned at $REPO_DIR — pulling latest."
     git -C "$REPO_DIR" fetch origin
     git -C "$REPO_DIR" checkout "$REPO_BRANCH"
     git -C "$REPO_DIR" pull origin "$REPO_BRANCH"
 else
-    echo "[4/5] Cloning repository (branch: $REPO_BRANCH)..."
+    echo "[5/6] Cloning repository (branch: $REPO_BRANCH)..."
     git clone --branch "$REPO_BRANCH" "$REPO_URL" "$REPO_DIR"
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Download reference data
+# 6. Download reference data
 # ---------------------------------------------------------------------------
 echo ""
-echo "[5/5] Downloading reference data (this will take 20–60 min)..."
+echo "[6/6] Downloading reference data (this will take 20–60 min)..."
 
 RESOURCES="$REPO_DIR/resources"
 mkdir -p "$RESOURCES"
