@@ -489,14 +489,20 @@ ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 
-# Ensure MHCflurry models are present and sentinel exists so Snakemake does
-# not re-run run_mhcflurry via cascade from download_mhcflurry_models.
-# Models are cached in ~/.local/share/mhcflurry/ on the persistent VM disk;
-# the fetch is a no-op if they are already there.
+# Ensure MHCflurry models are present before the main TCRdock run so
+# Snakemake does not re-run run_mhcflurry via cascade from
+# download_mhcflurry_models. Run snakemake targeting just the sentinel so
+# it uses the correct python.yaml conda env (mhcflurry-downloads is not
+# installed in the snakemake bootstrap env).
 source "\$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
 conda activate snakemake
-mhcflurry-downloads fetch
-mkdir -p resources && touch resources/mhcflurry_models.done
+snakemake \
+    --cores 1 \
+    --use-conda \
+    --rerun-triggers code params \
+    --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
+    --config samples_tsv=${SAMPLES} \
+    resources/mhcflurry_models.done
 conda deactivate 2>/dev/null || true
 
 # Remove the CPU-generated report so Snakemake regenerates it with the
