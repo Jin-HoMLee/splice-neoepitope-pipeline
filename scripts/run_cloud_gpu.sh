@@ -497,7 +497,7 @@ cd "\$HOME/splice-neoepitope-pipeline"
 # installed in the snakemake bootstrap env).
 source "\$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
 conda activate snakemake
-find ${RESULTS_DIR} -type f | xargs snakemake --cleanup-metadata
+find ${RESULTS_DIR} -type f | xargs snakemake --cleanup-metadata --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES}
 snakemake \
     --cores 1 \
     --use-conda \
