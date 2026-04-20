@@ -443,6 +443,12 @@ log "Installing conda and Snakemake on GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<'EOF'
 set -euo pipefail
 
+# tmux is used to run the TCRdock pipeline in a detachable session.
+# Not present by default on the Deep Learning VM image.
+if ! command -v tmux &>/dev/null; then
+    sudo apt-get install -y -q tmux
+fi
+
 if [[ ! -f "$HOME/miniforge3/bin/conda" ]]; then
     echo "  Installing Miniforge3..."
     curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
