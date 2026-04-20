@@ -502,6 +502,7 @@ snakemake \
     --rerun-triggers code params \
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
     --config samples_tsv=${SAMPLES} \
+    -- \
     resources/mhcflurry_models.done
 conda deactivate 2>/dev/null || true
 
