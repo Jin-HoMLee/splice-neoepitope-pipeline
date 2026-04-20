@@ -149,8 +149,8 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         input:
             index_dir=_HISAT2_INDEX_DIR,
             index_done=os.path.join(_HISAT2_INDEX_DIR, "index.done"),
-            fastq1=_get_fastq1,
-            fastq2=_get_fastq2,
+            fastq1=ancient(_get_fastq1),
+            fastq2=ancient(_get_fastq2),
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
@@ -285,8 +285,8 @@ elif config.get("alignment", {}).get("aligner") == "star":
         input:
             index_dir=_STAR_INDEX_DIR,
             index_done=os.path.join(_STAR_INDEX_DIR, "index.done"),
-            fastq1=_get_fastq1,
-            fastq2=_get_fastq2,
+            fastq1=ancient(_get_fastq1),
+            fastq2=ancient(_get_fastq2),
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
