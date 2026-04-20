@@ -414,7 +414,10 @@ if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
         --metadata=enable-oslogin=FALSE
     log "  GPU VM created."
 elif [[ "${GPU_STATUS}" == "TERMINATED" ]]; then
-    log "GPU VM ${GPU_VM} exists (stopped) — starting it..."
+    log "GPU VM ${GPU_VM} exists (stopped) — patching scopes then starting..."
+    gcloud compute instances set-service-account "${GPU_VM}" \
+        --zone="${ZONE}" \
+        --scopes=cloud-platform
     gcloud compute instances start "${GPU_VM}" --zone="${ZONE}"
 else
     log "GPU VM ${GPU_VM} already running (status: ${GPU_STATUS})."
