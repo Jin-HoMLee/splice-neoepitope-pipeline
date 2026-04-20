@@ -332,6 +332,7 @@ tmux new-session -d -s pipeline "
         --cores \$(nproc) \\
         --use-conda \\
         --rerun-triggers mtime \\
+        --rerun-incomplete \\
         --configfile ${CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee pipeline.log
