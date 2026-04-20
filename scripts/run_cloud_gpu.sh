@@ -47,7 +47,7 @@ set -euo pipefail
 CPU_VM="neoepitope-predict-cpu"
 GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
-CPU_MACHINE_TYPE="n1-standard-8"
+CPU_MACHINE_TYPE="n1-highmem-8"  # 52 GB RAM required: razers3 (OptiType) peaks at ~36 GB on full RNA-seq FASTQs
 GPU_MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-p100,count=1"
 DISK_SIZE="100GB"
