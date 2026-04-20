@@ -8,19 +8,18 @@ _HLA_QC_ENABLED = config.get("hla", {}).get("enabled", False)
 def _generate_report_input(wildcards):
     d = {
         "novel_junctions": os.path.join(
-            OUT["junctions"], wildcards.patient_id, "novel_junctions.tsv"
+            _RES, wildcards.patient_id, "junctions", "novel_junctions.tsv"
         ),
         "predictions_tsv": os.path.join(
-            OUT["predictions"], wildcards.patient_id, "mhc_affinity.tsv"
+            _RES, wildcards.patient_id, "predictions", "mhc_affinity.tsv"
         ),
         "contigs_fasta": os.path.join(
-            OUT["contigs"], wildcards.patient_id, "contigs.fa"
+            _RES, wildcards.patient_id, "contigs", "contigs.fa"
         ),
     }
     if _HLA_QC_ENABLED:
         d["hla_qc"] = os.path.join(
-            os.path.dirname(OUT["raw_data"]), "hla_typing",
-            wildcards.patient_id, "hla_qc.tsv",
+            _RES, wildcards.patient_id, "hla_typing", "hla_qc.tsv",
         )
     return d
 
@@ -35,10 +34,10 @@ rule generate_report:
         unpack(_generate_report_input),
     output:
         report_html=os.path.join(
-            OUT["reports"], "{patient_id}", "report.html"
+            _RES, "{patient_id}", "reports", "report.html"
         ),
     log:
-        os.path.join(OUT["logs"], "report", "{patient_id}_report.log"),
+        os.path.join(_LOGS, "{patient_id}", "analysis", "report.log"),
     params:
         ic50_strong=config["mhcflurry"]["ic50_strong"],
     conda:

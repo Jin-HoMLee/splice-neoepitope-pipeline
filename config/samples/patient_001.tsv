@@ -1,0 +1,6 @@
+patient_id	sample_id	sample_type	fastq1	fastq2
+# Matched gastric cancer tumor/normal pair (SRR9143066 / SRR9143065)
+# Source: https://www.ebi.ac.uk/ena/browser/view/SRR9143066
+# TODO(#60): migrate to gs:// staging bucket for consistency with patient_002
+patient_001	SRR9143066	Primary Tumor	data/SRR9143066.fastq.gz
+patient_001	SRR9143065	Solid Tissue Normal	data/SRR9143065.fastq.gz

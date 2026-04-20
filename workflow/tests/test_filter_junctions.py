@@ -134,14 +134,15 @@ class TestClassifyJunctions:
         path.write_text("".join(lines))
 
     def test_tumor_exclusive_labeled_correctly(self, tmp_path):
-        files_dir = tmp_path / "files"
-        files_dir.mkdir()
+        # Files must live at {sample_id}/junctions.tsv so fp.parent.name == sample_id
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
 
         # Junction only in tumor → tumor_exclusive.
         # Add a low-read noise junction so the high-read one clears the mean filter
         # (classify_junctions keeps junctions with reads > mean).
-        tumor_f = files_dir / "tumor.tsv"
-        normal_f = files_dir / "normal.tsv"
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),  # unannotated, absent in normal
             ("chr22:401:500:+", 1),    # noise — below mean, filtered out
@@ -170,12 +171,12 @@ class TestClassifyJunctions:
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
 
     def test_normal_shared_labeled_correctly(self, tmp_path):
-        files_dir = tmp_path / "files"
-        files_dir.mkdir()
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
 
         # Same junction in both tumor and normal → normal_shared
-        tumor_f = files_dir / "tumor.tsv"
-        normal_f = files_dir / "normal.tsv"
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),
             ("chr22:401:500:+", 1),  # noise — below mean, filtered out
@@ -204,11 +205,11 @@ class TestClassifyJunctions:
         assert df.iloc[0]["junction_origin"] == "normal_shared"
 
     def test_annotated_junctions_discarded(self, tmp_path):
-        files_dir = tmp_path / "files"
-        files_dir.mkdir()
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
 
-        tumor_f = files_dir / "tumor.tsv"
-        normal_f = files_dir / "normal.tsv"
         self._write_junction_file(tumor_f, [
             ("chr22:101:200:+", 100),
             ("chr22:401:500:+", 1),  # noise — keeps annotated junction above mean
@@ -237,10 +238,9 @@ class TestClassifyJunctions:
         assert len(df) == 0
 
     def test_no_normal_sample_all_labeled_tumor_exclusive(self, tmp_path):
-        files_dir = tmp_path / "files"
-        files_dir.mkdir()
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
 
-        tumor_f = files_dir / "tumor.tsv"
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),
             ("chr22:401:500:+", 1),  # noise — below mean, filtered out

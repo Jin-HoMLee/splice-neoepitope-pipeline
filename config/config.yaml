@@ -3,18 +3,46 @@
 # ============================================================
 
 # -----------------------------------------------------------------
-# Sample manifest
+# Sample manifest (required — no default)
 # -----------------------------------------------------------------
-# Path to a TSV listing the RNA-Seq FASTQs. Columns:
+# Pass at runtime via --config samples_tsv=config/samples/<patient>.tsv
+# Per-patient samplesheets live in config/samples/. Columns:
 #   patient_id   sample_id    sample_type    fastq1    fastq2
 #
-# Example (samples.tsv):
-#   patient_id  sample_id    sample_type         fastq1                    fastq2
-#   patient_001 tumor_01     Primary Tumor       data/tumor_01_R1.fq.gz    data/tumor_01_R2.fq.gz
-#   patient_001 normal_01    Solid Tissue Normal data/normal_01_R1.fq.gz   data/normal_01_R2.fq.gz
+# sample_type values:
+#   "Primary Tumor"        — junctions used for neoepitope prediction
+#   "Solid Tissue Normal"  — filters out non-tumor-specific junctions
+#   "Blood Derived Normal" — used for HLA typing only (WES or RNA-seq)
 #
 # For single-end data, leave fastq2 empty.
-samples_tsv: "config/samples.tsv"
+# gs:// paths are downloaded automatically by the download_fastq rule.
+
+# -----------------------------------------------------------------
+# GCS integration (cloud runs only)
+# -----------------------------------------------------------------
+# Set bucket to enable BAM upload after alignment and to stage FASTQs.
+# Layout: gs://<bucket>/fastq/<patient_id>/  and  results/<patient_id>/
+# Leave empty to skip all GCS operations.
+gcs:
+  bucket: "gs://splice-neoepitope-project"
+
+# -----------------------------------------------------------------
+# Output directories
+# -----------------------------------------------------------------
+output:
+  results_dir:  "results"   # all patient outputs land under results/{patient_id}/
+  logs:         "logs"
+
+# -----------------------------------------------------------------
+# Reference genome
+# -----------------------------------------------------------------
+reference:
+  genome: "GRCh38"
+  # Local paths (populated after download / placed by the user)
+  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
+  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
+  # Output: reference junction list derived from GENCODE GTF
+  junction_bed: "resources/reference_junctions.bed"
 
 # -----------------------------------------------------------------
 # Alignment
@@ -29,15 +57,11 @@ alignment:
   threads: 8          # threads for index build + alignment
 
 # -----------------------------------------------------------------
-# Reference genome
+# Junction read-count filtering
 # -----------------------------------------------------------------
-reference:
-  genome: "GRCh38"
-  # Local paths (populated after download / placed by the user)
-  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
-  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
-  # Output: reference junction list derived from GENCODE GTF
-  junction_bed: "resources/reference_junctions.bed"
+filtering:
+  # Minimum reads in the normal sample to trust a junction as patient-specific
+  min_normal_reads: 2
 
 # -----------------------------------------------------------------
 # Contig assembly
@@ -54,6 +78,19 @@ assembly:
 # whose first codon is fully upstream and last codon is fully
 # downstream of the splice junction. upstream_nt is shared with
 # the assembly section above.
+
+# -----------------------------------------------------------------
+# HLA typing (OptiType)
+# -----------------------------------------------------------------
+# When enabled, OptiType is run on each sample's FASTQ to predict
+# patient-specific HLA-A/B/C alleles. The resulting alleles.tsv is
+# passed to MHCflurry instead of mhcflurry.fallback_alleles.
+hla:
+  enabled: true
+  min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
+  threads: 4                # threads for razers3 read mapping per OptiType sample
+  solver: "cbc"            # ILP solver: cbc (recommended), glpk, or cplex
+  ilp_threads: 4           # threads for the ILP solver; used by CBC if supported by the build
 
 # -----------------------------------------------------------------
 # Epitope prediction (MHCflurry 2.x)
@@ -78,19 +115,6 @@ mhcflurry:
   prediction_mode: "affinity"
 
 # -----------------------------------------------------------------
-# HLA typing (optional)
-# -----------------------------------------------------------------
-# When enabled, OptiType is run on each sample's FASTQ to predict
-# patient-specific HLA-A/B/C alleles. The resulting alleles.tsv is
-# passed to MHCflurry instead of mhcflurry.fallback_alleles.
-hla:
-  enabled: true
-  min_reads_per_locus: 30   # minimum OptiType Reads count to trust a call
-  threads: 4                # threads for razers3 read mapping per OptiType sample
-  solver: "cbc"            # ILP solver: cbc (recommended), glpk, or cplex
-  ilp_threads: 4           # threads for the ILP solver; used by CBC if supported by the build
-
-# -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
 # -----------------------------------------------------------------
 # Disabled by default. All settings live in config/tcrdock_gpu.yaml.
@@ -102,23 +126,3 @@ hla:
 # See scripts/setup_tcrdock_vm.sh for GPU VM setup instructions.
 tcrdock:
   enabled: false
-
-# -----------------------------------------------------------------
-# Junction read-count filtering
-# -----------------------------------------------------------------
-filtering:
-  # Minimum reads in the normal sample to trust a junction as patient-specific
-  min_normal_reads: 2
-
-# -----------------------------------------------------------------
-# Output directories
-# -----------------------------------------------------------------
-output:
-  raw_data:     "results/raw_data"
-  junctions:    "results/junctions"
-  contigs:      "results/contigs"
-  peptides:     "results/peptides"
-  predictions:  "results/predictions"
-  analysis:     "results/analysis"
-  reports:      "results/reports"
-  logs:         "logs"

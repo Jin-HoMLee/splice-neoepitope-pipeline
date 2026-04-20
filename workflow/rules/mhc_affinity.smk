@@ -11,13 +11,12 @@ _HLA_TYPING_ENABLED = config.get("hla", {}).get("enabled", False)
 # passed directly as a parameter.
 def _run_mhcflurry_input(wildcards):
     d = {
-        "peptides_tsv": os.path.join(OUT["peptides"], wildcards.patient_id, "peptides.tsv"),
+        "peptides_tsv": os.path.join(_RES, wildcards.patient_id, "peptides", "peptides.tsv"),
         "mhcflurry_models": rules.download_mhcflurry_models.output.sentinel,
     }
     if _HLA_TYPING_ENABLED:
         d["alleles_tsv"] = os.path.join(
-            os.path.dirname(OUT["raw_data"]), "hla_typing",
-            wildcards.patient_id, "alleles.tsv",
+            _RES, wildcards.patient_id, "hla_typing", "alleles.tsv",
         )
     return d
 
@@ -29,7 +28,7 @@ rule download_mhcflurry_models:
     output:
         sentinel=touch("resources/mhcflurry_models.done"),
     log:
-        os.path.join(OUT["logs"], "predict", "mhcflurry_downloads.log"),
+        os.path.join(_LOGS, "mhc_affinity", "mhcflurry_downloads.log"),
     conda:
         "../envs/python.yaml"
     shell:
@@ -46,10 +45,10 @@ rule run_mhcflurry:
         unpack(_run_mhcflurry_input),
     output:
         mhc_affinity_tsv=os.path.join(
-            OUT["predictions"], "{patient_id}", "mhc_affinity.tsv"
+            _RES, "{patient_id}", "predictions", "mhc_affinity.tsv"
         ),
     log:
-        os.path.join(OUT["logs"], "predict", "{patient_id}_predict.log"),
+        os.path.join(_LOGS, "{patient_id}", "mhc_affinity", "predict.log"),
     params:
         # Used only when hla.enabled is false (alleles_tsv input absent).
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),

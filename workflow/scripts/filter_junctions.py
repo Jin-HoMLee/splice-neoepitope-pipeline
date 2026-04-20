@@ -16,10 +16,10 @@ Output TSV columns:
 
 Usage (standalone):
   python filter_junctions.py \\
-      --junction-files results/raw_data/local/files/*.tsv \\
-      --manifest results/raw_data/local/manifest.tsv \\
+      --junction-files results/{patient_id}/alignment/{sample_id}/junctions.tsv ... \\
+      --manifest results/{patient_id}/alignment/manifest.tsv \\
       --reference-junctions resources/reference_junctions.bed \\
-      --output results/junctions/local/novel_junctions.tsv
+      --output results/{patient_id}/junctions/novel_junctions.tsv
 
 Usage (Snakemake):
   Called automatically by the ``filter_junctions`` rule.
@@ -190,7 +190,7 @@ def classify_junctions(
 
     for fp in junction_files:
         fp = Path(fp)
-        sample_id = fp.stem
+        sample_id = fp.parent.name
         sample_type = manifest.get(sample_id, "Unknown")
         if "normal" in sample_type.lower():
             normal_files.append((fp, sample_id))
