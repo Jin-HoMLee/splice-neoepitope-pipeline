@@ -72,7 +72,7 @@ if config.get("hla", {}).get("enabled", False):
         apply the configured fallback alleles downstream.
         """
         input:
-            fastqs=_hla_sample_fastqs,
+            fastqs=ancient(_hla_sample_fastqs),
         output:
             result_tsv=os.path.join(
                 _HLA_TYPING_DIR, "{sample}", "{sample}_result.tsv"
