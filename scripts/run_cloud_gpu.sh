@@ -489,13 +489,15 @@ ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 
-# Ensure MHCflurry models are present before the main TCRdock run so
+# Mark all files in results/ as complete in Snakemake metadata and 
+# ensure MHCflurry models are present before the main TCRdock run so
 # Snakemake does not re-run run_mhcflurry via cascade from
 # download_mhcflurry_models. Run snakemake targeting just the sentinel so
 # it uses the correct python.yaml conda env (mhcflurry-downloads is not
 # installed in the snakemake bootstrap env).
 source "\$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
 conda activate snakemake
+find ${RESULTS_DIR} -type f | xargs snakemake --cleanup-metadata
 snakemake \
     --cores 1 \
     --use-conda \
