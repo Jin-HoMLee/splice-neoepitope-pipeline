@@ -404,7 +404,7 @@ if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
         --machine-type="${GPU_MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
         --maintenance-policy=TERMINATE \
-        --provisioning-model=SPOT \
+        --provisioning-model=STANDARD \
         --instance-termination-action=STOP \
         --image-family="${IMAGE_FAMILY}" \
         --image-project="${IMAGE_PROJECT}" \
