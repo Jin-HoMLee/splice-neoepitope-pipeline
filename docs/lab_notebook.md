@@ -2,6 +2,48 @@
 
 ---
 
+## 2026-04-20
+
+### Patient_002 (osteosarcoma BG003082) — first full production run
+
+**Patient:** BG003082 T0 tumor (Boston Gene, Nov 2022, paired-end RNA-seq ~10 GB) + BG003082 N0 WES normal (blood-derived, used for HLA typing only).
+
+**HLA typing:** A\*01:01/A\*01:01, B\*08:01/B\*27:05, C\*07:01/C\*01:02 — confirmed match to Red Cross serology (A\*01:01/01:11N, B\*08:01/27:05, C\*01:02/07:01). First patient with ground-truth HLA validation.
+
+**Results:** Run completed end-to-end: alignment → HLA typing → MHCflurry → TCRdock → HTML report with Mol\* 3D viewer. Final outputs archived to `gs://splice-neoepitope-project/results/patient_002/`.
+
+**Infrastructure bugs discovered and fixed (PR #69, branch `feat/issue-65-patient002-cloud-run`):**
+
+- **mtime re-run cascade:** Re-downloaded temp FASTQs had newer mtime than existing `junctions.tsv`, causing unnecessary re-alignment and OptiType re-runs. Fixed with `ancient()` on FASTQ inputs in both `hisat2_align` and `run_optitype`.
+- **OptiType OOM:** razers3 peaks at ~36 GB on full RNA-seq FASTQs. CPU VM upgraded from n1-standard-8 → n1-highmem-8 (52 GB) → n2-highmem-8 (64 GB; n1 unavailable in zone). OptiType threads capped at 5 to force sequential sample execution and prevent concurrent OOM.
+- **samtools sort OOM:** `-m 3G` caused OOM on the WES normal sample (8 threads × 3 GB). Reduced to `-m 1G`.
+- **Boot disk:** 50 GB → 100 GB pd-ssd to handle reference index + paired-end FASTQ staging.
+- **`--rerun-incomplete`:** Added to orchestrator snakemake invocation so killed runs resume cleanly instead of raising `IncompleteFilesException`.
+- **MHCflurry re-run on GPU VM:** `resources/mhcflurry_models.done` sentinel absent on GPU VM → cascade triggered `run_mhcflurry` re-run. Fixed by running `snakemake resources/mhcflurry_models.done --use-conda` before the main TCRdock run (uses the correct `python.yaml` env; direct `mhcflurry-downloads fetch` in the `snakemake` bootstrap env would fail on a fresh VM).
+- **GPU VM GCS upload permission:** Existing TERMINATED GPU VM lacked `--scopes=cloud-platform`. `gcloud storage cp` failed with permission denied; TCRdock results were not uploaded. Fixed by adding `gcloud compute instances set-service-account ... --scopes=cloud-platform` before `instances start` in orchestrator.
+- **tmux not installed on GPU VM:** Deep Learning VM image does not include tmux by default. Added idempotent `apt-get install -y -q tmux` to GPU provisioning block.
+- **VM auto-stop:** CPU and GPU VMs now unconditionally stop on pipeline exit (success or failure).
+
+**TCRdock result:** pLDDT 92.25 for top candidate `FMSGFLYFV` on `HLA-A*02:01` (fallback allele — note: for patient_002 the actual alleles are A\*01:01, not A\*02:01; fallback was used due to a sentinel issue, now fixed for future runs).
+
+---
+
+### Patient_001 (gastric cancer) — cloud run started
+
+Updated `config/samples/patient_001.tsv` to use ENA HTTPS URLs instead of local `data/` paths, enabling cloud runs without pre-staging FASTQs. Run started; `n2-highmem-8` required after `n1-highmem-8` hit `ZONE_RESOURCE_POOL_EXHAUSTED` in `europe-west1-b`.
+
+---
+
+### Documentation update
+
+README slimmed from ~600 to 337 lines. Detailed content moved to new dedicated docs:
+- `docs/installation.md` — full conda/Snakemake setup
+- `docs/data_preparation.md` — aligner selection, FASTQ sources, manifest format
+- `docs/configuration.md` — full `config.yaml` parameter reference
+- `docs/google_cloud_guide.md` — added manual TCRdock run section
+
+---
+
 ## 2026-04-17
 
 ### Patient_001 (gastric cancer) — first full production run with HLA typing + TCRdock
