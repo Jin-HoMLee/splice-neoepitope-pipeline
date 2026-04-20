@@ -137,20 +137,18 @@ conda --version   # should print: conda 24.x.x or similar
 
 ### 3. Install Snakemake
 
-Create a dedicated conda environment that contains Snakemake 7.x and the
-`snakemake-executor-plugin-cluster-generic` plugin (needed for cluster runs):
+Create a dedicated conda environment that contains Snakemake 8.x:
 
 ```bash
 conda create -n snakemake -c conda-forge -c bioconda \
-  "snakemake>=7.0,<9" \
-  snakemake-executor-plugin-cluster-generic \
+  "snakemake>=8.0,<9" \
   python=3.11 \
   -y
 
 conda activate snakemake
 
 # Verify
-snakemake --version   # expected output: 7.x.x or 8.x.x
+snakemake --version   # expected output: 8.x.x
 ```
 
 > The pipeline conda environments (`workflow/envs/python.yaml`,
@@ -232,21 +230,23 @@ curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/SRR9143066/SRR9143066.fastq
 
 ### Sample Manifest
 
-Create `config/samples.tsv` listing your samples:
+Each patient has its own TSV under `config/samples/`. Pass it at runtime via `--config samples_tsv=`:
 
 ```tsv
 patient_id	sample_id	sample_type	fastq1	fastq2
-patient_001	tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
-patient_001	normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+patient_001	SRR9143066	Primary Tumor	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz
+patient_001	SRR9143065	Solid Tissue Normal	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/005/SRR9143065/SRR9143065.fastq.gz
 ```
 
 | Column | Required | Description |
 |--------|----------|-------------|
-| `patient_id` | Yes | Patient identifier — all rows with the same `patient_id` are treated as a matched set |
+| `patient_id` | Yes | Patient identifier |
 | `sample_id` | Yes | Unique sample identifier |
-| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` |
-| `fastq1` | Yes | Read 1 FASTQ path (can be gzipped) |
+| `sample_type` | Yes | `"Primary Tumor"`, `"Solid Tissue Normal"`, or `"Blood Derived Normal"` |
+| `fastq1` | Yes | Read 1 FASTQ — local path, `gs://` URI, or `https://` URL (auto-downloaded) |
 | `fastq2` | No | Read 2 FASTQ for paired-end data (leave empty for single-end) |
+
+`"Blood Derived Normal"` samples are used for HLA typing only and do not contribute to junction filtering.
 
 > **No local resources?** See [docs/google_cloud_guide.md](docs/google_cloud_guide.md)
 > for a step-by-step guide to running the pipeline on Google Cloud.
@@ -289,9 +289,9 @@ peptide, TCR α-chain, TCR β-chain).
 CPU → GPU lifecycle:
 
 ```bash
-bash scripts/run_cloud_gpu.sh --mode test    # chr22 test run
-bash scripts/run_cloud_gpu.sh --mode prod    # full production run
-bash scripts/run_cloud_gpu.sh --mode test --detach  # detached (close laptop)
+bash scripts/run_cloud_gpu.sh --mode test --samples config/samples/patient_001_test.tsv
+bash scripts/run_cloud_gpu.sh --mode prod --samples config/samples/patient_001.tsv
+bash scripts/run_cloud_gpu.sh --mode prod --samples config/samples/patient_001.tsv --detach  # close laptop
 ```
 
 See [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) for details.
@@ -367,13 +367,21 @@ Expected output: ~372 unannotated junctions (367 tumor_exclusive, 5 normal_share
 ### Dry run (check the DAG without executing)
 
 ```bash
-snakemake --cores 1 --use-conda -n
+conda activate snakemake
+snakemake --cores 1 --use-conda -n \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv
 ```
 
 ### Full run
 
 ```bash
-snakemake --cores <N> --use-conda
+conda activate snakemake
+snakemake --cores <N> --use-conda \
+    --rerun-triggers mtime \
+    --rerun-incomplete \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv
 ```
 
 Replace `<N>` with the number of CPU cores to use.
@@ -383,21 +391,28 @@ Replace `<N>` with the number of CPU cores to use.
 ```bash
 # Only build the reference junction list
 snakemake --cores 2 --use-conda \
-  resources/reference_junctions.bed
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv \
+    resources/reference_junctions.bed
 
-# Only align one patient
+# Only run alignment
 snakemake --cores 8 --use-conda \
-  results/raw_data/patient_001/download.done
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv \
+    results/patient_001/alignment/download.done
 ```
 
 ### Cluster execution
 
-Snakemake supports many cluster backends.  Example for SLURM:
+Snakemake supports many cluster backends. Example for SLURM:
 
 ```bash
 snakemake --cores 100 --use-conda \
-  --executor cluster-generic \
-  --cluster-generic-submit-cmd "sbatch --mem={resources.mem_mb}M -c {threads}"
+    --rerun-triggers mtime --rerun-incomplete \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv \
+    --executor cluster-generic \
+    --cluster-generic-submit-cmd "sbatch --mem={resources.mem_mb}M -c {threads}"
 ```
 
 ---
@@ -427,40 +442,35 @@ All parameters are in `config/config.yaml`.  Key options:
 
 ## Output Description
 
-All outputs are written to the `results/` directory:
+All outputs are written to `results/{patient_id}/`:
 
 ```
 results/
-├── raw_data/
-│   └── {patient_id}/
-│       ├── manifest.tsv          # Sample manifest (file_id → sample_type)
-│       └── files/                # Junction quantification TSVs per sample
-├── hla_typing/                   # (when hla.enabled: true)
-│   └── {patient_id}/
-│       ├── {sample}/
-│       │   └── {sample}_result.tsv   # Per-sample OptiType output
-│       ├── alleles.tsv           # Aggregated patient HLA-A/B/C alleles
-│       └── hla_qc.tsv            # Per-locus source, read counts, discrepancies
-├── junctions/
-│   └── {patient_id}/
-│       └── novel_junctions.tsv   # Classified junctions (junction_origin column:
-│                                 #   tumor_exclusive | normal_shared)
-├── contigs/
-│   └── {patient_id}/
-│       └── contigs.fa            # 50 nt FASTA contigs (tumor_exclusive only)
-├── peptides/
-│   └── {patient_id}/
-│       └── peptides.tsv          # Junction-spanning 9-mers (contig_key, start_nt, peptide)
-├── predictions/
-│   └── {patient_id}/
-│       ├── predictions.tsv       # MHCflurry results (one row per 9-mer × allele)
-│       └── tcrdock/              # (when TCRdock is enabled)
-│           ├── top_candidate.pdb # Predicted TCR-pMHC ternary complex
-│           └── docking_scores.tsv # pLDDT/PAE quality metrics
-└── reports/
-    └── {patient_id}/
-        └── report.html           # Junction origin summary + HLA typing QC
-                                  # + top binders (+ Mol* 3D viewer when TCRdock enabled)
+└── {patient_id}/
+    ├── alignment/
+    │   ├── manifest.tsv              # Sample manifest (file_id → sample_type)
+    │   └── {sample}/
+    │       └── junctions.tsv         # Junction read counts from aligner
+    ├── hla_typing/                   # (when hla.enabled: true)
+    │   ├── {sample}/
+    │   │   └── {sample}_result.tsv   # Per-sample OptiType output
+    │   ├── alleles.tsv               # Aggregated patient HLA-A/B/C alleles
+    │   └── hla_qc.tsv                # Per-locus source, read counts, discrepancies
+    ├── junctions/
+    │   └── novel_junctions.tsv       # Classified junctions (junction_origin column:
+    │                                 #   tumor_exclusive | normal_shared)
+    ├── contigs/
+    │   └── contigs.fa                # 50 nt FASTA contigs (tumor_exclusive only)
+    ├── peptides/
+    │   └── peptides.tsv              # Junction-spanning 9-mers (contig_key, start_nt, peptide)
+    ├── predictions/
+    │   ├── mhc_affinity.tsv          # MHCflurry results (one row per 9-mer × allele)
+    │   └── tcrdock/                  # (when TCRdock is enabled)
+    │       ├── top_candidate.pdb     # Predicted TCR-pMHC ternary complex
+    │       └── docking_scores.tsv    # pLDDT/PAE quality metrics
+    └── reports/
+        └── report.html               # Junction origin summary + HLA typing QC
+                                      # + top binders (+ Mol* 3D viewer when TCRdock enabled)
 ```
 
 ---
@@ -497,9 +507,11 @@ splice-neoepitope-pipeline/
 ├── config/
 │   ├── config.yaml                   # Production configuration
 │   ├── tcrdock_gpu.yaml              # TCRdock GPU overlay (enables tcrdock.enabled)
-│   ├── samples.tsv                   # Sample manifest (production)
 │   ├── test_config.yaml              # chr22 test configuration (local testing)
-│   └── test_samples.tsv              # Sample manifest for test run
+│   └── samples/
+│       ├── patient_001.tsv           # Gastric cancer (SRR9143066/SRR9143065)
+│       ├── patient_001_test.tsv      # chr22 subset for local testing
+│       └── patient_002.tsv           # Osteosarcoma (BostonGene BG003082)
 ├── scripts/
 │   ├── prepare_test_data.sh          # One-time setup: download chr22 test data
 │   ├── run_cloud_gpu.sh              # Automated CPU→GPU cloud lifecycle
