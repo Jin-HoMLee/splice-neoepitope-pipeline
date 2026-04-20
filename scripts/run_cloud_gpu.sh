@@ -374,16 +374,18 @@ done
 log ""
 log "=== Phase 2: Uploading results from ${CPU_VM} ==="
 
-log "Uploading ${RESULTS_DIR}/ to ${GCS_PATH}..."
+log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 if [[ -d "${RESULTS_DIR}" ]]; then
     gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
-    echo "Upload complete."
+    echo "Results upload complete."
 else
     echo "ERROR: ${RESULTS_DIR}/ not found." >&2; exit 1
 fi
+[[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
+[[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
 EOF
 
 log "Stopping ${CPU_VM} to save cost..."
@@ -475,13 +477,17 @@ cd "\$HOME/splice-neoepitope-pipeline"
 bash scripts/setup_tcrdock_vm.sh "${CONFIG_FILE}"
 EOF
 
-log "Downloading ${RESULTS_DIR}/ from ${GCS_PATH} onto GPU VM..."
+log "Downloading results/ and .snakemake/metadata/ from GCS onto GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 mkdir -p "${RESULTS_DIR}"
 gcloud storage cp -r "${GCS_PATH}/*" "${RESULTS_DIR}/"
-echo "Download complete."
+echo "Results download complete."
+mkdir -p ".snakemake/metadata"
+gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata/*" ".snakemake/metadata/" 2>/dev/null \
+    && echo "Snakemake metadata download complete." \
+    || echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."
 EOF
 
 log "Starting TCRdock in tmux session on ${GPU_VM}..."
@@ -489,15 +495,11 @@ ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 
-# Mark all files in results/ as complete in Snakemake metadata and 
-# ensure MHCflurry models are present before the main TCRdock run so
-# Snakemake does not re-run run_mhcflurry via cascade from
-# download_mhcflurry_models. Run snakemake targeting just the sentinel so
-# it uses the correct python.yaml conda env (mhcflurry-downloads is not
-# installed in the snakemake bootstrap env).
+# Ensure MHCflurry models are present before the main TCRdock run.
+# Target just the sentinel so it uses the correct python.yaml conda env
+# (mhcflurry-downloads is not in the snakemake bootstrap env).
 source "\$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
 conda activate snakemake
-find ${RESULTS_DIR} -type f | xargs snakemake --cleanup-metadata --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES}
 snakemake \
     --cores 1 \
     --use-conda \
