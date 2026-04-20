@@ -39,24 +39,6 @@ SRR9143066/SRR9143065), the pipeline:
    candidate. TCRdock structural prediction of the TCR–peptide–MHC ternary complex was
    successfully completed on GCP GPU infrastructure (NVIDIA P100, 16 GB VRAM).
 
-Applied to an osteosarcoma tumor-only sample (patient_002, BG003082 T0) without a
-matched RNA-seq normal, the pipeline:
-
-5. **Identified 55,912 tumor-exclusive splice junctions** from 347,046 total extracted
-   junctions (16.1%). Without an RNA-seq normal, junction-level subtraction was limited
-   to a WES DNA proxy (3 junctions removed), so a fraction of candidates may reflect
-   patient-specific non-tumor splicing.
-
-6. **Translated 781,424 junction-spanning 9-mers** (775,440 unique sequences).
-
-7. **Predicted 12,430 strong binders** (IC50 ≤ 50 nM, 0.32% of 3,907,120 predictions)
-   across all six patient-specific HLA alleles.
-
-8. **Validated OptiType HLA typing against Red Cross serology** (A\*01:01/A\*01:11N,
-   B\*08:01/B\*27:05, C\*01:02/C\*07:01): all six alleles were an exact match, providing
-   the first direct confirmation of OptiType accuracy in this pipeline. A\*01:11N is a
-   null allele; OptiType correctly identified A\*01:01 as the expressed allele.
-
 ---
 
 ## Significance
@@ -83,10 +65,8 @@ process a full patient dataset within a single cloud session.
 - **HISAT2 sensitivity:** STAR has been shown to detect more novel splice junctions in
   benchmarks. Future runs will compare junction yield between the two aligners (issue #17).
 - **HLA validation:** no ground-truth HLA alleles are available for patient_001.
-  Patient_002 (osteosarcoma) confirmed OptiType accuracy against Red Cross serology
-  (A\*01:01/A\*01:11N, B\*08:01/B\*27:05, C\*01:02/C\*07:01): all six alleles were
-  an exact match. A\*01:11N is a null allele; OptiType correctly identified A\*01:01
-  as the expressed allele and called it homozygous.
+  Patient_002 (osteosarcoma, known Red Cross serology) will provide the first direct
+  validation of OptiType accuracy in this pipeline.
 - **No matched normal for patient_002:** all unannotated junctions are treated as
   tumor-exclusive. Based on patient_001 statistics (~8.9% normal-shared rate), a
   corresponding fraction of candidates will be false positives from patient-specific
@@ -96,10 +76,9 @@ process a full patient dataset within a single cloud session.
 
 ## Future Directions
 
-- **Patient_002 longitudinal (T1/T2):** T0 run is complete (55,912 tumor-exclusive
-  junctions, 12,430 strong MHC binders, HLA typing validated against serology).
-  Longitudinal samples T1 and T2 are available for neoepitope evolution analysis
-  during treatment.
+- **Patient_002 (osteosarcoma IPISRC044):** apply the pipeline to a tumor-only case and
+  validate OptiType HLA typing against known serology. Longitudinal samples (T0/T1/T2)
+  enable future analysis of neoepitope evolution during treatment.
 - **STAR aligner comparison:** benchmark STAR vs. HISAT2 junction sensitivity on the
   same dataset (issue #17).
 - **Chimeric codon recovery:** optionally retain junction-boundary 9-mers where a
