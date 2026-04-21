@@ -132,8 +132,8 @@ def blastp_filter(
     exact_matches = _parse_exact_matches(hits_path)
     log.info("Found %d peptide sequences with exact proteome matches", len(exact_matches))
 
-    fieldnames = ["contig_key", "start_nt", "peptide"]
-    excluded_fieldnames = fieldnames + ["matched_accession"]
+    fieldnames = reader.fieldnames  # preserve whatever columns the input has
+    excluded_fieldnames = list(reader.fieldnames) + ["matched_accession"]
 
     with novel_tsv.open("w", newline="") as novel_fh, \
          excluded_tsv.open("w", newline="") as excl_fh:
