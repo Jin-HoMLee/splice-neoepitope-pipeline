@@ -1,10 +1,12 @@
 """Tests for generate_report.py — HTML generation helpers."""
 
 import pandas as pd
+import pytest
 
 from generate_report import (
     _build_chain_legend,
     _build_compnd_records,
+    _build_report_tsv,
     _df_to_html,
     _extract_chain_ids,
 )
@@ -105,3 +107,125 @@ class TestBuildCompndRecords:
         result = _build_compnd_records(pdb, "PEP", "HLA")
         assert "alpha" in result
         assert "beta" in result
+
+
+# ---------------------------------------------------------------------------
+# Helpers for _build_report_tsv tests
+# ---------------------------------------------------------------------------
+
+def _make_origin_df(tumor_exclusive: int = 5, normal_shared: int = 2) -> pd.DataFrame:
+    return pd.DataFrame([{
+        "sample_id": "S1", "sample_type": "Primary Tumor",
+        "unannotated": tumor_exclusive + normal_shared,
+        "tumor_exclusive": tumor_exclusive,
+        "normal_shared": normal_shared,
+    }])
+
+
+def _make_pred_df(n_strong: int = 3, n_weak: int = 1, n_non: int = 10) -> pd.DataFrame:
+    rows = (
+        [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(i + 1),
+          "binder_class": "strong", "contig_key": f"k{i}", "start_nt": 0,
+          "percentile_rank": 0.5} for i in range(n_strong)]
+        + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(100 + i),
+            "binder_class": "weak", "contig_key": f"k{i}", "start_nt": 0,
+            "percentile_rank": 1.5} for i in range(n_weak)]
+        + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(1000 + i),
+            "binder_class": "non", "contig_key": f"k{i}", "start_nt": 0,
+            "percentile_rank": 10.0} for i in range(n_non)]
+    )
+    return pd.DataFrame(rows)
+
+
+class TestBuildReportTsv:
+    def test_output_file_is_created(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            ic50_strong=50.0,
+            tcrdock_pdb=None,
+        )
+        assert out.exists()
+
+    def test_output_has_expected_columns(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        assert list(df.columns) == ["patient_id", "stage", "metric", "value", "notes"]
+
+    def test_patient_id_in_every_row(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("patient_007", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        assert (df["patient_id"] == "patient_007").all()
+
+    def test_junction_filtering_rows_present(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(tumor_exclusive=7, normal_shared=3), _make_pred_df(), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        jf = df[df["stage"] == "junction_filtering"]
+        te_row = jf[jf["metric"] == "tumor_exclusive"]
+        assert int(te_row["value"].iloc[0]) == 7
+
+    def test_mhc_prediction_counts_correct(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=4, n_weak=2, n_non=5), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        mhc = df[df["stage"] == "mhc_prediction"]
+        assert int(mhc[mhc["metric"] == "strong"]["value"].iloc[0]) == 4
+        assert int(mhc[mhc["metric"] == "non"]["value"].iloc[0]) == 5
+        assert int(mhc[mhc["metric"] == "total_predictions"]["value"].iloc[0]) == 11
+
+    def test_top_candidate_is_lowest_ic50(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=3), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        tc = df[df["stage"] == "top_candidate"]
+        peptide = tc[tc["metric"] == "peptide"]["value"].iloc[0]
+        ic50 = float(tc[tc["metric"] == "ic50_nM"]["value"].iloc[0])
+        assert ic50 == pytest.approx(1.0)
+        assert peptide == "PEP0"
+
+    def test_hla_typing_rows_from_qc_tsv(self, tmp_path):
+        hla_tsv = tmp_path / "hla_qc.tsv"
+        hla_df = pd.DataFrame([
+            {"locus": "A", "allele1": "HLA-A*02:01", "allele2": "HLA-A*24:02",
+             "source": "tumor", "reads": 500, "discrepancy": "",
+             "serology_allele1": "", "serology_allele2": "", "serology_validation": ""},
+        ])
+        hla_df.to_csv(hla_tsv, sep="\t", index=False)
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), str(hla_tsv), out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        hla = df[df["stage"] == "hla_typing"]
+        assert len(hla) == 1
+        assert hla["metric"].iloc[0] == "HLA-A"
+        assert "HLA-A*02:01" in hla["value"].iloc[0]
+        assert "source: tumor" in hla["notes"].iloc[0]
+
+    def test_tcrdock_pdb_available_false_when_no_pdb(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        row = df[(df["stage"] == "tcrdock") & (df["metric"] == "pdb_available")]
+        assert row["value"].iloc[0] == "false"
+
+    def test_tcrdock_pdb_available_true_when_pdb_exists(self, tmp_path):
+        pdb = tmp_path / "model.pdb"
+        pdb.write_text("ATOM\n")
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, pdb)
+        df = pd.read_csv(out, sep="\t")
+        row = df[(df["stage"] == "tcrdock") & (df["metric"] == "pdb_available")]
+        assert row["value"].iloc[0] == "true"
+
+    def test_empty_predictions_skips_mhc_and_top_candidate(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), pd.DataFrame(), None, out, 50.0, None)
+        df = pd.read_csv(out, sep="\t")
+        assert df[df["stage"] == "mhc_prediction"].empty
+        assert df[df["stage"] == "top_candidate"].empty

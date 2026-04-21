@@ -513,6 +513,100 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     )
 
 
+def _build_report_tsv(
+    patient_id: str,
+    origin_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    hla_qc_tsv: str | None,
+    output_tsv: str | Path,
+    ic50_strong: float,
+    tcrdock_pdb: str | Path | None,
+) -> None:
+    """Write a structured summary TSV alongside the HTML report.
+
+    Schema: patient_id | stage | metric | value | notes
+    Stages: junction_filtering, mhc_prediction, top_candidate, hla_typing, tcrdock
+    """
+    rows: list[dict] = []
+
+    # --- junction_filtering ---
+    if not origin_df.empty:
+        for _, r in origin_df.iterrows():
+            sid = r.get("sample_id", "")
+            stype = r.get("sample_type", "")
+            note = f"{sid} ({stype})"
+            for metric in ("unannotated", "tumor_exclusive", "normal_shared"):
+                rows.append({
+                    "patient_id": patient_id, "stage": "junction_filtering",
+                    "metric": metric, "value": int(r.get(metric, 0)), "notes": note,
+                })
+
+    # --- mhc_prediction ---
+    if not pred_df.empty:
+        rows.append({
+            "patient_id": patient_id, "stage": "mhc_prediction",
+            "metric": "total_predictions", "value": len(pred_df), "notes": "",
+        })
+        binder_notes = {
+            "strong": f"IC50 < {int(ic50_strong)} nM",
+            "weak": "IC50 50–500 nM",
+            "non": "IC50 >= 500 nM",
+        }
+        for cls, cnt in pred_df["binder_class"].value_counts().items():
+            rows.append({
+                "patient_id": patient_id, "stage": "mhc_prediction",
+                "metric": str(cls), "value": int(cnt),
+                "notes": binder_notes.get(str(cls), ""),
+            })
+
+    # --- top_candidate ---
+    strong_df = pred_df[pred_df["binder_class"].isin(["strong", "weak"])].sort_values("ic50_nM") if not pred_df.empty else pd.DataFrame()
+    if not strong_df.empty:
+        top = strong_df.iloc[0]
+        for metric, col in [("peptide", "peptide"), ("allele", "allele"), ("ic50_nM", "ic50_nM"), ("binder_class", "binder_class")]:
+            rows.append({
+                "patient_id": patient_id, "stage": "top_candidate",
+                "metric": metric,
+                "value": round(float(top[col]), 2) if metric == "ic50_nM" else str(top[col]),
+                "notes": "top by IC50" if metric == "peptide" else "",
+            })
+
+    # --- hla_typing ---
+    if hla_qc_tsv:
+        try:
+            hla_df = pd.read_csv(hla_qc_tsv, sep="\t")
+            for _, r in hla_df.iterrows():
+                locus = str(r.get("locus", ""))
+                allele1 = str(r.get("allele1", ""))
+                allele2 = str(r.get("allele2", ""))
+                source = str(r.get("source", ""))
+                reads = r.get("reads", 0)
+                alleles = f"{allele1} / {allele2}" if allele1 != allele2 else allele1
+                rows.append({
+                    "patient_id": patient_id, "stage": "hla_typing",
+                    "metric": f"HLA-{locus}", "value": alleles,
+                    "notes": f"source: {source}, reads: {reads}",
+                })
+        except Exception as exc:
+            log.warning("Could not read HLA QC TSV for report.tsv: %s", exc)
+
+    # --- tcrdock ---
+    pdb_available = (
+        tcrdock_pdb is not None and Path(tcrdock_pdb).exists()
+    )
+    rows.append({
+        "patient_id": patient_id, "stage": "tcrdock",
+        "metric": "pdb_available", "value": str(pdb_available).lower(), "notes": "",
+    })
+
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows, columns=["patient_id", "stage", "metric", "value", "notes"]).to_csv(
+        output_path, sep="\t", index=False
+    )
+    log.info("Report TSV written to %s", output_path)
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
@@ -521,8 +615,10 @@ def generate_report(
     hla_qc_tsv: str | None = None,
     ic50_strong: float = 50.0,
     tcrdock_pdb: str | Path | None = None,
+    output_tsv: str | Path | None = None,
+    patient_id: str = "",
 ) -> None:
-    """Generate the summary HTML report.
+    """Generate the summary HTML report and optional structured TSV.
 
     Args:
         novel_junctions_tsv: Classified junctions TSV (with junction_origin column).
@@ -534,6 +630,8 @@ def generate_report(
         ic50_strong:         Strong-binder IC50 threshold (nM).
         tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
                              an embedded Mol* 3D viewer is added to the report.
+        output_tsv:          Destination for the machine-readable summary TSV (optional).
+        patient_id:          Patient identifier written into every report.tsv row.
     """
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
@@ -610,6 +708,17 @@ def generate_report(
     output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
 
+    if output_tsv:
+        _build_report_tsv(
+            patient_id=patient_id or output_html.parts[-3],
+            origin_df=origin_df,
+            pred_df=pred_df,
+            hla_qc_tsv=hla_qc_tsv,
+            output_tsv=output_tsv,
+            ic50_strong=ic50_strong,
+            tcrdock_pdb=tcrdock_pdb,
+        )
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry point
@@ -627,6 +736,8 @@ def _snakemake_main() -> None:
         hla_qc_tsv=getattr(snakemake.input, "hla_qc", None),  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
+        output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
+        patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -641,6 +752,8 @@ def _cli_main() -> None:
     parser.add_argument("--hla-qc-tsv", default=None, help="HLA QC TSV from aggregate_hla_alleles")
     parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
+    parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
+    parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
     generate_report(
@@ -651,6 +764,8 @@ def _cli_main() -> None:
         hla_qc_tsv=args.hla_qc_tsv,
         ic50_strong=args.ic50_strong,
         tcrdock_pdb=args.tcrdock_pdb,
+        output_tsv=args.output_tsv,
+        patient_id=args.patient_id,
     )
 
 
