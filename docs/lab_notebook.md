@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-21
+
+### Patient_001 (gastric cancer) — GPU run completed
+
+Patient_001 TCRdock run completed successfully overnight. Top candidate EVAEYNASF / HLA-A\*26:01 (IC50 = 16.5 nM) was run through TCRdock on the P100 GPU VM. Outputs archived to `gs://splice-neoepitope-project/results/patient_001/`: `docking_scores.tsv`, `top_candidate.pdb`, `report.html`. Both CPU and GPU VMs stopped cleanly (TERMINATED).
+
+This is the second confirmed end-to-end run for patient_001 (first was on the old `tcrdock-handoff` bucket; this run used the new `splice-neoepitope-project` bucket with the updated `run_cloud_gpu.sh`).
+
+### Infrastructure fix — `.snakemake/metadata` sync via GCS (commit `3ddfe96`)
+
+**Problem:** The GPU VM was re-running all CPU pipeline steps (alignment, filtering, MHCflurry) on every invocation, even when results were already present. Root cause: without `.snakemake/metadata/` on the GPU VM, Snakemake has no baseline for `--rerun-triggers code params` and triggers re-runs of every rule.
+
+**Fix:** Extended `run_cloud_gpu.sh` to sync `.snakemake/metadata/` from the CPU VM to GCS (Phase 2 upload) and then from GCS to the GPU VM (Phase 3 download), alongside `results/` and `logs/`. Only `.snakemake/metadata/` is synced — the `conda/` subdir is gigabytes and is not transferred.
+
+**Related investigation — "Incomplete files" warning:**
+The GPU VM also showed an `IncompleteFilesException` on startup despite all result files being present. Root cause: stale `.snakemake/incomplete/` markers from a previous Spot VM preemption. These are separate from `.snakemake/metadata/` — incomplete markers are only cleared by `--rerun-incomplete`, `--cleanup-metadata`, or manual removal. Resolved by manually running `rm -rf .snakemake/incomplete/` on the GPU VM as a one-time fix. Decision not to add this to the script: (a) the VM is now STANDARD (not Spot), so future preemptions are unlikely; (b) clearing incomplete markers blindly would mask legitimately partial TCRdock outputs from future interrupted runs, since `gcloud storage cp` does not delete local files absent from GCS.
+
+### Issue #73 — patient_002 manuscript results (PR #74, merged)
+
+Added patient_002 osteosarcoma results to `docs/manuscript/`:
+- **RESULTS.md:** full patient_002 section — dataset, HLA typing + serology validation, junction funnel (347,046 raw → 55,912 tumor-exclusive), peptide translation (781,424 9-mers), MHC predictions (12,430 strong binders), top candidate TTDPVQALY / HLA-A\*01:01 (IC50 = 23.9 nM), TCRdock caveat (fallback allele bug).
+- **CONCLUSIONS.md:** added patient_002 Key Findings (points 5–8); updated Limitations HLA section (confirmed match, no longer future tense); updated Future Directions (T0 complete, focus on T1/T2).
+- **DISCUSSIONS.md:** updated "Impact of missing matched normal: patient_002" section with real WES proxy counts (106,474 apparent junctions, only 3 overlap tumor).
+
+PR #74 (`docs/issue-73-manuscript-patient002` → `main`) opened and merged.
+
+---
+
 ## 2026-04-20
 
 ### Patient_002 (osteosarcoma BG003082) — first full production run
