@@ -68,6 +68,9 @@ if _TCRDOCK_ENABLED:
             report_html=os.path.join(
                 _RES, "{patient_id}", "reports", "report.html"
             ),
+            report_tsv=os.path.join(
+                _RES, "{patient_id}", "reports", "report.tsv"
+            ),
         log:
             os.path.join(_LOGS, "{patient_id}", "structure", "report.log"),
         params:
