@@ -10,7 +10,6 @@
 #
 #   translate_peptides → blastp_filter_peptides → run_mhcflurry
 #
-# Disable for speed on test runs: set blastp_filter.enabled: false in config.
 #
 # =============================================================================
 
