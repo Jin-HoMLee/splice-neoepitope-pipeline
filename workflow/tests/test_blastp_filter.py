@@ -77,6 +77,11 @@ class TestParseExactMatches:
         hits.write_text("ACDEFGHIK\tsp|P12345|PROT_HUMAN\t100.000\n")
         assert _parse_exact_matches(hits) == {"ACDEFGHIK": "sp|P12345|PROT_HUMAN"}
 
+    def test_near_100_identity_excluded(self, tmp_path):
+        hits = tmp_path / "hits.tsv"
+        hits.write_text("ACDEFGHIK\tsp|P12345|PROT_HUMAN\t99.999\n")
+        assert _parse_exact_matches(hits) == {}
+
     def test_partial_identity_excluded(self, tmp_path):
         hits = tmp_path / "hits.tsv"
         hits.write_text("ACDEFGHIK\tsp|P12345|PROT_HUMAN\t88.889\n")
