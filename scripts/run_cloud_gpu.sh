@@ -482,9 +482,13 @@ ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 mkdir -p "${RESULTS_DIR}"
-gcloud storage cp -r "${GCS_PATH}/*" "${RESULTS_DIR}/"
+# rsync compares checksums (CRC32C) and only re-downloads files that changed on
+# GCS, preserving mtime of unchanged files. This allows --rerun-triggers mtime
+# to correctly detect when CPU-phase outputs (e.g. mhc_affinity.tsv) changed.
+gcloud storage rsync "${GCS_PATH}" "${RESULTS_DIR}" --recursive
 echo "Results download complete."
 mkdir -p ".snakemake/metadata"
+# Always overwrite metadata with the CPU VM's authoritative version (cp, not rsync).
 gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata/*" ".snakemake/metadata/" 2>/dev/null \
     && echo "Snakemake metadata download complete." \
     || echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."
@@ -503,7 +507,7 @@ conda activate snakemake
 snakemake \
     --cores 1 \
     --use-conda \
-    --rerun-triggers code params \
+    --rerun-triggers mtime code params \
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
     --config samples_tsv=${SAMPLES} \
     -- \
@@ -522,7 +526,7 @@ tmux new-session -d -s tcrdock "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
-        --rerun-triggers code params \\
+        --rerun-triggers mtime code params \\
         --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee tcrdock.log
