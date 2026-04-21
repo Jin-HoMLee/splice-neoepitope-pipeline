@@ -18,15 +18,6 @@
 # gs:// paths are downloaded automatically by the download_fastq rule.
 
 # -----------------------------------------------------------------
-# GCS integration (cloud runs only)
-# -----------------------------------------------------------------
-# Set bucket to enable BAM upload after alignment and to stage FASTQs.
-# Layout: gs://<bucket>/fastq/<patient_id>/  and  results/<patient_id>/
-# Leave empty to skip all GCS operations.
-gcs:
-  bucket: "gs://splice-neoepitope-project"
-
-# -----------------------------------------------------------------
 # Output directories
 # -----------------------------------------------------------------
 output:
@@ -70,14 +61,6 @@ assembly:
   upstream_nt:   26   # nt upstream of the splice junction
   downstream_nt: 24   # nt downstream of the splice junction
   contig_length: 50   # total contig length (upstream + downstream)
-
-# -----------------------------------------------------------------
-# Junction-spanning 9-mer extraction
-# -----------------------------------------------------------------
-# Reads all three reading frames and retains only 27 nt windows
-# whose first codon is fully upstream and last codon is fully
-# downstream of the splice junction. upstream_nt is shared with
-# the assembly section above.
 
 # -----------------------------------------------------------------
 # blastp filter (Step 4b — optional but recommended)

@@ -20,8 +20,6 @@
 # Helpers (_read_samples_tsv, _local_fastq) are defined in common.smk,
 # which is included before this file by the Snakefile.
 
-_GCS_BUCKET = config.get("gcs", {}).get("bucket", "").rstrip("/")
-
 # ── Shared manifest + checkpoint ─────────────────────────────────────────────
 
 rule create_alignment_manifest:
@@ -43,33 +41,6 @@ rule create_alignment_manifest:
                 sid = row["sample_id"]
                 sample_type = row.get("sample_type", "Unknown")
                 fout.write(f"{sid}\t{sid}.tsv\t{sample_type}\t{wildcards.patient_id}\n")
-
-
-checkpoint alignment_complete:
-    """Checkpoint that triggers after all samples are aligned.
-
-    Both STAR and HISAT2 produce junction TSVs at the same output path so
-    this checkpoint is aligner-agnostic.
-    """
-    input:
-        manifest=os.path.join(_RES, "{patient_id}", "alignment", "manifest.tsv"),
-        samples=lambda wildcards: expand(
-            os.path.join(_RES, wildcards.patient_id, "alignment", "{sample}", "junctions.tsv"),
-            sample=[s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)],
-        ),
-        uploads=lambda wildcards: (
-            expand(
-                os.path.join(_RES, wildcards.patient_id, "alignment", "{sample}", "{sample}.bam.uploaded"),
-                sample=[s["sample_id"] for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id)],
-            )
-            if _GCS_BUCKET and config.get("alignment", {}).get("aligner") == "hisat2"
-            else []
-        ),
-    output:
-        done=os.path.join(_RES, "{patient_id}", "alignment", "download.done"),
-        data_dir=directory(os.path.join(_RES, "{patient_id}", "alignment")),
-    shell:
-        "touch {output.done}"
 
 
 # ── Shared FASTQ input functions ─────────────────────────────────────────────
@@ -140,11 +111,12 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         """Run HISAT2 alignment on a single sample.
 
         Input:  FASTQ files (single-end or paired-end)
-        Output: Junction quantification TSV in pipeline-compatible format
+        Output: Junction quantification TSV, BAM, BAI, and junction BED
 
         Uses regtools to extract junctions from the BAM file.
-        BAM is kept as a temp() output — deleted locally after upload_bam
-        completes (when gcs.bucket is set) or immediately when it is not.
+        BAM/BAI/BED are retained on disk; the run_cloud_gpu.sh script
+        uploads the entire results directory to GCS after the pipeline
+        completes.
         """
         input:
             index_dir=_HISAT2_INDEX_DIR,
@@ -154,9 +126,9 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
-            bam=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam")),
-            bai=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai")),
-            bed=temp(os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed")),
+            bam=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam"),
+            bai=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai"),
+            bed=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed"),
         log:
             os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_align.log"),
         params:
@@ -201,29 +173,6 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
 
             echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
             """
-
-
-    if _GCS_BUCKET:
-        rule upload_bam:
-            """Upload BAM, BAI, and junction BED to GCS. Local temp files deleted once upload completes."""
-            input:
-                bam=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam"),
-                bai=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai"),
-                bed=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed"),
-            output:
-                sentinel=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.uploaded"),
-            params:
-                gcs_dir=lambda wildcards: f"{_GCS_BUCKET}/{_RES}/{wildcards.patient_id}/alignment/{wildcards.sample}/",
-            log:
-                os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_bam.log"),
-            shell:
-                """
-                set -euo pipefail
-                gsutil cp {input.bam} {params.gcs_dir} 2>&1 | tee {log}
-                gsutil cp {input.bai} {params.gcs_dir} 2>> {log}
-                gsutil cp {input.bed} {params.gcs_dir} 2>> {log}
-                touch {output.sentinel}
-                """
 
 
 # ── STAR ─────────────────────────────────────────────────────────────────────

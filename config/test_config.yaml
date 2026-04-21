@@ -23,9 +23,6 @@
 
 samples_tsv: "config/samples/patient_001_test.tsv"
 
-gcs:
-  bucket: ""    # disable GCS operations for local test runs
-
 reference:
   genome: "GRCh38_chr22"
   genome_fasta: "resources/test/chr22.fa"
