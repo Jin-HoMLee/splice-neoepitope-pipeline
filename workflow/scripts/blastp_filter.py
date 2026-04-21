@@ -65,8 +65,7 @@ def _run_blastp(
         "-word_size", "2",
         "-evalue", "200000",
         "-qcov_hsp_perc", "100",
-        "-perc_identity", "100",
-        "-outfmt", "6 qseqid sseqid pident length qlen",
+        "-outfmt", "6 qseqid sseqid pident",
         "-num_threads", str(threads),
         "-out", str(hits_path),
     ]
@@ -80,7 +79,9 @@ def _run_blastp(
 def _parse_exact_matches(hits_path: Path) -> dict[str, str]:
     """Return {peptide: first_matching_accession} for full-length exact hits.
 
-    A hit is exact when pident == 100.0 and alignment length == query length.
+    Full query coverage is guaranteed by -qcov_hsp_perc 100 at search time.
+    Only 100% identity hits are retained (int conversion avoids float equality
+    issues with BLAST's decimal output, e.g. "100.000").
     """
     matches: dict[str, str] = {}
     if not hits_path.exists() or hits_path.stat().st_size == 0:
@@ -88,10 +89,10 @@ def _parse_exact_matches(hits_path: Path) -> dict[str, str]:
     with hits_path.open() as fh:
         for line in fh:
             parts = line.rstrip("\n").split("\t")
-            if len(parts) < 5:
+            if len(parts) < 3:
                 continue
-            qseqid, sseqid, pident, length, qlen = parts
-            if float(pident) == 100.0 and int(length) == int(qlen):
+            qseqid, sseqid, pident = parts[:3]
+            if int(float(pident)) == 100:
                 if qseqid not in matches:
                     matches[qseqid] = sseqid
     return matches
