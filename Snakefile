@@ -32,41 +32,6 @@
 
 configfile: "config/config.yaml"
 
-import csv
-import os
-
-# ── convenience aliases ──────────────────────────────────────────────────────
-# All patient outputs are rooted at _RES/{patient_id}/<step>/
-_RES  = config["output"]["results_dir"]
-_LOGS = config["output"]["logs"]
-
-# Derive patient IDs from the samples TSV — the TSV is the single source of
-# truth for what to run. All rows sharing the same patient_id are treated as
-# a matched set (e.g. tumor + normal for one patient).
-def _read_patient_ids(samples_tsv):
-    patient_ids = set()
-    with open(samples_tsv) as f:
-        for row in csv.DictReader(f, delimiter="\t"):
-            pid = (row.get("patient_id") or "").strip()
-            if not pid or pid.startswith("#"):
-                continue
-            patient_ids.add(pid)
-    return sorted(patient_ids)
-
-if "samples_tsv" not in config:
-    raise ValueError(
-        "samples_tsv is required. Pass it at runtime:\n"
-        "  snakemake --config samples_tsv=config/samples/<patient>.tsv\n"
-        "  or set it in a configfile (e.g. config/test_config.yaml)."
-    )
-
-PATIENT_IDS = _read_patient_ids(config["samples_tsv"])
-
-wildcard_constraints:
-    patient_id="[^/]+",
-    sample="[^/]+",
-
-
 # ── include rule modules ─────────────────────────────────────────────────────
 include: "workflow/rules/common.smk"
 include: "workflow/rules/download.smk"
@@ -83,9 +48,10 @@ include: "workflow/rules/structure.smk"
 if config.get("tcrdock", {}).get("enabled", False):
     ruleorder: generate_report_with_structure > generate_report
 
-
 # ── final target ─────────────────────────────────────────────────────────────
+# _read_samples_tsv (common.smk) validates exactly one patient per run.
+PATIENT_ID = _read_samples_tsv(config["samples_tsv"])[0]["patient_id"]
+
 rule all:
     input:
-        expand(os.path.join(_RES, "{patient_id}", "reports", "report.html"), patient_id=PATIENT_IDS),
-
+        f"{_RES}/{PATIENT_ID}/reports/report.html",
