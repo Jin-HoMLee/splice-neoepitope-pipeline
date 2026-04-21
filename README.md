@@ -14,19 +14,16 @@ RNA-Seq.
 
 1. [Scientific Background](#scientific-background)
 2. [Pipeline Overview](#pipeline-overview)
-3. [Installation and Setup](#installation-and-setup)
-4. [Alignment](#alignment)
-5. [MHCflurry](#mhcflurry-epitope-predictor)
+3. [Quick Start](#quick-start)
+4. [Installation](#installation)
+5. [Data Preparation](#data-preparation)
 6. [TCRdock Structural Validation (Optional)](#tcrdock-structural-validation-optional)
-7. [Reference Data](#reference-data)
-8. [Local Testing (chr22 subset)](#local-testing-chr22-subset)
-9. [Running the Pipeline](#running-the-pipeline)
-10. [Configuration](#configuration)
-11. [Output Description](#output-description)
-12. [Modernisation Changelog](#modernisation-changelog)
-13. [Project Structure](#project-structure)
-14. [Citation](#citation)
-15. [Further Reading](#further-reading)
+7. [Running the Pipeline](#running-the-pipeline)
+8. [Configuration](#configuration)
+9. [Output](#output)
+10. [Project Structure](#project-structure)
+11. [Citation](#citation)
+12. [Further Reading](#further-reading)
 
 ---
 
@@ -55,7 +52,7 @@ RNA-Seq FASTQ files
         ├─────────────────────────────────────────────────────┐
         ▼                                                     ▼
   Step 2: Classify by origin                        Step 2b: HLA typing (optional)
-  - Remove annotated junctions (GENCODE)            OptiType on normal sample FASTQs
+  - Remove annotated junctions (GENCODE)            OptiType on all sample FASTQs
   - Compare tumor vs. matched normal:               → patient-specific A/B/C alleles
       normal_shared (in normal) → excluded
       tumor_exclusive (not in normal) → keep
@@ -80,409 +77,169 @@ RNA-Seq FASTQ files
 
 ---
 
-## Installation and Setup
+## Quick Start
 
-### 1. System Requirements
-
-| Requirement | Minimum | Notes |
-|-------------|---------|-------|
-| OS | Linux (x86-64) or macOS | Windows is not supported |
-| CPU | 4 cores | More cores speed up parallel steps |
-| RAM | **8 GB** | Using HISAT2 aligner (or 32 GB for STAR) |
-| Disk | 50 GB free | Reference genome + data files |
-| Python | 3.11+ | Managed automatically via conda |
-| Git | any | For cloning this repository |
-
-> **Note**: The default aligner is now HISAT2, which requires only ~8 GB RAM.
-> If you have a high-memory system (32+ GB), you can optionally use STAR for
-> maximum accuracy.
-
----
-
-### 2. Install Conda (Miniforge — recommended)
-
-Miniforge is a minimal Conda installer that defaults to the `conda-forge`
-channel and ships with the faster `mamba` solver.
+### Local test run (chr22, ~2 min on MacBook Air M1)
 
 ```bash
-# Download the installer for your OS
-# Linux:
-curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
-  -o Miniforge3.sh
-# macOS (Apple Silicon):
-curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh \
-  -o Miniforge3.sh
-# macOS (Intel):
-curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-x86_64.sh \
-  -o Miniforge3.sh
-
-# Run the installer (accept the licence; let it initialise your shell)
-bash Miniforge3.sh -b -p "$HOME/miniforge3"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
-conda init bash   # or: conda init zsh
-
-# Reload your shell, then verify
-conda --version   # should print: conda 24.x.x or similar
-```
-
-> **Already have Anaconda or Miniconda?**  That works too.
-> Make sure `conda-forge` and `bioconda` channels are added:
-> ```bash
-> conda config --add channels bioconda
-> conda config --add channels conda-forge
-> conda config --set channel_priority strict
-> ```
-
----
-
-### 3. Install Snakemake
-
-Create a dedicated conda environment that contains Snakemake 7.x and the
-`snakemake-executor-plugin-cluster-generic` plugin (needed for cluster runs):
-
-```bash
-conda create -n snakemake -c conda-forge -c bioconda \
-  "snakemake>=7.0,<9" \
-  snakemake-executor-plugin-cluster-generic \
-  python=3.11 \
-  -y
-
+bash scripts/prepare_test_data.sh   # one-time: downloads chr22 reference + FASTQs
 conda activate snakemake
-
-# Verify
-snakemake --version   # expected output: 7.x.x or 8.x.x
+snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 ```
 
-> The pipeline conda environments (`workflow/envs/python.yaml`,
-> `workflow/envs/biotools.yaml`) are created automatically the first time
-> Snakemake runs each rule — you do **not** need to install biopython,
-> bedtools, etc. manually.
+Expected output: ~372 unannotated junctions → ~75 contigs → ~52 strong binders
+across 6 patient-specific HLA alleles.
+
+### Cloud run (full genome + TCRdock, ~4–6 hours)
+
+```bash
+bash scripts/run_cloud_gpu.sh \
+    --samples config/samples/patient_001.tsv \
+    --mode prod \
+    --detach
+```
+
+> See [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) for prerequisites and cost estimates.
 
 ---
 
-### 4. Clone the Repository
+## Installation
+
+Requires Conda (Miniforge recommended) and Snakemake 8.x. Rule-specific
+environments are created automatically on first use — no manual dependency
+installation needed.
 
 ```bash
 git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
 cd splice-neoepitope-pipeline
-```
-
-Verify the expected layout is in place:
-
-```bash
-ls -1
-# Expected output:
-# LICENSE  README.md  Snakefile  config/  docs/  resources/  workflow/
-```
-
----
-
-### 5. Quick Sanity Check
-
-With the `snakemake` environment active, confirm Snakemake can parse the
-workflow without errors (make sure to download the `gencode.v47.annotation.gtf.gz` and `GRCh38.primary_assembly.genome.fa` files according to [/resources/README.md](/resources/README.md) before running):
-
-```bash
+conda create -n snakemake -c conda-forge -c bioconda "snakemake>=8.0,<9" python=3.11 -y
 conda activate snakemake
-snakemake --cores 1 --use-conda -n 2>&1 | head -20
 ```
 
-You should see a list of jobs (or a note that all outputs are up to date).
-If Snakemake prints a Python traceback, check that the `snakemake` conda
-environment is active and that all files were cloned correctly.
+See [`docs/installation.md`](docs/installation.md) for the full setup guide
+(multi-platform conda install, reference data download, sanity check).
 
 ---
 
-## Alignment
+## Data Preparation
 
-The pipeline aligns RNA-Seq FASTQ files using either **HISAT2** (default) or
-**STAR**. Choose based on your available RAM:
-
-| Aligner | RAM Required | Index Size | Best For |
-|---------|--------------|------------|----------|
-| **HISAT2** | ~8 GB | ~8 GB | Laptops, small servers, limited resources |
-| **STAR** | ~32 GB | ~30 GB | Full accuracy, high-memory systems |
-
-Set your aligner in `config/config.yaml`:
-
-```yaml
-samples_tsv: "config/samples.tsv"
-
-alignment:
-  aligner: "hisat2"    # "hisat2" (8 GB RAM) or "star" (32 GB RAM)
-```
-
-### Obtaining RNA-Seq FASTQ Data
-
-Use any publicly available cancer RNA-Seq dataset:
-
-| Source | Description |
-|--------|-------------|
-| **SRA/ENA** | Millions of public RNA-Seq runs — ENA provides direct HTTPS FASTQ download |
-| **GEO** | Gene Expression Omnibus |
-| **ENCODE** | High-quality RNA-Seq from cell lines |
-| **GTEx** | Normal tissue RNA-Seq (open access) |
-
-ENA HTTPS download (most reliable, no extra tools needed):
-
-```bash
-curl -L "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/SRR9143066/SRR9143066.fastq.gz" \
-    -o data/tumor.fastq.gz
-```
-
-### Sample Manifest
-
-Create `config/samples.tsv` listing your samples:
+Per-patient sample manifests live in `config/samples/`. FASTQ paths can be
+local files, `gs://` URIs, or `https://` URLs — all downloaded automatically.
 
 ```tsv
-patient_id	sample_id	sample_type	fastq1	fastq2
-patient_001	tumor_01	Primary Tumor	data/tumor_01_R1.fastq.gz	data/tumor_01_R2.fastq.gz
-patient_001	normal_01	Solid Tissue Normal	data/normal_01_R1.fastq.gz	data/normal_01_R2.fastq.gz
+patient_id  sample_id   sample_type          fastq1                    fastq2
+patient_001 SRR9143066  Primary Tumor        https://ftp.sra.ebi.ac.uk/...
+patient_001 SRR9143065  Solid Tissue Normal  https://ftp.sra.ebi.ac.uk/...
 ```
 
-| Column | Required | Description |
-|--------|----------|-------------|
-| `patient_id` | Yes | Patient identifier — all rows with the same `patient_id` are treated as a matched set |
-| `sample_id` | Yes | Unique sample identifier |
-| `sample_type` | Yes | `"Primary Tumor"` or `"Solid Tissue Normal"` |
-| `fastq1` | Yes | Read 1 FASTQ path (can be gzipped) |
-| `fastq2` | No | Read 2 FASTQ for paired-end data (leave empty for single-end) |
-
-> **No local resources?** See [docs/google_cloud_guide.md](docs/google_cloud_guide.md)
-> for a step-by-step guide to running the pipeline on Google Cloud.
-
----
-
-## MHCflurry (Epitope Predictor)
-
-This pipeline uses **MHCflurry 2.x**, an open-source, state-of-the-art MHC-I
-binding predictor that does not require academic registration.  MHCflurry is
-installed automatically via the conda environment — no manual setup needed.
-
-
-### Reference
-
-> O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved Pan-Allele Prediction
-> of MHC Class I-Presented Peptides by Incorporating Antigen Processing.
-> *Cell Systems*, 11(1), 42-48.e7.
+See [`docs/data_preparation.md`](docs/data_preparation.md) for aligner selection
+(HISAT2 vs STAR), FASTQ sources, and full manifest format.
 
 ---
 
 ## TCRdock Structural Validation (Optional)
 
-When enabled, the pipeline predicts the 3D structure of the TCR-peptide-MHC
-ternary complex for the top neoepitope candidate using **TCRdock** (Bradley
-et al.), a modified AlphaFold v2 multimer backend adapted for TCR:pMHC
-complexes.
-
-- **Requires**: Linux x86-64, NVIDIA GPU (T4 or better), Docker with NVIDIA Container Toolkit
-- **Not compatible** with macOS or CPU-only machines
-- **Disabled by default** — local / CPU-only runs are unaffected
+When enabled, predicts the 3D TCR-pMHC ternary complex for the top neoepitope
+candidate using TCRdock (AlphaFold v2 backend). Requires a Linux x86-64 NVIDIA
+GPU. Disabled by default — local / CPU-only runs are unaffected.
 
 The predicted structure is embedded in the HTML report as an interactive
-[Mol*](https://molstar.org) 3D viewer with labeled chains (MHC heavy chain,
-peptide, TCR α-chain, TCR β-chain).
+[Mol*](https://molstar.org) 3D viewer.
 
-### Running TCRdock
-
-**Automated (recommended):** Use the cloud GPU script which handles the full
-CPU → GPU lifecycle:
+**Automated cloud run (recommended):**
 
 ```bash
-bash scripts/run_cloud_gpu.sh --mode test    # chr22 test run
-bash scripts/run_cloud_gpu.sh --mode prod    # full production run
-bash scripts/run_cloud_gpu.sh --mode test --detach  # detached (close laptop)
+bash scripts/run_cloud_gpu.sh --samples config/samples/patient_001.tsv --mode prod --detach
 ```
 
-See [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) for details.
-
-**Manual (on a GPU VM):**
-
-```bash
-# 1. Set up Docker + TCRdock image
-bash scripts/setup_tcrdock_vm.sh config/config.yaml
-
-# 2. Run pipeline with TCRdock overlay
-snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
-    --configfile config/config.yaml config/tcrdock_gpu.yaml
-```
-
-### Reference
-
-> Bradley P (2023). Structure-based prediction of T cell receptor:peptide-MHC
-> interactions. *eLife*, 12, e82813.
-
----
-
-## Reference Data
-
-Place the following files in the `resources/` directory before running
-(see `resources/README.md` for download commands):
-
-| File | Description |
-|------|-------------|
-| `GRCh38.primary_assembly.genome.fa` | GRCh38 reference genome FASTA + `.fai` index |
-| `gencode.v47.annotation.gtf.gz` | GENCODE v47 GTF annotation |
-
-The reference junction BED file (`resources/reference_junctions.bed`) is
-generated automatically by the pipeline.
-
----
-
-## Local Testing (chr22 subset)
-
-Before running a full analysis, you can smoke-test the pipeline end-to-end
-using a tiny chr22-only reference and a small FASTQ subset.  The test runs in
-~2 minutes on a MacBook Air M1 (8 GB RAM) and exercises every pipeline step.
-
-### Step 1: Download test data (one-time setup, ~15–30 min)
-
-```bash
-bash scripts/prepare_test_data.sh
-```
-
-This downloads:
-- chr22 FASTA from UCSC hg38 (~52 MB)
-- GENCODE v47 GTF filtered to chr22 (streamed, no full file stored)
-- 500K reads each from a matched gastric cancer pair via ENA HTTPS (no sra-tools needed):
-  - **SRR9143066** — Primary Tumor (gastric cancer surgical section)
-  - **SRR9143065** — Solid Tissue Normal (adjacent stomach tissue)
-
-### Step 2: Run the test pipeline
-
-```bash
-conda activate snakemake
-snakemake --cores 4 --use-conda --configfile config/test_config.yaml
-```
-
-Expected output: ~372 unannotated junctions (367 tumor_exclusive, 5 normal_shared) → ~75 contigs → ~52 strong binders across 6 patient-specific HLA alleles (A×2, B×2, C×2 from OptiType).
-
-> **Note**: Only reads mapping to chr22 are used, so junction counts are much
-> lower than a full-genome run — this is expected.
+See [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) for prerequisites,
+cost estimates, and manual GPU VM setup.
 
 ---
 
 ## Running the Pipeline
 
-### Dry run (check the DAG without executing)
+### Dry run
 
 ```bash
-snakemake --cores 1 --use-conda -n
+conda activate snakemake
+snakemake --cores 1 --use-conda -n \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv
 ```
 
 ### Full run
 
 ```bash
-snakemake --cores <N> --use-conda
+conda activate snakemake
+snakemake --cores <N> --use-conda \
+    --rerun-triggers mtime \
+    --rerun-incomplete \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv
 ```
 
-Replace `<N>` with the number of CPU cores to use.
-
-### Run a specific step
+### Run a specific target
 
 ```bash
-# Only build the reference junction list
-snakemake --cores 2 --use-conda \
-  resources/reference_junctions.bed
-
-# Only align one patient
 snakemake --cores 8 --use-conda \
-  results/raw_data/patient_001/download.done
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv \
+    results/patient_001/alignment/download.done
 ```
 
-### Cluster execution
-
-Snakemake supports many cluster backends.  Example for SLURM:
+### Cluster execution (SLURM example)
 
 ```bash
 snakemake --cores 100 --use-conda \
-  --executor cluster-generic \
-  --cluster-generic-submit-cmd "sbatch --mem={resources.mem_mb}M -c {threads}"
+    --rerun-triggers mtime --rerun-incomplete \
+    --configfile config/config.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv \
+    --executor cluster-generic \
+    --cluster-generic-submit-cmd "sbatch --mem={resources.mem_mb}M -c {threads}"
 ```
 
 ---
 
 ## Configuration
 
-All parameters are in `config/config.yaml`.  Key options:
+All parameters live in `config/config.yaml`. For TCRdock, merge
+`config/tcrdock_gpu.yaml` via a single `--configfile` invocation.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `reference.genome_fasta` | `resources/…` | Path to GRCh38 FASTA |
-| `reference.gencode_gtf` | `resources/…` | Path to GENCODE GTF |
-| `hla.enabled` | `true` | Run OptiType HLA typing on sample FASTQs |
-| `hla.min_reads_per_locus` | `30` | Minimum OptiType read count to trust a HLA call |
-| `mhcflurry.fallback_alleles` | `{A: HLA-A*02:01, B: HLA-B*07:02, C: HLA-C*07:02}` | HLA alleles used when HLA typing is disabled or a locus has too few reads |
-| `mhcflurry.ic50_strong` | `50` | Strong binder threshold (nM) |
-| `mhcflurry.ic50_weak` | `500` | Weak binder threshold (nM) |
-| `assembly.upstream_nt` | `26` | Nucleotides upstream of junction |
-| `assembly.downstream_nt` | `24` | Nucleotides downstream of junction |
-| `filtering.min_normal_reads` | `2` | Min reads in normal to classify a junction as `normal_shared` (excluded from prediction) |
-| `tcrdock.enabled` | `false` | Enable TCRdock structural validation (GPU required) |
-| `tcrdock.docker_image` | `tcrdock:latest` | Docker image built by `setup_tcrdock_vm.sh` |
-| `tcrdock.n_candidates` | `1` | Number of top candidates to model |
-| `tcrdock.fallback_tcr` | DMF5 TCR | Fallback TCR sequences (until TRUST4 #24) |
+See [`docs/configuration.md`](docs/configuration.md) for the full parameter reference.
 
 ---
 
-## Output Description
+## Output
 
-All outputs are written to the `results/` directory:
+All outputs are written to `results/{patient_id}/`:
 
 ```
 results/
-├── raw_data/
-│   └── {patient_id}/
-│       ├── manifest.tsv          # Sample manifest (file_id → sample_type)
-│       └── files/                # Junction quantification TSVs per sample
-├── hla_typing/                   # (when hla.enabled: true)
-│   └── {patient_id}/
-│       ├── {sample}/
-│       │   └── {sample}_result.tsv   # Per-sample OptiType output
-│       ├── alleles.tsv           # Aggregated patient HLA-A/B/C alleles
-│       └── hla_qc.tsv            # Per-locus source, read counts, discrepancies
-├── junctions/
-│   └── {patient_id}/
-│       └── novel_junctions.tsv   # Classified junctions (junction_origin column:
-│                                 #   tumor_exclusive | normal_shared)
-├── contigs/
-│   └── {patient_id}/
-│       └── contigs.fa            # 50 nt FASTA contigs (tumor_exclusive only)
-├── peptides/
-│   └── {patient_id}/
-│       └── peptides.tsv          # Junction-spanning 9-mers (contig_key, start_nt, peptide)
-├── predictions/
-│   └── {patient_id}/
-│       ├── predictions.tsv       # MHCflurry results (one row per 9-mer × allele)
-│       └── tcrdock/              # (when TCRdock is enabled)
-│           ├── top_candidate.pdb # Predicted TCR-pMHC ternary complex
-│           └── docking_scores.tsv # pLDDT/PAE quality metrics
-└── reports/
-    └── {patient_id}/
-        └── report.html           # Junction origin summary + HLA typing QC
-                                  # + top binders (+ Mol* 3D viewer when TCRdock enabled)
+└── {patient_id}/
+    ├── alignment/
+    │   ├── manifest.tsv              # Sample manifest (file_id → sample_type)
+    │   └── {sample}/
+    │       └── junctions.tsv         # Junction read counts from aligner
+    ├── hla_typing/                   # (when hla.enabled: true)
+    │   ├── {sample}/
+    │   │   └── {sample}_result.tsv   # Per-sample OptiType output
+    │   ├── alleles.tsv               # Aggregated patient HLA-A/B/C alleles
+    │   └── hla_qc.tsv                # Per-locus source, read counts, discrepancies
+    ├── junctions/
+    │   └── novel_junctions.tsv       # Classified junctions (tumor_exclusive | normal_shared)
+    ├── contigs/
+    │   └── contigs.fa                # 50 nt FASTA contigs (tumor_exclusive only)
+    ├── peptides/
+    │   └── peptides.tsv              # Junction-spanning 9-mers
+    ├── predictions/
+    │   ├── mhc_affinity.tsv          # MHCflurry results (one row per 9-mer × allele)
+    │   └── tcrdock/                  # (when TCRdock is enabled)
+    │       ├── top_candidate.pdb     # Predicted TCR-pMHC ternary complex
+    │       └── docking_scores.tsv    # pLDDT/PAE quality metrics
+    └── reports/
+        └── report.html               # Summary report (+ Mol* 3D viewer when TCRdock enabled)
 ```
-
----
-
-## Modernisation Changelog
-
-The following table documents every substantive change from the original 2015
-pipeline to this modernised implementation.  See
-[`docs/modernization_notes.md`](docs/modernization_notes.md) for full details.
-
-| Component | Original (2015) | Modernised | Reason |
-|-----------|----------------|------------|--------|
-| Reference genome | hg19 | **GRCh38/hg38** | Current standard assembly |
-| Reference annotation | UCSC RefSeq hg19 | **GENCODE v47 GRCh38** | Comprehensive, programmatically reproducible |
-| Input | Pre-downloaded junction files | **FASTQ files (local alignment)** | No controlled-access requirement |
-| RNA-Seq aligner | TopHat2 | **HISAT2** (default) / **STAR** (optional) | TopHat2 unmaintained; HISAT2 its successor at lower memory |
-| Epitope predictor | NetMHCPan **2.8** | **MHCflurry 2.x** | Open source; no registration; SOTA accuracy |
-| Junction-spanning filter | None (all 9-mers included) | **Complete-codon rule** — only 9-mers with ≥1 full codon from each exon retained (issue #18); applied at translation step (issue #20) | Eliminates purely exonic false positives (e.g. `YLADLYHFV` = SH3BP1) |
-| Biopython API | `Bio.Alphabet` | **`Bio.Seq` only** | `Bio.Alphabet` removed in Biopython ≥1.78 |
-| Workflow management | Manual shell scripts | **Snakemake** | Reproducibility, parallelism, DAG tracking |
-| Environment management | None | **Conda** (per rule) | Reproducible software environments |
-| Reference junction list | Manual hg19 list | **Derived from GENCODE GTF** | Reproducible, versioned, easily updated |
 
 ---
 
@@ -492,30 +249,31 @@ pipeline to this modernised implementation.  See
 splice-neoepitope-pipeline/
 ├── README.md
 ├── LICENSE
-├── .gitignore
 ├── Snakefile                         # Main Snakemake workflow
 ├── config/
 │   ├── config.yaml                   # Production configuration
-│   ├── tcrdock_gpu.yaml              # TCRdock GPU overlay (enables tcrdock.enabled)
-│   ├── samples.tsv                   # Sample manifest (production)
-│   ├── test_config.yaml              # chr22 test configuration (local testing)
-│   └── test_samples.tsv              # Sample manifest for test run
+│   ├── tcrdock_gpu.yaml              # TCRdock GPU overlay
+│   ├── test_config.yaml              # chr22 test configuration
+│   └── samples/
+│       ├── patient_001.tsv           # Gastric cancer (SRR9143066/SRR9143065)
+│       ├── patient_001_test.tsv      # chr22 subset for local testing
+│       └── patient_002.tsv           # Osteosarcoma (BostonGene BG003082)
 ├── scripts/
-│   ├── prepare_test_data.sh          # One-time setup: download chr22 test data
+│   ├── prepare_test_data.sh          # One-time: download chr22 test data
 │   ├── run_cloud_gpu.sh              # Automated CPU→GPU cloud lifecycle
 │   ├── setup_cloud.sh                # CPU VM setup (conda, snakemake)
 │   └── setup_tcrdock_vm.sh           # GPU VM setup (Docker, TCRdock image)
 ├── docker/
-│   └── Dockerfile.pipeline           # TCRdock Docker image (CUDA 11.8 + AlphaFold)
+│   └── Dockerfile.pipeline           # TCRdock image (CUDA 11.8 + AlphaFold)
 ├── workflow/
 │   ├── rules/
 │   │   ├── alignment.smk             # Step 1: HISAT2 or STAR alignment
-│   │   ├── filter.smk                # Step 2: Novel junction filtering
+│   │   ├── filter_junctions.smk      # Step 2: Novel junction filtering
 │   │   ├── hla_typing.smk            # Step 2b: OptiType HLA typing (optional)
-│   │   ├── assemble.smk              # Step 3: Contig assembly
-│   │   ├── translate.smk             # Step 4: Peptide translation
-│   │   ├── predict.smk               # Step 5: MHCflurry prediction
-│   │   ├── tcrdock.smk               # Step 6: TCRdock structural validation (optional, GPU)
+│   │   ├── assemble_contigs.smk      # Step 3: Contig assembly
+│   │   ├── translate_peptides.smk    # Step 4: Peptide translation
+│   │   ├── mhc_affinity.smk          # Step 5: MHCflurry prediction
+│   │   ├── structure.smk             # Step 6: TCRdock (optional, GPU)
 │   │   └── analysis.smk              # Step 7: Report generation
 │   ├── envs/
 │   │   ├── hisat2.yaml               # hisat2, samtools, regtools
@@ -524,22 +282,24 @@ splice-neoepitope-pipeline/
 │   │   ├── optitype.yaml             # OptiType, razers3, glpk
 │   │   └── python.yaml               # mhcflurry, pandas, scipy, ...
 │   └── scripts/
-│       ├── filter_junctions.py       # Novel junction filtering
-│       ├── build_reference_junctions.py  # GENCODE reference junction list
-│       ├── assemble_contigs.py       # 50 nt contig assembly
-│       ├── translate_peptides.py     # In-silico translation
-│       ├── aggregate_hla_alleles.py  # OptiType result aggregation + normal-first policy
-│       ├── run_mhcflurry.py          # MHCflurry 2.x wrapper + multi-allele support
-│       ├── run_tcrdock.py            # TCRdock Docker wrapper + PDB chain relabelling
-│       └── generate_report.py        # HTML report + HLA QC section + Mol* 3D viewer
+│       ├── filter_junctions.py
+│       ├── build_reference_junctions.py
+│       ├── assemble_contigs.py
+│       ├── translate_peptides.py
+│       ├── aggregate_hla_alleles.py
+│       ├── run_mhcflurry.py
+│       ├── run_tcrdock.py
+│       └── generate_report.py
 ├── docs/
 │   ├── INTRODUCTION.md               # Biological background and study design
-│   ├── METHODS.md                    # Technical pipeline description
 │   ├── DISCUSSIONS.md                # Design tradeoffs and future directions
-│   ├── google_cloud_guide.md         # GCP setup and cost guide
-│   └── modernization_notes.md        # Detailed change log from 2015 pipeline
+│   ├── google_cloud_guide.md         # GCP setup, cost guide, GPU run instructions
+│   ├── installation.md               # Full installation guide
+│   ├── data_preparation.md           # Aligner selection, FASTQ sources, manifest format
+│   ├── configuration.md              # Full config.yaml parameter reference
+│   └── modernization_notes.md        # Changes from the 2015 pipeline
 └── resources/
-    └── README.md                     # Instructions for reference data
+    └── README.md                     # Reference data download instructions
 ```
 
 ---
@@ -553,36 +313,25 @@ If you use this pipeline, please cite the original work:
 
 And the key tools used:
 
-- **Snakemake**: Mölder et al. (2021). Sustainable data analysis with
-  Snakemake. *F1000Research*, 10, 33.
-- **bedtools**: Quinlan & Hall (2010). BEDTools: a flexible suite of utilities
-  for comparing genomic features. *Bioinformatics*, 26(6), 841–842.
-- **MHCflurry 2.0**: O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved
-  Pan-Allele Prediction of MHC Class I-Presented Peptides by Incorporating
-  Antigen Processing. *Cell Systems*, 11(1), 42-48.e7.
-- **Biopython**: Cock et al. (2009). Biopython: freely available Python tools
-  for computational molecular biology and bioinformatics. *Bioinformatics*,
-  25(11), 1422–1423.
-- **OptiType**: Szolek A et al. (2014). OptiType: precision HLA typing from
-  next-generation sequencing data. *Bioinformatics*, 30(23), 3310–3316.
-- **TCRdock**: Bradley P (2023). Structure-based prediction of T cell
-  receptor:peptide-MHC interactions. *eLife*, 12, e82813.
-- **Mol\***: Sehnal D et al. (2021). Mol\* Viewer: modern web app for 3D
-  visualization and analysis of large biomolecular structures.
-  *Nucleic Acids Research*, 49(W1), W431–W437.
-- **GENCODE**: Frankish et al. (2023). GENCODE: reference annotation for the
-  human and mouse genomes in 2023. *Nucleic Acids Research*, 51(D1),
-  D942–D949.
+- **Snakemake**: Mölder et al. (2021). Sustainable data analysis with Snakemake. *F1000Research*, 10, 33.
+- **HISAT2**: Kim et al. (2019). Graph-based genome alignment and genotyping with HISAT2 and HISAT-genotype. *Nature Biotechnology*, 37, 907–915.
+- **bedtools**: Quinlan & Hall (2010). BEDTools: a flexible suite of utilities for comparing genomic features. *Bioinformatics*, 26(6), 841–842.
+- **OptiType**: Szolek A et al. (2014). OptiType: precision HLA typing from next-generation sequencing data. *Bioinformatics*, 30(23), 3310–3316.
+- **MHCflurry 2.0**: O'Donnell TJ et al. (2020). MHCflurry 2.0: Improved Pan-Allele Prediction of MHC Class I-Presented Peptides by Incorporating Antigen Processing. *Cell Systems*, 11(1), 42-48.e7.
+- **TCRdock**: Bradley P (2023). Structure-based prediction of T cell receptor:peptide-MHC interactions. *eLife*, 12, e82813.
+- **Mol\***: Sehnal D et al. (2021). Mol\* Viewer: modern web app for 3D visualization and analysis of large biomolecular structures. *Nucleic Acids Research*, 49(W1), W431–W437.
+- **GENCODE**: Frankish et al. (2023). GENCODE: reference annotation for the human and mouse genomes in 2023. *Nucleic Acids Research*, 51(D1), D942–D949.
 
 ---
 
 ## Further Reading
 
-Detailed documentation for the pipeline is available in the `docs/` directory:
-
 | Document | Contents |
 |----------|----------|
+| [`docs/installation.md`](docs/installation.md) | Full installation guide (conda, Snakemake, reference data) |
+| [`docs/data_preparation.md`](docs/data_preparation.md) | Aligner selection, FASTQ sources, sample manifest format |
+| [`docs/configuration.md`](docs/configuration.md) | Full `config/config.yaml` parameter reference |
+| [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) | GCP setup, cost estimates, GPU VM lifecycle |
 | [`docs/INTRODUCTION.md`](docs/INTRODUCTION.md) | Biological background, motivation, and study design |
-| [`docs/METHODS.md`](docs/METHODS.md) | Technical pipeline description with diagrams and formulas |
 | [`docs/DISCUSSIONS.md`](docs/DISCUSSIONS.md) | Design tradeoffs, known limitations, and future directions |
-| [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) | Step-by-step GCP setup and run guide |
+| [`docs/modernization_notes.md`](docs/modernization_notes.md) | Detailed changes from the 2015 pipeline |

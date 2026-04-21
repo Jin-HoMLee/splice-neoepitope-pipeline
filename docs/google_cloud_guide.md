@@ -502,6 +502,32 @@ orchestrator manages everything and shuts itself down when done.
 
 ---
 
+## Manual TCRdock Run (Advanced)
+
+If you want to run TCRdock manually on an existing GPU VM rather than using
+the automated script:
+
+```bash
+# 1. Set up Docker + TCRdock image (~25 GB download — one-time)
+bash scripts/setup_tcrdock_vm.sh config/config.yaml
+
+# 2. Run the full pipeline with TCRdock overlay
+conda activate snakemake
+snakemake \
+    --cores $(nproc) \
+    --use-conda \
+    --rerun-triggers code params \
+    --rerun-incomplete \
+    --configfile config/config.yaml config/tcrdock_gpu.yaml \
+    --config samples_tsv=config/samples/patient_001.tsv
+```
+
+> **Note:** Pass both config files in a single `--configfile` invocation.
+> Passing them as separate `--configfile` flags causes the second to replace
+> the first in Snakemake 8 (argparse `nargs="+"` semantics).
+
+---
+
 ## Troubleshooting
 
 ### VM runs out of memory
