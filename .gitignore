@@ -206,15 +206,10 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Ignore large data files
-resources/*.fa
-resources/*.fa.*
-resources/*.gtf
-resources/*.gtf.*
-resources/*.bed
-resources/hisat2_index/
-resources/test/
+# Ignore large data files and pipeline outputs
+resources/
 data/
+logs/
 
 # Snakemake
 .snakemake/
