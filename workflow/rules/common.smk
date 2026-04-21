@@ -55,6 +55,10 @@ def _read_samples_tsv(samples_tsv, patient_id=None):
             rows.append(row)
     if patient_id is None:
         unique_patients = {r["patient_id"] for r in rows}
+        if len(unique_patients) == 0:
+            raise ValueError(
+                f"samples_tsv '{samples_tsv}' contains no valid sample rows."
+            )
         if len(unique_patients) > 1:
             raise ValueError(
                 f"samples_tsv must contain exactly one patient_id per run, "

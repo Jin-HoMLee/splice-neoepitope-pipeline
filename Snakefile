@@ -54,4 +54,4 @@ PATIENT_ID = _read_samples_tsv(config["samples_tsv"])[0]["patient_id"]
 
 rule all:
     input:
-        os.path.join(_RES, PATIENT_ID, "reports", "report.html"),
+        f"{_RES}/{PATIENT_ID}/reports/report.html",
