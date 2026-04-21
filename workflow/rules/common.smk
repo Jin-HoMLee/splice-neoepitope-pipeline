@@ -11,6 +11,22 @@ import csv
 import os
 from pathlib import Path
 
+# ── Config validation ─────────────────────────────────────────────────────────
+if "samples_tsv" not in config:
+    raise ValueError(
+        "samples_tsv is required. Pass it at runtime:\n"
+        "  snakemake --config samples_tsv=config/samples/<patient>.tsv\n"
+        "  or set it in a configfile (e.g. config/test_config.yaml)."
+    )
+
+# ── Config aliases ────────────────────────────────────────────────────────────
+_RES  = config["output"]["results_dir"]
+_LOGS = config["output"]["logs"]
+
+# ── Wildcard constraints ──────────────────────────────────────────────────────
+wildcard_constraints:
+    patient_id="[^/]+",
+    sample="[^/]+",
 
 # ── Sample manifest reader ────────────────────────────────────────────────────
 
@@ -22,6 +38,9 @@ def _read_samples_tsv(samples_tsv, patient_id=None):
         patient_id:  if given, return only rows matching this patient
 
     Returns a list of dicts (one per sample row).
+
+    Raises ValueError if the TSV contains more than one patient_id and no
+    patient_id filter is given — each run must target exactly one patient.
     """
     samples_path = Path(samples_tsv)
     if not samples_path.exists():
@@ -34,7 +53,15 @@ def _read_samples_tsv(samples_tsv, patient_id=None):
                 continue
             row["patient_id"] = pid
             rows.append(row)
-    if patient_id is not None:
+    if patient_id is None:
+        unique_patients = {r["patient_id"] for r in rows}
+        if len(unique_patients) > 1:
+            raise ValueError(
+                f"samples_tsv must contain exactly one patient_id per run, "
+                f"found {len(unique_patients)}: {', '.join(sorted(unique_patients))}.\n"
+                "Run the pipeline separately for each patient."
+            )
+    else:
         rows = [r for r in rows if r["patient_id"] == patient_id]
     return rows
 
