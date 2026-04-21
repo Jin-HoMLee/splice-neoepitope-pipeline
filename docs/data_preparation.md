@@ -64,7 +64,7 @@ snakemake ... --config samples_tsv=config/samples/patient_001.tsv
 ### Format
 
 ```tsv
-patient_id	sample_id	sample_type	fastq1	fastq2
+patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_B1	serology_B2	serology_C1	serology_C2
 patient_001	SRR9143066	Primary Tumor	https://ftp.sra.ebi.ac.uk/.../SRR9143066.fastq.gz
 patient_001	SRR9143065	Solid Tissue Normal	https://ftp.sra.ebi.ac.uk/.../SRR9143065.fastq.gz
 ```
@@ -76,14 +76,21 @@ patient_001	SRR9143065	Solid Tissue Normal	https://ftp.sra.ebi.ac.uk/.../SRR9143
 | `sample_type` | Yes | `"Primary Tumor"`, `"Solid Tissue Normal"`, or `"Blood Derived Normal"` |
 | `fastq1` | Yes | Read 1 FASTQ — local path, `gs://` URI, or `https://` URL |
 | `fastq2` | No | Read 2 FASTQ for paired-end data; leave empty for single-end |
+| `serology_A1` / `serology_A2` | No | Known HLA-A alleles from clinical serology (e.g. `HLA-A*02:01`) |
+| `serology_B1` / `serology_B2` | No | Known HLA-B alleles from clinical serology |
+| `serology_C1` / `serology_C2` | No | Known HLA-C alleles from clinical serology |
+
+Serology values are per-patient germline alleles — only the normal/blood row needs to carry them; the tumor row should be left empty. Null alleles (e.g. `HLA-A*01:11N`) are accepted: they are excluded from prediction but shown in the QC output.
 
 ### Sample type roles
 
 | Sample type | Junction filtering | HLA typing |
 |-------------|-------------------|------------|
-| `Primary Tumor` | Source of candidate junctions | Yes |
-| `Solid Tissue Normal` | Filters out junctions present in normal | Yes |
-| `Blood Derived Normal` | Not used for junction filtering | Yes (preferred for germline HLA calls) |
+| `Primary Tumor` | Source of candidate junctions | OptiType call used first (reflects tumor HLA, including any LOH) |
+| `Solid Tissue Normal` | Filters out junctions present in normal tissue | OptiType call used if no tumor call and no serology |
+| `Blood Derived Normal` | Not used for junction filtering | OptiType call used if no tumor call and no serology |
+
+HLA allele priority order: **tumor OptiType → serology → normal/blood OptiType → fallback**. Tumor calls are preferred because HLA loss-of-heterozygosity (LOH) can occur in the tumor and affect what is actually presented. Serology (Red Cross / WGS germline typing) takes priority over normal OptiType when available.
 
 When no normal sample is present, all unannotated junctions are labelled
 `tumor_exclusive` with a warning — the pipeline still runs.

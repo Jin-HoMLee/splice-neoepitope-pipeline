@@ -460,16 +460,13 @@ bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west1-b
 
 ### Retrieving results
 
-The bucket name is derived from your GCP project ID (`<PROJECT_ID>-tcrdock-handoff`):
+The bucket is `splice-neoepitope-project` (set in `run_cloud_gpu.sh`):
 
 ```bash
-# Test
-gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/test/reports ./tcrdock_report
-open tcrdock_report/local/report.html
-
-# Production
-gcloud storage cp -r gs://<PROJECT_ID>-tcrdock-handoff/results/reports ./tcrdock_report
-open tcrdock_report/local/report.html
+# Download the reports folder for a patient (replace patient_001 as needed)
+gcloud storage cp -r gs://splice-neoepitope-project/results/patient_001/reports ./reports
+open reports/report.html      # interactive HTML report
+# reports/report.tsv          # machine-readable summary (patient_id | stage | metric | value | notes)
 ```
 
 ### How it works
@@ -477,12 +474,13 @@ open tcrdock_report/local/report.html
 1. **CPU VM** is created (or started) automatically. `setup_cloud.sh` installs
    conda + Snakemake. The pipeline runs steps 1–5 in a tmux session while the
    script polls `pipeline.log` for completion.
-2. Results are uploaded to `gs://<PROJECT_ID>-tcrdock-handoff/` and the CPU VM is stopped.
+2. Results are uploaded to `gs://splice-neoepitope-project/` and the CPU VM is stopped.
 3. A **GPU Spot VM** (n1-standard-4 + NVIDIA T4) is created.
    `setup_tcrdock_vm.sh` builds the TCRdock Docker image (~25 GB: CUDA 11.8,
-   AlphaFold params, BLAST). Results are downloaded from GCS, TCRdock runs,
-   and the HTML report is regenerated with the embedded Mol* 3D viewer. Final
-   results are uploaded to GCS and the VM auto-stops.
+   AlphaFold params, BLAST). Results are downloaded from GCS via `gcloud storage rsync`
+   (checksum-based — unchanged files keep their mtime so Snakemake skips them).
+   TCRdock runs, the HTML report and `report.tsv` are regenerated with the embedded
+   Mol* 3D viewer. Final results are uploaded to GCS and the VM auto-stops.
 
 ### Detached mode
 
