@@ -28,6 +28,80 @@ Added patient_002 osteosarcoma results to `docs/manuscript/`:
 
 PR #74 (`docs/issue-73-manuscript-patient002` → `main`) opened and merged.
 
+### Issue #59 — Known HLA serology input via samples TSV (PR #69, merged)
+
+**Motivation:** Clinical HLA serotyping (Red Cross / WGS) is more reliable than OptiType from RNA-seq for germline alleles. Patient_002 has confirmed Red Cross serology (A\*01:01/01:11N, B\*08:01/27:05, C\*01:02/07:01) which should take priority over the blood WES OptiType call when no tumor call is available.
+
+**Design decision:** Following nf-core convention (samplesheet as single source of truth), serology alleles are stored as six inline columns in each patient's samples TSV (`serology_A1/A2`, `serology_B1/B2`, `serology_C1/C2`). The tumor row is left empty; only the normal/blood row carries the germline values.
+
+**Priority order** implemented in `aggregate_hla_alleles.py`:
+1. **Tumor OptiType** — preferred because HLA LOH can occur in the tumor, altering what is actually presented
+2. **Serology** — germline ground truth from clinical typing
+3. **Normal/blood OptiType**
+4. **Config fallback**
+
+**Null allele handling:** A\*01:11N is a null allele (not expressed at the cell surface). It is excluded from the prediction allele list but retained in `hla_qc.tsv` for transparency. The serology validation result is `match (null allele excluded)` when OptiType finds only the expressed allele.
+
+**QC output extended:** `hla_qc.tsv` now includes `serology_allele1`, `serology_allele2`, and `serology_validation` columns. The HTML report's HLA section shows a "Known alleles / validation" column when serology data is present.
+
+---
+
+### Issue #78 / PR #77 — `gcloud storage rsync` + `mtime` rerun trigger (merged)
+
+**Problem:** `gcloud storage cp` fresh-timestamps all downloaded files. With `--rerun-triggers code params` on the GPU VM, this is fine as long as only code/param changes matter. But if `mhc_affinity.tsv` changes content (e.g. HLA alleles change), TCRdock would not re-run under `code params` alone because TCRdock's script and params are unchanged.
+
+**Fix:** Switched Phase 3 GPU download from `gcloud storage cp` to `gcloud storage rsync --recursive` (CRC32C checksum comparison, only downloads changed files, preserves mtime of unchanged files). Also added `mtime` to GPU Snakemake's `--rerun-triggers` so file content changes cascade correctly. Metadata download remains `cp` (always overwrite with CPU VM's authoritative `.snakemake/metadata/`).
+
+---
+
+### Issue #57 Phase 1 — `report.tsv` structured summary artifact (PR #80 merged, PR #81 open)
+
+Added `_build_report_tsv()` to `generate_report.py`. Emitted alongside `report.html` whenever `output_tsv` is provided. Schema: `patient_id | stage | metric | value | notes`. Stages:
+
+| Stage | Metrics written |
+|---|---|
+| `junction_filtering` | `unannotated`, `tumor_exclusive`, `normal_shared` per sample |
+| `mhc_prediction` | `total_predictions`, `strong`, `weak`, `non` binder counts |
+| `top_candidate` | `peptide`, `allele`, `ic50_nM`, `binder_class` |
+| `hla_typing` | `HLA-A/B/C` alleles with source and read count |
+| `tcrdock` | `pdb_available` true/false |
+
+`report_tsv` added as a declared Snakemake output in both `analysis.smk` (non-GPU path) and `structure.smk` (GPU path with TCRdock). The `structure.smk` output declaration was missing from PR #80, causing an `AttributeError` on the GPU VM. Fixed in PR #81.
+
+Phase 2 (refactor `report.html` to read from `report.tsv` instead of recomputing) deferred to Issue #79.
+
+---
+
+### Patient_001 (gastric cancer) — re-run with tumor-first HLA (successful)
+
+Re-ran patient_001 with all merged changes (tumor-first HLA priority, serology columns, rsync, report.tsv). TCRdock re-ran despite existing results because `aggregate_hla_alleles.py` code changed → HLA re-typed → `mhc_affinity.tsv` regenerated with fresh mtime → `mtime` trigger correctly fired TCRdock (~4 min GPU time).
+
+**HLA-B alleles updated** (tumor-first policy now active): B\*15:01/B\*18:02 → **B\*15:63/B\*18:01**. The A alleles were unchanged so the top candidate is the same.
+
+**`report.tsv` read directly from GCS** (`gcloud storage cat gs://splice-neoepitope-project/results/patient_001/reports/report.tsv`):
+
+| Stage | Metric | Value |
+|---|---|---|
+| junction_filtering | tumor_exclusive | 27,348 |
+| junction_filtering | normal_shared | 2,681 |
+| mhc_prediction | total_predictions | 2,598,882 |
+| mhc_prediction | strong | 13,139 |
+| top_candidate | peptide | EVAEYNASF |
+| top_candidate | allele | HLA-A\*26:01 |
+| top_candidate | ic50_nM | 16.51 |
+| hla_typing | HLA-B | HLA-B\*18:01 / HLA-B\*15:63 |
+
+patient_002 re-run planned next (with all latest changes including PR #81).
+
+---
+
+### Documentation update (PR #87)
+
+Updated three docs to reflect recent pipeline changes:
+- `docs/data_preparation.md` — serology columns added to sample manifest format and column table; HLA typing roles table updated with tumor-first priority order
+- `docs/configuration.md` — HLA section: added allele priority order note and serology column cross-reference
+- `docs/google_cloud_guide.md` — fixed stale bucket name (`<PROJECT_ID>-tcrdock-handoff` → `splice-neoepitope-project`); added `{patient_id}` to result paths; added `report.tsv` to retrieval example; noted `gcloud storage rsync` in "How it works"
+
 ---
 
 ## 2026-04-20
