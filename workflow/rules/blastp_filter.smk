@@ -47,9 +47,8 @@ if _BLASTP_ENABLED:
             mkdir -p {params.db_dir}
 
             curl --fail -L --no-progress-meter \
-                "{params.url}" \
-                | gunzip -c > {output.fasta} \
-                2>> {log}
+                "{params.url}" 2>> {log} \
+                | gunzip -c > {output.fasta}
 
             echo "Downloaded $(grep -c '^>' {output.fasta}) Swiss-Prot entries" >> {log}
 
