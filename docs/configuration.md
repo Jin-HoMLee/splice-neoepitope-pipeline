@@ -66,6 +66,9 @@ hla:
 
 When `hla.enabled: false`, the fallback alleles below are used for all predictions.
 
+**Allele priority order:** tumor OptiType → serology → normal/blood OptiType → fallback.
+Tumor calls are preferred as they reflect what the tumor cell actually presents, including any HLA loss-of-heterozygosity. Clinical serology alleles (Red Cross / WGS germline typing) are specified as `serology_A1/A2` … `serology_C1/C2` columns in the samples TSV — see [`docs/data_preparation.md`](data_preparation.md). Null alleles (e.g. `HLA-A*01:11N`) are excluded from prediction but retained in the QC output (`hla_qc.tsv`).
+
 ---
 
 ## Epitope Prediction (MHCflurry)
