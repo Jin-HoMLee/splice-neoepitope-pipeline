@@ -250,8 +250,10 @@ _HTML_TEMPLATE = """\
 def _build_hla_section(hla_qc_tsv: str) -> str:
     """Build the HLA typing results section from hla_qc.tsv.
 
-    Shows per-locus alleles, the source of each call (normal / tumor / fallback),
-    the number of HLA reads OptiType used, and any normal/tumor discrepancies.
+    Shows per-locus alleles, the source of each call (tumor / serology /
+    normal / fallback), HLA read counts, normal/tumor discrepancy, and —
+    when serology columns are present — a validation column comparing
+    OptiType against the known clinical alleles.
     """
     try:
         df = pd.read_csv(hla_qc_tsv, sep="\t")
@@ -263,10 +265,19 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
         return ""
 
     source_colours = {
-        "normal":   "#27ae60",
         "tumor":    "#e67e22",
+        "serology": "#8e44ad",
+        "normal":   "#27ae60",
         "fallback": "#c0392b",
     }
+
+    # Show serology column only when at least one locus has known alleles
+    has_serology = (
+        "serology_allele1" in df.columns
+        and df["serology_allele1"].notna().any()
+        and (df["serology_allele1"].astype(str).str.strip() != "").any()
+    )
+
     rows = []
     has_discrepancy = False
     for _, row in df.iterrows():
@@ -284,6 +295,33 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
             f'<td style="background:#fef3cd">{html_mod.escape(discrepancy)}</td>'
             if discrepancy else '<td style="color:#27ae60">&#10003; concordant</td>'
         )
+
+        serology_cell = ""
+        if has_serology:
+            _ser1 = row.get("serology_allele1", "")
+            _ser2 = row.get("serology_allele2", "")
+            ser_allele1 = "" if pd.isna(_ser1) else str(_ser1).strip()
+            ser_allele2 = "" if pd.isna(_ser2) else str(_ser2).strip()
+            _val_raw = row.get("serology_validation", "")
+            validation = "" if pd.isna(_val_raw) else str(_val_raw).strip()
+
+            if ser_allele1:
+                alleles_str = (
+                    f"<code>{html_mod.escape(ser_allele1)}</code> / "
+                    f"<code>{html_mod.escape(ser_allele2)}</code>"
+                    if ser_allele2 and ser_allele2 != ser_allele1
+                    else f"<code>{html_mod.escape(ser_allele1)}</code>"
+                )
+                if validation.startswith("match"):
+                    val_badge = f' <span style="color:#27ae60">&#10003; {html_mod.escape(validation)}</span>'
+                elif validation.startswith("mismatch"):
+                    val_badge = f' <span style="color:#c0392b">&#10007; {html_mod.escape(validation)}</span>'
+                else:
+                    val_badge = ""
+                serology_cell = f"<td>{alleles_str}{val_badge}</td>"
+            else:
+                serology_cell = "<td></td>"
+
         rows.append(
             f"<tr>"
             f"<td><strong>{html_mod.escape(str(row['locus']))}</strong></td>"
@@ -292,13 +330,16 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
             f"<td>{source_badge}</td>"
             f"<td>{html_mod.escape(str(row.get('reads', '')))}</td>"
             f"{disc_cell}"
+            f"{serology_cell}"
             f"</tr>"
         )
 
+    serology_header = "<th>Known alleles / validation</th>" if has_serology else ""
     table = (
         "<table><thead><tr>"
         "<th>Locus</th><th>Allele 1</th><th>Allele 2</th>"
         "<th>Source</th><th>HLA reads</th><th>Normal/tumor discrepancy</th>"
+        f"{serology_header}"
         "</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
@@ -308,7 +349,7 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
     if has_discrepancy:
         note = (
             "<p><em><strong>Note:</strong> Normal/tumor discrepancy detected in one or "
-            "more loci. Normal sample calls are used for prediction (normal-first policy). "
+            "more loci. Tumor sample calls are used for prediction (tumor-first policy). "
             "Discrepancies may indicate loss of heterozygosity at the HLA locus in the "
             "tumor, or low read depth in the test subset.</em></p>"
         )
@@ -316,8 +357,9 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
     return (
         "<h2>HLA typing (OptiType)</h2>"
         "<p>Patient HLA-A/B/C alleles typed by OptiType from RNA-seq reads. "
-        "<strong>Normal-first policy:</strong> calls from Solid Tissue Normal are "
-        "preferred over tumor (which may carry LOH at the HLA locus). "
+        "Priority order: <strong>tumor OptiType → serology → normal OptiType → fallback</strong>. "
+        "Tumor calls are preferred as they reflect what the tumor cell actually presents, "
+        "including any HLA loss-of-heterozygosity. "
         "These alleles were used for patient-specific neoepitope prediction.</p>"
         + note + table
     )
