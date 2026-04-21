@@ -10,12 +10,12 @@ _BLASTP_FILTER_ENABLED = config.get("blastp_filter", {}).get("enabled", True)
 def _run_mhcflurry_input(wildcards):
     if _BLASTP_FILTER_ENABLED:
         peptides_tsv = os.path.join(
-            _RES, wildcards.patient_id, "peptides", "peptides_novel.tsv"
-        )
+            _RES, wildcards.patient_id, "peptides", "peptides_novel.tsv" 
+        ) # mirrors blastp_filter_peptides.output.novel_tsv
     else:
         peptides_tsv = os.path.join(
             _RES, wildcards.patient_id, "peptides", "peptides.tsv"
-        )
+        ) # mirrors translate_junctions.output.peptides_tsv
     d = {
         "peptides_tsv": peptides_tsv,
         "mhcflurry_models": rules.download_mhcflurry_models.output.sentinel,
@@ -23,7 +23,7 @@ def _run_mhcflurry_input(wildcards):
     if _HLA_TYPING_ENABLED:
         d["alleles_tsv"] = os.path.join(
             _RES, wildcards.patient_id, "hla_typing", "alleles.tsv",
-        )
+        ) # mirrors hla_typing.output.alleles_tsv
     return d
 
 
