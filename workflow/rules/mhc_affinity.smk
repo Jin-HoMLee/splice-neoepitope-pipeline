@@ -2,16 +2,22 @@
 # Rule module: Step 5 — Epitope prediction with MHCflurry 2.x
 # =============================================================================
 
-_HLA_TYPING_ENABLED = config.get("hla", {}).get("enabled", False)
+_HLA_TYPING_ENABLED  = config.get("hla", {}).get("enabled", False)
+_BLASTP_FILTER_ENABLED = config.get("blastp_filter", {}).get("enabled", True)
 
-# When HLA typing is enabled, the patient-specific alleles.tsv produced by
-# aggregate_hla_alleles is wired in as an input so Snakemake tracks the
-# dependency and run_mhcflurry.py reads alleles from it.
-# When disabled, the fallback alleles from mhcflurry.fallback_alleles are
-# passed directly as a parameter.
+# When blastp_filter is enabled, use the filtered novel peptides TSV.
+# When disabled, fall back to the raw translated peptides TSV.
 def _run_mhcflurry_input(wildcards):
+    if _BLASTP_FILTER_ENABLED:
+        peptides_tsv = os.path.join(
+            _RES, wildcards.patient_id, "peptides", "peptides_novel.tsv"
+        )
+    else:
+        peptides_tsv = os.path.join(
+            _RES, wildcards.patient_id, "peptides", "peptides.tsv"
+        )
     d = {
-        "peptides_tsv": os.path.join(_RES, wildcards.patient_id, "peptides", "peptides.tsv"),
+        "peptides_tsv": peptides_tsv,
         "mhcflurry_models": rules.download_mhcflurry_models.output.sentinel,
     }
     if _HLA_TYPING_ENABLED:
