@@ -1,0 +1,8 @@
+name: blastp
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - blast >=2.15
+  - python >=3.11,<3.13

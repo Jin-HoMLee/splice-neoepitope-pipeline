@@ -15,10 +15,11 @@
 #   1. align    — align FASTQ files using STAR or HISAT2
 #   2. filter   — classify junctions by origin (tumor_exclusive / normal_shared)
 #   3. hla      — OptiType HLA typing (optional)
-#   4. assemble — build 50 nt contigs around tumor_exclusive junctions
+#   4. assemble  — build 50 nt contigs around tumor_exclusive junctions
 #   5. translate — in-silico translation into junction-spanning 9-mers
-#   6. predict  — MHCflurry 2.x epitope prediction
-#   7. report   — junction origin summary + HLA QC + top binders HTML report
+#   5b. blastp   — filter self-peptides against UniProt Swiss-Prot (optional)
+#   6. predict   — MHCflurry 2.x epitope prediction
+#   7. report    — junction origin summary + HLA QC + top binders HTML report
 #
 # Usage
 # ──────
@@ -40,6 +41,7 @@ include: "workflow/rules/hla_typing.smk"
 include: "workflow/rules/filter_junctions.smk"
 include: "workflow/rules/assemble_contigs.smk"
 include: "workflow/rules/translate_peptides.smk"
+include: "workflow/rules/blastp_filter.smk"
 include: "workflow/rules/mhc_affinity.smk"
 include: "workflow/rules/analysis.smk"
 include: "workflow/rules/structure.smk"
