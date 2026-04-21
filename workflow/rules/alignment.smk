@@ -149,8 +149,8 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         input:
             index_dir=_HISAT2_INDEX_DIR,
             index_done=os.path.join(_HISAT2_INDEX_DIR, "index.done"),
-            fastq1=_get_fastq1,
-            fastq2=_get_fastq2,
+            fastq1=ancient(_get_fastq1),
+            fastq2=ancient(_get_fastq2),
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
@@ -163,7 +163,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
-            mem_mb=8000,
+            mem_mb=20000,
         conda:
             "../envs/hisat2.yaml"
         shell:
@@ -182,7 +182,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 -x {params.index_prefix} \\
                 $FASTQ_ARGS \\
                 2>> {log} | \\
-                samtools sort -@ {threads} -o {output.bam} - 2>> {log}
+                samtools sort -@ {threads} -m 1G -o {output.bam} - 2>> {log}
 
             samtools index {output.bam} 2>> {log}
 
@@ -285,8 +285,8 @@ elif config.get("alignment", {}).get("aligner") == "star":
         input:
             index_dir=_STAR_INDEX_DIR,
             index_done=os.path.join(_STAR_INDEX_DIR, "index.done"),
-            fastq1=_get_fastq1,
-            fastq2=_get_fastq2,
+            fastq1=ancient(_get_fastq1),
+            fastq2=ancient(_get_fastq2),
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),

@@ -250,8 +250,10 @@ _HTML_TEMPLATE = """\
 def _build_hla_section(hla_qc_tsv: str) -> str:
     """Build the HLA typing results section from hla_qc.tsv.
 
-    Shows per-locus alleles, the source of each call (normal / tumor / fallback),
-    the number of HLA reads OptiType used, and any normal/tumor discrepancies.
+    Shows per-locus alleles, the source of each call (tumor / serology /
+    normal / fallback), HLA read counts, normal/tumor discrepancy, and —
+    when serology columns are present — a validation column comparing
+    OptiType against the known clinical alleles.
     """
     try:
         df = pd.read_csv(hla_qc_tsv, sep="\t")
@@ -263,10 +265,19 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
         return ""
 
     source_colours = {
-        "normal":   "#27ae60",
         "tumor":    "#e67e22",
+        "serology": "#8e44ad",
+        "normal":   "#27ae60",
         "fallback": "#c0392b",
     }
+
+    # Show serology column only when at least one locus has known alleles
+    has_serology = (
+        "serology_allele1" in df.columns
+        and df["serology_allele1"].notna().any()
+        and (df["serology_allele1"].astype(str).str.strip() != "").any()
+    )
+
     rows = []
     has_discrepancy = False
     for _, row in df.iterrows():
@@ -284,6 +295,33 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
             f'<td style="background:#fef3cd">{html_mod.escape(discrepancy)}</td>'
             if discrepancy else '<td style="color:#27ae60">&#10003; concordant</td>'
         )
+
+        serology_cell = ""
+        if has_serology:
+            _ser1 = row.get("serology_allele1", "")
+            _ser2 = row.get("serology_allele2", "")
+            ser_allele1 = "" if pd.isna(_ser1) else str(_ser1).strip()
+            ser_allele2 = "" if pd.isna(_ser2) else str(_ser2).strip()
+            _val_raw = row.get("serology_validation", "")
+            validation = "" if pd.isna(_val_raw) else str(_val_raw).strip()
+
+            if ser_allele1:
+                alleles_str = (
+                    f"<code>{html_mod.escape(ser_allele1)}</code> / "
+                    f"<code>{html_mod.escape(ser_allele2)}</code>"
+                    if ser_allele2 and ser_allele2 != ser_allele1
+                    else f"<code>{html_mod.escape(ser_allele1)}</code>"
+                )
+                if validation.startswith("match"):
+                    val_badge = f' <span style="color:#27ae60">&#10003; {html_mod.escape(validation)}</span>'
+                elif validation.startswith("mismatch"):
+                    val_badge = f' <span style="color:#c0392b">&#10007; {html_mod.escape(validation)}</span>'
+                else:
+                    val_badge = ""
+                serology_cell = f"<td>{alleles_str}{val_badge}</td>"
+            else:
+                serology_cell = "<td></td>"
+
         rows.append(
             f"<tr>"
             f"<td><strong>{html_mod.escape(str(row['locus']))}</strong></td>"
@@ -292,13 +330,16 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
             f"<td>{source_badge}</td>"
             f"<td>{html_mod.escape(str(row.get('reads', '')))}</td>"
             f"{disc_cell}"
+            f"{serology_cell}"
             f"</tr>"
         )
 
+    serology_header = "<th>Known alleles / validation</th>" if has_serology else ""
     table = (
         "<table><thead><tr>"
         "<th>Locus</th><th>Allele 1</th><th>Allele 2</th>"
         "<th>Source</th><th>HLA reads</th><th>Normal/tumor discrepancy</th>"
+        f"{serology_header}"
         "</tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
@@ -308,7 +349,7 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
     if has_discrepancy:
         note = (
             "<p><em><strong>Note:</strong> Normal/tumor discrepancy detected in one or "
-            "more loci. Normal sample calls are used for prediction (normal-first policy). "
+            "more loci. Tumor sample calls are used for prediction (tumor-first policy). "
             "Discrepancies may indicate loss of heterozygosity at the HLA locus in the "
             "tumor, or low read depth in the test subset.</em></p>"
         )
@@ -316,8 +357,9 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
     return (
         "<h2>HLA typing (OptiType)</h2>"
         "<p>Patient HLA-A/B/C alleles typed by OptiType from RNA-seq reads. "
-        "<strong>Normal-first policy:</strong> calls from Solid Tissue Normal are "
-        "preferred over tumor (which may carry LOH at the HLA locus). "
+        "Priority order: <strong>tumor OptiType → serology → normal OptiType → fallback</strong>. "
+        "Tumor calls are preferred as they reflect what the tumor cell actually presents, "
+        "including any HLA loss-of-heterozygosity. "
         "These alleles were used for patient-specific neoepitope prediction.</p>"
         + note + table
     )
@@ -471,6 +513,100 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     )
 
 
+def _build_report_tsv(
+    patient_id: str,
+    origin_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    hla_qc_tsv: str | None,
+    output_tsv: str | Path,
+    ic50_strong: float,
+    tcrdock_pdb: str | Path | None,
+) -> None:
+    """Write a structured summary TSV alongside the HTML report.
+
+    Schema: patient_id | stage | metric | value | notes
+    Stages: junction_filtering, mhc_prediction, top_candidate, hla_typing, tcrdock
+    """
+    rows: list[dict] = []
+
+    # --- junction_filtering ---
+    if not origin_df.empty:
+        for _, r in origin_df.iterrows():
+            sid = r.get("sample_id", "")
+            stype = r.get("sample_type", "")
+            note = f"{sid} ({stype})"
+            for metric in ("unannotated", "tumor_exclusive", "normal_shared"):
+                rows.append({
+                    "patient_id": patient_id, "stage": "junction_filtering",
+                    "metric": metric, "value": int(r.get(metric, 0)), "notes": note,
+                })
+
+    # --- mhc_prediction ---
+    if not pred_df.empty:
+        rows.append({
+            "patient_id": patient_id, "stage": "mhc_prediction",
+            "metric": "total_predictions", "value": len(pred_df), "notes": "",
+        })
+        binder_notes = {
+            "strong": f"IC50 < {int(ic50_strong)} nM",
+            "weak": "IC50 50–500 nM",
+            "non": "IC50 >= 500 nM",
+        }
+        for cls, cnt in pred_df["binder_class"].value_counts().items():
+            rows.append({
+                "patient_id": patient_id, "stage": "mhc_prediction",
+                "metric": str(cls), "value": int(cnt),
+                "notes": binder_notes.get(str(cls), ""),
+            })
+
+    # --- top_candidate ---
+    strong_df = pred_df[pred_df["binder_class"].isin(["strong", "weak"])].sort_values("ic50_nM") if not pred_df.empty else pd.DataFrame()
+    if not strong_df.empty:
+        top = strong_df.iloc[0]
+        for metric, col in [("peptide", "peptide"), ("allele", "allele"), ("ic50_nM", "ic50_nM"), ("binder_class", "binder_class")]:
+            rows.append({
+                "patient_id": patient_id, "stage": "top_candidate",
+                "metric": metric,
+                "value": round(float(top[col]), 2) if metric == "ic50_nM" else str(top[col]),
+                "notes": "top by IC50" if metric == "peptide" else "",
+            })
+
+    # --- hla_typing ---
+    if hla_qc_tsv:
+        try:
+            hla_df = pd.read_csv(hla_qc_tsv, sep="\t")
+            for _, r in hla_df.iterrows():
+                locus = str(r.get("locus", ""))
+                allele1 = str(r.get("allele1", ""))
+                allele2 = str(r.get("allele2", ""))
+                source = str(r.get("source", ""))
+                reads = r.get("reads", 0)
+                alleles = f"{allele1} / {allele2}" if allele1 != allele2 else allele1
+                rows.append({
+                    "patient_id": patient_id, "stage": "hla_typing",
+                    "metric": f"HLA-{locus}", "value": alleles,
+                    "notes": f"source: {source}, reads: {reads}",
+                })
+        except Exception as exc:
+            log.warning("Could not read HLA QC TSV for report.tsv: %s", exc)
+
+    # --- tcrdock ---
+    pdb_available = (
+        tcrdock_pdb is not None and Path(tcrdock_pdb).exists()
+    )
+    rows.append({
+        "patient_id": patient_id, "stage": "tcrdock",
+        "metric": "pdb_available", "value": str(pdb_available).lower(), "notes": "",
+    })
+
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows, columns=["patient_id", "stage", "metric", "value", "notes"]).to_csv(
+        output_path, sep="\t", index=False
+    )
+    log.info("Report TSV written to %s", output_path)
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
@@ -479,8 +615,10 @@ def generate_report(
     hla_qc_tsv: str | None = None,
     ic50_strong: float = 50.0,
     tcrdock_pdb: str | Path | None = None,
+    output_tsv: str | Path | None = None,
+    patient_id: str = "",
 ) -> None:
-    """Generate the summary HTML report.
+    """Generate the summary HTML report and optional structured TSV.
 
     Args:
         novel_junctions_tsv: Classified junctions TSV (with junction_origin column).
@@ -492,6 +630,8 @@ def generate_report(
         ic50_strong:         Strong-binder IC50 threshold (nM).
         tcrdock_pdb:         TCRdock-predicted PDB file (optional). When provided,
                              an embedded Mol* 3D viewer is added to the report.
+        output_tsv:          Destination for the machine-readable summary TSV (optional).
+        patient_id:          Patient identifier written into every report.tsv row.
     """
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
@@ -568,6 +708,17 @@ def generate_report(
     output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
 
+    if output_tsv:
+        _build_report_tsv(
+            patient_id=patient_id or output_html.parts[-3],
+            origin_df=origin_df,
+            pred_df=pred_df,
+            hla_qc_tsv=hla_qc_tsv,
+            output_tsv=output_tsv,
+            ic50_strong=ic50_strong,
+            tcrdock_pdb=tcrdock_pdb,
+        )
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry point
@@ -585,6 +736,8 @@ def _snakemake_main() -> None:
         hla_qc_tsv=getattr(snakemake.input, "hla_qc", None),  # type: ignore[name-defined]  # noqa: F821
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
+        output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
+        patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -599,6 +752,8 @@ def _cli_main() -> None:
     parser.add_argument("--hla-qc-tsv", default=None, help="HLA QC TSV from aggregate_hla_alleles")
     parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--ic50-strong", type=float, default=50.0)
+    parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
+    parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
     generate_report(
@@ -609,6 +764,8 @@ def _cli_main() -> None:
         hla_qc_tsv=args.hla_qc_tsv,
         ic50_strong=args.ic50_strong,
         tcrdock_pdb=args.tcrdock_pdb,
+        output_tsv=args.output_tsv,
+        patient_id=args.patient_id,
     )
 
 

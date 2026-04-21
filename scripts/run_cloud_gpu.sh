@@ -47,7 +47,7 @@ set -euo pipefail
 CPU_VM="neoepitope-predict-cpu"
 GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
-CPU_MACHINE_TYPE="n1-standard-8"
+CPU_MACHINE_TYPE="n2-highmem-8"  # 64 GB RAM: razers3 (OptiType) peaks at ~36 GB on full RNA-seq FASTQs; n2 preferred over n1 for availability
 GPU_MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-p100,count=1"
 DISK_SIZE="100GB"
@@ -212,6 +212,7 @@ tmux kill-session -t orchestrator 2>/dev/null || true
 tmux new-session -d -s orchestrator "
     bash scripts/run_cloud_gpu.sh \\
         --mode ${MODE} \\
+        --samples ${SAMPLES} \\
         --branch ${BRANCH} \\
         --zone ${ZONE} \\
         --_cloud-internal \\
@@ -239,6 +240,13 @@ ORCH_RUN
     log "================================================================"
     exit 0
 fi
+
+# Stop both VMs on exit (success or failure) to avoid charges.
+trap '
+    log "Cleanup: ensuring VMs are stopped..."
+    gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+    gcloud compute instances stop "${GPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+' EXIT
 
 # ---------------------------------------------------------------------------
 # Ensure GCS handoff bucket exists
@@ -285,8 +293,8 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
         --machine-type="${CPU_MACHINE_TYPE}" \
         --image-family="ubuntu-2204-lts" \
         --image-project="ubuntu-os-cloud" \
-        --boot-disk-size="50GB" \
-        --boot-disk-type=pd-standard \
+        --boot-disk-size="100GB" \
+        --boot-disk-type=pd-ssd \
         --scopes=cloud-platform \
         --metadata=enable-oslogin=FALSE
 fi
@@ -324,6 +332,7 @@ tmux new-session -d -s pipeline "
         --cores \$(nproc) \\
         --use-conda \\
         --rerun-triggers mtime \\
+        --rerun-incomplete \\
         --configfile ${CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee pipeline.log
@@ -365,16 +374,18 @@ done
 log ""
 log "=== Phase 2: Uploading results from ${CPU_VM} ==="
 
-log "Uploading ${RESULTS_DIR}/ to ${GCS_PATH}..."
+log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 if [[ -d "${RESULTS_DIR}" ]]; then
     gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
-    echo "Upload complete."
+    echo "Results upload complete."
 else
     echo "ERROR: ${RESULTS_DIR}/ not found." >&2; exit 1
 fi
+[[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
+[[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
 EOF
 
 log "Stopping ${CPU_VM} to save cost..."
@@ -395,7 +406,7 @@ if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
         --machine-type="${GPU_MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
         --maintenance-policy=TERMINATE \
-        --provisioning-model=SPOT \
+        --provisioning-model=STANDARD \
         --instance-termination-action=STOP \
         --image-family="${IMAGE_FAMILY}" \
         --image-project="${IMAGE_PROJECT}" \
@@ -405,7 +416,10 @@ if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
         --metadata=enable-oslogin=FALSE
     log "  GPU VM created."
 elif [[ "${GPU_STATUS}" == "TERMINATED" ]]; then
-    log "GPU VM ${GPU_VM} exists (stopped) — starting it..."
+    log "GPU VM ${GPU_VM} exists (stopped) — patching scopes then starting..."
+    gcloud compute instances set-service-account "${GPU_VM}" \
+        --zone="${ZONE}" \
+        --scopes=cloud-platform
     gcloud compute instances start "${GPU_VM}" --zone="${ZONE}"
 else
     log "GPU VM ${GPU_VM} already running (status: ${GPU_STATUS})."
@@ -430,6 +444,12 @@ EOF
 log "Installing conda and Snakemake on GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<'EOF'
 set -euo pipefail
+
+# tmux is used to run the TCRdock pipeline in a detachable session.
+# Not present by default on the Deep Learning VM image.
+if ! command -v tmux &>/dev/null; then
+    sudo apt-get install -y -q tmux
+fi
 
 if [[ ! -f "$HOME/miniforge3/bin/conda" ]]; then
     echo "  Installing Miniforge3..."
@@ -457,46 +477,96 @@ cd "\$HOME/splice-neoepitope-pipeline"
 bash scripts/setup_tcrdock_vm.sh "${CONFIG_FILE}"
 EOF
 
-log "Downloading ${RESULTS_DIR}/ from ${GCS_PATH} onto GPU VM..."
+log "Downloading results/ and .snakemake/metadata/ from GCS onto GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 mkdir -p "${RESULTS_DIR}"
-gcloud storage cp -r "${GCS_PATH}/*" "${RESULTS_DIR}/"
-echo "Download complete."
+# rsync compares checksums (CRC32C) and only re-downloads files that changed on
+# GCS, preserving mtime of unchanged files. This allows --rerun-triggers mtime
+# to correctly detect when CPU-phase outputs (e.g. mhc_affinity.tsv) changed.
+gcloud storage rsync "${GCS_PATH}" "${RESULTS_DIR}" --recursive
+echo "Results download complete."
+mkdir -p ".snakemake/metadata"
+# Always overwrite metadata with the CPU VM's authoritative version (cp, not rsync).
+gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata/*" ".snakemake/metadata/" 2>/dev/null \
+    && echo "Snakemake metadata download complete." \
+    || echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."
 EOF
 
-log "Running TCRdock step on GPU VM..."
-log "  The VM will shut down automatically when finished."
-log "  Monitor with:"
-log "    gcloud compute ssh ${GPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/tcrdock.log"
-
+log "Starting TCRdock in tmux session on ${GPU_VM}..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
+
+# Ensure MHCflurry models are present before the main TCRdock run.
+# Target just the sentinel so it uses the correct python.yaml conda env
+# (mhcflurry-downloads is not in the snakemake bootstrap env).
+source "\$HOME/miniforge3/etc/profile.d/conda.sh" 2>/dev/null || true
+conda activate snakemake
+snakemake \
+    --cores 1 \
+    --use-conda \
+    --rerun-triggers mtime code params \
+    --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
+    --config samples_tsv=${SAMPLES} \
+    -- \
+    resources/mhcflurry_models.done
+conda deactivate 2>/dev/null || true
 
 # Remove the CPU-generated report so Snakemake regenerates it with the
 # TCRdock structural view via generate_report_with_structure.
 find ${RESULTS_DIR} -name report.html -delete
 
-source "\$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate snakemake
+tmux kill-session -t tcrdock 2>/dev/null || true
+tmux new-session -d -s tcrdock "
+    source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
+    conda activate snakemake
+    snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES} 2>/dev/null || true
+    snakemake \\
+        --cores \$(nproc) \\
+        --use-conda \\
+        --rerun-triggers mtime code params \\
+        --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
+        --config samples_tsv=${SAMPLES} \\
+        2>&1 | tee tcrdock.log
+    echo 'TCRdock pipeline finished.'
+"
+echo "TCRdock started in tmux session 'tcrdock'."
+EOF
 
-snakemake --unlock --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml --config samples_tsv=${SAMPLES} 2>/dev/null || true
-snakemake \\
-    --cores "\$(nproc)" \\
-    --use-conda \\
-    --rerun-triggers code params \\
-    --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
-    --config samples_tsv=${SAMPLES} \\
-    2>&1 | tee tcrdock.log
+log "Polling tcrdock.log for completion..."
+log "  Monitor with:"
+log "    gcloud compute ssh ${GPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/tcrdock.log"
+while true; do
+    DONE="$(ssh_cmd "${GPU_VM}" --command \
+        "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
+    if [[ "${DONE}" -ge 1 ]]; then
+        log "  TCRdock finished (100% done detected in log)."
+        break
+    fi
+    FAILED="$(ssh_cmd "${GPU_VM}" --command \
+        "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null || echo 0" \
+        2>/dev/null | tail -1)"
+    if [[ "${FAILED}" -ge 1 ]]; then
+        echo "ERROR: TCRdock appears to have failed. Check tcrdock.log on ${GPU_VM}." >&2
+        exit 1
+    fi
+    PROGRESS="$(ssh_cmd "${GPU_VM}" --command \
+        "tail -3 \$HOME/splice-neoepitope-pipeline/tcrdock.log 2>/dev/null" \
+        2>/dev/null | grep -v '^$' | sed 's/^/    /')"
+    log "  Still running — checking again in 60s..."
+    [[ -n "${PROGRESS}" ]] && echo "${PROGRESS}"
+    sleep 60
+done
 
-echo "Uploading final results to GCS..."
+log "Uploading final results from ${GPU_VM} to GCS..."
+ssh_cmd "${GPU_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
 gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
 echo "Upload complete."
-
-echo "TCRdock finished — shutting down GPU VM..."
-sudo shutdown -h now
 EOF
 
 # ===========================================================================
