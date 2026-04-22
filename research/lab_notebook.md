@@ -4,6 +4,62 @@
 
 ## 2026-04-22
 
+### Issue #105 — GPU MHCflurry: CUDA architecture notes
+
+**Host driver vs CUDA toolkit — how they relate:**
+
+The **host NVIDIA driver** lives on the VM OS and is the only software that directly controls the GPU hardware. Its version determines the highest CUDA toolkit version it can support (e.g. driver 570 → CUDA 12.8).
+
+The **CUDA toolkit** (cuDNN, cuBLAS, etc.) is what a specific application was compiled against. It lives wherever the application lives — inside a Docker container, inside a pip package — completely independent of the host.
+
+**NVIDIA's backward-compatibility rule:** a host driver supports all CUDA toolkit versions ≤ its own. Driver 570 supports CUDA 12.8, 12.0, 11.8, 10.x, etc.
+
+In our pipeline, two applications run on the same VM with different CUDA requirements:
+
+```
+Host (Deep Learning VM image)
+  └─ NVIDIA driver 570 (CUDA 12.8 capable)
+       ├─ conda env: python.yaml
+       │    └─ tensorflow[and-cuda] pip package → bundles CUDA 12.x libs → MHCflurry
+       └─ Docker container: tcrdock:latest → bundles CUDA 11.8 libs → TCRdock
+```
+
+Neither application depends on the host CUDA toolkit — each carries its own. The host driver just needs to be ≥ the highest toolkit version in use. 12.8 covers both.
+
+**Why `ProcessPoolExecutor` crashes on GPU:**
+
+MHCflurry's CPU path spawns multiple worker processes (one per allele), each importing TensorFlow and initialising its own CUDA context. Multiple CUDA contexts on the same GPU conflict → `BrokenProcessPool` crash. Fix: detect GPU at startup, load the predictor once in the main process, and iterate over alleles sequentially. The GPU handles massive internal parallelism within each `predict_to_dataframe()` call — sequential allele iteration adds negligible overhead.
+
+---
+
+### Issue #98 — Proteome k-mer filter (PR #106, merged)
+
+Rewrote `blastp_filter.py` as `proteome_filter.py`. Instead of running blastp as a subprocess, the script parses the Swiss-Prot FASTA once to build a `set[str]` of all k-mers from every canonical human protein, then checks each query peptide via O(1) set lookup. Drops the BLAST conda env entirely — runtime goes from ~2 hours (424K peptides × 4 threads) to seconds.
+
+The `matched_accessions` column in `peptides_excluded.tsv` carries all source proteins for each excluded peptide (semicolon-separated), replacing the separate `blastp_hits.tsv` audit file. Rule, script, test, and config key all renamed `blastp_filter` → `proteome_filter`. 19 unit tests passing.
+
+**Local test results (chr22, patient_001_test, 8/9/10-mers):**
+
+| | Count | % |
+|---|---|---|
+| Total peptides into filter | 4,163 | 100% |
+| Novel (passed) | 4,119 | 98.9% |
+| Excluded (self-peptides) | 44 | 1.1% |
+
+---
+
+### PR #101 — Move research artefacts to `research/` (Issue #100)
+
+Separated operational documentation from research outputs. `docs/lab_notebook.md` → `research/lab_notebook.md`; `docs/manuscript/` → `research/manuscript/`. `docs/` now contains only software/infrastructure documentation (installation, configuration, cloud guide, etc.).
+
+---
+
+### PR #102 — Remove automatic Claude PR review CI workflow
+
+Removed `.github/workflows/claude-code-review.yml`, which triggered a full Claude review on every push. In a solo project this was noisy and consumed usage unnecessarily. On-demand review is still available via `@claude` mentions through `claude.yml`.
+
+---
+
 ### Issue #82 — Multi-length peptide extraction (8-mer, 9-mer, 10-mer)
 
 **Motivation:** MHC-I presents 8–10-mer peptides. Extracting only 9-mers misses a significant fraction of true binders.
