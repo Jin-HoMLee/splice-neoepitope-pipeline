@@ -369,6 +369,7 @@ tmux new-session -d -s pipeline "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
+        --rerun-triggers mtime \\
         --rerun-incomplete \\
         --configfile ${CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} \\
@@ -579,6 +580,7 @@ conda activate snakemake
 snakemake \
     --cores 1 \
     --use-conda \
+    --rerun-triggers mtime \
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
     --config samples_tsv=${SAMPLES} \
     -- \
@@ -597,6 +599,7 @@ tmux new-session -d -s tcrdock "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
+        --rerun-triggers mtime \\
         --rerun-incomplete \\
         --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
         --config samples_tsv=${SAMPLES} \\
