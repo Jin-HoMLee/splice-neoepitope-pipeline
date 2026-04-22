@@ -2,6 +2,63 @@
 
 ---
 
+## 2026-04-22
+
+### Issue #82 — Multi-length peptide extraction (8-mer, 9-mer, 10-mer)
+
+**Motivation:** MHC-I presents 8–10-mer peptides. Extracting only 9-mers misses a significant fraction of true binders.
+
+**Design:**
+- Replaced hardcoded 9-mer extraction in `translate_peptides.py` with a loop over a configurable `translation.peptide_lengths: [8, 9, 10]` list.
+- Contig flank is now auto-derived: `flank_nt = 3 * (max_length - 1)`. For max length 10 this gives symmetric 27/27 nt flanks (54 nt contigs), up from 26/24 (50 nt). The old 50 nt contigs were 3 nt too short to cover all 10-mer junction-spanning windows on the downstream side.
+- MHCflurry natively accepts 8–15-mers; blastp operates on whatever peptides it receives. No changes needed in either step.
+- 16 unit tests updated/added covering 8/9/10-mer start ranges and known-start sequences.
+
+**Local test results (chr22, patient_001_test):**
+
+| | 9-mer only | 8/9/10-mer |
+|---|---|---|
+| Unique peptides into MHCflurry | 1,339 | 4,045 (~3×) |
+| Total predictions (6 alleles) | 8,172 | 24,714 (~3×) |
+| Strong binders (≤50 nM) | 39 | 37 |
+| Weak binders (≤500 nM) | 290 | 502 (+73%) |
+
+**Follow-on issues filed:**
+- **Issue #97** — Use GENCODE CDS reading frame to restrict translation to the biologically relevant frame. Currently all 3 reading frames are used per junction; the correct frame can be determined from the GENCODE GTF for junctions where (a) the upstream donor maps unambiguously to a single CDS exon end, and (b) no other tumor-exclusive junction is detected upstream in the same gene. Both conditions must hold; overlap between genes and upstream frame-shifting junctions are edge cases requiring fallback to all 3 frames.
+- **Issue #98** — Replace blastp exact-match filter with a Python set-based k-mer lookup. On the production patient (424K unique peptides), blastp ran for >2 hours. A set of all k-mers from the Swiss-Prot FASTA built once at startup reduces this to seconds via O(1) lookup per peptide. Also supports near-self filtering in future (generate all 1-mismatch variants of query, check against exact set).
+
+---
+
+### Issue #89 — blastp filter against human reference proteome (PR #96, merged)
+
+**Overview:** Added `blastp_filter_peptides` rule between `translate_peptides` and `run_mhcflurry`. Excludes peptides with a 100% identity / 100% query coverage match in UniProt Swiss-Prot (self-peptides the immune system is tolerized to).
+
+**Cloud run debugging:**
+- *Run 1 — blastp silently skipped:* `mhc_affinity.tsv` existed from a pre-blastp run. With `--rerun-triggers mtime`, Snakemake never propagated upward to check for the missing `peptides_novel.tsv`. Fixed by deleting downstream outputs before re-running.
+- *Run 2 — `Error: Unknown argument: "perc_identity"`:* `-perc_identity` is a `blastn`-only flag; blastp 2.16.0 rejects it. Fixed: removed flag, now uses `-outfmt "6 qseqid sseqid pident"` + `-qcov_hsp_perc 100` (full coverage at search time) + Python `int(float(pident)) == 100` filtering. Added 15 unit tests.
+
+**Local test (9-mers):** 1,371 peptides → 9 self-peptides excluded (0.7%) → 1,362 novel passed to MHCflurry.
+
+---
+
+### PR #93 — Remove `gcs:` block and BAM upload fix
+
+Removed the `gcs:` block from `config/config.yaml` and `config/test_config.yaml` (BAM upload had been moved to `scripts/run_cloud_cpu.sh` and no longer read config). Also removed `temp()` + `upload_bam` from `alignment.smk` which was preventing BAM/BAI/BED files from reaching GCS.
+
+---
+
+### PR #94 — Snakefile refactor (Issue #92)
+
+Reduced the Snakefile to a minimal entry point: patient ID derivation and shared config moved into `common.smk`. Added a zero-rows guard in `_read_samples_tsv` that raises a clear `ValueError` on empty or missing TSV rather than a bare `IndexError`.
+
+---
+
+### PR #95 — Claude GitHub Actions workflows
+
+Added Claude Code Review and Claude PR Assistant GitHub Actions workflows (`.github/workflows/`).
+
+---
+
 ## 2026-04-21
 
 ### Patient_001 (gastric cancer) — GPU run completed

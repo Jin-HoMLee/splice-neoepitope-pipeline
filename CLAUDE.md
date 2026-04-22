@@ -40,6 +40,11 @@ snakemake --configfile config/test_config.yaml config/tcrdock_gpu.yaml   # corre
 # NOT: --configfile config/test_config.yaml --configfile config/tcrdock_gpu.yaml
 ```
 
+## Config Migration Notes
+
+### `assembly:` section removed (PR #99)
+The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, `contig_length`). These keys were replaced by `translation.peptide_lengths` in PR #99; flank size is now derived automatically as `3 * (max_length - 1)`. If you have a local override `config.yaml` still containing `assembly:`, Snakemake will silently ignore those keys — remove them to avoid confusion.
+
 ## Known Dependency Issues (Fixed)
 
 ### `hisat2.yaml` — samtools/libdeflate conflict

@@ -55,12 +55,13 @@ filtering:
   min_normal_reads: 2
 
 # -----------------------------------------------------------------
-# Contig assembly
+# Peptide translation
 # -----------------------------------------------------------------
-assembly:
-  upstream_nt:   26   # nt upstream of the splice junction
-  downstream_nt: 24   # nt downstream of the splice junction
-  contig_length: 50   # total contig length (upstream + downstream)
+# Peptide lengths to extract from each junction contig.
+# Contig flank size is derived automatically: flank_nt = 3 * (max_length - 1).
+# For [8, 9, 10] this gives symmetric 27 nt flanks (54 nt contigs).
+translation:
+  peptide_lengths: [8, 9, 10]
 
 # -----------------------------------------------------------------
 # blastp filter (Step 4b — optional but recommended)

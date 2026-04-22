@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""run_mhcflurry.py — Wrapper to run MHCflurry 2.x on junction-spanning 9-mers.
+"""run_mhcflurry.py — Wrapper to run MHCflurry 2.x on junction-spanning peptides.
 
 MHCflurry is an open-source MHC-I binding predictor that achieves
 state-of-the-art performance.  Unlike NetMHCPan, it does not require
@@ -11,9 +11,9 @@ Reference:
   Cell Systems, 11(1), 42-48.e7.
 
 The script:
-  1. Reads junction-spanning 9-mers from the TSV produced by translate_peptides.py.
+  1. Reads junction-spanning peptides from the TSV produced by translate_peptides.py.
   2. Runs MHCflurry affinity prediction for each HLA allele.
-  3. Classifies each 9-mer as a strong binder (IC50 <= 50 nM), weak binder
+  3. Classifies each peptide as a strong binder (IC50 <= 50 nM), weak binder
      (IC50 <= 500 nM), or non-binder.
 
 Allele sources (in priority order):
@@ -252,13 +252,13 @@ def run_prediction(
     ic50_weak: float = 500.0,
     threads: int = 1,
 ) -> None:
-    """Run MHCflurry on junction-spanning 9-mers and write results to TSV.
+    """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
     Predictions are run for every resolved allele and concatenated into a
     single output TSV (one row per peptide × allele combination).
 
     Args:
-        peptides_tsv:   TSV of junction-spanning 9-mers (contig_key, start_nt, peptide).
+        peptides_tsv:   TSV of junction-spanning peptides (contig_key, start_nt, peptide).
         output_tsv:     Destination TSV file.
         alleles:        HLA alleles to predict (MHCflurry format, e.g. ['HLA-A*02:01']).
                         Ignored when alleles_tsv is provided.
@@ -294,7 +294,7 @@ def run_prediction(
     output_tsv = Path(output_tsv)
     output_tsv.parent.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: Read junction-spanning 9-mers
+    # Step 1: Read junction-spanning peptides
     peptides_df = pd.read_csv(peptides_tsv, sep="\t")
 
     if peptides_df.empty:
@@ -308,7 +308,7 @@ def run_prediction(
 
     unique_peptides = peptides_df["peptide"].unique().tolist()
     log.info(
-        "Extracted %d 9-mers (%d unique) from %s",
+        "Extracted %d peptides (%d unique) from %s",
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
@@ -376,7 +376,7 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run MHCflurry epitope prediction on junction-spanning 9-mers."
+        description="Run MHCflurry epitope prediction on junction-spanning peptides."
     )
     parser.add_argument("--peptides-tsv", required=True, help="Input peptides TSV")
     parser.add_argument("--output", required=True, help="Output predictions TSV")

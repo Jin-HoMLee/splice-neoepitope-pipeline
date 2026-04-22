@@ -1,10 +1,13 @@
 # =============================================================================
-# Rule module: Step 3 — Assemble 50 nt nucleotide contigs around splice junctions
+# Rule module: Step 3 — Assemble nucleotide contigs around splice junctions
 # =============================================================================
 
+_FLANK_NT = 3 * (max(config["translation"]["peptide_lengths"]) - 1)
+
 rule assemble_contigs:
-    """For each novel splice junction, extract a 50 nt contig centred on the
-    junction (26 nt upstream + 24 nt downstream) using bedtools getfasta.
+    """For each novel splice junction, extract a contig centred on the junction
+    using bedtools getfasta. Flank size is derived from the maximum configured
+    peptide length: flank_nt = 3 * (max_length - 1).
     Contigs that contain soft-clipped regions are excluded.
     Output: FASTA file of contigs per patient."""
     input:
@@ -17,8 +20,8 @@ rule assemble_contigs:
     log:
         os.path.join(_LOGS, "{patient_id}", "assemble_contigs", "assemble.log"),
     params:
-        upstream_nt=config["assembly"]["upstream_nt"],
-        downstream_nt=config["assembly"]["downstream_nt"],
+        upstream_nt=_FLANK_NT,
+        downstream_nt=_FLANK_NT,
     conda:
         "../envs/biotools.yaml"
     script:
