@@ -5,12 +5,12 @@
 #
 # Three phases:
 #
-#   Phase 1 — CPU VM (neoepitope-predict-cpu)
+#   Phase 1 — Pipeline VM (neoepitope-pipeline)
 #     Start VM, pull branch, run pipeline steps 1-5 (alignment → MHCflurry)
 #     in a tmux session, poll pipeline.log until 100% done.
 #
 #   Phase 2 — Copy results
-#     Upload results to GCS, then stop CPU VM to save cost.
+#     Upload results to GCS, then stop pipeline VM to save cost.
 #
 #   Phase 3 — GPU Spot VM (mhc-p-tcr-structure-spot-gpu)
 #     Create VM, install conda + Snakemake + CUDA + TCRdock + AlphaFold params,
@@ -44,7 +44,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-CPU_VM="neoepitope-predict-cpu"
+PIPELINE_VM="neoepitope-pipeline"
 GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
 PIPELINE_MACHINE_TYPE="n1-highmem-8"  # n1 required for P100 GPU attachment; 52 GB RAM sufficient for OptiType (~36 GB peak)
@@ -145,7 +145,7 @@ vm_status() {
 
 log "================================================================"
 log "Cloud GPU pipeline run (mode: ${MODE})"
-log "  CPU VM:  ${CPU_VM}"
+log "  Pipeline VM: ${PIPELINE_VM}"
 log "  GPU VM:  ${GPU_VM}"
 log "  Zone:    ${ZONE}"
 log "  Branch:  ${BRANCH}"
@@ -244,7 +244,7 @@ fi
 # Stop both VMs on exit (success or failure) to avoid charges.
 trap '
     log "Cleanup: ensuring VMs are stopped..."
-    gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+    gcloud compute instances stop "${PIPELINE_VM}" --zone="${ZONE}" 2>/dev/null || true
     gcloud compute instances stop "${GPU_VM}" --zone="${ZONE}" 2>/dev/null || true
 ' EXIT
 
@@ -282,13 +282,13 @@ fi
 log ""
 log "=== Phase 1: CPU pipeline (${CONFIG_FILE}) ==="
 
-CPU_STATUS="$(vm_status "${CPU_VM}")"
+CPU_STATUS="$(vm_status "${PIPELINE_VM}")"
 if [[ "${CPU_STATUS}" == "TERMINATED" ]]; then
-    log "Starting ${CPU_VM}..."
-    gcloud compute instances start "${CPU_VM}" --zone="${ZONE}"
+    log "Starting ${PIPELINE_VM}..."
+    gcloud compute instances start "${PIPELINE_VM}" --zone="${ZONE}"
 elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
-    log "CPU VM ${CPU_VM} not found — creating it..."
-    gcloud compute instances create "${CPU_VM}" \
+    log "Pipeline VM ${PIPELINE_VM} not found — creating it..."
+    gcloud compute instances create "${PIPELINE_VM}" \
         --zone="${ZONE}" \
         --machine-type="${PIPELINE_MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
@@ -301,22 +301,22 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
         --metadata=enable-oslogin=FALSE
 fi
 
-wait_for_ssh "${CPU_VM}"
+wait_for_ssh "${PIPELINE_VM}"
 
-log "Running setup_cloud.sh on ${CPU_VM}..."
-ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
+log "Running setup_cloud.sh on ${PIPELINE_VM}..."
+ssh_cmd "${PIPELINE_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
 
 if [[ -n "${PREPARE_DATA_SCRIPT}" ]]; then
-    log "Preparing data on ${CPU_VM} (${PREPARE_DATA_SCRIPT})..."
-    ssh_cmd "${CPU_VM}" -- bash -s <<REMOTE
+    log "Preparing data on ${PIPELINE_VM} (${PREPARE_DATA_SCRIPT})..."
+    ssh_cmd "${PIPELINE_VM}" -- bash -s <<REMOTE
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 bash ${PREPARE_DATA_SCRIPT} --no-next-steps
 REMOTE
 fi
 
-log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
-ssh_cmd "${CPU_VM}" -- bash -s <<EOF
+log "Pulling branch '${BRANCH}' and starting pipeline on ${PIPELINE_VM}..."
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 
@@ -346,23 +346,23 @@ EOF
 
 log "Polling pipeline.log for completion..."
 log "  Monitor with:"
-log "    gcloud compute ssh ${CPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
+log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
 while true; do
-    DONE="$(ssh_cmd "${CPU_VM}" --command \
+    DONE="$(ssh_cmd "${PIPELINE_VM}" --command \
         "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
     if [[ "${DONE}" -ge 1 ]]; then
         log "  Pipeline finished (100% done detected in log)."
         break
     fi
-    FAILED="$(ssh_cmd "${CPU_VM}" --command \
+    FAILED="$(ssh_cmd "${PIPELINE_VM}" --command \
         "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
     if [[ "${FAILED}" -ge 1 ]]; then
-        echo "ERROR: Pipeline appears to have failed. Check pipeline.log on ${CPU_VM}." >&2
+        echo "ERROR: Pipeline appears to have failed. Check pipeline.log on ${PIPELINE_VM}." >&2
         exit 1
     fi
-    PROGRESS="$(ssh_cmd "${CPU_VM}" --command \
+    PROGRESS="$(ssh_cmd "${PIPELINE_VM}" --command \
         "tail -3 \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null" \
         2>/dev/null | grep -v '^$' | sed 's/^/    /')"
     log "  Still running — checking again in 60s..."
@@ -371,13 +371,13 @@ while true; do
 done
 
 # ===========================================================================
-# Phase 2 — Upload results to GCS, stop CPU VM
+# Phase 2 — Upload results to GCS, stop pipeline VM
 # ===========================================================================
 log ""
-log "=== Phase 2: Uploading results from ${CPU_VM} ==="
+log "=== Phase 2: Uploading results from ${PIPELINE_VM} ==="
 
 log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/..."
-ssh_cmd "${CPU_VM}" -- bash -s <<EOF
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 if [[ -d "${RESULTS_DIR}" ]]; then
@@ -390,9 +390,9 @@ fi
 [[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
 EOF
 
-log "Stopping ${CPU_VM} to save cost..."
-gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" || \
-    log "  Warning: could not stop ${CPU_VM} — stop it manually to avoid charges."
+log "Stopping ${PIPELINE_VM} to save cost..."
+gcloud compute instances stop "${PIPELINE_VM}" --zone="${ZONE}" || \
+    log "  Warning: could not stop ${PIPELINE_VM} — stop it manually to avoid charges."
 
 # ===========================================================================
 # Phase 3 — GPU Spot VM: TCRdock structural validation
@@ -490,7 +490,7 @@ mkdir -p "${RESULTS_DIR}"
 gcloud storage rsync "${GCS_PATH}" "${RESULTS_DIR}" --recursive
 echo "Results download complete."
 mkdir -p ".snakemake/metadata"
-# Always overwrite metadata with the CPU VM's authoritative version (cp, not rsync).
+# Always overwrite metadata with the pipeline VM's authoritative version (cp, not rsync).
 gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata/*" ".snakemake/metadata/" 2>/dev/null \
     && echo "Snakemake metadata download complete." \
     || echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."
