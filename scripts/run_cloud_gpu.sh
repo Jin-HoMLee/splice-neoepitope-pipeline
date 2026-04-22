@@ -47,7 +47,7 @@ set -euo pipefail
 CPU_VM="neoepitope-predict-cpu"
 GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
-CPU_MACHINE_TYPE="n2-highmem-8"  # 64 GB RAM: razers3 (OptiType) peaks at ~36 GB on full RNA-seq FASTQs; n2 preferred over n1 for availability
+PIPELINE_MACHINE_TYPE="n1-highmem-8"  # n1 required for P100 GPU attachment; 52 GB RAM sufficient for OptiType (~36 GB peak)
 GPU_MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-p100,count=1"
 DISK_SIZE="100GB"
@@ -290,9 +290,11 @@ elif [[ "${CPU_STATUS}" == "NOT_FOUND" ]]; then
     log "CPU VM ${CPU_VM} not found — creating it..."
     gcloud compute instances create "${CPU_VM}" \
         --zone="${ZONE}" \
-        --machine-type="${CPU_MACHINE_TYPE}" \
-        --image-family="ubuntu-2204-lts" \
-        --image-project="ubuntu-os-cloud" \
+        --machine-type="${PIPELINE_MACHINE_TYPE}" \
+        --accelerator="${ACCELERATOR}" \
+        --maintenance-policy=TERMINATE \
+        --image-family="${IMAGE_FAMILY}" \
+        --image-project="${IMAGE_PROJECT}" \
         --boot-disk-size="100GB" \
         --boot-disk-type=pd-ssd \
         --scopes=cloud-platform \
