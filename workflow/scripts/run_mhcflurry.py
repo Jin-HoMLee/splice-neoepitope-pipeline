@@ -190,6 +190,19 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 
 
 # ---------------------------------------------------------------------------
+# GPU detection
+# ---------------------------------------------------------------------------
+
+def _has_gpu() -> bool:
+    """Return True if TensorFlow can see at least one GPU."""
+    try:
+        import tensorflow as tf
+        return bool(tf.config.list_physical_devices("GPU"))
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Per-process worker (module-level so ProcessPoolExecutor can pickle it)
 # ---------------------------------------------------------------------------
 
@@ -312,25 +325,41 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Run predictions for each allele in parallel.
-    # predict_to_dataframe() is not thread-safe (shared TensorFlow state), so we
-    # use ProcessPoolExecutor — each worker process loads its own predictor copy.
-    # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
-    # than model_load + sum(per-allele prediction time).
-    max_workers = min(len(resolved_alleles), threads)
-    log.info(
-        "Running predictions for %d allele(s) with %d worker(s)",
-        len(resolved_alleles), max_workers,
-    )
-    with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
-        futures = {
-            executor.submit(
-                _predict_allele_worker,
-                allele, unique_peptides, ic50_strong, ic50_weak,
-            ): allele
+    # Step 2: Run predictions for each allele.
+    #
+    # GPU path: multiple CUDA contexts on a single GPU conflict, so
+    # ProcessPoolExecutor (which spawns one process per allele) crashes with
+    # BrokenProcessPool. Instead, load the predictor once in the main process
+    # and run alleles sequentially — the GPU handles internal parallelism per call.
+    #
+    # CPU path: ProcessPoolExecutor runs alleles in parallel, each worker
+    # loading its own predictor copy. Wall-clock time ≈ model_load +
+    # max(per-allele time) rather than model_load + sum(per-allele time).
+    if _has_gpu():
+        log.info(
+            "GPU detected — running %d allele(s) sequentially in main process",
+            len(resolved_alleles),
+        )
+        _worker_init()
+        pred_dfs = [
+            _predict_allele_worker(allele, unique_peptides, ic50_strong, ic50_weak)
             for allele in resolved_alleles
-        }
-        pred_dfs = [future.result() for future in as_completed(futures)]
+        ]
+    else:
+        max_workers = min(len(resolved_alleles), threads)
+        log.info(
+            "No GPU — running %d allele(s) with %d CPU worker(s)",
+            len(resolved_alleles), max_workers,
+        )
+        with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
+            futures = {
+                executor.submit(
+                    _predict_allele_worker,
+                    allele, unique_peptides, ic50_strong, ic50_weak,
+                ): allele
+                for allele in resolved_alleles
+            }
+            pred_dfs = [future.result() for future in as_completed(futures)]
 
     # Step 3: Merge per-allele predictions with peptides_df (held in parent to
     # avoid pickling the full table into every worker), then concatenate.
