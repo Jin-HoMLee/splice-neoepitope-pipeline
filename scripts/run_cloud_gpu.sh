@@ -341,13 +341,15 @@ mkdir -p "${RESULTS_PATH}"
 gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix 2>/dev/null \
     && echo "Results synced from GCS." \
     || echo "No prior results in GCS — starting fresh."
-gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive 2>/dev/null \
+mkdir -p "${LOGS_PATH}"
+gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-posix 2>/dev/null \
     && echo "Logs synced from GCS." \
     || echo "No prior logs in GCS — starting fresh."
 rm -rf .snakemake/metadata
-gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/" 2>/dev/null \
+mkdir -p .snakemake/metadata
+gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
     && echo "Snakemake metadata downloaded." \
-    || { mkdir -p .snakemake/metadata; echo "No prior metadata in GCS — starting fresh."; }
+    || echo "No prior metadata in GCS — starting fresh."
 EOF
 
 # ---------------------------------------------------------------------------
@@ -417,16 +419,12 @@ log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/ 
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
-if [[ -d "${RESULTS_PATH}" ]]; then
-    # --preserve-posix stores mtime as GCS object metadata so the GPU VM can
-    # restore original timestamps via rsync --preserve-posix (see Phase 3).
-    gcloud storage rsync "${RESULTS_PATH}" "${GCS_RESULTS_PATH}" --recursive --preserve-posix
-    echo "Results upload complete."
-else
-    echo "ERROR: ${RESULTS_PATH}/ not found." >&2; exit 1
-fi
-[[ -d "${LOGS_PATH}" ]] && gcloud storage cp -r "${LOGS_PATH}" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
-[[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
+gcloud storage rsync "${RESULTS_PATH}" "${GCS_RESULTS_PATH}" --recursive --preserve-posix
+echo "Results upload complete."
+gcloud storage rsync "${LOGS_PATH}" "${GCS_LOGS_PATH}" --recursive --preserve-posix
+echo "Logs upload complete."
+gcloud storage rsync ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/metadata" --recursive
+echo "Snakemake metadata upload complete."
 EOF
 
 log "Stopping ${CPU_VM} to save cost..."
@@ -527,22 +525,26 @@ EOF
 # ---------------------------------------------------------------------------
 # 3c — GCS sync: download results, logs, and metadata; verify CPU-phase outputs
 # ---------------------------------------------------------------------------
-log "Downloading results/ and .snakemake/metadata/ from GCS onto GPU VM..."
+log "Syncing results/, logs/, and .snakemake/metadata/ from GCS onto GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 mkdir -p "${RESULTS_PATH}"
-# --preserve-posix restores the original CPU-VM mtime on each file so
-# --rerun-triggers mtime correctly skips already-built outputs.
-gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix
-echo "Results download complete."
+gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix 2>/dev/null \
+    && echo "Results synced from GCS." \
+    || echo "No prior results in GCS — starting fresh."
+mkdir -p "${LOGS_PATH}"
+gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-posix 2>/dev/null \
+    && echo "Logs synced from GCS." \
+    || echo "No prior logs in GCS — starting fresh."
 # Wipe any stale metadata from previous GPU-VM runs before replacing with
 # the CPU VM's authoritative version.  Leftover code/params hashes from an
 # old run cause false "code changed" triggers and re-run of CPU-phase rules.
 rm -rf .snakemake/metadata
-gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/" 2>/dev/null \
-    && echo "Snakemake metadata download complete." \
-    || { mkdir -p .snakemake/metadata; echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."; }
+mkdir -p .snakemake/metadata
+gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
+    && echo "Snakemake metadata downloaded." \
+    || echo "No prior metadata in GCS — starting fresh."
 EOF
 
 log "Verifying CPU-phase outputs are present on GPU VM..."
@@ -594,6 +596,7 @@ tmux new-session -d -s tcrdock "
         --cores \$(nproc) \\
         --use-conda \\
         --rerun-triggers mtime \\
+        --rerun-incomplete \\
         --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee tcrdock.log
@@ -637,8 +640,10 @@ set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 gcloud storage rsync "${RESULTS_PATH}" "${GCS_RESULTS_PATH}" --recursive --preserve-posix
 echo "Results upload complete."
-[[ -d "${LOGS_PATH}" ]] && gcloud storage cp -r "${LOGS_PATH}" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
-[[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
+gcloud storage rsync "${LOGS_PATH}" "${GCS_LOGS_PATH}" --recursive --preserve-posix
+echo "Logs upload complete."
+gcloud storage rsync ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/metadata" --recursive
+echo "Snakemake metadata upload complete."
 EOF
 
 # ===========================================================================
