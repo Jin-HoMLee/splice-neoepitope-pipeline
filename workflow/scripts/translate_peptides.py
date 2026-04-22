@@ -96,11 +96,19 @@ def extract_spanning_peptides(
     if reading_frames is None:
         reading_frames = [0, 1, 2]
 
+    expected_upstream = _CODON_SIZE * (max(peptide_lengths) - 1)
+    if upstream_nt != expected_upstream:
+        log.warning(
+            "upstream_nt=%d does not match 3*(max_length-1)=%d; "
+            "downstream coverage may be incomplete for the longest peptide length",
+            upstream_nt, expected_upstream,
+        )
+
     results: list[tuple[int, str]] = []
+    max_start = upstream_nt - _CODON_SIZE
     for length in peptide_lengths:
         window_nt = length * _CODON_SIZE
         min_start = upstream_nt - (length - 1) * _CODON_SIZE
-        max_start = upstream_nt - _CODON_SIZE
         for frame in reading_frames:
             start = frame
             while start + window_nt <= len(contig_seq):
@@ -147,7 +155,7 @@ def translate_all(
     records = _parse_fasta(contigs_fasta)
     log.info(
         "Extracting junction-spanning %s-mers from %d contigs (upstream_nt=%d)",
-        "/".join(str(l) for l in peptide_lengths), len(records), upstream_nt,
+        "/".join(str(plen) for plen in peptide_lengths), len(records), upstream_nt,
     )
 
     n_peptides = 0
