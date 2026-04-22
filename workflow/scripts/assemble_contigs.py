@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""assemble_contigs.py — Assemble 50 nt nucleotide contigs around novel splice
-junctions.
+"""assemble_contigs.py — Assemble nucleotide contigs around novel splice junctions.
 
 For each novel junction, a contig is constructed by joining:
-  * 26 nt immediately **upstream**  of the junction (last 26 nt of the upstream exon)
-  * 24 nt immediately **downstream** of the junction (first 24 nt of the downstream exon)
+  * ``upstream_nt`` bases immediately **upstream**  of the junction
+  * ``upstream_nt`` bases immediately **downstream** of the junction
 
-This yields a 50 nt contig that spans the novel splice site.
+The flank size is derived from the configured peptide lengths:
+  ``flank_nt = 3 * (max(peptide_lengths) - 1)``
+For peptide_lengths = [8, 9, 10] this gives 27 nt symmetric flanks (54 nt contigs).
 
 The script uses ``bedtools getfasta`` to retrieve sequences from the reference
 genome.  Contigs with soft-clipped bases (lower-case nucleotides) are excluded.
@@ -18,7 +19,7 @@ Usage (standalone):
       --novel-junctions results/junctions/patient_001/novel_junctions.tsv \\
       --genome-fasta resources/GRCh38.primary_assembly.genome.fa \\
       --output results/contigs/patient_001/contigs.fa \\
-      --upstream-nt 26 --downstream-nt 24
+      --upstream-nt 27 --downstream-nt 27
 
 Usage (Snakemake):
   Called automatically by the ``assemble_contigs`` rule.
@@ -149,17 +150,19 @@ def assemble_contigs(
     novel_junctions_tsv: str | Path,
     genome_fasta: str | Path,
     output_fasta: str | Path,
-    upstream_nt: int = 26,
-    downstream_nt: int = 24,
+    upstream_nt: int = 27,
+    downstream_nt: int = 27,
 ) -> None:
-    """Assemble 50 nt contigs for all novel junctions and write to FASTA.
+    """Assemble junction-spanning contigs for all novel junctions and write to FASTA.
 
     Args:
         novel_junctions_tsv: Path to the novel junctions TSV.
         genome_fasta:        Path to the GRCh38 reference FASTA (must be indexed).
         output_fasta:        Destination FASTA file.
         upstream_nt:         Nucleotides upstream of the junction to include.
+                             Should equal 3 * (max(peptide_lengths) - 1).
         downstream_nt:       Nucleotides downstream of the junction to include.
+                             Should equal upstream_nt (symmetric flanks).
     """
     novel_junctions_tsv = Path(novel_junctions_tsv)
     output_fasta = Path(output_fasta)
@@ -270,7 +273,7 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Assemble 50 nt contigs around novel splice junctions."
+        description="Assemble junction-spanning contigs around novel splice junctions."
     )
     parser.add_argument(
         "--novel-junctions", required=True,
@@ -278,8 +281,8 @@ def _cli_main() -> None:
     )
     parser.add_argument("--genome-fasta", required=True, help="Reference genome FASTA")
     parser.add_argument("--output", required=True, help="Output contigs FASTA")
-    parser.add_argument("--upstream-nt", type=int, default=26)
-    parser.add_argument("--downstream-nt", type=int, default=24)
+    parser.add_argument("--upstream-nt", type=int, default=27)
+    parser.add_argument("--downstream-nt", type=int, default=27)
     args = parser.parse_args()
 
     assemble_contigs(

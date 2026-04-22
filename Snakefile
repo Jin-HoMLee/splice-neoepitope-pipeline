@@ -12,14 +12,15 @@
 #
 # Workflow steps
 # ──────────────
-#   1. align    — align FASTQ files using STAR or HISAT2
-#   2. filter   — classify junctions by origin (tumor_exclusive / normal_shared)
-#   3. hla      — OptiType HLA typing (optional)
-#   4. assemble  — build 50 nt contigs around tumor_exclusive junctions
-#   5. translate — in-silico translation into junction-spanning 9-mers
-#   5b. blastp   — filter self-peptides against UniProt Swiss-Prot (optional)
-#   6. predict   — MHCflurry 2.x epitope prediction
-#   7. report    — junction origin summary + HLA QC + top binders HTML report
+#   1. rna-align            — align FASTQ files using STAR or HISAT2
+#   2. junction-filter      — classify junctions by origin (tumor_exclusive / normal_shared)
+#   3. hla-typing           — patient HLA allele prediction with OptiType (optional)
+#   4. contig-assemble      — build junction-spanning contigs from tumor-exclusive junctions
+#   5. peptide-translate    — in-silico translation into junction-spanning peptides
+#   5b. proteome-filter     — remove self-peptides present in UniProt Swiss-Prot (optional)
+#   6. mhc-affinity         — MHC-I binding affinity prediction with MHCflurry
+#   7. TCR-pMHC-structure   — TCR–pMHC complex structure prediction with TCRdock (optional, GPU)
+#   8. report               — HTML report: junction summary, HLA QC, top binder candidates
 #
 # Usage
 # ──────
@@ -41,7 +42,7 @@ include: "workflow/rules/hla_typing.smk"
 include: "workflow/rules/filter_junctions.smk"
 include: "workflow/rules/assemble_contigs.smk"
 include: "workflow/rules/translate_peptides.smk"
-include: "workflow/rules/blastp_filter.smk"
+include: "workflow/rules/proteome_filter.smk"
 include: "workflow/rules/mhc_affinity.smk"
 include: "workflow/rules/analysis.smk"
 include: "workflow/rules/structure.smk"
