@@ -529,10 +529,14 @@ log "Syncing results/, logs/, and .snakemake/metadata/ from GCS onto GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
+# TCRdock Docker outputs are root-owned; wipe before downloading so rsync
+# can overwrite them.  GCS is authoritative for the GPU VM — always start fresh.
+sudo rm -rf "${RESULTS_PATH}"
 mkdir -p "${RESULTS_PATH}"
 gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix 2>/dev/null \
     && echo "Results synced from GCS." \
     || echo "No prior results in GCS — starting fresh."
+sudo rm -rf "${LOGS_PATH}"
 mkdir -p "${LOGS_PATH}"
 gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-posix 2>/dev/null \
     && echo "Logs synced from GCS." \
