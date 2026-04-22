@@ -78,7 +78,7 @@ The GPU VM also showed an `IncompleteFilesException` on startup despite all resu
 
 ### Issue #73 — patient_002 manuscript results (PR #74, merged)
 
-Added patient_002 osteosarcoma results to `docs/manuscript/`:
+Added patient_002 osteosarcoma results to `research/manuscript/`:
 - **RESULTS.md:** full patient_002 section — dataset, HLA typing + serology validation, junction funnel (347,046 raw → 55,912 tumor-exclusive), peptide translation (781,424 9-mers), MHC predictions (12,430 strong binders), top candidate TTDPVQALY / HLA-A\*01:01 (IC50 = 23.9 nM), TCRdock caveat (fallback allele bug).
 - **CONCLUSIONS.md:** added patient_002 Key Findings (points 5–8); updated Limitations HLA section (confirmed match, no longer future tense); updated Future Directions (T0 complete, focus on T1/T2).
 - **DISCUSSIONS.md:** updated "Impact of missing matched normal: patient_002" section with real WES proxy counts (106,474 apparent junctions, only 3 overlap tumor).
