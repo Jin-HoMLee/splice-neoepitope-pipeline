@@ -348,7 +348,7 @@ gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-po
 rm -rf .snakemake/metadata
 mkdir -p .snakemake/metadata
 gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
-    && echo "Snakemake metadata downloaded." \
+    && echo "Snakemake metadata synced from GCS." \
     || echo "No prior metadata in GCS — starting fresh."
 EOF
 
@@ -369,7 +369,6 @@ tmux new-session -d -s pipeline "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
-        --rerun-triggers mtime \\
         --rerun-incomplete \\
         --configfile ${CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} \\
@@ -547,7 +546,7 @@ gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-po
 rm -rf .snakemake/metadata
 mkdir -p .snakemake/metadata
 gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
-    && echo "Snakemake metadata downloaded." \
+    && echo "Snakemake metadata synced from GCS." \
     || echo "No prior metadata in GCS — starting fresh."
 EOF
 
@@ -580,7 +579,6 @@ conda activate snakemake
 snakemake \
     --cores 1 \
     --use-conda \
-    --rerun-triggers mtime \
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
     --config samples_tsv=${SAMPLES} \
     -- \
@@ -599,7 +597,6 @@ tmux new-session -d -s tcrdock "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
-        --rerun-triggers mtime \\
         --rerun-incomplete \\
         --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
         --config samples_tsv=${SAMPLES} \\
