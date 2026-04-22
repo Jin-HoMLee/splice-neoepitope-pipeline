@@ -47,9 +47,13 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 
 ## Known Dependency Issues (Fixed)
 
-### `hisat2.yaml` — samtools/libdeflate conflict
-`regtools >= 1.0.0` pulls in `libdeflate >= 1.26`; all bioconda `htslib` builds cap at `libdeflate < 1.26`. `hisat2` does NOT have this constraint — only regtools does.
-**Fix:** remove the `samtools >=1.20` lower-bound pin. Without it the solver finds a compatible build. The earlier `>=1.20` pin was a misdiagnosis — it made things worse, not better.
+### `hisat2.yaml` — samtools omitted (libdeflate conflict)
+`regtools >= 1.0.0` requires `libdeflate >= 1.26`. No bioconda linux-64 `samtools`/`htslib` build is compiled against `libdeflate >= 1.26`, so conda cannot satisfy both in the same env. (`hisat2` itself does NOT have this constraint — only regtools does.)
+**Fix:** `samtools` is omitted from `hisat2.yaml` entirely. The pipeline uses system samtools installed via `apt-get` in `setup_cloud.sh` (currently 1.13 on Ubuntu 22.04). System PATH is visible inside activated conda envs, so no path wiring is needed.
+**Workarounds that were tried and rejected:**
+- `samtools >= 1.20` pin — made things worse; solver produced an env without samtools (exit 127 on linux-64)
+- Fully unpinned samtools — solver falls back to samtools 1.3.1 (2016, 10 versions behind); not acceptable long-term
+**TODO(#107):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26.
 
 ### `run_mhcflurry.py` — mhcflurry 2.2.0 API change
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array instead of a DataFrame.
