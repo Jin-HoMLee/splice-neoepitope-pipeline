@@ -6,16 +6,16 @@
 # Three phases:
 #
 #   Phase 1 — CPU VM (neoepitope-predict-cpu)
-#     Sync prior state from GCS, pull branch, run pipeline steps 1-5
-#     (alignment → MHCflurry) in a tmux session, poll until 100% done.
+#     Start VM, pull branch, run pipeline steps 1-5 (alignment → MHCflurry)
+#     in a tmux session, poll pipeline.log until 100% done.
 #
-#   Phase 2 — GCS handoff
-#     Upload results, logs, and Snakemake metadata to GCS; stop CPU VM.
+#   Phase 2 — Copy results
+#     Upload results to GCS, then stop CPU VM to save cost.
 #
-#   Phase 3 — GPU Spot VM (pipeline-spot-gpu)
+#   Phase 3 — GPU Spot VM (mhc-p-tcr-structure-spot-gpu)
 #     Create VM, install conda + Snakemake + CUDA + TCRdock + AlphaFold params,
-#     sync results/logs/metadata from GCS, run TCRdock + report rules, upload
-#     results/logs/metadata back to GCS, then VM auto-stops.
+#     download results from GCS, run TCRdock + report rules, upload final
+#     results to GCS, then VM auto-stops.
 #
 # Modes:
 #   --mode prod   Full genome, production config (default)
@@ -88,19 +88,15 @@ done
 case "${MODE}" in
     test)
         CONFIG_FILE="config/test_config.yaml"
-        RESULTS_PATH="results"
-        LOGS_PATH="logs"
-        GCS_RESULTS_PATH="gs://${GCS_BUCKET}/results"
-        GCS_LOGS_PATH="gs://${GCS_BUCKET}/logs"
+        RESULTS_DIR="results"
+        GCS_PATH="gs://${GCS_BUCKET}/results"
         PREPARE_DATA_SCRIPT="scripts/prepare_test_data.sh"
         [[ -z "${SAMPLES}" ]] && SAMPLES="config/samples/patient_001_test.tsv"
         ;;
     prod|production)
         CONFIG_FILE="config/config.yaml"
-        RESULTS_PATH="results"
-        LOGS_PATH="logs"
-        GCS_RESULTS_PATH="gs://${GCS_BUCKET}/results"
-        GCS_LOGS_PATH="gs://${GCS_BUCKET}/logs"
+        RESULTS_DIR="results"
+        GCS_PATH="gs://${GCS_BUCKET}/results"
         PREPARE_DATA_SCRIPT=""
         [[ -z "${SAMPLES}" ]] && { echo "ERROR: --samples required for prod mode (e.g. --samples config/samples/patient_002.tsv)" >&2; exit 1; }
         ;;
@@ -236,7 +232,7 @@ ORCH_RUN
     log "  gcloud compute ssh ${ORCH_VM} --zone=${ZONE} --tunnel-through-iap -- tmux attach -t orchestrator"
     log ""
     log "When done, results are uploaded to GCS automatically:"
-    log "  gcloud storage cp -r ${GCS_RESULTS_PATH}/reports ./tcrdock_report"
+    log "  gcloud storage cp -r ${GCS_PATH}/reports ./tcrdock_report"
     log "  open tcrdock_report/[patient_id]/report.html"
     log ""
     log "The orchestrator VM auto-stops when finished. To delete it:"
@@ -286,9 +282,6 @@ fi
 log ""
 log "=== Phase 1: CPU pipeline (${CONFIG_FILE}) ==="
 
-# ---------------------------------------------------------------------------
-# 1a — VM provisioning
-# ---------------------------------------------------------------------------
 CPU_STATUS="$(vm_status "${CPU_VM}")"
 if [[ "${CPU_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${CPU_VM}..."
@@ -308,9 +301,6 @@ fi
 
 wait_for_ssh "${CPU_VM}"
 
-# ---------------------------------------------------------------------------
-# 1b — Environment setup (conda, Snakemake, reference data)
-# ---------------------------------------------------------------------------
 log "Running setup_cloud.sh on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
 
@@ -323,10 +313,7 @@ bash ${PREPARE_DATA_SCRIPT} --no-next-steps
 REMOTE
 fi
 
-# ---------------------------------------------------------------------------
-# 1c — GCS sync: pull branch and download prior results, logs, and metadata
-# ---------------------------------------------------------------------------
-log "Pulling branch '${BRANCH}' and syncing prior GCS state on ${CPU_VM}..."
+log "Pulling branch '${BRANCH}' and starting pipeline on ${CPU_VM}..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
@@ -334,31 +321,6 @@ cd "\$HOME/splice-neoepitope-pipeline"
 git fetch --all --prune
 git checkout "${BRANCH}"
 git pull origin "${BRANCH}"
-
-# Download previous results, logs, and metadata from GCS so Snakemake can skip
-# already-completed steps.  No-ops silently on a first run (bucket is empty).
-mkdir -p "${RESULTS_PATH}"
-gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix 2>/dev/null \
-    && echo "Results synced from GCS." \
-    || echo "No prior results in GCS — starting fresh."
-mkdir -p "${LOGS_PATH}"
-gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-posix 2>/dev/null \
-    && echo "Logs synced from GCS." \
-    || echo "No prior logs in GCS — starting fresh."
-rm -rf .snakemake/metadata
-mkdir -p .snakemake/metadata
-gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
-    && echo "Snakemake metadata synced from GCS." \
-    || echo "No prior metadata in GCS — starting fresh."
-EOF
-
-# ---------------------------------------------------------------------------
-# 1d — Pipeline execution
-# ---------------------------------------------------------------------------
-log "Starting pipeline in tmux session on ${CPU_VM}..."
-ssh_cmd "${CPU_VM}" -- bash -s <<EOF
-set -euo pipefail
-cd "\$HOME/splice-neoepitope-pipeline"
 
 tmux kill-session -t pipeline 2>/dev/null || true
 
@@ -380,9 +342,6 @@ tmux new-session -d -s pipeline "
 echo "Pipeline started in tmux session 'pipeline'."
 EOF
 
-# ---------------------------------------------------------------------------
-# 1e — Poll for completion
-# ---------------------------------------------------------------------------
 log "Polling pipeline.log for completion..."
 log "  Monitor with:"
 log "    gcloud compute ssh ${CPU_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
@@ -410,21 +369,23 @@ while true; do
 done
 
 # ===========================================================================
-# Phase 2 — Upload results, logs, and Snakemake metadata to GCS, stop CPU VM
+# Phase 2 — Upload results to GCS, stop CPU VM
 # ===========================================================================
 log ""
-log "=== Phase 2: Uploading results, logs, and metadata from ${CPU_VM} ==="
+log "=== Phase 2: Uploading results from ${CPU_VM} ==="
 
-log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/ (with --preserve-posix)..."
+log "Uploading results/, logs/, and .snakemake/metadata/ to gs://${GCS_BUCKET}/..."
 ssh_cmd "${CPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
-gcloud storage rsync "${RESULTS_PATH}" "${GCS_RESULTS_PATH}" --recursive --preserve-posix
-echo "Results upload complete."
-gcloud storage rsync "${LOGS_PATH}" "${GCS_LOGS_PATH}" --recursive --preserve-posix
-echo "Logs upload complete."
-gcloud storage rsync ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/metadata" --recursive
-echo "Snakemake metadata upload complete."
+if [[ -d "${RESULTS_DIR}" ]]; then
+    gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
+    echo "Results upload complete."
+else
+    echo "ERROR: ${RESULTS_DIR}/ not found." >&2; exit 1
+fi
+[[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
+[[ -d ".snakemake/metadata" ]] && gcloud storage cp -r ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/" && echo "Snakemake metadata upload complete."
 EOF
 
 log "Stopping ${CPU_VM} to save cost..."
@@ -437,9 +398,6 @@ gcloud compute instances stop "${CPU_VM}" --zone="${ZONE}" || \
 log ""
 log "=== Phase 3: GPU Spot VM — TCRdock ==="
 
-# ---------------------------------------------------------------------------
-# 3a — VM provisioning
-# ---------------------------------------------------------------------------
 GPU_STATUS="$(vm_status "${GPU_VM}")"
 if [[ "${GPU_STATUS}" == "NOT_FOUND" ]]; then
     log "Creating GPU Spot VM ${GPU_VM}..."
@@ -469,9 +427,6 @@ fi
 
 wait_for_ssh "${GPU_VM}"
 
-# ---------------------------------------------------------------------------
-# 3b — Environment setup (repo, conda, Snakemake, TCRdock deps)
-# ---------------------------------------------------------------------------
 log "Cloning / updating repo on GPU VM (branch: ${BRANCH})..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
@@ -522,51 +477,23 @@ cd "\$HOME/splice-neoepitope-pipeline"
 bash scripts/setup_tcrdock_vm.sh "${CONFIG_FILE}"
 EOF
 
-# ---------------------------------------------------------------------------
-# 3c — GCS sync: download results, logs, and metadata; verify CPU-phase outputs
-# ---------------------------------------------------------------------------
-log "Syncing results/, logs/, and .snakemake/metadata/ from GCS onto GPU VM..."
+log "Downloading results/ and .snakemake/metadata/ from GCS onto GPU VM..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
-# TCRdock Docker outputs are root-owned; wipe before downloading so rsync
-# can overwrite them.  GCS is authoritative for the GPU VM — always start fresh.
-sudo rm -rf "${RESULTS_PATH}"
-mkdir -p "${RESULTS_PATH}"
-gcloud storage rsync "${GCS_RESULTS_PATH}" "${RESULTS_PATH}" --recursive --preserve-posix 2>/dev/null \
-    && echo "Results synced from GCS." \
-    || echo "No prior results in GCS — starting fresh."
-sudo rm -rf "${LOGS_PATH}"
-mkdir -p "${LOGS_PATH}"
-gcloud storage rsync "${GCS_LOGS_PATH}" "${LOGS_PATH}" --recursive --preserve-posix 2>/dev/null \
-    && echo "Logs synced from GCS." \
-    || echo "No prior logs in GCS — starting fresh."
-# Wipe any stale metadata from previous GPU-VM runs before replacing with
-# the CPU VM's authoritative version.  Leftover code/params hashes from an
-# old run cause false "code changed" triggers and re-run of CPU-phase rules.
-rm -rf .snakemake/metadata
-mkdir -p .snakemake/metadata
-gcloud storage rsync "gs://${GCS_BUCKET}/.snakemake/metadata" ".snakemake/metadata" --recursive --preserve-posix 2>/dev/null \
-    && echo "Snakemake metadata synced from GCS." \
-    || echo "No prior metadata in GCS — starting fresh."
+mkdir -p "${RESULTS_DIR}"
+# rsync compares checksums (CRC32C) and only re-downloads files that changed on
+# GCS, preserving mtime of unchanged files. This allows --rerun-triggers mtime
+# to correctly detect when CPU-phase outputs (e.g. mhc_affinity.tsv) changed.
+gcloud storage rsync "${GCS_PATH}" "${RESULTS_DIR}" --recursive
+echo "Results download complete."
+mkdir -p ".snakemake/metadata"
+# Always overwrite metadata with the CPU VM's authoritative version (cp, not rsync).
+gcloud storage cp -r "gs://${GCS_BUCKET}/.snakemake/metadata/*" ".snakemake/metadata/" 2>/dev/null \
+    && echo "Snakemake metadata download complete." \
+    || echo "No snakemake metadata in GCS — Snakemake will re-check triggers on first run."
 EOF
 
-log "Verifying CPU-phase outputs are present on GPU VM..."
-ssh_cmd "${GPU_VM}" -- bash -s <<EOF
-set -euo pipefail
-cd "\$HOME/splice-neoepitope-pipeline"
-MHCF="\$(find "${RESULTS_PATH}" -name "mhc_affinity.tsv" | head -1)"
-if [[ -z "\${MHCF}" ]]; then
-    echo "ERROR: No mhc_affinity.tsv found in ${RESULTS_PATH}/." >&2
-    echo "       CPU phase may not have completed, or GCS sync failed." >&2
-    exit 1
-fi
-echo "  Found: \${MHCF}"
-EOF
-
-# ---------------------------------------------------------------------------
-# 3d — Pipeline execution (MHCflurry sentinel, TCRdock, poll for completion)
-# ---------------------------------------------------------------------------
 log "Starting TCRdock in tmux session on ${GPU_VM}..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
@@ -580,7 +507,7 @@ conda activate snakemake
 snakemake \
     --cores 1 \
     --use-conda \
-    --rerun-triggers mtime \
+    --rerun-triggers mtime code params \
     --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \
     --config samples_tsv=${SAMPLES} \
     -- \
@@ -589,7 +516,7 @@ conda deactivate 2>/dev/null || true
 
 # Remove the CPU-generated report so Snakemake regenerates it with the
 # TCRdock structural view via generate_report_with_structure.
-find ${RESULTS_PATH} -name report.html -delete
+find ${RESULTS_DIR} -name report.html -delete
 
 tmux kill-session -t tcrdock 2>/dev/null || true
 tmux new-session -d -s tcrdock "
@@ -599,8 +526,7 @@ tmux new-session -d -s tcrdock "
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
-        --rerun-triggers mtime \\
-        --rerun-incomplete \\
+        --rerun-triggers mtime code params \\
         --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee tcrdock.log
@@ -635,19 +561,12 @@ while true; do
     sleep 60
 done
 
-# ---------------------------------------------------------------------------
-# 3e — GCS upload: results, logs, and metadata back to GCS
-# ---------------------------------------------------------------------------
-log "Uploading final results, logs, and metadata from ${GPU_VM} to GCS..."
+log "Uploading final results from ${GPU_VM} to GCS..."
 ssh_cmd "${GPU_VM}" -- bash -s <<EOF
 set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
-gcloud storage rsync "${RESULTS_PATH}" "${GCS_RESULTS_PATH}" --recursive --preserve-posix
-echo "Results upload complete."
-gcloud storage rsync "${LOGS_PATH}" "${GCS_LOGS_PATH}" --recursive --preserve-posix
-echo "Logs upload complete."
-gcloud storage rsync ".snakemake/metadata" "gs://${GCS_BUCKET}/.snakemake/metadata" --recursive
-echo "Snakemake metadata upload complete."
+gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
+echo "Upload complete."
 EOF
 
 # ===========================================================================
@@ -657,7 +576,7 @@ log "================================================================"
 log "All phases complete. GPU VM will stop shortly."
 log ""
 log "To retrieve the report:"
-log "  gcloud storage cp -r ${GCS_RESULTS_PATH}/{patient_id}/reports ./report"
+log "  gcloud storage cp -r ${GCS_PATH}/{patient_id}/reports ./report"
 log "  open report/report.html"
 log ""
 log "To delete the GPU VM and stop disk charges:"
