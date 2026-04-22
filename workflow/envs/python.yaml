@@ -14,7 +14,7 @@ dependencies:
   - requests >=2.31
   - jinja2 >=3.1
   - pytest >=8.0
-  - tensorflow >=2.10  # Required by MHCflurry
   - pip
   - pip:
     - mhcflurry >=2.0
+    - tensorflow[and-cuda]>=2.15  # bundles CUDA 12 libs; GPU used automatically when available
