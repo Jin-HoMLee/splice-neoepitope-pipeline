@@ -64,17 +64,15 @@ translation:
   peptide_lengths: [8, 9, 10]
 
 # -----------------------------------------------------------------
-# blastp filter (Step 4b — optional but recommended)
+# Proteome filter (Step 4b — optional but recommended)
 # -----------------------------------------------------------------
 # Removes translated peptides that already exist in the canonical human
 # proteome (UniProt Swiss-Prot). Such peptides are self-peptides and
 # cannot be neoantigens. Also reduces input to MHCflurry.
 # Disable for speed on test runs: set enabled: false.
-blastp_filter:
+proteome_filter:
   enabled: true
   proteome_fasta: "resources/human_proteome.fasta"
-  db_dir: "resources/blastp_db"
-  threads: 4
 
 # -----------------------------------------------------------------
 # HLA typing (OptiType)
