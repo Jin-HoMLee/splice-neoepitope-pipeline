@@ -201,3 +201,52 @@ results should be interpreted with this caveat.
 If a matched RNA-seq sample becomes available from the osteosarcoma dataset in the
 future, the pipeline can be re-run with the normal to apply the full junction-level
 filter.
+
+---
+
+## MHC binding prediction: composite presentation score over affinity-only
+
+Early versions of the pipeline used `Class1AffinityPredictor` and classified peptides
+solely by IC50 (strong ≤ 50 nM, weak ≤ 500 nM). This is the most widely reported
+metric but has a well-documented limitation: MHC binding affinity is necessary but
+not sufficient for surface presentation. A peptide must also survive proteasomal
+cleavage and TAP transport to reach the ER, and a high-affinity peptide that is
+degraded in the cytosol will never be displayed to T cells.
+
+MHCflurry 2.0 introduced `Class1PresentationPredictor`, which combines the affinity
+model with an antigen processing model trained on mass spectrometry-identified
+MHC ligands (O'Donnell et al., 2020, *Cell Systems*). The composite `presentation_score`
+and its per-allele `presentation_percentile` have been shown to reduce false positives
+from well-bound but poorly processed peptides.
+
+### Why we use the composite predictor exclusively
+
+Rather than offering an affinity/presentation mode switch, the pipeline always uses
+`Class1PresentationPredictor`. This gives five scores per peptide:
+
+- `ic50_nM` and `affinity_percentile` — binding affinity, informational
+- `processing_score` — antigen processing efficiency, informational
+- `presentation_score` and `presentation_percentile` — composite metric, primary
+
+Two classification labels are derived using shared percentile thresholds (per allele):
+
+- `binder_class` — affinity_percentile ≤ 0.5% → strong, ≤ 2% → weak, else non
+- `presentation_class` — presentation_percentile ≤ 0.5% → strong, ≤ 2% → weak, else non
+
+The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communications
+Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional
+affinity-percentile cutoff applied in the field, extended here to both classifiers for
+consistency.
+
+Epitopes are ranked primarily by `presentation_percentile`, with `affinity_percentile`
+as a tiebreaker. This prioritises candidates that are both strongly bound and well
+processed — the subset most likely to be immunogenic.
+
+### Why two classification columns rather than one
+
+Retaining `binder_class` (affinity-only) alongside `presentation_class` allows direct
+comparison with the published literature, which almost universally reports IC50 or
+affinity-percentile thresholds. A peptide that is a strong binder by affinity but a
+non-presenter by presentation_class is biologically interesting — it may be a target
+for immune evasion (e.g. via downregulation of the proteasomal subunits PSMB8/PSMB9)
+and warrants separate investigation.
