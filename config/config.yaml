@@ -101,14 +101,13 @@ mhcflurry:
     A: "HLA-A*02:01"
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
-  ic50_strong:  50            # nM threshold for strong binders
-  ic50_weak:   500            # nM threshold for weak binders
   threads: 8                  # parallel allele predictions (n1-standard-8)
-  # MHCflurry supports multiple prediction modes:
-  #   "affinity"        - binding affinity only (IC50)
-  #   "presentation"    - presentation score (recommended)
-  #   "processing"      - antigen processing score
-  prediction_mode: "affinity"
+  # Percentile thresholds for classification (lower = better, per allele).
+  # binder_class uses affinity_percentile; presentation_class uses presentation_percentile.
+  affinity_percentile_strong:      0.5   # top 0.5% by IC50 → strong
+  affinity_percentile_weak:        2.0   # top 2.0% by IC50 → weak
+  presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong
+  presentation_percentile_weak:    2.0   # top 2.0% by presentation score → weak
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
