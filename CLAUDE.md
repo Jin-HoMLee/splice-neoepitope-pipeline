@@ -55,9 +55,9 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 - Fully unpinned samtools — solver falls back to samtools 1.3.1 (2016, 10 versions behind); not acceptable long-term
 **TODO(#107):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26.
 
-### `run_mhcflurry.py` — mhcflurry 2.2.0 API change
-mhcflurry 2.2.0 changed `predict()` to return a raw numpy array instead of a DataFrame.
-**Fix:** use `predict_to_dataframe()` instead.
+### `run_mhcflurry.py` — Class1PresentationPredictor genotype API
+`Class1PresentationPredictor.predict()` is a genotype-level call: pass all patient HLA alleles at once (≤6 as a list), get one best-allele prediction per peptide back. Do NOT repeat a single allele N times (that was the `Class1AffinityPredictor` convention and raises `ValueError`).
+`predict_to_dataframe()` does not exist on `Class1PresentationPredictor` — use `predict()` which returns a DataFrame directly.
 
 ### `python.yaml` — PyTorch SM 6.0 / P100 compatibility
 PyTorch 2.5+ dropped SM 6.0 (Pascal) support. On a P100, `torch.cuda.is_available()` still returns `True` but kernel dispatch fails silently or with a cryptic error.
@@ -66,7 +66,7 @@ PyTorch 2.5+ dropped SM 6.0 (Pascal) support. On a P100, `torch.cuda.is_availabl
 
 ### `run_mhcflurry.py` — no ProcessPoolExecutor with GPU
 Running MHCflurry alleles in parallel with `ProcessPoolExecutor` crashes on GPU: each worker process initialises its own CUDA context, competing for the same device. Even on CPU, 6 workers × ~8 GB model = ~48 GB RAM → OOM on a 52 GB VM.
-**Fix:** sequential execution in the main process. GPU parallelism applies within each allele's `predict_to_dataframe()` call (all 1.26M peptides batched at once).
+**Fix:** single `predict()` call in the main process with all alleles as a genotype. GPU parallelism applies within that call (all peptides batched at once by TF/PyTorch).
 
 ## sra-tools Note
 Use version `3.1.1` on GCP VMs — newer versions (3.4.x) have a segfault bug.
