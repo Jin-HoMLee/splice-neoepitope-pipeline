@@ -62,6 +62,7 @@ BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
 MODE="prod"
 SAMPLES=""
 DETACH=false
+KEEP_VM=false
 CLOUD_INTERNAL=false
 
 # ---------------------------------------------------------------------------
@@ -73,11 +74,12 @@ while [[ $# -gt 0 ]]; do
         --branch)  BRANCH="${2:?--branch requires a value}";     shift 2 ;;
         --zone)    ZONE="${2:?--zone requires a value}";         shift 2 ;;
         --samples) SAMPLES="${2:?--samples requires a path}";    shift 2 ;;
-        --detach)  DETACH=true;                                   shift ;;
+        --detach)    DETACH=true;                                   shift ;;
+        --keep-vm)   KEEP_VM=true;                                  shift ;;
         --_cloud-internal) CLOUD_INTERNAL=true;                   shift ;;
         *)
             echo "Unknown argument: $1" >&2
-            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach]" >&2
+            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach] [--keep-vm]" >&2
             exit 1 ;;
     esac
 done
@@ -153,6 +155,9 @@ log "  Config:  ${CONFIG_FILE}"
 log "  Bucket:  gs://${GCS_BUCKET}"
 if [[ "${DETACH}" == true ]]; then
     log "  Detach:  yes (orchestrator VM: ${ORCH_VM})"
+fi
+if [[ "${KEEP_VM}" == true ]]; then
+    log "  Keep VM: yes (VMs will NOT be stopped on exit — remember to stop manually)"
 fi
 log "================================================================"
 
@@ -242,10 +247,16 @@ ORCH_RUN
 fi
 
 # Stop both VMs on exit (success or failure) to avoid charges.
+# Pass --keep-vm to skip this for debugging sessions.
 trap '
-    log "Cleanup: ensuring VMs are stopped..."
-    gcloud compute instances stop "${PIPELINE_VM}" --zone="${ZONE}" 2>/dev/null || true
-    gcloud compute instances stop "${GPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+    if [[ "${KEEP_VM}" == true ]]; then
+        log "Cleanup: --keep-vm set — VMs left running. Stop manually when done:"
+        log "  gcloud compute instances stop ${PIPELINE_VM} ${GPU_VM} --zone=${ZONE}"
+    else
+        log "Cleanup: ensuring VMs are stopped..."
+        gcloud compute instances stop "${PIPELINE_VM}" --zone="${ZONE}" 2>/dev/null || true
+        gcloud compute instances stop "${GPU_VM}" --zone="${ZONE}" 2>/dev/null || true
+    fi
 ' EXIT
 
 # ---------------------------------------------------------------------------
