@@ -78,9 +78,8 @@ class TestRunPredictionEmpty:
         assert df.empty
         assert list(df.columns) == [
             "contig_key", "start_nt", "peptide", "allele",
-            "ic50_nM", "affinity_percentile", "processing_score",
-            "presentation_score", "presentation_percentile",
-            "binder_class", "presentation_class",
+            "ic50_nM", "processing_score", "presentation_score",
+            "presentation_percentile", "presentation_class",
         ]
 
     def test_output_file_is_created(self, tmp_path):
@@ -179,7 +178,6 @@ class TestWorker:
             return pd.DataFrame({
                 "peptide": peptides,
                 "affinity": [ic50] * n,
-                "affinity_percentile": [percentile] * n,
                 "processing_score": [0.8] * n,
                 "presentation_score": [0.9] * n,
                 "presentation_percentile": [percentile] * n,
@@ -191,35 +189,34 @@ class TestWorker:
 
     def test_worker_returns_correct_columns(self):
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0)
         assert list(df.columns) == [
-            "peptide", "ic50_nM", "affinity_percentile",
-            "processing_score", "presentation_score", "presentation_percentile",
-            "allele", "binder_class", "presentation_class",
+            "peptide", "ic50_nM", "processing_score", "presentation_score",
+            "presentation_percentile", "allele", "presentation_class",
         ]
 
     def test_worker_allele_assigned(self):
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0)
         assert (df["allele"] == "HLA-B*07:02").all()
 
-    def test_worker_binder_class_strong(self):
-        """affinity_percentile=0.3 → strong binder_class (threshold 0.5%)."""
+    def test_worker_presentation_class_strong(self):
+        """presentation_percentile=0.3 → strong presentation_class (threshold 0.5%)."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["binder_class"] == "strong").all()
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0)
+        assert (df["presentation_class"] == "strong").all()
 
-    def test_worker_binder_class_weak(self):
-        """affinity_percentile=1.5 → weak binder_class (threshold 2.0%)."""
+    def test_worker_presentation_class_weak(self):
+        """presentation_percentile=1.5 → weak presentation_class (threshold 2.0%)."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["binder_class"] == "weak").all()
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0)
+        assert (df["presentation_class"] == "weak").all()
 
-    def test_worker_binder_class_non(self):
-        """Unknown allele gets percentile=5.0 → non-binder binder_class."""
+    def test_worker_presentation_class_non(self):
+        """Unknown allele gets percentile=5.0 → non presentation_class."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["binder_class"] == "non").all()
+        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0)
+        assert (df["presentation_class"] == "non").all()
 
     def test_load_predictor_for_cpu_populates_cache(self, monkeypatch):
         """_load_predictor_for_cpu must populate the module-level predictor cache."""
@@ -234,55 +231,6 @@ class TestWorker:
         monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
         run_mhcflurry._load_predictor_for_gpu()
         assert run_mhcflurry._worker_predictor is not None
-
-
-# ---------------------------------------------------------------------------
-# Presentation class classification
-# ---------------------------------------------------------------------------
-
-class TestWorkerPresentationClass:
-    """presentation_class is assigned from presentation_percentile, same thresholds."""
-
-    PEPTIDES = ["ACDEFGHIK", "LMNPQRSTV", "YKLMFSTAV"]
-
-    @pytest.fixture(autouse=True)
-    def _patch_mhcflurry(self, monkeypatch):
-        import run_mhcflurry
-
-        def fake_predict(peptides, allele, predictor=None):
-            percentile = {"HLA-A*02:01": 0.3, "HLA-B*07:02": 1.5}.get(allele, 5.0)
-            ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(allele, 9999.0)
-            n = len(peptides)
-            return pd.DataFrame({
-                "peptide": peptides,
-                "affinity": [ic50] * n,
-                "affinity_percentile": [percentile] * n,
-                "processing_score": [0.8] * n,
-                "presentation_score": [0.9] * n,
-                "presentation_percentile": [percentile] * n,
-            })
-
-        monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
-        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_predict)
-        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", object())
-
-    def test_presentation_class_strong(self):
-        """presentation_percentile=0.3 → strong presentation_class."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["presentation_class"] == "strong").all()
-
-    def test_presentation_class_weak(self):
-        """presentation_percentile=1.5 → weak presentation_class."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["presentation_class"] == "weak").all()
-
-    def test_presentation_class_non(self):
-        """presentation_percentile=5.0 → non presentation_class."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
-        assert (df["presentation_class"] == "non").all()
 
 
 # ---------------------------------------------------------------------------
