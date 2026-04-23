@@ -12,13 +12,11 @@ Reference:
 
 The script:
   1. Reads junction-spanning peptides from the TSV produced by translate_peptides.py.
-  2. Runs MHCflurry Class1PresentationPredictor for each HLA allele, producing five
-     scores per peptide × allele: ic50_nM, affinity_percentile, processing_score,
-     presentation_score, presentation_percentile.
-  3. Assigns two classification labels using per-allele percentile thresholds:
-       binder_class        — based on affinity_percentile
-       presentation_class  — based on presentation_percentile
-     Both use the same strong/weak/non threshold pair (default 0.5% / 2.0%).
+  2. Runs MHCflurry Class1PresentationPredictor for each HLA allele, producing four
+     scores per peptide × allele: ic50_nM, processing_score, presentation_score,
+     presentation_percentile.
+  3. Assigns a presentation_class label (strong/weak/non) from presentation_percentile
+     using configurable thresholds (default strong ≤ 0.5%, weak ≤ 2.0%).
 
 Allele sources (in priority order):
   1. ``--alleles-tsv`` / ``snakemake.input.alleles_tsv`` — alleles.tsv from
@@ -27,9 +25,8 @@ Allele sources (in priority order):
      drawn from config.mhcflurry.fallback_alleles when HLA typing is disabled.
 
 Output TSV columns:
-  contig_key  start_nt  peptide  allele  ic50_nM  affinity_percentile
-  processing_score  presentation_score  presentation_percentile
-  binder_class  presentation_class
+  contig_key  start_nt  peptide  allele  ic50_nM
+  processing_score  presentation_score  presentation_percentile  presentation_class
 
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
@@ -156,9 +153,9 @@ def _run_mhcflurry_predictions(
         predictor: Pre-loaded Class1PresentationPredictor. Loaded fresh if None.
 
     Returns:
-        DataFrame with columns from Class1PresentationPredictor.predict_to_dataframe:
-        peptide, allele, affinity, affinity_percentile, processing_score,
-        presentation_score, presentation_percentile.
+        DataFrame from Class1PresentationPredictor.predict() with columns:
+        peptide, affinity, processing_score, presentation_score, presentation_percentile
+        (plus metadata columns best_allele/peptide_num/sample_name, dropped downstream).
     """
     if predictor is None:
         predictor = _load_mhcflurry_predictor()
@@ -167,7 +164,7 @@ def _run_mhcflurry_predictions(
 
     log.info("Running MHCflurry predictions for %d peptides...", len(peptides))
 
-    return predictor.predict_to_dataframe(
+    return predictor.predict(
         peptides=peptides,
         alleles=[mhcflurry_allele] * len(peptides),
     )
@@ -249,33 +246,26 @@ def _load_predictor_for_cpu() -> None:
 def _predict_allele_worker(
     allele: str,
     unique_peptides: list[str],
-    affinity_percentile_strong: float,
-    affinity_percentile_weak: float,
     presentation_percentile_strong: float,
     presentation_percentile_weak: float,
 ) -> "pd.DataFrame":
     """Predict binding for one allele; returns a lean per-allele DataFrame.
 
-    Columns: peptide, ic50_nM, affinity_percentile, processing_score,
-             presentation_score, presentation_percentile, allele,
-             binder_class, presentation_class.
+    Columns: peptide, ic50_nM, processing_score, presentation_score,
+             presentation_percentile, allele, presentation_class.
 
     peptides_df (with contig_key/start_nt) is kept in the parent process to
     avoid pickling it into every worker.
     """
     pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=_worker_predictor)
-    # Class1PresentationPredictor returns:
-    #   affinity (IC50 nM), affinity_percentile, processing_score,
-    #   presentation_score, presentation_percentile
+    # Class1PresentationPredictor.predict() returns:
+    #   affinity (IC50 nM), processing_score, presentation_score, presentation_percentile
+    #   (plus metadata columns best_allele/peptide_num/sample_name — dropped by slice)
     pred_df = pred_df.rename(columns={"affinity": "ic50_nM"})[
-        ["peptide", "ic50_nM", "affinity_percentile",
-         "processing_score", "presentation_score", "presentation_percentile"]
+        ["peptide", "ic50_nM", "processing_score", "presentation_score", "presentation_percentile"]
     ]
     pred_df["allele"] = allele
     pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
-    pred_df["binder_class"] = pred_df["affinity_percentile"].apply(
-        lambda v: classify_by_percentile(v, affinity_percentile_strong, affinity_percentile_weak)
-    )
     pred_df["presentation_class"] = pred_df["presentation_percentile"].apply(
         lambda v: classify_by_percentile(v, presentation_percentile_strong, presentation_percentile_weak)
     )
@@ -291,8 +281,6 @@ def run_prediction(
     output_tsv: str | Path,
     alleles: list[str] | None = None,
     alleles_tsv: str | None = None,
-    affinity_percentile_strong: float = 0.5,
-    affinity_percentile_weak: float = 2.0,
     presentation_percentile_strong: float = 0.5,
     presentation_percentile_weak: float = 2.0,
 ) -> None:
@@ -308,10 +296,8 @@ def run_prediction(
                                        alleles_tsv is provided.
         alleles_tsv:                   Path to alleles.tsv from aggregate_hla_alleles.
                                        Takes precedence over alleles.
-        affinity_percentile_strong:    Affinity percentile threshold for strong binder_class.
-        affinity_percentile_weak:      Affinity percentile threshold for weak binder_class.
-        presentation_percentile_strong: Presentation percentile threshold for strong presentation_class.
-        presentation_percentile_weak:  Presentation percentile threshold for weak presentation_class.
+        presentation_percentile_strong: Percentile threshold for strong presentation_class.
+        presentation_percentile_weak:  Percentile threshold for weak presentation_class.
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
@@ -343,9 +329,8 @@ def run_prediction(
         log.warning("No peptides found in %s", peptides_tsv)
         empty_df = pd.DataFrame(
             columns=["contig_key", "start_nt", "peptide", "allele",
-                     "ic50_nM", "affinity_percentile", "processing_score",
-                     "presentation_score", "presentation_percentile",
-                     "binder_class", "presentation_class"]
+                     "ic50_nM", "processing_score", "presentation_score",
+                     "presentation_percentile", "presentation_class"]
         )
         empty_df.to_csv(output_tsv, sep="\t", index=False)
         return
@@ -379,7 +364,6 @@ def run_prediction(
     pred_dfs = [
         _predict_allele_worker(
             allele, unique_peptides,
-            affinity_percentile_strong, affinity_percentile_weak,
             presentation_percentile_strong, presentation_percentile_weak,
         )
         for allele in resolved_alleles
@@ -392,21 +376,18 @@ def run_prediction(
     # Step 4: Write combined output
     df = pd.concat(allele_dfs, ignore_index=True)[
         ["contig_key", "start_nt", "peptide", "allele",
-         "ic50_nM", "affinity_percentile", "processing_score",
-         "presentation_score", "presentation_percentile",
-         "binder_class", "presentation_class"]
+         "ic50_nM", "processing_score", "presentation_score",
+         "presentation_percentile", "presentation_class"]
     ]
     df.to_csv(output_tsv, sep="\t", index=False)
     log.info(
         "Predictions: %d total (%d allele(s)), "
-        "%d strong/%d weak binder_class, "
-        "%d strong/%d weak presentation_class → %s",
+        "%d strong / %d weak / %d non presentation_class → %s",
         len(df),
         len(resolved_alleles),
-        (df["binder_class"] == "strong").sum(),
-        (df["binder_class"] == "weak").sum(),
         (df["presentation_class"] == "strong").sum(),
         (df["presentation_class"] == "weak").sum(),
+        (df["presentation_class"] == "non").sum(),
         output_tsv,
     )
 
@@ -427,8 +408,6 @@ def _snakemake_main() -> None:
         output_tsv=snakemake.output.mhc_affinity_tsv,  # type: ignore[name-defined]  # noqa: F821
         alleles=None if alleles_tsv else list(snakemake.params.fallback_alleles),  # type: ignore[name-defined]  # noqa: F821
         alleles_tsv=alleles_tsv,
-        affinity_percentile_strong=float(snakemake.params.affinity_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
-        affinity_percentile_weak=float(snakemake.params.affinity_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
     )
@@ -448,8 +427,6 @@ def _cli_main() -> None:
         "--alleles-tsv", default=None,
         help="Path to alleles.tsv from aggregate_hla_alleles (overrides --alleles).",
     )
-    parser.add_argument("--affinity-percentile-strong", type=float, default=0.5)
-    parser.add_argument("--affinity-percentile-weak", type=float, default=2.0)
     parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     args = parser.parse_args()
@@ -462,8 +439,6 @@ def _cli_main() -> None:
         output_tsv=args.output,
         alleles=args.alleles,
         alleles_tsv=args.alleles_tsv,
-        affinity_percentile_strong=args.affinity_percentile_strong,
-        affinity_percentile_weak=args.affinity_percentile_weak,
         presentation_percentile_strong=args.presentation_percentile_strong,
         presentation_percentile_weak=args.presentation_percentile_weak,
     )
