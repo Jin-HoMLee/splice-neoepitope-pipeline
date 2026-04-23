@@ -2,6 +2,49 @@
 
 ---
 
+## 2026-04-23
+
+### 09:40 UTC
+
+#### Issue #105 — GPU MHCflurry validation (patient_001)
+
+**Goal:** Validate that MHCflurry runs correctly on the P100 GPU and measure the speedup vs CPU baseline.
+
+**Run:** patient_001 (SRR37781424, Luminal A breast cancer) on `neoepitope-pipeline` VM (n1-highmem-8 + P100, europe-west1-b).
+
+| Timestamp (UTC) | Event |
+|---|---|
+| 09:16:25 | Snakemake started |
+| 09:18:42 | Conda env activated, alleles loaded |
+| 09:18:46 | GPU detected — sequential execution path selected |
+| 09:18:54 | HLA-A\*31:01 started |
+| 09:21:40 | HLA-A\*26:01 started (2m46s) |
+| 09:24:24 | HLA-B\*18:01 started (2m44s) |
+| 09:27:09 | HLA-B\*15:63 started (2m45s) |
+| 09:29:53 | HLA-C\*07:01 started (2m44s) |
+| 09:32:37 | HLA-C\*03:03 started (2m44s) |
+| 09:36:15 | All 6 alleles complete (3m38s for last) |
+| 09:36:33 | Report generated, pipeline done |
+
+**Results:**
+
+- Total predictions: 7,718,952 (1,260,074 unique peptides × 6 alleles)
+- Strong binders (IC50 ≤ 50 nM): 15,880
+- Weak binders (IC50 ≤ 500 nM): 149,662
+- **Total MHCflurry time: ~17m21s vs CPU baseline ~1.5 hours → ~5.2× speedup on P100**
+
+**Why not 10–50× as estimated?** Sequential allele execution (one CUDA context, one model in VRAM) — can't parallelise alleles because each would require a separate model copy in the 16 GB P100 VRAM. GPU parallelism applies within each allele's `predict_to_dataframe()` call (all 1.26M peptides at once), not across alleles.
+
+**Infrastructure issues resolved during development (branch `feat/issue-105-gpu-mhcflurry`):**
+
+1. **`hisat2.yaml` samtools/libdeflate conflict:** `regtools >=1.0.0` requires `libdeflate >=1.26`; no bioconda linux-64 samtools/htslib build is compiled against it. Removed samtools from conda env; pipeline uses system apt samtools 1.13 instead.
+2. **`ProcessPoolExecutor` OOM on CPU:** 6 workers × full model (~8 GB RAM each) = ~48 GB on a 52 GB VM → BrokenProcessPool. Fixed by removing the process pool entirely — sequential execution on both CPU and GPU paths.
+3. **NVIDIA driver 580 incompatible with P100:** Driver 580 requires GSP firmware; P100 (Pascal, SM 6.0) lacks it. Fixed by in-place downgrade to driver 570 (`apt-get install nvidia-driver-570-server && purge *580* && reboot`) — no VM deletion needed.
+4. **PyTorch SM 6.0 mismatch:** PyTorch 2.5+ dropped SM 6.0 (P100/Pascal) support. Pinned `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1). Also rewrote `_has_gpu()` to use a PyTorch smoke-test kernel instead of TensorFlow — TF reported GPU available even when PyTorch kernels would fail on SM mismatch.
+5. **Orphan sentinel file:** `.snakemake/conda/080a2daa..._.env_setup_done` existed without the actual env directory → Snakemake skipped rebuild → `ModuleNotFoundError: No module named 'mhcflurry'`. Fixed by deleting the orphan sentinel.
+
+---
+
 ## 2026-04-22
 
 ### Issue #105 — GPU MHCflurry: CUDA architecture notes
