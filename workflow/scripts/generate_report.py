@@ -404,7 +404,7 @@ def _build_strong_table_html(
     """Build the top strong presentations table sorted by presentation_percentile."""
     strong_df = (
         pred_df[pred_df["presentation_class"] == "strong"]
-        .sort_values(["presentation_percentile", "affinity_percentile"])
+        .sort_values("presentation_percentile")
     )
     if strong_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
@@ -424,7 +424,6 @@ def _build_strong_table_html(
             f"<td>{html_mod.escape(str(row['peptide']))}</td>"
             f"<td>{html_mod.escape(str(row['allele']))}</td>"
             f"<td>{row['presentation_percentile']:.3f}</td>"
-            f"<td>{row['affinity_percentile']:.3f}</td>"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{contig_html}</td>"
             f"</tr>"
@@ -439,7 +438,6 @@ def _build_strong_table_html(
         f"<table><thead><tr>"
         f"<th>Source</th><th>Peptide</th><th>Allele</th>"
         f"<th title='Presentation percentile rank — lower is better'>Pres. %ile ▾</th>"
-        f"<th title='Affinity percentile rank — lower is better'>Aff. %ile</th>"
         f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
@@ -485,7 +483,7 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
     # Match run_tcrdock.py's candidate selection: best strong binder, falling
     # back to weak. Exclude non-binders to stay in sync.
     binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))]
-    top = binders.sort_values(["presentation_percentile", "affinity_percentile"]).head(1)
+    top = binders.sort_values("presentation_percentile").head(1)
     if top.empty:
         peptide, allele = "NA", "NA"
     else:
@@ -564,7 +562,7 @@ def _build_report_tsv(
     # --- top_candidate ---
     strong_df = (
         pred_df[pred_df["presentation_class"].isin(["strong", "weak"])]
-        .sort_values(["presentation_percentile", "affinity_percentile"])
+        .sort_values("presentation_percentile")
         if not pred_df.empty else pd.DataFrame()
     )
     if not strong_df.empty:
