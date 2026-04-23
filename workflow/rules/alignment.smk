@@ -90,12 +90,16 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 os.path.join(_LOGS, "alignment", "hisat2_index.log"),
             params:
                 url=_HISAT2_PREBUILT_URL,
+            resources:
+                mem_mb=1000,
             shell:
                 """
                 set -euo pipefail
                 mkdir -p {output.index_dir}
-                curl --fail -L --progress-bar {params.url} \
-                    | tar -xz --strip-components=1 -C {output.index_dir} \
+                ( curl --fail -L --no-progress-meter \
+                    --retry 3 --retry-connrefused --retry-delay 5 \
+                    {params.url} \
+                    | tar -xz --strip-components=1 -C {output.index_dir} ) \
                     2>&1 | tee {log}
                 """
 
