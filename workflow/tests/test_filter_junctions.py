@@ -471,3 +471,29 @@ class TestClassifyJunctionsReadingFrame:
         )
         df = self._read_output(output)
         assert set(df.iloc[0]["reading_frame"].split(",")) == {"0", "1"}
+
+    def test_minus_strand_reading_frame_annotated(self, tmp_path):
+        # − strand: donor_coord = junction.end = cds_exon_start0
+        # Junction chr1:100:201:- → end=201, donor_coord=201
+        # CDS: start=202 (1-based) → start0=201, end0=300, len=99, frame=0
+        # phase=(99-0)%3=0, offset=(-0)%3=0 → reading_frame "0"
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:100:201:-", 100), ("chr1:400:500:-", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [
+            {"chrom": "chr1", "feature": "CDS", "start": 202, "end": 300,
+             "strand": "-", "frame": 0, "gene_id": "G1"},
+        ])
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output, gencode_gtf=gtf,
+        )
+        df = self._read_output(output)
+        matched = df[df["junction_origin"] == "tumor_exclusive"]
+        assert matched.iloc[0]["reading_frame"] == "0"
