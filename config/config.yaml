@@ -102,10 +102,7 @@ mhcflurry:
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
   threads: 8                  # parallel allele predictions (n1-standard-8)
-  # Percentile thresholds for classification (lower = better, per allele).
-  # binder_class uses affinity_percentile; presentation_class uses presentation_percentile.
-  affinity_percentile_strong:      0.5   # top 0.5% by IC50 → strong
-  affinity_percentile_weak:        2.0   # top 2.0% by IC50 → weak
+  # Percentile thresholds for presentation_class (lower = better, per allele).
   presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong
   presentation_percentile_weak:    2.0   # top 2.0% by presentation score → weak
 
