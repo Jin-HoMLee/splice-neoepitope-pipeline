@@ -8,7 +8,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 
 ## Infrastructure
 - Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
-- Current production VM: `neoepitope-predict-cpu`, `europe-west1-b` (zone varies by quota availability; us-central1 has been exhausted in the past)
+- Current production VMs: `neoepitope-pipeline` (n1-highmem-8 + P100, Phase 1), `pipeline-spot-gpu` (n1-standard-4 + P100, Phase 3); zone `europe-west1-b` (us-central1 has been exhausted in the past)
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 
 ## Pipeline Design Decisions
@@ -58,6 +58,15 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 ### `run_mhcflurry.py` — mhcflurry 2.2.0 API change
 mhcflurry 2.2.0 changed `predict()` to return a raw numpy array instead of a DataFrame.
 **Fix:** use `predict_to_dataframe()` instead.
+
+### `python.yaml` — PyTorch SM 6.0 / P100 compatibility
+PyTorch 2.5+ dropped SM 6.0 (Pascal) support. On a P100, `torch.cuda.is_available()` still returns `True` but kernel dispatch fails silently or with a cryptic error.
+**Fix:** pin `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1 which includes SM 6.0 kernels).
+`_has_gpu()` in `run_mhcflurry.py` uses a PyTorch smoke-test kernel (not TensorFlow) to catch this case: `torch.nn.functional.relu(torch.zeros(2, device="cuda"))`. TF reported GPU available even when PyTorch kernels would fail — both must work because MHCflurry 2.2.x uses PyTorch for inference.
+
+### `run_mhcflurry.py` — no ProcessPoolExecutor with GPU
+Running MHCflurry alleles in parallel with `ProcessPoolExecutor` crashes on GPU: each worker process initialises its own CUDA context, competing for the same device. Even on CPU, 6 workers × ~8 GB model = ~48 GB RAM → OOM on a 52 GB VM.
+**Fix:** sequential execution in the main process. GPU parallelism applies within each allele's `predict_to_dataframe()` call (all 1.26M peptides batched at once).
 
 ## sra-tools Note
 Use version `3.1.1` on GCP VMs — newer versions (3.4.x) have a segfault bug.

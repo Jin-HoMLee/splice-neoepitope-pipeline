@@ -438,9 +438,9 @@ for running the pipeline with TCRdock structural validation:
 
 | Phase | VM | What happens |
 |-------|-----|-------------|
-| **1 — CPU** | `neoepitope-predict-cpu` | Steps 1–5 (alignment → MHCflurry) |
-| **2 — Copy** | GCS bucket | Results uploaded; CPU VM stopped |
-| **3 — GPU** | `mhc-p-tcr-structure-spot-gpu` (Spot T4) | TCRdock + report; results uploaded; VM auto-stops |
+| **1 — Pipeline** | `neoepitope-pipeline` (n1-highmem-8 + P100) | Alignment → MHCflurry (GPU-accelerated) |
+| **2 — Copy** | GCS bucket | Results uploaded; pipeline VM stopped |
+| **3 — GPU** | `pipeline-spot-gpu` (n1-standard-4 + P100) | TCRdock + report; results uploaded; VM auto-stops |
 
 ### Quick start
 
@@ -456,6 +456,9 @@ bash scripts/run_cloud_gpu.sh --mode test --detach
 
 # Specify branch and zone
 bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west1-b
+
+# Keep VMs running after exit (useful for debugging — stop manually when done)
+bash scripts/run_cloud_gpu.sh --mode test --keep-vm
 ```
 
 ### Retrieving results
@@ -471,11 +474,9 @@ open reports/report.html      # interactive HTML report
 
 ### How it works
 
-1. **CPU VM** is created (or started) automatically. `setup_cloud.sh` installs
-   conda + Snakemake. The pipeline runs steps 1–5 in a tmux session while the
-   script polls `pipeline.log` for completion.
-2. Results are uploaded to `gs://splice-neoepitope-project/` and the CPU VM is stopped.
-3. A **GPU Spot VM** (n1-standard-4 + NVIDIA T4) is created.
+1. **Pipeline VM** (`neoepitope-pipeline`, n1-highmem-8 + P100) is created or started. `setup_cloud.sh` installs conda + Snakemake + system samtools. The pipeline runs alignment through MHCflurry (GPU-accelerated) in a tmux session while the script polls `pipeline.log` for completion.
+2. Results are uploaded to `gs://splice-neoepitope-project/` and the pipeline VM is stopped.
+3. A **GPU Spot VM** (`pipeline-spot-gpu`, n1-standard-4 + P100) is created.
    `setup_tcrdock_vm.sh` builds the TCRdock Docker image (~25 GB: CUDA 11.8,
    AlphaFold params, BLAST). Results are downloaded from GCS via `gcloud storage rsync`
    (checksum-based — unchanged files keep their mtime so Snakemake skips them).
@@ -492,11 +493,11 @@ orchestrator manages everything and shuts itself down when done.
 
 | Component | Duration | Hourly rate | Total |
 |-----------|----------|-------------|-------|
-| CPU VM (n1-standard-4) | ~1–3 hr | ~$0.19 | ~$0.20–0.60 |
-| GPU Spot VM (n1-standard-4 + T4) | ~30 min | ~$0.35 (Spot) | ~$0.20 |
+| Pipeline VM (n1-highmem-8 + P100) | ~2–4 hr | ~$1.10 | ~$2.20–4.40 |
+| GPU Spot VM (n1-standard-4 + P100) | ~30 min | ~$0.90 (Spot) | ~$0.45 |
 | GCS bucket storage | — | negligible | — |
-| Orchestrator (e2-micro, detach only) | ~2–4 hr | ~$0.01 | ~$0.02 |
-| **Total (test run)** | | | **~$0.40–0.80** |
+| Orchestrator (e2-micro, detach only) | ~3–5 hr | ~$0.01 | ~$0.03 |
+| **Total (test run)** | | | **~$2.65–4.85** |
 
 ---
 
