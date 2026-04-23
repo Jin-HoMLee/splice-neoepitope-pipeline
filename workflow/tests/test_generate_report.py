@@ -123,16 +123,23 @@ def _make_origin_df(tumor_exclusive: int = 5, normal_shared: int = 2) -> pd.Data
 
 
 def _make_pred_df(n_strong: int = 3, n_weak: int = 1, n_non: int = 10) -> pd.DataFrame:
+    # presentation_percentile increases with index so PEP0 is always the top candidate
     rows = (
         [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(i + 1),
-          "binder_class": "strong", "contig_key": f"k{i}", "start_nt": 0,
-          "percentile_rank": 0.5} for i in range(n_strong)]
+          "processing_score": 0.8, "presentation_score": 0.9,
+          "presentation_percentile": 0.1 * (i + 1),
+          "presentation_class": "strong", "contig_key": f"k{i}", "start_nt": 0,
+          } for i in range(n_strong)]
         + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(100 + i),
-            "binder_class": "weak", "contig_key": f"k{i}", "start_nt": 0,
-            "percentile_rank": 1.5} for i in range(n_weak)]
+            "processing_score": 0.7, "presentation_score": 0.6,
+            "presentation_percentile": 1.0 + 0.1 * i,
+            "presentation_class": "weak", "contig_key": f"k{i}", "start_nt": 0,
+            } for i in range(n_weak)]
         + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(1000 + i),
-            "binder_class": "non", "contig_key": f"k{i}", "start_nt": 0,
-            "percentile_rank": 10.0} for i in range(n_non)]
+            "processing_score": 0.5, "presentation_score": 0.3,
+            "presentation_percentile": 3.0 + 0.1 * i,
+            "presentation_class": "non", "contig_key": f"k{i}", "start_nt": 0,
+            } for i in range(n_non)]
     )
     return pd.DataFrame(rows)
 
@@ -146,26 +153,26 @@ class TestBuildReportTsv:
             pred_df=_make_pred_df(),
             hla_qc_tsv=None,
             output_tsv=out,
-            ic50_strong=50.0,
+            presentation_percentile_strong=0.5,
             tcrdock_pdb=None,
         )
         assert out.exists()
 
     def test_output_has_expected_columns(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         assert list(df.columns) == ["patient_id", "stage", "metric", "value", "notes"]
 
     def test_patient_id_in_every_row(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("patient_007", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        _build_report_tsv("patient_007", _make_origin_df(), _make_pred_df(), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         assert (df["patient_id"] == "patient_007").all()
 
     def test_junction_filtering_rows_present(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(tumor_exclusive=7, normal_shared=3), _make_pred_df(), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(tumor_exclusive=7, normal_shared=3), _make_pred_df(), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         jf = df[df["stage"] == "junction_filtering"]
         te_row = jf[jf["metric"] == "tumor_exclusive"]
@@ -173,21 +180,21 @@ class TestBuildReportTsv:
 
     def test_mhc_prediction_counts_correct(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=4, n_weak=2, n_non=5), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=4, n_weak=2, n_non=5), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         mhc = df[df["stage"] == "mhc_prediction"]
         assert int(mhc[mhc["metric"] == "strong"]["value"].iloc[0]) == 4
         assert int(mhc[mhc["metric"] == "non"]["value"].iloc[0]) == 5
         assert int(mhc[mhc["metric"] == "total_predictions"]["value"].iloc[0]) == 11
 
-    def test_top_candidate_is_lowest_ic50(self, tmp_path):
+    def test_top_candidate_is_lowest_presentation_percentile(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=3), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(n_strong=3), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         tc = df[df["stage"] == "top_candidate"]
         peptide = tc[tc["metric"] == "peptide"]["value"].iloc[0]
-        ic50 = float(tc[tc["metric"] == "ic50_nM"]["value"].iloc[0])
-        assert ic50 == pytest.approx(1.0)
+        pres_pct = float(tc[tc["metric"] == "presentation_percentile"]["value"].iloc[0])
+        assert pres_pct == pytest.approx(0.1)
         assert peptide == "PEP0"
 
     def test_hla_typing_rows_from_qc_tsv(self, tmp_path):
@@ -199,7 +206,7 @@ class TestBuildReportTsv:
         ])
         hla_df.to_csv(hla_tsv, sep="\t", index=False)
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), str(hla_tsv), out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), str(hla_tsv), out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         hla = df[df["stage"] == "hla_typing"]
         assert len(hla) == 1
@@ -209,7 +216,7 @@ class TestBuildReportTsv:
 
     def test_tcrdock_pdb_available_false_when_no_pdb(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         row = df[(df["stage"] == "tcrdock") & (df["metric"] == "pdb_available")]
         assert row["value"].iloc[0] == "false"
@@ -218,14 +225,14 @@ class TestBuildReportTsv:
         pdb = tmp_path / "model.pdb"
         pdb.write_text("ATOM\n")
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 50.0, pdb)
+        _build_report_tsv("p001", _make_origin_df(), _make_pred_df(), None, out, 0.5, pdb)
         df = pd.read_csv(out, sep="\t")
         row = df[(df["stage"] == "tcrdock") & (df["metric"] == "pdb_available")]
         assert row["value"].iloc[0] == "true"
 
     def test_empty_predictions_skips_mhc_and_top_candidate(self, tmp_path):
         out = tmp_path / "report.tsv"
-        _build_report_tsv("p001", _make_origin_df(), pd.DataFrame(), None, out, 50.0, None)
+        _build_report_tsv("p001", _make_origin_df(), pd.DataFrame(), None, out, 0.5, None)
         df = pd.read_csv(out, sep="\t")
         assert df[df["stage"] == "mhc_prediction"].empty
         assert df[df["stage"] == "top_candidate"].empty

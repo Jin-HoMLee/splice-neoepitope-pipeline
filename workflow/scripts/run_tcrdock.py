@@ -19,15 +19,16 @@ so local / CPU-only runs are unaffected.
 
 Candidate selection
 -------------------
-Currently selects the top N strong binders by IC50 (MHCflurry). Once
-TRUST4 + ProTCR (#24) is implemented, selection should switch to the top
-ProTCR-ranked candidates instead.
+Currently selects the top N strong binders by presentation_percentile
+(MHCflurry Class1PresentationPredictor). Once TRUST4 + ProTCR (#24) is
+implemented, selection should switch to the top ProTCR-ranked candidates instead.
 
 Inputs
 ------
   predictions_tsv: MHCflurry predictions TSV
                    (columns: contig_key, start_nt, peptide, allele,
-                    ic50_nM, percentile_rank, binder_class)
+                    ic50_nM, processing_score, presentation_score,
+                    presentation_percentile, presentation_class)
 
 Outputs
 -------
@@ -70,10 +71,10 @@ def select_top_candidates(
     predictions_tsv: str | Path,
     n_candidates: int = 1,
 ) -> pd.DataFrame:
-    """Select the top N strong binders by IC50 from MHCflurry predictions.
+    """Select the top N strong binders by presentation_percentile from MHCflurry predictions.
 
-    TODO (#24): Once ProTCR scores are available, replace IC50 ranking with
-    ProTCR score ranking to select the most immunogenic candidates rather than
+    TODO (#24): Once ProTCR scores are available, replace presentation_percentile ranking
+    with ProTCR score ranking to select the most immunogenic candidates rather than
     just the best MHC binders.
 
     Args:
@@ -81,13 +82,13 @@ def select_top_candidates(
         n_candidates:    Number of candidates to return.
 
     Returns:
-        DataFrame of top candidates, sorted by ic50_nM ascending.
+        DataFrame of top candidates, sorted by presentation_percentile ascending.
     """
     df = pd.read_csv(predictions_tsv, sep="\t")
-    strong = df[df["binder_class"] == "strong"].sort_values("ic50_nM")
+    strong = df[df["presentation_class"] == "strong"].sort_values("presentation_percentile")
     if strong.empty:
         log.warning("No strong binders found — trying weak binders as fallback.")
-        strong = df[df["binder_class"] == "weak"].sort_values("ic50_nM")
+        strong = df[df["presentation_class"] == "weak"].sort_values("presentation_percentile")
     if strong.empty:
         log.error("No strong or weak binders found. Cannot run TCRdock.")
         return pd.DataFrame()

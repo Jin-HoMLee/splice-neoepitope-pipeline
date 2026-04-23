@@ -201,3 +201,47 @@ results should be interpreted with this caveat.
 If a matched RNA-seq sample becomes available from the osteosarcoma dataset in the
 future, the pipeline can be re-run with the normal to apply the full junction-level
 filter.
+
+---
+
+## MHC binding prediction: composite presentation score over affinity-only
+
+Early versions of the pipeline used `Class1AffinityPredictor` and classified peptides
+solely by IC50 (strong ≤ 50 nM, weak ≤ 500 nM). This is the most widely reported
+metric but has a well-documented limitation: MHC binding affinity is necessary but
+not sufficient for surface presentation. A peptide must also survive proteasomal
+cleavage and TAP transport to reach the ER, and a high-affinity peptide that is
+degraded in the cytosol will never be displayed to T cells.
+
+MHCflurry 2.0 introduced `Class1PresentationPredictor`, which combines the affinity
+model with an antigen processing model trained on mass spectrometry-identified
+MHC ligands (O'Donnell et al., 2020, *Cell Systems*). The composite `presentation_score`
+and its per-allele `presentation_percentile` have been shown to reduce false positives
+from well-bound but poorly processed peptides.
+
+### Why we use the composite predictor exclusively
+
+Rather than offering an affinity/presentation mode switch, the pipeline always uses
+`Class1PresentationPredictor`. This gives four scores per peptide:
+
+- `ic50_nM` — binding affinity (informational)
+- `processing_score` — antigen processing efficiency (informational)
+- `presentation_score` and `presentation_percentile` — composite metric, primary
+
+A single classification label `presentation_class` is derived from `presentation_percentile`
+(lower = better): strong (≤ 0.5%), weak (≤ 2%), non (> 2%). The predictor's genotype API
+returns one prediction per peptide — the best-allele score across the patient's HLA-A/B/C
+alleles.
+
+The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communications
+Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional
+affinity-percentile cutoff applied in the field.
+
+Epitopes are ranked by `presentation_percentile` (ascending), prioritising candidates
+that are both strongly bound and well processed — the subset most likely to be immunogenic.
+
+Note: `affinity_percentile` is not included in the output because
+`Class1PresentationPredictor.predict()` (MHCflurry 2.2.x) does not expose it directly.
+Obtaining it would require a second sequential call to `Class1AffinityPredictor`,
+doubling inference time with no gain — `presentation_percentile` already captures the
+affinity signal as part of the composite model.

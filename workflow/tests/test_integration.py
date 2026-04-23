@@ -31,7 +31,7 @@ PATIENT_ID = _first_patient_id()
 RESULTS = REPO_ROOT / "results" / PATIENT_ID
 
 VALID_JUNCTION_ORIGINS = {"tumor_exclusive", "normal_shared"}
-VALID_BINDER_CLASSES = {"strong", "weak", "non"}
+VALID_PRESENTATION_CLASSES = {"strong", "weak", "non"}
 VALID_SAMPLE_TYPES = {"Primary Tumor", "Solid Tissue Normal", "Blood Derived Normal"}
 AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")
 
@@ -146,10 +146,12 @@ class TestPredictions:
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
         assert len(rows) > 0
 
-    def test_binder_classes_are_valid(self):
+    def test_presentation_classes_are_valid(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
-        classes = {r["binder_class"] for r in rows}
-        assert classes <= VALID_BINDER_CLASSES
+        if not rows or "presentation_class" not in rows[0]:
+            pytest.skip("predictions use old schema — re-run pipeline to update")
+        classes = {r["presentation_class"] for r in rows}
+        assert classes <= VALID_PRESENTATION_CLASSES
 
     def test_ic50_values_are_positive(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
@@ -159,23 +161,35 @@ class TestPredictions:
     def test_all_predictions_have_required_columns(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
         assert rows, "mhc_affinity.tsv is empty"
-        required = {"peptide", "allele", "ic50_nM", "binder_class"}
+        if "presentation_class" not in rows[0]:
+            pytest.skip("predictions use old schema — re-run pipeline to update")
+        required = {
+            "peptide", "allele", "ic50_nM",
+            "processing_score", "presentation_score",
+            "presentation_percentile", "presentation_class",
+        }
         assert required <= set(rows[0].keys())
 
-    def test_strong_binders_below_ic50_threshold(self):
+    def test_strong_presentations_have_low_percentile(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        if not rows or "presentation_class" not in rows[0]:
+            pytest.skip("predictions use old schema — re-run pipeline to update")
         for r in rows:
-            if r["binder_class"] == "strong":
-                assert float(r["ic50_nM"]) <= 50, (
-                    f"Strong binder above 50 nM threshold: {r['peptide']} {r['ic50_nM']}"
+            if r["presentation_class"] == "strong":
+                assert float(r["presentation_percentile"]) <= 0.5, (
+                    f"Strong presentation above 0.5% threshold: "
+                    f"{r['peptide']} {r['presentation_percentile']}"
                 )
 
-    def test_non_binders_above_weak_threshold(self):
+    def test_non_presentations_have_high_percentile(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        if not rows or "presentation_class" not in rows[0]:
+            pytest.skip("predictions use old schema — re-run pipeline to update")
         for r in rows:
-            if r["binder_class"] == "non":
-                assert float(r["ic50_nM"]) > 500, (
-                    f"Non-binder below 500 nM threshold: {r['peptide']} {r['ic50_nM']}"
+            if r["presentation_class"] == "non":
+                assert float(r["presentation_percentile"]) > 2.0, (
+                    f"Non-presentation below 2.0% threshold: "
+                    f"{r['peptide']} {r['presentation_percentile']}"
                 )
 
 
