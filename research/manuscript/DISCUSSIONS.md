@@ -229,7 +229,9 @@ Rather than offering an affinity/presentation mode switch, the pipeline always u
 - `presentation_score` and `presentation_percentile` — composite metric, primary
 
 A single classification label `presentation_class` is derived from `presentation_percentile`
-(per allele, lower = better): strong (≤ 0.5%), weak (≤ 2%), non (> 2%).
+(lower = better): strong (≤ 0.5%), weak (≤ 2%), non (> 2%). The predictor's genotype API
+returns one prediction per peptide — the best-allele score across the patient's HLA-A/B/C
+alleles.
 
 The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communications
 Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional

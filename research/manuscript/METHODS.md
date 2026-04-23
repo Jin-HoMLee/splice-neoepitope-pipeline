@@ -140,10 +140,11 @@ chimeric codon rationale.
 
 Junction-spanning peptides are scored using MHCflurry 2.x `Class1PresentationPredictor`,
 a composite model that integrates MHC class I binding affinity with antigen processing
-predictions (proteasomal cleavage, TAP transport). Predictions are run for each
-patient-specific HLA allele resolved by OptiType, producing one row per peptide × allele
-combination. All alleles are run sequentially in the main process to avoid competing CUDA
-contexts on GPU and OOM errors from loading multiple model copies on CPU.
+predictions (proteasomal cleavage, TAP transport). `Class1PresentationPredictor.predict()`
+accepts the full patient HLA genotype (all HLA-A/B/C alleles at once, ≤6) and returns one
+best-allele prediction per peptide — the allele with the highest presentation score for
+that peptide. This is the predictor's intended genotype-level API; it is not a per-allele
+loop.
 
 Each prediction row contains four informative scores:
 
@@ -189,7 +190,7 @@ visualisation via Mol\* 4.x.
 | `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
 | `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
 | `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
-| `results/predictions/{patient_id}/mhc_affinity.tsv` | All peptide × allele predictions: ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
+| `results/predictions/{patient_id}/mhc_affinity.tsv` | Best-allele prediction per peptide: allele (best presenter in patient genotype), ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
 | `results/predictions/{patient_id}/tcrdock/top_candidate.pdb` | Predicted TCR–peptide–MHC ternary complex (PDB) |
 | `results/predictions/{patient_id}/tcrdock/docking_scores.tsv` | TCRdock geometry metrics |
 | `results/reports/{patient_id}/report.html` | Summary HTML report with HLA QC and Mol\* viewer |
