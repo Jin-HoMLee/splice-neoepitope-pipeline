@@ -66,7 +66,7 @@ RNA-Seq FASTQ files
   Junction-spanning 9-mers (3 reading frames, complete-codon filter)
         │
         ▼ Step 5: Predict
-  MHCflurry 2.x → IC50 binding affinities per 9-mer × allele
+  MHCflurry 2.x Class1PresentationPredictor → presentation_score + IC50 per peptide (best allele)
         │
         ▼ Step 6: TCRdock structural validation (optional, GPU)
   TCR-peptide-MHC ternary complex 3D structure (AlphaFold v2 backend)
@@ -87,8 +87,8 @@ conda activate snakemake
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 ```
 
-Expected output: ~372 unannotated junctions → ~75 contigs → ~52 strong binders
-across 6 patient-specific HLA alleles.
+Expected output: ~372 unannotated junctions → ~75 contigs → ~147 strong presenters
+(best allele across 6 patient-specific HLA-A/B/C alleles).
 
 ### Cloud run (full genome + TCRdock, ~4–6 hours)
 
@@ -233,7 +233,7 @@ results/
     ├── peptides/
     │   └── peptides.tsv              # Junction-spanning 9-mers
     ├── predictions/
-    │   ├── mhc_affinity.tsv          # MHCflurry results (one row per 9-mer × allele)
+    │   ├── mhc_affinity.tsv          # MHCflurry results (one row per peptide, best allele)
     │   └── tcrdock/                  # (when TCRdock is enabled)
     │       ├── top_candidate.pdb     # Predicted TCR-pMHC ternary complex
     │       └── docking_scores.tsv    # pLDDT/PAE quality metrics
