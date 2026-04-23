@@ -126,18 +126,18 @@ def _make_pred_df(n_strong: int = 3, n_weak: int = 1, n_non: int = 10) -> pd.Dat
     # presentation_percentile increases with index so PEP0 is always the top candidate
     rows = (
         [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(i + 1),
-          "affinity_percentile": 0.1 * (i + 1), "processing_score": 0.8,
-          "presentation_score": 0.9, "presentation_percentile": 0.1 * (i + 1),
+          "processing_score": 0.8, "presentation_score": 0.9,
+          "presentation_percentile": 0.1 * (i + 1),
           "presentation_class": "strong", "contig_key": f"k{i}", "start_nt": 0,
           } for i in range(n_strong)]
         + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(100 + i),
-            "affinity_percentile": 1.0 + 0.1 * i, "processing_score": 0.7,
-            "presentation_score": 0.6, "presentation_percentile": 1.0 + 0.1 * i,
+            "processing_score": 0.7, "presentation_score": 0.6,
+            "presentation_percentile": 1.0 + 0.1 * i,
             "presentation_class": "weak", "contig_key": f"k{i}", "start_nt": 0,
             } for i in range(n_weak)]
         + [{"peptide": f"PEP{i}", "allele": "HLA-A*02:01", "ic50_nM": float(1000 + i),
-            "affinity_percentile": 3.0 + 0.1 * i, "processing_score": 0.5,
-            "presentation_score": 0.3, "presentation_percentile": 3.0 + 0.1 * i,
+            "processing_score": 0.5, "presentation_score": 0.3,
+            "presentation_percentile": 3.0 + 0.1 * i,
             "presentation_class": "non", "contig_key": f"k{i}", "start_nt": 0,
             } for i in range(n_non)]
     )
