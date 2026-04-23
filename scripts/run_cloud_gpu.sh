@@ -317,6 +317,15 @@ wait_for_ssh "${PIPELINE_VM}"
 log "Running setup_cloud.sh on ${PIPELINE_VM}..."
 ssh_cmd "${PIPELINE_VM}" -- bash -s -- --repo-branch "${BRANCH}" --no-next-steps < scripts/setup_cloud.sh
 
+log "Cleaning up stale conda environments on ${PIPELINE_VM}..."
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+source "\$HOME/miniforge3/etc/profile.d/conda.sh"
+conda activate snakemake
+snakemake --conda-cleanup-envs --configfile ${CONFIG_FILE} --config samples_tsv=${SAMPLES}
+EOF
+
 if [[ -n "${PREPARE_DATA_SCRIPT}" ]]; then
     log "Preparing data on ${PIPELINE_VM} (${PREPARE_DATA_SCRIPT})..."
     ssh_cmd "${PIPELINE_VM}" -- bash -s <<REMOTE
