@@ -31,6 +31,7 @@ reference:
 
 alignment:
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
+  hisat2_prebuilt_url: ""                            # build from chr22 FASTA (no pre-built available)
   star_index_dir: "resources/test/star_index"        # separate from production index
   threads: 4      # M1 MacBook Air (8 GB RAM) — leave headroom for other processes
 

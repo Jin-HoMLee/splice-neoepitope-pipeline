@@ -74,37 +74,68 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     _HISAT2_INDEX_DIR = config.get("alignment", {}).get(
         "hisat2_index_dir", "resources/hisat2_index"
     )
+    _HISAT2_PREBUILT_URL = config.get("alignment", {}).get("hisat2_prebuilt_url", "")
 
-    rule hisat2_index:
-        """Build HISAT2 genome index (one-time; reused for all samples).
+    if _HISAT2_PREBUILT_URL:
+        # genome_tran index: GRCh38 + GENCODE splice sites baked in.
+        # Files unpack as genome_tran.N.ht2 directly into the index dir.
+        _HISAT2_INDEX_PREFIX = os.path.join(_HISAT2_INDEX_DIR, "genome_tran")
 
-        Requires ~8 GB RAM for the full human genome, or ~1 GB for a
-        single-chromosome test reference (e.g. chr22).
-        """
-        input:
-            genome=config["reference"]["genome_fasta"],
-        output:
-            index_dir=directory(_HISAT2_INDEX_DIR),
-            done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
-        log:
-            os.path.join(_LOGS, "alignment", "hisat2_index.log"),
-        threads: config.get("alignment", {}).get("threads", 8)
-        resources:
-            mem_mb=8000,
-        conda:
-            "../envs/hisat2.yaml"
-        params:
-            index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
-        shell:
+        rule hisat2_download_index:
+            """Download pre-built HISAT2 GRCh38 index (genome_tran, with splice sites)."""
+            output:
+                index_dir=directory(_HISAT2_INDEX_DIR),
+                done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
+            log:
+                os.path.join(_LOGS, "alignment", "hisat2_index.log"),
+            params:
+                url=_HISAT2_PREBUILT_URL,
+            resources:
+                mem_mb=1000,
+            shell:
+                """
+                set -euo pipefail
+                mkdir -p {output.index_dir}
+                ( curl --fail -L --no-progress-meter \
+                    --retry 3 --retry-connrefused --retry-delay 5 \
+                    {params.url} \
+                    | tar -xz --strip-components=1 -C {output.index_dir} ) \
+                    2>&1 | tee {log}
+                """
+
+    else:
+        _HISAT2_INDEX_PREFIX = os.path.join(_HISAT2_INDEX_DIR, "genome")
+
+        rule hisat2_index:
+            """Build HISAT2 genome index (one-time; reused for all samples).
+
+            Requires ~8 GB RAM for the full human genome, or ~1 GB for a
+            single-chromosome test reference (e.g. chr22).
             """
-            set -euo pipefail
-            mkdir -p {output.index_dir}
-            hisat2-build \\
-                -p {threads} \\
-                {input.genome} \\
-                {params.index_prefix} \\
-                2>&1 | tee {log}
-            """
+            input:
+                genome=config["reference"]["genome_fasta"],
+            output:
+                index_dir=directory(_HISAT2_INDEX_DIR),
+                done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
+            log:
+                os.path.join(_LOGS, "alignment", "hisat2_index.log"),
+            threads: config.get("alignment", {}).get("threads", 8)
+            resources:
+                mem_mb=8000,
+            conda:
+                "../envs/hisat2.yaml"
+            params:
+                index_prefix=_HISAT2_INDEX_PREFIX,
+            shell:
+                """
+                set -euo pipefail
+                mkdir -p {output.index_dir}
+                hisat2-build \\
+                    -p {threads} \\
+                    {input.genome} \\
+                    {params.index_prefix} \\
+                    2>&1 | tee {log}
+                """
 
 
     rule hisat2_align:
@@ -132,7 +163,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         log:
             os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_align.log"),
         params:
-            index_prefix=os.path.join(_HISAT2_INDEX_DIR, "genome"),
+            index_prefix=_HISAT2_INDEX_PREFIX,
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=20000,

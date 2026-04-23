@@ -84,7 +84,7 @@ of each call and any normal/tumor discrepancies (`hla_qc.tsv`) are written to
 
 ## 5. Contig Assembly and Translation
 
-For each tumor-specific junction, a 50 nt nucleotide contig is assembled by joining:
+For each tumor-specific junction, a 50 nt nucleotide contig is assembled by joining flanking sequences extracted from the GRCh38 reference genome (via `bedtools getfasta`):
 
 - 26 nt immediately upstream of the junction (last 26 nt of the upstream exon)
 - 24 nt immediately downstream of the junction (first 24 nt of the downstream exon)
@@ -161,14 +161,14 @@ visualisation via Mol\* 4.x.
 
 ## Known Limitations and Future Work
 
+- **Reference-based contig assembly:** flanking exon sequences are extracted from the GRCh38 reference genome rather than assembled from patient reads. Somatic SNVs or indels within the exon flanks are therefore not captured, and predicted peptides assume a wild-type exonic context. This is a standard simplification; the dominant neoepitope signal arises from the novel exon–exon junction sequence itself. In hypermutated tumors (e.g. MSI-high, POLE-mutant), read-based local assembly would improve accuracy.
 - **No proteome filter:** peptides are not cross-referenced against the full human
   proteome beyond the junction-spanning filter. A BLAST or exact-match check against
   the reference proteome would catch any remaining false positives.
 - **HISAT2 vs STAR:** STAR has been shown to detect more novel splice junctions in
   benchmarks. Future production runs will compare results between the two aligners
   (issue #17).
-- **Pre-built genome index:** the HISAT2 index is currently built from scratch on each
-  new VM run (~60–90 min). Using a pre-built index (issue #16) would reduce startup time.
+- **Pre-built genome index:** the HISAT2 `genome_tran` index (GRCh38 + GENCODE splice sites) is downloaded from the HISAT2 S3 mirror at pipeline start rather than built from scratch, saving ~60–90 min per VM. The chr22 test configuration still builds from the local FASTA.
 - **HLA typing from RNA-seq:** OptiType is run on RNA-seq reads, which may have lower
   HLA coverage than WES/WGS. Low read depth (< 30 reads per locus) triggers fallback
   to configured default alleles with a warning.
