@@ -4,6 +4,15 @@
 
 ## 2026-04-23
 
+### ~19:30 UTC
+
+#### PR #112 review fixes — issue #97
+
+- Removed redundant `gene_cds` intermediate `defaultdict` from `_build_cds_donor_lookup`; donor frames now computed in a single GTF parsing pass (halves peak memory on large GTFs)
+- Fixed misleading comment on GTF end coordinate: `# GTF end is 1-based inclusive = 0-based exclusive (no adjustment needed)`
+- Added `test_minus_strand_reading_frame_annotated` to `TestClassifyJunctionsReadingFrame` — covers the `donor_coord = junction.end` path through the full `classify_junctions` pipeline for a − strand junction
+- 157 tests pass
+
 ### ~18:30 UTC
 
 #### Issue #97 — CDS reading frame annotation for novel junctions (branch `feat/issue-97-cds-reading-frame`)
