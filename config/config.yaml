@@ -101,7 +101,7 @@ mhcflurry:
     A: "HLA-A*02:01"
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
-  threads: 8                  # parallel allele predictions (n1-standard-8)
+  threads: 8                  # cores reserved for TF/BLAS within the single genotype predict() call
   # Percentile thresholds for presentation_class (lower = better, per allele).
   presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong
   presentation_percentile_weak:    2.0   # top 2.0% by presentation score → weak
