@@ -8,7 +8,7 @@
 #   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
 #       --configfile config/config.yaml config/tcrdock_gpu.yaml
 #
-# Paths below match the output of scripts/setup_tcrdock_vm.sh.
+# Paths below match the output of scripts/setup_vm.sh.
 # DO NOT set enabled: true in config/config.yaml — keep that as the
 # local/CPU default. This file is the only place TCRdock is enabled.
 # =============================================================================
@@ -16,7 +16,7 @@
 tcrdock:
   enabled: true
   n_candidates: 1
-  docker_image: "tcrdock:latest"  # built by setup_tcrdock_vm.sh
+  docker_image: "tcrdock:latest"  # built by setup_vm.sh
 
   # Fallback HLA alleles — overridden by HLA typing (#23) when available
   fallback_hla:
