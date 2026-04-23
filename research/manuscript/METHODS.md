@@ -168,8 +168,7 @@ visualisation via Mol\* 4.x.
 - **HISAT2 vs STAR:** STAR has been shown to detect more novel splice junctions in
   benchmarks. Future production runs will compare results between the two aligners
   (issue #17).
-- **Pre-built genome index:** the HISAT2 index is currently built from scratch on each
-  new VM run (~60–90 min). Using a pre-built index (issue #16) would reduce startup time.
+- **Pre-built genome index:** the HISAT2 `genome_tran` index (GRCh38 + GENCODE splice sites) is downloaded from the HISAT2 S3 mirror at pipeline start rather than built from scratch, saving ~60–90 min per VM. The chr22 test configuration still builds from the local FASTA.
 - **HLA typing from RNA-seq:** OptiType is run on RNA-seq reads, which may have lower
   HLA coverage than WES/WGS. Low read depth (< 30 reads per locus) triggers fallback
   to configured default alleles with a warning.
