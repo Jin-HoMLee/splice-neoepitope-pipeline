@@ -43,6 +43,32 @@
 4. **PyTorch SM 6.0 mismatch:** PyTorch 2.5+ dropped SM 6.0 (P100/Pascal) support. Pinned `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1). Also rewrote `_has_gpu()` to use a PyTorch smoke-test kernel instead of TensorFlow — TF reported GPU available even when PyTorch kernels would fail on SM mismatch.
 5. **Orphan sentinel file:** `.snakemake/conda/080a2daa..._.env_setup_done` existed without the actual env directory → Snakemake skipped rebuild → `ModuleNotFoundError: No module named 'mhcflurry'`. Fixed by deleting the orphan sentinel.
 
+### ~12:41 UTC
+
+#### Issue #107 — Single-VM consolidation merged (PR #109)
+
+**Goal:** Eliminate the two-VM / three-phase architecture (CPU alignment VM + GPU TCRdock VM with GCS handoff) in favour of a single consolidated VM.
+
+**Changes:**
+- Deleted `scripts/setup_cloud.sh` and `scripts/setup_tcrdock_vm.sh`; replaced with unified `scripts/setup_vm.sh` (8-step idempotent setup: deps → GPU check → Docker + NVIDIA Container Toolkit → Miniforge3 → snakemake env → repo clone → TCRdock image build → reference data)
+- Rewrote `scripts/run_cloud_gpu.sh` to manage a single `neoepitope-pipeline` VM (n1-highmem-8 + P100, 200 GB); Snakemake runs alignment → MHCflurry (GPU) → TCRdock (Docker/GPU) → report in one session with no GCS handoff
+- Renamed `config/tcrdock_gpu.yaml` → `config/gpu.yaml` (overlay now enables MHCflurry GPU acceleration in addition to TCRdock); introduced `GPU_CONFIG_FILE` variable in `run_cloud_gpu.sh`; factored out mode-independent settings (`RESULTS_DIR`, `GCS_PATH`) from `case` block
+- Fixed `--conda-cleanup-envs` call missing the GPU overlay; added `nvidia-container-toolkit` apt install fallback; forwarded `--keep-vm` through detach re-invocation
+
+**Validated:** end-to-end cloud run on `neoepitope-pipeline` VM (2026-04-23, alignment → MHCflurry 7.72M predictions → TCRdock → HTML report).
+
+### ~12:52 UTC
+
+#### Known limitation — contig assembly uses reference genome, not patient reads
+
+`assemble_contigs.smk` uses `bedtools getfasta` on GRCh38 to extract flanking sequences around novel junction coordinates. It does not assemble from patient RNA-seq reads.
+
+**Implication:** somatic SNVs or indels in the exon flanks are ignored. Predicted peptide sequences assume wild-type exonic context around the junction.
+
+**Why acceptable for now:** the neoepitope signal is primarily from the novel exon–exon junction itself. Flank mutations are a second-order effect; reference extraction is standard in comparable published pipelines.
+
+**Future improvement:** in hypermutated tumors (MSI-high, POLE-mutant), flank mutations could meaningfully alter predicted peptides. A future direction would be to extract junction-spanning reads from the BAM and assemble the local haplotype directly.
+
 ---
 
 ## 2026-04-22
