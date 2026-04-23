@@ -150,73 +150,121 @@ class TestRunPredictionEmpty:
 
 
 # ---------------------------------------------------------------------------
-# _predict_allele_worker — isolated unit tests
+# run_prediction with non-empty input — isolated unit tests
 # ---------------------------------------------------------------------------
 
-class TestWorker:
-    """Unit tests for the per-process worker functions.
+class TestRunPredictionNonEmpty:
+    """Unit tests for run_prediction with real peptide rows.
 
-    Tests run entirely in-process: _worker_predictor is set manually and
-    _run_mhcflurry_predictions is monkeypatched, so no MHCflurry models or
-    subprocess spawning are needed.
+    _run_mhcflurry_predictions is monkeypatched so no MHCflurry models are
+    loaded. Tests verify the full run_prediction orchestration: column renaming,
+    classification, contig_key/start_nt merge, and one-row-per-peptide output.
     """
 
     PEPTIDES = ["ACDEFGHIK", "LMNPQRSTV", "YKLMFSTAV"]
 
     @pytest.fixture(autouse=True)
-    def _patch_mhcflurry(self, monkeypatch):
+    def _patch(self, monkeypatch):
         import run_mhcflurry
 
-        def fake_predict(peptides, allele, predictor=None):
-            # Allele-dependent percentile values for testing classification:
-            #   HLA-A*02:01 → 0.3 (strong, below 0.5% threshold)
-            #   HLA-B*07:02 → 1.5 (weak, between 0.5% and 2.0%)
-            #   anything else → 5.0 (non, above 2.0%)
-            percentile = {"HLA-A*02:01": 0.3, "HLA-B*07:02": 1.5}.get(allele, 5.0)
-            ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(allele, 9999.0)
+        def fake_run_predictions(peptides, alleles, predictor=None):
+            # Percentile/IC50 keyed on the first allele in the genotype list
+            first = alleles[0] if alleles else "HLA-A*02:01"
+            percentile = {"HLA-A*02:01": 0.3, "HLA-B*07:02": 1.5}.get(first, 5.0)
+            ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(first, 9999.0)
             n = len(peptides)
             return pd.DataFrame({
                 "peptide": peptides,
                 "affinity": [ic50] * n,
+                "best_allele": [first] * n,
                 "processing_score": [0.8] * n,
                 "presentation_score": [0.9] * n,
                 "presentation_percentile": [percentile] * n,
             })
 
         monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
-        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_predict)
+        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_run_predictions)
         monkeypatch.setattr(run_mhcflurry, "_worker_predictor", object())
 
-    def test_worker_returns_correct_columns(self):
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0)
+    def _make_peptides_tsv(self, tmp_path):
+        tsv = tmp_path / "peptides.tsv"
+        with tsv.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=["contig_key", "start_nt", "peptide"], delimiter="\t"
+            )
+            writer.writeheader()
+            for i, p in enumerate(self.PEPTIDES):
+                writer.writerow({"contig_key": f"k{i}", "start_nt": i * 3, "peptide": p})
+        return tsv
+
+    def test_output_has_expected_columns(self, tmp_path):
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-A*02:01"],
+        )
+        df = pd.read_csv(out, sep="\t")
         assert list(df.columns) == [
-            "peptide", "ic50_nM", "processing_score", "presentation_score",
-            "presentation_percentile", "allele", "presentation_class",
+            "contig_key", "start_nt", "peptide", "allele",
+            "ic50_nM", "processing_score", "presentation_score",
+            "presentation_percentile", "presentation_class",
         ]
 
-    def test_worker_allele_assigned(self):
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0)
-        assert (df["allele"] == "HLA-B*07:02").all()
-
-    def test_worker_presentation_class_strong(self):
-        """presentation_percentile=0.3 → strong presentation_class (threshold 0.5%)."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0)
+    def test_presentation_class_strong(self, tmp_path):
+        """Percentile 0.3 (HLA-A*02:01) → strong."""
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-A*02:01"],
+        )
+        df = pd.read_csv(out, sep="\t")
         assert (df["presentation_class"] == "strong").all()
 
-    def test_worker_presentation_class_weak(self):
-        """presentation_percentile=1.5 → weak presentation_class (threshold 2.0%)."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0)
+    def test_presentation_class_weak(self, tmp_path):
+        """Percentile 1.5 (HLA-B*07:02) → weak."""
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-B*07:02"],
+        )
+        df = pd.read_csv(out, sep="\t")
         assert (df["presentation_class"] == "weak").all()
 
-    def test_worker_presentation_class_non(self):
-        """Unknown allele gets percentile=5.0 → non presentation_class."""
-        from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0)
+    def test_presentation_class_non(self, tmp_path):
+        """Unknown allele → percentile 5.0 → non."""
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-C*07:02"],
+        )
+        df = pd.read_csv(out, sep="\t")
         assert (df["presentation_class"] == "non").all()
+
+    def test_best_allele_becomes_allele_column(self, tmp_path):
+        """best_allele from predictor is exposed as the allele column."""
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-A*02:01"],
+        )
+        df = pd.read_csv(out, sep="\t")
+        assert (df["allele"] == "HLA-A*02:01").all()
+
+    def test_one_row_per_peptide(self, tmp_path):
+        """Genotype prediction returns one row per peptide, not one per peptide×allele."""
+        out = tmp_path / "predictions.tsv"
+        run_prediction(
+            peptides_tsv=self._make_peptides_tsv(tmp_path),
+            output_tsv=out,
+            alleles=["HLA-A*02:01", "HLA-B*07:02"],
+        )
+        df = pd.read_csv(out, sep="\t")
+        assert len(df) == len(self.PEPTIDES)
 
     def test_load_predictor_for_cpu_populates_cache(self, monkeypatch):
         """_load_predictor_for_cpu must populate the module-level predictor cache."""
