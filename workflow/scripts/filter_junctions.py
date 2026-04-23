@@ -12,14 +12,21 @@ When no normal sample is present, all unannotated tumor junctions are labeled
 `tumor_exclusive` with a warning.
 
 Output TSV columns:
-  junction_id  chrom  start  end  strand  mapped_reads  sample_id  sample_type  junction_origin
+  junction_id  chrom  start  end  strand  mapped_reads  sample_id  sample_type
+  junction_origin  reading_frame
+
+reading_frame (0, 1, or 2) is the canonical CDS reading frame at the splice donor,
+derived from the GENCODE GTF when gencode_gtf is supplied. Empty string means the frame
+could not be determined (novel donor, no protein-coding CDS match, or ambiguous). This
+annotation is informational only; all three frames are still translated downstream.
 
 Usage (standalone):
   python filter_junctions.py \\
       --junction-files results/{patient_id}/alignment/{sample_id}/junctions.tsv ... \\
       --manifest results/{patient_id}/alignment/manifest.tsv \\
       --reference-junctions resources/reference_junctions.bed \\
-      --output results/{patient_id}/junctions/novel_junctions.tsv
+      --output results/{patient_id}/junctions/novel_junctions.tsv \\
+      [--gencode-gtf resources/gencode.v47.annotation.gtf.gz]
 
 Usage (Snakemake):
   Called automatically by the ``filter_junctions`` rule.
@@ -27,7 +34,10 @@ Usage (Snakemake):
 
 import argparse
 import csv
+import gzip
 import logging
+import re
+from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
@@ -117,6 +127,76 @@ def _read_junction_file(file_path: str | Path) -> list[tuple[str, float]]:
 
 
 # ---------------------------------------------------------------------------
+# CDS reading frame lookup
+# ---------------------------------------------------------------------------
+
+def _open_gtf(path: str | Path):
+    """Return a file handle for a plain or gzip-compressed GTF."""
+    path = str(path)
+    return gzip.open(path, "rt") if path.endswith(".gz") else open(path)
+
+
+def _parse_gtf_attribute(attributes: str, key: str) -> str | None:
+    """Extract the value of a GTF attribute field by key."""
+    match = re.search(rf'{key}\s+"([^"]+)"', attributes)
+    return match.group(1) if match else None
+
+
+def _build_cds_donor_lookup(
+    gtf_path: str | Path,
+) -> dict[tuple[str, int, str], set[int]]:
+    """Parse protein-coding CDS records from a GENCODE GTF.
+
+    For each CDS exon end that acts as a splice donor, computes the canonical
+    reading frame offset within a junction contig (where upstream_nt is always
+    divisible by 3):
+
+        phase_at_donor = (exon_length - gtf_frame) % 3
+        frame_offset   = (-phase_at_donor) % 3   →  0, 1, or 2
+
+    Donor site coordinates (0-based):
+        + strand: junction.start == cds_exon_end0
+        − strand: junction.end   == cds_exon_start0
+
+    Returns:
+        dict mapping (chrom, donor_coord, strand) → set of frame offsets across
+        all protein-coding transcripts at that donor.  Only entries with at least
+        one frame offset are included.
+    """
+    donor_frames: dict[tuple[str, int, str], set[int]] = defaultdict(set)
+
+    log.info("Parsing protein-coding CDS records from %s", gtf_path)
+    n_records = 0
+    with _open_gtf(gtf_path) as fh:
+        for line in fh:
+            if line.startswith("#"):
+                continue
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 or fields[2] != "CDS":
+                continue
+            attrs = fields[8]
+            if _parse_gtf_attribute(attrs, "transcript_type") != "protein_coding":
+                continue
+            chrom = fields[0]
+            start0 = int(fields[3]) - 1   # GTF 1-based → 0-based
+            end0 = int(fields[4])          # GTF end is 1-based inclusive = 0-based exclusive (no adjustment needed)
+            strand = fields[6]
+            try:
+                frame = int(fields[7])
+            except ValueError:
+                continue
+            exon_len = end0 - start0
+            phase = (exon_len - frame) % 3
+            frame_offset = (-phase) % 3
+            donor_coord = end0 if strand == "+" else start0
+            donor_frames[(chrom, donor_coord, strand)].add(frame_offset)
+            n_records += 1
+
+    log.info("Parsed %d protein-coding CDS records, built %d unique donor sites", n_records, len(donor_frames))
+    return dict(donor_frames)
+
+
+# ---------------------------------------------------------------------------
 # Core classification logic
 # ---------------------------------------------------------------------------
 
@@ -164,6 +244,7 @@ def classify_junctions(
     reference_bed: str | Path,
     output_path: str | Path,
     min_normal_reads: int = 2,
+    gencode_gtf: str | Path | None = None,
 ) -> None:
     """Classify all junction quantification files by origin.
 
@@ -174,14 +255,22 @@ def classify_junctions(
     Normal samples are used only to build the exclusion set and do not
     appear in the output TSV.
 
+    When ``gencode_gtf`` is supplied, a ``reading_frame`` column (0/1/2 or
+    empty string) is added to the output TSV recording the canonical CDS
+    reading frame at the splice donor of each junction.  See
+    ``_build_cds_donor_lookup`` for details.
+
     Args:
         junction_files:   List of raw junction quantification TSV paths.
         manifest_path:    Manifest TSV mapping file_id → sample_type.
         reference_bed:    Path to reference junction BED file.
         output_path:      Destination TSV for classified junctions.
         min_normal_reads: Minimum reads required to trust a normal junction.
+        gencode_gtf:      Optional path to GENCODE GTF for reading frame
+                          annotation.  When None, reading_frame is always "".
     """
     ref_junctions = _load_reference_junctions(reference_bed)
+    donor_frames = _build_cds_donor_lookup(gencode_gtf) if gencode_gtf else {}
     manifest = _load_manifest(manifest_path)
 
     # Split files into tumor and normal
@@ -246,6 +335,10 @@ def classify_junctions(
                 origin = "tumor_exclusive"
                 n_tumor_exclusive += 1
 
+            donor_coord = start if strand == "+" else end
+            frames = donor_frames.get((chrom, donor_coord, strand), set())
+            reading_frame = ",".join(str(f) for f in sorted(frames)) if frames else ""
+
             all_classified.append(
                 {
                     "junction_id": junc_id,
@@ -257,6 +350,7 @@ def classify_junctions(
                     "sample_id": sample_id,
                     "sample_type": sample_type,
                     "junction_origin": origin,
+                    "reading_frame": reading_frame,
                 }
             )
 
@@ -270,6 +364,7 @@ def classify_junctions(
         columns=[
             "junction_id", "chrom", "start", "end", "strand",
             "mapped_reads", "sample_id", "sample_type", "junction_origin",
+            "reading_frame",
         ],
     )
     output_path = Path(output_path)
@@ -299,6 +394,7 @@ def _snakemake_main() -> None:
         reference_bed=snakemake.input.reference_junctions,  # type: ignore[name-defined]  # noqa: F821
         output_path=snakemake.output.novel_junctions,  # type: ignore[name-defined]  # noqa: F821
         min_normal_reads=snakemake.params.min_normal_reads,  # type: ignore[name-defined]  # noqa: F821
+        gencode_gtf=snakemake.input.gencode_gtf,  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -320,6 +416,10 @@ def _cli_main() -> None:
         "--min-normal-reads", type=int, default=2,
         help="Minimum reads to trust a junction in the normal sample (default: 2)",
     )
+    parser.add_argument(
+        "--gencode-gtf", default=None,
+        help="GENCODE GTF file for reading frame annotation (plain or .gz)",
+    )
     args = parser.parse_args()
 
     classify_junctions(
@@ -328,6 +428,7 @@ def _cli_main() -> None:
         reference_bed=args.reference_junctions,
         output_path=args.output,
         min_normal_reads=args.min_normal_reads,
+        gencode_gtf=args.gencode_gtf,
     )
 
 

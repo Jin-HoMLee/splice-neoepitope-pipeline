@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from filter_junctions import (
+    _build_cds_donor_lookup,
     _build_normal_junction_set,
     _load_reference_junctions,
     _parse_junction_id,
@@ -263,3 +264,236 @@ class TestClassifyJunctions:
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+        assert "reading_frame" in df.columns
+
+
+# ---------------------------------------------------------------------------
+# _build_cds_donor_lookup
+# ---------------------------------------------------------------------------
+
+def _write_gtf(path, records):
+    """Write minimal GTF records for testing the CDS donor lookup."""
+    lines = []
+    for r in records:
+        tx_type = r.get("tx_type", "protein_coding")
+        tx_id = r.get("tx_id", "ENST001")
+        attrs = (
+            f'gene_id "{r["gene_id"]}"; transcript_id "{tx_id}"; '
+            f'transcript_type "{tx_type}";'
+        )
+        lines.append(
+            f'{r["chrom"]}\tHAVANA\t{r["feature"]}\t{r["start"]}\t{r["end"]}'
+            f'\t.\t{r["strand"]}\t{r["frame"]}\t{attrs}\n'
+        )
+    path.write_text("".join(lines))
+
+
+class TestBuildCdsDonorLookup:
+    def test_plus_strand_clean_boundary(self, tmp_path):
+        # exon len=3, frame=0 → phase=0 → frame_offset=0; donor_coord=end0=102
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+                           "strand": "+", "frame": 0, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert ("chr1", 102, "+") in lookup
+        assert lookup[("chr1", 102, "+")] == {0}
+
+    def test_plus_strand_phase1_gives_frame_offset_2(self, tmp_path):
+        # exon len=4, frame=0 → phase=1 → frame_offset=2; donor=103
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 103,
+                           "strand": "+", "frame": 0, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert lookup[("chr1", 103, "+")] == {2}
+
+    def test_plus_strand_phase2_gives_frame_offset_1(self, tmp_path):
+        # exon len=5, frame=0 → phase=2 → frame_offset=1; donor=104
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 104,
+                           "strand": "+", "frame": 0, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert lookup[("chr1", 104, "+")] == {1}
+
+    def test_nonzero_gtf_frame_shifts_phase(self, tmp_path):
+        # exon len=4, frame=1 → phase=(4-1)%3=0 → frame_offset=0
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 103,
+                           "strand": "+", "frame": 1, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert lookup[("chr1", 103, "+")] == {0}
+
+    def test_minus_strand_donor_at_start0(self, tmp_path):
+        # − strand: donor_coord = start0 = int(start)-1 = 99; end0=102
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+                           "strand": "-", "frame": 0, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert ("chr1", 99, "-") in lookup
+        assert ("chr1", 102, "-") not in lookup
+
+    def test_multi_transcript_same_frame_single_entry(self, tmp_path):
+        # Two transcripts, same donor and same frame → set with one element
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [
+            {"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+             "strand": "+", "frame": 0, "gene_id": "G1", "tx_id": "T1"},
+            {"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+             "strand": "+", "frame": 0, "gene_id": "G1", "tx_id": "T2"},
+        ])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert lookup[("chr1", 102, "+")] == {0}
+
+    def test_two_genes_different_frames_at_same_donor_kept_as_union(self, tmp_path):
+        # Two genes, same donor coord 102 (end0), different frame offsets → both in set
+        # G1: start=100 (1-based) → start0=99, end0=102, len=3, phase=0, offset=0
+        # G2: start=99  (1-based) → start0=98, end0=102, len=4, phase=1, offset=2
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [
+            {"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+             "strand": "+", "frame": 0, "gene_id": "G1"},
+            {"chrom": "chr1", "feature": "CDS", "start": 99, "end": 102,
+             "strand": "+", "frame": 0, "gene_id": "G2"},
+        ])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert lookup[("chr1", 102, "+")] == {0, 2}
+
+    def test_non_protein_coding_excluded(self, tmp_path):
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 100, "end": 102,
+                           "strand": "+", "frame": 0, "gene_id": "G1",
+                           "tx_type": "nonsense_mediated_decay"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert ("chr1", 102, "+") not in lookup
+
+    def test_non_cds_feature_excluded(self, tmp_path):
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "exon", "start": 100, "end": 102,
+                           "strand": "+", "frame": 0, "gene_id": "G1"}])
+        lookup = _build_cds_donor_lookup(gtf)
+        assert len(lookup) == 0
+
+
+# ---------------------------------------------------------------------------
+# classify_junctions — reading_frame column
+# ---------------------------------------------------------------------------
+
+class TestClassifyJunctionsReadingFrame:
+    def _write_junction_file(self, path, rows):
+        path.write_text("".join(f"{jid}\t{reads}\n" for jid, reads in rows))
+
+    def _write_manifest(self, path, entries):
+        lines = ["file_id\tfile_name\tsample_type\tproject_id\n"]
+        for fid, stype in entries:
+            lines.append(f"{fid}\t{fid}.tsv\t{stype}\tlocal\n")
+        path.write_text("".join(lines))
+
+    def _read_output(self, path):
+        return pd.read_csv(path, sep="\t", dtype={"reading_frame": str}, keep_default_na=False)
+
+    def test_reading_frame_annotated_when_gtf_supplied(self, tmp_path):
+        # Junction chr1:201:300:+ → donor (0-based start) = 200
+        # GTF CDS: start=198 (1-based) → start0=197, end0=200, len=3, frame=0
+        # phase=0, frame_offset=0
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [{"chrom": "chr1", "feature": "CDS", "start": 198, "end": 200,
+                           "strand": "+", "frame": 0, "gene_id": "G1"}])
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output, gencode_gtf=gtf,
+        )
+        df = self._read_output(output)
+        assert df.iloc[0]["reading_frame"] == "0"
+
+    def test_reading_frame_empty_when_no_cds_match(self, tmp_path):
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        gtf = tmp_path / "empty.gtf"
+        gtf.write_text("")
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output, gencode_gtf=gtf,
+        )
+        df = self._read_output(output)
+        assert df.iloc[0]["reading_frame"] == ""
+
+    def test_reading_frame_empty_when_no_gtf(self, tmp_path):
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output,
+        )
+        df = self._read_output(output)
+        assert df.iloc[0]["reading_frame"] == ""
+
+    def test_multi_frame_union_written_sorted(self, tmp_path):
+        # Two genes share donor coord 200 (end0); different frame offsets → union
+        # G1: start=99 (1-based) → start0=98, end0=200, len=102, phase=0, offset=0
+        # G2: start=100 (1-based) → start0=99, end0=200, len=101, phase=2, offset=1
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [
+            {"chrom": "chr1", "feature": "CDS", "start": 99, "end": 200,
+             "strand": "+", "frame": 0, "gene_id": "G1"},
+            {"chrom": "chr1", "feature": "CDS", "start": 100, "end": 200,
+             "strand": "+", "frame": 0, "gene_id": "G2"},
+        ])
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output, gencode_gtf=gtf,
+        )
+        df = self._read_output(output)
+        assert set(df.iloc[0]["reading_frame"].split(",")) == {"0", "1"}
+
+    def test_minus_strand_reading_frame_annotated(self, tmp_path):
+        # − strand: donor_coord = junction.end = cds_exon_start0
+        # Junction chr1:100:201:- → end=201, donor_coord=201
+        # CDS: start=202 (1-based) → start0=201, end0=300, len=99, frame=0
+        # phase=(99-0)%3=0, offset=(-0)%3=0 → reading_frame "0"
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr1:100:201:-", 100), ("chr1:400:500:-", 1)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        ref_bed.write_text("")
+        gtf = tmp_path / "test.gtf"
+        _write_gtf(gtf, [
+            {"chrom": "chr1", "feature": "CDS", "start": 202, "end": 300,
+             "strand": "-", "frame": 0, "gene_id": "G1"},
+        ])
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f], manifest_path=manifest,
+            reference_bed=ref_bed, output_path=output, gencode_gtf=gtf,
+        )
+        df = self._read_output(output)
+        matched = df[df["junction_origin"] == "tumor_exclusive"]
+        assert matched.iloc[0]["reading_frame"] == "0"

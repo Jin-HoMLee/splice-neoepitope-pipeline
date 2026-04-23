@@ -57,6 +57,9 @@ rule filter_junctions:
       1. Keep junctions with read count > mean read count in that file
          (removes low-read background noise).
       2. Remove junctions present in the reference (GENCODE) junction list.
+      3. Annotate each tumor-exclusive junction with its canonical CDS reading
+         frame derived from the GENCODE GTF (informational; all three frames
+         are still translated downstream).
     The output is a TSV of novel junctions per sample.
 
     Works with both HISAT2 and STAR alignments."""
@@ -64,6 +67,7 @@ rule filter_junctions:
         junction_files=_get_junction_files_input,
         manifest=_get_manifest_input,
         reference_junctions=config["reference"]["junction_bed"],
+        gencode_gtf=config["reference"]["gencode_gtf"],
     output:
         novel_junctions=os.path.join(
             _RES, "{patient_id}", "junctions", "novel_junctions.tsv"
