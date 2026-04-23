@@ -1,7 +1,7 @@
 # Configuration Reference
 
-All pipeline parameters live in `config/config.yaml`. For TCRdock (GPU step),
-an overlay file `config/tcrdock_gpu.yaml` is merged at runtime.
+All pipeline parameters live in `config/config.yaml`. For GPU steps (MHCflurry + TCRdock),
+an overlay file `config/gpu.yaml` is merged at runtime.
 
 ---
 
@@ -89,13 +89,13 @@ mhcflurry:
 
 ## TCRdock Structural Validation (GPU)
 
-Disabled by default. Enable via the `config/tcrdock_gpu.yaml` overlay:
+Disabled by default. Enable via the `config/gpu.yaml` overlay:
 
 ```bash
-snakemake --configfile config/config.yaml config/tcrdock_gpu.yaml ...
+snakemake --configfile config/config.yaml config/gpu.yaml ...
 ```
 
-Key parameters (in `config/tcrdock_gpu.yaml`):
+Key parameters (in `config/gpu.yaml`):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
