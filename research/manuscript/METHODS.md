@@ -145,27 +145,24 @@ patient-specific HLA allele resolved by OptiType, producing one row per peptide 
 combination. All alleles are run sequentially in the main process to avoid competing CUDA
 contexts on GPU and OOM errors from loading multiple model copies on CPU.
 
-Each prediction row contains five informative scores:
+Each prediction row contains four informative scores:
 
 | Column | Description |
 |---|---|
-| `ic50_nM` | Binding affinity (nM); lower = tighter binding |
-| `affinity_percentile` | Percentile rank of IC50 among random peptides for that allele |
+| `ic50_nM` | Binding affinity (nM); informational |
 | `processing_score` | Predicted antigen processing efficiency (0–1) |
 | `presentation_score` | Composite presentation probability (0–1); integrates affinity + processing |
 | `presentation_percentile` | Percentile rank of presentation_score among random peptides for that allele |
 
-Peptides are assigned two classification labels using shared percentile thresholds (lower = better, per allele):
+Peptides are assigned a single classification label based on `presentation_percentile`
+(lower = better, per allele):
 
-- **`binder_class`** — based on `affinity_percentile`: strong (≤ 0.5%), weak (≤ 2%), non (> 2%)
-- **`presentation_class`** — based on `presentation_percentile`: strong (≤ 0.5%), weak (≤ 2%), non (> 2%)
+- **`presentation_class`** — strong (≤ 0.5%), weak (≤ 2%), non (> 2%)
 
-The 0.5% threshold for strong classification is consistent with Jiang et al. (2024,
-*Communications Biology*) and analogous to the conventional IC50 ≤ 50 nM cutoff.
+The 0.5% threshold is consistent with Jiang et al. (2024, *Communications Biology*)
+and analogous to the conventional IC50 ≤ 50 nM cutoff.
 
-Epitopes are ranked in the output report primarily by `presentation_percentile` (ascending),
-with `affinity_percentile` as a tiebreaker. This prioritises candidates with high composite
-presentation probability over those with strong affinity but poor antigen processing.
+Epitopes are ranked in the output report by `presentation_percentile` (ascending).
 
 ---
 
@@ -192,7 +189,7 @@ visualisation via Mol\* 4.x.
 | `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
 | `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
 | `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
-| `results/predictions/{patient_id}/mhc_affinity.tsv` | All peptide × allele predictions: ic50_nM, affinity_percentile, processing_score, presentation_score, presentation_percentile, binder_class, presentation_class |
+| `results/predictions/{patient_id}/mhc_affinity.tsv` | All peptide × allele predictions: ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
 | `results/predictions/{patient_id}/tcrdock/top_candidate.pdb` | Predicted TCR–peptide–MHC ternary complex (PDB) |
 | `results/predictions/{patient_id}/tcrdock/docking_scores.tsv` | TCRdock geometry metrics |
 | `results/reports/{patient_id}/report.html` | Summary HTML report with HLA QC and Mol\* viewer |

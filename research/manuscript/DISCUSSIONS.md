@@ -222,31 +222,24 @@ from well-bound but poorly processed peptides.
 ### Why we use the composite predictor exclusively
 
 Rather than offering an affinity/presentation mode switch, the pipeline always uses
-`Class1PresentationPredictor`. This gives five scores per peptide:
+`Class1PresentationPredictor`. This gives four scores per peptide:
 
-- `ic50_nM` and `affinity_percentile` — binding affinity, informational
-- `processing_score` — antigen processing efficiency, informational
+- `ic50_nM` — binding affinity (informational)
+- `processing_score` — antigen processing efficiency (informational)
 - `presentation_score` and `presentation_percentile` — composite metric, primary
 
-Two classification labels are derived using shared percentile thresholds (per allele):
-
-- `binder_class` — affinity_percentile ≤ 0.5% → strong, ≤ 2% → weak, else non
-- `presentation_class` — presentation_percentile ≤ 0.5% → strong, ≤ 2% → weak, else non
+A single classification label `presentation_class` is derived from `presentation_percentile`
+(per allele, lower = better): strong (≤ 0.5%), weak (≤ 2%), non (> 2%).
 
 The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communications
 Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional
-affinity-percentile cutoff applied in the field, extended here to both classifiers for
-consistency.
+affinity-percentile cutoff applied in the field.
 
-Epitopes are ranked primarily by `presentation_percentile`, with `affinity_percentile`
-as a tiebreaker. This prioritises candidates that are both strongly bound and well
-processed — the subset most likely to be immunogenic.
+Epitopes are ranked by `presentation_percentile` (ascending), prioritising candidates
+that are both strongly bound and well processed — the subset most likely to be immunogenic.
 
-### Why two classification columns rather than one
-
-Retaining `binder_class` (affinity-only) alongside `presentation_class` allows direct
-comparison with the published literature, which almost universally reports IC50 or
-affinity-percentile thresholds. A peptide that is a strong binder by affinity but a
-non-presenter by presentation_class is biologically interesting — it may be a target
-for immune evasion (e.g. via downregulation of the proteasomal subunits PSMB8/PSMB9)
-and warrants separate investigation.
+Note: `affinity_percentile` is not included in the output because
+`Class1PresentationPredictor.predict()` (MHCflurry 2.2.x) does not expose it directly.
+Obtaining it would require a second sequential call to `Class1AffinityPredictor`,
+doubling inference time with no gain — `presentation_percentile` already captures the
+affinity signal as part of the composite model.
