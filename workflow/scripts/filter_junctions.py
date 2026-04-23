@@ -163,7 +163,7 @@ def _build_cds_donor_lookup(
         all protein-coding transcripts at that donor.  Only entries with at least
         one frame offset are included.
     """
-    gene_cds: dict[str, list[tuple[str, int, int, str, int]]] = defaultdict(list)
+    donor_frames: dict[tuple[str, int, str], set[int]] = defaultdict(set)
 
     log.info("Parsing protein-coding CDS records from %s", gtf_path)
     n_records = 0
@@ -179,31 +179,20 @@ def _build_cds_donor_lookup(
                 continue
             chrom = fields[0]
             start0 = int(fields[3]) - 1   # GTF 1-based → 0-based
-            end0 = int(fields[4])          # GTF end is already 0-based exclusive
+            end0 = int(fields[4])          # GTF end is 1-based inclusive = 0-based exclusive (no adjustment needed)
             strand = fields[6]
             try:
                 frame = int(fields[7])
             except ValueError:
                 continue
-            gene_id = _parse_gtf_attribute(attrs, "gene_id")
-            if not gene_id:
-                continue
-            gene_cds[gene_id].append((chrom, start0, end0, strand, frame))
-            n_records += 1
-
-    log.info("Parsed %d protein-coding CDS records across %d genes", n_records, len(gene_cds))
-
-    donor_frames: dict[tuple[str, int, str], set[int]] = defaultdict(set)
-
-    for exons in gene_cds.values():
-        for chrom, start0, end0, strand, frame in exons:
             exon_len = end0 - start0
             phase = (exon_len - frame) % 3
             frame_offset = (-phase) % 3
             donor_coord = end0 if strand == "+" else start0
             donor_frames[(chrom, donor_coord, strand)].add(frame_offset)
+            n_records += 1
 
-    log.info("Built CDS donor frame lookup: %d unique donor sites", len(donor_frames))
+    log.info("Parsed %d protein-coding CDS records, built %d unique donor sites", n_records, len(donor_frames))
     return dict(donor_frames)
 
 
