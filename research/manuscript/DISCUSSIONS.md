@@ -76,6 +76,71 @@ from 24 to 26 nt (giving 26 + 26 = 52 nt contigs), providing chimeric codon cove
 
 ---
 
+## Reading frame annotation: why translation is not restricted to the canonical frame
+
+The pipeline annotates each tumor-exclusive junction with its canonical reading frame
+(derived from the GENCODE CDS, see Methods §5), but translates junction contigs in all
+three frames rather than restricting to the annotated one.
+
+### The case for restriction
+
+For a junction whose splice donor matches an annotated CDS exon end in a gene not
+otherwise perturbed by somatic mutations, the CDS-derived frame is the most likely frame
+being translated. Restricting translation to that frame would reduce the peptide candidate
+set by up to two-thirds for those junctions, lowering the false-positive burden on
+downstream MHC binding prediction.
+
+### Why restriction is not implemented
+
+Restricting to the canonical frame introduces **false negatives** — true neoepitopes
+permanently removed from the candidate set — in scenarios that are common in the tumors
+where junction-derived neoepitopes are most clinically relevant:
+
+- **Upstream frameshift indels.** A somatic insertion or deletion in an upstream exon of
+  the same gene shifts the reading frame for everything downstream. These events are
+  frequent in hypermutated tumors (MSI-high, POLE-mutant) and cannot be identified from
+  RNA-seq junction data alone; WGS or WES would be needed to account for them.
+- **Structural variants.** A gene fusion or large rearrangement can place exons in a
+  reading frame context that has no GENCODE counterpart.
+- **Upstream novel junctions.** A second tumor-exclusive junction upstream in the same
+  gene may shift the reading frame before reaching the junction of interest. Although the
+  pipeline detects co-occurring novel junctions in the same patient, short-read RNA-seq
+  cannot phase two junctions to the same transcript, making the propagated frame
+  unknowable without transcript assembly.
+- **Alternative reading frames.** Some loci encode multiple proteins in different frames
+  (e.g. CDKN2A p16/p14ARF). The CDS annotation captures only the canonical frame per
+  donor; ARF-frame peptides would be silently dropped by a hard restriction.
+
+In all of these cases, the biologically active frame in the tumor differs from the
+GENCODE-derived canonical frame. Crucially, the risk is highest in hypermutated tumors —
+precisely those expected to harbour the most actionable neoepitopes overall.
+
+### On six-frame (sense + antisense) translation
+
+Translating both strands of each contig was considered. For strand-specific libraries
+(e.g. dUTP second-strand marking, as confirmed for patient_001's gastric cancer samples:
+KAPA RNA HyperPrep with RiboErase), only the first-strand cDNA is amplified. HISAT2
+assigns the correct strand to all canonical GT-AG junctions via the XS auxiliary tag
+(derived from splice-site dinucleotide sequence). Genuine antisense transcription then
+appears as junctions on the opposite strand and is already translated in the correct
+orientation. Antisense translation of a strand-corrected contig would correspond to the
+non-transcribed DNA strand and has no established biological basis for MHC-I presentation.
+
+For non-stranded RNA-seq libraries, strand assignment relies entirely on splice-site
+sequence inference and may be incorrect for non-canonical splice sites. In that context,
+six-frame translation would be more appropriate. The strandedness of patient_002's
+osteosarcoma samples has not been verified; if those samples turn out to be non-stranded,
+the strand annotation of their junctions should be treated with caution.
+
+### Current approach
+
+Translation proceeds in all three sense-strand frames. The `reading_frame` annotation in
+`novel_junctions.tsv` is retained as metadata: it records the canonical CDS-derived frame
+for biological interpretation and downstream stratification of candidates, but does not
+gatekeep any peptide from analysis.
+
+---
+
 ## Normal sample filtering: junction level vs. peptide level
 
 Tumor-specific junctions are currently defined by absence in the matched normal sample

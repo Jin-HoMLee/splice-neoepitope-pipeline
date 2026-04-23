@@ -84,15 +84,39 @@ of each call and any normal/tumor discrepancies (`hla_qc.tsv`) are written to
 
 ## 5. Contig Assembly and Translation
 
-For each tumor-specific junction, a 50 nt nucleotide contig is assembled by joining flanking sequences extracted from the GRCh38 reference genome (via `bedtools getfasta`):
-
-- 26 nt immediately upstream of the junction (last 26 nt of the upstream exon)
-- 24 nt immediately downstream of the junction (first 24 nt of the downstream exon)
+For each tumor-specific junction, a nucleotide contig is assembled by joining flanking
+sequences extracted from the GRCh38 reference genome (via `bedtools getfasta`). The flank
+size is `3 × (max_peptide_length − 1)` nucleotides on each side; with peptide lengths
+8–10 this gives 27 nt symmetric flanks (54 nt contigs).
 
 Contigs containing soft-clipped (lower-case) bases are excluded.
 
-For each contig, junction-spanning 9-mers are extracted directly in all three reading
-frames (offsets 0, 1, 2) and written to a TSV file (`contig_key`, `start_nt`, `peptide`).
+For each contig, junction-spanning peptides are extracted in all three reading frames
+(offsets 0, 1, 2) and written to a TSV file (`contig_key`, `start_nt`, `peptide`).
+
+### Canonical reading frame annotation
+
+For each tumor-exclusive junction, the GENCODE v47 CDS annotation is used to derive the
+**canonical reading frame** at the splice donor. Only `transcript_type "protein_coding"`
+CDS records are considered; NMD and other non-canonical isoforms are excluded.
+
+For a junction whose splice **donor** (5′ splice site) exactly matches the end of a
+protein-coding CDS exon, the frame offset is computed from the GTF `frame` field:
+
+```
+phase_at_donor = (exon_length − gtf_frame) mod 3
+frame_offset   = (−phase_at_donor)          mod 3
+```
+
+where `gtf_frame` encodes how many bases at the 5′ start of the CDS exon complete a codon
+from the previous exon. If a donor is covered by multiple protein-coding transcripts that
+disagree on the reading frame, the union of attested frame offsets is recorded. If the
+donor does not match any protein-coding CDS exon end, the `reading_frame` field is left
+empty.
+
+This annotation is written to the `reading_frame` column of `novel_junctions.tsv` and is
+available for downstream filtering and biological interpretation. It is **not** used to
+restrict the set of frames translated, for the reasons discussed in the Discussion.
 
 ### Junction-spanning filter
 
