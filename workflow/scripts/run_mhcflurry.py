@@ -47,7 +47,6 @@ import argparse
 import csv
 import logging
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -325,41 +324,32 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Run predictions for each allele.
+    # Step 2: Run predictions for each allele sequentially in the main process.
     #
-    # GPU path: multiple CUDA contexts on a single GPU conflict, so
-    # ProcessPoolExecutor (which spawns one process per allele) crashes with
-    # BrokenProcessPool. Instead, load the predictor once in the main process
-    # and run alleles sequentially — the GPU handles internal parallelism per call.
-    #
-    # CPU path: ProcessPoolExecutor runs alleles in parallel, each worker
-    # loading its own predictor copy. Wall-clock time ≈ model_load +
-    # max(per-allele time) rather than model_load + sum(per-allele time).
+    # GPU: multiple CUDA contexts on a single GPU conflict across subprocesses.
+    # CPU: spawning N worker processes each loading a full TF model copy causes
+    #      OOM (6 alleles × ~8 GB model ≈ 48 GB on a 52 GB VM). Sequential also
+    #      lets TF use all available cores per call, which is faster than N
+    #      single-threaded workers (OMP_NUM_THREADS=1) competing for the same cores.
     if _has_gpu():
         log.info(
             "GPU detected — running %d allele(s) sequentially in main process",
             len(resolved_alleles),
         )
-        _worker_init()
-        pred_dfs = [
-            _predict_allele_worker(allele, unique_peptides, ic50_strong, ic50_weak)
-            for allele in resolved_alleles
-        ]
+        _worker_init()  # limits TF CPU threads; GPU handles internal parallelism
     else:
-        max_workers = min(len(resolved_alleles), threads)
         log.info(
-            "No GPU — running %d allele(s) with %d CPU worker(s)",
-            len(resolved_alleles), max_workers,
+            "No GPU — running %d allele(s) sequentially on CPU (all cores available per allele)",
+            len(resolved_alleles),
         )
-        with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
-            futures = {
-                executor.submit(
-                    _predict_allele_worker,
-                    allele, unique_peptides, ic50_strong, ic50_weak,
-                ): allele
-                for allele in resolved_alleles
-            }
-            pred_dfs = [future.result() for future in as_completed(futures)]
+        # Load without thread restrictions so TF uses all available CPU cores.
+        global _worker_predictor  # noqa: PLW0603
+        _worker_predictor = _load_mhcflurry_predictor()
+
+    pred_dfs = [
+        _predict_allele_worker(allele, unique_peptides, ic50_strong, ic50_weak)
+        for allele in resolved_alleles
+    ]
 
     # Step 3: Merge per-allele predictions with peptides_df (held in parent to
     # avoid pickling the full table into every worker), then concatenate.
