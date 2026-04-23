@@ -5,7 +5,7 @@ import csv
 import pandas as pd
 import pytest
 
-from run_mhcflurry import _load_alleles_from_tsv, classify, run_prediction
+from run_mhcflurry import _load_alleles_from_tsv, classify_by_percentile, run_prediction
 
 
 # ---------------------------------------------------------------------------
@@ -72,15 +72,15 @@ class TestRunPredictionEmpty:
             peptides_tsv=peptides_tsv,
             output_tsv=output_tsv,
             alleles=["HLA-A*02:01"],
-            ic50_strong=50.0,
-            ic50_weak=500.0,
         )
 
         df = pd.read_csv(output_tsv, sep="\t")
         assert df.empty
         assert list(df.columns) == [
             "contig_key", "start_nt", "peptide", "allele",
-            "ic50_nM", "percentile_rank", "binder_class",
+            "ic50_nM", "affinity_percentile", "processing_score",
+            "presentation_score", "presentation_percentile",
+            "binder_class", "presentation_class",
         ]
 
     def test_output_file_is_created(self, tmp_path):
@@ -151,7 +151,7 @@ class TestRunPredictionEmpty:
 
 
 # ---------------------------------------------------------------------------
-# _worker_init and _predict_allele_worker — isolated unit tests
+# _predict_allele_worker — isolated unit tests
 # ---------------------------------------------------------------------------
 
 class TestWorker:
@@ -169,11 +169,20 @@ class TestWorker:
         import run_mhcflurry
 
         def fake_predict(peptides, allele, predictor=None):
+            # Allele-dependent percentile values for testing classification:
+            #   HLA-A*02:01 → 0.3 (strong, below 0.5% threshold)
+            #   HLA-B*07:02 → 1.5 (weak, between 0.5% and 2.0%)
+            #   anything else → 5.0 (non, above 2.0%)
+            percentile = {"HLA-A*02:01": 0.3, "HLA-B*07:02": 1.5}.get(allele, 5.0)
             ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(allele, 9999.0)
+            n = len(peptides)
             return pd.DataFrame({
                 "peptide": peptides,
-                "prediction": [ic50] * len(peptides),
-                "prediction_percentile": [5.0] * len(peptides),
+                "affinity": [ic50] * n,
+                "affinity_percentile": [percentile] * n,
+                "processing_score": [0.8] * n,
+                "presentation_score": [0.9] * n,
+                "presentation_percentile": [percentile] * n,
             })
 
         monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
@@ -182,30 +191,34 @@ class TestWorker:
 
     def test_worker_returns_correct_columns(self):
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 50.0, 500.0)
-        assert list(df.columns) == ["peptide", "ic50_nM", "percentile_rank", "allele", "binder_class"]
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        assert list(df.columns) == [
+            "peptide", "ic50_nM", "affinity_percentile",
+            "processing_score", "presentation_score", "presentation_percentile",
+            "allele", "binder_class", "presentation_class",
+        ]
 
     def test_worker_allele_assigned(self):
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 50.0, 500.0)
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
         assert (df["allele"] == "HLA-B*07:02").all()
 
     def test_worker_binder_class_strong(self):
-        """IC50=30 nM → strong binder (threshold 50 nM)."""
+        """affinity_percentile=0.3 → strong binder_class (threshold 0.5%)."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 50.0, 500.0)
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
         assert (df["binder_class"] == "strong").all()
 
     def test_worker_binder_class_weak(self):
-        """IC50=300 nM → weak binder (threshold 500 nM)."""
+        """affinity_percentile=1.5 → weak binder_class (threshold 2.0%)."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 50.0, 500.0)
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
         assert (df["binder_class"] == "weak").all()
 
     def test_worker_binder_class_non(self):
-        """Unknown allele gets IC50=9999 nM → non-binder."""
+        """Unknown allele gets percentile=5.0 → non-binder binder_class."""
         from run_mhcflurry import _predict_allele_worker
-        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 50.0, 500.0)
+        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
         assert (df["binder_class"] == "non").all()
 
     def test_load_predictor_for_cpu_populates_cache(self, monkeypatch):
@@ -224,22 +237,70 @@ class TestWorker:
 
 
 # ---------------------------------------------------------------------------
-# Binder classification
+# Presentation class classification
 # ---------------------------------------------------------------------------
 
-class TestBinderClassification:
-    """Classification thresholds: strong <= 50, weak <= 500, non otherwise."""
+class TestWorkerPresentationClass:
+    """presentation_class is assigned from presentation_percentile, same thresholds."""
 
-    @pytest.mark.parametrize("ic50,expected", [
-        (10.0, "strong"),
-        (49.9, "strong"),
-        (50.0, "strong"),   # boundary: ic50 <= ic50_strong → strong
-        (50.1, "weak"),
-        (499.9, "weak"),
-        (500.0, "weak"),    # boundary: ic50 <= ic50_weak → weak
-        (500.1, "non"),
-        (9999.0, "non"),
+    PEPTIDES = ["ACDEFGHIK", "LMNPQRSTV", "YKLMFSTAV"]
+
+    @pytest.fixture(autouse=True)
+    def _patch_mhcflurry(self, monkeypatch):
+        import run_mhcflurry
+
+        def fake_predict(peptides, allele, predictor=None):
+            percentile = {"HLA-A*02:01": 0.3, "HLA-B*07:02": 1.5}.get(allele, 5.0)
+            ic50 = {"HLA-A*02:01": 30.0, "HLA-B*07:02": 300.0}.get(allele, 9999.0)
+            n = len(peptides)
+            return pd.DataFrame({
+                "peptide": peptides,
+                "affinity": [ic50] * n,
+                "affinity_percentile": [percentile] * n,
+                "processing_score": [0.8] * n,
+                "presentation_score": [0.9] * n,
+                "presentation_percentile": [percentile] * n,
+            })
+
+        monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
+        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_predict)
+        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", object())
+
+    def test_presentation_class_strong(self):
+        """presentation_percentile=0.3 → strong presentation_class."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-A*02:01", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        assert (df["presentation_class"] == "strong").all()
+
+    def test_presentation_class_weak(self):
+        """presentation_percentile=1.5 → weak presentation_class."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-B*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        assert (df["presentation_class"] == "weak").all()
+
+    def test_presentation_class_non(self):
+        """presentation_percentile=5.0 → non presentation_class."""
+        from run_mhcflurry import _predict_allele_worker
+        df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 0.5, 2.0, 0.5, 2.0)
+        assert (df["presentation_class"] == "non").all()
+
+
+# ---------------------------------------------------------------------------
+# Percentile classification
+# ---------------------------------------------------------------------------
+
+class TestPercentileClassification:
+    """Boundary behaviour: strong <= 0.5%, weak <= 2.0%, non otherwise."""
+
+    @pytest.mark.parametrize("percentile,expected", [
+        (0.1, "strong"),
+        (0.4, "strong"),
+        (0.5, "strong"),   # boundary: percentile <= 0.5 → strong
+        (0.6, "weak"),
+        (1.9, "weak"),
+        (2.0, "weak"),     # boundary: percentile <= 2.0 → weak
+        (2.1, "non"),
+        (50.0, "non"),
     ])
-    def test_classify_boundaries(self, ic50, expected):
-        """Test the production classify() function boundary behaviour."""
-        assert classify(ic50) == expected
+    def test_classify_by_percentile_boundaries(self, percentile, expected):
+        assert classify_by_percentile(percentile) == expected
