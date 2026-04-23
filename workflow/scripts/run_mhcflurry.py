@@ -12,9 +12,9 @@ Reference:
 
 The script:
   1. Reads junction-spanning peptides from the TSV produced by translate_peptides.py.
-  2. Runs MHCflurry Class1PresentationPredictor for each HLA allele, producing four
-     scores per peptide × allele: ic50_nM, processing_score, presentation_score,
-     presentation_percentile.
+  2. Runs MHCflurry Class1PresentationPredictor.predict() with the patient's full
+     HLA genotype (all alleles at once), yielding one best-allele prediction per
+     peptide: ic50_nM, processing_score, presentation_score, presentation_percentile.
   3. Assigns a presentation_class label (strong/weak/non) from presentation_percentile
      using configurable thresholds (default strong ≤ 0.5%, weak ≤ 2.0%).
 
@@ -142,31 +142,43 @@ def _normalise_allele(predictor, allele: str) -> str:
 
 def _run_mhcflurry_predictions(
     peptides: list[str],
-    allele: str,
+    alleles: list[str],
     predictor=None,
 ) -> pd.DataFrame:
-    """Run MHCflurry predictions on a list of peptides.
+    """Run MHCflurry predictions on a list of peptides for a patient HLA genotype.
+
+    Class1PresentationPredictor.predict() takes the full genotype (≤6 alleles)
+    and returns one best-allele prediction per peptide.
 
     Args:
         peptides:  List of peptide sequences.
-        allele:    HLA allele in MHCflurry format (e.g., 'HLA-A*02:01').
+        alleles:   Patient HLA genotype (≤6 alleles, e.g. A/B/C loci × 2 each).
         predictor: Pre-loaded Class1PresentationPredictor. Loaded fresh if None.
 
     Returns:
-        DataFrame from Class1PresentationPredictor.predict() with columns:
-        peptide, affinity, processing_score, presentation_score, presentation_percentile
-        (plus metadata columns best_allele/peptide_num/sample_name, dropped downstream).
+        DataFrame with columns: peptide, affinity, best_allele, processing_score,
+        presentation_score, presentation_percentile (plus metadata columns
+        peptide_num/sample_name, dropped downstream).
     """
     if predictor is None:
         predictor = _load_mhcflurry_predictor()
 
-    mhcflurry_allele = _normalise_allele(predictor, allele)
+    normalised = [_normalise_allele(predictor, a) for a in alleles]
 
-    log.info("Running MHCflurry predictions for %d peptides...", len(peptides))
+    if len(normalised) > 6:
+        raise ValueError(
+            f"Class1PresentationPredictor.predict() supports at most 6 alleles "
+            f"(got {len(normalised)}). Check alleles.tsv for unexpected loci."
+        )
+
+    log.info(
+        "Running MHCflurry predictions for %d peptides against %d-allele genotype...",
+        len(peptides), len(normalised),
+    )
 
     return predictor.predict(
         peptides=peptides,
-        alleles=[mhcflurry_allele] * len(peptides),
+        alleles=normalised,
     )
 
 
@@ -243,35 +255,6 @@ def _load_predictor_for_cpu() -> None:
     _worker_predictor = _load_mhcflurry_predictor()
 
 
-def _predict_allele_worker(
-    allele: str,
-    unique_peptides: list[str],
-    presentation_percentile_strong: float,
-    presentation_percentile_weak: float,
-) -> "pd.DataFrame":
-    """Predict binding for one allele; returns a lean per-allele DataFrame.
-
-    Columns: peptide, ic50_nM, processing_score, presentation_score,
-             presentation_percentile, allele, presentation_class.
-
-    peptides_df (with contig_key/start_nt) is kept in the parent process to
-    avoid pickling it into every worker.
-    """
-    pred_df = _run_mhcflurry_predictions(unique_peptides, allele, predictor=_worker_predictor)
-    # Class1PresentationPredictor.predict() returns:
-    #   affinity (IC50 nM), processing_score, presentation_score, presentation_percentile
-    #   (plus metadata columns best_allele/peptide_num/sample_name — dropped by slice)
-    pred_df = pred_df.rename(columns={"affinity": "ic50_nM"})[
-        ["peptide", "ic50_nM", "processing_score", "presentation_score", "presentation_percentile"]
-    ]
-    pred_df["allele"] = allele
-    pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
-    pred_df["presentation_class"] = pred_df["presentation_percentile"].apply(
-        lambda v: classify_by_percentile(v, presentation_percentile_strong, presentation_percentile_weak)
-    )
-    return pred_df
-
-
 # ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
@@ -286,8 +269,9 @@ def run_prediction(
 ) -> None:
     """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
-    Predictions are run for every resolved allele and concatenated into a
-    single output TSV (one row per peptide × allele combination).
+    Runs Class1PresentationPredictor.predict() with the full patient HLA genotype
+    (all alleles at once). Output contains one row per peptide (best allele across
+    the genotype), plus contig context (contig_key, start_nt).
 
     Args:
         peptides_tsv:                  TSV of junction-spanning peptides.
@@ -341,49 +325,45 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Run predictions for each allele sequentially in the main process.
-    #
-    # GPU: multiple CUDA contexts on a single GPU conflict across subprocesses.
-    # CPU: spawning N worker processes each loading a full TF model copy causes
-    #      OOM (6 alleles × ~8 GB model ≈ 48 GB on a 52 GB VM). Sequential also
-    #      lets TF use all available cores per call, which is faster than N
-    #      single-threaded workers (OMP_NUM_THREADS=1) competing for the same cores.
+    # Step 2: Run genotype-level prediction (single call, all alleles at once).
     if _has_gpu():
-        log.info(
-            "GPU detected — running %d allele(s) sequentially in main process",
-            len(resolved_alleles),
-        )
+        log.info("GPU detected — loading predictor in main process")
         _load_predictor_for_gpu()
     else:
         log.info(
-            "No GPU — running %d allele(s) sequentially on CPU (all cores available per allele)",
+            "No GPU — running %d allele(s) on CPU (all cores available)",
             len(resolved_alleles),
         )
         _load_predictor_for_cpu()
 
-    pred_dfs = [
-        _predict_allele_worker(
-            allele, unique_peptides,
-            presentation_percentile_strong, presentation_percentile_weak,
-        )
-        for allele in resolved_alleles
+    pred_df = _run_mhcflurry_predictions(
+        unique_peptides, resolved_alleles, predictor=_worker_predictor
+    )
+
+    # Rename and keep only needed columns; drop metadata (peptide_num, sample_name)
+    pred_df = pred_df.rename(columns={"affinity": "ic50_nM", "best_allele": "allele"})[
+        ["peptide", "allele", "ic50_nM", "processing_score",
+         "presentation_score", "presentation_percentile"]
     ]
+    pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
+    pred_df["presentation_class"] = pred_df["presentation_percentile"].apply(
+        lambda v: classify_by_percentile(v, presentation_percentile_strong, presentation_percentile_weak)
+    )
 
-    # Step 3: Merge per-allele predictions with peptides_df (held in parent to
-    # avoid pickling the full table into every worker), then concatenate.
-    allele_dfs = [peptides_df.merge(pred_df, on="peptide", how="left") for pred_df in pred_dfs]
-
-    # Step 4: Write combined output
-    df = pd.concat(allele_dfs, ignore_index=True)[
+    # Step 3: Merge per-peptide predictions with peptides_df to restore contig_key/start_nt
+    df = peptides_df.merge(pred_df, on="peptide", how="left")[
         ["contig_key", "start_nt", "peptide", "allele",
          "ic50_nM", "processing_score", "presentation_score",
          "presentation_percentile", "presentation_class"]
     ]
+
+    # Step 4: Write output
     df.to_csv(output_tsv, sep="\t", index=False)
     log.info(
-        "Predictions: %d total (%d allele(s)), "
-        "%d strong / %d weak / %d non presentation_class → %s",
+        "Predictions: %d rows (%d unique peptides, %d-allele genotype), "
+        "%d strong / %d weak / %d non → %s",
         len(df),
+        len(unique_peptides),
         len(resolved_alleles),
         (df["presentation_class"] == "strong").sum(),
         (df["presentation_class"] == "weak").sum(),
