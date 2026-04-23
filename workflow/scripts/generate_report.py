@@ -50,7 +50,7 @@ flowchart TD
     ts["tumor_specific<br/>absent from normal tissue"]
     asm["Contig assembly<br/>50 nt per junction"]
     trans["In-silico translation<br/>3 reading frames - 9-mers"]
-    pred["MHCflurry prediction<br/>IC50 per 9-mer x allele"]
+    pred["MHCflurry prediction<br/>IC50 + presentation_score per peptide (best allele)"]
     out(["Neoepitope candidates<br/>strong / weak binders"])
 
     reads --> align
