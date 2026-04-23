@@ -98,8 +98,10 @@ its models are downloaded automatically.
 - **Different IC50 values**: Absolute IC50 predictions will differ between
   MHCflurry and NetMHCPan.  Peptides classified as strong binders by one tool
   may not all be classified identically by the other.
-- **Output format**: MHCflurry output includes affinity (IC50 in nM) and
-  percentile rank; the `run_mhcflurry.py` script parses this format.
+- **Output format**: `Class1PresentationPredictor.predict()` returns one best-allele
+  prediction per peptide with IC50 (`affinity`), `processing_score`, `presentation_score`,
+  and `presentation_percentile`. Classification uses `presentation_percentile` (≤ 0.5%
+  strong, ≤ 2% weak), not IC50 thresholds.
 - **Model download**: MHCflurry requires a one-time model download
   (`mhcflurry-downloads fetch`) which caches ~1 GB of trained models.
 - **No registration**: Unlike NetMHCPan, MHCflurry requires no registration
@@ -126,8 +128,10 @@ OptiType infers HLA-A/B/C genotype from RNA-Seq reads and is run automatically
 when `hla.enabled: true` in the config.
 
 ### Behavioural differences
-- **More alleles per patient**: MHCflurry is run against up to 6 alleles
-  (HLA-A/B/C heterozygous pair), increasing prediction count proportionally.
+- **Genotype-level prediction**: All patient HLA-A/B/C alleles (up to 6) are
+  passed to `Class1PresentationPredictor.predict()` in a single call. One
+  best-allele prediction is returned per peptide — prediction count equals the
+  number of unique peptides, not peptides × alleles.
 - **Normal-first policy**: If a normal sample is present, its HLA calls are
   used (germline is more reliable than tumour, which may have LOH).
 

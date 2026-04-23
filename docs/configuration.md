@@ -79,11 +79,12 @@ mhcflurry:
     A: "HLA-A*02:01"
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
-  ic50_strong:  50          # nM — strong binder threshold
-  ic50_weak:   500          # nM — weak binder threshold
-  threads: 8
-  prediction_mode: "affinity"   # "affinity" | "presentation" | "processing"
+  threads: 8                # cores reserved for TF/BLAS within the single genotype predict() call
+  presentation_percentile_strong: 0.5   # top 0.5% → strong (Jiang et al. 2024)
+  presentation_percentile_weak:   2.0   # top 2.0% → weak
 ```
+
+`Class1PresentationPredictor.predict()` is called once with all patient alleles as a genotype (≤6). It returns one best-allele prediction per peptide — not one per peptide × allele. The `allele` column in `mhc_affinity.tsv` is the best presenter for that peptide across the patient's HLA-A/B/C genotype.
 
 ---
 
