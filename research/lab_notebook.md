@@ -4,6 +4,38 @@
 
 ## 2026-04-23
 
+### ~18:30 UTC
+
+#### Issue #97 — CDS reading frame annotation for novel junctions (branch `feat/issue-97-cds-reading-frame`)
+
+**Goal:** Annotate each tumor-exclusive junction in `novel_junctions.tsv` with its canonical CDS reading frame, derived from the GENCODE GTF. This supports downstream biological interpretation without restricting translation.
+
+**Key design decisions:**
+
+1. **Annotation only, not restriction.** The `reading_frame` column is informational metadata. All three sense-strand frames are still translated downstream. Restricting translation to the CDS-derived frame would introduce false negatives in hypermutated tumors (MSI-high, POLE-mutant) where upstream frameshift indels, SVs, or chained novel junctions shift the active frame — precisely the tumors most likely to harbour actionable junction neoepitopes. These frame-altering events cannot be inferred from RNA-seq junction data alone.
+
+2. **Protein-coding transcripts only.** CDS records are filtered to `transcript_type "protein_coding"` in the GENCODE GTF. NMD and other non-translated isoforms are excluded to avoid spurious frame assignments from transcripts that are not translated by the ribosome.
+
+3. **Union of frames across transcripts.** When a donor site is annotated in multiple protein-coding transcripts with different reading frames, all attested frame offsets are retained (e.g. `"0,2"`). This is strictly more informative than falling back to all three frames when ambiguous.
+
+4. **No chained frame propagation.** If a second upstream novel junction shifts the reading frame before reaching the junction of interest, the propagated frame could in principle be computed as `(phase_B + L) % 3`. However, phasing two junctions to the same transcript is impossible from short-read RNA-seq without transcript assembly — left for a future improvement.
+
+5. **Sense-strand translation only.** For strand-specific RNA-seq (dUTP / first-strand), `bedtools getfasta -s` already reverse-complements minus-strand contigs so they represent the correct transcript sequence. Antisense translation of a strand-corrected contig has no established biological basis. Confirmed strand-specific for patient_001 (KAPA RNA HyperPrep Kit with RiboErase HMR, dUTP second-strand marking). **patient_002 strandedness not yet verified.**
+
+**Frame offset formula:**
+```
+phase_at_donor = (exon_length − gtf_frame) % 3
+frame_offset   = (−phase_at_donor) % 3          → 0, 1, or 2
+```
+`upstream_nt` is always divisible by 3 by pipeline design, so `frame_offset` equals the start position within the upstream codon context (0 = in-frame, 1 = +1 shift, 2 = +2 shift). Donor coordinate: `junction.start` for + strand, `junction.end` for − strand.
+
+**Changes:**
+- `workflow/scripts/filter_junctions.py`: new `_build_cds_donor_lookup(gtf_path)` + `reading_frame` column in output TSV; `classify_junctions()` accepts optional `gencode_gtf` arg; `--gencode-gtf` CLI flag added
+- `workflow/rules/filter_junctions.smk`: `gencode_gtf` added as explicit input to `filter_junctions` rule
+- `research/manuscript/METHODS.md` §5: updated to describe reading frame annotation subsection
+- `research/manuscript/DISCUSSIONS.md`: new section "Reading frame annotation: why translation is not restricted to the canonical frame"
+- `workflow/tests/test_filter_junctions.py`: 13 new tests (9 × `_build_cds_donor_lookup`, 4 × `reading_frame` column integration); all 156 tests pass
+
 ### ~13:30 UTC
 
 #### Issue #16 — Pre-built HISAT2 index (PR #111)
