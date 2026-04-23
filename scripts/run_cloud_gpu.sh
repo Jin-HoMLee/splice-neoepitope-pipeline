@@ -40,7 +40,7 @@ set -euo pipefail
 PIPELINE_VM="neoepitope-pipeline"
 ZONE="europe-west1-b"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
-ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 preemptible quota (1) available
+ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data
 IMAGE_FAMILY="ubuntu-accelerator-2204-amd64-with-nvidia-570"  # driver 570 supports P100; common-cu128/570 retired, common-cu129/580 drops P100 GSP firmware
 IMAGE_PROJECT="deeplearning-platform-release"
