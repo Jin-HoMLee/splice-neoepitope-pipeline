@@ -193,10 +193,19 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 # ---------------------------------------------------------------------------
 
 def _has_gpu() -> bool:
-    """Return True if TensorFlow can see at least one GPU."""
+    """Return True if a CUDA GPU is available and can execute PyTorch kernels.
+
+    Uses PyTorch (MHCflurry's actual inference backend). torch.cuda.is_available()
+    returns True even when the GPU's SM version isn't in the PyTorch build's compiled
+    architectures, so we run a minimal smoke-test kernel to catch that case early.
+    """
     try:
-        import tensorflow as tf
-        return bool(tf.config.list_physical_devices("GPU"))
+        import torch
+        if not torch.cuda.is_available():
+            return False
+        t = torch.zeros(2, device="cuda")
+        torch.nn.functional.relu(t)  # real kernel dispatch — fails on SM mismatch
+        return True
     except Exception:
         return False
 

@@ -17,4 +17,4 @@ dependencies:
   - pip
   - pip:
     - mhcflurry >=2.0
-    - tensorflow[and-cuda]>=2.15  # bundles CUDA 12 libs; GPU used automatically when available
+    - torch >=2.0,<2.5  # PyTorch 2.5+ dropped SM 6.0 (P100/Pascal) support
