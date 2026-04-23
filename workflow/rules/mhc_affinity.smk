@@ -58,8 +58,10 @@ rule run_mhcflurry:
     params:
         # Used only when hla.enabled is false (alleles_tsv input absent).
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),
-        ic50_strong=config["mhcflurry"]["ic50_strong"],
-        ic50_weak=config["mhcflurry"]["ic50_weak"],
+        affinity_percentile_strong=config["mhcflurry"]["affinity_percentile_strong"],
+        affinity_percentile_weak=config["mhcflurry"]["affinity_percentile_weak"],
+        presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
+        presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
     threads: config["mhcflurry"]["threads"]
     conda:
         "../envs/python.yaml"
