@@ -46,7 +46,6 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
-import os
 from pathlib import Path
 
 import pandas as pd
@@ -211,25 +210,31 @@ def _has_gpu() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Per-process worker (module-level so ProcessPoolExecutor can pickle it)
+# Predictor cache and worker helpers
 # ---------------------------------------------------------------------------
 
-# Predictor cache: populated once per worker process by _worker_init().
+# Module-level predictor cache: populated by _load_predictor_for_gpu() or
+# _load_predictor_for_cpu() before the per-allele prediction loop.
 _worker_predictor = None
 
 
-def _worker_init() -> None:
-    """One-time initialiser for each worker process.
+def _load_predictor_for_gpu() -> None:
+    """Load predictor into module-level cache for GPU execution.
 
-    Sets TF/BLAS thread-count env vars *before* MHCflurry (and TensorFlow) are
-    imported so that each worker uses only one intra-op/inter-op thread.
-    Without this, every subprocess spawns its own full thread pool, which
-    oversubscribes CPU cores when several workers run in parallel.
+    Does NOT restrict TF/BLAS thread counts — GPU path offloads matrix ops to
+    the device; TF's CPU threads handle batching/preprocessing and benefit from
+    all available vCPUs.
     """
-    os.environ.setdefault("OMP_NUM_THREADS", "1")
-    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
-    os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
-    os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+    global _worker_predictor
+    _worker_predictor = _load_mhcflurry_predictor()
+
+
+def _load_predictor_for_cpu() -> None:
+    """Load predictor into module-level cache for CPU execution.
+
+    Sets TF/BLAS thread env vars to allow TF to use all available cores for
+    the single sequential allele loop (no parallel workers competing for cores).
+    """
     global _worker_predictor
     _worker_predictor = _load_mhcflurry_predictor()
 
@@ -271,7 +276,6 @@ def run_prediction(
     alleles_tsv: str | None = None,
     ic50_strong: float = 50.0,
     ic50_weak: float = 500.0,
-    threads: int = 1,
 ) -> None:
     """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
@@ -287,7 +291,6 @@ def run_prediction(
                         alleles are loaded from the file (takes precedence over alleles).
         ic50_strong:    Strong-binder IC50 threshold (nM).
         ic50_weak:      Weak-binder IC50 threshold (nM).
-        threads:        Number of alleles to predict in parallel (ProcessPoolExecutor worker processes).
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
@@ -308,9 +311,6 @@ def run_prediction(
         resolved_alleles = alleles
     else:
         raise ValueError("Either alleles or alleles_tsv must be provided.")
-
-    if threads < 1:
-        raise ValueError(f"Invalid threads value {threads!r}: threads must be >= 1.")
 
     output_tsv = Path(output_tsv)
     output_tsv.parent.mkdir(parents=True, exist_ok=True)
@@ -345,15 +345,13 @@ def run_prediction(
             "GPU detected — running %d allele(s) sequentially in main process",
             len(resolved_alleles),
         )
-        _worker_init()  # limits TF CPU threads; GPU handles internal parallelism
+        _load_predictor_for_gpu()
     else:
         log.info(
             "No GPU — running %d allele(s) sequentially on CPU (all cores available per allele)",
             len(resolved_alleles),
         )
-        # Load without thread restrictions so TF uses all available CPU cores.
-        global _worker_predictor  # noqa: PLW0603
-        _worker_predictor = _load_mhcflurry_predictor()
+        _load_predictor_for_cpu()
 
     pred_dfs = [
         _predict_allele_worker(allele, unique_peptides, ic50_strong, ic50_weak)
@@ -398,7 +396,6 @@ def _snakemake_main() -> None:
         alleles_tsv=alleles_tsv,
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         ic50_weak=float(snakemake.params.ic50_weak),  # type: ignore[name-defined]  # noqa: F821
-        threads=int(snakemake.params.threads),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -418,8 +415,6 @@ def _cli_main() -> None:
     )
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     parser.add_argument("--ic50-weak", type=float, default=500.0)
-    parser.add_argument("--threads", type=int, default=1,
-                        help="Parallel allele prediction threads (default: 1 = serial).")
     args = parser.parse_args()
 
     if not args.alleles and not args.alleles_tsv:
@@ -432,7 +427,6 @@ def _cli_main() -> None:
         alleles_tsv=args.alleles_tsv,
         ic50_strong=args.ic50_strong,
         ic50_weak=args.ic50_weak,
-        threads=args.threads,
     )
 
 

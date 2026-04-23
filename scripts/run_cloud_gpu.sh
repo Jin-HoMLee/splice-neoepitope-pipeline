@@ -49,7 +49,7 @@ GPU_VM="pipeline-spot-gpu"
 ZONE="europe-west1-b"
 PIPELINE_MACHINE_TYPE="n1-highmem-8"  # n1 required for P100 GPU attachment; 52 GB RAM sufficient for OptiType (~36 GB peak)
 GPU_MACHINE_TYPE="n1-standard-4"
-ACCELERATOR="type=nvidia-tesla-p100,count=1"
+ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 preemptible quota (1) available
 DISK_SIZE="100GB"
 IMAGE_FAMILY="ubuntu-accelerator-2204-amd64-with-nvidia-570"  # driver 570 supports P100; common-cu128/570 retired, common-cu129/580 drops P100 GSP firmware
 IMAGE_PROJECT="deeplearning-platform-release"
