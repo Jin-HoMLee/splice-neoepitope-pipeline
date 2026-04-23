@@ -27,7 +27,8 @@ Inputs
 ------
   predictions_tsv: MHCflurry predictions TSV
                    (columns: contig_key, start_nt, peptide, allele,
-                    ic50_nM, percentile_rank, binder_class)
+                    ic50_nM, processing_score, presentation_score,
+                    presentation_percentile, presentation_class)
 
 Outputs
 -------
@@ -81,13 +82,13 @@ def select_top_candidates(
         n_candidates:    Number of candidates to return.
 
     Returns:
-        DataFrame of top candidates, sorted by ic50_nM ascending.
+        DataFrame of top candidates, sorted by presentation_percentile ascending.
     """
     df = pd.read_csv(predictions_tsv, sep="\t")
-    strong = df[df["binder_class"] == "strong"].sort_values("ic50_nM")
+    strong = df[df["presentation_class"] == "strong"].sort_values("presentation_percentile")
     if strong.empty:
         log.warning("No strong binders found — trying weak binders as fallback.")
-        strong = df[df["binder_class"] == "weak"].sort_values("ic50_nM")
+        strong = df[df["presentation_class"] == "weak"].sort_values("presentation_percentile")
     if strong.empty:
         log.error("No strong or weak binders found. Cannot run TCRdock.")
         return pd.DataFrame()
