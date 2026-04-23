@@ -29,7 +29,7 @@ rule generate_report:
     - Junction origin counts (tumor_exclusive vs normal_shared per sample)
     - HLA typing results with source and normal/tumor concordance (when enabled)
     - Neoepitope prediction summary (strong / weak / non binder counts)
-    - Top strong binders table (IC50 < ic50_strong threshold)"""
+    - Top strong binders table (presentation_percentile ≤ strong threshold)"""
     input:
         unpack(_generate_report_input),
     output:
