@@ -19,9 +19,9 @@ so local / CPU-only runs are unaffected.
 
 Candidate selection
 -------------------
-Currently selects the top N strong binders by IC50 (MHCflurry). Once
-TRUST4 + ProTCR (#24) is implemented, selection should switch to the top
-ProTCR-ranked candidates instead.
+Currently selects the top N strong binders by presentation_percentile
+(MHCflurry Class1PresentationPredictor). Once TRUST4 + ProTCR (#24) is
+implemented, selection should switch to the top ProTCR-ranked candidates instead.
 
 Inputs
 ------
@@ -71,10 +71,10 @@ def select_top_candidates(
     predictions_tsv: str | Path,
     n_candidates: int = 1,
 ) -> pd.DataFrame:
-    """Select the top N strong binders by IC50 from MHCflurry predictions.
+    """Select the top N strong binders by presentation_percentile from MHCflurry predictions.
 
-    TODO (#24): Once ProTCR scores are available, replace IC50 ranking with
-    ProTCR score ranking to select the most immunogenic candidates rather than
+    TODO (#24): Once ProTCR scores are available, replace presentation_percentile ranking
+    with ProTCR score ranking to select the most immunogenic candidates rather than
     just the best MHC binders.
 
     Args:
