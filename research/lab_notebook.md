@@ -4,6 +4,22 @@
 
 ## 2026-04-23
 
+### ~20:00 UTC
+
+#### Issue #110 — Fix stale integration test assertions (PR #113, branch `fix/issue-110-contig-length-test`)
+
+**Goal:** Update two integration test assertions that became stale after PR #99 changed flank size to `3 × (max_length − 1)` and introduced multi-length peptides.
+
+**Changes:**
+- `test_all_contigs_are_50nt` → `test_all_contigs_are_54nt`: contig length is now 54 nt (= 27 + 27 flanks with `peptide_lengths=[8, 9, 10]`, `max_length=10`)
+- `test_all_peptides_are_9mers` → `test_all_peptides_are_8_to_10mers`: pipeline produces 8-, 9-, and 10-mer peptides per config
+
+No functional code changes; tests updated to match current pipeline behaviour.
+
+**Note on branch base:** this branch was originally created off `feat/issue-97-cds-reading-frame` before #112 merged, making the PR appear to contain ~300 lines of #97 reading frame code. After #112 merged to main, the branch was rebased onto main — the diff is now exactly the 4-line test fix.
+
+---
+
 ### ~19:30 UTC
 
 #### PR #112 review fixes — issue #97
