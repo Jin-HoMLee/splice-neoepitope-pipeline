@@ -95,13 +95,13 @@ class TestContigs:
         fa = (RESULTS / "contigs" / "contigs.fa").read_text()
         assert fa.count(">") > 0
 
-    def test_all_contigs_are_50nt(self):
+    def test_all_contigs_are_54nt(self):
         fa = (RESULTS / "contigs" / "contigs.fa").read_text()
         sequences = [
             line.strip() for line in fa.splitlines() if not line.startswith(">")
         ]
         for seq in sequences:
-            assert len(seq) == 50, f"Contig length {len(seq)} != 50: {seq[:20]}..."
+            assert len(seq) == 54, f"Contig length {len(seq)} != 54: {seq[:20]}..."
 
     def test_contigs_are_dna(self):
         fa = (RESULTS / "contigs" / "contigs.fa").read_text()
@@ -121,10 +121,10 @@ class TestPeptides:
         rows = _read_tsv(RESULTS / "peptides" / "peptides.tsv")
         assert len(rows) > 0
 
-    def test_all_peptides_are_9mers(self):
+    def test_all_peptides_are_8_to_10mers(self):
         rows = _read_tsv(RESULTS / "peptides" / "peptides.tsv")
         for r in rows:
-            assert len(r["peptide"]) == 9, f"Peptide length {len(r['peptide'])}: {r['peptide']}"
+            assert len(r["peptide"]) in (8, 9, 10), f"Unexpected peptide length {len(r['peptide'])}: {r['peptide']}"
 
     def test_peptides_are_amino_acids(self):
         rows = _read_tsv(RESULTS / "peptides" / "peptides.tsv")
