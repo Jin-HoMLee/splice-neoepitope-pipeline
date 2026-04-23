@@ -79,6 +79,17 @@ else
     log "  Docker already installed: $(docker --version)"
 fi
 
+if ! command -v nvidia-ctk &>/dev/null; then
+    log "  Installing NVIDIA Container Toolkit..."
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+        | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+        | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt-get update -qq
+    sudo apt-get install -y nvidia-container-toolkit
+    log "  NVIDIA Container Toolkit installed."
+fi
+
 if ! sudo docker info 2>/dev/null | grep -q "nvidia"; then
     log "  Configuring NVIDIA Container Runtime..."
     sudo nvidia-ctk runtime configure --runtime=docker
@@ -222,6 +233,7 @@ if [[ "${STANDALONE}" == true ]]; then
     log ""
     log "Next steps:"
     log "  0. Open a new shell (or: source ~/.bashrc) so 'conda' is on PATH"
+    log "     If Docker was just installed, also run: newgrp docker (or log out/in)"
     log "  1. Edit config/samples.tsv with your sample FASTQ paths"
     log "  2. conda activate snakemake"
     log "  3. From a tmux session, run the full pipeline:"

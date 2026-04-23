@@ -202,6 +202,7 @@ tmux new-session -d -s orchestrator "
         --branch ${BRANCH} \\
         --zone ${ZONE} \\
         --_cloud-internal \\
+        $([[ "${KEEP_VM}" == true ]] && echo "--keep-vm") \\
         2>&1 | tee orchestrator.log
     echo 'Orchestrator finished — shutting down.'
     sudo shutdown -h now
