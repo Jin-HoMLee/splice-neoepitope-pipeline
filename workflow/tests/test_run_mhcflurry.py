@@ -208,31 +208,19 @@ class TestWorker:
         df = _predict_allele_worker("HLA-C*07:02", self.PEPTIDES, 50.0, 500.0)
         assert (df["binder_class"] == "non").all()
 
-    def test_worker_init_sets_env_vars(self, monkeypatch):
-        """_worker_init must set TF/BLAS thread-count env vars before model load."""
-        import os
+    def test_load_predictor_for_cpu_populates_cache(self, monkeypatch):
+        """_load_predictor_for_cpu must populate the module-level predictor cache."""
         import run_mhcflurry
-        for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                    "TF_NUM_INTRAOP_THREADS", "TF_NUM_INTEROP_THREADS"):
-            monkeypatch.delenv(var, raising=False)
+        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
+        run_mhcflurry._load_predictor_for_cpu()
+        assert run_mhcflurry._worker_predictor is not None
 
-        run_mhcflurry._worker_init()
-
-        assert os.environ["OMP_NUM_THREADS"] == "1"
-        assert os.environ["TF_NUM_INTRAOP_THREADS"] == "1"
-        assert os.environ["TF_NUM_INTEROP_THREADS"] == "1"
-
-    def test_invalid_threads_raises(self, tmp_path):
-        """threads=0 must raise ValueError before any workers are spawned."""
-        peptides_tsv = tmp_path / "peptides.tsv"
-        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
-        with pytest.raises(ValueError, match="threads"):
-            run_prediction(
-                peptides_tsv=peptides_tsv,
-                output_tsv=tmp_path / "out.tsv",
-                alleles=["HLA-A*02:01"],
-                threads=0,
-            )
+    def test_load_predictor_for_gpu_populates_cache(self, monkeypatch):
+        """_load_predictor_for_gpu must populate the module-level predictor cache."""
+        import run_mhcflurry
+        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
+        run_mhcflurry._load_predictor_for_gpu()
+        assert run_mhcflurry._worker_predictor is not None
 
 
 # ---------------------------------------------------------------------------

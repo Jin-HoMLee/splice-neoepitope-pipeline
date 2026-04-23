@@ -2,7 +2,106 @@
 
 ---
 
+## 2026-04-23
+
+### 09:40 UTC
+
+#### Issue #105 — GPU MHCflurry validation (patient_001)
+
+**Goal:** Validate that MHCflurry runs correctly on the P100 GPU and measure the speedup vs CPU baseline.
+
+**Run:** patient_001 (SRR37781424, Luminal A breast cancer) on `neoepitope-pipeline` VM (n1-highmem-8 + P100, europe-west1-b).
+
+| Timestamp (UTC) | Event |
+|---|---|
+| 09:16:25 | Snakemake started |
+| 09:18:42 | Conda env activated, alleles loaded |
+| 09:18:46 | GPU detected — sequential execution path selected |
+| 09:18:54 | HLA-A\*31:01 started |
+| 09:21:40 | HLA-A\*26:01 started (2m46s) |
+| 09:24:24 | HLA-B\*18:01 started (2m44s) |
+| 09:27:09 | HLA-B\*15:63 started (2m45s) |
+| 09:29:53 | HLA-C\*07:01 started (2m44s) |
+| 09:32:37 | HLA-C\*03:03 started (2m44s) |
+| 09:36:15 | All 6 alleles complete (3m38s for last) |
+| 09:36:33 | Report generated, pipeline done |
+
+**Results:**
+
+- Total predictions: 7,718,952 (1,260,074 unique peptides × 6 alleles)
+- Strong binders (IC50 ≤ 50 nM): 15,880
+- Weak binders (IC50 ≤ 500 nM): 149,662
+- **Total MHCflurry time: ~17m21s vs CPU baseline ~1.5 hours → ~5.2× speedup on P100**
+
+**Why not 10–50× as estimated?** Sequential allele execution (one CUDA context, one model in VRAM) — can't parallelise alleles because each would require a separate model copy in the 16 GB P100 VRAM. GPU parallelism applies within each allele's `predict_to_dataframe()` call (all 1.26M peptides at once), not across alleles.
+
+**Infrastructure issues resolved during development (branch `feat/issue-105-gpu-mhcflurry`):**
+
+1. **`hisat2.yaml` samtools/libdeflate conflict:** `regtools >=1.0.0` requires `libdeflate >=1.26`; no bioconda linux-64 samtools/htslib build is compiled against it. Removed samtools from conda env; pipeline uses system apt samtools 1.13 instead.
+2. **`ProcessPoolExecutor` OOM on CPU:** 6 workers × full model (~8 GB RAM each) = ~48 GB on a 52 GB VM → BrokenProcessPool. Fixed by removing the process pool entirely — sequential execution on both CPU and GPU paths.
+3. **NVIDIA driver 580 incompatible with P100:** Driver 580 requires GSP firmware; P100 (Pascal, SM 6.0) lacks it. Fixed by in-place downgrade to driver 570 (`apt-get install nvidia-driver-570-server && purge *580* && reboot`) — no VM deletion needed.
+4. **PyTorch SM 6.0 mismatch:** PyTorch 2.5+ dropped SM 6.0 (P100/Pascal) support. Pinned `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1). Also rewrote `_has_gpu()` to use a PyTorch smoke-test kernel instead of TensorFlow — TF reported GPU available even when PyTorch kernels would fail on SM mismatch.
+5. **Orphan sentinel file:** `.snakemake/conda/080a2daa..._.env_setup_done` existed without the actual env directory → Snakemake skipped rebuild → `ModuleNotFoundError: No module named 'mhcflurry'`. Fixed by deleting the orphan sentinel.
+
+---
+
 ## 2026-04-22
+
+### Issue #105 — GPU MHCflurry: CUDA architecture notes
+
+**Host driver vs CUDA toolkit — how they relate:**
+
+The **host NVIDIA driver** lives on the VM OS and is the only software that directly controls the GPU hardware. Its version determines the highest CUDA toolkit version it can support (e.g. driver 570 → CUDA 12.8).
+
+The **CUDA toolkit** (cuDNN, cuBLAS, etc.) is what a specific application was compiled against. It lives wherever the application lives — inside a Docker container, inside a pip package — completely independent of the host.
+
+**NVIDIA's backward-compatibility rule:** a host driver supports all CUDA toolkit versions ≤ its own. Driver 570 supports CUDA 12.8, 12.0, 11.8, 10.x, etc.
+
+In our pipeline, two applications run on the same VM with different CUDA requirements:
+
+```
+Host (Deep Learning VM image)
+  └─ NVIDIA driver 570 (CUDA 12.8 capable)
+       ├─ conda env: python.yaml
+       │    └─ tensorflow[and-cuda] pip package → bundles CUDA 12.x libs → MHCflurry
+       └─ Docker container: tcrdock:latest → bundles CUDA 11.8 libs → TCRdock
+```
+
+Neither application depends on the host CUDA toolkit — each carries its own. The host driver just needs to be ≥ the highest toolkit version in use. 12.8 covers both.
+
+**Why `ProcessPoolExecutor` crashes on GPU:**
+
+MHCflurry's CPU path spawns multiple worker processes (one per allele), each importing TensorFlow and initialising its own CUDA context. Multiple CUDA contexts on the same GPU conflict → `BrokenProcessPool` crash. Fix: detect GPU at startup, load the predictor once in the main process, and iterate over alleles sequentially. The GPU handles massive internal parallelism within each `predict_to_dataframe()` call — sequential allele iteration adds negligible overhead.
+
+---
+
+### Issue #98 — Proteome k-mer filter (PR #106, merged)
+
+Rewrote `blastp_filter.py` as `proteome_filter.py`. Instead of running blastp as a subprocess, the script parses the Swiss-Prot FASTA once to build a `set[str]` of all k-mers from every canonical human protein, then checks each query peptide via O(1) set lookup. Drops the BLAST conda env entirely — runtime goes from ~2 hours (424K peptides × 4 threads) to seconds.
+
+The `matched_accessions` column in `peptides_excluded.tsv` carries all source proteins for each excluded peptide (semicolon-separated), replacing the separate `blastp_hits.tsv` audit file. Rule, script, test, and config key all renamed `blastp_filter` → `proteome_filter`. 19 unit tests passing.
+
+**Local test results (chr22, patient_001_test, 8/9/10-mers):**
+
+| | Count | % |
+|---|---|---|
+| Total peptides into filter | 4,163 | 100% |
+| Novel (passed) | 4,119 | 98.9% |
+| Excluded (self-peptides) | 44 | 1.1% |
+
+---
+
+### PR #101 — Move research artefacts to `research/` (Issue #100)
+
+Separated operational documentation from research outputs. `docs/lab_notebook.md` → `research/lab_notebook.md`; `docs/manuscript/` → `research/manuscript/`. `docs/` now contains only software/infrastructure documentation (installation, configuration, cloud guide, etc.).
+
+---
+
+### PR #102 — Remove automatic Claude PR review CI workflow
+
+Removed `.github/workflows/claude-code-review.yml`, which triggered a full Claude review on every push. In a solo project this was noisy and consumed usage unnecessarily. On-demand review is still available via `@claude` mentions through `claude.yml`.
+
+---
 
 ### Issue #82 — Multi-length peptide extraction (8-mer, 9-mer, 10-mer)
 

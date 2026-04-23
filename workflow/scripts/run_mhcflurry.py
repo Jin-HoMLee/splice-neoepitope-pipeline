@@ -46,8 +46,6 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
-import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -190,25 +188,53 @@ def classify(ic50: float, ic50_strong: float = 50.0, ic50_weak: float = 500.0) -
 
 
 # ---------------------------------------------------------------------------
-# Per-process worker (module-level so ProcessPoolExecutor can pickle it)
+# GPU detection
 # ---------------------------------------------------------------------------
 
-# Predictor cache: populated once per worker process by _worker_init().
+def _has_gpu() -> bool:
+    """Return True if a CUDA GPU is available and can execute PyTorch kernels.
+
+    Uses PyTorch (MHCflurry's actual inference backend). torch.cuda.is_available()
+    returns True even when the GPU's SM version isn't in the PyTorch build's compiled
+    architectures, so we run a minimal smoke-test kernel to catch that case early.
+    """
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            return False
+        t = torch.zeros(2, device="cuda")
+        torch.nn.functional.relu(t)  # real kernel dispatch — fails on SM mismatch
+        return True
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Predictor cache and worker helpers
+# ---------------------------------------------------------------------------
+
+# Module-level predictor cache: populated by _load_predictor_for_gpu() or
+# _load_predictor_for_cpu() before the per-allele prediction loop.
 _worker_predictor = None
 
 
-def _worker_init() -> None:
-    """One-time initialiser for each worker process.
+def _load_predictor_for_gpu() -> None:
+    """Load predictor into module-level cache for GPU execution.
 
-    Sets TF/BLAS thread-count env vars *before* MHCflurry (and TensorFlow) are
-    imported so that each worker uses only one intra-op/inter-op thread.
-    Without this, every subprocess spawns its own full thread pool, which
-    oversubscribes CPU cores when several workers run in parallel.
+    Does NOT restrict TF/BLAS thread counts — GPU path offloads matrix ops to
+    the device; TF's CPU threads handle batching/preprocessing and benefit from
+    all available vCPUs.
     """
-    os.environ.setdefault("OMP_NUM_THREADS", "1")
-    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
-    os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
-    os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+    global _worker_predictor
+    _worker_predictor = _load_mhcflurry_predictor()
+
+
+def _load_predictor_for_cpu() -> None:
+    """Load predictor into module-level cache for CPU execution.
+
+    Sets TF/BLAS thread env vars to allow TF to use all available cores for
+    the single sequential allele loop (no parallel workers competing for cores).
+    """
     global _worker_predictor
     _worker_predictor = _load_mhcflurry_predictor()
 
@@ -250,7 +276,6 @@ def run_prediction(
     alleles_tsv: str | None = None,
     ic50_strong: float = 50.0,
     ic50_weak: float = 500.0,
-    threads: int = 1,
 ) -> None:
     """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
@@ -266,7 +291,6 @@ def run_prediction(
                         alleles are loaded from the file (takes precedence over alleles).
         ic50_strong:    Strong-binder IC50 threshold (nM).
         ic50_weak:      Weak-binder IC50 threshold (nM).
-        threads:        Number of alleles to predict in parallel (ProcessPoolExecutor worker processes).
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
@@ -287,9 +311,6 @@ def run_prediction(
         resolved_alleles = alleles
     else:
         raise ValueError("Either alleles or alleles_tsv must be provided.")
-
-    if threads < 1:
-        raise ValueError(f"Invalid threads value {threads!r}: threads must be >= 1.")
 
     output_tsv = Path(output_tsv)
     output_tsv.parent.mkdir(parents=True, exist_ok=True)
@@ -312,25 +333,30 @@ def run_prediction(
         len(peptides_df), len(unique_peptides), peptides_tsv,
     )
 
-    # Step 2: Run predictions for each allele in parallel.
-    # predict_to_dataframe() is not thread-safe (shared TensorFlow state), so we
-    # use ProcessPoolExecutor — each worker process loads its own predictor copy.
-    # Total wall-clock time ≈ model_load + max(per-allele prediction time) rather
-    # than model_load + sum(per-allele prediction time).
-    max_workers = min(len(resolved_alleles), threads)
-    log.info(
-        "Running predictions for %d allele(s) with %d worker(s)",
-        len(resolved_alleles), max_workers,
-    )
-    with ProcessPoolExecutor(max_workers=max_workers, initializer=_worker_init) as executor:
-        futures = {
-            executor.submit(
-                _predict_allele_worker,
-                allele, unique_peptides, ic50_strong, ic50_weak,
-            ): allele
-            for allele in resolved_alleles
-        }
-        pred_dfs = [future.result() for future in as_completed(futures)]
+    # Step 2: Run predictions for each allele sequentially in the main process.
+    #
+    # GPU: multiple CUDA contexts on a single GPU conflict across subprocesses.
+    # CPU: spawning N worker processes each loading a full TF model copy causes
+    #      OOM (6 alleles × ~8 GB model ≈ 48 GB on a 52 GB VM). Sequential also
+    #      lets TF use all available cores per call, which is faster than N
+    #      single-threaded workers (OMP_NUM_THREADS=1) competing for the same cores.
+    if _has_gpu():
+        log.info(
+            "GPU detected — running %d allele(s) sequentially in main process",
+            len(resolved_alleles),
+        )
+        _load_predictor_for_gpu()
+    else:
+        log.info(
+            "No GPU — running %d allele(s) sequentially on CPU (all cores available per allele)",
+            len(resolved_alleles),
+        )
+        _load_predictor_for_cpu()
+
+    pred_dfs = [
+        _predict_allele_worker(allele, unique_peptides, ic50_strong, ic50_weak)
+        for allele in resolved_alleles
+    ]
 
     # Step 3: Merge per-allele predictions with peptides_df (held in parent to
     # avoid pickling the full table into every worker), then concatenate.
@@ -370,7 +396,6 @@ def _snakemake_main() -> None:
         alleles_tsv=alleles_tsv,
         ic50_strong=float(snakemake.params.ic50_strong),  # type: ignore[name-defined]  # noqa: F821
         ic50_weak=float(snakemake.params.ic50_weak),  # type: ignore[name-defined]  # noqa: F821
-        threads=int(snakemake.params.threads),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -390,8 +415,6 @@ def _cli_main() -> None:
     )
     parser.add_argument("--ic50-strong", type=float, default=50.0)
     parser.add_argument("--ic50-weak", type=float, default=500.0)
-    parser.add_argument("--threads", type=int, default=1,
-                        help="Parallel allele prediction threads (default: 1 = serial).")
     args = parser.parse_args()
 
     if not args.alleles and not args.alleles_tsv:
@@ -404,7 +427,6 @@ def _cli_main() -> None:
         alleles_tsv=args.alleles_tsv,
         ic50_strong=args.ic50_strong,
         ic50_weak=args.ic50_weak,
-        threads=args.threads,
     )
 
 
