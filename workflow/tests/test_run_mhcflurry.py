@@ -266,18 +266,11 @@ class TestRunPredictionNonEmpty:
         df = pd.read_csv(out, sep="\t")
         assert len(df) == len(self.PEPTIDES)
 
-    def test_load_predictor_for_cpu_populates_cache(self, monkeypatch):
-        """_load_predictor_for_cpu must populate the module-level predictor cache."""
+    def test_load_predictor_populates_cache(self, monkeypatch):
+        """_load_predictor must populate the module-level predictor cache."""
         import run_mhcflurry
         monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
-        run_mhcflurry._load_predictor_for_cpu()
-        assert run_mhcflurry._worker_predictor is not None
-
-    def test_load_predictor_for_gpu_populates_cache(self, monkeypatch):
-        """_load_predictor_for_gpu must populate the module-level predictor cache."""
-        import run_mhcflurry
-        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
-        run_mhcflurry._load_predictor_for_gpu()
+        run_mhcflurry._load_predictor()
         assert run_mhcflurry._worker_predictor is not None
 
 

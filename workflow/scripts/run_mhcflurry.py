@@ -229,28 +229,12 @@ def _has_gpu() -> bool:
 # Predictor cache and worker helpers
 # ---------------------------------------------------------------------------
 
-# Module-level predictor cache: populated by _load_predictor_for_gpu() or
-# _load_predictor_for_cpu() before the per-allele prediction loop.
+# Module-level predictor cache: populated by _load_predictor() before predict().
 _worker_predictor = None
 
 
-def _load_predictor_for_gpu() -> None:
-    """Load predictor into module-level cache for GPU execution.
-
-    Does NOT restrict TF/BLAS thread counts — GPU path offloads matrix ops to
-    the device; TF's CPU threads handle batching/preprocessing and benefit from
-    all available vCPUs.
-    """
-    global _worker_predictor
-    _worker_predictor = _load_mhcflurry_predictor()
-
-
-def _load_predictor_for_cpu() -> None:
-    """Load predictor into module-level cache for CPU execution.
-
-    Sets TF/BLAS thread env vars to allow TF to use all available cores for
-    the single sequential allele loop (no parallel workers competing for cores).
-    """
+def _load_predictor() -> None:
+    """Load predictor into module-level cache."""
     global _worker_predictor
     _worker_predictor = _load_mhcflurry_predictor()
 
@@ -328,13 +312,12 @@ def run_prediction(
     # Step 2: Run genotype-level prediction (single call, all alleles at once).
     if _has_gpu():
         log.info("GPU detected — loading predictor in main process")
-        _load_predictor_for_gpu()
     else:
         log.info(
             "No GPU — running %d allele(s) on CPU (all cores available)",
             len(resolved_alleles),
         )
-        _load_predictor_for_cpu()
+    _load_predictor()
 
     pred_df = _run_mhcflurry_predictions(
         unique_peptides, resolved_alleles, predictor=_worker_predictor
