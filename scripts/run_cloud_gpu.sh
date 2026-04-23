@@ -51,7 +51,7 @@ PIPELINE_MACHINE_TYPE="n1-highmem-8"  # n1 required for P100 GPU attachment; 52 
 GPU_MACHINE_TYPE="n1-standard-4"
 ACCELERATOR="type=nvidia-tesla-p100,count=1"
 DISK_SIZE="100GB"
-IMAGE_FAMILY="common-cu129-ubuntu-2204-nvidia-580"  # CUDA 12.9 + NVIDIA driver 580; cu128/570 retired
+IMAGE_FAMILY="ubuntu-accelerator-2204-amd64-with-nvidia-570"  # driver 570 supports P100; common-cu128/570 retired, common-cu129/580 drops P100 GSP firmware
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
