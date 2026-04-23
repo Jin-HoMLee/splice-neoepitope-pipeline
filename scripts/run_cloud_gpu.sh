@@ -76,20 +76,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
-# Mode-dependent settings
+# Settings
 # ---------------------------------------------------------------------------
+RESULTS_DIR="results"
+GCS_PATH="gs://${GCS_BUCKET}/results"
+GPU_CONFIG_FILE="config/gpu.yaml"
+
 case "${MODE}" in
     test)
         CONFIG_FILE="config/test_config.yaml"
-        RESULTS_DIR="results"
-        GCS_PATH="gs://${GCS_BUCKET}/results"
         PREPARE_DATA_SCRIPT="scripts/prepare_test_data.sh"
         [[ -z "${SAMPLES}" ]] && SAMPLES="config/samples/patient_001_test.tsv"
         ;;
     prod|production)
         CONFIG_FILE="config/config.yaml"
-        RESULTS_DIR="results"
-        GCS_PATH="gs://${GCS_BUCKET}/results"
         PREPARE_DATA_SCRIPT=""
         [[ -z "${SAMPLES}" ]] && { echo "ERROR: --samples required for prod mode (e.g. --samples config/samples/patient_002.tsv)" >&2; exit 1; }
         ;;
@@ -316,7 +316,7 @@ set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 source "\$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate snakemake
-snakemake --conda-cleanup-envs --configfile ${CONFIG_FILE} --config samples_tsv=${SAMPLES}
+snakemake --conda-cleanup-envs --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} --config samples_tsv=${SAMPLES}
 EOF
 
 # ---------------------------------------------------------------------------
@@ -337,14 +337,14 @@ tmux new-session -d -s pipeline "
     source \"\$HOME/miniforge3/etc/profile.d/conda.sh\" 2>/dev/null || true
     conda activate snakemake
     snakemake --unlock \\
-        --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
+        --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} 2>/dev/null || true
     snakemake \\
         --cores \$(nproc) \\
         --use-conda \\
         --rerun-triggers mtime \\
         --rerun-incomplete \\
-        --configfile ${CONFIG_FILE} config/tcrdock_gpu.yaml \\
+        --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} \\
         --config samples_tsv=${SAMPLES} \\
         2>&1 | tee pipeline.log
     echo 'Pipeline finished.'
