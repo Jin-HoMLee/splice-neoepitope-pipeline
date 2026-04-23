@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-04-24
+
+### ~00:30 UTC
+
+#### Issue #85 — Switch to Class1PresentationPredictor (PR #114, branch `feat/issue-85-prediction-mode`)
+
+**Goal:** Replace `Class1AffinityPredictor` with `Class1PresentationPredictor`, which integrates binding affinity with antigen processing (proteasomal cleavage, TAP transport) trained on mass-spec MHC ligand data.
+
+**API surprises encountered:**
+1. `predict_to_dataframe()` does not exist on `Class1PresentationPredictor` (affinity predictor only) — use `predict()` instead.
+2. `Class1PresentationPredictor.predict()` is a *genotype-level* API: takes all patient HLA alleles at once (≤6) and returns **one best-allele prediction per peptide**. Passing the same allele repeated N times (the `AffinityPredictor` convention) raises `ValueError: alleles list must have at most 6 elements`.
+
+**Design decisions:**
+- Dropped `affinity_percentile` / `binder_class`: `predict()` does not return `affinity_percentile`, and a second inference pass would double runtime with no clear biological gain.
+- Single `presentation_class` label from `presentation_percentile`: strong ≤ 0.5%, weak ≤ 2%, non > 2% — thresholds from Jiang et al. 2024 (*Communications Biology*).
+- Merged `_load_predictor_for_gpu()` / `_load_predictor_for_cpu()` into `_load_predictor()`: both were identical after parallel-worker removal.
+
+**Final output schema (`mhc_affinity.tsv`):** `contig_key, start_nt, peptide, allele, ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class`. One row per peptide; `allele` = best presenter in patient genotype.
+
+**Local test run** (patient_001_test, chr22, 6-allele genotype): 4045 unique peptides → 147 strong / 401 weak / 3571 non. UTC: 2026-04-23T21:43:51Z.
+
+182 tests pass (unit + integration).
+
+---
+
 ## 2026-04-23
 
 ### ~20:00 UTC
