@@ -4,6 +4,49 @@
 
 ## 2026-04-24
 
+### ~11:30 UTC
+
+#### Issue #119 — Allele breadth model: scientific design (Researcher session, branch `feat/issue-119-allele-breadth`)
+
+**Goal:** Develop and document the scientific rationale for a multi-allele breadth scoring
+model for `mhc_presentation.tsv`. No code changes — manuscript only.
+
+**Key scientific decisions:**
+
+- **Two-level architecture:** MHCflurry is a molecular-level predictor (one peptide × one
+  MHC allele → `presentation_score`). The breadth model is a separate genotype-level
+  combiner: `breadth_score = 1 − ∏(1 − wᵢ·pᵢ)`. These are distinct modelling layers.
+- **HLA-C weight:** enters at the genotype-combination level (surface density ~50% of
+  HLA-A/B), not at the molecular prediction level. Configurable (`w_C`, default 0.5).
+- **`presentation_score` in formula (not `presentation_percentile`):** `presentation_score`
+  is a calibrated absolute probability — the correct input for a complementary probability
+  formula. `presentation_percentile` is a rank statistic; using it would require an
+  arbitrary mapping. The two metrics can disagree (high breadth_score with all alleles in
+  non-binder percentile territory is possible for promiscuous alleles) — this is the
+  intended behaviour of the two-tier system.
+- **Committed ranking for cancer vaccine application:**
+  1. `breadth_score` — primary (multi-allele coverage, LOH robustness, vaccine slot efficiency)
+  2. `n_strong_alleles` — secondary (count of alleles at ≤ 0.5% percentile)
+  3. `best_presentation_percentile` — minimum quality gate only (not a ranking dimension);
+     filters candidates where no allele reaches weak-binder territory
+- **Immunodominance acknowledged but not dominant in vaccine context:** in natural
+  anti-tumour immunity, one very strong allele can dominate via intramolecular MHC groove
+  competition and immunodomination (Yewdell & Bennink, *Annu Rev Immunol* 1999; Chen &
+  McCluskey, *Adv Cancer Res* 2006). In therapeutic vaccination, immunodomination is largely
+  bypassed; HLA LOH and vaccine slot efficiency make breadth the primary criterion.
+
+**Manuscript changes (committed `c9d5eb3`, branch `feat/issue-119-allele-breadth`):**
+- `INTRODUCTION.md`: new section "HLA Genotype, Surface Expression, and Allele Breadth"
+- `DISCUSSIONS.md`: new section "Allele breadth and immunodominance: two complementary
+  ranking signals" (subsections: two-level architecture, immunodominance mechanisms,
+  vaccine application with committed table, calibration note)
+
+**METHODS.md:** not updated — Developer session responsibility after implementation.
+
+**Design spec for Developer session:** `memory/project_allele_breadth_design.md`
+
+---
+
 ### ~10:02 UTC
 
 #### Issue #115 — Rename `mhc_affinity.tsv` → `mhc_presentation.tsv` (PR #121, branch `feat/issue-115-rename-mhc-affinity-tsv`)
