@@ -11,7 +11,7 @@ def _generate_report_input(wildcards):
             _RES, wildcards.patient_id, "junctions", "novel_junctions.tsv"
         ),
         "predictions_tsv": os.path.join(
-            _RES, wildcards.patient_id, "predictions", "mhc_affinity.tsv"
+            _RES, wildcards.patient_id, "predictions", "mhc_presentation.tsv"
         ),
         "contigs_fasta": os.path.join(
             _RES, wildcards.patient_id, "contigs", "contigs.fa"
