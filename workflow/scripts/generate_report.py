@@ -683,6 +683,7 @@ def generate_report(
         contigs_fasta:                 Contig FASTA for junction visualisation (optional).
         hla_qc_tsv:                    HLA QC TSV from aggregate_hla_alleles (optional).
         presentation_percentile_strong: Strong-presentation percentile threshold.
+        presentation_percentile_weak:  Weak-presentation percentile threshold (quality gate).
         tcrdock_pdb:                   TCRdock-predicted PDB file (optional).
         output_tsv:                    Destination for the machine-readable summary TSV (optional).
         patient_id:                    Patient identifier written into every report.tsv row.
@@ -808,6 +809,7 @@ def _cli_main() -> None:
     parser.add_argument("--hla-qc-tsv", default=None, help="HLA QC TSV from aggregate_hla_alleles")
     parser.add_argument("--tcrdock-pdb", default=None, help="TCRdock PDB file for 3D viewer")
     parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
+    parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
     parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
@@ -819,6 +821,7 @@ def _cli_main() -> None:
         contigs_fasta=args.contigs_fasta,
         hla_qc_tsv=args.hla_qc_tsv,
         presentation_percentile_strong=args.presentation_percentile_strong,
+        presentation_percentile_weak=args.presentation_percentile_weak,
         tcrdock_pdb=args.tcrdock_pdb,
         output_tsv=args.output_tsv,
         patient_id=args.patient_id,

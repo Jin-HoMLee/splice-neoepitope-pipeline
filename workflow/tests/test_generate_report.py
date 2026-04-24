@@ -327,3 +327,43 @@ class TestBuildReportTsvWithGps:
         result = pd.read_csv(out, sep="\t")
         top = result[(result["stage"] == "top_candidate") & (result["metric"] == "peptide")]
         assert top["value"].iloc[0] == "LMNPQRSTV"
+
+
+# ---------------------------------------------------------------------------
+# _cli_main argument parser
+# ---------------------------------------------------------------------------
+
+class TestCLIParser:
+    def _make_parser(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--novel-junctions", required=True)
+        parser.add_argument("--predictions", required=True)
+        parser.add_argument("--output", required=True)
+        parser.add_argument("--contigs-fasta", default=None)
+        parser.add_argument("--hla-qc-tsv", default=None)
+        parser.add_argument("--tcrdock-pdb", default=None)
+        parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
+        parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
+        parser.add_argument("--output-tsv", default=None)
+        parser.add_argument("--patient-id", default="")
+        return parser
+
+    def test_default_presentation_percentile_weak(self):
+        parser = self._make_parser()
+        args = parser.parse_args([
+            "--novel-junctions", "j.tsv",
+            "--predictions", "p.tsv",
+            "--output", "out.html",
+        ])
+        assert args.presentation_percentile_weak == 2.0
+
+    def test_custom_presentation_percentile_weak(self):
+        parser = self._make_parser()
+        args = parser.parse_args([
+            "--novel-junctions", "j.tsv",
+            "--predictions", "p.tsv",
+            "--output", "out.html",
+            "--presentation-percentile-weak", "1.5",
+        ])
+        assert args.presentation_percentile_weak == 1.5

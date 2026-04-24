@@ -508,6 +508,7 @@ def _cli_main() -> None:
     parser.add_argument("--output-scores", required=True)
     parser.add_argument("--docker-image", default="tcrdock:latest")
     parser.add_argument("--n-candidates", type=int, default=1)
+    parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     args = parser.parse_args()
 
     run_structural_validation(
@@ -516,6 +517,7 @@ def _cli_main() -> None:
         output_scores=args.output_scores,
         docker_image=args.docker_image,
         n_candidates=args.n_candidates,
+        presentation_percentile_weak=args.presentation_percentile_weak,
     )
 
 

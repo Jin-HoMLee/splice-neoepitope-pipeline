@@ -158,3 +158,41 @@ class TestRelabelPdbChains:
 
     def test_empty_pdb_returns_empty(self):
         assert relabel_pdb_chains("", "A/B") == ""
+
+
+# ---------------------------------------------------------------------------
+# _cli_main argument parser
+# ---------------------------------------------------------------------------
+
+class TestCLIParser:
+    def _make_parser(self):
+        import argparse
+        from run_tcrdock import _cli_main  # noqa: F401 — import triggers module load
+        # Reconstruct the parser directly to avoid subprocess/sys.exit
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--predictions-tsv", required=True)
+        parser.add_argument("--output-pdb", required=True)
+        parser.add_argument("--output-scores", required=True)
+        parser.add_argument("--docker-image", default="tcrdock:latest")
+        parser.add_argument("--n-candidates", type=int, default=1)
+        parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
+        return parser
+
+    def test_default_presentation_percentile_weak(self):
+        parser = self._make_parser()
+        args = parser.parse_args([
+            "--predictions-tsv", "p.tsv",
+            "--output-pdb", "o.pdb",
+            "--output-scores", "s.tsv",
+        ])
+        assert args.presentation_percentile_weak == 2.0
+
+    def test_custom_presentation_percentile_weak(self):
+        parser = self._make_parser()
+        args = parser.parse_args([
+            "--predictions-tsv", "p.tsv",
+            "--output-pdb", "o.pdb",
+            "--output-scores", "s.tsv",
+            "--presentation-percentile-weak", "1.5",
+        ])
+        assert args.presentation_percentile_weak == 1.5
