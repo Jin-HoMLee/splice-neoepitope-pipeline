@@ -53,6 +53,7 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -456,6 +457,10 @@ def run_structural_validation(
     output_pdb = Path(output_pdb)
     output_scores = Path(output_scores)
     work_dir = output_pdb.parent / "tcrdock_workdir"
+
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    work_dir.mkdir(parents=True)
 
     # Step 1: Select top candidates
     candidates = select_top_candidates(predictions_tsv, n_candidates, presentation_percentile_weak=presentation_percentile_weak)
