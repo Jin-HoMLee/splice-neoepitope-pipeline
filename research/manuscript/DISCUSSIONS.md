@@ -245,3 +245,141 @@ Note: `affinity_percentile` is not included in the output because
 Obtaining it would require a second sequential call to `Class1AffinityPredictor`,
 doubling inference time with no gain — `presentation_percentile` already captures the
 affinity signal as part of the composite model.
+
+---
+
+## Allele breadth and immunodominance: two complementary ranking signals
+
+### MHCflurry as a molecular predictor: the need for a downstream genotype model
+
+MHCflurry operates at the molecular level: given one peptide and one MHC allele, it
+predicts the probability that this specific peptide–MHC pair results in surface
+presentation, integrating binding affinity with antigen processing efficiency
+(proteasomal cleavage, TAP transport) into a single `presentation_score`. This is a
+pairwise, molecule-level quantity. It does not model the patient's HLA genotype as a
+whole.
+
+The genotype-level convenience API (`Class1PresentationPredictor.predict()` with all
+alleles provided at once) runs this pairwise molecular prediction for each allele
+independently and returns a single best-allele attribution per peptide — the allele with
+the highest individual `presentation_score`. This is useful for identifying which allele
+is the primary presenter, but it is not a genotype-level biological model: it discards
+the real presentation events occurring simultaneously on the cell surface via all
+non-best alleles.
+
+The allele breadth model addresses exactly this gap. It operates at the genotype level,
+taking the per-allele molecular predictions from MHCflurry as inputs and combining them
+into a single estimate of the probability that at least one allele in the patient's full
+HLA genotype presents the peptide:
+
+```
+breadth_score = 1 − ∏ᵢ (1 − wᵢ × presentation_scoreᵢ)
+```
+
+This two-level architecture separates concerns cleanly: MHCflurry solves the molecular
+pairwise prediction problem; the breadth model solves the genotype-level combination
+problem. Crucially, the HLA-C locus weight (`wᵢ ≈ 0.5`) enters at the genotype level
+rather than the molecular level — HLA-C surface density is a property of how many
+molecules of each type are available on the cell, not a property of the individual
+peptide–MHC interaction that MHCflurry models.
+
+### Immunodominance as a structural limitation of breadth-only scoring
+
+The breadth score correctly captures the joint presentation probability across independent
+alleles. Different HLA alleles are entirely independent proteins with non-competing
+peptide-binding grooves, so each allele's contribution is additive and the complementary
+probability framework is exact. The score rises as additional alleles contribute and falls
+steeply when all alleles present the peptide poorly.
+
+A biologically relevant scenario reveals a structural limitation of this model. Consider
+a peptide with one exceptional allele (`presentation_score` p₁ = 0.9) and five weak
+alleles (p₂...₆ = 0.02). The breadth score is approximately 0.91. A second peptide with
+six moderate alleles (p = 0.5 each) scores approximately 0.98. The breadth model ranks
+the second peptide higher — yet in vivo the first may be far more immunologically potent.
+
+The mechanism is **immunodominance** (Yewdell & Bennink, *Annu Rev Immunol* 1999): the
+T cell response to a complex antigen is not flat across all possible epitopes but forms a
+strict hierarchy. Two independent mechanisms drive this:
+
+1. **Intramolecular competition.** Within a single allele, many peptides compete for the
+   limited pool of empty MHC class I grooves at the cell surface. A very high-affinity
+   peptide saturates the groove of its allele, generating a high density of stable,
+   long-lived pMHC complexes. T cell activation scales with pMHC surface density
+   (Valitutti et al., *Nature* 1995) and requires sustained TCR engagement above a
+   kinetic threshold (McKeithan, *PNAS* 1995). An allele with p₁ = 0.9 is therefore far
+   more likely to cross this activation threshold reliably than any individual weak allele.
+
+2. **Immunodomination.** Once a dominant T cell clone is activated and begins lysing
+   antigen-presenting cells (APCs), it can prevent those APCs from priming T cells
+   restricted to subdominant alleles (Chen & McCluskey, *Adv Cancer Res* 2006). The five
+   weak alleles in the scenario above do not directly compete with the dominant allele at
+   the MHC molecule level — their binding grooves are separate — but the dominant T cell
+   response can systemically suppress priming of subdominant clones by eliminating the
+   shared APC pool.
+
+The breadth score does not model either mechanism. Conversely, reporting only the
+best single-allele score (as in the original pipeline) ignores the genuine clinical
+benefit of multi-allele coverage: robustness to HLA loss of heterozygosity (LOH), broader
+T cell recruitment, and the ability to deliberately boost subdominant responses in a
+vaccine context.
+
+### Application to personalised cancer vaccine candidate selection
+
+This pipeline is designed for personalised cancer vaccination, which determines the
+committed role of each signal.
+
+In natural anti-tumour immunity, immunodomination enforces a strict epitope hierarchy:
+dominant T cell clones eliminate APCs before competing clones can be primed, and the
+resulting response is largely fixed by the tumour's antigen presentation dynamics. The
+dominance signal (`best_presentation_percentile`) is the more relevant lens in that
+context.
+
+In therapeutic vaccination, immunodomination is largely bypassed because each neoepitope
+is delivered as a discrete immunogen and T cell clones against each included epitope are
+primed independently. The degree of bypass depends on vaccine format: short direct-binding
+peptides, which compete with the endogenous peptidome for empty MHC grooves on APCs,
+achieve a more complete bypass of MHC-loading competition; mRNA vaccines re-enter
+intracellular antigen processing and are closer to the natural presentation pathway,
+partially restoring peptide competition for MHC grooves. In both formats, however, the
+APC-level suppression of subdominant T cell clones through cytotoxic killing is alleviated
+relative to natural immunity.
+
+Two further considerations commit personalised vaccine design to allele breadth as the
+primary ranking criterion:
+
+- **HLA LOH robustness.** Tumours under immune pressure — including vaccine-induced
+  pressure — frequently silence individual HLA alleles as an escape mechanism. A candidate
+  presented by multiple alleles remains targetable after partial HLA LOH; a single-allele
+  candidate may be rendered invisible by loss of that allele alone.
+- **Vaccine slot efficiency.** Personalised neoantigen vaccines include a limited number
+  of peptide candidates — typically 10–20 in current clinical trials (Sahin et al.,
+  *Nature* 2017; Ott et al., *Nature* 2017). Each slot should maximise coverage of the
+  patient's HLA genotype; `breadth_score` directly quantifies this.
+
+The committed role of each signal in this pipeline is therefore:
+
+| Signal | Role | Rationale |
+|--------|------|-----------|
+| `breadth_score` | **Primary ranking criterion** | Multi-allele coverage; LOH robustness; vaccine slot efficiency |
+| `n_strong_alleles` | **Secondary ranking criterion** | Number of alleles at clinically meaningful threshold; intuitive breadth summary |
+| `best_presentation_percentile` | **Minimum quality gate** | Ensures ≥1 allele generates sufficient pMHC density for T cell recognition at the tumour |
+
+`best_presentation_percentile` as a quality gate means a candidate is filtered out if no
+allele meets the weak-binder threshold (presentation_percentile ≤ 2%), regardless of its
+breadth_score — not used to rank candidates against one another.
+
+### Calibration note: presentation_score vs. presentation_percentile
+
+The `breadth_score` formula uses `presentation_score` (an absolute composite probability,
+0–1) as `pᵢ`, while the quality gate is defined via `presentation_percentile` (the rank
+of `presentation_score` among a large allele-specific random peptide set). These two
+metrics are calibrated on different scales and can disagree: for a promiscuous allele
+where many random peptides score well, a `presentation_score` of 0.4 may correspond to a
+`presentation_percentile` of 3–5% (non-binder territory). In such a case, six alleles
+each with `presentation_score = 0.4` would yield `breadth_score ≈ 0.95` while all alleles
+remain below the weak-binder percentile threshold. A peptide could therefore pass the
+`breadth_score` ranking stage but be eliminated by the quality gate — which is the
+intended behaviour, since the gate is designed to catch exactly this scenario. Future work
+could explore replacing `presentation_score` in the breadth formula with a calibrated
+transformation of `presentation_percentile` to achieve fully consistent allele-relative
+scoring throughout.
