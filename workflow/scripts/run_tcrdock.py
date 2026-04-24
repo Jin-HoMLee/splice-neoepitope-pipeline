@@ -100,13 +100,21 @@ def select_top_candidates(
     df = pd.read_csv(predictions_tsv, sep="\t")
     candidates = df[df["presentation_class"].isin(("strong", "weak"))].copy()
 
-    # Quality gate: at least one allele must reach weak-binder threshold
-    if "best_presentation_percentile" in candidates.columns:
-        candidates = candidates[candidates["best_presentation_percentile"] <= presentation_percentile_weak]
-
     if candidates.empty:
-        log.error("No strong or weak binders found. Cannot run TCRdock.")
+        log.error("No strong or weak presenters found in predictions. Cannot run TCRdock.")
         return pd.DataFrame()
+
+    # Quality gate: at least one allele must reach weak-presenter threshold
+    if "best_presentation_percentile" in candidates.columns:
+        n_before = len(candidates)
+        candidates = candidates[candidates["best_presentation_percentile"] <= presentation_percentile_weak]
+        if candidates.empty:
+            log.error(
+                "All %d strong/weak presenter(s) failed the quality gate "
+                "(best_presentation_percentile > %.1f%%). Cannot run TCRdock.",
+                n_before, presentation_percentile_weak,
+            )
+            return pd.DataFrame()
 
     if "genotype_presentation_score" in candidates.columns:
         candidates = candidates.sort_values(
