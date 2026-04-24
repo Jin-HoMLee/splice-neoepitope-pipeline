@@ -84,7 +84,7 @@ mhcflurry:
   presentation_percentile_weak:   2.0   # top 2.0% → weak
 ```
 
-`Class1PresentationPredictor.predict()` is called once with all patient alleles as a genotype (≤6). It returns one best-allele prediction per peptide — not one per peptide × allele. The `allele` column in `mhc_affinity.tsv` is the best presenter for that peptide across the patient's HLA-A/B/C genotype.
+`Class1PresentationPredictor.predict()` is called once with all patient alleles as a genotype (≤6). It returns one best-allele prediction per peptide — not one per peptide × allele. The `allele` column in `mhc_presentation.tsv` is the best presenter for that peptide across the patient's HLA-A/B/C genotype.
 
 ---
 

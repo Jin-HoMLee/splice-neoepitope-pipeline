@@ -190,7 +190,7 @@ visualisation via Mol\* 4.x.
 | `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
 | `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
 | `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
-| `results/predictions/{patient_id}/mhc_affinity.tsv` | Best-allele prediction per peptide: allele (best presenter in patient genotype), ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
+| `results/predictions/{patient_id}/mhc_presentation.tsv` | Best-allele prediction per peptide: allele (best presenter in patient genotype), ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
 | `results/predictions/{patient_id}/tcrdock/top_candidate.pdb` | Predicted TCR–peptide–MHC ternary complex (PDB) |
 | `results/predictions/{patient_id}/tcrdock/docking_scores.tsv` | TCRdock geometry metrics |
 | `results/reports/{patient_id}/report.html` | Summary HTML report with HLA QC and Mol\* viewer |
