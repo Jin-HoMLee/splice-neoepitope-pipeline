@@ -69,7 +69,7 @@ discards biologically relevant information: a peptide that is presented at moder
 by all six of a patient's alleles may be a stronger immunotherapy target than a peptide
 presented at high affinity by only one.
 
-### Allele breadth as a ranking criterion
+### Genotype presentation score as a ranking criterion
 
 For a neoepitope to trigger a cytotoxic T cell response, at least one of the patient's HLA
 alleles must present it on the tumor cell surface. This is naturally framed as a
@@ -80,9 +80,9 @@ P(presented by ≥ 1 allele) = 1 − ∏ᵢ (1 − pᵢ)
 ```
 
 where `pᵢ` is the presentation probability for allele `i` (e.g. MHCflurry 2.x
-`presentation_score`). This breadth score rewards candidates that are broadly presented
-across the patient's genotype and rises steeply as additional alleles contribute, while
-each marginal allele at low affinity adds diminishing probability.
+`presentation_score`). This genotype presentation score rewards candidates that are broadly
+presented across the patient's genotype and rises steeply as additional alleles contribute,
+while each marginal allele at low affinity adds diminishing probability.
 
 Allele breadth is also clinically relevant beyond the initial ranking:
 
@@ -95,9 +95,9 @@ Allele breadth is also clinically relevant beyond the initial ranking:
   patient's repertoire.
 
 The integer count of alleles for which a peptide qualifies as a strong binder
-(`n_strong_alleles`) provides a secondary breadth signal: among peptides with equal
-breadth scores, a peptide classified as strong by three alleles is a biologically cleaner
-winner than one with one strong and five near-zero predictions.
+(`n_strong_alleles`) provides a secondary signal: among peptides with equal
+genotype presentation scores, a peptide classified as strong by three alleles is a
+biologically cleaner winner than one with one strong and five near-zero predictions.
 
 A complementary but distinct biological force is **immunodominance** — the well-documented
 hierarchy in which the strongest-binding epitope for the dominant allele tends to drive the
@@ -107,7 +107,7 @@ strong allele can elicit a more potent focused T cell response than a peptide wi
 breadth, through intramolecular competition of peptides for the available MHC grooves of
 that allele and through immunodomination — dominant T cell clones monopolising
 antigen-presenting cells and suppressing priming of clones restricted to weaker alleles
-(Chen & McCluskey, *Adv Cancer Res* 2006). The breadth score alone does not capture this.
+(Chen & McCluskey, *Adv Cancer Res* 2006). The genotype presentation score alone does not capture this.
 
 In the context of therapeutic cancer vaccination, however, immunodomination is largely
 bypassed: each neoepitope is delivered as a discrete immunogen, allowing independent
@@ -119,7 +119,7 @@ the APC — but the suppression of subdominant T cell clones through APC killing
 alleviated in either case. Combined with the threat of HLA loss of heterozygosity under
 immune pressure and the limited number of peptide slots in a personalised vaccine
 formulation (typically 10–20 candidates in current clinical trials; Sahin et al.,
-*Nature* 2017; Ott et al., *Nature* 2017), allele breadth becomes the committed primary
+*Nature* 2017; Ott et al., *Nature* 2017), the genotype presentation score becomes the committed primary
 ranking criterion for our application. `best_presentation_percentile` is retained not as a
 competing ranking dimension but as a minimum quality gate — at least one allele must reach
 strong or weak binder threshold to ensure sufficient pMHC density for vaccine-primed T
@@ -140,7 +140,7 @@ different expected surface densities depending on the allele's locus. Concretely
 HLA-C-restricted peptide predicted at the same score as an HLA-A-restricted peptide is
 expected to generate fewer pMHC complexes per cell and thus a lower T cell activation
 signal. Locus-level weights — HLA-A and HLA-B at 1.0, HLA-C at approximately 0.5 —
-scale the effective contribution of each allele to the breadth score. Within a locus,
+scale the effective contribution of each allele to the genotype presentation score. Within a locus,
 expression differences between individual alleles are comparatively small and are not
 captured by current predictors; intra-locus alleles are therefore weighted equally. The
 HLA-C weight is treated as a configurable parameter, as published estimates of the
