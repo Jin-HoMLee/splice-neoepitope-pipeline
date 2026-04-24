@@ -426,7 +426,7 @@ def _build_strong_table_html(
     for _, row in strong_df.head(max_rows).iterrows():
         contig_key = row["contig_key"]
         start_nt = int(row["start_nt"])
-        end_nt_incl = start_nt + 26  # 9 aa × 3 nt − 1
+        end_nt_incl = start_nt + len(row["peptide"]) * 3 - 1
 
         seq = contigs.get(contig_key, "")
         contig_html = _render_contig(seq, start_nt, end_nt_incl, upstream_nt) if seq else "<em>n/a</em>"
