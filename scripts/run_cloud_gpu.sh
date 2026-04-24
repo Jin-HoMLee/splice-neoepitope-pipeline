@@ -310,18 +310,6 @@ REMOTE
 fi
 
 # ---------------------------------------------------------------------------
-# Clean up stale conda environments before running the pipeline
-# ---------------------------------------------------------------------------
-log "Cleaning up stale conda environments on ${PIPELINE_VM}..."
-ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
-set -euo pipefail
-cd "\$HOME/splice-neoepitope-pipeline"
-source "\$HOME/miniforge3/etc/profile.d/conda.sh"
-conda activate snakemake
-snakemake --conda-cleanup-envs --use-conda --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} --config samples_tsv=${SAMPLES}
-EOF
-
-# ---------------------------------------------------------------------------
 # Pull branch and start pipeline
 # ---------------------------------------------------------------------------
 log "Pulling branch '${BRANCH}' and starting pipeline on ${PIPELINE_VM}..."
