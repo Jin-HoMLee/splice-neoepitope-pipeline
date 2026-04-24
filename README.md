@@ -233,7 +233,7 @@ results/
     ├── peptides/
     │   └── peptides.tsv              # Junction-spanning 9-mers
     ├── predictions/
-    │   ├── mhc_affinity.tsv          # MHCflurry results (one row per peptide, best allele)
+    │   ├── mhc_presentation.tsv      # MHCflurry results (one row per peptide, best allele)
     │   └── tcrdock/                  # (when TCRdock is enabled)
     │       ├── top_candidate.pdb     # Predicted TCR-pMHC ternary complex
     │       └── docking_scores.tsv    # pLDDT/PAE quality metrics

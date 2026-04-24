@@ -33,7 +33,7 @@ if _TCRDOCK_ENABLED:
         PDB structure and docking geometry scores.
         """
         input:
-            predictions_tsv=rules.run_mhcflurry.output.mhc_affinity_tsv,
+            predictions_tsv=rules.run_mhcflurry.output.mhc_presentation_tsv,
         output:
             pdb=os.path.join(
                 _RES, "{patient_id}", "predictions", "tcrdock", "top_candidate.pdb"

@@ -140,27 +140,27 @@ class TestPeptides:
 
 class TestPredictions:
     def test_predictions_file_exists(self):
-        assert (RESULTS / "predictions" / "mhc_affinity.tsv").exists()
+        assert (RESULTS / "predictions" / "mhc_presentation.tsv").exists()
 
     def test_has_predictions(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         assert len(rows) > 0
 
     def test_presentation_classes_are_valid(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         if not rows or "presentation_class" not in rows[0]:
             pytest.skip("predictions use old schema — re-run pipeline to update")
         classes = {r["presentation_class"] for r in rows}
         assert classes <= VALID_PRESENTATION_CLASSES
 
     def test_ic50_values_are_positive(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         for r in rows:
             assert float(r["ic50_nM"]) > 0, f"Non-positive IC50: {r['ic50_nM']}"
 
     def test_all_predictions_have_required_columns(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
-        assert rows, "mhc_affinity.tsv is empty"
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
+        assert rows, "mhc_presentation.tsv is empty"
         if "presentation_class" not in rows[0]:
             pytest.skip("predictions use old schema — re-run pipeline to update")
         required = {
@@ -171,7 +171,7 @@ class TestPredictions:
         assert required <= set(rows[0].keys())
 
     def test_strong_presentations_have_low_percentile(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         if not rows or "presentation_class" not in rows[0]:
             pytest.skip("predictions use old schema — re-run pipeline to update")
         for r in rows:
@@ -182,7 +182,7 @@ class TestPredictions:
                 )
 
     def test_non_presentations_have_high_percentile(self):
-        rows = _read_tsv(RESULTS / "predictions" / "mhc_affinity.tsv")
+        rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         if not rows or "presentation_class" not in rows[0]:
             pytest.skip("predictions use old schema — re-run pipeline to update")
         for r in rows:

@@ -4,6 +4,18 @@
 
 ## 2026-04-24
 
+### ~10:02 UTC
+
+#### Issue #115 — Rename `mhc_affinity.tsv` → `mhc_presentation.tsv` (PR #121, branch `feat/issue-115-rename-mhc-affinity-tsv`)
+
+**Motivation:** The output file was named after `Class1AffinityPredictor`, but the pipeline now uses `Class1PresentationPredictor` (since Issue #85). The name `mhc_affinity.tsv` was misleading — the primary ranking metric is `presentation_percentile`, not IC50.
+
+**Changes:** Pure mechanical rename across 9 files — output path in `mhc_affinity.smk`, Snakemake output key `mhc_affinity_tsv` → `mhc_presentation_tsv` in `mhc_affinity.smk`, `run_mhcflurry.py`, `structure.smk`; path references in `analysis.smk`, `generate_report.py`, `run_tcrdock.py`, `test_integration.py`; docs in `METHODS.md`, `configuration.md`, `README.md`. The `.smk` rule module filename (`mhc_affinity.smk`) is unchanged — it is the rule module for the MHC prediction step, not named after the output.
+
+**Testing:** 25/25 integration tests pass. Local test result file renamed from `mhc_affinity.tsv` → `mhc_presentation.tsv`.
+
+---
+
 ### ~08:49 UTC
 
 #### Hotfix — rename `ic50_strong` → `presentation_percentile_strong` in `structure.smk` (PR #117, branch `fix/structure-smk-ic50-key`)
