@@ -41,6 +41,43 @@
 
 ---
 
+### ~16:15 UTC
+
+#### Issue #119 — PR #122 review cycle (Developer session)
+
+**Reviewer comments (6):** stale docstring, GPS out-of-range clamping, hardcoded quality-gate threshold, GPS test gap in `generate_report.py`, hardcoded 9-mer `end_nt_incl`, misleading log message on quality-gate rejection.
+
+**Key design decisions made during review:**
+- `hla_c_weight` outside [0,1] → hard `ValueError` (own config, must be correct).
+- MHCflurry `presentation_score` outside [0,1] → warning only, no clamp (third-party output; out-of-range values cannot be reliably interpreted and should be fixed upstream).
+- "binder" → "presenter" terminology throughout `run_tcrdock.py` and tests.
+
+**Fix commits (8):**
+- `4366af0` fix(mhc): fix stale docstring and add hla_c_weight validation + score warning
+- `9f0b6c6` test(mhc): add tests for hla_c_weight validation and out-of-range score warning
+- `b73b27b` fix(rules): thread presentation_percentile_weak into report and tcrdock params
+- `94a480a` fix(report): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `34f7aa5` fix(tcrdock): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `1b08ebe` test(report): add GPS quality-gate and ranking tests for generate_report.py
+- `fe6e188` fix(report): compute end_nt_incl from peptide length instead of hardcoded 9-mer
+- `d0e7456` fix(tcrdock): distinguish no-presenters from quality-gate-empty in log messages
+
+**196 tests passing.** Re-review requested.
+
+---
+
+### ~16:42 UTC
+
+#### Issue #119 — PR #122 re-review fix + merge prep
+
+**Re-review verdict:** Ready to merge. Three minor observations: (1) `presentation_notes` strings in `_build_report_tsv` still hardcoded `"2%"` for `weak`/`non` entries despite `presentation_percentile_weak` parameter being available; (2) CLI parsers missing `--presentation-percentile-weak` flag; (3) `generate_report()` docstring missing the parameter.
+
+Fixed (1) now — `weak`/`non` entries converted to f-strings using `presentation_percentile_weak` (`18e1fac`). Items (2) and (3) deferred to follow-up issue.
+
+**29 tests passing** (generate_report suite).
+
+---
+
 ### ~11:30 UTC
 
 #### Issue #119 — Allele breadth model: scientific design (Researcher session, branch `feat/issue-119-allele-breadth`)
