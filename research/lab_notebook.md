@@ -4,6 +4,26 @@
 
 ## 2026-04-24
 
+### ~22:12 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: patient_002 started (WES normal, interim)
+
+Launched production pipeline run for patient_002 (osteosarcoma IPISRC044, BG003082) via
+`run_cloud_gpu.sh --detach` on `neoepitope-pipeline` VM. Branch: `feat/issue-123-prod-cloud-run`.
+
+Normal sample: Blood Derived WES (`BG003082_N0_WES`) — interim proxy; yields near-zero junction
+overlap (~3 junctions). All unannotated tumour junctions will be labeled `tumor_exclusive` with
+a pipeline warning. Proper normal (Jan 2025 CD3+ PBMC Cell Ranger BAM) pending Issue #127
+implementation.
+
+Also includes two bug fixes committed since patient_001 re-run:
+- `2625ec7` fix(tcrdock): match `_pdb_file` suffix in column search (avoids `pdbid` false-match)
+- `117d174` fix(cloud): remove `--conda-cleanup-envs` (was deleting all 4 envs when DAG empty)
+
+Issue #127 opened: support pre-aligned BAM as normal input for junction filtering.
+
+---
+
 ### ~22:00 UTC
 
 #### Issue #123 / #126 — patient_002 normal sample decision + GTEx filter design (Researcher session)
