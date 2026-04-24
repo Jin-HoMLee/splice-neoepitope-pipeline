@@ -161,14 +161,20 @@ class TestPredictions:
     def test_all_predictions_have_required_columns(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")
         assert rows, "mhc_presentation.tsv is empty"
-        if "presentation_class" not in rows[0]:
+        if "presentation_class" not in rows[0] or "best_allele" not in rows[0]:
             pytest.skip("predictions use old schema — re-run pipeline to update")
-        required = {
-            "peptide", "allele", "ic50_nM",
+        required_base = {
+            "peptide", "best_allele", "ic50_nM",
             "processing_score", "presentation_score",
             "presentation_percentile", "presentation_class",
         }
-        assert required <= set(rows[0].keys())
+        assert required_base <= set(rows[0].keys())
+        if "genotype_presentation_score" not in rows[0]:
+            pytest.skip("predictions use pre-breadth schema — re-run pipeline to update")
+        required_breadth = {
+            "genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile",
+        }
+        assert required_breadth <= set(rows[0].keys())
 
     def test_strong_presentations_have_low_percentile(self):
         rows = _read_tsv(RESULTS / "predictions" / "mhc_presentation.tsv")

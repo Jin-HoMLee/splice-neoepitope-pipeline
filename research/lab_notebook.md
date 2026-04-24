@@ -4,6 +4,123 @@
 
 ## 2026-04-24
 
+### ~14:38 UTC
+
+#### Issue #119 — Two-level MHC presentation prediction: implementation (Developer session, PR #122, branch `feat/issue-119-allele-breadth`)
+
+**Goal:** Implement the allele breadth model designed in the Researcher session (~11:30 UTC) and open PR #122.
+
+**Done:**
+
+- Replaced `_compute_strong_alleles()` in `run_mhcflurry.py` with `_compute_per_allele_features()`: one `Class1PresentationPredictor.predict()` call per allele (single-element genotype list) to recover per-allele `presentation_score` and `presentation_percentile` discarded by the genotype API.
+- New `genotype_presentation_score` formula: `1 − ∏(1 − wᵢ·pᵢ)`, with `w(HLA-A) = w(HLA-B) = 1.0`, `w(HLA-C) = hla_c_weight` (default 0.5). New supporting columns: `n_strong_alleles`, `best_presentation_percentile`.
+- `allele` column renamed to `best_allele` throughout (`run_mhcflurry.py`, `generate_report.py`, `run_tcrdock.py`, tests).
+- Updated ranking in `generate_report.py` and `run_tcrdock.py`: GPS ↓ → `n_strong_alleles` ↓ → `best_presentation_percentile` ↑. Quality gate: `best_presentation_percentile > 2%` excluded from top-candidates list.
+- Added `mhcflurry.hla_c_weight: 0.5` to `config/config.yaml` and propagated through `mhc_affinity.smk` params.
+- `METHODS.md` Section 6 rewritten: two-level architecture, GPS formula in LaTeX, quality gate, ranking rule, full output column table.
+- `docs/configuration.md`: `hla_c_weight` documented with HLA-C surface density rationale.
+- Test suite: 186 passed, 1 skipped (stale integration pipeline output — schema-version skip guard added).
+
+**Key implementation detail:** The genotype API (`predict()` with all alleles at once) reports only the best-allele scores and silently discards all others. Per-allele scores must be recovered via separate single-allele calls. This dual-call design is why `_compute_per_allele_features` iterates over `resolved_alleles` individually.
+
+**Column name change mid-session:** `breadth_score` → `genotype_presentation_score` after Researcher consultation. All code, tests, and docs use the new name.
+
+**Local test run (chr22, patient_001_test):** Full pipeline completed. `mhc_presentation.tsv` has 24 columns (6 allele pairs + 3 breadth columns). Top hit: DVFGTPFSR / HLA-A\*33:03, GPS = 0.9996, best-allele percentile = 0.001%.
+
+**Commits (9, all on `feat/issue-119-allele-breadth`):**
+- `530ddfc` docs(manuscript): rename breadth_score → genotype_presentation_score
+- `a13fd30` feat(config): add mhcflurry.hla_c_weight config key and Snakemake param
+- `38b6ac8` feat(mhc): add per-allele genotype_presentation_score model (Issue #119)
+- `49b8e96` feat(report): update ranking to genotype_presentation_score, add quality gate
+- `b90c75d` feat(tcrdock): update candidate selection to genotype_presentation_score ranking
+- `291fd23` test(mhc): update tests for new output schema and add breadth feature tests
+- `3d8b903` test(report,tcrdock): update test data to best_allele; add breadth-aware tcrdock tests
+- `260da3a` test(integration): update required columns for new schema with skip guards
+- `f792ac1` docs(methods): update Section 6 for two-level MHC presentation prediction
+- `ac89bd2` docs(config): document hla_c_weight and update mhcflurry section
+
+---
+
+### ~16:15 UTC
+
+#### Issue #119 — PR #122 review cycle (Developer session)
+
+**Reviewer comments (6):** stale docstring, GPS out-of-range clamping, hardcoded quality-gate threshold, GPS test gap in `generate_report.py`, hardcoded 9-mer `end_nt_incl`, misleading log message on quality-gate rejection.
+
+**Key design decisions made during review:**
+- `hla_c_weight` outside [0,1] → hard `ValueError` (own config, must be correct).
+- MHCflurry `presentation_score` outside [0,1] → warning only, no clamp (third-party output; out-of-range values cannot be reliably interpreted and should be fixed upstream).
+- "binder" → "presenter" terminology throughout `run_tcrdock.py` and tests.
+
+**Fix commits (8):**
+- `4366af0` fix(mhc): fix stale docstring and add hla_c_weight validation + score warning
+- `9f0b6c6` test(mhc): add tests for hla_c_weight validation and out-of-range score warning
+- `b73b27b` fix(rules): thread presentation_percentile_weak into report and tcrdock params
+- `94a480a` fix(report): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `34f7aa5` fix(tcrdock): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `1b08ebe` test(report): add GPS quality-gate and ranking tests for generate_report.py
+- `fe6e188` fix(report): compute end_nt_incl from peptide length instead of hardcoded 9-mer
+- `d0e7456` fix(tcrdock): distinguish no-presenters from quality-gate-empty in log messages
+
+**196 tests passing.** Re-review requested.
+
+---
+
+### ~16:42 UTC
+
+#### Issue #119 — PR #122 re-review fix + merge prep
+
+**Re-review verdict:** Ready to merge. Three minor observations: (1) `presentation_notes` strings in `_build_report_tsv` still hardcoded `"2%"` for `weak`/`non` entries despite `presentation_percentile_weak` parameter being available; (2) CLI parsers missing `--presentation-percentile-weak` flag; (3) `generate_report()` docstring missing the parameter.
+
+Fixed (1) now — `weak`/`non` entries converted to f-strings using `presentation_percentile_weak` (`18e1fac`). Items (2) and (3) deferred to follow-up issue.
+
+**29 tests passing** (generate_report suite).
+
+---
+
+### ~11:30 UTC
+
+#### Issue #119 — Allele breadth model: scientific design (Researcher session, branch `feat/issue-119-allele-breadth`)
+
+**Goal:** Develop and document the scientific rationale for a multi-allele breadth scoring
+model for `mhc_presentation.tsv`. No code changes — manuscript only.
+
+**Key scientific decisions:**
+
+- **Two-level architecture:** MHCflurry is a molecular-level predictor (one peptide × one
+  MHC allele → `presentation_score`). The breadth model is a separate genotype-level
+  combiner: `breadth_score = 1 − ∏(1 − wᵢ·pᵢ)`. These are distinct modelling layers.
+- **HLA-C weight:** enters at the genotype-combination level (surface density ~50% of
+  HLA-A/B), not at the molecular prediction level. Configurable (`w_C`, default 0.5).
+- **`presentation_score` in formula (not `presentation_percentile`):** `presentation_score`
+  is a calibrated absolute probability — the correct input for a complementary probability
+  formula. `presentation_percentile` is a rank statistic; using it would require an
+  arbitrary mapping. The two metrics can disagree (high breadth_score with all alleles in
+  non-binder percentile territory is possible for promiscuous alleles) — this is the
+  intended behaviour of the two-tier system.
+- **Committed ranking for cancer vaccine application:**
+  1. `breadth_score` — primary (multi-allele coverage, LOH robustness, vaccine slot efficiency)
+  2. `n_strong_alleles` — secondary (count of alleles at ≤ 0.5% percentile)
+  3. `best_presentation_percentile` — minimum quality gate only (not a ranking dimension);
+     filters candidates where no allele reaches weak-binder territory
+- **Immunodominance acknowledged but not dominant in vaccine context:** in natural
+  anti-tumour immunity, one very strong allele can dominate via intramolecular MHC groove
+  competition and immunodomination (Yewdell & Bennink, *Annu Rev Immunol* 1999; Chen &
+  McCluskey, *Adv Cancer Res* 2006). In therapeutic vaccination, immunodomination is largely
+  bypassed; HLA LOH and vaccine slot efficiency make breadth the primary criterion.
+
+**Manuscript changes (committed `c9d5eb3`, branch `feat/issue-119-allele-breadth`):**
+- `INTRODUCTION.md`: new section "HLA Genotype, Surface Expression, and Allele Breadth"
+- `DISCUSSIONS.md`: new section "Allele breadth and immunodominance: two complementary
+  ranking signals" (subsections: two-level architecture, immunodominance mechanisms,
+  vaccine application with committed table, calibration note)
+
+**METHODS.md:** not updated — Developer session responsibility after implementation.
+
+**Design spec for Developer session:** `memory/project_allele_breadth_design.md`
+
+---
+
 ### ~10:02 UTC
 
 #### Issue #115 — Rename `mhc_affinity.tsv` → `mhc_presentation.tsv` (PR #121, branch `feat/issue-115-rename-mhc-affinity-tsv`)

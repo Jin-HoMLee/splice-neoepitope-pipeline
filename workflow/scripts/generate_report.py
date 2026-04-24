@@ -400,30 +400,48 @@ def _build_strong_table_html(
     contigs: dict[str, str],
     upstream_nt: int = 26,
     max_rows: int = 50,
+    presentation_percentile_weak: float = 2.0,
 ) -> str:
-    """Build the top strong presentations table sorted by presentation_percentile."""
-    strong_df = (
-        pred_df[pred_df["presentation_class"] == "strong"]
-        .sort_values("presentation_percentile")
-    )
+    """Build the top strong presentations table ranked by genotype_presentation_score."""
+    strong_df = pred_df[pred_df["presentation_class"] == "strong"].copy()
+
+    # Quality gate: at least one allele must reach weak-binder threshold
+    if "best_presentation_percentile" in strong_df.columns:
+        strong_df = strong_df[strong_df["best_presentation_percentile"] <= presentation_percentile_weak]
+
     if strong_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
+
+    # Ranking: genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc
+    has_breadth_cols = "genotype_presentation_score" in strong_df.columns
+    if has_breadth_cols:
+        strong_df = strong_df.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        strong_df = strong_df.sort_values("presentation_percentile")
 
     rows = []
     for _, row in strong_df.head(max_rows).iterrows():
         contig_key = row["contig_key"]
         start_nt = int(row["start_nt"])
-        end_nt_incl = start_nt + 26  # 9 aa × 3 nt − 1
+        end_nt_incl = start_nt + len(row["peptide"]) * 3 - 1
 
         seq = contigs.get(contig_key, "")
         contig_html = _render_contig(seq, start_nt, end_nt_incl, upstream_nt) if seq else "<em>n/a</em>"
 
+        gps_cell = (
+            f"<td>{row['genotype_presentation_score']:.4f}</td>"
+            if has_breadth_cols else ""
+        )
         rows.append(
             f"<tr>"
             f"<td>{html_mod.escape(str(row['contig_key']))}</td>"
             f"<td>{html_mod.escape(str(row['peptide']))}</td>"
-            f"<td>{html_mod.escape(str(row['allele']))}</td>"
+            f"<td>{html_mod.escape(str(row['best_allele']))}</td>"
             f"<td>{row['presentation_percentile']:.3f}</td>"
+            f"{gps_cell}"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{contig_html}</td>"
             f"</tr>"
@@ -434,10 +452,15 @@ def _build_strong_table_html(
         "<span class='nt-pep-up'>peptide (upstream)</span> "
         "<span class='nt-pep-down'>peptide (downstream)</span>"
     )
+    gps_header = (
+        "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
+        if has_breadth_cols else ""
+    )
     table = (
         f"<table><thead><tr>"
-        f"<th>Source</th><th>Peptide</th><th>Allele</th>"
-        f"<th title='Presentation percentile rank — lower is better'>Pres. %ile ▾</th>"
+        f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
+        f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
+        f"{gps_header}"
         f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
@@ -460,7 +483,7 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
 # Report generation
 # ---------------------------------------------------------------------------
 
-def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
+def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation_percentile_weak: float = 2.0) -> str:
     """Build the Mol* 3D viewer section for the top TCRdock candidate.
 
     The PDB is inlined as a JSON string so the HTML report is fully
@@ -480,15 +503,24 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
         return "<p><em>Structure not available.</em></p>"
 
     # Annotate with the top candidate's peptide and allele.
-    # Match run_tcrdock.py's candidate selection: best strong binder, falling
-    # back to weak. Exclude non-binders to stay in sync.
-    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))]
-    top = binders.sort_values("presentation_percentile").head(1)
+    # Match run_tcrdock.py's candidate selection: quality-gated binders ranked by
+    # genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc.
+    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
+    if "best_presentation_percentile" in binders.columns:
+        binders = binders[binders["best_presentation_percentile"] <= presentation_percentile_weak]
+    if "genotype_presentation_score" in binders.columns:
+        binders = binders.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        binders = binders.sort_values("presentation_percentile")
+    top = binders.head(1)
     if top.empty:
         peptide, allele = "NA", "NA"
     else:
         peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
-        allele  = html_mod.escape(str(top.iloc[0]["allele"]))
+        allele  = html_mod.escape(str(top.iloc[0]["best_allele"]))
 
     pdb_text = _build_compnd_records(pdb_text, peptide, allele)
 
@@ -521,6 +553,7 @@ def _build_report_tsv(
     output_tsv: str | Path,
     presentation_percentile_strong: float,
     tcrdock_pdb: str | Path | None,
+    presentation_percentile_weak: float = 2.0,
 ) -> None:
     """Write a structured summary TSV alongside the HTML report.
 
@@ -549,8 +582,8 @@ def _build_report_tsv(
         })
         presentation_notes = {
             "strong": f"presentation_percentile <= {presentation_percentile_strong}%",
-            "weak": "presentation_percentile <= 2%",
-            "non": "presentation_percentile > 2%",
+            "weak": f"presentation_percentile <= {presentation_percentile_weak}%",
+            "non": f"presentation_percentile > {presentation_percentile_weak}%",
         }
         for cls, cnt in pred_df["presentation_class"].value_counts().items():
             rows.append({
@@ -560,23 +593,37 @@ def _build_report_tsv(
             })
 
     # --- top_candidate ---
-    strong_df = (
-        pred_df[pred_df["presentation_class"].isin(["strong", "weak"])]
-        .sort_values("presentation_percentile")
-        if not pred_df.empty else pd.DataFrame()
-    )
+    if not pred_df.empty:
+        top_candidates = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
+        if "best_presentation_percentile" in top_candidates.columns:
+            top_candidates = top_candidates[top_candidates["best_presentation_percentile"] <= presentation_percentile_weak]
+        if "genotype_presentation_score" in top_candidates.columns:
+            top_candidates = top_candidates.sort_values(
+                ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+                ascending=[False, False, True],
+            )
+        else:
+            top_candidates = top_candidates.sort_values("presentation_percentile")
+        strong_df = top_candidates
+    else:
+        strong_df = pd.DataFrame()
+
     if not strong_df.empty:
         top = strong_df.iloc[0]
+        numeric_metrics = ("presentation_percentile", "ic50_nM", "genotype_presentation_score")
         for metric, col in [
-            ("peptide", "peptide"), ("allele", "allele"),
+            ("peptide", "peptide"), ("allele", "best_allele"),
             ("presentation_percentile", "presentation_percentile"),
+            ("genotype_presentation_score", "genotype_presentation_score"),
             ("ic50_nM", "ic50_nM"), ("presentation_class", "presentation_class"),
         ]:
+            if col not in top.index:
+                continue
             rows.append({
                 "patient_id": patient_id, "stage": "top_candidate",
                 "metric": metric,
-                "value": round(float(top[col]), 4) if metric in ("presentation_percentile", "ic50_nM") else str(top[col]),
-                "notes": "top by presentation_percentile" if metric == "peptide" else "",
+                "value": round(float(top[col]), 4) if metric in numeric_metrics else str(top[col]),
+                "notes": "top by genotype_presentation_score" if metric == "peptide" else "",
             })
 
     # --- hla_typing ---
@@ -622,6 +669,7 @@ def generate_report(
     contigs_fasta: str | Path | None = None,
     hla_qc_tsv: str | None = None,
     presentation_percentile_strong: float = 0.5,
+    presentation_percentile_weak: float = 2.0,
     tcrdock_pdb: str | Path | None = None,
     output_tsv: str | Path | None = None,
     patient_id: str = "",
@@ -679,14 +727,14 @@ def generate_report(
     if pred_df.empty:
         strong_html = "<p><em>No predictions available.</em></p>"
     else:
-        strong_html = _build_strong_table_html(pred_df, contigs)
+        strong_html = _build_strong_table_html(pred_df, contigs, presentation_percentile_weak=presentation_percentile_weak)
 
     # --- HLA typing section (optional) ---
     hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
 
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
-        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df)
+        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df, presentation_percentile_weak=presentation_percentile_weak)
     else:
         structure_section = ""
 
@@ -723,6 +771,7 @@ def generate_report(
             output_tsv=output_tsv,
             presentation_percentile_strong=presentation_percentile_strong,
             tcrdock_pdb=tcrdock_pdb,
+            presentation_percentile_weak=presentation_percentile_weak,
         )
 
 
@@ -741,6 +790,7 @@ def _snakemake_main() -> None:
         contigs_fasta=snakemake.input.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         hla_qc_tsv=getattr(snakemake.input, "hla_qc", None),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
+        presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
         output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821

@@ -32,31 +32,32 @@ _FLAT_PDB = (
 # ---------------------------------------------------------------------------
 
 class TestSelectTopCandidates:
-    def test_selects_strong_binder(self, tmp_path):
+    def test_selects_strong_presenter(self, tmp_path):
         tsv = _write_predictions_tsv(tmp_path, [
-            {"peptide": "AAA", "allele": "HLA-A*02:01", "ic50_nM": 10.0,
+            {"peptide": "ACDEFGHIK", "best_allele": "HLA-A*02:01", "ic50_nM": 10.0,
              "presentation_percentile": 0.1, "presentation_class": "strong", "contig_key": "c1", "start_nt": 0},
-            {"peptide": "BBB", "allele": "HLA-A*02:01", "ic50_nM": 200.0,
+            {"peptide": "LMNPQRSTV", "best_allele": "HLA-A*02:01", "ic50_nM": 200.0,
              "presentation_percentile": 2.0, "presentation_class": "weak", "contig_key": "c2", "start_nt": 0},
         ])
         result = select_top_candidates(tsv, n_candidates=1)
         assert len(result) == 1
-        assert result.iloc[0]["peptide"] == "AAA"
+        assert result.iloc[0]["peptide"] == "ACDEFGHIK"
 
-    def test_falls_back_to_weak(self, tmp_path):
+    def test_includes_weak_presenters(self, tmp_path):
+        """Weak presenters are included in candidates (quality gate checked separately)."""
         tsv = _write_predictions_tsv(tmp_path, [
-            {"peptide": "BBB", "allele": "HLA-A*02:01", "ic50_nM": 200.0,
+            {"peptide": "LMNPQRSTV", "best_allele": "HLA-A*02:01", "ic50_nM": 200.0,
              "presentation_percentile": 2.0, "presentation_class": "weak", "contig_key": "c1", "start_nt": 0},
-            {"peptide": "CCC", "allele": "HLA-A*02:01", "ic50_nM": 9999.0,
+            {"peptide": "YKLMFSTAV", "best_allele": "HLA-A*02:01", "ic50_nM": 9999.0,
              "presentation_percentile": 50.0, "presentation_class": "non", "contig_key": "c2", "start_nt": 0},
         ])
         result = select_top_candidates(tsv, n_candidates=1)
         assert len(result) == 1
-        assert result.iloc[0]["peptide"] == "BBB"
+        assert result.iloc[0]["peptide"] == "LMNPQRSTV"
 
-    def test_returns_empty_when_no_binders(self, tmp_path):
+    def test_returns_empty_when_no_presenters(self, tmp_path):
         tsv = _write_predictions_tsv(tmp_path, [
-            {"peptide": "CCC", "allele": "HLA-A*02:01", "ic50_nM": 9999.0,
+            {"peptide": "YKLMFSTAV", "best_allele": "HLA-A*02:01", "ic50_nM": 9999.0,
              "presentation_percentile": 50.0, "presentation_class": "non", "contig_key": "c1", "start_nt": 0},
         ])
         result = select_top_candidates(tsv, n_candidates=1)
@@ -64,16 +65,66 @@ class TestSelectTopCandidates:
 
     def test_respects_n_candidates(self, tmp_path):
         tsv = _write_predictions_tsv(tmp_path, [
-            {"peptide": "AAA", "allele": "HLA-A*02:01", "ic50_nM": 10.0,
+            {"peptide": "ACDEFGHIK", "best_allele": "HLA-A*02:01", "ic50_nM": 10.0,
              "presentation_percentile": 0.1, "presentation_class": "strong", "contig_key": "c1", "start_nt": 0},
-            {"peptide": "BBB", "allele": "HLA-A*02:01", "ic50_nM": 20.0,
+            {"peptide": "LMNPQRSTV", "best_allele": "HLA-A*02:01", "ic50_nM": 20.0,
              "presentation_percentile": 0.2, "presentation_class": "strong", "contig_key": "c2", "start_nt": 0},
-            {"peptide": "CCC", "allele": "HLA-A*02:01", "ic50_nM": 30.0,
+            {"peptide": "YKLMFSTAV", "best_allele": "HLA-A*02:01", "ic50_nM": 30.0,
              "presentation_percentile": 0.3, "presentation_class": "strong", "contig_key": "c3", "start_nt": 0},
         ])
         result = select_top_candidates(tsv, n_candidates=2)
         assert len(result) == 2
-        assert list(result["peptide"]) == ["AAA", "BBB"]
+        assert list(result["peptide"]) == ["ACDEFGHIK", "LMNPQRSTV"]
+
+    def test_quality_gate_filters_non_presenter_percentile(self, tmp_path):
+        """Candidates where best_presentation_percentile > 2% are excluded."""
+        tsv = _write_predictions_tsv(tmp_path, [
+            {"peptide": "ACDEFGHIK", "best_allele": "HLA-A*02:01", "ic50_nM": 10.0,
+             "presentation_percentile": 0.1, "presentation_class": "strong",
+             "best_presentation_percentile": 0.1,
+             "genotype_presentation_score": 0.9, "n_strong_alleles": 1,
+             "contig_key": "c1", "start_nt": 0},
+            {"peptide": "LMNPQRSTV", "best_allele": "HLA-A*02:01", "ic50_nM": 20.0,
+             "presentation_percentile": 0.2, "presentation_class": "strong",
+             "best_presentation_percentile": 3.0,  # fails quality gate
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 2,
+             "contig_key": "c2", "start_nt": 0},
+        ])
+        result = select_top_candidates(tsv, n_candidates=5)
+        assert len(result) == 1
+        assert result.iloc[0]["peptide"] == "ACDEFGHIK"
+
+    def test_ranked_by_genotype_presentation_score(self, tmp_path):
+        """When GPS columns present, candidates rank by genotype_presentation_score desc."""
+        tsv = _write_predictions_tsv(tmp_path, [
+            {"peptide": "ACDEFGHIK", "best_allele": "HLA-A*02:01", "ic50_nM": 10.0,
+             "presentation_percentile": 0.1, "presentation_class": "strong",
+             "best_presentation_percentile": 0.1,
+             "genotype_presentation_score": 0.7, "n_strong_alleles": 1,
+             "contig_key": "c1", "start_nt": 0},
+            {"peptide": "LMNPQRSTV", "best_allele": "HLA-A*02:01", "ic50_nM": 200.0,
+             "presentation_percentile": 0.4, "presentation_class": "strong",
+             "best_presentation_percentile": 0.4,
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 3,
+             "contig_key": "c2", "start_nt": 0},
+        ])
+        result = select_top_candidates(tsv, n_candidates=1)
+        assert result.iloc[0]["peptide"] == "LMNPQRSTV"  # higher GPS wins
+
+    def test_quality_gate_empty_logs_specific_message(self, tmp_path, caplog):
+        """When presenters exist but all fail quality gate, log distinguishes from no-presenters case."""
+        import logging
+        tsv = _write_predictions_tsv(tmp_path, [
+            {"peptide": "ACDEFGHIK", "best_allele": "HLA-A*02:01", "ic50_nM": 10.0,
+             "presentation_percentile": 0.1, "presentation_class": "strong",
+             "best_presentation_percentile": 3.0,  # fails gate
+             "genotype_presentation_score": 0.9, "n_strong_alleles": 1,
+             "contig_key": "c1", "start_nt": 0},
+        ])
+        with caplog.at_level(logging.ERROR, logger="run_tcrdock"):
+            result = select_top_candidates(tsv, n_candidates=1, presentation_percentile_weak=2.0)
+        assert result.empty
+        assert any("quality gate" in r.message for r in caplog.records if r.levelno == logging.ERROR)
 
 
 # ---------------------------------------------------------------------------

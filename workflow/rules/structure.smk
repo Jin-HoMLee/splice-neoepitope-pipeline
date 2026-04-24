@@ -27,7 +27,8 @@ if _TCRDOCK_ENABLED:
     rule run_tcrdock:
         """Run TCRdock on the top strong-binding neoepitope candidate.
 
-        Selects the top N candidates by IC50 from MHCflurry predictions,
+        Selects the top N candidates ranked by genotype_presentation_score
+        (quality-gated by presentation_percentile_weak) from MHCflurry predictions,
         builds a TCRdock input TSV using the configured (or fallback) HLA
         allele and TCR sequences, runs TCRdock, and writes the predicted
         PDB structure and docking geometry scores.
@@ -48,6 +49,7 @@ if _TCRDOCK_ENABLED:
             docker_image=config["tcrdock"]["docker_image"],
             fallback_hla=config["tcrdock"]["fallback_hla"],
             fallback_tcr=config["tcrdock"]["fallback_tcr"],
+            presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
         conda:
             "../envs/python.yaml"
         script:
@@ -75,6 +77,7 @@ if _TCRDOCK_ENABLED:
             os.path.join(_LOGS, "{patient_id}", "structure", "report.log"),
         params:
             presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
+            presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
         conda:
             "../envs/python.yaml"
         script:

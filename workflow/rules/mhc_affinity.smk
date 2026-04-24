@@ -42,10 +42,9 @@ rule download_mhcflurry_models:
 
 
 rule run_mhcflurry:
-    """Run MHCflurry 2.x on junction-spanning 9-mers.
-    Output: TSV with columns: contig_key, start_nt, peptide, allele, ic50_nM,
-            processing_score, presentation_score, presentation_percentile,
-            presentation_class (strong / weak / non).
+    """Run MHCflurry 2.x on junction-spanning peptides.
+    Output: TSV with per-allele presentation scores plus genotype_presentation_score,
+            n_strong_alleles, and best_presentation_percentile.
     When hla.enabled is true, predictions are run for all patient-specific
     alleles from alleles.tsv. Otherwise mhcflurry.fallback_alleles are used."""
     input:
@@ -61,6 +60,7 @@ rule run_mhcflurry:
         fallback_alleles=list(config["mhcflurry"]["fallback_alleles"].values()),
         presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
         presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
+        hla_c_weight=config["mhcflurry"]["hla_c_weight"],
     threads: config["mhcflurry"]["threads"]
     conda:
         "../envs/python.yaml"

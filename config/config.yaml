@@ -105,6 +105,8 @@ mhcflurry:
   # Percentile thresholds for presentation_class (lower = better, per allele).
   presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong
   presentation_percentile_weak:    2.0   # top 2.0% by presentation score → weak
+  # HLA-C weight in genotype_presentation_score formula (A/B = 1.0; C ≈ 0.5 surface density)
+  hla_c_weight:                    0.5
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)

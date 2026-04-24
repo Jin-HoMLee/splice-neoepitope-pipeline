@@ -82,9 +82,10 @@ mhcflurry:
   threads: 8                # cores reserved for TF/BLAS within the single genotype predict() call
   presentation_percentile_strong: 0.5   # top 0.5% → strong (Jiang et al. 2024)
   presentation_percentile_weak:   2.0   # top 2.0% → weak
+  hla_c_weight: 0.5         # weight for HLA-C in genotype_presentation_score (A/B = 1.0)
 ```
 
-`Class1PresentationPredictor.predict()` is called once with all patient alleles as a genotype (≤6). It returns one best-allele prediction per peptide — not one per peptide × allele. The `allele` column in `mhc_presentation.tsv` is the best presenter for that peptide across the patient's HLA-A/B/C genotype.
+`Class1PresentationPredictor.predict()` is called once with all patient alleles as a genotype (≤6) for best-allele predictions, then independently per allele to recover per-allele scores. The `best_allele` column in `mhc_presentation.tsv` is the best presenter for that peptide across the patient's HLA-A/B/C genotype. Per-allele scores are combined into `genotype_presentation_score` using the complementary-probability formula weighted by locus expression levels (`hla_c_weight` controls the HLA-C contribution; default 0.5 reflects ~50% lower surface density of HLA-C relative to HLA-A/B).
 
 ---
 
