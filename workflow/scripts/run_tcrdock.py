@@ -39,7 +39,7 @@ Outputs
 
 Usage (standalone, Linux + GPU only):
   python run_tcrdock.py \\
-      --predictions-tsv results/predictions/local/mhc_affinity.tsv \\
+      --predictions-tsv results/predictions/local/mhc_presentation.tsv \\
       --output-pdb results/predictions/local/tcrdock/top_candidate.pdb \\
       --output-scores results/predictions/local/tcrdock/docking_scores.tsv
 
