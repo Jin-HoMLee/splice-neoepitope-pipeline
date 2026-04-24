@@ -136,34 +136,63 @@ chimeric codon rationale.
 
 ---
 
-## 6. MHC Binding Prediction
+## 6. MHC Presentation Prediction
 
+Scoring proceeds in two levels.
+
+**Level 1 — molecular prediction (MHCflurry).**
 Junction-spanning peptides are scored using MHCflurry 2.x `Class1PresentationPredictor`,
 a composite model that integrates MHC class I binding affinity with antigen processing
-predictions (proteasomal cleavage, TAP transport). `Class1PresentationPredictor.predict()`
-accepts the full patient HLA genotype (all HLA-A/B/C alleles at once, ≤6) and returns one
-best-allele prediction per peptide — the allele with the highest presentation score for
-that peptide. This is the predictor's intended genotype-level API; it is not a per-allele
-loop.
+predictions (proteasomal cleavage, TAP transport). The predictor is called once with the
+full patient HLA genotype (all HLA-A/B/C alleles, ≤6) to obtain the best-allele
+prediction per peptide, and then called independently for each allele (one-allele genotype)
+to obtain per-allele `presentation_score` and `presentation_percentile`. This dual-call
+design is required because the genotype API reports only the best allele and discards scores
+for the remaining alleles; the per-allele calls recover those scores.
 
-Each prediction row contains four informative scores:
+Each prediction row contains the following scores:
 
 | Column | Description |
 |---|---|
+| `best_allele` | Allele with the highest presentation score in the patient genotype |
 | `ic50_nM` | Binding affinity (nM); informational |
 | `processing_score` | Predicted antigen processing efficiency (0–1) |
-| `presentation_score` | Composite presentation probability (0–1); integrates affinity + processing |
-| `presentation_percentile` | Percentile rank of presentation_score among random peptides for that allele |
+| `presentation_score` | Composite presentation probability (0–1) for the best allele |
+| `presentation_percentile` | Percentile rank of presentation_score for the best allele |
+| `{allele}_presentation_score` | Per-allele presentation probability (one column per allele) |
+| `{allele}_presentation_percentile` | Per-allele percentile rank (one column per allele) |
 
 Peptides are assigned a single classification label based on `presentation_percentile`
-(lower = better, per allele):
+(lower = better, best allele):
 
 - **`presentation_class`** — strong (≤ 0.5%), weak (≤ 2%), non (> 2%)
 
 The 0.5% threshold is consistent with Jiang et al. (2024, *Communications Biology*)
 and analogous to the conventional IC50 ≤ 50 nM cutoff.
 
-Epitopes are ranked in the output report by `presentation_percentile` (ascending).
+**Level 2 — genotype presentation score.**
+Per-allele scores are combined into a single genotype-level probability using a
+complementary-probability formula:
+
+$$\text{genotype\_presentation\_score} = 1 - \prod_{i} \left(1 - w_i \cdot p_i\right)$$
+
+where $p_i$ is the `presentation_score` of allele $i$ and $w_i$ is a locus weight
+($w_{\text{HLA-A}} = w_{\text{HLA-B}} = 1.0$; $w_{\text{HLA-C}} = 0.5$ by default,
+reflecting ~50% lower surface density of HLA-C relative to HLA-A/B (van Bergen et al.,
+2004)). The HLA-C weight is configurable via `config.mhcflurry.hla_c_weight`.
+
+Two supporting statistics are also computed:
+
+- **`n_strong_alleles`** — number of alleles with `presentation_percentile` ≤ 0.5%
+- **`best_presentation_percentile`** — minimum `presentation_percentile` across all alleles
+
+**Ranking and quality gate.**
+Candidates are ranked by `genotype_presentation_score` (descending) as the primary signal,
+with `n_strong_alleles` (descending) as a secondary tie-breaker and
+`best_presentation_percentile` (ascending) as a tertiary tie-breaker. A candidate is
+excluded from the top-candidates list if `best_presentation_percentile > 2%` (no allele
+reaches weak-binder threshold), providing a quality gate against high-GPS candidates
+composed entirely of non-binding alleles.
 
 ---
 
@@ -190,7 +219,7 @@ visualisation via Mol\* 4.x.
 | `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
 | `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
 | `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
-| `results/predictions/{patient_id}/mhc_presentation.tsv` | Best-allele prediction per peptide: allele (best presenter in patient genotype), ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class |
+| `results/predictions/{patient_id}/mhc_presentation.tsv` | Per-peptide MHC presentation predictions: best_allele, ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class, per-allele presentation_score / presentation_percentile columns, genotype_presentation_score, n_strong_alleles, best_presentation_percentile |
 | `results/predictions/{patient_id}/tcrdock/top_candidate.pdb` | Predicted TCR–peptide–MHC ternary complex (PDB) |
 | `results/predictions/{patient_id}/tcrdock/docking_scores.tsv` | TCRdock geometry metrics |
 | `results/reports/{patient_id}/report.html` | Summary HTML report with HLA QC and Mol\* viewer |
