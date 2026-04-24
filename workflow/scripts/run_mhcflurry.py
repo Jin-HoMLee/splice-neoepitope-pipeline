@@ -25,8 +25,10 @@ Allele sources (in priority order):
      drawn from config.mhcflurry.fallback_alleles when HLA typing is disabled.
 
 Output TSV columns:
-  contig_key  start_nt  peptide  allele  ic50_nM
+  contig_key  start_nt  peptide  best_allele  ic50_nM
   processing_score  presentation_score  presentation_percentile  presentation_class
+  {allele}_presentation_score  {allele}_presentation_percentile  (one pair per allele)
+  breadth_score  n_strong_alleles  best_presentation_percentile
 
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
@@ -182,6 +184,69 @@ def _run_mhcflurry_predictions(
     )
 
 
+def _compute_per_allele_features(
+    peptides: list[str],
+    alleles: list[str],
+    hla_c_weight: float,
+    strong_threshold: float,
+) -> pd.DataFrame:
+    """Compute per-allele presentation scores and genotype-level features for each peptide.
+
+    Makes one predict([allele]) call per allele using the module-level predictor
+    cache, then computes:
+      - {allele}_presentation_score       — absolute presentation probability (0–1)
+      - {allele}_presentation_percentile  — rank percentile (lower = better)
+      - genotype_presentation_score       — 1 − ∏(1 − wᵢ·pᵢ), pᵢ = presentation_score
+      - n_strong_alleles                  — allele count with percentile ≤ strong_threshold
+      - best_presentation_percentile      — min percentile across all alleles
+
+    HLA-C alleles are weighted by hla_c_weight; HLA-A/B alleles by 1.0.
+    """
+    per_allele: dict[str, dict[str, float]] = {p: {} for p in peptides}
+
+    for allele in alleles:
+        result = _run_mhcflurry_predictions(peptides, [allele], predictor=_worker_predictor)
+        pep_to_score = result.set_index("peptide")["presentation_score"].to_dict()
+        pep_to_pct = result.set_index("peptide")["presentation_percentile"].to_dict()
+        for p in peptides:
+            per_allele[p][f"{allele}_presentation_score"] = pep_to_score.get(p, 0.0)
+            per_allele[p][f"{allele}_presentation_percentile"] = pep_to_pct.get(p, 100.0)
+
+    rows = []
+    for pep in peptides:
+        rec = per_allele[pep]
+
+        product = 1.0
+        n_strong = 0
+        best_pct = 100.0
+        for allele in alleles:
+            w = hla_c_weight if allele.startswith("HLA-C") else 1.0
+            p = rec.get(f"{allele}_presentation_score", 0.0)
+            pct = rec.get(f"{allele}_presentation_percentile", 100.0)
+            product *= (1.0 - w * p)
+            if pct <= strong_threshold:
+                n_strong += 1
+            if pct < best_pct:
+                best_pct = pct
+
+        row: dict = {"peptide": pep}
+        row.update(rec)
+        row["genotype_presentation_score"] = round(1.0 - product, 6)
+        row["n_strong_alleles"] = n_strong
+        row["best_presentation_percentile"] = best_pct
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    log.info(
+        "Per-allele features: %d peptides, %d allele(s); "
+        "genotype_presentation_score range [%.4f, %.4f]; %d with n_strong_alleles >= 1",
+        len(peptides), len(alleles),
+        df["genotype_presentation_score"].min(), df["genotype_presentation_score"].max(),
+        (df["n_strong_alleles"] >= 1).sum(),
+    )
+    return df
+
+
 # ---------------------------------------------------------------------------
 # Binder classification
 # ---------------------------------------------------------------------------
@@ -250,12 +315,13 @@ def run_prediction(
     alleles_tsv: str | None = None,
     presentation_percentile_strong: float = 0.5,
     presentation_percentile_weak: float = 2.0,
+    hla_c_weight: float = 0.5,
 ) -> None:
     """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
     Runs Class1PresentationPredictor.predict() with the full patient HLA genotype
-    (all alleles at once). Output contains one row per peptide (best allele across
-    the genotype), plus contig context (contig_key, start_nt).
+    (all alleles at once) for best-allele columns, then makes one per-allele call to
+    compute genotype_presentation_score and related breadth features.
 
     Args:
         peptides_tsv:                  TSV of junction-spanning peptides.
@@ -264,8 +330,12 @@ def run_prediction(
                                        alleles_tsv is provided.
         alleles_tsv:                   Path to alleles.tsv from aggregate_hla_alleles.
                                        Takes precedence over alleles.
-        presentation_percentile_strong: Percentile threshold for strong presentation_class.
+        presentation_percentile_strong: Percentile threshold for strong presentation_class
+                                       and n_strong_alleles counting.
         presentation_percentile_weak:  Percentile threshold for weak presentation_class.
+        hla_c_weight:                  Weight for HLA-C alleles in genotype_presentation_score
+                                       formula (default 0.5, reflecting ~50% lower surface
+                                       density vs HLA-A/B).
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided.
@@ -295,11 +365,16 @@ def run_prediction(
 
     if peptides_df.empty:
         log.warning("No peptides found in %s", peptides_tsv)
-        empty_df = pd.DataFrame(
-            columns=["contig_key", "start_nt", "peptide", "allele",
-                     "ic50_nM", "processing_score", "presentation_score",
-                     "presentation_percentile", "presentation_class"]
-        )
+        per_allele_cols: list[str] = []
+        for a in resolved_alleles:
+            per_allele_cols += [f"{a}_presentation_score", f"{a}_presentation_percentile"]
+        empty_df = pd.DataFrame(columns=[
+            "contig_key", "start_nt", "peptide", "best_allele",
+            "ic50_nM", "processing_score", "presentation_score",
+            "presentation_percentile", "presentation_class",
+        ] + per_allele_cols + [
+            "genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile",
+        ])
         empty_df.to_csv(output_tsv, sep="\t", index=False)
         return
 
@@ -324,8 +399,8 @@ def run_prediction(
     )
 
     # Rename and keep only needed columns; drop metadata (peptide_num, sample_name)
-    pred_df = pred_df.rename(columns={"affinity": "ic50_nM", "best_allele": "allele"})[
-        ["peptide", "allele", "ic50_nM", "processing_score",
+    pred_df = pred_df.rename(columns={"affinity": "ic50_nM"})[
+        ["peptide", "best_allele", "ic50_nM", "processing_score",
          "presentation_score", "presentation_percentile"]
     ]
     pred_df["ic50_nM"] = pred_df["ic50_nM"].fillna(float("inf"))
@@ -333,21 +408,33 @@ def run_prediction(
         lambda v: classify_by_percentile(v, presentation_percentile_strong, presentation_percentile_weak)
     )
 
-    # Step 3: Merge per-peptide predictions with peptides_df to restore contig_key/start_nt
-    df = peptides_df.merge(pred_df, on="peptide", how="left")[
-        ["contig_key", "start_nt", "peptide", "allele",
+    # Step 3: Per-allele calls to compute genotype_presentation_score and breadth features
+    log.info(
+        "Running per-allele predictions for genotype features (%d allele(s))...",
+        len(resolved_alleles),
+    )
+    per_allele_df = _compute_per_allele_features(
+        unique_peptides, resolved_alleles, hla_c_weight, presentation_percentile_strong
+    )
+    pred_df = pred_df.merge(per_allele_df, on="peptide", how="left")
+
+    # Step 4: Merge with peptides_df to restore contig_key/start_nt, then write output
+    per_allele_extra_cols = [c for c in per_allele_df.columns if c != "peptide"]
+    output_cols = (
+        ["contig_key", "start_nt", "peptide", "best_allele",
          "ic50_nM", "processing_score", "presentation_score",
          "presentation_percentile", "presentation_class"]
-    ]
+        + per_allele_extra_cols
+    )
+    df = peptides_df.merge(pred_df, on="peptide", how="left")[output_cols]
 
-    # Step 4: Write output
     df.to_csv(output_tsv, sep="\t", index=False)
     log.info(
-        "Predictions: %d rows (%d unique peptides, %d-allele genotype), "
+        "Predictions: %d rows (%d unique peptides, %d allele(s)); "
+        "genotype_presentation_score range [%.4f, %.4f]; "
         "%d strong / %d weak / %d non → %s",
-        len(df),
-        len(unique_peptides),
-        len(resolved_alleles),
+        len(df), len(unique_peptides), len(resolved_alleles),
+        df["genotype_presentation_score"].min(), df["genotype_presentation_score"].max(),
         (df["presentation_class"] == "strong").sum(),
         (df["presentation_class"] == "weak").sum(),
         (df["presentation_class"] == "non").sum(),
@@ -373,6 +460,7 @@ def _snakemake_main() -> None:
         alleles_tsv=alleles_tsv,
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
+        hla_c_weight=float(snakemake.params.hla_c_weight),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -392,6 +480,10 @@ def _cli_main() -> None:
     )
     parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
+    parser.add_argument(
+        "--hla-c-weight", type=float, default=0.5,
+        help="Weight for HLA-C alleles in genotype_presentation_score formula (default 0.5).",
+    )
     args = parser.parse_args()
 
     if not args.alleles and not args.alleles_tsv:
@@ -404,6 +496,7 @@ def _cli_main() -> None:
         alleles_tsv=args.alleles_tsv,
         presentation_percentile_strong=args.presentation_percentile_strong,
         presentation_percentile_weak=args.presentation_percentile_weak,
+        hla_c_weight=args.hla_c_weight,
     )
 
 
