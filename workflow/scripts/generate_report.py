@@ -401,13 +401,25 @@ def _build_strong_table_html(
     upstream_nt: int = 26,
     max_rows: int = 50,
 ) -> str:
-    """Build the top strong presentations table sorted by presentation_percentile."""
-    strong_df = (
-        pred_df[pred_df["presentation_class"] == "strong"]
-        .sort_values("presentation_percentile")
-    )
+    """Build the top strong presentations table ranked by genotype_presentation_score."""
+    strong_df = pred_df[pred_df["presentation_class"] == "strong"].copy()
+
+    # Quality gate: at least one allele must reach weak-binder threshold (≤ 2%)
+    if "best_presentation_percentile" in strong_df.columns:
+        strong_df = strong_df[strong_df["best_presentation_percentile"] <= 2.0]
+
     if strong_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
+
+    # Ranking: genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc
+    has_breadth_cols = "genotype_presentation_score" in strong_df.columns
+    if has_breadth_cols:
+        strong_df = strong_df.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        strong_df = strong_df.sort_values("presentation_percentile")
 
     rows = []
     for _, row in strong_df.head(max_rows).iterrows():
@@ -418,12 +430,17 @@ def _build_strong_table_html(
         seq = contigs.get(contig_key, "")
         contig_html = _render_contig(seq, start_nt, end_nt_incl, upstream_nt) if seq else "<em>n/a</em>"
 
+        gps_cell = (
+            f"<td>{row['genotype_presentation_score']:.4f}</td>"
+            if has_breadth_cols else ""
+        )
         rows.append(
             f"<tr>"
             f"<td>{html_mod.escape(str(row['contig_key']))}</td>"
             f"<td>{html_mod.escape(str(row['peptide']))}</td>"
-            f"<td>{html_mod.escape(str(row['allele']))}</td>"
+            f"<td>{html_mod.escape(str(row['best_allele']))}</td>"
             f"<td>{row['presentation_percentile']:.3f}</td>"
+            f"{gps_cell}"
             f"<td>{row['ic50_nM']:.1f}</td>"
             f"<td>{contig_html}</td>"
             f"</tr>"
@@ -434,10 +451,15 @@ def _build_strong_table_html(
         "<span class='nt-pep-up'>peptide (upstream)</span> "
         "<span class='nt-pep-down'>peptide (downstream)</span>"
     )
+    gps_header = (
+        "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
+        if has_breadth_cols else ""
+    )
     table = (
         f"<table><thead><tr>"
-        f"<th>Source</th><th>Peptide</th><th>Allele</th>"
-        f"<th title='Presentation percentile rank — lower is better'>Pres. %ile ▾</th>"
+        f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
+        f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
+        f"{gps_header}"
         f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
@@ -480,15 +502,24 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame) -> str:
         return "<p><em>Structure not available.</em></p>"
 
     # Annotate with the top candidate's peptide and allele.
-    # Match run_tcrdock.py's candidate selection: best strong binder, falling
-    # back to weak. Exclude non-binders to stay in sync.
-    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))]
-    top = binders.sort_values("presentation_percentile").head(1)
+    # Match run_tcrdock.py's candidate selection: quality-gated binders ranked by
+    # genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc.
+    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
+    if "best_presentation_percentile" in binders.columns:
+        binders = binders[binders["best_presentation_percentile"] <= 2.0]
+    if "genotype_presentation_score" in binders.columns:
+        binders = binders.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        binders = binders.sort_values("presentation_percentile")
+    top = binders.head(1)
     if top.empty:
         peptide, allele = "NA", "NA"
     else:
         peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
-        allele  = html_mod.escape(str(top.iloc[0]["allele"]))
+        allele  = html_mod.escape(str(top.iloc[0]["best_allele"]))
 
     pdb_text = _build_compnd_records(pdb_text, peptide, allele)
 
@@ -560,23 +591,37 @@ def _build_report_tsv(
             })
 
     # --- top_candidate ---
-    strong_df = (
-        pred_df[pred_df["presentation_class"].isin(["strong", "weak"])]
-        .sort_values("presentation_percentile")
-        if not pred_df.empty else pd.DataFrame()
-    )
+    if not pred_df.empty:
+        top_candidates = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
+        if "best_presentation_percentile" in top_candidates.columns:
+            top_candidates = top_candidates[top_candidates["best_presentation_percentile"] <= 2.0]
+        if "genotype_presentation_score" in top_candidates.columns:
+            top_candidates = top_candidates.sort_values(
+                ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+                ascending=[False, False, True],
+            )
+        else:
+            top_candidates = top_candidates.sort_values("presentation_percentile")
+        strong_df = top_candidates
+    else:
+        strong_df = pd.DataFrame()
+
     if not strong_df.empty:
         top = strong_df.iloc[0]
+        numeric_metrics = ("presentation_percentile", "ic50_nM", "genotype_presentation_score")
         for metric, col in [
-            ("peptide", "peptide"), ("allele", "allele"),
+            ("peptide", "peptide"), ("allele", "best_allele"),
             ("presentation_percentile", "presentation_percentile"),
+            ("genotype_presentation_score", "genotype_presentation_score"),
             ("ic50_nM", "ic50_nM"), ("presentation_class", "presentation_class"),
         ]:
+            if col not in top.index:
+                continue
             rows.append({
                 "patient_id": patient_id, "stage": "top_candidate",
                 "metric": metric,
-                "value": round(float(top[col]), 4) if metric in ("presentation_percentile", "ic50_nM") else str(top[col]),
-                "notes": "top by presentation_percentile" if metric == "peptide" else "",
+                "value": round(float(top[col]), 4) if metric in numeric_metrics else str(top[col]),
+                "notes": "top by genotype_presentation_score" if metric == "peptide" else "",
             })
 
     # --- hla_typing ---
