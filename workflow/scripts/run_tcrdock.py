@@ -379,18 +379,22 @@ def collect_outputs(
 
     scores_df = pd.read_csv(final_tsv, sep="\t")
 
-    # PDB path is in the *_pdb_file column written by run_prediction.py
-    pdb_col = next((c for c in scores_df.columns if c.endswith("_pdb_file")), None)
+    # PDB path is in a column containing "pdb" written by run_prediction.py
+    pdb_col = next((c for c in scores_df.columns if "pdb" in c.lower()), None)
     top_pdb = None
     if pdb_col and pd.notna(scores_df[pdb_col].iloc[0]):
         top_pdb = Path(scores_df[pdb_col].iloc[0])
 
     if top_pdb is None or not top_pdb.exists():
-        pdbs = sorted(tcrdock_output_dir.glob("*.pdb"))
+        pdbs = list(tcrdock_output_dir.glob("*.pdb"))
         if not pdbs:
             raise FileNotFoundError(f"No PDB files found in {tcrdock_output_dir}.")
-        top_pdb = pdbs[0]
-        log.warning("PDB column not found in final TSV; using %s", top_pdb)
+        # Use most recently modified to avoid picking stale PDBs from prior runs.
+        top_pdb = max(pdbs, key=lambda p: p.stat().st_mtime)
+        log.warning(
+            "PDB column not found in final TSV (columns: %s); using most recent PDB: %s",
+            list(scores_df.columns), top_pdb,
+        )
 
     output_pdb.parent.mkdir(parents=True, exist_ok=True)
 
