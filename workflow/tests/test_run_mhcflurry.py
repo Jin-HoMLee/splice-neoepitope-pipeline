@@ -59,6 +59,33 @@ class TestLoadAllelesFromTsv:
 # run_prediction — empty input / file creation
 # ---------------------------------------------------------------------------
 
+class TestRunPredictionValidation:
+    """run_prediction should reject invalid config values before loading the model."""
+
+    def test_hla_c_weight_above_1_raises(self, tmp_path):
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+        with pytest.raises(ValueError, match="hla_c_weight"):
+            run_prediction(peptides_tsv=peptides_tsv, output_tsv=tmp_path / "out.tsv",
+                           alleles=["HLA-A*02:01"], hla_c_weight=1.5)
+
+    def test_hla_c_weight_below_0_raises(self, tmp_path):
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+        with pytest.raises(ValueError, match="hla_c_weight"):
+            run_prediction(peptides_tsv=peptides_tsv, output_tsv=tmp_path / "out.tsv",
+                           alleles=["HLA-A*02:01"], hla_c_weight=-0.1)
+
+    def test_hla_c_weight_boundary_values_accepted(self, tmp_path):
+        """0.0 and 1.0 are valid boundary values."""
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+        # Empty input short-circuits before model loading — just verify no ValueError
+        for w in (0.0, 1.0):
+            run_prediction(peptides_tsv=peptides_tsv, output_tsv=tmp_path / "out.tsv",
+                           alleles=["HLA-A*02:01"], hla_c_weight=w)
+
+
 class TestRunPredictionEmpty:
     """run_prediction should write an empty TSV when input has no rows."""
 
@@ -319,6 +346,45 @@ class TestRunPredictionNonEmpty:
         monkeypatch.setattr(run_mhcflurry, "_worker_predictor", None)
         run_mhcflurry._load_predictor()
         assert run_mhcflurry._worker_predictor is not None
+
+
+# ---------------------------------------------------------------------------
+# presentation_score out-of-range warning
+# ---------------------------------------------------------------------------
+
+class TestPresentationScoreOutOfRange:
+    """_compute_per_allele_features should warn when MHCflurry returns score outside [0, 1]."""
+
+    def test_warns_on_score_above_1(self, monkeypatch, tmp_path, caplog):
+        import logging
+        import run_mhcflurry
+
+        def fake_run_predictions(peptides, alleles, predictor=None):
+            return pd.DataFrame({
+                "peptide": peptides,
+                "affinity": [30.0] * len(peptides),
+                "best_allele": [alleles[0]] * len(peptides),
+                "processing_score": [0.8] * len(peptides),
+                "presentation_score": [1.05] * len(peptides),  # out of range
+                "presentation_percentile": [0.3] * len(peptides),
+            })
+
+        monkeypatch.setattr(run_mhcflurry, "_load_mhcflurry_predictor", lambda: object())
+        monkeypatch.setattr(run_mhcflurry, "_run_mhcflurry_predictions", fake_run_predictions)
+        monkeypatch.setattr(run_mhcflurry, "_worker_predictor", object())
+
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\nc1\t2\tACDEFGHIK\n")
+
+        with caplog.at_level(logging.WARNING, logger="run_mhcflurry"):
+            run_prediction(
+                peptides_tsv=peptides_tsv,
+                output_tsv=tmp_path / "out.tsv",
+                alleles=["HLA-A*02:01"],
+            )
+
+        assert any("presentation_score" in r.message and "1.05" in r.message
+                   for r in caplog.records if r.levelno == logging.WARNING)
 
 
 # ---------------------------------------------------------------------------
