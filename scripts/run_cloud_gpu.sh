@@ -318,7 +318,7 @@ set -euo pipefail
 cd "\$HOME/splice-neoepitope-pipeline"
 source "\$HOME/miniforge3/etc/profile.d/conda.sh"
 conda activate snakemake
-snakemake --conda-cleanup-envs --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} --config samples_tsv=${SAMPLES}
+snakemake --conda-cleanup-envs --use-conda --configfile ${CONFIG_FILE} ${GPU_CONFIG_FILE} --config samples_tsv=${SAMPLES}
 EOF
 
 # ---------------------------------------------------------------------------
