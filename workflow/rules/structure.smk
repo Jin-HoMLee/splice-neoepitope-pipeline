@@ -74,7 +74,7 @@ if _TCRDOCK_ENABLED:
         log:
             os.path.join(_LOGS, "{patient_id}", "structure", "report.log"),
         params:
-            ic50_strong=config["mhcflurry"]["ic50_strong"],
+            presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
         conda:
             "../envs/python.yaml"
         script:
