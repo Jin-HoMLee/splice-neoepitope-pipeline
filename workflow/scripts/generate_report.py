@@ -582,8 +582,8 @@ def _build_report_tsv(
         })
         presentation_notes = {
             "strong": f"presentation_percentile <= {presentation_percentile_strong}%",
-            "weak": "presentation_percentile <= 2%",
-            "non": "presentation_percentile > 2%",
+            "weak": f"presentation_percentile <= {presentation_percentile_weak}%",
+            "non": f"presentation_percentile > {presentation_percentile_weak}%",
         }
         for cls, cnt in pred_df["presentation_class"].value_counts().items():
             rows.append({
