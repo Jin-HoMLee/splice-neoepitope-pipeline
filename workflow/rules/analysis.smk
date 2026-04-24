@@ -43,6 +43,7 @@ rule generate_report:
         os.path.join(_LOGS, "{patient_id}", "analysis", "report.log"),
     params:
         presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
+        presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
     conda:
         "../envs/python.yaml"
     script:
