@@ -285,17 +285,16 @@ peptide–MHC interaction that MHCflurry models.
 
 ### Immunodominance as a structural limitation of breadth-only scoring
 
-The genotype presentation score correctly captures the joint presentation probability across
-independent alleles. Different HLA alleles are entirely independent proteins with non-competing
+The genotype presentation score (GPS) correctly captures the joint presentation probability
+across independent alleles. Different HLA alleles are entirely independent proteins with non-competing
 peptide-binding grooves, so each allele's contribution is additive and the complementary
 probability framework is exact. The score rises as additional alleles contribute and falls
 steeply when all alleles present the peptide poorly.
 
 A biologically relevant scenario reveals a structural limitation of this model. Consider
 a peptide with one exceptional allele (`presentation_score` p₁ = 0.9) and five weak
-alleles (p₂...₆ = 0.02). The genotype presentation score is approximately 0.91. A second
-peptide with six moderate alleles (p = 0.5 each) scores approximately 0.98. The genotype
-presentation model ranks the second peptide higher — yet in vivo the first may be far more immunologically potent.
+alleles (p₂...₆ = 0.02). The GPS is approximately 0.91. A second peptide with six moderate alleles (p = 0.5 each)
+scores approximately 0.98. The genotype presentation model ranks the second peptide higher — yet in vivo the first may be far more immunologically potent.
 
 The mechanism is **immunodominance** (Yewdell & Bennink, *Annu Rev Immunol* 1999): the
 T cell response to a complex antigen is not flat across all possible epitopes but forms a
@@ -317,7 +316,7 @@ strict hierarchy. Two independent mechanisms drive this:
    response can systemically suppress priming of subdominant clones by eliminating the
    shared APC pool.
 
-The genotype presentation score does not model either mechanism. Conversely, reporting only the
+GPS does not model either mechanism. Conversely, reporting only the
 best single-allele score (as in the original pipeline) ignores the genuine clinical
 benefit of multi-allele coverage: robustness to HLA loss of heterozygosity (LOH), broader
 T cell recruitment, and the ability to deliberately boost subdominant responses in a
