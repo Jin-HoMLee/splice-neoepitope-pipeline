@@ -4,6 +4,71 @@
 
 ## 2026-04-24
 
+### ~18:30 UTC
+
+#### Issue #123 — M1 production cloud run: patient_001 started
+
+Launched production pipeline run for patient_001 (gastric cancer, SRR9143066 T / SRR9143065 N) via `run_cloud_gpu.sh --detach` on `neoepitope-pipeline` VM (n1-highmem-8 + P100, europe-west1-b). Branch: `main`. patient_002 run to follow after patient_001 completes.
+
+---
+
+### ~17:30 UTC
+
+#### Issue #124 — CLI flag polish (Developer session, PR #125, branch `feat/issue-124-cli-flag`)
+
+**Goal:** Expose `--presentation-percentile-weak` via CLI parsers in both `generate_report.py` and `run_tcrdock.py`; fix docstring omission.
+
+**Done:**
+
+- Added `--presentation-percentile-weak` (type=float, default=2.0) to `_cli_main()` in both scripts and threaded through to the respective `generate_report()` / `run_structural_validation()` calls.
+- Fixed `generate_report()` docstring: `presentation_percentile_weak` was present in the function signature but absent from the `Args:` section.
+- 4 new `TestCLIParser` tests (default + custom value, one class per script). 200 tests passing.
+
+**Commits (2, branch `feat/issue-124-cli-flag`):**
+- `6cea0dd` feat(cli): add --presentation-percentile-weak flag to generate_report and run_tcrdock CLI parsers
+- `7c6dd35` test(cli): add CLI parser tests for --presentation-percentile-weak flag
+
+**PR #125 opened.** Awaiting merge.
+
+---
+
+### ~16:42 UTC
+
+#### Issue #119 — PR #122 re-review fix + merge prep
+
+**Re-review verdict:** Ready to merge. Three minor observations: (1) `presentation_notes` strings in `_build_report_tsv` still hardcoded `"2%"` for `weak`/`non` entries despite `presentation_percentile_weak` parameter being available; (2) CLI parsers missing `--presentation-percentile-weak` flag; (3) `generate_report()` docstring missing the parameter.
+
+Fixed (1) now — `weak`/`non` entries converted to f-strings using `presentation_percentile_weak` (`18e1fac`). Items (2) and (3) deferred to follow-up issue.
+
+**29 tests passing** (generate_report suite).
+
+---
+
+### ~16:15 UTC
+
+#### Issue #119 — PR #122 review cycle (Developer session)
+
+**Reviewer comments (6):** stale docstring, GPS out-of-range clamping, hardcoded quality-gate threshold, GPS test gap in `generate_report.py`, hardcoded 9-mer `end_nt_incl`, misleading log message on quality-gate rejection.
+
+**Key design decisions made during review:**
+- `hla_c_weight` outside [0,1] → hard `ValueError` (own config, must be correct).
+- MHCflurry `presentation_score` outside [0,1] → warning only, no clamp (third-party output; out-of-range values cannot be reliably interpreted and should be fixed upstream).
+- "binder" → "presenter" terminology throughout `run_tcrdock.py` and tests.
+
+**Fix commits (8):**
+- `4366af0` fix(mhc): fix stale docstring and add hla_c_weight validation + score warning
+- `9f0b6c6` test(mhc): add tests for hla_c_weight validation and out-of-range score warning
+- `b73b27b` fix(rules): thread presentation_percentile_weak into report and tcrdock params
+- `94a480a` fix(report): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `34f7aa5` fix(tcrdock): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
+- `1b08ebe` test(report): add GPS quality-gate and ranking tests for generate_report.py
+- `fe6e188` fix(report): compute end_nt_incl from peptide length instead of hardcoded 9-mer
+- `d0e7456` fix(tcrdock): distinguish no-presenters from quality-gate-empty in log messages
+
+**196 tests passing.** Re-review requested.
+
+---
+
 ### ~14:38 UTC
 
 #### Issue #119 — Two-level MHC presentation prediction: implementation (Developer session, PR #122, branch `feat/issue-119-allele-breadth`)
@@ -38,63 +103,6 @@
 - `260da3a` test(integration): update required columns for new schema with skip guards
 - `f792ac1` docs(methods): update Section 6 for two-level MHC presentation prediction
 - `ac89bd2` docs(config): document hla_c_weight and update mhcflurry section
-
----
-
-### ~16:15 UTC
-
-#### Issue #119 — PR #122 review cycle (Developer session)
-
-**Reviewer comments (6):** stale docstring, GPS out-of-range clamping, hardcoded quality-gate threshold, GPS test gap in `generate_report.py`, hardcoded 9-mer `end_nt_incl`, misleading log message on quality-gate rejection.
-
-**Key design decisions made during review:**
-- `hla_c_weight` outside [0,1] → hard `ValueError` (own config, must be correct).
-- MHCflurry `presentation_score` outside [0,1] → warning only, no clamp (third-party output; out-of-range values cannot be reliably interpreted and should be fixed upstream).
-- "binder" → "presenter" terminology throughout `run_tcrdock.py` and tests.
-
-**Fix commits (8):**
-- `4366af0` fix(mhc): fix stale docstring and add hla_c_weight validation + score warning
-- `9f0b6c6` test(mhc): add tests for hla_c_weight validation and out-of-range score warning
-- `b73b27b` fix(rules): thread presentation_percentile_weak into report and tcrdock params
-- `94a480a` fix(report): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
-- `34f7aa5` fix(tcrdock): replace hardcoded quality-gate 2.0 with configurable presentation_percentile_weak
-- `1b08ebe` test(report): add GPS quality-gate and ranking tests for generate_report.py
-- `fe6e188` fix(report): compute end_nt_incl from peptide length instead of hardcoded 9-mer
-- `d0e7456` fix(tcrdock): distinguish no-presenters from quality-gate-empty in log messages
-
-**196 tests passing.** Re-review requested.
-
----
-
-### ~16:42 UTC
-
-#### Issue #119 — PR #122 re-review fix + merge prep
-
-**Re-review verdict:** Ready to merge. Three minor observations: (1) `presentation_notes` strings in `_build_report_tsv` still hardcoded `"2%"` for `weak`/`non` entries despite `presentation_percentile_weak` parameter being available; (2) CLI parsers missing `--presentation-percentile-weak` flag; (3) `generate_report()` docstring missing the parameter.
-
-Fixed (1) now — `weak`/`non` entries converted to f-strings using `presentation_percentile_weak` (`18e1fac`). Items (2) and (3) deferred to follow-up issue.
-
-**29 tests passing** (generate_report suite).
-
----
-
-### ~17:30 UTC
-
-#### Issue #124 — CLI flag polish (Developer session, PR #125, branch `feat/issue-124-cli-flag`)
-
-**Goal:** Expose `--presentation-percentile-weak` via CLI parsers in both `generate_report.py` and `run_tcrdock.py`; fix docstring omission.
-
-**Done:**
-
-- Added `--presentation-percentile-weak` (type=float, default=2.0) to `_cli_main()` in both scripts and threaded through to the respective `generate_report()` / `run_structural_validation()` calls.
-- Fixed `generate_report()` docstring: `presentation_percentile_weak` was present in the function signature but absent from the `Args:` section.
-- 4 new `TestCLIParser` tests (default + custom value, one class per script). 200 tests passing.
-
-**Commits (2, branch `feat/issue-124-cli-flag`):**
-- `6cea0dd` feat(cli): add --presentation-percentile-weak flag to generate_report and run_tcrdock CLI parsers
-- `7c6dd35` test(cli): add CLI parser tests for --presentation-percentile-weak flag
-
-**PR #125 opened.** Awaiting merge.
 
 ---
 
@@ -170,6 +178,8 @@ model for `mhc_presentation.tsv`. No code changes — manuscript only.
 - Total predictions: 7,718,952 → 1,286,492 (6× reduction — one row per peptide, not per peptide×allele)
 - Strong presenters: 15,880 (IC50 < 50 nM) → 44,916 (presentation_percentile ≤ 0.5%)
 - Top candidate changed: EVAETLSLF/HLA-A\*26:01 (IC50 16.6 nM) → FAFPFAQTL/HLA-C\*03:03 (percentile 0.0007%)
+
+---
 
 ### ~00:30 UTC
 
