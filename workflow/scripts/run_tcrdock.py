@@ -73,10 +73,11 @@ log = logging.getLogger(__name__)
 def select_top_candidates(
     predictions_tsv: str | Path,
     n_candidates: int = 1,
+    presentation_percentile_weak: float = 2.0,
 ) -> pd.DataFrame:
     """Select top N candidates ranked by genotype_presentation_score from MHCflurry predictions.
 
-    Applies quality gate (best_presentation_percentile ≤ 2%) then ranks by:
+    Applies quality gate (best_presentation_percentile ≤ presentation_percentile_weak) then ranks by:
       1. genotype_presentation_score descending (primary)
       2. n_strong_alleles descending (secondary)
       3. best_presentation_percentile ascending (tertiary)
@@ -88,8 +89,10 @@ def select_top_candidates(
     ranking with ProTCR score ranking to select the most immunogenic candidates.
 
     Args:
-        predictions_tsv: MHCflurry predictions TSV.
-        n_candidates:    Number of candidates to return.
+        predictions_tsv:              MHCflurry predictions TSV.
+        n_candidates:                 Number of candidates to return.
+        presentation_percentile_weak: Quality-gate threshold; candidates where
+                                      best_presentation_percentile exceeds this are excluded.
 
     Returns:
         DataFrame of top candidates.
@@ -99,7 +102,7 @@ def select_top_candidates(
 
     # Quality gate: at least one allele must reach weak-binder threshold
     if "best_presentation_percentile" in candidates.columns:
-        candidates = candidates[candidates["best_presentation_percentile"] <= 2.0]
+        candidates = candidates[candidates["best_presentation_percentile"] <= presentation_percentile_weak]
 
     if candidates.empty:
         log.error("No strong or weak binders found. Cannot run TCRdock.")
@@ -421,6 +424,7 @@ def run_structural_validation(
     n_candidates: int = 1,
     fallback_hla: dict | None = None,
     fallback_tcr: dict | None = None,
+    presentation_percentile_weak: float = 2.0,
 ) -> None:
     """Run TCRdock structural validation on top neoepitope candidates.
 
@@ -446,7 +450,7 @@ def run_structural_validation(
     work_dir = output_pdb.parent / "tcrdock_workdir"
 
     # Step 1: Select top candidates
-    candidates = select_top_candidates(predictions_tsv, n_candidates)
+    candidates = select_top_candidates(predictions_tsv, n_candidates, presentation_percentile_weak=presentation_percentile_weak)
     if candidates.empty:
         log.error("No candidates available. Skipping TCRdock.")
         return
@@ -483,6 +487,7 @@ def _snakemake_main() -> None:
         n_candidates=snakemake.params.n_candidates,  # type: ignore[name-defined]  # noqa: F821
         fallback_hla=snakemake.params.fallback_hla,  # type: ignore[name-defined]  # noqa: F821
         fallback_tcr=snakemake.params.fallback_tcr,  # type: ignore[name-defined]  # noqa: F821
+        presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
