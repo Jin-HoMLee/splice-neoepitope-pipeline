@@ -379,8 +379,9 @@ def collect_outputs(
 
     scores_df = pd.read_csv(final_tsv, sep="\t")
 
-    # PDB path is in a column containing "pdb" written by run_prediction.py
-    pdb_col = next((c for c in scores_df.columns if "pdb" in c.lower()), None)
+    # PDB path is in a column ending with _pdb_file (e.g. model_2_ptm_pdb_file).
+    # Don't match on "pdb" broadly — pdbid also contains "pdb" and appears first.
+    pdb_col = next((c for c in scores_df.columns if c.endswith("_pdb_file")), None)
     top_pdb = None
     if pdb_col and pd.notna(scores_df[pdb_col].iloc[0]):
         top_pdb = Path(scores_df[pdb_col].iloc[0])
