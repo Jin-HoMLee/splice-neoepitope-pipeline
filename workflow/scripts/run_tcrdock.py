@@ -19,22 +19,25 @@ so local / CPU-only runs are unaffected.
 
 Candidate selection
 -------------------
-Currently selects the top N strong binders by presentation_percentile
-(MHCflurry Class1PresentationPredictor). Once TRUST4 + ProTCR (#24) is
+Currently selects the top N candidates ranked by genotype_presentation_score
+(MHCflurry allele breadth model, Issue #119). Once TRUST4 + ProTCR (#24) is
 implemented, selection should switch to the top ProTCR-ranked candidates instead.
 
 Inputs
 ------
   predictions_tsv: MHCflurry predictions TSV
-                   (columns: contig_key, start_nt, peptide, allele,
+                   (columns: contig_key, start_nt, peptide, best_allele,
                     ic50_nM, processing_score, presentation_score,
-                    presentation_percentile, presentation_class)
+                    presentation_percentile, presentation_class,
+                    genotype_presentation_score, n_strong_alleles,
+                    best_presentation_percentile, {allele}_presentation_score,
+                    {allele}_presentation_percentile)
 
 Outputs
 -------
   top_candidate.pdb    — predicted TCR-peptide-MHC ternary complex (PDB format)
   docking_scores.tsv   — docking geometry metrics per candidate
-                         (columns: peptide, allele, va_gene, vb_gene,
+                         (columns: peptide, best_allele, va_gene, vb_gene,
                           cdr3a, cdr3b, rmsd, tcr_pdb_rmsd, docking_geometry)
 
 Usage (standalone, Linux + GPU only):
@@ -71,28 +74,46 @@ def select_top_candidates(
     predictions_tsv: str | Path,
     n_candidates: int = 1,
 ) -> pd.DataFrame:
-    """Select the top N strong binders by presentation_percentile from MHCflurry predictions.
+    """Select top N candidates ranked by genotype_presentation_score from MHCflurry predictions.
 
-    TODO (#24): Once ProTCR scores are available, replace presentation_percentile ranking
-    with ProTCR score ranking to select the most immunogenic candidates rather than
-    just the best MHC binders.
+    Applies quality gate (best_presentation_percentile ≤ 2%) then ranks by:
+      1. genotype_presentation_score descending (primary)
+      2. n_strong_alleles descending (secondary)
+      3. best_presentation_percentile ascending (tertiary)
+
+    Falls back to presentation_percentile sort when breadth columns are absent
+    (e.g., output from an older pipeline run).
+
+    TODO (#24): Once ProTCR scores are available, replace genotype_presentation_score
+    ranking with ProTCR score ranking to select the most immunogenic candidates.
 
     Args:
         predictions_tsv: MHCflurry predictions TSV.
         n_candidates:    Number of candidates to return.
 
     Returns:
-        DataFrame of top candidates, sorted by presentation_percentile ascending.
+        DataFrame of top candidates.
     """
     df = pd.read_csv(predictions_tsv, sep="\t")
-    strong = df[df["presentation_class"] == "strong"].sort_values("presentation_percentile")
-    if strong.empty:
-        log.warning("No strong binders found — trying weak binders as fallback.")
-        strong = df[df["presentation_class"] == "weak"].sort_values("presentation_percentile")
-    if strong.empty:
+    candidates = df[df["presentation_class"].isin(("strong", "weak"))].copy()
+
+    # Quality gate: at least one allele must reach weak-binder threshold
+    if "best_presentation_percentile" in candidates.columns:
+        candidates = candidates[candidates["best_presentation_percentile"] <= 2.0]
+
+    if candidates.empty:
         log.error("No strong or weak binders found. Cannot run TCRdock.")
         return pd.DataFrame()
-    return strong.head(n_candidates).reset_index(drop=True)
+
+    if "genotype_presentation_score" in candidates.columns:
+        candidates = candidates.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        candidates = candidates.sort_values("presentation_percentile")
+
+    return candidates.head(n_candidates).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +155,7 @@ def build_tcrdock_input(
 
     rows = []
     for i, row in candidates.iterrows():
-        allele = row.get("allele", fallback_hla["A"])
+        allele = row.get("best_allele", fallback_hla["A"])
         mhc = allele.replace("HLA-", "")  # "HLA-A*02:01" → "A*02:01"
         rows.append({
             "pdbid":     f"neoepitope_{i}",
@@ -433,7 +454,7 @@ def run_structural_validation(
     log.info(
         "Top %d candidate(s) selected for TCRdock:\n%s",
         len(candidates),
-        candidates[["peptide", "allele", "ic50_nM"]].to_string(index=False),
+        candidates[["peptide", "best_allele", "ic50_nM"]].to_string(index=False),
     )
 
     # Step 2: Build TCRdock input TSV
