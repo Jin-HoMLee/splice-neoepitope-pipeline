@@ -28,7 +28,7 @@ Output TSV columns:
   contig_key  start_nt  peptide  best_allele  ic50_nM
   processing_score  presentation_score  presentation_percentile  presentation_class
   {allele}_presentation_score  {allele}_presentation_percentile  (one pair per allele)
-  breadth_score  n_strong_alleles  best_presentation_percentile
+  genotype_presentation_score  n_strong_alleles  best_presentation_percentile
 
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
@@ -209,7 +209,14 @@ def _compute_per_allele_features(
         pep_to_score = result.set_index("peptide")["presentation_score"].to_dict()
         pep_to_pct = result.set_index("peptide")["presentation_percentile"].to_dict()
         for p in peptides:
-            per_allele[p][f"{allele}_presentation_score"] = pep_to_score.get(p, 0.0)
+            score = pep_to_score.get(p, 0.0)
+            if not 0.0 <= score <= 1.0:
+                log.warning(
+                    "MHCflurry returned presentation_score=%.6f for peptide %s / %s "
+                    "— outside the defined [0, 1] range; value will be used as-is.",
+                    score, p, allele,
+                )
+            per_allele[p][f"{allele}_presentation_score"] = score
             per_allele[p][f"{allele}_presentation_percentile"] = pep_to_pct.get(p, 100.0)
 
     rows = []
@@ -338,8 +345,15 @@ def run_prediction(
                                        density vs HLA-A/B).
 
     Raises:
-        ValueError: If neither alleles nor alleles_tsv is provided.
+        ValueError: If neither alleles nor alleles_tsv is provided, or if
+                    hla_c_weight is outside [0, 1].
     """
+    if not 0.0 <= hla_c_weight <= 1.0:
+        raise ValueError(
+            f"hla_c_weight must be in [0, 1]; got {hla_c_weight}. "
+            "Values outside this range cannot be interpreted as locus weights."
+        )
+
     # Resolve alleles: alleles_tsv > alleles (caller must supply one)
     if alleles_tsv:
         resolved_alleles = _load_alleles_from_tsv(alleles_tsv)
