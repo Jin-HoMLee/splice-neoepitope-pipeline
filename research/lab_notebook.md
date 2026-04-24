@@ -4,6 +4,24 @@
 
 ## 2026-04-24
 
+### ~08:49 UTC
+
+#### Hotfix — rename `ic50_strong` → `presentation_percentile_strong` in `structure.smk` (PR #117, branch `fix/structure-smk-ic50-key`)
+
+**Problem:** First prod cloud run after Issue #85 failed immediately with `KeyError: 'ic50_strong'` in `workflow/rules/structure.smk` line 77. The `generate_report_with_structure` rule was still referencing the removed config key.
+
+**Root cause:** The TCRdock rule block in `structure.smk` is guarded by `if _TCRDOCK_ENABLED:`, which is only true when `gpu.yaml` is merged in. Local tests and CI never enable TCRdock, so the stale key was never evaluated during development.
+
+**Fix:** One-line rename of `ic50_strong` → `presentation_percentile_strong` in the `params:` block of `generate_report_with_structure`, matching the already-corrected `analysis.smk`.
+
+**Follow-up filed:** Issue #118 — add a Snakemake dry-run with `gpu.yaml` overlay to CI to catch this class of bug automatically.
+
+**Prod cloud run** (patient_001, full genome, GPU): completed successfully after fix. UTC: 2026-04-24T00:12:39Z. Key results vs. baseline (pre-Issue #85):
+- Junction counts unchanged: 30,029 unannotated → 27,348 tumor-exclusive
+- Total predictions: 7,718,952 → 1,286,492 (6× reduction — one row per peptide, not per peptide×allele)
+- Strong presenters: 15,880 (IC50 < 50 nM) → 44,916 (presentation_percentile ≤ 0.5%)
+- Top candidate changed: EVAETLSLF/HLA-A\*26:01 (IC50 16.6 nM) → FAFPFAQTL/HLA-C\*03:03 (percentile 0.0007%)
+
 ### ~00:30 UTC
 
 #### Issue #85 — Switch to Class1PresentationPredictor (PR #114, branch `feat/issue-85-prediction-mode`)

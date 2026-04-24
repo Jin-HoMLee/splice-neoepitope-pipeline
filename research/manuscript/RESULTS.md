@@ -46,40 +46,59 @@ neoepitope candidates.
 
 ### Peptide Translation
 
-Junction-spanning 9-mers were extracted from 50 nt contigs assembled at each
-tumor-exclusive junction, across all three reading frames. The junction-spanning filter
-(complete upstream and downstream codon requirement) was applied.
+Junction-spanning peptides were extracted from contigs assembled at each tumor-exclusive
+junction, across all three reading frames, with the complete-codon junction-spanning
+filter applied.
 
-| Metric | Count |
-|--------|-------|
-| Total 9-mers | 433,129 |
-| Unique 9-mer sequences | 424,133 |
+| Metric | Run 1 (9-mers only) | Run 2 (8/9/10-mers) |
+|--------|---------------------|---------------------|
+| Contig length | 50 nt | 54 nt |
+| Total peptides | 433,129 | 1,292,977 |
+| Unique peptide sequences | 424,133 | 1,286,492 |
+
+Run 2 uses `peptide_lengths: [8, 9, 10]` (PR #99), with flank size derived automatically
+as `3 × (max_length − 1) = 27 nt` per side.
 
 ### MHC Binding Predictions
 
-MHCflurry 2.x was run for all six OptiType-called HLA alleles.
+Two runs are compared: Run 1 used `Class1AffinityPredictor` with per-allele IC50
+thresholds; Run 2 used `Class1PresentationPredictor` with a genotype-level call
+returning one best-allele prediction per peptide, classified by `presentation_percentile`.
 
-| Binder class | Count | % of total |
+| Metric | Run 1 (AffinityPredictor, IC50) | Run 2 (PresentationPredictor, percentile) |
 |---|---|---|
-| Strong (IC50 ≤ 50 nM) | 14,990 | 0.58% |
-| Weak (IC50 ≤ 500 nM) | 99,444 | 3.83% |
-| Non-binder (IC50 > 500 nM) | 2,484,340 | 95.6% |
-| **Total predictions** | **2,598,774** | — |
+| Total predictions | 2,598,774 (6 alleles × peptides) | 1,286,492 (1 per unique peptide) |
+| Strong | 14,990 (IC50 ≤ 50 nM, 0.58%) | 44,916 (percentile ≤ 0.5%, 3.49%) |
+| Weak | 99,444 (IC50 ≤ 500 nM, 3.83%) | 125,775 (percentile ≤ 2%, 9.78%) |
+| Non | 2,484,340 (95.6%) | 1,115,801 (86.7%) |
+
+The 6× reduction in total predictions reflects the switch from per-allele rows to one
+row per peptide. The increase in strong presenters (14,990 → 44,916) reflects the
+broader, biologically better-calibrated coverage of the percentile-based threshold
+versus the IC50 cutoff.
 
 ### Top Neoepitope Candidate
 
-**EVAEYNASF / HLA-A\*26:01, IC50 = 16.5 nM (strong binder)**
+| | Run 1 (AffinityPredictor) | Run 2 (PresentationPredictor) |
+|---|---|---|
+| Peptide | EVAEYNASF | FAFPFAQTL |
+| Allele | HLA-A\*26:01 | HLA-C\*03:03 |
+| IC50 (nM) | 16.5 | 19.98 |
+| Presentation percentile | — | 0.0007% |
+| Class | strong binder | strong presenter |
 
-This peptide is the highest-affinity predicted binder across all alleles. An IC50 of
-16.5 nM is well below the 50 nM strong-binder threshold and represents a compelling
-MHC class I binding prediction.
+The change in top candidate reflects ranking by `presentation_percentile` (composite
+affinity + processing) rather than IC50 alone. FAFPFAQTL ranks highest by presentation
+likelihood across the patient's HLA-C\*03:03 allele; EVAEYNASF ranked highest by raw
+binding affinity on HLA-A\*26:01.
 
 ### Structural Validation (TCRdock)
 
-TCRdock was run on the top candidate (EVAEYNASF / HLA-A\*26:01) on a GCP Spot GPU VM
-(NVIDIA P100, 16 GB VRAM). The predicted TCR–peptide–MHC ternary complex structure was
-successfully generated. The structure was rendered interactively using Mol\* 4.x in the
-pipeline HTML report, with chain labels A=MHC, B=peptide, C=TCR-α, D=TCR-β.
+TCRdock was run on the top candidate from each run on a GCP Spot GPU VM (NVIDIA P100,
+16 GB VRAM). Run 1 modelled EVAEYNASF / HLA-A\*26:01; Run 2 modelled FAFPFAQTL /
+HLA-C\*03:03. Both predicted TCR–peptide–MHC ternary complex structures were
+successfully generated and rendered interactively using Mol\* 4.x in the pipeline HTML
+report, with chain labels A=MHC, B=peptide, C=TCR-α, D=TCR-β.
 
 ---
 
