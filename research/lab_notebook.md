@@ -78,6 +78,26 @@ Fixed (1) now — `weak`/`non` entries converted to f-strings using `presentatio
 
 ---
 
+### ~17:30 UTC
+
+#### Issue #124 — CLI flag polish (Developer session, PR #125, branch `feat/issue-124-cli-flag`)
+
+**Goal:** Expose `--presentation-percentile-weak` via CLI parsers in both `generate_report.py` and `run_tcrdock.py`; fix docstring omission.
+
+**Done:**
+
+- Added `--presentation-percentile-weak` (type=float, default=2.0) to `_cli_main()` in both scripts and threaded through to the respective `generate_report()` / `run_structural_validation()` calls.
+- Fixed `generate_report()` docstring: `presentation_percentile_weak` was present in the function signature but absent from the `Args:` section.
+- 4 new `TestCLIParser` tests (default + custom value, one class per script). 200 tests passing.
+
+**Commits (2, branch `feat/issue-124-cli-flag`):**
+- `6cea0dd` feat(cli): add --presentation-percentile-weak flag to generate_report and run_tcrdock CLI parsers
+- `7c6dd35` test(cli): add CLI parser tests for --presentation-percentile-weak flag
+
+**PR #125 opened.** Awaiting merge.
+
+---
+
 ### ~11:30 UTC
 
 #### Issue #119 — Allele breadth model: scientific design (Researcher session, branch `feat/issue-119-allele-breadth`)
