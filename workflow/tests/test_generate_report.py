@@ -7,6 +7,7 @@ from generate_report import (
     _build_chain_legend,
     _build_compnd_records,
     _build_report_tsv,
+    _build_strong_table_html,
     _df_to_html,
     _extract_chain_ids,
 )
@@ -236,3 +237,93 @@ class TestBuildReportTsv:
         df = pd.read_csv(out, sep="\t")
         assert df[df["stage"] == "mhc_prediction"].empty
         assert df[df["stage"] == "top_candidate"].empty
+
+
+# ---------------------------------------------------------------------------
+# Helpers and tests for the GPS (genotype_presentation_score) code path
+# ---------------------------------------------------------------------------
+
+def _make_pred_df_with_gps(rows: list[dict]) -> pd.DataFrame:
+    """Build a predictions DataFrame that includes GPS columns."""
+    defaults = {
+        "best_allele": "HLA-A*02:01",
+        "ic50_nM": 50.0,
+        "processing_score": 0.8,
+        "presentation_score": 0.9,
+        "contig_key": "k0",
+        "start_nt": 0,
+    }
+    return pd.DataFrame([{**defaults, **r} for r in rows])
+
+
+class TestBuildStrongTableHtmlWithGps:
+    def test_quality_gate_excludes_high_best_percentile(self):
+        """Candidates where best_presentation_percentile > weak threshold are excluded."""
+        df = _make_pred_df_with_gps([
+            {"peptide": "ACDEFGHIK", "presentation_percentile": 0.1,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.9, "n_strong_alleles": 1,
+             "best_presentation_percentile": 0.1},
+            {"peptide": "LMNPQRSTV", "presentation_percentile": 0.2,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 2,
+             "best_presentation_percentile": 3.0},  # fails gate
+        ])
+        html = _build_strong_table_html(df, {}, presentation_percentile_weak=2.0)
+        assert "ACDEFGHIK" in html
+        assert "LMNPQRSTV" not in html
+
+    def test_ranked_by_gps_descending(self):
+        """Candidate with higher GPS appears first in the table."""
+        df = _make_pred_df_with_gps([
+            {"peptide": "ACDEFGHIK", "presentation_percentile": 0.1,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.7, "n_strong_alleles": 1,
+             "best_presentation_percentile": 0.1},
+            {"peptide": "LMNPQRSTV", "presentation_percentile": 0.4,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 3,
+             "best_presentation_percentile": 0.4},
+        ])
+        html = _build_strong_table_html(df, {}, presentation_percentile_weak=2.0)
+        assert html.index("LMNPQRSTV") < html.index("ACDEFGHIK")
+
+
+class TestBuildReportTsvWithGps:
+    def test_top_candidate_ranked_by_gps(self, tmp_path):
+        """When GPS columns present, top_candidate row reflects GPS-ranked winner."""
+        df = _make_pred_df_with_gps([
+            {"peptide": "ACDEFGHIK", "presentation_percentile": 0.1,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.7, "n_strong_alleles": 1,
+             "best_presentation_percentile": 0.1},
+            {"peptide": "LMNPQRSTV", "presentation_percentile": 0.4,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 3,
+             "best_presentation_percentile": 0.4},
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), df, None, out, 0.5, None,
+                          presentation_percentile_weak=2.0)
+        result = pd.read_csv(out, sep="\t")
+        top = result[(result["stage"] == "top_candidate") & (result["metric"] == "peptide")]
+        assert top["value"].iloc[0] == "LMNPQRSTV"
+
+    def test_quality_gate_excludes_candidate_in_tsv(self, tmp_path):
+        """Candidate failing quality gate is not selected as top_candidate."""
+        df = _make_pred_df_with_gps([
+            {"peptide": "ACDEFGHIK", "presentation_percentile": 0.1,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.95, "n_strong_alleles": 2,
+             "best_presentation_percentile": 3.0},  # fails gate
+            {"peptide": "LMNPQRSTV", "presentation_percentile": 0.4,
+             "presentation_class": "strong",
+             "genotype_presentation_score": 0.7, "n_strong_alleles": 1,
+             "best_presentation_percentile": 0.4},
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), df, None, out, 0.5, None,
+                          presentation_percentile_weak=2.0)
+        result = pd.read_csv(out, sep="\t")
+        top = result[(result["stage"] == "top_candidate") & (result["metric"] == "peptide")]
+        assert top["value"].iloc[0] == "LMNPQRSTV"
