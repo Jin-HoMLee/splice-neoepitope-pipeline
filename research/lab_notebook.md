@@ -2,7 +2,55 @@
 
 ---
 
-## 2026-04-27
+## 2026-04-26
+
+### 15:25 UTC — Editor: Developer
+
+#### Issue #148 — patient_002 rerun results (after hg38_tran HISAT2 index fix)
+
+Full pipeline rerun on patient_002 after merging `fix/issue-148-hisat2-chr-naming` (PR #152 — https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/152), which switched the HISAT2 prebuilt index from `grch38_tran` (ENSEMBL naming, no `chr` prefix) to `hg38_tran` (UCSC naming, `chr` prefix) to match the genome FASTA. Previous results were invalid due to the chromosome naming mismatch causing `bedtools getfasta` to return empty sequences for 56,735 of 56,774 junctions.
+
+**Junction filtering**
+
+| Metric | Count |
+|---|---|
+| Unannotated junctions | 58,914 |
+| Tumor-exclusive | 58,914 |
+| Normal-shared | 0 |
+
+No matched normal sample for patient_002 → all unannotated junctions labeled tumor_exclusive (expected behaviour with a warning in the pipeline log).
+
+**MHC predictions**
+
+| Class | Count |
+|---|---|
+| Total predictions | 2,330,687 |
+| Strong binders (≤ 0.5%) | 67,935 |
+| Weak binders (≤ 2.0%) | 222,823 |
+| Non-binders (> 2.0%) | 2,039,929 |
+
+**HLA typing (OptiType, tumor)**
+
+| Locus | Allele(s) |
+|---|---|
+| HLA-A | A\*01:01 |
+| HLA-B | B\*08:01 / B\*27:05 |
+| HLA-C | C\*01:02 / C\*07:01 |
+
+**Top neoepitope candidate**
+
+| Field | Value |
+|---|---|
+| Peptide | FADLRPLLL |
+| Best allele | HLA-C\*01:02 |
+| Presentation percentile | 0.0045% |
+| Genotype presentation score | 0.9999 |
+| IC50 | 33.2 nM |
+| Presentation class | strong |
+
+TCRdock PDB available: yes.
+
+---
 
 ### ~14:54 UTC — Editor: Developer
 
@@ -18,11 +66,21 @@ Added a `pipeline-snakemake-dry-run` CI job to `.github/workflows/tests.yml` tha
 
 Added `update_note()` helper and `--update-note ITEM_KEY` flag to `research/scripts/zotero_add.py`. Allows updating the note on an existing Zotero entry without re-adding the paper — needed for the morning reading routine when the note format evolves after initial add (e.g. adding a Limitations section). Uses optimistic locking via `If-Unmodified-Since-Version`. Falls back to creating a new note if none exists.
 
+---
+
 ### ~09:30 UTC — Editor: Scientist
 
 #### Issue #154 — Move zotero_add.py to research/scripts/ and add research/README.md
 
 Moved `scripts/zotero_add.py` to `research/scripts/zotero_add.py` to clarify that the script is a research support tool, not part of the bioinformatics pipeline. Created `research/README.md` with a folder overview and full usage docs for `zotero_add.py` including the three-section note format convention (Results / Methods / Limitations).
+
+---
+
+### ~08:30 UTC — Editor: Developer
+
+#### Issue #148 — patient_002 full rerun completed (first-pass success)
+
+Full rerun of patient_002 completed successfully after merging the `hg38_tran` HISAT2 index fix (Issue #148, branch `fix/issue-148-hisat2-chr-naming`). All Snakemake steps finished without errors. At first view the results look good — junction counts and peptide counts appear in the expected range, unlike the previous invalid run (which produced only 783 peptides due to the ENSEMBL/UCSC chr naming mismatch). Detailed result review and top candidate recording deferred to next session.
 
 ---
 
