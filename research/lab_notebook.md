@@ -4,6 +4,50 @@
 
 ## 2026-04-24
 
+### ~22:00 UTC
+
+#### Issue #123 / #126 — patient_002 normal sample decision + GTEx filter design (Researcher session)
+
+**Context:** patient_002 (osteosarcoma IPISRC044) has no matched RNA-seq normal. Current
+production run uses Blood WES as proxy, yielding effectively no junction filtering (3 junctions
+overlapping tumour set — consistent with WES spliced reads being alignment artefacts).
+
+**Normal sample decision for current production run:**
+
+Longitudinal single-cell RNA-seq (PBMC, sorted CD3+ T cells) is available from the Hudson Lab:
+
+- Protocol: 10x Chromium (confirmed by Cell Ranger output + Seurat objects)
+- Time points: Jan 2025 – Dec 2025 (growing dataset)
+- Location: `hudson_lab/PBMC_scRNAseq/FASTQ` and `hudson_lab/PBMC_scRNAseq/cellranger`
+
+Decision: use **Jan 2025 Cell Ranger BAM** as the normal input for the current patient_002 run.
+Rationale:
+- CD3+ T cells are the primary TIL population contaminating solid tumour RNA-seq; filtering their
+  junctions directly targets the most relevant contamination source
+- Jan 2025 is the earliest (most treatment-naive) time point — least treatment-modified T cell state
+- 10x 3' capture gives sparse junction coverage, but still produces genuine biological splice junctions
+  unlike WES (which gave near-zero overlap)
+- This is an interim measure pending GTEx pan-tissue filter implementation (issue #126)
+
+Developer action: run regtools on the Jan 2025 Cell Ranger BAM (already genome-aligned; no
+re-alignment needed) and use resulting junction set as `normal_junctions` for patient_002.
+
+**GTEx pan-tissue filter — scientific rationale documented (issue #126):**
+
+A pan-tissue GTEx filter (not tissue-matched) is the correct long-term approach for a vaccination
+application. Key argument: vaccine-induced CTLs are systemic — they patrol all tissues, not only
+the tumour site. A junction present in any normal tissue could be presented on those cells, creating
+off-tumour autoimmune toxicity risk. Pan-tissue filtering serves dual purpose:
+
+1. Safety — excludes junctions expressed in any of ~54 GTEx tissue types
+2. Candidate quality — pan-tissue absence is a stronger tumour-exclusivity claim; precision over
+   recall is appropriate given 10–20 vaccine slot constraint
+
+Full rationale added to `research/manuscript/DISCUSSIONS.md` (section "Normal sample filtering →
+GTEx pan-tissue filter"). Issue #126 opened for Developer implementation.
+
+---
+
 ### ~18:30 UTC
 
 #### Issue #123 — M1 production cloud run: patient_001 started

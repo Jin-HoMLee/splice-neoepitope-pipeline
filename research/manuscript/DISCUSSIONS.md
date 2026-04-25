@@ -160,6 +160,50 @@ genomic locus. The junction-spanning filter addresses the most common version of
 (same-locus exonic sequence), but a cross-proteome BLAST check would be more thorough.
 This remains an open improvement.
 
+### GTEx pan-tissue filter: extending normal filtering for vaccination applications
+
+The matched normal RNA-seq provides a patient-specific junction filter, but is not always
+available. Patient_002 (osteosarcoma) has no matched RNA-seq normal; the WES proxy
+contributed only 3 overlapping junctions — effectively no filtering. A population-level
+reference is needed as a substitute or supplement.
+
+GTEx (V10) provides RNA-seq from approximately 54 distinct tissue types across ~900
+donors, with junction-level read counts available as pre-computed files. Rather than
+filtering against a single tissue matched to the tumour of origin, we argue that a
+**pan-tissue filter** — removing any junction present in any GTEx tissue — is the
+scientifically correct choice for a vaccination application.
+
+The reasoning follows directly from the clinical context. A personalised cancer vaccine
+induces a systemic cytotoxic T cell response: once primed, vaccine-specific T cells
+circulate and patrol all tissues, not only the tumour. A junction present in any normal
+tissue — regardless of organ — means the derived peptide is part of that tissue's
+normal transcriptome and could be presented on its cell surface. Vaccine-trained T cells
+targeting that peptide could therefore cause off-tumour autoimmune toxicity in any
+tissue expressing the junction. Restricting the normal filter to matched or
+mesenchymally-related tissues would leave these off-tumour risks unaddressed.
+
+The pan-tissue filter therefore serves two complementary purposes:
+
+- **Safety.** Junctions present in any GTEx tissue are excluded, reducing the
+  autoimmune risk to normal tissues from vaccine-induced T cells.
+- **Candidate quality.** A junction absent from all ~54 GTEx tissue types across the
+  population is a far stronger tumour-exclusivity claim than one filtered only against
+  a single matched normal or not filtered at all. Given the limited number of peptide
+  slots in a personalised vaccine formulation (10–20 candidates; Sahin et al.,
+  *Nature* 2017; Ott et al., *Nature* 2017), precision outweighs recall: the cost of
+  a wasted slot or an autoimmune adverse event exceeds the cost of a missed candidate.
+
+This conservative bias mirrors the logic applied to GPS-based candidate ranking: the
+clinical question — vaccination, not natural immunity prediction — determines both how
+candidates are ranked (GPS as the primary signal for HLA genotype coverage) and how
+they are filtered (pan-tissue normal reference for systemic safety).
+
+Note that junction-level filtering is a necessary but not sufficient safety check: it
+catches cases where the source splice event itself occurs in normal tissue, but does not
+address cross-reactivity between a tumour-exclusive peptide and a structurally similar
+normal peptide. The proteome-level BLAST check (see above) addresses that orthogonal
+concern.
+
 ---
 
 ## HISAT2 vs. STAR for novel junction detection
