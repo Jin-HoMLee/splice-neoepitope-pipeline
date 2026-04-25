@@ -97,6 +97,7 @@ case "${MODE}" in
         echo "ERROR: --mode must be 'test' or 'prod', got '${MODE}'" >&2
         exit 1 ;;
 esac
+PATIENT_ID=$(basename "${SAMPLES}" .tsv)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -386,6 +387,27 @@ gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
 echo "Results upload complete."
 [[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
 [[ -f "pipeline.log" ]] && gcloud storage cp "pipeline.log" "gs://${GCS_BUCKET}/logs/pipeline.log" && echo "Pipeline log uploaded."
+EOF
+
+# ---------------------------------------------------------------------------
+# Clean up per-patient data from VM (runs only after confirmed GCS upload)
+# ---------------------------------------------------------------------------
+log ""
+log "=== Cleaning up per-patient data from VM ==="
+
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+if [[ -d "data/${PATIENT_ID}" ]]; then
+    rm -rf "data/${PATIENT_ID}"
+    echo "Deleted data/${PATIENT_ID}/"
+fi
+if [[ -d "results/${PATIENT_ID}/alignment" ]]; then
+    find "results/${PATIENT_ID}/alignment" -type f \
+        \( -name "*.bam" -o -name "*.bam.bai" -o -name "*.bed" \) -delete
+    echo "Deleted alignment intermediates for ${PATIENT_ID}"
+fi
+echo "VM cleanup complete."
 EOF
 
 # ===========================================================================
