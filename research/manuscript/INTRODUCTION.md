@@ -52,9 +52,18 @@ The reimplementation updates the toolchain to current standards:
 | Aligner | TopHat | HISAT2 / STAR |
 | Junction extraction | TopHat output | regtools |
 | MHC binding prediction | NetMHCPan | MHCflurry 2.x |
+| Structural validation | — | TCRdock (Alam et al., *Science* 2023) |
 | Workflow management | custom scripts | Snakemake |
 | Reference genome | GRCh37/hg19 | GRCh38/hg38 |
 | Gene annotation | Ensembl | GENCODE v47 |
+
+Structural validation is a new stage absent from the 2015 pipeline. MHC binding prediction
+identifies peptides with the thermodynamic potential to occupy the MHC groove, but surface
+presentation is necessary rather than sufficient for T-cell activation: a predicted binder
+must also form a productive complex with a T-cell receptor (TCR) to elicit a cytotoxic
+response. TCRdock models the three-dimensional TCR-pMHC complex using AlphaFold2 fine-tuned
+on crystal structures, providing a docking confidence score as a complementary filter
+downstream of MHCflurry.
 
 ---
 
