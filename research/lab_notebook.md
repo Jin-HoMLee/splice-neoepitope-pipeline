@@ -2,7 +2,183 @@
 
 ---
 
+## 2026-04-25
+
+### ~15:00 UTC — Editor: Scientist
+
+#### TCR-pMHC binding prediction — field overview and structural improvement plan (Issue #86)
+
+**Field overview:**
+
+Two main paradigms:
+- **Sequence/ML-based** (NetTCR-2.x, pMTnet, ERGO, MixTCRpred, TULIP): treat TCR+peptide as a sequence classification problem; generalisation to unseen epitopes remains a key limitation across all methods — to revisit in a future Scientist session
+- **Structure-based** (TCRdock, AlphaFold3): model the 3D TCR-pMHC complex; TCRdock (Alam et al., *Science* 2023) is already integrated; AF3 (Abramson et al., *Nature* 2024) is a newer competitor
+
+Key databases: VDJdb (curated TCR-pMHC specificity), IEDB, McPAS-TCR.
+
+**Three axes for improving the structural approach — agreed execution order:**
+
+1. **Better inputs (Issue #86):** patient-specific HLA-matched TCR panel from VDJdb — prerequisite for all downstream improvements
+2. **Model upgrade:** benchmark AlphaFold3 vs. TCRdock on a known-binding panel once Axis 1 is in place
+3. **Rescoring:** post-process PDB outputs with Rosetta `InterfaceAnalyzer` or FoldX `AnalyseComplex` for interface ΔΔG as a secondary ranking signal
+
+**Issue #86 — VDJdb TCR panel design (first-pass, conservative):**
+
+| Parameter | Value |
+|---|---|
+| HLA matching | Exact 4-digit |
+| MHC class | Class I only |
+| Paired α/β chains | Required |
+| VDJdb confidence score | ≥ 2 |
+| Panel size | Top 10 per allele |
+| Redundancy reduction | None |
+| Antigen category filter | None |
+
+Key non-obvious dependency: **`stitchr`** (Peacock et al. 2022, *Bioinformatics*) — VDJdb stores CDR3 + V/J gene assignments only; TCRdock needs full α/β sequences; stitchr reconstructs them from IMGT germline references.
+
+Pipeline integration: new Snakemake rule `fetch_vdjdb_panel` (input: patient HLA alleles; output: `results/{sample}/tcrdock/vdjdb_panel.tsv`) feeds into existing `run_tcrdock`. VDJdb data from `antigenomics/vdjdb-db` flat TSV (pinned release). Issue #86 body updated to reflect this design.
+
+---
+
+### ~12:00 UTC — Editor: Scientist
+
+#### Zotero integration for morning science reading routine (Issue #137, PR #138)
+
+Established daily science reading habit for Scientist sessions. Each morning warm-up ("good morning") now produces a Zotero entry rather than a markdown log.
+
+**Setup:**
+- Created Zotero collection "Splice Neoepitope Pipeline" (key `Z38GTJNW`, library `lee.jin-ho`, user ID 10082130)
+- `scripts/zotero_add.py`: CLI tool to add a paper by DOI — fetches metadata from CrossRef (authors, journal, ISSN) with PubMed fallback for full date, structured abstract, and PMID; supports `--note` (child note), `--tags`, `--dry-run`
+- Credentials in `.env` (gitignored)
+
+**First entry:**
+Weber et al. (2024) KEYNOTE-942, *The Lancet* 403:632–644. DOI: 10.1016/S0140-6736(23)02268-7. Phase 2b trial: personalised mRNA neoepitope vaccine (mRNA-4157/V940) + pembrolizumab → ~44% reduction in recurrence/death vs. pembrolizumab alone in resected melanoma. Targets SNV/indel neoantigens only; splice-junction neoepitopes (our focus) are absent — directly motivates this project.
+
+**PR #138 merged.**
+
+---
+
+### ~10:30 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: sub-issue retrospective, VM disk fix, branch rebase
+
+**patient_002 run failure — root cause investigation (~09:30 UTC)**
+
+patient_002 run launched the previous evening (~22:12 UTC, 2026-04-24) got stuck overnight.
+SSH inspection of the VM showed `samtools sort` hanging with no output: the HISAT2 index was
+missing (`resources/hisat2_index/genome_tran` not found), causing HISAT2 to exit immediately.
+`samtools sort` was reading from HISAT2's stdout pipe and hung instead of propagating the error.
+`set -euo pipefail` was insufficient because the right-hand side of the pipe does not exit when
+the left-hand side fails — it just blocks waiting for more input.
+
+Immediate fix: killed the tmux session, deleted the stale `resources/hisat2_index/` directory
+(contained `genome.*.ht2` from an old build, but `index.done` sentinel was present so Snakemake
+skipped re-download). Pipeline restarted by user after disk issue resolved (see below).
+
+Code fix (Issue #131, commit `e2b1a65`): added a pre-check at the top of `hisat2_align` shell
+block — exits with a clear error and writes to `{log}` before `samtools` is ever launched:
+```bash
+if [[ ! -f "{params.index_prefix}.1.ht2" ]]; then
+    echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
+    exit 1
+fi
+```
+This ensures the error propagates to `pipeline.log` and the orchestrator can detect it.
+
+**VM disk full**
+
+VM (100 GB SSD) was full — patient_001 data had not been cleaned up post-GCS upload. 300 GB
+resize rejected (europe-west1 SSD quota is 250 GB; `neoepitope-pipeline` 200 GB +
+`orchestrator` 10 GB = 210 GB in use). Resized to 200 GB (`gcloud compute disks resize`),
+then `sudo resize2fs /dev/sda1` to extend the filesystem. patient_001 data deleted from VM
+(already safe in GCS).
+
+**Sub-issue retrospective — PRs #132–#135 merged**
+
+10 commits accumulated on `feat/issue-123-prod-cloud-run` since patient_001 re-run were
+retrospectively organised into 4 focused sub-issues, each cherry-picked to its own branch
+and merged into main independently:
+
+| Issue | PR | Commit(s) | Description |
+|-------|----|-----------|-------------|
+| #128 | #132 | `6dc0fdc` | fix(cloud): upload pipeline.log + orchestrator.log to GCS |
+| #129 | #133 | `8d3ff15` | fix(tcrdock): match `_pdb_file` suffix to avoid pdbid false-match |
+| #130 | #134 | `57c1f3f` | fix(cloud): remove `--conda-cleanup-envs` (deletes all envs on empty DAG) |
+| #131 | #135 | `e2b1a65` | fix(alignment): fail fast on missing HISAT2 index |
+
+`feat/issue-123-prod-cloud-run` now contains only 3 docs commits
+(`bbd88c5`, `f2eb363`, `86e7e15`) on top of the latest main. Branch rebased and
+force-pushed. PR for this branch will be opened after patient_002 run completes.
+
+**patient_002 run status:** restarted after disk resize; in progress.
+
+---
+
 ## 2026-04-24
+
+### ~22:12 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: patient_002 started (WES normal, interim)
+
+Launched production pipeline run for patient_002 (osteosarcoma IPISRC044, BG003082) via
+`run_cloud_gpu.sh --detach` on `neoepitope-pipeline` VM. Branch: `feat/issue-123-prod-cloud-run`.
+
+Normal sample: Blood Derived WES (`BG003082_N0_WES`) — interim proxy; yields near-zero junction
+overlap (~3 junctions). All unannotated tumour junctions will be labeled `tumor_exclusive` with
+a pipeline warning. Proper normal (Jan 2025 CD3+ PBMC Cell Ranger BAM) pending Issue #127
+implementation.
+
+Also includes two bug fixes committed since patient_001 re-run:
+- `2625ec7` fix(tcrdock): match `_pdb_file` suffix in column search (avoids `pdbid` false-match)
+- `117d174` fix(cloud): remove `--conda-cleanup-envs` (was deleting all 4 envs when DAG empty)
+
+Issue #127 opened: support pre-aligned BAM as normal input for junction filtering.
+
+---
+
+### ~22:00 UTC
+
+#### Issue #123 / #126 — patient_002 normal sample decision + GTEx filter design (Researcher session)
+
+**Context:** patient_002 (osteosarcoma IPISRC044) has no matched RNA-seq normal. Current
+production run uses Blood WES as proxy, yielding effectively no junction filtering (3 junctions
+overlapping tumour set — consistent with WES spliced reads being alignment artefacts).
+
+**Normal sample decision for current production run:**
+
+Longitudinal single-cell RNA-seq (PBMC, sorted CD3+ T cells) is available from the Hudson Lab:
+
+- Protocol: 10x Chromium (confirmed by Cell Ranger output + Seurat objects)
+- Time points: Jan 2025 – Dec 2025 (growing dataset)
+- Location: `hudson_lab/PBMC_scRNAseq/FASTQ` and `hudson_lab/PBMC_scRNAseq/cellranger`
+
+Decision: use **Jan 2025 Cell Ranger BAM** as the normal input for the current patient_002 run.
+Rationale:
+- CD3+ T cells are the primary TIL population contaminating solid tumour RNA-seq; filtering their
+  junctions directly targets the most relevant contamination source
+- Jan 2025 is the earliest (most treatment-naive) time point — least treatment-modified T cell state
+- 10x 3' capture gives sparse junction coverage, but still produces genuine biological splice junctions
+  unlike WES (which gave near-zero overlap)
+- This is an interim measure pending GTEx pan-tissue filter implementation (issue #126)
+
+Developer action: run regtools on the Jan 2025 Cell Ranger BAM (already genome-aligned; no
+re-alignment needed) and use resulting junction set as `normal_junctions` for patient_002.
+
+**GTEx pan-tissue filter — scientific rationale documented (issue #126):**
+
+A pan-tissue GTEx filter (not tissue-matched) is the correct long-term approach for a vaccination
+application. Key argument: vaccine-induced CTLs are systemic — they patrol all tissues, not only
+the tumour site. A junction present in any normal tissue could be presented on those cells, creating
+off-tumour autoimmune toxicity risk. Pan-tissue filtering serves dual purpose:
+
+1. Safety — excludes junctions expressed in any of ~54 GTEx tissue types
+2. Candidate quality — pan-tissue absence is a stronger tumour-exclusivity claim; precision over
+   recall is appropriate given 10–20 vaccine slot constraint
+
+Full rationale added to `research/manuscript/DISCUSSIONS.md` (section "Normal sample filtering →
+GTEx pan-tissue filter"). Issue #126 opened for Developer implementation.
+
+---
 
 ### ~18:30 UTC
 
