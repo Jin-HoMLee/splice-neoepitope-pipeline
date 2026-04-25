@@ -4,6 +4,36 @@
 
 ## 2026-04-25
 
+### ~16:56 UTC — Editor: Developer
+
+#### Issue #136 — VM data cleanup + NVIDIA driver fixes for common-cu129 image
+
+**Context:** patient_002 run restarted after morning disk resize. Left running while user went to lunch (~12:00 UTC).
+
+**NVIDIA driver failures — three iterations (~13:00–15:00 UTC)**
+
+The `ubuntu-accelerator-2204-amd64-with-nvidia-570` Deep Learning VM image was retired by Google; the replacement is `common-cu129-ubuntu-2204-nvidia-580`. The new image ships driver 580, which lacks GSP firmware support for P100 (Pascal SM 6.0). Three driver downgrade attempts were needed before a working configuration was found:
+
+| Attempt | Package | Failure reason |
+|---------|---------|----------------|
+| 1 | `nvidia-driver-570-server` | Pulls display dependencies (`libgbm1`, `libxcb-*`, `libnvidia-egl-wayland1`) absent on headless VMs |
+| 2 | `nvidia-headless-no-dkms-570-server` | Pre-compiled kernel modules don't match GCP kernel (`6.8.0-1053-gcp`) on `common-cu129` image — `nvidia-smi` fails with "driver not loaded" |
+| 3 | `nvidia-headless-570-server` (DKMS) | **Works** — DKMS recompiles modules against the running kernel at install time |
+
+`IMAGE_FAMILY` in `run_cloud_gpu.sh` updated to `common-cu129-ubuntu-2204-nvidia-580`. Driver downgrade block updated to install the DKMS variant. Three commits on `feat/issue-136-vm-data-cleanup`; PR #151 opened.
+
+**patient_002 pipeline completed (~15:00–15:46 UTC)**
+
+TCRdock rerun manually with `snakemake --forcerun run_tcrdock` after DKMS driver confirmed active. All 22 Snakemake steps finished. Results and logs uploaded to GCS at ~15:46 UTC.
+
+Top candidate: **NSISRPSSL / HLA-C\*01:02, ic50\_nM=39.77, pLDDT=91.99**
+
+**Issue #148 discovered — results invalid: chromosome naming mismatch (~16:00 UTC)**
+
+Report showed only ~800 total neoepitopes (expected thousands). Root cause: `hisat2_prebuilt_url` in `config/config.yaml` used `grch38_tran.tar.gz` (ENSEMBL naming, no `chr` prefix) while the genome FASTA uses UCSC naming (`chr` prefix). `bedtools getfasta` returned empty sequences → 56,735 of 56,774 junctions skipped in `assemble_contigs.py` → only 18 contigs → 783 peptides. patient_001 was unaffected as it predates the config key and built the index locally from the UCSC FASTA. Fix: `hg38_tran.tar.gz` on `fix/issue-148-hisat2-chr-naming`. **Today's patient_002 results are invalid; full rerun required after Issue #148 is merged.**
+
+---
+
 ### ~15:00 UTC — Editor: Scientist
 
 #### TCR-pMHC binding prediction — field overview and structural improvement plan (Issue #86)
