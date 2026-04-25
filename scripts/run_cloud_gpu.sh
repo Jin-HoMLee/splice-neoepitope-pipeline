@@ -204,6 +204,7 @@ tmux new-session -d -s orchestrator "
         --_cloud-internal \\
         $([[ "${KEEP_VM}" == true ]] && echo "--keep-vm") \\
         2>&1 | tee orchestrator.log
+    gcloud storage cp orchestrator.log "gs://${GCS_BUCKET}/logs/orchestrator.log" 2>/dev/null || true
     echo 'Orchestrator finished — shutting down.'
     sudo shutdown -h now
 "
@@ -396,6 +397,7 @@ cd "\$HOME/splice-neoepitope-pipeline"
 gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
 echo "Results upload complete."
 [[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
+[[ -f "pipeline.log" ]] && gcloud storage cp "pipeline.log" "gs://${GCS_BUCKET}/logs/pipeline.log" && echo "Pipeline log uploaded."
 EOF
 
 # ===========================================================================
