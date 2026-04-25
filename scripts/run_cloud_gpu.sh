@@ -299,11 +299,13 @@ wait_for_ssh "${PIPELINE_VM}"
 # Downgrade NVIDIA driver to 570-server for P100 (Pascal SM 6.0) compatibility
 # Driver 580+ requires GSP firmware which P100 lacks. Idempotent — skipped if
 # 570-server is already installed (e.g. VM reused from a previous run).
+# Use headless (no-dkms) variant: full nvidia-driver-570-server pulls in display
+# dependencies (libgbm1, libxcb-*, libnvidia-egl-wayland1) absent on headless VMs.
 # ---------------------------------------------------------------------------
-if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-driver-570-server &>/dev/null; then
-    log "Downgrading NVIDIA driver to 570-server for P100 compatibility..."
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --allow-downgrades nvidia-driver-570-server
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 2>/dev/null || true
+if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-headless-no-dkms-570-server &>/dev/null; then
+    log "Downgrading NVIDIA driver to 570-server (headless) for P100 compatibility..."
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 'nvidia-headless-no-dkms-580*' 'nvidia-utils-580*' 2>/dev/null || true
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --no-install-recommends nvidia-headless-no-dkms-570-server nvidia-utils-570-server
     log "Rebooting VM to load driver 570..."
     ssh_cmd "${PIPELINE_VM}" -- sudo reboot || true
     sleep 60
