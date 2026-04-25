@@ -4,6 +4,42 @@
 
 ## 2026-04-25
 
+### ~15:00 UTC — Editor: Scientist
+
+#### TCR-pMHC binding prediction — field overview and structural improvement plan (Issue #86)
+
+**Field overview:**
+
+Two main paradigms:
+- **Sequence/ML-based** (NetTCR-2.x, pMTnet, ERGO, MixTCRpred, TULIP): treat TCR+peptide as a sequence classification problem; generalisation to unseen epitopes remains a key limitation across all methods — to revisit in a future Scientist session
+- **Structure-based** (TCRdock, AlphaFold3): model the 3D TCR-pMHC complex; TCRdock (Alam et al., *Science* 2023) is already integrated; AF3 (Abramson et al., *Nature* 2024) is a newer competitor
+
+Key databases: VDJdb (curated TCR-pMHC specificity), IEDB, McPAS-TCR.
+
+**Three axes for improving the structural approach — agreed execution order:**
+
+1. **Better inputs (Issue #86):** patient-specific HLA-matched TCR panel from VDJdb — prerequisite for all downstream improvements
+2. **Model upgrade:** benchmark AlphaFold3 vs. TCRdock on a known-binding panel once Axis 1 is in place
+3. **Rescoring:** post-process PDB outputs with Rosetta `InterfaceAnalyzer` or FoldX `AnalyseComplex` for interface ΔΔG as a secondary ranking signal
+
+**Issue #86 — VDJdb TCR panel design (first-pass, conservative):**
+
+| Parameter | Value |
+|---|---|
+| HLA matching | Exact 4-digit |
+| MHC class | Class I only |
+| Paired α/β chains | Required |
+| VDJdb confidence score | ≥ 2 |
+| Panel size | Top 10 per allele |
+| Redundancy reduction | None |
+| Antigen category filter | None |
+
+Key non-obvious dependency: **`stitchr`** (Peacock et al. 2022, *Bioinformatics*) — VDJdb stores CDR3 + V/J gene assignments only; TCRdock needs full α/β sequences; stitchr reconstructs them from IMGT germline references.
+
+Pipeline integration: new Snakemake rule `fetch_vdjdb_panel` (input: patient HLA alleles; output: `results/{sample}/tcrdock/vdjdb_panel.tsv`) feeds into existing `run_tcrdock`. VDJdb data from `antigenomics/vdjdb-db` flat TSV (pinned release). Issue #86 body updated to reflect this design.
+
+---
+
 ### ~12:00 UTC — Editor: Scientist
 
 #### Zotero integration for morning science reading routine (Issue #137, PR #138)
