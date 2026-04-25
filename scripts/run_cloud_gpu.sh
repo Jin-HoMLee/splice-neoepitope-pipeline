@@ -42,7 +42,7 @@ ZONE="europe-west1-b"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
 ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data
-IMAGE_FAMILY="ubuntu-accelerator-2204-amd64-with-nvidia-570"  # driver 570 supports P100; common-cu128/570 retired, common-cu129/580 drops P100 GSP firmware
+IMAGE_FAMILY="common-cu129-ubuntu-2204-nvidia-580"  # only available Ubuntu 22.04 DL image; driver downgraded to 570-server below for P100 (Pascal) compatibility
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
@@ -97,6 +97,7 @@ case "${MODE}" in
         echo "ERROR: --mode must be 'test' or 'prod', got '${MODE}'" >&2
         exit 1 ;;
 esac
+PATIENT_ID=$(basename "${SAMPLES}" .tsv)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -295,6 +296,25 @@ fi
 wait_for_ssh "${PIPELINE_VM}"
 
 # ---------------------------------------------------------------------------
+# Downgrade NVIDIA driver to 570-server for P100 (Pascal SM 6.0) compatibility
+# Driver 580+ requires GSP firmware which P100 lacks. Idempotent — skipped if
+# 570-server is already installed (e.g. VM reused from a previous run).
+# Use headless DKMS variant: nvidia-headless-no-dkms-570-server pre-compiled
+# modules don't match the GCP kernel (6.8.0-*-gcp) on common-cu129 images.
+# DKMS recompiles against the running kernel at install time.
+# ---------------------------------------------------------------------------
+if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-headless-570-server &>/dev/null; then
+    log "Downgrading NVIDIA driver to 570-server (DKMS) for P100 compatibility..."
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 'nvidia-headless-no-dkms-580*' 'nvidia-utils-580*' 2>/dev/null || true
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --no-install-recommends nvidia-headless-570-server nvidia-utils-570-server
+    log "Rebooting VM to load driver 570..."
+    ssh_cmd "${PIPELINE_VM}" -- sudo reboot || true
+    sleep 60
+    wait_for_ssh "${PIPELINE_VM}"
+    log "VM rebooted — NVIDIA driver 570 active."
+fi
+
+# ---------------------------------------------------------------------------
 # Setup VM (idempotent — skips steps already done)
 # ---------------------------------------------------------------------------
 log "Running setup_vm.sh on ${PIPELINE_VM}..."
@@ -386,6 +406,27 @@ gcloud storage cp -r "${RESULTS_DIR}" "${GCS_PATH%/*}/"
 echo "Results upload complete."
 [[ -d "logs" ]] && gcloud storage cp -r "logs" "gs://${GCS_BUCKET}/" && echo "Logs upload complete."
 [[ -f "pipeline.log" ]] && gcloud storage cp "pipeline.log" "gs://${GCS_BUCKET}/logs/pipeline.log" && echo "Pipeline log uploaded."
+EOF
+
+# ---------------------------------------------------------------------------
+# Clean up per-patient data from VM (runs only after confirmed GCS upload)
+# ---------------------------------------------------------------------------
+log ""
+log "=== Cleaning up per-patient data from VM ==="
+
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<EOF
+set -euo pipefail
+cd "\$HOME/splice-neoepitope-pipeline"
+if [[ -d "data/${PATIENT_ID}" ]]; then
+    rm -rf "data/${PATIENT_ID}"
+    echo "Deleted data/${PATIENT_ID}/"
+fi
+if [[ -d "results/${PATIENT_ID}/alignment" ]]; then
+    find "results/${PATIENT_ID}/alignment" -type f \
+        \( -name "*.bam" -o -name "*.bam.bai" -o -name "*.bed" \) -delete
+    echo "Deleted alignment intermediates for ${PATIENT_ID}"
+fi
+echo "VM cleanup complete."
 EOF
 
 # ===========================================================================
