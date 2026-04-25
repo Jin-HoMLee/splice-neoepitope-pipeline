@@ -174,6 +174,14 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             set -euo pipefail
             mkdir -p $(dirname {output.junctions})
 
+            # Fail fast if the index is missing — avoids samtools hanging on a
+            # broken pipe, which would prevent Snakemake from writing the error
+            # to pipeline.log and leave the orchestrator polling indefinitely.
+            if [[ ! -f "{params.index_prefix}.1.ht2" ]]; then
+                echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
+                exit 1
+            fi
+
             if [[ -n "{input.fastq2}" ]]; then
                 FASTQ_ARGS="-1 {input.fastq1} -2 {input.fastq2}"
             else
