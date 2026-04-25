@@ -42,7 +42,7 @@ ZONE="europe-west1-b"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
 ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data
-IMAGE_FAMILY="ubuntu-accelerator-2204-amd64-with-nvidia-570"  # driver 570 supports P100; common-cu128/570 retired, common-cu129/580 drops P100 GSP firmware
+IMAGE_FAMILY="common-cu129-ubuntu-2204-nvidia-580"  # only available Ubuntu 22.04 DL image; driver downgraded to 570-server below for P100 (Pascal) compatibility
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
@@ -294,6 +294,22 @@ else
 fi
 
 wait_for_ssh "${PIPELINE_VM}"
+
+# ---------------------------------------------------------------------------
+# Downgrade NVIDIA driver to 570-server for P100 (Pascal SM 6.0) compatibility
+# Driver 580+ requires GSP firmware which P100 lacks. Idempotent — skipped if
+# 570-server is already installed (e.g. VM reused from a previous run).
+# ---------------------------------------------------------------------------
+if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-driver-570-server &>/dev/null; then
+    log "Downgrading NVIDIA driver to 570-server for P100 compatibility..."
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --allow-downgrades nvidia-driver-570-server
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 2>/dev/null || true
+    log "Rebooting VM to load driver 570..."
+    ssh_cmd "${PIPELINE_VM}" -- sudo reboot || true
+    sleep 60
+    wait_for_ssh "${PIPELINE_VM}"
+    log "VM rebooted — NVIDIA driver 570 active."
+fi
 
 # ---------------------------------------------------------------------------
 # Setup VM (idempotent — skips steps already done)
