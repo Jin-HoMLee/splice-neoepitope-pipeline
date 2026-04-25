@@ -2,7 +2,85 @@
 
 ---
 
+## 2026-04-25
+
+### ~10:30 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: sub-issue retrospective, VM disk fix, branch rebase
+
+**patient_002 run failure — root cause investigation (~09:30 UTC)**
+
+patient_002 run launched the previous evening (~22:12 UTC, 2026-04-24) got stuck overnight.
+SSH inspection of the VM showed `samtools sort` hanging with no output: the HISAT2 index was
+missing (`resources/hisat2_index/genome_tran` not found), causing HISAT2 to exit immediately.
+`samtools sort` was reading from HISAT2's stdout pipe and hung instead of propagating the error.
+`set -euo pipefail` was insufficient because the right-hand side of the pipe does not exit when
+the left-hand side fails — it just blocks waiting for more input.
+
+Immediate fix: killed the tmux session, deleted the stale `resources/hisat2_index/` directory
+(contained `genome.*.ht2` from an old build, but `index.done` sentinel was present so Snakemake
+skipped re-download). Pipeline restarted by user after disk issue resolved (see below).
+
+Code fix (Issue #131, commit `e2b1a65`): added a pre-check at the top of `hisat2_align` shell
+block — exits with a clear error and writes to `{log}` before `samtools` is ever launched:
+```bash
+if [[ ! -f "{params.index_prefix}.1.ht2" ]]; then
+    echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
+    exit 1
+fi
+```
+This ensures the error propagates to `pipeline.log` and the orchestrator can detect it.
+
+**VM disk full**
+
+VM (100 GB SSD) was full — patient_001 data had not been cleaned up post-GCS upload. 300 GB
+resize rejected (europe-west1 SSD quota is 250 GB; `neoepitope-pipeline` 200 GB +
+`orchestrator` 10 GB = 210 GB in use). Resized to 200 GB (`gcloud compute disks resize`),
+then `sudo resize2fs /dev/sda1` to extend the filesystem. patient_001 data deleted from VM
+(already safe in GCS).
+
+**Sub-issue retrospective — PRs #132–#135 merged**
+
+10 commits accumulated on `feat/issue-123-prod-cloud-run` since patient_001 re-run were
+retrospectively organised into 4 focused sub-issues, each cherry-picked to its own branch
+and merged into main independently:
+
+| Issue | PR | Commit(s) | Description |
+|-------|----|-----------|-------------|
+| #128 | #132 | `6dc0fdc` | fix(cloud): upload pipeline.log + orchestrator.log to GCS |
+| #129 | #133 | `8d3ff15` | fix(tcrdock): match `_pdb_file` suffix to avoid pdbid false-match |
+| #130 | #134 | `57c1f3f` | fix(cloud): remove `--conda-cleanup-envs` (deletes all envs on empty DAG) |
+| #131 | #135 | `e2b1a65` | fix(alignment): fail fast on missing HISAT2 index |
+
+`feat/issue-123-prod-cloud-run` now contains only 3 docs commits
+(`bbd88c5`, `f2eb363`, `86e7e15`) on top of the latest main. Branch rebased and
+force-pushed. PR for this branch will be opened after patient_002 run completes.
+
+**patient_002 run status:** restarted after disk resize; in progress.
+
+---
+
 ## 2026-04-24
+
+### ~22:12 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: patient_002 started (WES normal, interim)
+
+Launched production pipeline run for patient_002 (osteosarcoma IPISRC044, BG003082) via
+`run_cloud_gpu.sh --detach` on `neoepitope-pipeline` VM. Branch: `feat/issue-123-prod-cloud-run`.
+
+Normal sample: Blood Derived WES (`BG003082_N0_WES`) — interim proxy; yields near-zero junction
+overlap (~3 junctions). All unannotated tumour junctions will be labeled `tumor_exclusive` with
+a pipeline warning. Proper normal (Jan 2025 CD3+ PBMC Cell Ranger BAM) pending Issue #127
+implementation.
+
+Also includes two bug fixes committed since patient_001 re-run:
+- `2625ec7` fix(tcrdock): match `_pdb_file` suffix in column search (avoids `pdbid` false-match)
+- `117d174` fix(cloud): remove `--conda-cleanup-envs` (was deleting all 4 envs when DAG empty)
+
+Issue #127 opened: support pre-aligned BAM as normal input for junction filtering.
+
+---
 
 ### ~22:00 UTC
 
