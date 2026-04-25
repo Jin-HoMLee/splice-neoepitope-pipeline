@@ -4,6 +4,24 @@
 
 ## 2026-04-25
 
+### ~12:00 UTC — Editor: Scientist
+
+#### Zotero integration for morning science reading routine (Issue #137, PR #138)
+
+Established daily science reading habit for Scientist sessions. Each morning warm-up ("good morning") now produces a Zotero entry rather than a markdown log.
+
+**Setup:**
+- Created Zotero collection "Splice Neoepitope Pipeline" (key `Z38GTJNW`, library `lee.jin-ho`, user ID 10082130)
+- `scripts/zotero_add.py`: CLI tool to add a paper by DOI — fetches metadata from CrossRef (authors, journal, ISSN) with PubMed fallback for full date, structured abstract, and PMID; supports `--note` (child note), `--tags`, `--dry-run`
+- Credentials in `.env` (gitignored)
+
+**First entry:**
+Weber et al. (2024) KEYNOTE-942, *The Lancet* 403:632–644. DOI: 10.1016/S0140-6736(23)02268-7. Phase 2b trial: personalised mRNA neoepitope vaccine (mRNA-4157/V940) + pembrolizumab → ~44% reduction in recurrence/death vs. pembrolizumab alone in resected melanoma. Targets SNV/indel neoantigens only; splice-junction neoepitopes (our focus) are absent — directly motivates this project.
+
+**PR #138 merged.**
+
+---
+
 ### ~10:30 UTC — Editor: Developer
 
 #### Issue #123 — M1 production cloud run: sub-issue retrospective, VM disk fix, branch rebase
