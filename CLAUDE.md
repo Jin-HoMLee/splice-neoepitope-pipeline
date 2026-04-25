@@ -78,6 +78,13 @@ On macOS arm64, sra-tools conda installation is unreliable due to libcurl/openss
 regtools junctions extract -s XS -a 8 -m 50 -M 500000 -o out.bed input.bam
 ```
 
+## UCSC vs ENSEMBL Chromosome Naming
+Both naming conventions use "GRCh38" in filenames, making it easy to mix them silently.
+- `hg38_*` (UCSC) — chromosomes have `chr` prefix: `chr1`, `chr2`, ..., `chrM`
+- `grch38_*` (ENSEMBL) — no prefix: `1`, `2`, ..., `MT`
+
+The GENCODE primary assembly FASTA (`GRCh38.primary_assembly.genome.fa`) uses **UCSC naming** (`chr` prefix) despite being distributed by GENCODE/ENSEMBL. All prebuilt HISAT2 indices and BED files in this pipeline must use `hg38_*` (UCSC), not `grch38_*` (ENSEMBL). A mismatch causes `bedtools getfasta` to return empty sequences, silently skipping all junctions in `assemble_contigs.py` (Issue #148).
+
 ## Local Test Dataset (chr22)
 For development and testing on macOS (M1, 8 GB RAM):
 ```bash
