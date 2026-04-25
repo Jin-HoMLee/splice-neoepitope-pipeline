@@ -427,3 +427,56 @@ intended behaviour, since the gate is designed to catch exactly this scenario. F
 could explore replacing `presentation_score` in the breadth formula with a calibrated
 transformation of `presentation_percentile` to achieve fully consistent allele-relative
 scoring throughout.
+
+---
+
+## Structural validation: TCR-pMHC docking and TCR panel design
+
+MHC binding prediction identifies peptides with the thermodynamic potential to occupy the
+MHC groove, but a candidate neoepitope vaccine requires productive TCR engagement to drive a
+cytotoxic T-cell response. Two peptides with identical MHCflurry presentation scores may
+differ substantially in their structural complementarity with available T-cell receptor
+clonotypes. The pipeline therefore includes a structural validation step using TCRdock
+(Alam et al., *Science* 2023), an AlphaFold2-based model fine-tuned on TCR-pMHC crystal
+structures, which outputs a per-complex confidence score (ipTM) used as a proxy for
+docking quality.
+
+### Limitation of a single fallback TCR
+
+In the current implementation, a single reference TCR — DMF5, an HLA-A\*02:01-restricted
+clonotype originally raised against MART-1/Melan-A — is used as a structural scaffold for
+all docking runs. DMF5 was adopted during the early phase of the pipeline when only
+HLA-A\*02:01 was supported. Now that full six-allele HLA typing is standard, this approach
+is problematic: TCR-pMHC contacts are determined jointly by the peptide sequence and the
+restricting MHC allele. Modelling a peptide presented by, for example, HLA-B\*35:01 against
+an A\*02:01-restricted TCR produces structurally artefactual complexes that cannot be
+meaningfully interpreted.
+
+### Patient-HLA-matched VDJdb panel
+
+To address this, the fallback TCR will be replaced by a patient-specific panel drawn from
+VDJdb (Bagaev et al., *Nature Methods* 2020), the largest curated database of TCR sequences
+with known pMHC specificity. For each patient HLA allele, TCRs are selected by exact
+four-digit allele match (MHC Class I only), paired α/β chain availability, and VDJdb
+confidence score ≥ 2, yielding a panel of up to ten TCRs per allele. Full α/β chain
+sequences are reconstructed from VDJdb V/J/CDR3 triplets using `stitchr` (Peacock et al.,
+*Bioinformatics* 2023), since TCRdock requires complete variable-domain sequences rather
+than CDR3 alone.
+
+This design is intentionally conservative: exact allele matching maximises specificity at
+the cost of panel depth for rare alleles. Future iterations will explore two-digit supertype
+matching and CDR3-diversity-based selection to improve coverage without sacrificing
+structural relevance.
+
+### Future directions: model comparison and interface rescoring
+
+AlphaFold3 (Abramson et al., *Nature* 2024), which models protein complexes through a
+diffusion architecture, has demonstrated competitive performance with TCRdock on TCR-pMHC
+prediction tasks without relying on TCR-specific fine-tuning. A prospective benchmark of
+AF3 against TCRdock on a panel of experimentally validated TCR-pMHC pairs from VDJdb will
+inform whether the pipeline should migrate or adopt a hybrid approach.
+
+Independently, AlphaFold confidence scores are not calibrated as binding affinity proxies.
+Complementary rescoring of the predicted complexes using Rosetta InterfaceAnalyzer or
+FoldX AnalyseComplex could provide interface ΔΔG estimates as a secondary ranking signal,
+consistent with established practice in structure-based drug design.
