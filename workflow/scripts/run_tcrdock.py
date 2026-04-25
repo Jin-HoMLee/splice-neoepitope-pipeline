@@ -53,6 +53,7 @@ Usage (Snakemake):
 import argparse
 import csv
 import logging
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -378,18 +379,23 @@ def collect_outputs(
 
     scores_df = pd.read_csv(final_tsv, sep="\t")
 
-    # PDB path is in the *_pdb_file column written by run_prediction.py
+    # PDB path is in a column ending with _pdb_file (e.g. model_2_ptm_pdb_file).
+    # Don't match on "pdb" broadly — pdbid also contains "pdb" and appears first.
     pdb_col = next((c for c in scores_df.columns if c.endswith("_pdb_file")), None)
     top_pdb = None
     if pdb_col and pd.notna(scores_df[pdb_col].iloc[0]):
         top_pdb = Path(scores_df[pdb_col].iloc[0])
 
     if top_pdb is None or not top_pdb.exists():
-        pdbs = sorted(tcrdock_output_dir.glob("*.pdb"))
+        pdbs = list(tcrdock_output_dir.glob("*.pdb"))
         if not pdbs:
             raise FileNotFoundError(f"No PDB files found in {tcrdock_output_dir}.")
-        top_pdb = pdbs[0]
-        log.warning("PDB column not found in final TSV; using %s", top_pdb)
+        # Use most recently modified to avoid picking stale PDBs from prior runs.
+        top_pdb = max(pdbs, key=lambda p: p.stat().st_mtime)
+        log.warning(
+            "PDB column not found in final TSV (columns: %s); using most recent PDB: %s",
+            list(scores_df.columns), top_pdb,
+        )
 
     output_pdb.parent.mkdir(parents=True, exist_ok=True)
 
@@ -456,6 +462,10 @@ def run_structural_validation(
     output_pdb = Path(output_pdb)
     output_scores = Path(output_scores)
     work_dir = output_pdb.parent / "tcrdock_workdir"
+
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    work_dir.mkdir(parents=True)
 
     # Step 1: Select top candidates
     candidates = select_top_candidates(predictions_tsv, n_candidates, presentation_percentile_weak=presentation_percentile_weak)
