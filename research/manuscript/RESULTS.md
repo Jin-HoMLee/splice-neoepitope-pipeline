@@ -158,8 +158,8 @@ complete-codon junction-spanning filter applied.
 
 99.3% of peptides are unique sequences. A previous run (older pipeline version)
 reported 781,424 9-mers; the 265-peptide discrepancy is untracked — likely due to
-the HISAT2 chr-naming fix (#148) altering junction calls. Motivates the run registry
-(Issue TBD).
+the HISAT2 chr-naming fix (#148) altering junction calls and/or the difference in
+normal input (WES proxy vs. no normal). Motivates the run registry (Issue TBD).
 
 ### MHC Presentation Predictions
 
@@ -170,7 +170,7 @@ MHCflurry 2.x `Class1PresentationPredictor` was run for all five expressed HLA a
 | Presentation class | Count | % of total |
 |---|---|---|
 | Strong (percentile ≤ 0.5%) | 67,935 | 2.9% |
-| Weak (percentile ≤ 2.0%) | 222,823 | 9.6% |
+| Weak (0.5% < percentile ≤ 2.0%) | 222,823 | 9.6% |
 | Non (percentile > 2.0%) | 2,039,929 | 87.5% |
 | **Total predictions** | **2,330,687** | — |
 
@@ -198,7 +198,7 @@ where $p_i$ is per-allele `presentation_score` and $w_i$ is the locus weight
 the probability that at least one allele in the patient's genotype presents the peptide.
 
 GPS distribution across all 2,330,687 predictions: mean 0.101, median 0.026.
-Only 24,961 peptides (1.1%) exceeded GPS > 0.9, confirming the metric is
+Only 24,961 peptides (1.1%) had GPS > 0.9, confirming the metric is
 discriminating. An inflation edge case was identified: 174 candidates (0.7% of
 GPS > 0.9) had `n_strong_alleles = 0` with `best_presentation_percentile` ~0.5–0.55%,
 just above the strong threshold. The current quality gate does not catch these;
