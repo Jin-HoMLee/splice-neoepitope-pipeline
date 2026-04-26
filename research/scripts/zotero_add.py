@@ -159,13 +159,66 @@ def post_to_zotero(item, user_id, api_key):
         return json.loads(resp.read())
 
 
+def update_note(item_key, note_content, user_id, api_key):
+    """Update (or create) the first note child of item_key."""
+    base = f"https://api.zotero.org/users/{user_id}/items"
+    headers = {"Zotero-API-Key": api_key, "Content-Type": "application/json"}
+
+    # Fetch existing note children
+    req = urllib.request.Request(f"{base}/{item_key}/children", headers=headers)
+    with urllib.request.urlopen(req) as resp:
+        children = json.loads(resp.read())
+
+    notes = [c for c in children if c["data"]["itemType"] == "note"]
+
+    if notes:
+        note = notes[0]
+        note_key = note["key"]
+        version = note["version"]
+        payload = json.dumps({
+            "key": note_key,
+            "version": version,
+            "parentItem": item_key,
+            "itemType": "note",
+            "note": note_content,
+            "tags": note["data"].get("tags", []),
+            "relations": {},
+        }).encode()
+        req = urllib.request.Request(
+            f"{base}/{note_key}",
+            data=payload,
+            headers={**headers, "If-Unmodified-Since-Version": str(version)},
+            method="PUT",
+        )
+        with urllib.request.urlopen(req) as resp:
+            resp.read()
+        print(f"Note updated on item {item_key} (note key: {note_key}).")
+    else:
+        # No existing note — create one
+        result = post_to_zotero(
+            {"itemType": "note", "parentItem": item_key, "note": note_content, "tags": [], "relations": {}},
+            user_id, api_key,
+        )
+        if result.get("successful"):
+            note_key = list(result["successful"].values())[0]["key"]
+            print(f"Note created on item {item_key} (note key: {note_key}).")
+        else:
+            sys.exit(f"Failed to create note: {result.get('failed')}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Add a paper to Zotero by DOI.")
-    parser.add_argument("doi", help="DOI of the paper to add")
+    parser.add_argument("doi", nargs="?", help="DOI of the paper to add")
     parser.add_argument("--tags", nargs="*", default=[], help="Additional tags")
     parser.add_argument("--note", help="Relevance note to attach to the Zotero entry")
+    parser.add_argument("--update-note", metavar="ITEM_KEY", help="Update the note on an existing Zotero item (skips DOI add)")
     parser.add_argument("--dry-run", action="store_true", help="Print item without posting to Zotero")
     args = parser.parse_args()
+
+    if not args.update_note and not args.doi:
+        sys.exit("Error: doi is required when not using --update-note.")
+    if args.update_note and not args.note:
+        sys.exit("Error: --update-note requires --note.")
 
     load_env()
 
@@ -173,6 +226,10 @@ def main():
     api_key = os.environ.get("ZOTERO_API_KEY")
     if not user_id or not api_key:
         sys.exit("Error: ZOTERO_USER_ID and ZOTERO_API_KEY must be set in .env or environment.")
+
+    if args.update_note:
+        update_note(args.update_note, args.note, user_id, api_key)
+        return
 
     print(f"Fetching metadata for DOI: {args.doi}")
     try:
