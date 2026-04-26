@@ -44,6 +44,36 @@ Merged notebook environment scaffold for `research/notebooks/`:
 
 ---
 
+### 18:15 UTC — Editor: Scientist
+
+#### Issues #162–165 — patient_002 results analysis (valid run, post Issue #148)
+
+First scientific analysis session for patient_002 (BG003082, osteosarcoma). Full analysis in `research/notebooks/patient_002_results.ipynb`.
+
+**Key findings:**
+
+- Top candidate: **FADLRPLLL / HLA-C\*01:02** — IC50 33.2 nM, presentation_percentile 0.0045%, GPS 0.9999, strong presenter across 4/5 alleles.
+- **HLA-C dominance:** HLA-C\*01:02 + HLA-C\*07:01 account for ~69% of all 67,935 strong-presenting peptides despite 0.5× locus weight in GPS. Three hypotheses: (a) broader HLA-C groove/promiscuity, (b) osteosarcoma splice motifs enriched for HLA-C, (c) MHCflurry percentile calibration less precise for HLA-C (sparser training data). Sent to Developer for investigation.
+- **HLA-A\*01:01 nearly silent:** median presentation percentile 8.5% among strong presenters — contributes almost nothing to GPS for this patient.
+- **GPS is discriminating:** mean 0.101, median 0.026; only 1.1% of 2.3M predictions exceed GPS > 0.9. Formula works as designed.
+- **GPS inflation edge case (minor):** 174 candidates (0.7% of GPS > 0.9) have `n_strong_alleles = 0` with best_percentile ~0.5–0.55%. Quality gate (2%) does not catch these. Flagged to Developer to consider adding `n_strong_alleles ≥ 1` as a hard filter.
+- **Minimum junction read support is 174** — suspiciously high. Awaiting Developer confirmation of whether a min-reads filter is applied.
+- **Peptide translation:** 2,330,687 total (703,106 × 8-mer, 781,159 × 9-mer, 846,422 × 10-mer), 2,313,700 unique. 9-mer count differs by 265 from a prior run (781,424) — untracked discrepancy, motivates run registry (Issue TBD).
+
+**Actions taken:**
+
+- Created `research/notebooks/patient_002_results.ipynb` (Issue #164).
+- Set up `research/.venv` (Python 3.14.4 via pyenv) + `research/requirements.txt` + `research/README.md` notebook section (Issue #163).
+- Updated `research/manuscript/RESULTS.md` patient_002 section: MHC presentation + GPS, peptide translation, top candidate FADLRPLLL, TCRdock. Junction Filtering table on hold pending Developer confirmation of WES normal usage (Issue #165).
+- Opened Issue #161 (local GCS cache for notebooks); drafted run registry issue for Developer review in standup.
+- Terminology convention established: "presenters/presenting" replaces "binders/binding" throughout.
+
+**Open / pending:**
+- Developer standup: min read filter, GPS gate, HLA-C calibration, WES normal confirmation, run registry engineering input.
+- RESULTS.md Junction Filtering: on hold.
+
+---
+
 ### 17:03 UTC — Editor: Developer
 
 #### Issue #148 — PR #152 review fixes (assemble_contigs.py + alignment.smk)

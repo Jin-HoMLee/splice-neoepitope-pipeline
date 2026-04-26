@@ -144,49 +144,92 @@ junctions may represent patient-specific but non-tumor splicing.
 
 ### Peptide Translation
 
-Junction-spanning 9-mers were extracted from 50 nt contigs across all three reading
-frames with the complete-codon junction-spanning filter applied.
+Junction-spanning peptides were extracted from contigs assembled at each
+tumor-exclusive junction, across all three reading frames, with the
+complete-codon junction-spanning filter applied.
 
-| Metric | Count |
+| Length | Count |
 |--------|-------|
-| Total 9-mers | 781,424 |
-| Unique 9-mer sequences | 775,440 |
+| 8-mer | 703,106 |
+| 9-mer | 781,159 |
+| 10-mer | 846,422 |
+| **Total** | **2,330,687** |
+| **Unique sequences** | **2,313,700** |
 
-### MHC Binding Predictions
+99.3% of peptides are unique sequences. A previous run (older pipeline version)
+reported 781,424 9-mers; the 265-peptide discrepancy is untracked — likely due to
+the HISAT2 chr-naming fix (#148) altering junction calls. Motivates the run registry
+(Issue TBD).
 
-MHCflurry 2.x was run for all six OptiType-called HLA alleles.
+### MHC Presentation Predictions
 
-| Binder class | Count | % of total |
+MHCflurry 2.x `Class1PresentationPredictor` was run for all five expressed HLA alleles
+(HLA-A homozygous A\*01:01 counted once). Presentation class is defined by
+`presentation_percentile`: strong ≤ 0.5%, weak ≤ 2.0%.
+
+| Presentation class | Count | % of total |
 |---|---|---|
-| Strong (IC50 ≤ 50 nM) | 12,430 | 0.32% |
-| Weak (IC50 ≤ 500 nM) | 211,418 | 5.41% |
-| Non-binder (IC50 > 500 nM) | 3,683,272 | 94.27% |
-| **Total predictions** | **3,907,120** | — |
+| Strong (percentile ≤ 0.5%) | 67,935 | 2.9% |
+| Weak (percentile ≤ 2.0%) | 222,823 | 9.6% |
+| Non (percentile > 2.0%) | 2,039,929 | 87.5% |
+| **Total predictions** | **2,330,687** | — |
 
-Best strong binder per allele:
+Strong presenters per allele (best-allele attribution):
 
-| Allele | Peptide | IC50 |
-|--------|---------|------|
-| HLA-A\*01:01 | TTDPVQALY | 23.9 nM |
-| HLA-B\*08:01 | HAYTKIHSL | 29.5 nM |
-| HLA-B\*27:05 | GRFSKVHTF | 45.0 nM |
-| HLA-C\*01:02 | AAPPHPLSL | 17.9 nM |
-| HLA-C\*07:01 | YRIDRTLSL | 22.7 nM |
+| Allele | Strong-presenting peptides | % of total strong |
+|--------|---------------------------|-------------------|
+| HLA-C\*01:02 | 26,236 | 38.6% |
+| HLA-C\*07:01 | 20,443 | 30.1% |
+| HLA-B\*08:01 | 11,477 | 16.9% |
+| HLA-B\*27:05 | 5,193 | 7.6% |
+| HLA-A\*01:01 | 4,586 | 6.8% |
+
+HLA-C alleles dominated the strong-presenter set (~69% combined). HLA-A\*01:01 was
+nearly silent (median presentation percentile 8.5% among strong presenters).
+
+### Genotype Presentation Score (GPS)
+
+Each peptide was scored with the Genotype Presentation Score:
+
+$$\text{GPS} = 1 - \prod_{i} (1 - w_i \cdot p_i)$$
+
+where $p_i$ is per-allele `presentation_score` and $w_i$ is the locus weight
+(HLA-A/B = 1.0, HLA-C = 0.5, reflecting ~50% lower surface density). GPS estimates
+the probability that at least one allele in the patient's genotype presents the peptide.
+
+GPS distribution across all 2,330,687 predictions: mean 0.101, median 0.026.
+Only 24,961 peptides (1.1%) exceeded GPS > 0.9, confirming the metric is
+discriminating. An inflation edge case was identified: 174 candidates (0.7% of
+GPS > 0.9) had `n_strong_alleles = 0` with `best_presentation_percentile` ~0.5–0.55%,
+just above the strong threshold. The current quality gate does not catch these;
+an additional `n_strong_alleles ≥ 1` filter is under consideration.
 
 ### Top Neoepitope Candidate
 
-**TTDPVQALY / HLA-A\*01:01, IC50 = 23.9 nM (strong binder)**
+**FADLRPLLL / HLA-C\*01:02**
 
-Top predicted binder for the expressed HLA-A allele. HLA-C\*01:02 produced the
-highest-affinity prediction overall (AAPPHPLSL, 17.9 nM), consistent with
-HLA-C\*01:02 peptide-binding preferences.
+| Metric | Value |
+|--------|-------|
+| IC50 | 33.2 nM |
+| Presentation percentile | 0.0045% |
+| GPS | 0.9999 |
+| n_strong_alleles | 4 of 5 |
+| Presentation class | strong |
+
+FADLRPLLL ranks first by GPS and is presented as strong by 4 of 5 patient alleles.
+Its presentation percentile places it in the top 0.005% of all HLA-C\*01:02-presented
+peptides. HLA-C\*01:02 was also the dominant allele in a pre-#148 (invalidated) run,
+suggesting it is a consistently strong presenter for splice-junction-derived 9-mers
+in this patient.
+
+Without a matched RNA-seq normal, the originating junction cannot be confirmed as
+absent from healthy osteoblasts or mesenchymal stem cells.
 
 ### Structural Validation (TCRdock)
 
-TCRdock was run on this sample. Due to a sentinel bug (since fixed in issue #65),
-the structural prediction used a fallback allele (HLA-A\*02:01) rather than the
-patient's actual HLA-A\*01:01, and the submitted peptide (FMSGFLYFV) is a non-binder
-for all six patient alleles (IC50 > 2,200 nM across all alleles). The predicted
-structure (pLDDT 92.25) is retained as a technical demonstration of the GPU
-infrastructure but should not be interpreted as a biologically meaningful prediction
-for this patient. A corrected TCRdock run with TTDPVQALY / HLA-A\*01:01 is planned.
+TCRdock was run on FADLRPLLL / HLA-C\*01:02, the top GPS-ranked candidate.
+The predicted TCR–peptide–MHC ternary complex structure was successfully generated
+and is available in `results/patient_002/predictions/tcrdock/`.
+
+*Structural interpretation (pLDDT, CDR3 contacts) to be added after Developer
+review of the PDB output.*
