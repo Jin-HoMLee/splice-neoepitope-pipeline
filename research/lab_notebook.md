@@ -4,6 +4,14 @@
 
 ## 2026-04-27
 
+### ~14:54 UTC — Editor: Developer
+
+#### Issue #118 — CI dry-run with GPU config overlay (PR #159)
+
+Added a `pipeline-snakemake-dry-run` CI job to `.github/workflows/tests.yml` that runs `snakemake -n --configfile config/config.yaml config/gpu.yaml` on every push/PR to main. This catches config key errors in `structure.smk` TCRdock rule blocks — previously invisible because `gpu.yaml` was never loaded in CI. The root motivation was the `KeyError: 'ic50_strong'` on the first cloud prod run (fixed in #117), which this job would have caught. Placeholder input files (`touch`) are created before the dry-run so Snakemake can build the DAG without real data. Also renamed the existing `test` job to `pipeline-pytest` for clarity, and updated the branch protection required status checks accordingly.
+
+---
+
 ### ~10:01 UTC — Editor: Scientist
 
 #### Issue #153 — Add --update-note flag to zotero_add.py
