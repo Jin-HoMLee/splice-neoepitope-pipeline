@@ -7,7 +7,27 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  pipeline-snakemake-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Snakemake
+        run: pip install "snakemake==8.30.0"
+
+      - name: Dry-run with GPU config overlay
+        run: |
+          snakemake -n \
+            --configfile config/config.yaml config/gpu.yaml \
+            --config samples_tsv=config/samples/patient_001_test.tsv
+
+  pipeline-pytest:
     runs-on: ubuntu-latest
 
     steps:
