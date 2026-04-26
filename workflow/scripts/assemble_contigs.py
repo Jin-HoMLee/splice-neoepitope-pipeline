@@ -116,8 +116,9 @@ def _run_bedtools_getfasta(
         cmd.append("-s")
     log.debug("Running: %s", " ".join(cmd))
     result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.stderr:
+        log.warning("bedtools getfasta stderr:\n%s", result.stderr.strip())
     if result.returncode != 0:
-        log.error("bedtools getfasta stderr:\n%s", result.stderr)
         result.check_returncode()
 
 
@@ -248,9 +249,13 @@ def assemble_contigs(
             out.write(f"{header}\n{contig}\n")
             n_written += 1
 
-    log.info(
-        "Contigs: %d written, %d skipped (soft-clip), %d skipped (length)",
-        n_written, n_skipped_softclip, n_skipped_length,
+    skip_rate = n_skipped_length / len(junc_df) if len(junc_df) > 0 else 0.0
+    length_log = log.warning if skip_rate > 0.10 else log.info
+    length_log(
+        "Contigs: %d written, %d skipped (soft-clip), %d skipped (length, %.1f%%)%s",
+        n_written, n_skipped_softclip, n_skipped_length, skip_rate * 100,
+        " — check that genome FASTA chromosome naming matches the junction BED"
+        " (UCSC chr-prefix required, not ENSEMBL)" if skip_rate > 0.10 else "",
     )
 
 
