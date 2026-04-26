@@ -21,6 +21,12 @@ jobs:
       - name: Install Snakemake
         run: pip install "snakemake==8.30.0"
 
+      - name: Create placeholder input files
+        run: |
+          mkdir -p data/test
+          touch data/test/SRR9143066_test.fastq.gz
+          touch data/test/SRR9143065_test.fastq.gz
+
       - name: Dry-run with GPU config overlay
         run: |
           snakemake -n \
