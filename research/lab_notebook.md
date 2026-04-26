@@ -4,6 +4,12 @@
 
 ## 2026-04-27
 
+### ~10:01 UTC — Editor: Scientist
+
+#### Issue #153 — Add --update-note flag to zotero_add.py
+
+Added `update_note()` helper and `--update-note ITEM_KEY` flag to `research/scripts/zotero_add.py`. Allows updating the note on an existing Zotero entry without re-adding the paper — needed for the morning reading routine when the note format evolves after initial add (e.g. adding a Limitations section). Uses optimistic locking via `If-Unmodified-Since-Version`. Falls back to creating a new note if none exists.
+
 ### ~09:30 UTC — Editor: Scientist
 
 #### Issue #154 — Move zotero_add.py to research/scripts/ and add research/README.md
