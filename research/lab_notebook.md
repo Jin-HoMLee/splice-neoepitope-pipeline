@@ -4,6 +4,26 @@
 
 ## 2026-04-26
 
+### 22:40 UTC — Editor: Developer
+
+#### Issue #123 — M1 production cloud run: acceptance criteria verified (both patients)
+
+Verified all GCS outputs against the Issue #123 acceptance criteria. All criteria passed.
+
+| Criterion | patient_001 | patient_002 |
+|---|---|---|
+| Pipeline completes end-to-end without errors | ✅ | ✅ |
+| `mhc_presentation.tsv` has breadth columns (`best_allele`, `genotype_presentation_score`, `n_strong_alleles`, `best_presentation_percentile`) | ✅ | ✅ |
+| `genotype_presentation_score` in [0, 1] and scientifically sensible | ✅ [0.0147, 0.9999] — 1,286,492 rows | ✅ [0.0122, 0.9999] — 2,330,687 rows |
+| `report.tsv` and `report.html` generated | ✅ | ✅ |
+| Results uploaded to GCS | ✅ | ✅ |
+
+Note: two column names in the acceptance criteria are stale — `strong_alleles` (actual: `n_strong_alleles`) and `presentation_percentile_strong` (actual: `best_presentation_percentile`). The equivalent columns are present; these are pre-rename leftovers and do not block closure.
+
+Issue #123 ready to close.
+
+---
+
 ### 22:18 UTC — Editor: Scientist
 
 #### PR #168 — review fixes (docs/scientist/issue-165-patient-002-documentation)
