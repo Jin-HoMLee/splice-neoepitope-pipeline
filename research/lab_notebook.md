@@ -4,6 +4,34 @@
 
 ## 2026-04-26
 
+### 21:50 UTC — Editor: Scientist
+
+#### PR #167 — review fixes (feat/scientist/issue-164-patient-002-notebook)
+
+Three issues addressed in code review before merge:
+
+1. **GPS subsection headings moved to markdown cells** — headings were embedded as comments inside code cells; split into proper markdown cells and renumbered 5.1–5.4 → 6.1–6.4 to match the parent Section 6.
+2. **Inflation check comment corrected** — comment previously said candidates *are* caught by the quality gate; corrected to say they are *not* (best_percentile ~0.5–0.55%, below the 2% threshold — GPS inflates from allele breadth, not per-allele strength).
+3. **Allele list derived programmatically** — removed hardcoded patient-specific allele list; now auto-detected from `_presentation_score` column names, making the notebook reusable across patients.
+
+---
+
+### 21:28 UTC — Editor: Scientist
+
+#### PR #167 — patient_002 results analysis notebook (feat/scientist/issue-164-patient-002-notebook)
+
+Added `research/notebooks/patient_002_results.ipynb` with full scientific analysis of the post-#148 valid run:
+
+- **Junction analysis:** 55,912 tumor-exclusive junctions (no matched RNA-seq normal; WES proxy filtered 3 junctions)
+- **Peptide translation:** 703,106 (8-mer) / 781,159 (9-mer) / 846,422 (10-mer) = 2,330,687 total, 2,313,700 unique
+- **MHC presentation:** 67,935 strong presenters (2.9%); HLA-C\*01:02 + HLA-C\*07:01 account for ~69% of strong-presenting candidates
+- **GPS validation:** mean 0.101, median 0.026 — discriminating; 174 inflation edge cases (GPS > 0.9 but n_strong_alleles = 0, best_percentile ~0.5–0.55%)
+- **Top candidate:** FADLRPLLL / HLA-C\*01:02 (IC50 = 33.2 nM, percentile = 0.0045%, GPS = 0.9999, n_strong = 4)
+
+Open questions posted to Developer in team standup: min read support filter, GPS n_strong_alleles gate, HLA-C calibration, WES normal confirmation.
+
+---
+
 ### 21:24 UTC — Editor: Scientist
 
 #### PR #166 — Jupyter notebook environment setup (feat/scientist/issue-163-notebook-env)
