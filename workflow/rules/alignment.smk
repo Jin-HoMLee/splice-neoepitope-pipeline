@@ -77,12 +77,12 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     _HISAT2_PREBUILT_URL = config.get("alignment", {}).get("hisat2_prebuilt_url", "")
 
     if _HISAT2_PREBUILT_URL:
-        # genome_tran index: GRCh38 + GENCODE splice sites baked in.
+        # genome_tran index: hg38 (UCSC naming, chr-prefix) + GENCODE splice sites baked in.
         # Files unpack as genome_tran.N.ht2 directly into the index dir.
         _HISAT2_INDEX_PREFIX = os.path.join(_HISAT2_INDEX_DIR, "genome_tran")
 
         rule hisat2_download_index:
-            """Download pre-built HISAT2 GRCh38 index (genome_tran, with splice sites)."""
+            """Download pre-built HISAT2 hg38 index (UCSC naming, genome_tran, with splice sites)."""
             output:
                 index_dir=directory(_HISAT2_INDEX_DIR),
                 done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
