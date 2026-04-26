@@ -4,6 +4,18 @@
 
 ## 2026-04-26
 
+### 21:50 UTC — Editor: Scientist
+
+#### PR #167 — review fixes (feat/scientist/issue-164-patient-002-notebook)
+
+Three issues addressed in code review before merge:
+
+1. **GPS subsection headings moved to markdown cells** — headings were embedded as comments inside code cells; split into proper markdown cells and renumbered 5.1–5.4 → 6.1–6.4 to match the parent Section 6.
+2. **Inflation check comment corrected** — comment previously said candidates *are* caught by the quality gate; corrected to say they are *not* (best_percentile ~0.5–0.55%, below the 2% threshold — GPS inflates from allele breadth, not per-allele strength).
+3. **Allele list derived programmatically** — removed hardcoded patient-specific allele list; now auto-detected from `_presentation_score` column names, making the notebook reusable across patients.
+
+---
+
 ### 21:28 UTC — Editor: Scientist
 
 #### PR #167 — patient_002 results analysis notebook (feat/scientist/issue-164-patient-002-notebook)
