@@ -4,6 +4,18 @@
 
 ## 2026-04-26
 
+### 22:18 UTC — Editor: Scientist
+
+#### PR #168 — review fixes (docs/scientist/issue-165-patient-002-documentation)
+
+Three items addressed before merge:
+
+1. **Weak threshold label clarified** — `Weak (percentile ≤ 2.0%)` → `Weak (0.5% < percentile ≤ 2.0%)` to make the exclusive band unambiguous.
+2. **GPS phrasing fixed** — `exceeded GPS > 0.9` → `had GPS > 0.9` (redundant double-negative removed).
+3. **9-mer discrepancy** — added WES proxy normal usage as a second possible cause alongside the #148 fix.
+
+---
+
 ### 21:50 UTC — Editor: Scientist
 
 #### PR #167 — review fixes (feat/scientist/issue-164-patient-002-notebook)
