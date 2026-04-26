@@ -8,6 +8,25 @@ Scientific work associated with the splice neoepitope pipeline project.
 | `lab_notebook.md` | Chronological session log — all decisions, experiments, and findings |
 | `scripts/` | Research support scripts (literature management, etc.) |
 
+## Jupyter notebooks (`notebooks/`)
+
+Per-patient result interpretation notebooks. Each patient run gets its own notebook (`patient_NNN_results.ipynb`). Cross-patient comparisons go in `results_comparison.ipynb`.
+
+**Setup (one-time):**
+```bash
+cd research/
+pyenv local 3.14.4            # sets .python-version (already committed)
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Usage:** Open any `.ipynb` in VSCode and select `research/.venv` as the kernel (Python 3.14.4).
+
+The notebooks read pipeline results directly from GCS (`gs://splice-neoepitope-project/results/<patient_id>/`) via `gsutil` — no local data download needed. Make sure `gsutil` is authenticated (`gcloud auth application-default login`).
+
+---
+
 ## scripts/zotero_add.py
 
 Adds a paper to the [Splice Neoepitope Pipeline Zotero collection](https://www.zotero.org/) (collection key `Z38GTJNW`) by DOI, and optionally attaches a structured note.

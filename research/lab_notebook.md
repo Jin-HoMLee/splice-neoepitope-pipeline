@@ -4,6 +4,18 @@
 
 ## 2026-04-26
 
+### 21:24 UTC — Editor: Scientist
+
+#### PR #166 — Jupyter notebook environment setup (feat/scientist/issue-163-notebook-env)
+
+Merged notebook environment scaffold for `research/notebooks/`:
+
+- `research/requirements.txt` — lower-bound pins: jupyterlab ≥ 4, pandas ≥ 2, matplotlib ≥ 3.7
+- `.python-version` added to `.gitignore` (personal env config, not committed); `pyenv local 3.14.4` kept in README as the explicit setup step
+- `research/README.md` updated with setup instructions: pyenv → venv → pip install → VSCode kernel selection; GCS auth note
+
+---
+
 ### 17:03 UTC — Editor: Developer
 
 #### Issue #148 — PR #152 review fixes (assemble_contigs.py + alignment.smk)
