@@ -24,9 +24,12 @@ See [`resources/README.md`](../resources/README.md) for download commands.
 alignment:
   aligner: "hisat2"                           # "hisat2" (8 GB) or "star" (32 GB)
   hisat2_index_dir: "resources/hisat2_index"
+  hisat2_prebuilt_url: "https://genome-idx.s3.amazonaws.com/hisat/hg38_tran.tar.gz"
   star_index_dir:   "resources/star_index"
   threads: 8
 ```
+
+`hisat2_prebuilt_url` — URL to a prebuilt HISAT2 splice-aware index. Must use **UCSC naming** (`hg38_*`, `chr` prefix) to match the genome FASTA. Leave empty to build the index locally from `genome_fasta`. Delete `resources/hisat2_index/` on the VM to force re-download when the URL changes.
 
 See [`docs/data_preparation.md`](data_preparation.md) for aligner comparison.
 
