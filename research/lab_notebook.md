@@ -4,6 +4,18 @@
 
 ## 2026-04-26
 
+### 17:03 UTC — Editor: Developer
+
+#### Issue #148 — PR #152 review fixes (assemble_contigs.py + alignment.smk)
+
+Two issues raised in code review addressed before merge:
+
+1. **Silent failure mode fixed (`assemble_contigs.py`)** — `bedtools getfasta` stderr is now always logged as WARNING (was only logged on non-zero exit, so chromosome-not-found warnings were silently discarded). Added a skip-rate check at the summary: if >10% of junctions are skipped due to short sequences, the log is upgraded to WARNING with an explicit message pointing to UCSC/ENSEMBL chr naming as the likely cause.
+
+2. **Docstring clarified (`alignment.smk`)** — `hisat2_download_index` rule docstring and inline comment updated from "GRCh38" (ambiguous) to "hg38 (UCSC naming)" to remove the ambiguity that caused Issue #148 in the first place.
+
+---
+
 ### 15:25 UTC — Editor: Developer
 
 #### Issue #148 — patient_002 rerun results (after hg38_tran HISAT2 index fix)
