@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-04-27
+
+### ~09:30 UTC — Editor: Scientist
+
+#### Issue #154 — Move zotero_add.py to research/scripts/ and add research/README.md
+
+Moved `scripts/zotero_add.py` to `research/scripts/zotero_add.py` to clarify that the script is a research support tool, not part of the bioinformatics pipeline. Created `research/README.md` with a folder overview and full usage docs for `zotero_add.py` including the three-section note format convention (Results / Methods / Limitations).
+
+---
+
 ## 2026-04-25
 
 ### ~16:56 UTC — Editor: Developer
