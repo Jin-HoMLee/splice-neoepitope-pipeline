@@ -7,7 +7,7 @@
 # --configfile argument on the GPU VM:
 #
 #   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
-#       --configfile config/config.yaml config/gpu.yaml
+#       --configfile config/config.yaml config/gpu_config.yaml
 #
 # Paths below match the output of scripts/setup_vm.sh.
 # DO NOT set tcrdock.enabled: true in config/config.yaml — keep that as the

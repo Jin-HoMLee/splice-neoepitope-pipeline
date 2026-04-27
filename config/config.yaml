@@ -111,11 +111,11 @@ mhcflurry:
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
 # -----------------------------------------------------------------
-# Disabled by default. All settings live in config/gpu.yaml.
+# Disabled by default. All settings live in config/gpu_config.yaml.
 # Enable by passing that file as a second --configfile on the GPU VM:
 #
 #   snakemake --cores $(nproc) --use-conda --rerun-triggers mtime \
-#       --configfile config/config.yaml config/gpu.yaml
+#       --configfile config/config.yaml config/gpu_config.yaml
 #
 # See scripts/setup_vm.sh for GPU VM setup instructions.
 tcrdock:
