@@ -36,8 +36,8 @@ AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in 
 In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --configfile B`) causes the second invocation to replace the first due to argparse `nargs="+"` semantics. Only the last file is loaded.
 **Fix:** pass multiple config files in a **single** `--configfile` invocation:
 ```bash
-snakemake --configfile config/test_config.yaml config/gpu.yaml   # correct
-# NOT: --configfile config/test_config.yaml --configfile config/gpu.yaml
+snakemake --configfile config/test_config.yaml config/gpu_config.yaml   # correct
+# NOT: --configfile config/test_config.yaml --configfile config/gpu_config.yaml
 ```
 
 ## Config Migration Notes
