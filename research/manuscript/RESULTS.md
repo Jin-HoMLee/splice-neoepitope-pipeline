@@ -108,9 +108,9 @@ report, with chain labels A=MHC, B=peptide, C=TCR-α, D=TCR-β.
 
 BG003082 T0 tumor sample (Boston Gene, Nov 2022), paired-end RNA-seq (~10 GB).
 No matched RNA-seq normal was available. BG003082_N0_WES (whole-exome sequencing, DNA)
-was used as the normal input; WES-derived spliced HISAT2 alignments are largely
-alignment artifacts — see *Discussions* for implications. Processed with HISAT2
-alignment on GCP (n2-highmem-8).
+was used as the normal input for HLA typing (successful) but contributes no junctions
+to normal subtraction — WES contains no RNA splice junctions by design. Processed with
+HISAT2 alignment on GCP (n2-highmem-8).
 
 ### HLA Typing
 
@@ -132,15 +132,17 @@ accuracy in this pipeline.
 
 | Stage | Count | % of total extracted |
 |-------|-------|----------------------|
-| Total junctions extracted (tumor) | 347,046 | 100.0% |
-| Annotated (GENCODE v47, discarded) | 291,131 | 83.9% |
-| Unannotated | 55,915 | 16.1% |
-| Normal-shared (WES proxy, discarded) | 3 | ~0.0% |
-| **Tumor-exclusive candidates** | **55,912** | **16.1%** |
+| Total junctions extracted (tumor) | 364,168 | 100.0% |
+| Annotated (GENCODE v47, discarded) | 305,254 | 83.8% |
+| Unannotated | 58,914 | 16.2% |
+| Normal-shared (WES normal) | 0 | 0.0% |
+| **Tumor-exclusive candidates** | **58,914** | **16.2%** |
 
-The WES normal produced only 3 overlapping junctions (all likely alignment artifacts).
-Without RNA-seq-quality normal subtraction, a fraction of the 55,912 tumor-exclusive
-junctions may represent patient-specific but non-tumor splicing.
+BG003082_N0_WES was used as the normal input and yielded valid HLA typing results.
+However, WES data contains no RNA splice junctions, so `normal_shared = 0` is
+expected — junction-level normal subtraction was not effective. Without a matched
+RNA-seq normal, a fraction of the 58,914 tumor-exclusive junctions may represent
+tissue-specific or germline splicing rather than tumor-specific events.
 
 ### Peptide Translation
 
