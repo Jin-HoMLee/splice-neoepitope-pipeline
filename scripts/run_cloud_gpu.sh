@@ -80,7 +80,7 @@ done
 # ---------------------------------------------------------------------------
 RESULTS_DIR="results"
 GCS_PATH="gs://${GCS_BUCKET}/results"
-GPU_CONFIG_FILE="config/gpu.yaml"
+GPU_CONFIG_FILE="config/gpu_config.yaml"
 
 case "${MODE}" in
     test)
