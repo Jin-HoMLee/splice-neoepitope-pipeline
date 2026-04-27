@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-27
+
+### 15:43 UTC — Editor: Scientist
+
+#### Issue #172 — RESULTS.md patient_002 Junction Filtering corrected to valid post-#148 run
+
+The Junction Filtering table previously reflected the invalid pre-#148 run (total 347,046, annotated 291,131, unannotated 55,915, normal-shared 3, tumor-exclusive 55,912). Corrected to the valid post-#148 run numbers derived from `alignment/BG003082_T0/junctions.tsv` and `reports/report.tsv` on GCS:
+
+| Stage | Old (invalid) | New (valid) |
+|-------|--------------|-------------|
+| Total extracted | 347,046 | 364,168 |
+| Annotated | 291,131 (83.9%) | 305,254 (83.8%) |
+| Unannotated | 55,915 (16.1%) | 58,914 (16.2%) |
+| Normal-shared | 3 (~0.0%) | 0 (0.0%) |
+| Tumor-exclusive | 55,912 (16.1%) | 58,914 (16.2%) |
+
+`normal_shared = 0` is correct and expected: BG003082_N0_WES was used as the normal input and yielded valid HLA typing results, but WES data contains no RNA splice junctions so junction-level normal subtraction was not effective. Also updated Dataset section to reflect this accurately.
+
+Developer standup (2026-04-26 21:31 UTC, Q4) confirmed the valid run used no RNA-seq normal; the WES-yielding-0-junctions behaviour was separately clarified by the user.
+
+---
+
 ## 2026-04-26
 
 ### 22:40 UTC — Editor: Developer
