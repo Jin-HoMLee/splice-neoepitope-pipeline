@@ -204,7 +204,7 @@ snakemake --cores 100 --use-conda \
 ## Configuration
 
 All parameters live in `config/config.yaml`. For TCRdock, merge
-`config/gpu.yaml` via a single `--configfile` invocation.
+`config/gpu_config.yaml` via a single `--configfile` invocation.
 
 See [`docs/configuration.md`](docs/configuration.md) for the full parameter reference.
 
@@ -252,7 +252,7 @@ splice-neoepitope-pipeline/
 ├── Snakefile                         # Main Snakemake workflow
 ├── config/
 │   ├── config.yaml                   # Production configuration
-│   ├── gpu.yaml                      # GPU overlay (MHCflurry + TCRdock)
+│   ├── gpu_config.yaml               # GPU overlay (MHCflurry + TCRdock)
 │   ├── test_config.yaml              # chr22 test configuration
 │   └── samples/
 │       ├── patient_001.tsv           # Gastric cancer (SRR9143066/SRR9143065)

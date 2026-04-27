@@ -517,7 +517,7 @@ snakemake \
     --use-conda \
     --rerun-triggers code params \
     --rerun-incomplete \
-    --configfile config/config.yaml config/gpu.yaml \
+    --configfile config/config.yaml config/gpu_config.yaml \
     --config samples_tsv=config/samples/patient_001.tsv
 ```
 
