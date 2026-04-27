@@ -33,7 +33,7 @@ jobs:
       - name: Dry-run with GPU config overlay
         run: |
           snakemake -n \
-            --configfile config/config.yaml config/gpu.yaml \
+            --configfile config/config.yaml config/gpu_config.yaml \
             --config samples_tsv=config/samples/patient_001_test.tsv
 
   pipeline-pytest:

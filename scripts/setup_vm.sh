@@ -239,6 +239,6 @@ if [[ "${STANDALONE}" == true ]]; then
     log "  3. From a tmux session, run the full pipeline:"
     log "       cd $REPO_DIR"
     log "       snakemake --cores \$(nproc) --use-conda --rerun-triggers mtime \\"
-    log "           --configfile config/config.yaml config/gpu.yaml \\"
+    log "           --configfile config/config.yaml config/gpu_config.yaml \\"
     log "           2>&1 | tee pipeline.log"
 fi

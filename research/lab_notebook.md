@@ -4,6 +4,18 @@
 
 ## 2026-04-27
 
+### 17:17 UTC — Editor: Developer
+
+#### Issue #158 — rename config/gpu.yaml → config/gpu_config.yaml
+
+Renamed `config/gpu.yaml` to `config/gpu_config.yaml` for naming consistency with other `*_config.yaml` files and to avoid confusion with conda env files in `workflow/envs/*.yaml`. Updated all live references across 9 files: `config/config.yaml`, `scripts/run_cloud_gpu.sh`, `scripts/setup_vm.sh`, `.github/workflows/tests.yml`, `README.md`, `CLAUDE.md`, `docs/configuration.md`, `docs/google_cloud_guide.md`. Historical entries in this notebook (lines 173, 572, 576, 708) intentionally left unchanged — they are point-in-time records.
+
+Evaluated Snakemake profile migration (Issue #158 step 2) and deferred: `gpu_config.yaml` holds pipeline-level config values (TCRdock settings, fallback HLA/TCR alleles), not executor/resource parameters — the `--configfile` overlay is the correct abstraction.
+
+Merged via PR #174 (replaced PR #170 which closed during a branch rename operation).
+
+---
+
 ### 15:43 UTC — Editor: Scientist
 
 #### Issue #172 — RESULTS.md patient_002 Junction Filtering corrected to valid post-#148 run
