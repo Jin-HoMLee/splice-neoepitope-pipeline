@@ -4,6 +4,22 @@
 
 ## 2026-04-28
 
+### 14:51 UTC — Editor: Developer
+
+#### Issue #180 — verify TCRdock has no dependency on AFDB legacy API
+
+Audit confirmed no dependency. The AlphaFold Database (AFDB) legacy API retires June 2026, so any pipeline component fetching from `alphafold.ebi.ac.uk` would break — this issue checked whether we do.
+
+Findings:
+- Zero AFDB / `alphafold.ebi.ac.uk` references repo-wide (`grep -rni` across `*.py`, `*.sh`, `Dockerfile*`, `*.yaml`, `*.smk`).
+- `docker/Dockerfile.pipeline` downloads AlphaFold v2 params from Dropbox (TCRdock's curated hosting) at image build time, not from AFDB.
+- `workflow/scripts/run_tcrdock.py` imports no HTTP clients (`requests`, `httpx`, `urllib`, `http.client`) and shells out to no `wget`/`curl`. It invokes Docker and reads/writes local files.
+- Inference uses `--data_dir /opt/TCRdock/alphafold_params` (local container path, baked at build time).
+
+Conclusion: the June 2026 AFDB retirement does not affect us. Closed [Issue #180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/180) with the audit details.
+
+---
+
 ### 13:30 UTC — Editor: Developer
 
 #### Issue #181 — add research/glossary.md
