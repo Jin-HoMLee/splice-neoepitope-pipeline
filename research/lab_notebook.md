@@ -16,6 +16,14 @@ Merged via PR #174 (replaced PR #170 which closed during a branch rename operati
 
 ---
 
+### 16:58 UTC — Editor: Scientist
+
+#### PR #173 — patient_002 Junction Filtering correction merged
+
+Reviewed by Claude (automated, LGTM, math verified). Both CI checks passed. Squash merged, branch deleted. Closes #172.
+
+---
+
 ### 15:43 UTC — Editor: Scientist
 
 #### Issue #172 — RESULTS.md patient_002 Junction Filtering corrected to valid post-#148 run
