@@ -4,6 +4,31 @@
 
 ## 2026-04-28
 
+### 16:36 UTC — Editor: Scientist
+
+#### PR #185 — review fixes + conflict resolution
+
+[PR #185](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/185) (closes [Sub-Issue #161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/161), local GCS cache for research notebooks). Reviewer flagged one medium-severity reliability bug:
+
+- **Partial-download cache poisoning** — if `gsutil cp` fails midway (network timeout, credential expiry, disk full), the partial file sits at `local_path` and the next kernel restart skips the download via `os.path.exists()`, then feeds pandas a truncated TSV. Fixed in `1fc4a2c` with the standard atomic-rename pattern: download to `local_path + ".tmp"`, then `os.rename` to `local_path` on success; on any exception, remove the tmp file and re-raise.
+
+Also resolved a merge conflict against main from PR #184 (Developer's Issue #180 lab notebook entry) — both PRs prepended entries to the 2026-04-28 section. Merged main into the branch, kept all entries ordered newest-first by timestamp. Merge commit `edd268d`.
+
+CI re-triggered after the merge resolution and is now queued; PR back to MERGEABLE.
+
+---
+
+### 15:16 UTC — Editor: Scientist
+
+#### Issue #161 — additional fixes from end-to-end notebook run
+
+Ran the patient_002 notebook end-to-end to populate outputs before committing. Two issues surfaced and were fixed:
+
+1. **macOS gsutil multiprocessing hang** — `gsutil cp` (unlike `gsutil cat`) hangs on macOS due to the Python fork bug ([Python issue #33725](https://bugs.python.org/issue33725)). The `peptides_novel.tsv` download stalled indefinitely after ~14 min. Fixed by passing `-o "GSUtil:parallel_process_count=1"` to the gsutil call in `gcs_read_tsv_cached()` — disables multiprocessing but keeps multithreading.
+2. **Cell 6.4 (per-allele contribution) `KeyError: 'genotype_presentation_percentile'`** — the allele filter `not c.startswith("best")` excluded `best_presentation_score` but failed to exclude `genotype_presentation_score`, so `"genotype"` ended up in the alleles list. Fixed by inverting to a positive filter `c.startswith("HLA-")`. Pre-existing bug; surfaced now because the prior run's outputs predated the GPS column.
+
+---
+
 ### 14:51 UTC — Editor: Developer
 
 #### Issue #180 — verify TCRdock has no dependency on AFDB legacy API
@@ -17,6 +42,18 @@ Findings:
 - Inference uses `--data_dir /opt/TCRdock/alphafold_params` (local container path, baked at build time).
 
 Conclusion: the June 2026 AFDB retirement does not affect us. Closed [Issue #180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/180) with the audit details.
+
+---
+
+### 13:49 UTC — Editor: Scientist
+
+#### Issue #161 — added local GCS cache to `patient_002_results.ipynb`
+
+Replaced `gcs_read_tsv()` (streamed from GCS via `gsutil cat` on every kernel restart) with `gcs_read_tsv_cached()` that downloads each TSV once to `/tmp/splice-neoepitope-cache/patient_002/` and reads locally on subsequent calls. Cache is `/tmp`-based (cleared on reboot) — no stale data risk, no git noise.
+
+Eliminates the ~3 min wait on `mhc_presentation.tsv` (2.3M rows) that previously blocked every analysis session. Pattern carries forward to patient_001 notebook (#177).
+
+Updated five cells: setup (function definition + `CACHE_DIR` constant) plus four call sites (`report.tsv`, `novel_junctions.tsv`, `peptides_novel.tsv`, `mhc_presentation.tsv`).
 
 ---
 
