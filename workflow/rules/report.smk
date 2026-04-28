@@ -3,6 +3,7 @@
 # =============================================================================
 
 _HLA_QC_ENABLED = config.get("hla", {}).get("enabled", False)
+_TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
 
 
 def _generate_report_input(wildcards):
@@ -20,6 +21,13 @@ def _generate_report_input(wildcards):
     if _HLA_QC_ENABLED:
         d["hla_qc"] = os.path.join(
             _RES, wildcards.patient_id, "hla_typing", "hla_qc.tsv",
+        )
+    if _TCRDOCK_ENABLED:
+        d["pdb"] = os.path.join(
+            _RES, wildcards.patient_id, "predictions", "tcrdock", "top_candidate.pdb"
+        )
+        d["scores_tsv"] = os.path.join(
+            _RES, wildcards.patient_id, "predictions", "tcrdock", "docking_scores.tsv"
         )
     return d
 
