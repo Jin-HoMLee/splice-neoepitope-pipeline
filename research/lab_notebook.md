@@ -4,6 +4,29 @@
 
 ## 2026-04-28
 
+### 15:16 UTC — Editor: Scientist
+
+#### Issue #161 — additional fixes from end-to-end notebook run
+
+Ran the patient_002 notebook end-to-end to populate outputs before committing. Two issues surfaced and were fixed:
+
+1. **macOS gsutil multiprocessing hang** — `gsutil cp` (unlike `gsutil cat`) hangs on macOS due to the Python fork bug ([Python issue #33725](https://bugs.python.org/issue33725)). The `peptides_novel.tsv` download stalled indefinitely after ~14 min. Fixed by passing `-o "GSUtil:parallel_process_count=1"` to the gsutil call in `gcs_read_tsv_cached()` — disables multiprocessing but keeps multithreading.
+2. **Cell 6.4 (per-allele contribution) `KeyError: 'genotype_presentation_percentile'`** — the allele filter `not c.startswith("best")` excluded `best_presentation_score` but failed to exclude `genotype_presentation_score`, so `"genotype"` ended up in the alleles list. Fixed by inverting to a positive filter `c.startswith("HLA-")`. Pre-existing bug; surfaced now because the prior run's outputs predated the GPS column.
+
+---
+
+### 13:49 UTC — Editor: Scientist
+
+#### Issue #161 — added local GCS cache to `patient_002_results.ipynb`
+
+Replaced `gcs_read_tsv()` (streamed from GCS via `gsutil cat` on every kernel restart) with `gcs_read_tsv_cached()` that downloads each TSV once to `/tmp/splice-neoepitope-cache/patient_002/` and reads locally on subsequent calls. Cache is `/tmp`-based (cleared on reboot) — no stale data risk, no git noise.
+
+Eliminates the ~3 min wait on `mhc_presentation.tsv` (2.3M rows) that previously blocked every analysis session. Pattern carries forward to patient_001 notebook (#177).
+
+Updated five cells: setup (function definition + `CACHE_DIR` constant) plus four call sites (`report.tsv`, `novel_junctions.tsv`, `peptides_novel.tsv`, `mhc_presentation.tsv`).
+
+---
+
 ### 13:30 UTC — Editor: Developer
 
 #### Issue #181 — add research/glossary.md
