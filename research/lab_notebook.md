@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-28
+
+### 01:34 UTC — Editor: Developer
+
+#### Issue #90 — replace ruleorder with conditional inputs in generate_report
+
+Two-part refactor of the report rule module:
+
+1. Renamed `workflow/rules/analysis.smk` → `workflow/rules/report.smk` — the module only contains `generate_report`, so the new name is more descriptive. Updated the include in `Snakefile` and the file tree in `README.md`.
+
+2. Replaced the `ruleorder: generate_report_with_structure > generate_report` directive with a single `generate_report` rule whose `_generate_report_input` conditionally adds `pdb` + `scores_tsv` inputs when `config.tcrdock.enabled` is true. Removed `generate_report_with_structure` from `structure.smk` and deleted the `ruleorder` block from `Snakefile`. No script changes needed — `generate_report.py` already accesses `tcrdock_pdb` via `getattr(snakemake.input, "pdb", None)`.
+
+Verified via `snakemake -n` dry-runs that both DAGs resolve correctly: 3 jobs without TCRdock (`generate_report`, no `run_tcrdock`); 4 jobs with the GPU overlay (`run_tcrdock` feeds into `generate_report`). Pytest: 200/200 passed.
+
+---
+
 ## 2026-04-27
 
 ### 17:17 UTC — Editor: Developer
