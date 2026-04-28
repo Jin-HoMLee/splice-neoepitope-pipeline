@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-04-28
+
+### 13:30 UTC — Editor: Developer
+
+#### Issue #181 — add research/glossary.md
+
+Added `research/glossary.md` as a living dictionary of project-relevant abbreviations. Seeded with three entries that came up in conversation today (AFDB, GKE, SLURM). Format: alphabetical sections, `**ABBREV** — Expansion. One-line context. *Domain: bio | ml | cloud | pipeline | stats.*` Going forward, new abbreviations are added when they come up in conversation (rule saved in memory). Merged via PR #182.
+
+---
+
 ## 2026-04-27
 
 ### 17:17 UTC — Editor: Developer
