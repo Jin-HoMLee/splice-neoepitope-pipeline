@@ -274,7 +274,7 @@ splice-neoepitope-pipeline/
 │   │   ├── translate_peptides.smk    # Step 4: Peptide translation
 │   │   ├── mhc_affinity.smk          # Step 5: MHCflurry prediction
 │   │   ├── structure.smk             # Step 6: TCRdock (optional, GPU)
-│   │   └── analysis.smk              # Step 7: Report generation
+│   │   └── report.smk                # Step 7: Report generation
 │   ├── envs/
 │   │   ├── hisat2.yaml               # hisat2, samtools, regtools
 │   │   ├── biotools.yaml             # bedtools, biopython, pandas

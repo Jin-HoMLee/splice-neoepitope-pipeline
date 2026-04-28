@@ -44,7 +44,7 @@ include: "workflow/rules/assemble_contigs.smk"
 include: "workflow/rules/translate_peptides.smk"
 include: "workflow/rules/proteome_filter.smk"
 include: "workflow/rules/mhc_affinity.smk"
-include: "workflow/rules/analysis.smk"
+include: "workflow/rules/report.smk"
 include: "workflow/rules/structure.smk"
 
 # When TCRdock is enabled, prefer the structure report over the plain report.
