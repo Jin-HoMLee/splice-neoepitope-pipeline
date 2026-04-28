@@ -4,6 +4,20 @@
 
 ## 2026-04-28
 
+### 16:36 UTC — Editor: Scientist
+
+#### PR #185 — review fixes + conflict resolution
+
+[PR #185](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/185) (closes [Sub-Issue #161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/161), local GCS cache for research notebooks). Reviewer flagged one medium-severity reliability bug:
+
+- **Partial-download cache poisoning** — if `gsutil cp` fails midway (network timeout, credential expiry, disk full), the partial file sits at `local_path` and the next kernel restart skips the download via `os.path.exists()`, then feeds pandas a truncated TSV. Fixed in `1fc4a2c` with the standard atomic-rename pattern: download to `local_path + ".tmp"`, then `os.rename` to `local_path` on success; on any exception, remove the tmp file and re-raise.
+
+Also resolved a merge conflict against main from PR #184 (Developer's Issue #180 lab notebook entry) — both PRs prepended entries to the 2026-04-28 section. Merged main into the branch, kept all entries ordered newest-first by timestamp. Merge commit `edd268d`.
+
+CI re-triggered after the merge resolution and is now queued; PR back to MERGEABLE.
+
+---
+
 ### 15:16 UTC — Editor: Scientist
 
 #### Issue #161 — additional fixes from end-to-end notebook run
