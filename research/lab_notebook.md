@@ -4,6 +4,34 @@
 
 ## 2026-04-29
 
+### 13:49 UTC — Editor: Scientist
+
+#### PR #189 — review fixes (junction-count mislabel + minors)
+
+[Claude review on PR #189](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/189) flagged a medium-severity factual error: §2.1 cell printed `"Total tumor_exclusive junctions: 30,029"` but `report.tsv` (loaded by the same notebook in §1) shows unannotated=30,029 / tumor_exclusive=27,348 / normal_shared=2,681. Root cause: silent hallucination from copy-paste — in patient_002 with no matched normal, unannotated == tumor_exclusive (both 58,914), so the label was numerically correct there. For patient_001 the difference surfaced.
+
+Decision: filter at load to tumor_exclusive (clinically correct fix), and show all three counts in the print so the matched-normal value-add is visible:
+
+```
+Unannotated junctions:         30,029
+  ├─ normal_shared (removed):   2,681
+  └─ tumor_exclusive:          27,348   ← carried forward to MHC prediction
+```
+
+Applied the same template to patient_002 §2.1 for consistency (prints `0 ← no matched normal: nothing removed` — honest about absent filtering).
+
+Cascading fixes in `patient_001_results.ipynb`:
+- §7 finding #7 — count corrected to 27,348; removed contradictory comparison to "27,347 from earlier runs"; reframed as "after matched-normal filtering removed 2,681 of 30,029 (8.9%)"
+- §7 finding #8 — read-support stats now computed on tumor_exclusive (mean 49 vs old 56; min/median/max effectively unchanged at 16 / 26 / 82,098 since the dropped normal_shared junctions skewed slightly higher than the kept tumor_exclusive ones)
+
+Also addressed the two minor review notes:
+- §6 GPS formula — added caveat that locus weighting is approximate; MHCflurry applies its own locus-aware calibration internally during scoring
+- §5.2 — added inline source for the "HLA-C\*07:01 shared with patient_002" cross-patient claim
+
+Re-ran both notebooks via `jupyter nbconvert --execute --inplace` (cache warm — no re-download).
+
+---
+
 ### 10:32 UTC — Editor: Scientist
 
 #### Sub-Issue #177 — patient_001 results analysis notebook
