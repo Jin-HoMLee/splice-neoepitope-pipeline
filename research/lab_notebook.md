@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-04-29
+
+### 09:05 UTC — Editor: Scientist
+
+#### Issue #186 — Discussion section on immune-pathway gene neoepitopes and presentation paradox
+
+Morning routine surfaced [Coelho et al., *Cancer Cell* 2023](https://doi.org/10.1016/j.ccell.2022.12.009) (base-editing screens mapping IFN-γ signalling missense vulnerability). The discussion that followed produced a clinical-translation angle worth committing to the manuscript: splice-derived neoepitopes from immune-pathway genes (JAK1/2, STAT1, B2M, NLRC5, TAP1/2) sit at the intersection of "immunogenic" and "selected for during evasion" — vaccine-prioritisable but with a presentation paradox.
+
+Added a new subsection to `research/manuscript/DISCUSSIONS.md` between *Allele breadth and immunodominance* and *Structural validation*. Section covers:
+
+1. **Preventive vaccination** angle (public neoantigens; Kwok et al. 2024; constitutive HLA-I via NLRC5 + NK missing-self maintain presentation despite partial JAK LOF).
+2. **Combination therapy** for established tumours: rescue must land *downstream* of the broken kinase. Upstream interventions (intratumoural IFN-γ, IFN-γR delivery) are futile because the signal terminates at the dead JAK. Effective bypasses: TLR agonists (NF-κB/IRF3), STING agonists (type I IFN; impaired in JAK1-LOF since JAK1+TYK2 is shared), HDAC/DNMT inhibitors (epigenetic derepression — addresses the transcriptional bottleneck directly), and NK-cell engagers.
+3. **Mermaid diagram** (Figure 1) visualising the pathway with broken vs. rescue vs. constitutive nodes colour-coded.
+
+Also added Coelho et al. 2023 to the Zotero collection (key M2HCXESA) following the new three-section note format. Initially miscited the venue as Nature 2024 — corrected to *Cancer Cell* 2023 (DOI 10.1016/j.ccell.2022.12.009) before committing to the manuscript.
+
+---
+
 ## 2026-04-28
 
 ### 16:36 UTC — Editor: Scientist

@@ -430,6 +430,75 @@ scoring throughout.
 
 ---
 
+## Immune-pathway gene neoepitopes: the presentation paradox
+
+A subset of the candidates this pipeline produces deserves special clinical attention: splice-junction neoepitopes derived from immune-pathway genes whose loss-of-function drives immune evasion. Genes including *JAK1*, *JAK2*, *STAT1*, *B2M*, *NLRC5*, and *TAP1/2* are recurrently mutated in tumours that have escaped checkpoint blockade (Zaretsky et al., *NEJM* 2016; Sade-Feldman et al., *Cancer Discovery* 2017). Recent base-editing screens have systematically mapped the specific single-amino-acid variants that disrupt IFN-γ signalling and antigen presentation, identifying which residues in JAK1, JAK2, and other pathway components are most vulnerable to point mutation (Coelho et al., *Cancer Cell* 2023). Many of these mutations also generate splice variants — in-frame exon skips, alternative donor/acceptor usage, intron retention — whose junction-spanning peptides are immunogenic in principle.
+
+These targets sit at a clinically interesting intersection: the very mutations that make a tumour clone HLA-low also tag it with a candidate neoepitope. Two clinical implications follow.
+
+**Preventive vaccination.** Driver mutations in immune-pathway genes recur across patients, making them candidates for **public neoantigen vaccines** (Kwok et al., *Nature* 2024). A vaccine primed against these neoepitopes — administered early, before resistance clones have fixed in the tumour — could establish T-cell memory that recognises the mutant clone the moment it arises. Even with partial JAK1/2 loss-of-function, constitutive HLA-I expression (NLRC5-driven, JAK/STAT-independent) maintains baseline antigen presentation; vaccine-trained T cells can engage these residual pMHC complexes, supplemented by NK-cell killing of HLA-low cells via the missing-self mechanism.
+
+**Combination therapy for established tumours.** For tumours that already carry IFN-γ pathway lesions, vaccination must be paired with **downstream HLA-I rescue** — and the rescue must land at or below the broken signalling node. Although the molecular cause of JAK loss-of-function is a protein-level defect (catalytically dead kinase), the clinical bottleneck is transcriptional: phosphorylated STAT1 fails to drive HLA-I gene transcription, and surface HLA-I stays low because the mRNA is never produced. Upstream interventions — intratumoural recombinant IFN-γ or receptor delivery — cannot bypass this defect; the signal still terminates at the dead kinase. Effective combinations must engage HLA-I transcription via an alternative regulatory layer (Figure 1):
+
+- **TLR3/7/8/9 agonists** (poly-I:C, R848, CpG) drive HLA-I via NF-κB and IRF3, independent of JAK/STAT.
+- **STING agonists** induce type I IFN-driven HLA-I; effective for JAK2-only loss-of-function but impaired in JAK1-loss-of-function (which also disables type I IFN signalling, JAK1 + TYK2).
+- **HDAC and DNMT inhibitors** (vorinostat, decitabine) derepress HLA-I epigenetically, opening chromatin and demethylating CpG islands at HLA-A/B/C promoters — restoring transcription independent of any signal-driven activator. Decitabine has entered clinical trials in combination with checkpoint inhibitors specifically for HLA-low tumours (Chiappinelli et al., *Cell* 2015).
+- **NK-cell engagers** complement the strategy by exploiting (rather than rescuing) the HLA-low state.
+
+HDAC and DNMT inhibitors are particularly noteworthy because they directly address the transcriptional bottleneck: although the upstream cause is a broken kinase, the downstream consequence is a failure of HLA-I mRNA production, and chromatin-level rescue restores that production through a parallel pathway.
+
+```mermaid
+flowchart TD
+    classDef broken fill:#ffd6d6,stroke:#cc0000,stroke-width:2px,color:#000
+    classDef rescue fill:#d6f5d6,stroke:#008800,stroke-width:1.5px,color:#000
+    classDef constitutive fill:#e0e0ff,stroke:#3333aa,color:#000
+
+    %% Visual legend (default placement)
+    subgraph LEGEND ["Legend"]
+        direction LR
+        L_broken["Broken pathway (LOF)"]:::broken
+        L_rescue["Therapeutic rescue"]:::rescue
+        L_const["Constitutive (JAK-independent)"]:::constitutive
+    end
+
+    %% Broken canonical pathway
+    IFNg["IFN-γ"] --> R["IFN-γR"]
+    R --> JAK["JAK1 / JAK2<br/>(catalytic kinase)"]:::broken
+    JAK -- "❌ LOF mutation<br/>kinase dead" --> pSTAT1["phospho-STAT1"]
+    pSTAT1 --> Tx["HLA-I gene transcription"]
+
+    %% Rescue route 1: TLR
+    TLR["TLR3 / 7 / 8 / 9 agonists<br/>(poly-I:C, R848, CpG)"]:::rescue --> NFkB["NF-κB / IRF3"]
+    NFkB --> Tx
+
+    %% Rescue route 2: STING
+    STING["STING agonists"]:::rescue --> typeI["Type I IFN"]
+    typeI --> JAK1TYK2["JAK1 + TYK2<br/>⚠ also impaired in JAK1 LOF"]
+    JAK1TYK2 --> pSTAT1
+
+    %% Rescue route 3: epigenetic
+    HDAC["HDAC / DNMT inhibitors<br/>(vorinostat, decitabine)"]:::rescue --> Chromatin["Open chromatin<br/>+ CpG demethylation<br/>at HLA-I promoters"]
+    Chromatin --> Tx
+
+    %% Constitutive baseline
+    NLRC5["NLRC5<br/>(constitutive, JAK-independent)"]:::constitutive --> Tx
+
+    %% Downstream output
+    Tx --> mRNA["HLA-I mRNA"]
+    mRNA --> HLA["Surface HLA-I<br/>(reduced under JAK LOF)"]
+
+    %% Therapeutic outcomes
+    HLA --> Vax["Vaccine-primed<br/>T-cell killing"]
+    HLA -- "low surface density →<br/>missing-self signal" --> NKkill["NK-cell killing"]
+    NKE["NK-cell engagers"]:::rescue --> NKkill
+```
+
+**Figure 1. Rescue strategies for HLA-I presentation under JAK1/2 loss-of-function.** The canonical IFN-γ → JAK1/JAK2 → STAT1 axis drives HLA-I gene transcription; in JAK-LOF tumours the kinase is catalytically dead and the signal terminates at JAK. Three bypass routes restore HLA-I transcription independently of the JAK1/2 break: TLR agonists via NF-κB / IRF3, STING agonists via type I IFN (impaired in JAK1-LOF because JAK1+TYK2 is shared with type II IFN signalling), and HDAC / DNMT inhibitors via epigenetic derepression of HLA-A/B/C promoters. NLRC5 maintains a constitutive baseline that is JAK-independent. Surface HLA-I — reduced but not absent — supports vaccine-primed T-cell killing, while the residual HLA-low cells are targeted by NK cells via missing-self recognition (potentiated by NK-cell engagers).
+
+The pipeline's GPS prioritisation surfaces splice neoepitopes from immune-pathway genes whenever they meet the presentation thresholds; these candidates merit triage to first-in-line clinical translation despite — and partly because of — the presentation paradox.
+
+---
+
 ## Structural validation: TCR-pMHC docking and TCR panel design
 
 MHC binding prediction identifies peptides with the thermodynamic potential to occupy the
