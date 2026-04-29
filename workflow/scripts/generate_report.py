@@ -842,6 +842,84 @@ def _build_report_top_candidates_tsv(
     log.info("Top presenters TSV (%d rows) written to %s", len(rows), output_path)
 
 
+# Chain mapping for relabel_pdb_chains() in run_tcrdock.py — duplicated here to
+# avoid a cross-script import (run_tcrdock imports torch/Bio at module load
+# which we don't want pulled into report generation).
+_TCRDOCK_CHAIN_NAMES = {"A": "MHC", "B": "peptide", "C": "TCR-alpha", "D": "TCR-beta"}
+
+
+def _build_report_3d_structure_tsv(
+    patient_id: str,
+    docking_scores_tsv: str | Path,
+    pdb_relative_path: str,
+    output_tsv: str | Path,
+) -> None:
+    """Write the 3D structure manifest TSV.
+
+    The PDB itself stays as the canonical machine-readable representation in
+    its TCRdock output location; this manifest exposes the metadata + chain
+    labelling so any downstream tool can locate and interpret the structure
+    without re-running TCRdock or re-deriving the chain mapping.
+
+    Schema:
+      patient_id | rank | peptide | allele | pdb_path
+        | chain_A | chain_B | chain_C | chain_D
+        | <pass-through plddt/pae/ptm columns from docking_scores.tsv>
+
+    ``pdb_path`` is recorded relative to the patient result directory
+    (typically ``predictions/tcrdock/top_candidate.pdb``) so consumers can
+    resolve it from the patient root regardless of how reports/ was copied.
+
+    The manifest tracks the single PDB that's actually written today
+    (n_candidates=1). If TCRdock starts emitting multiple PDBs per run, the
+    rank column is the natural extension point.
+    """
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fixed_columns = [
+        "patient_id", "rank", "peptide", "allele", "pdb_path",
+        "chain_A", "chain_B", "chain_C", "chain_D",
+    ]
+
+    docking_path = Path(docking_scores_tsv)
+    if not docking_path.exists():
+        pd.DataFrame(columns=fixed_columns).to_csv(output_path, sep="\t", index=False)
+        log.warning("docking_scores.tsv not found at %s — wrote empty manifest", docking_path)
+        return
+
+    scores_df = pd.read_csv(docking_path, sep="\t")
+    if scores_df.empty:
+        pd.DataFrame(columns=fixed_columns).to_csv(output_path, sep="\t", index=False)
+        log.warning("docking_scores.tsv at %s is empty — wrote empty manifest", docking_path)
+        return
+
+    # Pass-through any plddt/pae/ptm columns that exist; preserves whatever
+    # TCRdock currently emits without forcing a hard schema dependency.
+    metric_cols = [c for c in scores_df.columns
+                   if any(k in c.lower() for k in ("plddt", "pae", "ptm"))]
+
+    top = scores_df.iloc[0]
+    row: dict = {
+        "patient_id": patient_id,
+        "rank": 1,
+        "peptide": top.get("peptide", ""),
+        "allele": top.get("mhc", ""),
+        "pdb_path": pdb_relative_path,
+        "chain_A": _TCRDOCK_CHAIN_NAMES["A"],
+        "chain_B": _TCRDOCK_CHAIN_NAMES["B"],
+        "chain_C": _TCRDOCK_CHAIN_NAMES["C"],
+        "chain_D": _TCRDOCK_CHAIN_NAMES["D"],
+    }
+    for col in metric_cols:
+        row[col] = _round_or_blank(top.get(col), 4)
+
+    pd.DataFrame([row], columns=fixed_columns + metric_cols).to_csv(
+        output_path, sep="\t", index=False
+    )
+    log.info("3D structure manifest written to %s", output_path)
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
