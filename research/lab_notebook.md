@@ -4,6 +4,35 @@
 
 ## 2026-04-29
 
+### 22:04 UTC — Editor: Scientist
+
+#### Issue #197 — manuscript cross-doc cleanup (CONCLUSIONS + METHODS + DISCUSSIONS)
+
+Bundled cross-doc cleanup PR addressing three threads surfaced during [PR #196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/196) review:
+
+**A. CONCLUSIONS.md patient_002 KF#5–7 refresh.** Numbers verified at source against `gs://splice-neoepitope-project/results/patient_002/reports/report.tsv`:
+
+| Finding | Was (pre-#148, IC50) | Now (post-#148, GPS) |
+|---|---|---|
+| 5: tumor-exclusive | 55,912 from 347,046 (16.1%); 3 WES junctions removed | 58,914 from 364,168 (16.2%); 0 WES junctions removed (WES has no RNA splice reads) |
+| 6: peptides | 781,424 9-mers (775,440 unique) | 2,330,687 across 8/9/10-mers (2,313,700 unique, 99.3%) |
+| 7: predictions | 12,430 IC50-strong (0.32% of 3,907,120) | 67,935 percentile-strong (2.9% of 2,330,687) + top FADLRPLLL / HLA-C\*01:02 (GPS 0.9999, 4/5 alleles) |
+| 8: HLA validation | OK (no change) | OK (no change) |
+
+**B. METHODS.md §4 reconciliation.** Investigation in `workflow/scripts/aggregate_hla_alleles.py:5-22` showed the actual code cascade is **tumor → serology → normal → fallback**, with the docstring rationale: *"OptiType from Primary Tumor — reflects what the tumor cell actually presents, including any HLA loss-of-heterozygosity (LOH) events."* The "normal-first policy" wording was therefore fully out of date — pure doc-fix, not a config bug. METHODS.md §4 rewritten to describe the cascade with the LOH rationale; null-allele exclusion preserved. Output table caption `(normal-first)` → `(tumor-first cascade)`. Output table peptide row updated `9-mers` → `8/9/10-mers` (PR #99 alignment).
+
+**C. CONCLUSIONS.md §Significance ProcessPoolExecutor stale claim.** Per CLAUDE.md, `ProcessPoolExecutor` was removed from `run_mhcflurry.py` (CUDA crash on GPU / 48 GB OOM on CPU). Replaced with the actual implementation: single genotype-level `Class1PresentationPredictor.predict()` call with peptides batched in-call. Also flipped "binding predictions" → "presentation predictions" per the [presenters terminology](feedback_presenters_terminology.md) rule.
+
+**Cross-doc cascade fixes:**
+
+- DISCUSSIONS.md "Impact of missing matched normal" paragraph rewritten — the pre-#148 narrative ("106,474 WES junctions, 3 overlapped") was an artifact of the chr-naming bug; post-#148 truth is simpler (zero RNA junctions extracted from WES alignment by design). Numbers refreshed.
+- CONCLUSIONS.md Future Directions patient_002 longitudinal entry refreshed.
+- patient_001_results.ipynb §7 item #4 marked fully resolved (was already partially resolved by Issue #178; METHODS reconciliation closed the loop).
+
+Source-of-truth discipline reaffirmed throughout: `report.tsv` first, notebook post-calc only for what `report.tsv` doesn't expose, alignment intermediate (`alignment/{sample}/junctions.tsv` line count) only for the funnel-top rows pending [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104).
+
+---
+
 ### 19:51 UTC — Editor: Scientist
 
 #### PR #196 — review fix: `(one prediction per unique peptide)` parenthetical incorrect

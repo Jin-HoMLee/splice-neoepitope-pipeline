@@ -69,12 +69,23 @@ Patient HLA-A, -B, and -C alleles are typed using OptiType (Szolek et al., 2014)
 OptiType aligns RNA-seq reads to an HLA-specific reference (IMGT/HLA) using razers3
 and solves an integer linear programme to call the most likely genotype.
 
-A **normal-first policy** is applied: calls from the Solid Tissue Normal sample are
-preferred over the Primary Tumor, as HLA alleles are germline and the tumor may carry
-loss of heterozygosity (LOH) at the HLA locus. When the normal sample provides
-insufficient reads (< 30 per locus), the tumor sample is used. If neither sample
-yields a confident call, per-locus fallback alleles from `config.mhcflurry.fallback_alleles`
-are substituted with a warning.
+For each locus the aggregator (`workflow/scripts/aggregate_hla_alleles.py`) applies a
+**tumor-first cascade**:
+
+1. **OptiType from Primary Tumor** (first preference) — reflects what the tumor cell
+   actually presents, including any HLA loss-of-heterozygosity (LOH) events that may
+   alter the surface allele set.
+2. **Clinical serology** (Red Cross / WGS) — germline ground truth, more accurate than
+   RNA-seq-based typing when available; read from `serology_X1`/`serology_X2` columns
+   in the samples TSV.
+3. **OptiType from Solid Tissue Normal / Blood Derived Normal** — used when no tumor
+   call passes the read threshold and no serology is available.
+4. **Config-defined fallback alleles** (`config.mhcflurry.fallback_alleles`) — used
+   only when no sample call is available or confident (reads < `min_reads_per_locus`,
+   default 30).
+
+Null alleles (e.g. `A*01:11N`) are not expressed at the cell surface and are excluded
+from the prediction allele list, but are preserved in the QC output for transparency.
 
 The aggregated per-patient alleles (`alleles.tsv`) and a QC file flagging the source
 of each call and any normal/tumor discrepancies (`hla_qc.tsv`) are written to
@@ -215,10 +226,10 @@ visualisation via Mol\* 4.x.
 
 | File | Contents |
 |------|----------|
-| `results/hla_typing/{patient_id}/alleles.tsv` | Patient HLA-A/B/C alleles (normal-first) |
+| `results/hla_typing/{patient_id}/alleles.tsv` | Patient HLA-A/B/C alleles (tumor-first cascade) |
 | `results/hla_typing/{patient_id}/hla_qc.tsv` | Per-locus source, read counts, discrepancies |
 | `results/junctions/{patient_id}/novel_junctions.tsv` | All unannotated junctions with origin labels |
-| `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 9-mers (contig_key, start_nt, peptide) |
+| `results/peptides/{patient_id}/peptides.tsv` | Junction-spanning 8/9/10-mers (contig_key, start_nt, peptide) |
 | `results/predictions/{patient_id}/mhc_presentation.tsv` | Per-peptide MHC presentation predictions: best_allele, ic50_nM, processing_score, presentation_score, presentation_percentile, presentation_class, per-allele presentation_score / presentation_percentile columns, genotype_presentation_score, n_strong_alleles, best_presentation_percentile |
 | `results/predictions/{patient_id}/tcrdock/top_candidate.pdb` | Predicted TCR–peptide–MHC ternary complex (PDB) |
 | `results/predictions/{patient_id}/tcrdock/docking_scores.tsv` | TCRdock geometry metrics |

@@ -47,15 +47,26 @@ SRR9143066/SRR9143065), the pipeline:
 Applied to an osteosarcoma tumor-only sample (patient_002, BG003082 T0) without a
 matched RNA-seq normal, the pipeline:
 
-5. **Identified 55,912 tumor-exclusive splice junctions** from 347,046 total extracted
-   junctions (16.1%). Without an RNA-seq normal, junction-level subtraction was limited
-   to a WES DNA proxy (3 junctions removed), so a fraction of candidates may reflect
-   patient-specific non-tumor splicing.
+5. **Identified 58,914 tumor-exclusive splice junctions** from 364,168 total extracted
+   junctions (16.2%). The available normal sample was BG003082_N0_WES (whole-exome
+   sequencing, DNA), which yielded valid HLA typing but contributes no junctions to
+   normal subtraction — WES contains no RNA splice junctions by design — so all
+   58,914 unannotated junctions are labelled `tumor_exclusive` by default. A fraction
+   may reflect patient-specific non-tumor splicing rather than truly tumor-specific
+   events.
 
-6. **Translated 781,424 junction-spanning 9-mers** (775,440 unique sequences).
+6. **Translated 2,330,687 junction-spanning peptides** (2,313,700 unique sequences,
+   99.3%) across 8/9/10-mer lengths and all three reading frames, applying a
+   conservative complete-codon rule at the junction boundary
+   (`peptide_lengths: [8, 9, 10]`, PR #99).
 
-7. **Predicted 12,430 strong binders** (IC50 ≤ 50 nM, 0.32% of 3,907,120 predictions)
-   across all six patient-specific HLA alleles.
+7. **Predicted 67,935 strong presenters** (presentation percentile ≤ 0.5%, 2.9% of
+   2,330,687 predictions) and 222,823 weak presenters (≤ 2.0%, 9.6%) across all five
+   expressed HLA alleles (HLA-A homozygous A\*01:01 counted once), using MHCflurry
+   2.x `Class1PresentationPredictor`. **Top candidate FADLRPLLL / HLA-C\*01:02
+   (IC50 = 33.2 nM, presentation percentile = 0.0045%, GPS = 0.9999)**, ranked by
+   Genotype Presentation Score and presented as strong by 4 of 5 patient alleles.
+   TCRdock ternary-complex structure successfully completed.
 
 8. **Validated OptiType HLA typing against Red Cross serology** (A\*01:01/A\*01:11N,
    B\*08:01/B\*27:05, C\*01:02/C\*07:01): all six alleles were an exact match, providing
@@ -74,9 +85,11 @@ The conservative design of the filter minimises false positives, which is critic
 given the cost of downstream experimental validation.
 
 The pipeline is fully automated, reproducible (Snakemake + conda), and cloud-ready
-(GCP Compute Engine). Parallelisation of MHC binding predictions (ProcessPoolExecutor)
-and GPU-accelerated structural prediction (TCRdock on P100) make it feasible to
-process a full patient dataset within a single cloud session.
+(GCP Compute Engine). MHC presentation prediction runs as a single genotype-level
+`Class1PresentationPredictor.predict()` call with all peptides batched at once
+(GPU parallelism applies within the call); GPU-accelerated structural prediction
+(TCRdock on P100) handles the downstream ternary-complex modelling. Together these
+make it feasible to process a full patient dataset within a single cloud session.
 
 ---
 
@@ -101,8 +114,8 @@ process a full patient dataset within a single cloud session.
 
 ## Future Directions
 
-- **Patient_002 longitudinal (T1/T2):** T0 run is complete (55,912 tumor-exclusive
-  junctions, 12,430 strong MHC binders, HLA typing validated against serology).
+- **Patient_002 longitudinal (T1/T2):** T0 run is complete (58,914 tumor-exclusive
+  junctions, 67,935 strong presenters, HLA typing validated against serology).
   Longitudinal samples T1 and T2 are available for neoepitope evolution analysis
   during treatment.
 - **STAR aligner comparison:** benchmark STAR vs. HISAT2 junction sensitivity on the
