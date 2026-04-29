@@ -662,6 +662,186 @@ def _build_report_tsv(
     log.info("Report TSV written to %s", output_path)
 
 
+# ---------------------------------------------------------------------------
+# Machine-readable artefacts: top presenters and 3D structure manifest
+# ---------------------------------------------------------------------------
+
+# Cap on how many top-ranked presenters land in both report_top_candidates.tsv
+# and the HTML rendering. Single source of truth: change here, both surfaces follow.
+TOP_CANDIDATES_LIMIT = 10
+
+
+def _allele_slot_map(predictions_columns: list[str]) -> dict[str, str]:
+    """Map per-allele percentile column names to stable slot names.
+
+    The mhc_presentation.tsv emits per-allele columns like
+    ``HLA-A*02:01_presentation_percentile``. Slot mapping turns that into
+    a stable wide schema (``hla_a1_pct``, ``hla_a2_pct``, ...) so
+    ``report_top_candidates.tsv`` has a fixed column set across patients.
+
+    Allocation: alleles are grouped by locus letter (A/B/C), sorted
+    lexicographically within the locus, then assigned to slot 1, slot 2.
+    Homozygous loci yield one slot mapped; the second slot stays empty.
+
+    Returns:
+        ``{allele_id: slot_letter_index}`` e.g. ``{"HLA-A*02:01": "a1"}``.
+    """
+    suffix = "_presentation_percentile"
+    by_locus: dict[str, list[str]] = {"a": [], "b": [], "c": []}
+    for col in predictions_columns:
+        if not col.startswith("HLA-") or not col.endswith(suffix):
+            continue
+        allele = col[: -len(suffix)]
+        # allele looks like "HLA-A*02:01"; locus letter is index 4
+        locus_letter = allele[4].lower()
+        if locus_letter in by_locus:
+            by_locus[locus_letter].append(allele)
+
+    slot_map: dict[str, str] = {}
+    for locus, alleles in by_locus.items():
+        for slot_idx, allele in enumerate(sorted(set(alleles))[:2], start=1):
+            slot_map[allele] = f"{locus}{slot_idx}"
+    return slot_map
+
+
+def _build_contig_peek(seq: str, start_nt: int, end_nt_incl: int, upstream_nt: int = 26) -> str:
+    """Render a 50 nt contig as a plain-text peek with junction and peptide markers.
+
+    Format: brackets ``[ ... ]`` enclose the nucleotides that translate to the
+    displayed peptide; ``|`` marks the splice junction inside the peptide.
+    Peptides in this pipeline are junction-spanning by construction, so the
+    bracketed region always contains the ``|``. Example (peptide spans junction):
+    ``ATCGATCGATCG[CGAT|CGATCGAT]CGATCGATCGATCGATCGATCG`` — empty if seq is empty.
+    """
+    if not seq:
+        return ""
+    parts: list[str] = []
+    for i, nt in enumerate(seq):
+        if i == upstream_nt:
+            parts.append("|")
+        if i == start_nt:
+            parts.append("[")
+        parts.append(nt)
+        if i == end_nt_incl:
+            parts.append("]")
+    return "".join(parts)
+
+
+def _round_or_blank(value, ndigits: int) -> str | float:
+    """Round numeric values; return empty string for missing/non-numeric."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    try:
+        return round(float(value), ndigits)
+    except (TypeError, ValueError):
+        return ""
+
+
+def _build_report_top_candidates_tsv(
+    patient_id: str,
+    pred_df: pd.DataFrame,
+    contigs: dict[str, str],
+    output_tsv: str | Path,
+    presentation_percentile_weak: float = 2.0,
+    upstream_nt: int = 26,
+) -> None:
+    """Write the top presenters as a wide-format TSV, ranked by genotype_presentation_score.
+
+    Schema (stable, cross-patient comparable):
+      patient_id | rank | peptide | best_allele
+        | best_presentation_percentile | genotype_presentation_score | ic50_nM
+        | n_strong_alleles | presentation_class
+        | hla_a1_id | hla_a1_pct | hla_a2_id | hla_a2_pct
+        | hla_b1_id | hla_b1_pct | hla_b2_id | hla_b2_pct
+        | hla_c1_id | hla_c1_pct | hla_c2_id | hla_c2_pct
+        | contig_key | contig_start_nt | contig_peek
+
+    The HLA slot columns map the patient's alleles into stable positions
+    (a1/a2/b1/b2/c1/c2) so downstream consumers can compare across patients
+    without per-patient column lookups; allele identity is preserved in
+    the ``hla_<slot>_id`` columns.
+
+    Limited to ``TOP_CANDIDATES_LIMIT`` rows after the same quality gate the
+    HTML render uses (``best_presentation_percentile <= presentation_percentile_weak``).
+    """
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    slot_columns = [
+        "hla_a1_id", "hla_a1_pct", "hla_a2_id", "hla_a2_pct",
+        "hla_b1_id", "hla_b1_pct", "hla_b2_id", "hla_b2_pct",
+        "hla_c1_id", "hla_c1_pct", "hla_c2_id", "hla_c2_pct",
+    ]
+    schema = [
+        "patient_id", "rank", "peptide", "best_allele",
+        "best_presentation_percentile", "genotype_presentation_score", "ic50_nM",
+        "n_strong_alleles", "presentation_class",
+        *slot_columns,
+        "contig_key", "contig_start_nt", "contig_peek",
+    ]
+
+    if pred_df.empty:
+        pd.DataFrame(columns=schema).to_csv(output_path, sep="\t", index=False)
+        log.info("Top presenters TSV written (empty) to %s", output_path)
+        return
+
+    df = pred_df[pred_df["presentation_class"] == "strong"].copy()
+    if "best_presentation_percentile" in df.columns:
+        df = df[df["best_presentation_percentile"] <= presentation_percentile_weak]
+
+    if "genotype_presentation_score" in df.columns:
+        df = df.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        df = df.sort_values("presentation_percentile")
+    df = df.head(TOP_CANDIDATES_LIMIT).reset_index(drop=True)
+
+    if df.empty:
+        pd.DataFrame(columns=schema).to_csv(output_path, sep="\t", index=False)
+        log.info("Top presenters TSV written (no strong presenters) to %s", output_path)
+        return
+
+    slot_map = _allele_slot_map(list(pred_df.columns))
+    inverse_slot: dict[str, str] = {v: k for k, v in slot_map.items()}
+
+    rows: list[dict] = []
+    for rank, (_, row) in enumerate(df.iterrows(), start=1):
+        contig_key = row.get("contig_key", "")
+        start_nt = int(row.get("start_nt", 0)) if pd.notna(row.get("start_nt")) else 0
+        peptide = str(row.get("peptide", ""))
+        end_nt_incl = start_nt + len(peptide) * 3 - 1 if peptide else start_nt
+        seq = contigs.get(contig_key, "")
+
+        out: dict = {
+            "patient_id": patient_id,
+            "rank": rank,
+            "peptide": peptide,
+            "best_allele": row.get("best_allele", ""),
+            "best_presentation_percentile": _round_or_blank(row.get("best_presentation_percentile"), 4),
+            "genotype_presentation_score": _round_or_blank(row.get("genotype_presentation_score"), 4),
+            "ic50_nM": _round_or_blank(row.get("ic50_nM"), 1),
+            "n_strong_alleles": int(row["n_strong_alleles"]) if pd.notna(row.get("n_strong_alleles")) else "",
+            "presentation_class": row.get("presentation_class", ""),
+            "contig_key": contig_key,
+            "contig_start_nt": start_nt,
+            "contig_peek": _build_contig_peek(seq, start_nt, end_nt_incl, upstream_nt),
+        }
+        for slot in ("a1", "a2", "b1", "b2", "c1", "c2"):
+            allele = inverse_slot.get(slot, "")
+            out[f"hla_{slot}_id"] = allele
+            if allele:
+                pct_col = f"{allele}_presentation_percentile"
+                out[f"hla_{slot}_pct"] = _round_or_blank(row.get(pct_col), 4)
+            else:
+                out[f"hla_{slot}_pct"] = ""
+        rows.append(out)
+
+    pd.DataFrame(rows, columns=schema).to_csv(output_path, sep="\t", index=False)
+    log.info("Top presenters TSV (%d rows) written to %s", len(rows), output_path)
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
