@@ -21,8 +21,8 @@ Unannotated junctions:         30,029
 Applied the same template to patient_002 §2.1 for consistency (prints `0 ← no matched normal: nothing removed` — honest about absent filtering).
 
 Cascading fixes in `patient_001_results.ipynb`:
-- §7 finding #7 — count corrected to 27,348; removed contradictory comparison to "27,347 from earlier runs"; reframed as "after matched-normal filtering removed 2,681 of 30,029 (8.9%)"
-- §7 finding #8 — read-support stats now computed on tumor_exclusive (mean 49 vs old 56; min/median/max effectively unchanged at 16 / 26 / 82,098 since the dropped normal_shared junctions skewed slightly higher than the kept tumor_exclusive ones)
+- §7 finding 7 — count corrected to 27,348; removed contradictory comparison to "27,347 from earlier runs"; reframed as "after matched-normal filtering removed 2,681 of 30,029 (8.9%)"
+- §7 finding 8 — read-support stats now computed on tumor_exclusive (mean 49 vs old 56; min/median/max effectively unchanged at 16 / 26 / 82,098 since the dropped normal_shared junctions skewed slightly higher than the kept tumor_exclusive ones)
 
 Also addressed the two minor review notes:
 - §6 GPS formula — added caveat that locus weighting is approximate; MHCflurry applies its own locus-aware calibration internally during scoring
