@@ -929,10 +929,13 @@ def generate_report(
     presentation_percentile_strong: float = 0.5,
     presentation_percentile_weak: float = 2.0,
     tcrdock_pdb: str | Path | None = None,
+    docking_scores_tsv: str | Path | None = None,
     output_tsv: str | Path | None = None,
+    output_top_candidates_tsv: str | Path | None = None,
+    output_3d_structure_tsv: str | Path | None = None,
     patient_id: str = "",
 ) -> None:
-    """Generate the summary HTML report and optional structured TSV.
+    """Generate the summary HTML report and the machine-readable report artefacts.
 
     Args:
         novel_junctions_tsv:           Classified junctions TSV (with junction_origin column).
@@ -943,7 +946,12 @@ def generate_report(
         presentation_percentile_strong: Strong-presentation percentile threshold.
         presentation_percentile_weak:  Weak-presentation percentile threshold (quality gate).
         tcrdock_pdb:                   TCRdock-predicted PDB file (optional).
-        output_tsv:                    Destination for the machine-readable summary TSV (optional).
+        docking_scores_tsv:            TCRdock raw docking scores TSV; consumed as input
+                                       for the 3D structure manifest (optional).
+        output_tsv:                    Destination for the run-summary report.tsv (optional).
+        output_top_candidates_tsv:     Destination for the wide top-presenters TSV (optional).
+        output_3d_structure_tsv:       Destination for the 3D structure manifest TSV
+                                       (optional; only written when TCRdock is enabled).
         patient_id:                    Patient identifier written into every report.tsv row.
     """
     output_html = Path(output_html)
@@ -1021,9 +1029,11 @@ def generate_report(
     output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
 
+    effective_patient_id = patient_id or output_html.parts[-3]
+
     if output_tsv:
         _build_report_tsv(
-            patient_id=patient_id or output_html.parts[-3],
+            patient_id=effective_patient_id,
             origin_df=origin_df,
             pred_df=pred_df,
             hla_qc_tsv=hla_qc_tsv,
@@ -1031,6 +1041,27 @@ def generate_report(
             presentation_percentile_strong=presentation_percentile_strong,
             tcrdock_pdb=tcrdock_pdb,
             presentation_percentile_weak=presentation_percentile_weak,
+        )
+
+    if output_top_candidates_tsv:
+        _build_report_top_candidates_tsv(
+            patient_id=effective_patient_id,
+            pred_df=pred_df,
+            contigs=contigs,
+            output_tsv=output_top_candidates_tsv,
+            presentation_percentile_weak=presentation_percentile_weak,
+        )
+
+    if output_3d_structure_tsv and docking_scores_tsv:
+        # PDB lives in predictions/tcrdock/ next to the docking scores.
+        # reports/ and predictions/ are siblings under results/{patient_id}/
+        # so this relative path resolves from any patient root.
+        pdb_relative_path = "predictions/tcrdock/top_candidate.pdb"
+        _build_report_3d_structure_tsv(
+            patient_id=effective_patient_id,
+            docking_scores_tsv=docking_scores_tsv,
+            pdb_relative_path=pdb_relative_path,
+            output_tsv=output_3d_structure_tsv,
         )
 
 
@@ -1051,7 +1082,10 @@ def _snakemake_main() -> None:
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
+        docking_scores_tsv=getattr(snakemake.input, "scores_tsv", None),  # type: ignore[name-defined]  # noqa: F821
         output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_top_candidates_tsv=snakemake.output.report_top_candidates_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
