@@ -4,6 +4,71 @@
 
 ## 2026-04-29
 
+### 14:09 UTC — Editor: Scientist
+
+#### PR #189 — review round 2: stale cross-reference in patient_002
+
+Second review on [PR #189](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/189) confirmed all round-1 fixes verified, with one trivial leftover: `patient_002_results.ipynb` §7 finding 6 read `"58,914 vs 27,347"` — the patient_001 cross-reference was a pre-fix value. After round 1 corrected patient_001's tumor_exclusive count to 27,348, this cross-reference stayed stale.
+
+Updated to `27,348`. Functionally harmless (the "~2×" ratio was unchanged) but internally inconsistent across the two notebooks.
+
+Pattern lesson recorded: when a number is corrected in one Jupyter notebook, every cross-reference to it from other notebooks/docs needs to be searched and updated — copy-paste of values between notebooks is a recurring vector for stale drift.
+
+---
+
+### 13:49 UTC — Editor: Scientist
+
+#### PR #189 — review fixes (junction-count mislabel + minors)
+
+[Claude review on PR #189](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/189) flagged a medium-severity factual error: §2.1 cell printed `"Total tumor_exclusive junctions: 30,029"` but `report.tsv` (loaded by the same notebook in §1) shows unannotated=30,029 / tumor_exclusive=27,348 / normal_shared=2,681. Root cause: silent hallucination from copy-paste — in patient_002 with no matched normal, unannotated == tumor_exclusive (both 58,914), so the label was numerically correct there. For patient_001 the difference surfaced.
+
+Decision: filter at load to tumor_exclusive (clinically correct fix), and show all three counts in the print so the matched-normal value-add is visible:
+
+```
+Unannotated junctions:         30,029
+  ├─ normal_shared (removed):   2,681
+  └─ tumor_exclusive:          27,348   ← carried forward to MHC prediction
+```
+
+Applied the same template to patient_002 §2.1 for consistency (prints `0 ← no matched normal: nothing removed` — honest about absent filtering).
+
+Cascading fixes in `patient_001_results.ipynb`:
+- §7 finding 7 — count corrected to 27,348; removed contradictory comparison to "27,347 from earlier runs"; reframed as "after matched-normal filtering removed 2,681 of 30,029 (8.9%)"
+- §7 finding 8 — read-support stats now computed on tumor_exclusive (mean 49 vs old 56; min/median/max effectively unchanged at 16 / 26 / 82,098 since the dropped normal_shared junctions skewed slightly higher than the kept tumor_exclusive ones)
+
+Also addressed the two minor review notes:
+- §6 GPS formula — added caveat that locus weighting is approximate; MHCflurry applies its own locus-aware calibration internally during scoring
+- §5.2 — added inline source for the "HLA-C\*07:01 shared with patient_002" cross-patient claim
+
+Re-ran both notebooks via `jupyter nbconvert --execute --inplace` (cache warm — no re-download).
+
+---
+
+### 10:32 UTC — Editor: Scientist
+
+#### Sub-Issue #177 — patient_001 results analysis notebook
+
+Created `research/notebooks/patient_001_results.ipynb` by copying the patient_002 template and adapting:
+- BUCKET / CACHE_DIR → patient_001 paths
+- Title block: SRR9143066 (gastric cancer) + SRR9143065 matched normal (vs. patient_002's BG003082 osteosarcoma + WES-only normal)
+- Junction-analysis intro: rephrased to reflect matched RNA-seq normal applied (vs. patient_002's no-matched-normal caveat)
+- HLA-allele dominance intro: listed the actual tumor-first HLA calls used by MHCflurry (HLA-A\*31:01/A\*26:01, HLA-B\*15:63/B\*18:01, HLA-C\*07:01/C\*03:03); reframed cross-patient question — does HLA-C dominance persist with patient_001's different HLA-C alleles?
+- Top-candidate cell (5.2): rewrite around SQIPRTHSY / HLA-C\*07:01 (from `report.tsv`); cross-patient note that both top candidates land at GPS ≈ 0.9999, IC50 ≈ 33–34 nM despite different splice contexts and different HLA-C alleles (C\*01:02 vs C\*07:01)
+- Inflation-check comment (6.3): generalised, with explicit cross-reference to patient_002's 174 cases
+- Section 7 summary: converted to a fill-in-after-run template scaffolded for cross-patient comparison
+
+Ran the notebook end-to-end via `jupyter nbconvert --execute --inplace` (1h timeout). All cells executed cleanly; the `parallel_process_count=1` fix held for the gsutil cp downloads (~633 MiB total: 97 MiB peptides + 536 MiB mhc_presentation), and the atomic `.tmp + os.rename` pattern left no `.gstmp` leftovers.
+
+**Key first-look findings (full interpretation pending):**
+- GPS inflation cases: **25 candidates** with `GPS > 0.9` and `n_strong_alleles = 0` (vs. 174 in patient_002 — large drop)
+- HLA-C dominance partially recapitulated: HLA-C\*03:03 (33.7% as best) + HLA-C\*07:01 (23.5%) = **~57% of strong presenters** (less extreme than patient_002's ~69%)
+- HLA-A\*31:01 is surprisingly active here (28.2% as best) — different role from patient_002's nearly-silent HLA-A\*01:01
+- HLA-B\*18:01 is the quietest in patient_001 (median percentile 10.7 — analogous to HLA-A\*01:01 in patient_002)
+
+**Doc note:** RESULTS.md still describes HLA typing under the legacy "normal-first policy" wording; the pipeline now uses tumor-first. This is a stale-doc issue to clean up in a separate PR — not blocking this one.
+
+---
+
 ### 09:05 UTC — Editor: Scientist
 
 #### Issue #186 — Discussion section on immune-pathway gene neoepitopes and presentation paradox
