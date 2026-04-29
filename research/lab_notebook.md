@@ -4,6 +4,18 @@
 
 ## 2026-04-29
 
+### 14:09 UTC — Editor: Scientist
+
+#### PR #189 — review round 2: stale cross-reference in patient_002
+
+Second review on [PR #189](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/189) confirmed all round-1 fixes verified, with one trivial leftover: `patient_002_results.ipynb` §7 finding 6 read `"58,914 vs 27,347"` — the patient_001 cross-reference was a pre-fix value. After round 1 corrected patient_001's tumor_exclusive count to 27,348, this cross-reference stayed stale.
+
+Updated to `27,348`. Functionally harmless (the "~2×" ratio was unchanged) but internally inconsistent across the two notebooks.
+
+Pattern lesson recorded: when a number is corrected in one Jupyter notebook, every cross-reference to it from other notebooks/docs needs to be searched and updated — copy-paste of values between notebooks is a recurring vector for stale drift.
+
+---
+
 ### 13:49 UTC — Editor: Scientist
 
 #### PR #189 — review fixes (junction-count mislabel + minors)
