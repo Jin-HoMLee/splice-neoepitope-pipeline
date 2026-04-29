@@ -72,7 +72,8 @@ complete-codon junction-spanning filter applied. `peptide_lengths: [8, 9, 10]`
 97.9% of peptides are unique sequences. Peptide totals are computed in
 `research/notebooks/patient_001_results.ipynb` §3 from `peptides_novel.tsv`;
 the total matches `report.tsv` `mhc_prediction.total_predictions` (one prediction
-per unique peptide).
+per input peptide; duplicate sequences from different junctions or reading frames
+are each predicted separately).
 
 ### MHC Presentation Predictions
 

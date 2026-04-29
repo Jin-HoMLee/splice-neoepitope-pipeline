@@ -4,6 +4,18 @@
 
 ## 2026-04-29
 
+### 19:51 UTC — Editor: Scientist
+
+#### PR #196 — review fix: `(one prediction per unique peptide)` parenthetical incorrect
+
+Claude review on [PR #196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/196) caught one substantive inconsistency: `RESULTS.md` Peptide Translation section said `(one prediction per unique peptide)` but `total_predictions = 1,286,492` matches the total peptide count, not the unique count (1,260,074). `Class1PresentationPredictor` predicts on all input peptides; duplicate sequences from different junctions or reading frames are each predicted separately.
+
+Fixed parenthetical to `(one prediction per input peptide; duplicate sequences from different junctions or reading frames are each predicted separately)`.
+
+Review also noted a pre-existing stale `ProcessPoolExecutor` claim in CONCLUSIONS.md §Significance — added to [Issue #197](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/197) scope alongside the patient_002 KF#5–7 staleness and METHODS.md reconciliation.
+
+---
+
 ### 15:21 UTC — Editor: Scientist
 
 #### Issue #178 — patient_001 results into RESULTS.md (consolidation of #171)
