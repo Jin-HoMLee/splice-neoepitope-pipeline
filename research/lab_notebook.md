@@ -4,6 +4,31 @@
 
 ## 2026-04-29
 
+### 10:32 UTC — Editor: Scientist
+
+#### Sub-Issue #177 — patient_001 results analysis notebook
+
+Created `research/notebooks/patient_001_results.ipynb` by copying the patient_002 template and adapting:
+- BUCKET / CACHE_DIR → patient_001 paths
+- Title block: SRR9143066 (gastric cancer) + SRR9143065 matched normal (vs. patient_002's BG003082 osteosarcoma + WES-only normal)
+- Junction-analysis intro: rephrased to reflect matched RNA-seq normal applied (vs. patient_002's no-matched-normal caveat)
+- HLA-allele dominance intro: listed the actual tumor-first HLA calls used by MHCflurry (HLA-A\*31:01/A\*26:01, HLA-B\*15:63/B\*18:01, HLA-C\*07:01/C\*03:03); reframed cross-patient question — does HLA-C dominance persist with patient_001's different HLA-C alleles?
+- Top-candidate cell (5.2): rewrite around SQIPRTHSY / HLA-C\*07:01 (from `report.tsv`); cross-patient note that both top candidates land at GPS ≈ 0.9999, IC50 ≈ 33–34 nM despite different splice contexts and different HLA-C alleles (C\*01:02 vs C\*07:01)
+- Inflation-check comment (6.3): generalised, with explicit cross-reference to patient_002's 174 cases
+- Section 7 summary: converted to a fill-in-after-run template scaffolded for cross-patient comparison
+
+Ran the notebook end-to-end via `jupyter nbconvert --execute --inplace` (1h timeout). All cells executed cleanly; the `parallel_process_count=1` fix held for the gsutil cp downloads (~633 MiB total: 97 MiB peptides + 536 MiB mhc_presentation), and the atomic `.tmp + os.rename` pattern left no `.gstmp` leftovers.
+
+**Key first-look findings (full interpretation pending):**
+- GPS inflation cases: **25 candidates** with `GPS > 0.9` and `n_strong_alleles = 0` (vs. 174 in patient_002 — large drop)
+- HLA-C dominance partially recapitulated: HLA-C\*03:03 (33.7% as best) + HLA-C\*07:01 (23.5%) = **~57% of strong presenters** (less extreme than patient_002's ~69%)
+- HLA-A\*31:01 is surprisingly active here (28.2% as best) — different role from patient_002's nearly-silent HLA-A\*01:01
+- HLA-B\*18:01 is the quietest in patient_001 (median percentile 10.7 — analogous to HLA-A\*01:01 in patient_002)
+
+**Doc note:** RESULTS.md still describes HLA typing under the legacy "normal-first policy" wording; the pipeline now uses tumor-first. This is a stale-doc issue to clean up in a separate PR — not blocking this one.
+
+---
+
 ### 09:05 UTC — Editor: Scientist
 
 #### Issue #186 — Discussion section on immune-pathway gene neoepitopes and presentation paradox
