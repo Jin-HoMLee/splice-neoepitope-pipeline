@@ -4,6 +4,64 @@
 
 ## 2026-04-29
 
+### 19:51 UTC — Editor: Scientist
+
+#### PR #196 — review fix: `(one prediction per unique peptide)` parenthetical incorrect
+
+Claude review on [PR #196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/196) caught one substantive inconsistency: `RESULTS.md` Peptide Translation section said `(one prediction per unique peptide)` but `total_predictions = 1,286,492` matches the total peptide count, not the unique count (1,260,074). `Class1PresentationPredictor` predicts on all input peptides; duplicate sequences from different junctions or reading frames are each predicted separately.
+
+Fixed parenthetical to `(one prediction per input peptide; duplicate sequences from different junctions or reading frames are each predicted separately)`.
+
+Review also noted a pre-existing stale `ProcessPoolExecutor` claim in CONCLUSIONS.md §Significance — added to [Issue #197](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/197) scope alongside the patient_002 KF#5–7 staleness and METHODS.md reconciliation.
+
+---
+
+### 15:21 UTC — Editor: Scientist
+
+#### Issue #178 — patient_001 results into RESULTS.md (consolidation of #171)
+
+Mirroring the patient_002 RESULTS.md layout, replaced the legacy patient_001 section
+(pre-#148, IC50-based Run 1 / Run 2 comparison) with the post-#148 valid-run numbers in
+the 8-section structure: Dataset / HLA Typing / Junction Filtering / Peptide Translation
+/ MHC Presentation / GPS / Top Candidate / TCRdock.
+
+Source-of-truth hierarchy applied per [user clarification](
+https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/178):
+
+- **`report.tsv` first** — junction filtering (unannotated/normal_shared/tumor_exclusive),
+  MHC class breakdown, top-candidate fields, HLA typing rows, TCRdock pdb flag.
+- **Notebook post-calculations** only for what `report.tsv` doesn't expose — peptide
+  length distribution, unique-peptide count, strong-presenters-per-allele, GPS
+  distribution stats, per-allele dominance summary, read-support stats.
+- **Alignment intermediate** for the two top-of-funnel rows (`junctions_extracted_total`
+  and `junctions_annotated_discarded`) until [Issue #104](
+  https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104) adds them to
+  `report.tsv` directly. Computed from `gs://splice-neoepitope-project/results/patient_001/alignment/SRR9143066/junctions.tsv`
+  line count = 146,647; annotated discarded = 146,647 − 30,029 = 116,618. Both rows
+  are explicitly tagged with their derivation in the section.
+
+Stale-number diff caught at source: current RESULTS.md said `146,644` total / `116,615`
+annotated — both off by 3 from the post-#148 line count. Likely carried over from the
+pre-#148 run. Patient_002's parallel rows verified separately (`alignment/BG003082_T0/junctions.tsv`
+line count = 364,168, matches RESULTS.md exactly) — no fix needed there.
+
+HLA typing section rewritten: the legacy "normal-first policy" wording was incorrect for
+this run — `report.tsv` `hla_typing` rows show `source: tumor` for all three loci. The
+MHCflurry predictions consumed the tumor calls (HLA-B = B\*18:01 / B\*15:63), not the
+normal calls (B\*15:01 / B\*18:02) that the old RESULTS.md table listed. Documented the
+B-locus tumor-vs-normal noise pattern factually without reasserting a policy.
+
+Cross-patient framing kept tight: HLA-C dominance partial (57.2% vs ~69% in patient_002),
+GPS top candidates landing at GPS ≈ 0.9999 / IC50 ≈ 33–34 nM in both patients despite
+different best-allele HLA-C — suggests structural ceiling at the GPS-best slot.
+
+Open follow-up: [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104)
+will collapse the alignment-intermediate rows into `report.tsv`; once it lands the
+section can be re-pointed entirely at `report.tsv` and the lab-notebook footnote
+removed.
+
+---
+
 ### 14:09 UTC — Editor: Scientist
 
 #### PR #189 — review round 2: stale cross-reference in patient_002

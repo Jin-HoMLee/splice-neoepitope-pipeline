@@ -20,24 +20,29 @@ candidates with predicted TCR–peptide–MHC ternary complex structures.
 Applied to a matched gastric cancer tumor/normal RNA-seq pair (patient_001,
 SRR9143066/SRR9143065), the pipeline:
 
-1. **Identified 27,347 tumor-exclusive splice junctions** from 146,644 total extracted
+1. **Identified 27,348 tumor-exclusive splice junctions** from 146,647 total extracted
    junctions (18.6%). Junction-level filtering against the matched normal eliminated
    79.5% annotated junctions and an additional 1.8% unannotated but normal-shared
    junctions.
 
-2. **Translated 433,129 junction-spanning 9-mers** (424,133 unique sequences) from
-   tumor-exclusive contigs across all three reading frames, applying a conservative
-   complete-codon rule at the junction boundary.
+2. **Translated 1,286,492 junction-spanning peptides** (1,260,074 unique sequences,
+   97.9%) from tumor-exclusive contigs across 8/9/10-mer lengths and all three reading
+   frames, applying a conservative complete-codon rule at the junction boundary
+   (`peptide_lengths: [8, 9, 10]`, PR #99).
 
-3. **Predicted 14,990 strong binders** (IC50 ≤ 50 nM, 0.58% of 2,598,774 predictions)
-   and 99,444 weak binders (IC50 ≤ 500 nM, 3.83%) across all six patient-specific HLA
-   class I alleles. The HLA-B locus showed a normal/tumor typing discrepancy (normal:
-   B\*15:01/B\*18:02; tumor: B\*15:63/B\*18:01), consistent with noise in tumor RNA
-   typing rather than true LOH; normal calls were used per the normal-first policy.
+3. **Predicted 44,916 strong presenters** (presentation percentile ≤ 0.5%, 3.5% of
+   1,286,492 predictions) and 125,775 weak presenters (≤ 2.0%, 9.8%) across all six
+   patient-specific HLA class I alleles, using MHCflurry 2.x `Class1PresentationPredictor`
+   (genotype-level call returning one best-allele prediction per peptide). The HLA-B
+   locus showed a normal/tumor typing discrepancy (normal: B\*15:01/B\*18:02; tumor:
+   B\*18:01/B\*15:63), consistent with noise in tumor RNA typing rather than true LOH;
+   the run used the tumor calls per `report.tsv`.
 
-4. **Identified EVAEYNASF / HLA-A\*26:01 (IC50 = 16.5 nM)** as the top neoepitope
-   candidate. TCRdock structural prediction of the TCR–peptide–MHC ternary complex was
-   successfully completed on GCP GPU infrastructure (NVIDIA P100, 16 GB VRAM).
+4. **Identified SQIPRTHSY / HLA-C\*07:01 (IC50 = 33.6 nM, presentation percentile
+   = 0.0052%, GPS = 0.9999)** as the top neoepitope candidate, ranked by Genotype
+   Presentation Score and presented as strong by 5 of 6 patient alleles. TCRdock
+   structural prediction of the TCR–peptide–MHC ternary complex was successfully
+   completed on GCP GPU infrastructure (NVIDIA P100, 16 GB VRAM).
 
 Applied to an osteosarcoma tumor-only sample (patient_002, BG003082 T0) without a
 matched RNA-seq normal, the pipeline:
