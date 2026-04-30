@@ -222,3 +222,6 @@ pipeline.log
 
 # macOS metadata
 .DS_Store
+
+# Claude Code — per-machine, per-worktree notes (e.g. role binding, local paths)
+CLAUDE.local.md
