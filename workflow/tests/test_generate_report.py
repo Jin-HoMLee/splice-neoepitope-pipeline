@@ -10,6 +10,7 @@ from generate_report import (
     _build_strong_table_html,
     _df_to_html,
     _extract_chain_ids,
+    _load_report_tsv,
 )
 
 
@@ -237,6 +238,108 @@ class TestBuildReportTsv:
         df = pd.read_csv(out, sep="\t")
         assert df[df["stage"] == "mhc_prediction"].empty
         assert df[df["stage"] == "top_candidate"].empty
+
+
+class TestLoadReportTsv:
+    """Round-trip: writer output must load into the projections HTML rendering needs."""
+
+    def _write_round_trip(self, tmp_path, *, hla_qc_tsv=None, tcrdock_pdb=None):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(tumor_exclusive=7, normal_shared=3),
+            pred_df=_make_pred_df(n_strong=3, n_weak=1, n_non=10),
+            hla_qc_tsv=hla_qc_tsv,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=tcrdock_pdb,
+        )
+        return _load_report_tsv(out)
+
+    def test_returns_dict_with_expected_top_level_keys(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        assert set(loaded.keys()) >= {
+            "junction_filtering", "mhc_prediction", "mhc_prediction_thresholds",
+            "top_candidate", "hla_typing", "tcrdock",
+        }
+
+    def test_junction_filtering_is_wide_dataframe(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        jf = loaded["junction_filtering"]
+        assert isinstance(jf, pd.DataFrame)
+        assert list(jf.columns) == [
+            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+        ]
+        assert int(jf.iloc[0]["tumor_exclusive"]) == 7
+        assert int(jf.iloc[0]["normal_shared"]) == 3
+        assert int(jf.iloc[0]["unannotated"]) == 10
+        assert jf.iloc[0]["sample_id"] == "S1"
+        assert jf.iloc[0]["sample_type"] == "Primary Tumor"
+
+    def test_mhc_prediction_counts_loaded_as_ints(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        mp = loaded["mhc_prediction"]
+        assert mp["total_predictions"] == 14
+        assert mp["strong"] == 3
+        assert mp["weak"] == 1
+        assert mp["non"] == 10
+        assert all(isinstance(v, int) for v in mp.values())
+
+    def test_mhc_prediction_thresholds_loaded(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        thresholds = loaded["mhc_prediction_thresholds"]
+        assert "strong" in thresholds
+        assert "0.5" in thresholds["strong"]
+
+    def test_top_candidate_numerics_typed(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        tc = loaded["top_candidate"]
+        assert tc["peptide"] == "PEP0"
+        assert isinstance(tc["presentation_percentile"], float)
+        assert tc["presentation_percentile"] == pytest.approx(0.1)
+        assert isinstance(tc["ic50_nM"], float)
+
+    def test_hla_typing_keyed_by_locus(self, tmp_path):
+        hla_tsv = tmp_path / "hla_qc.tsv"
+        pd.DataFrame([
+            {"locus": "A", "allele1": "HLA-A*02:01", "allele2": "HLA-A*24:02",
+             "source": "tumor", "reads": 500, "discrepancy": "",
+             "serology_allele1": "", "serology_allele2": "", "serology_validation": ""},
+        ]).to_csv(hla_tsv, sep="\t", index=False)
+        loaded = self._write_round_trip(tmp_path, hla_qc_tsv=str(hla_tsv))
+        hla = loaded["hla_typing"]
+        assert "A" in hla
+        assert "HLA-A*02:01" in hla["A"]["alleles"]
+        assert "tumor" in hla["A"]["notes"]
+
+    def test_tcrdock_pdb_available_is_bool_false(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        assert loaded["tcrdock"]["pdb_available"] is False
+
+    def test_tcrdock_pdb_available_is_bool_true(self, tmp_path):
+        pdb = tmp_path / "model.pdb"
+        pdb.write_text("ATOM\n")
+        loaded = self._write_round_trip(tmp_path, tcrdock_pdb=pdb)
+        assert loaded["tcrdock"]["pdb_available"] is True
+
+    def test_empty_predictions_returns_empty_dicts(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), pd.DataFrame(), None, out, 0.5, None)
+        loaded = _load_report_tsv(out)
+        assert loaded["mhc_prediction"] == {}
+        assert loaded["top_candidate"] == {}
+
+    def test_missing_junction_filtering_returns_empty_dataframe(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        # Empty origin_df + empty pred_df → no junction_filtering rows written
+        _build_report_tsv("p001", pd.DataFrame(), pd.DataFrame(), None, out, 0.5, None)
+        loaded = _load_report_tsv(out)
+        jf = loaded["junction_filtering"]
+        assert isinstance(jf, pd.DataFrame)
+        assert jf.empty
+        assert list(jf.columns) == [
+            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+        ]
 
 
 # ---------------------------------------------------------------------------

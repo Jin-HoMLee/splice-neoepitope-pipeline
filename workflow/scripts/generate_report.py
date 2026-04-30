@@ -22,6 +22,7 @@ import html as html_mod
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from Bio import SeqIO
@@ -918,6 +919,118 @@ def _build_report_3d_structure_tsv(
         output_path, sep="\t", index=False
     )
     log.info("3D structure manifest written to %s", output_path)
+
+
+# Numeric metrics in the top_candidate stage — typed back to float on load.
+# Mirrors the writer's set in _build_report_tsv. Keep in sync with the writer.
+_TOP_CANDIDATE_NUMERIC_METRICS = frozenset({
+    "presentation_percentile", "ic50_nM", "genotype_presentation_score",
+})
+
+
+def _load_report_tsv(path: str | Path) -> dict[str, Any]:
+    """Load report.tsv into a stage-keyed structure for HTML rendering.
+
+    Inverts the long-format ``patient_id | stage | metric | value | notes`` shape
+    written by ``_build_report_tsv`` into per-stage projections. Non-lossless
+    by design — only the projections HTML needs are exposed; consumers needing
+    the raw long form should read the TSV directly.
+
+    Returns:
+        {
+          'junction_filtering':        DataFrame[sample_id, sample_type,
+                                                 unannotated, normal_shared, tumor_exclusive],
+          'mhc_prediction':            {metric: int}      # total_predictions + class counts
+          'mhc_prediction_thresholds': {metric: str}      # threshold notes per class
+          'top_candidate':             {metric: str|float}# numerics typed; strings as-is
+          'hla_typing':                {locus: {alleles, notes}}  # locus stripped of "HLA-" prefix
+          'tcrdock':                   {metric: bool}     # pdb_available cast to bool
+        }
+    """
+    df = pd.read_csv(path, sep="\t")
+
+    out: dict[str, Any] = {
+        "junction_filtering": _empty_origin_df(),
+        "mhc_prediction": {},
+        "mhc_prediction_thresholds": {},
+        "top_candidate": {},
+        "hla_typing": {},
+        "tcrdock": {},
+    }
+
+    # --- junction_filtering: long → wide, parsing "sid (stype)" from notes ---
+    jf = df[df["stage"] == "junction_filtering"]
+    if not jf.empty:
+        rows: dict[tuple[str, str], dict] = {}
+        for _, r in jf.iterrows():
+            note = str(r.get("notes", "")).strip()
+            # Format produced by writer: "<sample_id> (<sample_type>)"
+            if " (" in note and note.endswith(")"):
+                sid, rest = note.rsplit(" (", 1)
+                stype = rest[:-1]
+            else:
+                sid, stype = note, ""
+            key = (sid, stype)
+            row = rows.setdefault(key, {"sample_id": sid, "sample_type": stype})
+            row[str(r["metric"])] = int(r["value"])
+        origin_df = pd.DataFrame(list(rows.values()))
+        for col in ("unannotated", "normal_shared", "tumor_exclusive"):
+            if col not in origin_df.columns:
+                origin_df[col] = 0
+        out["junction_filtering"] = origin_df[
+            ["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
+        ]
+
+    # --- mhc_prediction: counts (int) + thresholds (str) ---
+    mp = df[df["stage"] == "mhc_prediction"]
+    for _, r in mp.iterrows():
+        metric = str(r["metric"])
+        out["mhc_prediction"][metric] = int(r["value"])
+        if metric != "total_predictions":
+            note = r.get("notes", "")
+            if pd.notna(note) and str(note).strip():
+                out["mhc_prediction_thresholds"][metric] = str(note)
+
+    # --- top_candidate: numerics typed, strings as-is ---
+    tc = df[df["stage"] == "top_candidate"]
+    for _, r in tc.iterrows():
+        metric = str(r["metric"])
+        value = r["value"]
+        if metric in _TOP_CANDIDATE_NUMERIC_METRICS:
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                pass
+        else:
+            value = str(value)
+        out["top_candidate"][metric] = value
+
+    # --- hla_typing: keyed by locus (HLA- prefix stripped) ---
+    ht = df[df["stage"] == "hla_typing"]
+    for _, r in ht.iterrows():
+        locus = str(r["metric"]).removeprefix("HLA-")
+        out["hla_typing"][locus] = {
+            "alleles": str(r["value"]),
+            "notes": "" if pd.isna(r.get("notes")) else str(r["notes"]),
+        }
+
+    # --- tcrdock: pdb_available cast to bool ---
+    td = df[df["stage"] == "tcrdock"]
+    for _, r in td.iterrows():
+        metric = str(r["metric"])
+        if metric == "pdb_available":
+            out["tcrdock"][metric] = (str(r["value"]).strip().lower() == "true")
+        else:
+            out["tcrdock"][metric] = r["value"]
+
+    return out
+
+
+def _empty_origin_df() -> pd.DataFrame:
+    """Empty origin DataFrame with the canonical column set."""
+    return pd.DataFrame(columns=[
+        "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+    ])
 
 
 def generate_report(
