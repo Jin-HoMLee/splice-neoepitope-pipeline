@@ -31,7 +31,7 @@ SRR9143066/SRR9143065), the pipeline:
    (`peptide_lengths: [8, 9, 10]`, PR #99).
 
 3. **Predicted 44,916 strong presenters** (presentation percentile ≤ 0.5%, 3.5% of
-   1,286,492 predictions) and 125,775 weak presenters (≤ 2.0%, 9.8%) across all six
+   1,286,492 predictions) and 125,775 weak presenters (0.5% < percentile ≤ 2.0%, 9.8%) across all six
    patient-specific HLA class I alleles, using MHCflurry 2.x `Class1PresentationPredictor`
    (genotype-level call returning one best-allele prediction per peptide). The HLA-B
    locus showed a normal/tumor typing discrepancy (normal: B\*15:01/B\*18:02; tumor:
@@ -61,7 +61,7 @@ matched RNA-seq normal, the pipeline:
    (`peptide_lengths: [8, 9, 10]`, PR #99).
 
 7. **Predicted 67,935 strong presenters** (presentation percentile ≤ 0.5%, 2.9% of
-   2,330,687 predictions) and 222,823 weak presenters (≤ 2.0%, 9.6%) across all five
+   2,330,687 predictions) and 222,823 weak presenters (0.5% < percentile ≤ 2.0%, 9.6%) across all five
    expressed HLA alleles (HLA-A homozygous A\*01:01 counted once), using MHCflurry
    2.x `Class1PresentationPredictor`. **Top candidate FADLRPLLL / HLA-C\*01:02
    (IC50 = 33.2 nM, presentation percentile = 0.0045%, GPS = 0.9999)**, ranked by
