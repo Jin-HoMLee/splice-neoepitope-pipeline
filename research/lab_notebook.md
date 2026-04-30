@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-04-30
+
+### 08:35 UTC — Editor: Scientist
+
+#### PR #199 — review nit: weak-presenter threshold definition tightened
+
+Claude reviewer flagged that `(≤ 2.0%)` for weak presenters is ambiguous — it technically includes the strong-presenter pool (≤ 0.5%). Fixed both patient_001 KF#3 and patient_002 KF#7 in `CONCLUSIONS.md` to use the explicit range `(0.5% < percentile ≤ 2.0%)`, matching the definition already used in `RESULTS.md`. Counts unchanged; wording only.
+
+---
+
 ## 2026-04-29
 
 ### 22:04 UTC — Editor: Scientist
