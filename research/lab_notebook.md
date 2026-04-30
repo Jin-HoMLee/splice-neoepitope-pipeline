@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-04-30
+
+### 14:15 UTC — Editor: Developer
+
+#### Issue #79 Phase 2 — HTML now driven by report.tsv + two new artefacts
+
+Completed the data/presentation decoupling for [Issue #79 (regen report.html from report.tsv)](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/79). Phase 1 yesterday wrote three machine-readable artefacts (`report.tsv`, `report_top_candidates.tsv`, `report_3d_structure.tsv`) but HTML still read the raw pipeline files. Phase 2 inverts that — `generate_report()` now writes the artefacts first, then reloads them and renders HTML from those projections.
+
+**New helpers in `generate_report.py`:**
+
+- `_load_report_tsv(path)` — long→wide pivot returning per-stage projections (junction_filtering DataFrame, mhc_prediction count dict, top_candidate dict, hla_typing dict, tcrdock dict). Non-lossless by design — exposes only what the HTML render needs.
+- `_render_contig_peek(peek)` — parses the bracketed plain-text peek from `report_top_candidates.tsv` (e.g. `AAA[CC|GG]TTT`) into the same span-classed HTML `_render_contig` produces from raw sequence. Round-trip locked in by test.
+- `_build_strong_table_html_from_top_candidates(df)` — consumes the wide TSV directly. No raw `pred_df` or contigs FASTA needed; the writer's quality gate, sort order, and `TOP_CANDIDATES_LIMIT=10` cap all flow through automatically.
+- `_presenter_counts_html(mhc_prediction_dict)` — renders presentation-class counts from the loaded `report.tsv` projection.
+- `_resolve_top_candidate_from_manifest()` / `_resolve_top_candidate_for_structure()` — split the two sourcing paths for the 3D viewer's annotation; `_build_structure_section()` signature simplified to `(pdb_path, peptide, allele)`.
+
+**Vocabulary sweep** per `developer/shared/feedback_presenters_terminology.md`: "binder" → "presenter" / "presentation" everywhere user-facing and in internal naming. The IC50 column tooltip "Binding affinity in nM" stays — IC50 IS binding affinity per the rule's stated exception.
+
+**Backward compat:** when `output_tsv` / `output_top_candidates_tsv` / `output_3d_structure_tsv` aren't passed (CLI-only path), the original raw-input renderers are used as fallbacks. No regression for ad-hoc `python generate_report.py` runs.
+
+**Verified:**
+
+- `pytest workflow/tests/`: **226/226 passing** (16 new tests added across `TestRenderContigPeek`, `TestBuildStrongTableHtmlFromTopCandidates`, `TestPresenterCountsHtml`, `TestGenerateReportEndToEnd`)
+- `snakemake -n --configfile config/test_config.yaml`: 6 jobs, `generate_report` resolves
+- `snakemake -n` with GPU overlay: 7 jobs, `generate_report_with_structure` resolves with the 3D manifest output
+
+**Two commits on top of yesterday's three:**
+
+- `3f55309` — feat(report): add `_load_report_tsv()` loader for HTML decoupling
+- `0e1610f` — refactor(report): drive HTML from report.tsv + top-candidates + 3D manifest
+
+**Follow-up still scoped under [Issue #198](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/198):** distributing artefact ownership across the producing scripts (move `report_top_candidates.tsv` and `report_3d_structure.tsv` writes to `run_mhcflurry.py` and `run_tcrdock.py` respectively). Today's PR keeps writers in `generate_report.py` for atomicity — `#198` will redistribute.
+
+---
+
 ## 2026-04-29
 
 ### 19:51 UTC — Editor: Scientist
