@@ -4,6 +4,29 @@
 
 ## 2026-04-30
 
+### 10:54 UTC — Editor: Scientist
+
+#### Issue #190 — decomposition session for Issue #86 (patient-HLA-matched TCR panel)
+
+Decomposed [parent Issue #86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) into three implementation sub-issues. The big scope decision in this session was **collapsing the structural fan-out**: #86's original spec (top 10 TCRs/allele × top neoepitope) implied ~60 TCRdock jobs/patient (~30 h on P100 — Scientist-side estimate, not measured). After discussion we landed on a much narrower and more honest scope:
+
+- **Panel itself stays at top 10/allele** as a *reference set* surfaced in the report (transparency about which TCRs were considered)
+- **TCRdock structural prediction stays at 1 prediction/patient** (today's baseline) — single TCR × top neoepitope × top neoepitope's `best_allele`, but now HLA-matched instead of the hardcoded DMF5
+- **Selection rule:** highest VDJdb confidence in the panel for the top neoepitope's `best_allele`, with VDJdb donor ID as deterministic tiebreaker
+
+Why this works: today's pipeline runs DMF5 (HLA-A\*02:01-restricted) regardless of the patient's actual `best_allele`, which is structurally meaningless when the top neoepitope binds e.g. HLA-C\*07:01. Just swapping in an HLA-matched TCR — even a single one — is the core scientific gain of #86. Multi-TCR variance measurement is interesting but a separate experiment, not a production blocker.
+
+**Supertype / 2-digit fallback decision.** The narrowed scope (1 TCR instead of 10) makes the "0 exact matches" case bite harder — we drop straight to DMF5. Considered moving supertype fallback in-scope here. Decided to defer (option a) but **instrument now**: [sub-issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) logs per-allele exact-match counts in a `vdjdb_panel_qc.tsv` sidecar. If patient_001/002's alleles show poor coverage in practice, we file a focused follow-up with the actual data. Avoids speculative scope creep + Sidney 2008 vs Lund 2004 supertype-table debates that don't yet have empirical motivation.
+
+**Output:**
+- [Sub-Issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) — `feat(tcrdock): fetch_vdjdb_panel Snakemake rule + stitchr/VDJdb setup` (M)
+- [Sub-Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) — `feat(tcrdock): select HLA-matched top TCR from panel for structural prediction` (S, blocked by #204)
+- [Sub-Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) — `feat(report): surface VDJdb panel + matched TCR in report.html` (S, blocked by #205)
+
+All three linked under [parent #86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) and on the M5 - Modeling i2 milestone. [Issue #190](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/190) closed by the PR carrying this notebook entry.
+
+---
+
 ### 08:35 UTC — Editor: Scientist
 
 #### PR #199 — review nit: weak-presenter threshold definition tightened
