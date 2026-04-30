@@ -227,17 +227,17 @@ DNA is available but cannot substitute: `regtools junctions extract` requires re
 spliced CIGAR operations (`N`), which are absent from DNA-seq alignments. Running the
 pipeline without a normal labels all unannotated junctions `tumor_exclusive`.
 
-The patient_002 T0 run completed with 347,046 raw tumor junctions; 291,131 were
-annotated (GENCODE v47) and discarded, leaving 55,915 unannotated junctions.
-BG003082_N0_WES (WES, DNA) was used as the normal input. Although HISAT2 produced
-106,474 junctions from the WES alignment, only 3 overlapped with the tumor set —
-consistent with WES-derived spliced reads being largely alignment artifacts rather
-than biological splice events. Those 3 were discarded as normal-shared, leaving
-55,912 tumor-exclusive candidates.
+The patient_002 T0 run completed with 364,168 raw tumor junctions; 305,254 were
+annotated (GENCODE v47) and discarded, leaving 58,914 unannotated junctions.
+BG003082_N0_WES (WES, DNA) was used as the normal input — successfully for HLA
+typing, but it contributes no junctions to normal subtraction by design (WES
+alignments yield zero spliced reads, since `regtools junctions extract` requires
+`N` CIGAR operations). All 58,914 unannotated junctions are therefore labelled
+`tumor_exclusive` with a warning.
 
 For reference, patient_001 had an 8.9% normal-shared rate among unannotated junctions
-using a matched RNA-seq normal. The WES proxy provides minimal filtering (effectively
-none), so a corresponding fraction of the 55,912 candidates likely represent
+using a matched RNA-seq normal. The WES proxy provides no junction-level filtering,
+so a corresponding fraction of the 58,914 candidates likely represent
 patient-specific but non-tumor splicing. Given the downstream MHCflurry and TCRdock
 filtering steps, the impact on the final top candidates is expected to be limited, but
 results should be interpreted with this caveat.

@@ -9,6 +9,10 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 ## Infrastructure
 - Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
 - Current production VMs: `neoepitope-pipeline` (n1-highmem-8 + P100, Phase 1), `pipeline-spot-gpu` (n1-standard-4 + P100, Phase 3); zone `europe-west1-b` (us-central1 has been exhausted in the past)
+- `neoepitope-orchestrator` (e2-micro) — lightweight companion VM that starts and manages the pipeline VM in detached mode; stays running cheaply between pipeline runs
+- GCS bucket: `gs://splice-neoepitope-project` — results at `.../results/<patient_id>/`, logs at `.../logs/`
+- `run_cloud_gpu.sh` defaults to the current local branch; the VM git-pulls it automatically — no `--branch` flag needed unless deliberately running a different branch on the VM
+- **NVIDIA driver pinned to `nvidia-headless-570-server` (DKMS)** — do not upgrade. Driver ≥575 dropped P100 Pascal (SM 6.0) support. Image family `common-cu129-ubuntu-2204-nvidia-580` is used but the driver is overridden to 570 in the setup script.
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 
 ## Pipeline Design Decisions
@@ -32,6 +36,32 @@ TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather tha
 ### PDB chain relabelling
 AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
 
+## MHC Presentation Vocabulary
+
+This pipeline uses **`Class1PresentationPredictor`** (MHCflurry 2.x), which scores *presentation likelihood* — a combined estimate of binding affinity + antigen processing. It is distinct from the older `Class1AffinityPredictor` (affinity-only).
+
+Relevant output columns (use these names in code, reports, and prose):
+
+- `presentation_class` — `strong | weak | non`
+- `presentation_score`, `presentation_percentile`, `best_presentation_percentile`
+- `genotype_presentation_score`
+- `n_strong_alleles`
+
+Use **"presenter" / "top presenters" / "presentation percentile"** throughout. Avoid **"binder" / "top binders" / "binding affinity threshold"** — those refer to the affinity-only predictor we do not use as the primary ranker. IC50 (`ic50_nM`) is still emitted for reference but is a secondary metric.
+
+## Snakemake Conda Activation
+
+Always activate the environment explicitly before invoking Snakemake:
+
+```bash
+conda activate snakemake
+snakemake --cores $(nproc) --use-conda ...
+```
+
+**Do not** use `conda run -n snakemake snakemake ...` — `conda run` buffers all stdout, hiding real-time log output during the run.
+
+**Conda env cleanup after `workflow/envs/*.yaml` changes:** Automatic cleanup was removed from `run_cloud_gpu.sh`. When any `workflow/envs/*.yaml` file changes, manually delete the affected old environment on the VM before running — old envs will not be rebuilt automatically and stale cached packages will be used instead.
+
 ## Snakemake 8 `--configfile` Gotcha
 In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --configfile B`) causes the second invocation to replace the first due to argparse `nargs="+"` semantics. Only the last file is loaded.
 **Fix:** pass multiple config files in a **single** `--configfile` invocation:
@@ -39,6 +69,19 @@ In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --
 snakemake --configfile config/test_config.yaml config/gpu_config.yaml   # correct
 # NOT: --configfile config/test_config.yaml --configfile config/gpu_config.yaml
 ```
+
+## HISAT2 Index Cache Invalidation
+
+Snakemake skips the index download if `resources/hisat2_index/` already exists (it checks for an `index.done` sentinel file). Changing `hisat2_prebuilt_url` in `config/config.yaml` does **not** invalidate this cache — the old index silently persists and will be used on the next run.
+
+**When changing `hisat2_prebuilt_url`:** delete the index directory on the VM before running:
+
+```bash
+gcloud compute ssh neoepitope-pipeline --zone=europe-west1-b --tunnel-through-iap \
+  --command="rm -rf ~/splice-neoepitope-pipeline/resources/hisat2_index/"
+```
+
+(The chromosome naming mismatch in Issue #148 was caused by this exact scenario.)
 
 ## Config Migration Notes
 
@@ -98,3 +141,4 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 - Both samples are single-end Illumina HiSeq 3000; HISAT2 handles this via `-U` mode
 - HISAT2 index stored in `resources/test/hisat2_index/` (separate from production)
 - All test outputs go to `results/test/` and `logs/test/`
+- **STAR is not usable for local development** — its genome index build requires >8 GB RAM, exceeding the M1 8 GB limit. HISAT2 was chosen for local testing specifically because its index fits within available memory.
