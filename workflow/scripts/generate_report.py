@@ -4,8 +4,8 @@
 Produces a self-contained HTML page showing:
   1. Junction origin summary — counts of tumor_exclusive vs normal_shared
      junctions per sample, so results can be quickly verified.
-  2. Top strong binders — the highest-affinity predicted neoepitopes
-     (IC50 < strong threshold).
+  2. Top strong presenters — the highest-presentation predicted neoepitopes
+     (presentation_percentile <= strong threshold).
 
 Usage (standalone):
   python generate_report.py \\
@@ -52,7 +52,7 @@ flowchart TD
     asm["Contig assembly<br/>50 nt per junction"]
     trans["In-silico translation<br/>3 reading frames - 9-mers"]
     pred["MHCflurry prediction<br/>IC50 + presentation_score per peptide (best allele)"]
-    out(["Neoepitope candidates<br/>strong / weak binders"])
+    out(["Neoepitope candidates<br/>strong / weak presenters"])
 
     reads --> align
     align --> hla
@@ -231,7 +231,7 @@ _HTML_TEMPLATE = """\
   {hla_section}
 
   <h2>Neoepitope prediction summary</h2>
-  {binder_table}
+  {presenter_table}
 
   <h2>Top strong presentations (presentation_percentile &le; {presentation_percentile_strong}%)</h2>
   {strong_table}
@@ -377,6 +377,39 @@ def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
     return contigs
 
 
+def _render_contig_peek(peek: str) -> str:
+    """Render a bracketed contig peek (from report_top_candidates.tsv) as styled HTML.
+
+    Parses the plain-text format produced by ``_build_contig_peek``:
+      - ``[`` and ``]`` enclose peptide nucleotides
+      - ``|`` marks the splice junction
+      - other chars are flanking nucleotides
+
+    Output styling matches ``_render_contig`` so the artefact-driven render
+    looks identical to the raw-driven one.
+    """
+    if not peek:
+        return ""
+    in_peptide = False
+    seen_junction = False
+    parts: list[str] = []
+    for ch in peek:
+        if ch == "[":
+            in_peptide = True
+        elif ch == "]":
+            in_peptide = False
+        elif ch == "|":
+            parts.append('<span class="junction-mark">|</span>')
+            seen_junction = True
+        else:
+            if in_peptide:
+                cls = "nt-pep-down" if seen_junction else "nt-pep-up"
+            else:
+                cls = "nt-down" if seen_junction else "nt-up"
+            parts.append(f'<span class="{cls}">{ch}</span>')
+    return f'<span class="contig">{"".join(parts)}</span>'
+
+
 def _render_contig(seq: str, start_nt: int, end_nt_incl: int,
                    upstream_nt: int = 26) -> str:
     """Render a 50 nt contig as HTML with junction marker and peptide highlighted."""
@@ -406,7 +439,7 @@ def _build_strong_table_html(
     """Build the top strong presentations table ranked by genotype_presentation_score."""
     strong_df = pred_df[pred_df["presentation_class"] == "strong"].copy()
 
-    # Quality gate: at least one allele must reach weak-binder threshold
+    # Quality gate: at least one allele must reach weak-presenter threshold
     if "best_presentation_percentile" in strong_df.columns:
         strong_df = strong_df[strong_df["best_presentation_percentile"] <= presentation_percentile_weak]
 
@@ -480,11 +513,127 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
     return out
 
 
+def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame) -> str:
+    """Build the top presenters table from the wide ``report_top_candidates.tsv``.
+
+    The artefact is already quality-gated, sorted, capped, and carries a
+    plain-text ``contig_peek`` that this function re-styles via
+    ``_render_contig_peek``. No raw inputs needed.
+    """
+    if top_candidates_df is None or top_candidates_df.empty:
+        return "<p><em>No strong presentations found.</em></p>"
+
+    has_gps = "genotype_presentation_score" in top_candidates_df.columns
+
+    rows = []
+    for _, row in top_candidates_df.iterrows():
+        contig_html = _render_contig_peek(str(row.get("contig_peek", ""))) or "<em>n/a</em>"
+
+        gps_cell = ""
+        if has_gps:
+            gps_val = row.get("genotype_presentation_score", "")
+            gps_cell = f"<td>{float(gps_val):.4f}</td>" if gps_val != "" and pd.notna(gps_val) else "<td></td>"
+
+        pct_val = row.get("best_presentation_percentile", "")
+        pct_cell = f"<td>{float(pct_val):.3f}</td>" if pct_val != "" and pd.notna(pct_val) else "<td></td>"
+
+        ic50_val = row.get("ic50_nM", "")
+        ic50_cell = f"<td>{float(ic50_val):.1f}</td>" if ic50_val != "" and pd.notna(ic50_val) else "<td></td>"
+
+        rows.append(
+            f"<tr>"
+            f"<td>{html_mod.escape(str(row.get('contig_key', '')))}</td>"
+            f"<td>{html_mod.escape(str(row.get('peptide', '')))}</td>"
+            f"<td>{html_mod.escape(str(row.get('best_allele', '')))}</td>"
+            f"{pct_cell}"
+            f"{gps_cell}"
+            f"{ic50_cell}"
+            f"<td>{contig_html}</td>"
+            f"</tr>"
+        )
+
+    legend = (
+        "upstream <span class='junction-mark'>|</span> downstream — "
+        "<span class='nt-pep-up'>peptide (upstream)</span> "
+        "<span class='nt-pep-down'>peptide (downstream)</span>"
+    )
+    gps_header = (
+        "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
+        if has_gps else ""
+    )
+    return (
+        f"<table><thead><tr>"
+        f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
+        f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
+        f"{gps_header}"
+        f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
+        f"<th>Contig ({legend})</th>"
+        f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _presenter_counts_html(
+    mp: dict[str, int],
+    thresholds: dict[str, str] | None = None,
+) -> str:
+    """Render the presentation-class count table from the loaded report.tsv projection.
+
+    ``mp`` is the ``mhc_prediction`` dict (from ``_load_report_tsv``); the
+    ``total_predictions`` entry is excluded from the table and the remaining
+    metrics become the per-class rows.
+    """
+    if not mp or all(k == "total_predictions" for k in mp):
+        return "<p><em>No predictions available.</em></p>"
+
+    rows = [(cls, cnt) for cls, cnt in mp.items() if cls != "total_predictions"]
+    if not rows:
+        return "<p><em>No predictions available.</em></p>"
+
+    df = pd.DataFrame(rows, columns=["presentation_class", "count"])
+    return _df_to_html(df)
+
+
 # ---------------------------------------------------------------------------
 # Report generation
 # ---------------------------------------------------------------------------
 
-def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation_percentile_weak: float = 2.0) -> str:
+def _resolve_top_candidate_for_structure(
+    pred_df: pd.DataFrame,
+    presentation_percentile_weak: float = 2.0,
+) -> tuple[str, str]:
+    """Resolve top candidate peptide + allele from raw predictions.
+
+    Mirrors the candidate-selection ranking used by ``run_tcrdock.py`` and
+    ``_build_report_top_candidates_tsv`` so all three surfaces stay aligned.
+    Returns ``("NA", "NA")`` when no candidate passes the quality gate.
+    """
+    presenters = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
+    if "best_presentation_percentile" in presenters.columns:
+        presenters = presenters[presenters["best_presentation_percentile"] <= presentation_percentile_weak]
+    if "genotype_presentation_score" in presenters.columns:
+        presenters = presenters.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    else:
+        presenters = presenters.sort_values("presentation_percentile")
+    top = presenters.head(1)
+    if top.empty:
+        return "NA", "NA"
+    return str(top.iloc[0]["peptide"]), str(top.iloc[0]["best_allele"])
+
+
+def _resolve_top_candidate_from_manifest(
+    structure_manifest: pd.DataFrame,
+) -> tuple[str, str]:
+    """Read top candidate peptide + allele from the 3D structure manifest."""
+    if structure_manifest is None or structure_manifest.empty:
+        return "NA", "NA"
+    top = structure_manifest.iloc[0]
+    return str(top.get("peptide", "NA")), str(top.get("allele", "NA"))
+
+
+def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
     """Build the Mol* 3D viewer section for the top TCRdock candidate.
 
     The PDB is inlined as a JSON string so the HTML report is fully
@@ -492,7 +641,8 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation
 
     Args:
         pdb_path: Path to the TCRdock-predicted PDB file.
-        pred_df:  MHCflurry predictions DataFrame (used for annotation).
+        peptide:  Top candidate peptide (already resolved by caller).
+        allele:   Top candidate allele (already resolved by caller).
 
     Returns:
         HTML string containing the Mol* viewer and inlined PDB.
@@ -503,25 +653,8 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation
         log.warning("Could not read PDB file %s: %s", pdb_path, exc)
         return "<p><em>Structure not available.</em></p>"
 
-    # Annotate with the top candidate's peptide and allele.
-    # Match run_tcrdock.py's candidate selection: quality-gated binders ranked by
-    # genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc.
-    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
-    if "best_presentation_percentile" in binders.columns:
-        binders = binders[binders["best_presentation_percentile"] <= presentation_percentile_weak]
-    if "genotype_presentation_score" in binders.columns:
-        binders = binders.sort_values(
-            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-            ascending=[False, False, True],
-        )
-    else:
-        binders = binders.sort_values("presentation_percentile")
-    top = binders.head(1)
-    if top.empty:
-        peptide, allele = "NA", "NA"
-    else:
-        peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
-        allele  = html_mod.escape(str(top.iloc[0]["best_allele"]))
+    peptide = html_mod.escape(peptide)
+    allele = html_mod.escape(allele)
 
     pdb_text = _build_compnd_records(pdb_text, peptide, allele)
 
@@ -1074,11 +1207,9 @@ def generate_report(
     pred_df = pd.read_csv(predictions_tsv, sep="\t")
     contigs = _load_contigs(contigs_fasta) if contigs_fasta else {}
 
-    # --- Junction origin summary ---
+    # --- Build origin_df (intermediate; also written into report.tsv below) ---
     if junc_df.empty or "junction_origin" not in junc_df.columns:
-        origin_df = pd.DataFrame(
-            columns=["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
-        )
+        origin_df = _empty_origin_df()
     else:
         origin_rows = []
         for sample_id, grp in junc_df.groupby("sample_id"):
@@ -1093,56 +1224,9 @@ def generate_report(
             })
         origin_df = pd.DataFrame(origin_rows)
 
-    origin_html = _df_to_html(origin_df)
-
-    # --- Prediction summary ---
-    if pred_df.empty:
-        binder_html = "<p><em>No predictions available.</em></p>"
-    else:
-        binder_counts = pred_df["presentation_class"].value_counts().reset_index()
-        binder_counts.columns = ["presentation_class", "count"]
-        binder_html = _df_to_html(binder_counts)
-
-    # --- Top strong binders with contig visualisation ---
-    if pred_df.empty:
-        strong_html = "<p><em>No predictions available.</em></p>"
-    else:
-        strong_html = _build_strong_table_html(pred_df, contigs, presentation_percentile_weak=presentation_percentile_weak)
-
-    # --- HLA typing section (optional) ---
-    hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
-
-    # --- TCRdock 3D structure viewer (optional) ---
-    if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
-        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df, presentation_percentile_weak=presentation_percentile_weak)
-    else:
-        structure_section = ""
-
-    # Only load Mol* assets when a structure section is present
-    if structure_section:
-        molstar_assets = (
-            '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
-            '       structural validation produced a PDB for the report. -->\n'
-            '  <script src="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.js"></script>\n'
-            '  <link rel="stylesheet" href="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.css"/>'
-        )
-    else:
-        molstar_assets = ""
-
-    report_html = _HTML_TEMPLATE.format(
-        pipeline_diagram=_PIPELINE_DIAGRAM,
-        origin_table=origin_html,
-        hla_section=hla_section,
-        binder_table=binder_html,
-        strong_table=strong_html,
-        structure_section=structure_section,
-        presentation_percentile_strong=presentation_percentile_strong,
-        molstar_assets=molstar_assets,
-    )
-    output_html.write_text(report_html, encoding="utf-8")
-    log.info("Report written to %s", output_html)
-
     effective_patient_id = patient_id or output_html.parts[-3]
+
+    # === Phase 2: write artefacts FIRST, then render HTML from them ===
 
     if output_tsv:
         _build_report_tsv(
@@ -1176,6 +1260,82 @@ def generate_report(
             pdb_relative_path=pdb_relative_path,
             output_tsv=output_3d_structure_tsv,
         )
+
+    # --- Reload artefacts to drive HTML rendering ---
+    report_data = _load_report_tsv(output_tsv) if output_tsv else None
+    top_candidates_df = (
+        pd.read_csv(output_top_candidates_tsv, sep="\t")
+        if output_top_candidates_tsv else None
+    )
+    structure_manifest = (
+        pd.read_csv(output_3d_structure_tsv, sep="\t")
+        if (output_3d_structure_tsv and docking_scores_tsv) else None
+    )
+
+    # --- Junction origin summary ---
+    origin_html = _df_to_html(
+        report_data["junction_filtering"] if report_data is not None else origin_df
+    )
+
+    # --- Prediction summary (presentation-class counts) ---
+    if report_data is not None:
+        presenter_html = _presenter_counts_html(report_data["mhc_prediction"])
+    elif pred_df.empty:
+        presenter_html = "<p><em>No predictions available.</em></p>"
+    else:
+        presenter_counts = pred_df["presentation_class"].value_counts().reset_index()
+        presenter_counts.columns = ["presentation_class", "count"]
+        presenter_html = _df_to_html(presenter_counts)
+
+    # --- Top presenters table with contig visualisation ---
+    if top_candidates_df is not None:
+        strong_html = _build_strong_table_html_from_top_candidates(top_candidates_df)
+    elif pred_df.empty:
+        strong_html = "<p><em>No predictions available.</em></p>"
+    else:
+        strong_html = _build_strong_table_html(
+            pred_df, contigs,
+            presentation_percentile_weak=presentation_percentile_weak,
+        )
+
+    # --- HLA typing section (optional, reads upstream artefact directly) ---
+    hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
+
+    # --- TCRdock 3D structure viewer (optional) ---
+    if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
+        if structure_manifest is not None:
+            peptide, allele = _resolve_top_candidate_from_manifest(structure_manifest)
+        else:
+            peptide, allele = _resolve_top_candidate_for_structure(
+                pred_df, presentation_percentile_weak=presentation_percentile_weak,
+            )
+        structure_section = _build_structure_section(Path(tcrdock_pdb), peptide, allele)
+    else:
+        structure_section = ""
+
+    # Only load Mol* assets when a structure section is present
+    if structure_section:
+        molstar_assets = (
+            '<!-- Mol* molecular viewer (MIT license) — loaded only when TCRdock\n'
+            '       structural validation produced a PDB for the report. -->\n'
+            '  <script src="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.js"></script>\n'
+            '  <link rel="stylesheet" href="https://unpkg.com/molstar@4.9.0/build/viewer/molstar.css"/>'
+        )
+    else:
+        molstar_assets = ""
+
+    report_html = _HTML_TEMPLATE.format(
+        pipeline_diagram=_PIPELINE_DIAGRAM,
+        origin_table=origin_html,
+        hla_section=hla_section,
+        presenter_table=presenter_html,
+        strong_table=strong_html,
+        structure_section=structure_section,
+        presentation_percentile_strong=presentation_percentile_strong,
+        molstar_assets=molstar_assets,
+    )
+    output_html.write_text(report_html, encoding="utf-8")
+    log.info("Report written to %s", output_html)
 
 
 # ---------------------------------------------------------------------------
