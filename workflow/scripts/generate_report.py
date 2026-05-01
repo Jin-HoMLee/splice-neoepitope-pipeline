@@ -593,6 +593,16 @@ def _presenter_counts_html(
     return _df_to_html(df)
 
 
+def _rank_presenters(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort presenters by genotype_presentation_score desc, then percentile asc."""
+    if "genotype_presentation_score" in df.columns:
+        return df.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    return df.sort_values("presentation_percentile")
+
+
 # ---------------------------------------------------------------------------
 # Report generation
 # ---------------------------------------------------------------------------
@@ -610,13 +620,7 @@ def _resolve_top_candidate_for_structure(
     presenters = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
     if "best_presentation_percentile" in presenters.columns:
         presenters = presenters[presenters["best_presentation_percentile"] <= presentation_percentile_weak]
-    if "genotype_presentation_score" in presenters.columns:
-        presenters = presenters.sort_values(
-            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-            ascending=[False, False, True],
-        )
-    else:
-        presenters = presenters.sort_values("presentation_percentile")
+    presenters = _rank_presenters(presenters)
     top = presenters.head(1)
     if top.empty:
         return "NA", "NA"
@@ -731,13 +735,7 @@ def _build_report_tsv(
         top_candidates = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
         if "best_presentation_percentile" in top_candidates.columns:
             top_candidates = top_candidates[top_candidates["best_presentation_percentile"] <= presentation_percentile_weak]
-        if "genotype_presentation_score" in top_candidates.columns:
-            top_candidates = top_candidates.sort_values(
-                ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-                ascending=[False, False, True],
-            )
-        else:
-            top_candidates = top_candidates.sort_values("presentation_percentile")
+        top_candidates = _rank_presenters(top_candidates)
         strong_df = top_candidates
     else:
         strong_df = pd.DataFrame()
@@ -919,22 +917,16 @@ def _build_report_top_candidates_tsv(
         log.info("Top presenters TSV written (empty) to %s", output_path)
         return
 
-    df = pred_df[pred_df["presentation_class"] == "strong"].copy()
+    df = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
     if "best_presentation_percentile" in df.columns:
         df = df[df["best_presentation_percentile"] <= presentation_percentile_weak]
 
-    if "genotype_presentation_score" in df.columns:
-        df = df.sort_values(
-            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-            ascending=[False, False, True],
-        )
-    else:
-        df = df.sort_values("presentation_percentile")
+    df = _rank_presenters(df)
     df = df.head(TOP_CANDIDATES_LIMIT).reset_index(drop=True)
 
     if df.empty:
         pd.DataFrame(columns=schema).to_csv(output_path, sep="\t", index=False)
-        log.info("Top presenters TSV written (no strong presenters) to %s", output_path)
+        log.info("Top presenters TSV written (no qualifying presenters) to %s", output_path)
         return
 
     slot_map = _allele_slot_map(list(pred_df.columns))
