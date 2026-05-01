@@ -657,9 +657,13 @@ class TestGenerateReportEndToEnd:
             original_writer(*args, **kwargs)
             out_path = kwargs["output_tsv"]
             df = pd.read_csv(out_path, sep="\t")
-            if not df.empty:
-                df.loc[0, "peptide"] = sentinel
-                df.to_csv(out_path, sep="\t", index=False)
+            assert not df.empty, (
+                "test data must produce ≥1 presenter for sentinel injection — "
+                "if the artefact is empty, the sentinel is never written and "
+                "the assertion below would fail for the wrong reason"
+            )
+            df.loc[0, "peptide"] = sentinel
+            df.to_csv(out_path, sep="\t", index=False)
 
         monkeypatch.setattr(
             gr_mod, "_build_report_top_candidates_tsv", writer_with_sentinel
