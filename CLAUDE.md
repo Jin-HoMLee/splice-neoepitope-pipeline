@@ -14,6 +14,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 - `run_cloud_gpu.sh` defaults to the current local branch; the VM git-pulls it automatically — no `--branch` flag needed unless deliberately running a different branch on the VM
 - **NVIDIA driver pinned to `nvidia-headless-570-server` (DKMS)** — do not upgrade. Driver ≥575 dropped P100 Pascal (SM 6.0) support. Image family `common-cu129-ubuntu-2204-nvidia-580` is used but the driver is overridden to 570 in the setup script.
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
+- GitHub project board: user project #9 ("JH M Lee Lab") under user `Jin-HoMLee` — query via `gh api graphql` with `user(login: "Jin-HoMLee") { projectV2(number: 9) { ... } }` (it's a user project, not org)
 
 ## Pipeline Design Decisions
 
