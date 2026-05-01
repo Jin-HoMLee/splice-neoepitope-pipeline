@@ -519,6 +519,12 @@ def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame
     The artefact is already quality-gated, sorted, capped, and carries a
     plain-text ``contig_peek`` that this function re-styles via
     ``_render_contig_peek``. No raw inputs needed.
+
+    Parity gap with ``_build_strong_table_html``: this renderer cannot emit a
+    "Showing N of M rows" notice because the writer caps the artefact at
+    ``TOP_CANDIDATES_LIMIT`` and the pre-cap total is lost. Tracked in
+    Issue #226 — fix is to surface the total in ``report.tsv``'s
+    ``mhc_prediction`` stage and render the notice from there.
     """
     if top_candidates_df is None or top_candidates_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
@@ -1030,7 +1036,7 @@ def _build_report_3d_structure_tsv(
         "patient_id": patient_id,
         "rank": 1,
         "peptide": top.get("peptide", ""),
-        "allele": top.get("mhc", ""),
+        "allele": top.get("mhc") or top.get("allele", ""),
         "pdb_path": pdb_relative_path,
         "chain_A": _TCRDOCK_CHAIN_NAMES["A"],
         "chain_B": _TCRDOCK_CHAIN_NAMES["B"],
@@ -1216,7 +1222,17 @@ def generate_report(
             })
         origin_df = pd.DataFrame(origin_rows)
 
-    effective_patient_id = patient_id or output_html.parts[-3]
+    if patient_id:
+        effective_patient_id = patient_id
+    else:
+        effective_patient_id = output_html.parts[-3]
+        log.warning(
+            "patient_id not provided; falling back to output_html path component "
+            "[-3]=%r. This assumes output is …/{patient_id}/reports/report.html — "
+            "if the path layout changes, every artefact row will record the wrong "
+            "patient_id silently. Pass patient_id explicitly to be safe.",
+            effective_patient_id,
+        )
 
     # === Phase 2: write artefacts FIRST, then render HTML from them ===
 

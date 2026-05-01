@@ -631,9 +631,18 @@ class TestGenerateReportEndToEnd:
         # Top presenter peptide visible (PEP0 has lowest presentation_percentile)
         assert "PEP0" in html
 
-    def test_artefacts_drive_html_when_provided(self, tmp_path):
-        """Verify HTML reads from artefacts: corrupted raw inputs after artefact write
-        should NOT break HTML rendering. (Sanity check that the inversion is real.)"""
+    def test_html_reflects_artefact_contents_not_raw_pred_df(self, tmp_path, monkeypatch):
+        """Prove the strong-presenters HTML section reads from
+        report_top_candidates.tsv, not the raw pred_df.
+
+        Wrap the artefact writer so that AFTER it produces the file we inject a
+        sentinel peptide name into it. The HTML rendering happens after the
+        writer and (if the artefact path is genuinely active) reads from the
+        modified file. The sentinel can only appear in the HTML if the renderer
+        used the artefact — the raw pred_df never contains it.
+        """
+        import generate_report as gr_mod
+
         junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
         out_dir = tmp_path / "results" / "p001" / "reports"
         out_dir.mkdir(parents=True)
@@ -641,7 +650,25 @@ class TestGenerateReportEndToEnd:
         tsv_out = out_dir / "report.tsv"
         top_out = out_dir / "report_top_candidates.tsv"
 
-        # Should produce a valid HTML report end to end
+        sentinel = "SENTINELPEPTIDE"
+        original_writer = gr_mod._build_report_top_candidates_tsv
+
+        def writer_with_sentinel(*args, **kwargs):
+            original_writer(*args, **kwargs)
+            out_path = kwargs["output_tsv"]
+            df = pd.read_csv(out_path, sep="\t")
+            assert not df.empty, (
+                "test data must produce ≥1 presenter for sentinel injection — "
+                "if the artefact is empty, the sentinel is never written and "
+                "the assertion below would fail for the wrong reason"
+            )
+            df.loc[0, "peptide"] = sentinel
+            df.to_csv(out_path, sep="\t", index=False)
+
+        monkeypatch.setattr(
+            gr_mod, "_build_report_top_candidates_tsv", writer_with_sentinel
+        )
+
         generate_report(
             novel_junctions_tsv=str(junc_tsv),
             predictions_tsv=str(pred_tsv),
@@ -651,4 +678,11 @@ class TestGenerateReportEndToEnd:
             output_top_candidates_tsv=str(top_out),
             patient_id="p001",
         )
-        assert "<html" in html_out.read_text()
+
+        html = html_out.read_text()
+        assert sentinel in html, (
+            "HTML strong-presenters section must reflect artefact contents — "
+            "sentinel peptide was injected into report_top_candidates.tsv "
+            "after the writer ran, so its absence proves HTML is rendering "
+            "from raw pred_df instead of the artefact."
+        )
