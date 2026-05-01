@@ -4,6 +4,38 @@
 
 ## 2026-04-30
 
+### 15:43 UTC — Editor: Scientist
+
+#### Issue #191 — decomposition session for Issue #126 (GTEx pan-tissue junction filter)
+
+Decomposed [parent Issue #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) into two implementation sub-issues. Most of the parent's scientific design was already locked (pan-tissue scope, GTEx V10 source, `filter_junctions.py` integration point), so the session was mostly mechanical — except for one important design pivot.
+
+**Design pivot — adopted *always-on stacking*, rejected *tissue-matched scope*.**
+
+The morning's Sci+Dev discussion (captured in [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203), Developer-created) had floated changing #126's design in two ways at once: (a) always-on filter that stacks with matched-normal (vs. opt-in fallback), and (b) tissue-matched scope (vs. pan-tissue). The morning framing motivated both via the GATK Panel-of-Normals analogue from somatic variant calling.
+
+On reflection in this Sci session, **(a) was kept and (b) was rejected**:
+
+- **Always-on stacking ✅ adopted.** Matched normal captures one observation of one individual in one tissue; GTEx pan-tissue captures population-level expression across ~54 tissues. They are complementary, not redundant. Stacking is the right default.
+- **Tissue-matched scope ❌ rejected.** A vaccine-induced CTL response is *systemic* — patrols all tissues, not just the tumour's lineage. Restricting GTEx to e.g. bone tissue for an osteosarcoma patient leaves heart, liver, kidney, etc. unprotected against autoimmune off-tumour toxicity from cross-tissue junction expression. The PoN analogue from somatic variant calling is useful framing for *always-on stacking*, but the *tissue scope* choice is dominated by the vaccination-specific safety argument — same reasoning as the original [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) spec, which I now re-confirm.
+
+This is why the Scientist role exists separately from the Developer role: the GATK PoN intuition is sound for somatic SNV/indel calling, but breaks at the vaccination/autoimmunity level because the deliverable is no longer a list of mutations but a population of CTLs released into a patient's circulation. Captured this distinction explicitly in the resolution comment on [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203#issuecomment-4353911289).
+
+**Locked-in defaults (`gtex_filter` config):**
+- `enabled: true` (always-on; was `false` in #126)
+- `min_read_count: 1` (most aggressive — precision over recall, vaccine 10–20 slot framing)
+- `reference_bed: gs://splice-neoepitope-project/resources/gtex/v10/gtex_v10_pan_tissue_junctions.bed` (GCS-staged, consistent with rest of pipeline data flow)
+
+**Output:**
+- [Sub-Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) — `feat(filter): GTEx V10 pan-tissue junction reference set construction` (M) — pin GTEx V10 release, build pan-tissue union BED, stage to GCS
+- [Sub-Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) — `feat(filter): integrate GTEx pan-tissue filter into filter_junctions.py — always-on, stacks with matched-normal` (M, blocked by #211) — wire into pipeline, validate on patient_001 (stacking) + patient_002 (sole filter beyond annotated)
+
+Both linked under [parent #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126), milestone i2-S3. Cross-reference comment posted on [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126#issuecomment-4353911112) recording the default-flag change so the parent body's `enabled: false` snippet doesn't mislead future readers.
+
+**Manuscript follow-up (not in this PR):** the DISCUSSIONS.md "Normal sample filtering → GTEx pan-tissue filter" section's *scientific reasoning* is unchanged, but if it currently describes the filter as "opt-in" or "fallback when no matched normal", that one-liner needs updating once [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) lands and we have validation numbers to cite.
+
+[Issue #191](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/191) closed by the PR carrying this notebook entry.
+
 ### 14:15 UTC — Editor: Developer
 
 #### Issue #79 Phase 2 — HTML now driven by report.tsv + two new artefacts
