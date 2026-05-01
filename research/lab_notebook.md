@@ -4,6 +4,28 @@
 
 ## 2026-05-01
 
+### 11:52 UTC — Editor: Developer
+
+#### Issue #219 — `research/news_log.md` shared news-deduplication file
+
+Established a shared news log convention to prevent re-surfacing the same items across morning briefings (Developer + Scientist). Without it, repeated WebSearches over a single sprint hit the same tool releases / papers / deprecations and waste briefing time. Two cerebrum changes already landed this morning to wire the convention into the morning routine — this PR commits the actual file to the repo so both roles can read + append.
+
+**Format (minimal — won't grow unwieldy):**
+
+```
+- **Item** (date) — keywords. → action. *Role. Signal.*
+```
+
+- *Role* = Developer / Scientist / Both (whoever surfaced it)
+- *Signal* = pipeline-relevant / industry-standard / rising-trend / portfolio-differentiator (per `feedback_portfolio_lens.md`)
+- *Action* = Issue number opened, or "no action" / "no action; revisit if X"
+
+Initial entries cover items from this week's briefings: `uv 0.11.8 / ruff 0.15.7` (industry-standard, no action), HERMES (portfolio-differentiator, → [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)), MHCflurry 2.2.0 (pipeline-relevant, no action — torch already compat), Snakemake 9.19.0 (pipeline-relevant, → [#200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200)), AlphaGenome (portfolio-differentiator, → [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)), ImmSET (portfolio-differentiator, → [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201)).
+
+**Cerebrum side (already done, not in this PR):** `feedback_morning_routine.md` Phase 1 now starts with "read `research/news_log.md` before WebSearch"; new shared memory `reference_news_log.md` documents the convention; `developer/shared/MEMORY.md` lists the news log under a new "Always read before morning routine (Phase 1 — news)" section.
+
+[Issue #219](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/219) closed by the PR carrying this entry.
+
 ### 11:37 UTC — Editor: Developer
 
 #### Issue #79 / PR #210 — review-fix follow-up
