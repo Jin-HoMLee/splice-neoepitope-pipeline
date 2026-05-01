@@ -48,7 +48,7 @@ rule generate_report:
             _RES, "{patient_id}", "reports", "report.tsv"
         ),
     log:
-        os.path.join(_LOGS, "{patient_id}", "analysis", "report.log"),
+        os.path.join(_LOGS, "{patient_id}", "report", "report.log"),
     params:
         presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
         presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
