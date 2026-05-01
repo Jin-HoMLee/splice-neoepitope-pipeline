@@ -4,6 +4,26 @@
 
 ## 2026-05-01
 
+### 14:51 UTC — Editor: Developer
+
+#### Issue #221 — PR #210 review-fix follow-ups
+
+Bundled the four lower-priority items deferred from PR #210 review into one PR. Reviewer flagged them as Low/Nit so the diff stays focused on the original refactor; this picks them up while context is fresh.
+
+**Items addressed:**
+
+1. **Test now actually verifies the artefact-driven path** (was Low-Medium). The original test claimed corrupted raw inputs shouldn't break HTML rendering but never corrupted anything — it ran `generate_report` once and asserted `<html` was in the output, a tautology that would pass whether the inversion was real or not. The reviewer's literal suggestion ("overwrite raw inputs with garbage, call generate_report with artefact paths") doesn't work because `generate_report` always reads raw inputs at the top of every call before writing artefacts — corrupting them just crashes the second call. Equivalent-strength approach: monkey-patch `_build_report_top_candidates_tsv` so that AFTER it writes the artefact we inject a sentinel peptide name ("SENTINELPEPTIDE") into the file. The HTML rendering happens after the writer and reads from the modified file. The sentinel would never appear in the HTML if the renderer fell back to raw `pred_df` — its presence proves the artefact path is genuinely active.
+
+2. **`effective_patient_id` path-derived fallback now warns.** When `patient_id` isn't passed, the function falls back to `output_html.parts[-3]` assuming the layout `…/{patient_id}/reports/report.html`. If that layout ever changes, every artefact row records the wrong patient ID silently. Added a `log.warning` when the fallback fires — the Snakemake path always passes `wildcards.patient_id`, so the warning only surfaces on ad-hoc CLI runs (which is when it's most useful).
+
+3. **`_build_report_3d_structure_tsv` gracefully handles column rename.** Was hardcoding `top.get("mhc", "")` for the allele. If TCRdock ever renames the column (or some local TCRdock version uses a different convention), the manifest silently records empty allele → 3D viewer shows "NA". One-liner change to `top.get("mhc") or top.get("allele", "")`.
+
+4. **Truncation-notice nit kicked to a proper Issue.** `_build_strong_table_html_from_top_candidates` (artefact path) can't say "Showing N of M rows" the way the raw `_build_strong_table_html` can — when the artefact is written, the writer caps to `TOP_CANDIDATES_LIMIT=10` and the original count is discarded. A literal parity fix needs a schema change in `report.tsv` to surface the pre-cap total. That's not trivial and not appropriate for a "nit" PR — opened [Issue #226](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/226) for the proper fix and added a docstring note linking to it.
+
+**Verified:** `pytest workflow/tests/test_generate_report.py` — 57/57 passing. The new sentinel test would fail if anyone broke the artefact-driven path, so it's a real regression guard now.
+
+[Issue #221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/221) closed by the PR carrying this entry.
+
 ### 14:00 UTC — Editor: Scientist
 
 #### Issue #203 — rescope to AlphaGenome-only + validation strategy designed
