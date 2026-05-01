@@ -24,6 +24,50 @@ Bundled the four lower-priority items deferred from PR #210 review into one PR. 
 
 [Issue #221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/221) closed by the PR carrying this entry.
 
+### 14:00 UTC — Editor: Scientist
+
+#### Issue #203 — rescope to AlphaGenome-only + validation strategy designed
+
+Picked up [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (Backlog, P1) per "what's next" recommendation — only pure-Scientist research issue in the queue. Set Status to In progress and refreshed the issue body in two steps over the session.
+
+**Rescope: population-panel axis closed.** #203 originally proposed two complementary axes for rethinking normal filtering — (1) GTEx population panel as always-on filter, (2) AlphaGenome predicted-normal fallback for unmatched-normal patients. Yesterday's [#191](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/191) decomposition session resolved (1) cleanly via [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) → [#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) + [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212), with the key design choice of *pan-tissue* (vaccine systemic-CTL safety dominates) over *tissue-matched*. So #203 is now narrowed strictly to axis (2) — AlphaGenome predicted-normal fallback. Updated body explicitly strikes through axis (1) with pointers to where it lives, so any reader of #203 understands the boundary.
+
+**Literature review (2024–2026) on unmatched-normal handling.** Searched three angles: clinical pipelines that handle unmatched-normal cases, AlphaGenome's published splice-junction validation, and prior art on predicted-normal approaches. Five papers added to the Zotero collection with `manuscript-INTRODUCTION` / `-METHODS` / `-DISCUSSION` tags so the manuscript-section relevance is captured up-front:
+
+| Paper | Year | Key role for us |
+|---|---|---|
+| [splice2neo](https://academic.oup.com/bioinformaticsadvances/article/4/1/vbae080/7684965) | 2024 | Closest published methodological analog (sequence-based prediction → validate against healthy tissue) |
+| [AlphaGenome](https://www.nature.com/articles/s41586-025-10014-0) | 2026 | Core technology candidate; predicts splice site presence + usage + junction connectivity from sequence |
+| [ENEO](https://academic.oup.com/nargab/article/7/3/lqaf026/8196479) | 2025 | Closest unmatched-normal pipeline (Bayesian tumor-only); inspires probabilistic combination framing |
+| [SpliceMutr](https://aacrjournals.org/cancerrescommun/article/4/12/3137/750561) | 2024 | Pan-cancer splice neoantigen burden reference |
+| [CNNeoPP](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2026.1722117/full) | 2026 | Newest end-to-end personalized pipeline (LLM-enhanced) |
+
+**Convergent finding from lit review:** the published default for cancer-specific splicing is `positive sample rate < 1%` in GTEx (per splice2neo and the [Tumour-wide RNA splicing aberrations](https://www.nature.com/articles/s41586-024-08552-0) paper). Our [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) config uses `min_read_count: 1` — strictly more aggressive than the 1%-positive-rate convention. Justified by the vaccine-safety framing (precision ≫ recall for 10–20 vaccine slots), but worth flagging so the deviation is read as deliberate, not arbitrary. Posted as a non-scope-changing comment on [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212#issuecomment-4359624169) — natural relaxation point if future analysis shows we lose too many true tumor-exclusive junctions.
+
+**Sharpening finding on AlphaGenome.** The lit review surfaced a meaningful gap in AlphaGenome's published benchmarking. The Nature 2026 paper covers (a) tissue-aggregate junction prediction across 7 GTEx tissues, (b) variant-effect on junction counts, (c) held-out genomic interval performance. But **per-individual normal junction prediction from WGS — our actual use case — is not directly benchmarked**. AlphaGenome is trained on healthy reference data; feeding it a patient's WGS may produce something closer to a "tissue prior" than a "patient-specific normal predictor". This isn't a deal-breaker, but it sharpens the validation question: we have to test whether patient-specificity is actually present, not assume it.
+
+**Validation strategy (three experiments on patient_001).** Patient_001 has matched-normal RNA-seq, so it functions as the gold standard:
+
+- **Experiment 1 — Predictive validity.** AlphaGenome on patient_001 WGS → precision/recall/F1 vs. observed matched-normal BED, stratified by tissue track.
+- **Experiment 2 — Patient-specificity test (the discriminating experiment).** AlphaGenome on GRCh38 reference for the same regions → quantify how many predictions change when patient germline variants are included. **If delta is small, AlphaGenome is a tissue prior (redundant with #211/#212); if meaningful, it captures germline-driven splicing variation (genuine 3rd source).**
+- **Experiment 3 — Comparative filter strength.** Apply matched-normal / GTEx pan-tissue / AlphaGenome separately on patient_001's tumor junction set → quantify overlap, unique contributions, total filtered.
+
+**Decision rules locked into [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body:** F1 ≥ 0.8 AND patient-specific delta > 10% → adopt as 3rd always-on source; F1 ≥ 0.7 AND ≥ 5% unique vs GTEx → adopt as fallback only; F1 < 0.5 OR delta < 1% → no-go.
+
+**Why this is publishable either way.** Both outcomes yield novel insights: a *positive* result is the first demonstration of foundation-model-driven per-individual normal filtering for splice neoantigens (methodological contribution); a *negative* result is a cautionary insight that genome foundation models operate as tissue priors not individual predictors on this task (informs the field's expectations + framing). The discriminating measurement is Exp 2's patient-specificity delta — that's the scientific novelty regardless of direction. Manuscript follow-up tracked under PM's standalone S7 [milestone #16](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/16).
+
+**Sub-issues created and linked under [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203):**
+
+- [Sub-Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) — `feat(api): confirm AlphaGenome API access + cost feasibility` (Dev, XS) — gates B+C. Cohort upscale signal captured: if costs are low enough, expand beyond patient_001 for statistical power.
+- [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) — `research(filter): patient_001 notebook for Experiments 1+2` (Sci, S, blocked by #223)
+- [Sub-Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) — `research(filter): Experiment 3 — comparative filter strength` (Sci, XS, blocked by #224)
+
+**Side products of the lit review session:**
+- [Issue #222](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/222) — `research(splice): evaluate splice2neo as alternative or component` opened. splice2neo is the closest published methodological analog to our pipeline; the question is whether it's a better-engineered version of what we're building or whether our differentiation (GPS scoring, TCRdock structural validation, vaccine-safety pan-tissue filter) keeps it complementary. Same eval pattern as [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) (Boltz-2), [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) (HERMES), [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) (ImmSET) — but on the upstream junction-calling side rather than the structure side.
+- [Threshold-stringency comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212#issuecomment-4359624169) on [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (see above).
+
+[Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) stays In progress while sub-issues run; Sci closure happens after Exp 3 + decision write-up + S7 manuscript follow-up issue scoping.
+
 ### 11:52 UTC — Editor: Developer
 
 #### Issue #219 — `research/news_log.md` shared news-deduplication file
@@ -67,6 +111,28 @@ Initial entries cover items from this week's briefings: `uv 0.11.8 / ruff 0.15.7
 - Nit: `_build_strong_table_html_from_top_candidates` no truncation notice — parity gap vs raw-path table; low value while `TOP_CANDIDATES_LIMIT=10` but worth a comment.
 
 Reviewer LGTM at 10:56 UTC; deferral rationale accepted ("scope call is reasonable"). [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) merging next.
+
+### 11:23 UTC — Editor: Scientist
+
+#### Issue #103 — folded into Issue #215 (filtering audit trail)
+
+While running the "what's next" recommendation algorithm, [#103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/103) (track per-file mean threshold + read-count distribution) surfaced as a top-3 candidate. On closer look it overlapped substantially with [#215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215) (full filtering audit trail, sub-issue of [#104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104)).
+
+**Column-by-column overlap:** 3/7 of #103's TSV columns (`n_junctions_raw`, `n_after_mean_filter`, `pct_retained`) duplicate #215's `junction-filter | junctions_raw` and `after_mean_filter` rows. The remaining 4/7 (`min_reads`, `mean_reads`, `median_reads`, `max_reads`) are uniquely additive — they answer the **threshold-tuning question** ("is the per-file mean appropriate for each sample?") rather than the **funnel question** ("where are junctions lost?") that #215 already covers. The mean filter is currently silent (the threshold value isn't recorded anywhere); on a deeply-sequenced sample it can sit at hundreds of reads and silently filter out rare-but-real junctions.
+
+**Format compatibility ruling:** #215 is long-format (`step | category | count`). The 4 distribution stats are different *measurements* of the same `junction-filter` step on the same sample, so they fit naturally as 4 additional rows under `junction-filter`, not as a separate file or hybrid schema. No restructuring needed.
+
+**Decision: fold #103 into #215.** Updated #215's body to add the 4 distribution categories under `junction-filter` and a new "Why include the 4 distribution stats" section that captures the threshold-tuning rationale (so the motivation isn't lost when #103 closes). Single coherent instrumentation pass for Developer, no sequencing dance, marginal scope add (~XS-worth on top of an S issue, well within the band). #103 closed with a comment explaining the overlap analysis and pointing to #215. FYI heads-up posted to Developer in standup — net effect is 4 extra stat rows per sample, no sequencing change.
+
+### 09:30 UTC — Editor: Scientist
+
+#### Issue #218 — HERMES (Visani et al., PNAS 2025) eval issue created
+
+Developer flagged [HERMES (PNAS, Oct 2025)](https://doi.org/10.1073/pnas.2504783122) in standup as a structure-based ML scoring candidate for TCR-pMHC. Despite zero TCR-pMHC training, HERMES achieves 0.72 correlation with experimental binding affinities — it's a physics-guided 3D-equivariant model trained on the protein universe, predicting amino acid preferences from local structural environments. The [Feb 2026 bioRxiv follow-up](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1.full) applies AF2-predicted structures with the same scoring logic.
+
+Framed for our pipeline as a **post-TCRdock confidence cross-check** rather than a replacement: HERMES could score the structural quality / interaction strength of the TCRdock-predicted complex, particularly appealing for neoantigens where domain-specific TCR-pMHC training data is scarce. A second potential use is **VDJdb panel pre-screening** before expensive co-folding ([#205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205)). Same eval pattern as [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) (Boltz-2) and [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) (ImmSET) — assess methodology, decide whether to integrate.
+
+[Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) opened. Zotero key `MWZFINV6`. Follow-up reply to Developer in standup confirming.
 
 ---
 
