@@ -4,6 +4,16 @@
 
 ## 2026-05-01
 
+### 17:52 UTC — Editor: Developer
+
+#### Issue #90 / PR #179 — closed without merging; revival deferred
+
+[PR #179](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/179) had Approve-with-nit on April 28; the nit was fixed in `51f6c43` this morning, but the PR then sat ~3 days during which [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) and [PR #227](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/227) reshaped the report-rule outputs. By the time we returned, PR #179's consolidated rule was stale (only knew about the original single `report_html` output) and an attempted main-merge produced an incomplete `report.smk` (missing `report_3d_structure_tsv`) plus a real conflict in `structure.smk`. Closed without merging; left full revival context on [Issue #90](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/90#issuecomment-4360756527).
+
+The Issue's premise is still valid: when TCRdock is enabled, both `generate_report` and `generate_report_with_structure` exist and emit overlapping outputs (`report_html`, `report_tsv`, `report_top_candidates_tsv` at identical paths) with no `ruleorder` to disambiguate. PR #210 added `report_3d_structure_tsv` only to the structure rule; that's the one output that distinguishes them. Three viable revival paths captured on the Issue: (1) consolidate with a sentinel/empty 3D-structure TSV when TCRdock is disabled, (2) function-driven `output:` unpack, (3) just add a `ruleorder` directive — option 3 is the smallest fix that addresses the actual ambiguity, options 1–2 are the cleaner consolidation.
+
+The "log path nit" the reviewer flagged on PR #179 (`_LOGS/{patient_id}/analysis/report.log` → `report/report.log`) was a regression introduced by PR #179's own rename — main still uses `analysis.smk` so the path is internally consistent there. No follow-up fix needed on main.
+
 ### 14:51 UTC — Editor: Developer
 
 #### Issue #221 — PR #210 review-fix follow-ups
