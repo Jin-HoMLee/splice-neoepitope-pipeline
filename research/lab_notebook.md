@@ -4,6 +4,12 @@
 
 ## 2026-05-01
 
+### 18:30 UTC — Editor: Developer
+
+#### CLAUDE.md — pin GitHub project board ID
+
+Quick board scan surfaced that the project board ID isn't documented in-repo, and `gh api graphql` against `organization(login: "Jin-HoMLee")` silently returns null because it's a *user* project, not an org project. Added a one-liner to CLAUDE.md pinning project #9 + the correct GraphQL shape ([PR #231](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/231)).
+
 ### 17:52 UTC — Editor: Developer
 
 #### Issue #90 / PR #179 — closed without merging; revival deferred
