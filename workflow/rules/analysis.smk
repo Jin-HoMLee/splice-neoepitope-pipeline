@@ -39,6 +39,9 @@ rule generate_report:
         report_tsv=os.path.join(
             _RES, "{patient_id}", "reports", "report.tsv"
         ),
+        report_top_candidates_tsv=os.path.join(
+            _RES, "{patient_id}", "reports", "report_top_candidates.tsv"
+        ),
     log:
         os.path.join(_LOGS, "{patient_id}", "analysis", "report.log"),
     params:

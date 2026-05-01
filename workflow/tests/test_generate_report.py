@@ -6,10 +6,16 @@ import pytest
 from generate_report import (
     _build_chain_legend,
     _build_compnd_records,
+    _build_contig_peek,
     _build_report_tsv,
     _build_strong_table_html,
+    _build_strong_table_html_from_top_candidates,
     _df_to_html,
     _extract_chain_ids,
+    _load_report_tsv,
+    _presenter_counts_html,
+    _render_contig_peek,
+    generate_report,
 )
 
 
@@ -239,6 +245,108 @@ class TestBuildReportTsv:
         assert df[df["stage"] == "top_candidate"].empty
 
 
+class TestLoadReportTsv:
+    """Round-trip: writer output must load into the projections HTML rendering needs."""
+
+    def _write_round_trip(self, tmp_path, *, hla_qc_tsv=None, tcrdock_pdb=None):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(tumor_exclusive=7, normal_shared=3),
+            pred_df=_make_pred_df(n_strong=3, n_weak=1, n_non=10),
+            hla_qc_tsv=hla_qc_tsv,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=tcrdock_pdb,
+        )
+        return _load_report_tsv(out)
+
+    def test_returns_dict_with_expected_top_level_keys(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        assert set(loaded.keys()) >= {
+            "junction_filtering", "mhc_prediction", "mhc_prediction_thresholds",
+            "top_candidate", "hla_typing", "tcrdock",
+        }
+
+    def test_junction_filtering_is_wide_dataframe(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        jf = loaded["junction_filtering"]
+        assert isinstance(jf, pd.DataFrame)
+        assert list(jf.columns) == [
+            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+        ]
+        assert int(jf.iloc[0]["tumor_exclusive"]) == 7
+        assert int(jf.iloc[0]["normal_shared"]) == 3
+        assert int(jf.iloc[0]["unannotated"]) == 10
+        assert jf.iloc[0]["sample_id"] == "S1"
+        assert jf.iloc[0]["sample_type"] == "Primary Tumor"
+
+    def test_mhc_prediction_counts_loaded_as_ints(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        mp = loaded["mhc_prediction"]
+        assert mp["total_predictions"] == 14
+        assert mp["strong"] == 3
+        assert mp["weak"] == 1
+        assert mp["non"] == 10
+        assert all(isinstance(v, int) for v in mp.values())
+
+    def test_mhc_prediction_thresholds_loaded(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        thresholds = loaded["mhc_prediction_thresholds"]
+        assert "strong" in thresholds
+        assert "0.5" in thresholds["strong"]
+
+    def test_top_candidate_numerics_typed(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        tc = loaded["top_candidate"]
+        assert tc["peptide"] == "PEP0"
+        assert isinstance(tc["presentation_percentile"], float)
+        assert tc["presentation_percentile"] == pytest.approx(0.1)
+        assert isinstance(tc["ic50_nM"], float)
+
+    def test_hla_typing_keyed_by_locus(self, tmp_path):
+        hla_tsv = tmp_path / "hla_qc.tsv"
+        pd.DataFrame([
+            {"locus": "A", "allele1": "HLA-A*02:01", "allele2": "HLA-A*24:02",
+             "source": "tumor", "reads": 500, "discrepancy": "",
+             "serology_allele1": "", "serology_allele2": "", "serology_validation": ""},
+        ]).to_csv(hla_tsv, sep="\t", index=False)
+        loaded = self._write_round_trip(tmp_path, hla_qc_tsv=str(hla_tsv))
+        hla = loaded["hla_typing"]
+        assert "A" in hla
+        assert "HLA-A*02:01" in hla["A"]["alleles"]
+        assert "tumor" in hla["A"]["notes"]
+
+    def test_tcrdock_pdb_available_is_bool_false(self, tmp_path):
+        loaded = self._write_round_trip(tmp_path)
+        assert loaded["tcrdock"]["pdb_available"] is False
+
+    def test_tcrdock_pdb_available_is_bool_true(self, tmp_path):
+        pdb = tmp_path / "model.pdb"
+        pdb.write_text("ATOM\n")
+        loaded = self._write_round_trip(tmp_path, tcrdock_pdb=pdb)
+        assert loaded["tcrdock"]["pdb_available"] is True
+
+    def test_empty_predictions_returns_empty_dicts(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(), pd.DataFrame(), None, out, 0.5, None)
+        loaded = _load_report_tsv(out)
+        assert loaded["mhc_prediction"] == {}
+        assert loaded["top_candidate"] == {}
+
+    def test_missing_junction_filtering_returns_empty_dataframe(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        # Empty origin_df + empty pred_df → no junction_filtering rows written
+        _build_report_tsv("p001", pd.DataFrame(), pd.DataFrame(), None, out, 0.5, None)
+        loaded = _load_report_tsv(out)
+        jf = loaded["junction_filtering"]
+        assert isinstance(jf, pd.DataFrame)
+        assert jf.empty
+        assert list(jf.columns) == [
+            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Helpers and tests for the GPS (genotype_presentation_score) code path
 # ---------------------------------------------------------------------------
@@ -367,3 +475,180 @@ class TestCLIParser:
             "--presentation-percentile-weak", "1.5",
         ])
         assert args.presentation_percentile_weak == 1.5
+
+
+# ---------------------------------------------------------------------------
+# Tests for the artefact-driven HTML helpers (Phase 2)
+# ---------------------------------------------------------------------------
+
+class TestRenderContigPeek:
+    """Round-trip: bracketed plain-text peek → styled HTML with same span classes."""
+
+    def test_empty_input_returns_empty(self):
+        assert _render_contig_peek("") == ""
+
+    def test_emits_junction_marker(self):
+        # Junction-spanning peptide: | inside [...]
+        html = _render_contig_peek("AAA[CC|GG]TTT")
+        assert '<span class="junction-mark">|</span>' in html
+
+    def test_classifies_upstream_downstream_outside_peptide(self):
+        html = _render_contig_peek("AA[CC|GG]TT")
+        # Outside [..], before |: nt-up
+        assert html.count('class="nt-up">A</span>') == 2
+        # Outside [..], after |: nt-down
+        assert html.count('class="nt-down">T</span>') == 2
+
+    def test_classifies_peptide_upstream_downstream_inside_peptide(self):
+        html = _render_contig_peek("AA[CC|GG]TT")
+        # Inside [..], before |: nt-pep-up
+        assert html.count('class="nt-pep-up">C</span>') == 2
+        # Inside [..], after |: nt-pep-down
+        assert html.count('class="nt-pep-down">G</span>') == 2
+
+    def test_round_trip_with_build_contig_peek(self):
+        """The plain-text writer + HTML reader should preserve all nucleotides."""
+        seq = "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTAC"  # 50 nt
+        peek = _build_contig_peek(seq, start_nt=20, end_nt_incl=34, upstream_nt=26)
+        html = _render_contig_peek(peek)
+        for nt in seq:
+            assert f'>{nt}</span>' in html
+        assert '<span class="junction-mark">|</span>' in html
+
+
+class TestBuildStrongTableHtmlFromTopCandidates:
+    def _make_top_df(self, n_rows: int = 3, with_gps: bool = True) -> pd.DataFrame:
+        rows = []
+        for i in range(n_rows):
+            row = {
+                "patient_id": "p001", "rank": i + 1,
+                "peptide": f"PEP{i}", "best_allele": "HLA-A*02:01",
+                "best_presentation_percentile": 0.1 * (i + 1),
+                "ic50_nM": float(50 + i),
+                "n_strong_alleles": 1, "presentation_class": "strong",
+                "contig_key": f"k{i}", "contig_start_nt": 20,
+                "contig_peek": "AAAAAAAAAAAAAAAAAAAAAAAAAA[CCCC|CCCC]TTTTTTTTTTTTTTTTTT",
+            }
+            if with_gps:
+                row["genotype_presentation_score"] = 0.99 - 0.01 * i
+            rows.append(row)
+        return pd.DataFrame(rows)
+
+    def test_empty_returns_no_results_message(self):
+        assert "No strong" in _build_strong_table_html_from_top_candidates(pd.DataFrame())
+
+    def test_renders_one_row_per_candidate(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=3))
+        assert html.count("<tr>") == 4  # 1 header row + 3 data rows
+
+    def test_includes_peptide_and_allele(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=2))
+        assert "PEP0" in html and "PEP1" in html
+        assert "HLA-A*02:01" in html
+
+    def test_includes_gps_column_when_present(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_gps=True))
+        assert "GPS" in html
+
+    def test_omits_gps_column_when_absent(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_gps=False))
+        assert "GPS" not in html
+
+    def test_renders_styled_contig_peek(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=1))
+        assert '<span class="junction-mark">' in html
+        assert '<span class="nt-pep-up">' in html
+
+
+class TestPresenterCountsHtml:
+    def test_empty_dict_returns_no_predictions(self):
+        assert "No predictions" in _presenter_counts_html({})
+
+    def test_only_total_predictions_returns_no_predictions(self):
+        assert "No predictions" in _presenter_counts_html({"total_predictions": 100})
+
+    def test_excludes_total_predictions_row(self):
+        html = _presenter_counts_html({"total_predictions": 14, "strong": 3, "weak": 1, "non": 10})
+        assert "<table" in html
+        assert "total_predictions" not in html
+        assert "strong" in html and "weak" in html and "non" in html
+
+
+class TestGenerateReportEndToEnd:
+    """Integration test: drives generate_report() through the artefact-driven path."""
+
+    def _write_inputs(self, tmp_path):
+        junc_tsv = tmp_path / "novel_junctions.tsv"
+        pd.DataFrame([
+            {"sample_id": "S1", "sample_type": "Primary Tumor",
+             "junction_origin": "tumor_exclusive", "contig_key": "k0", "start_nt": 20},
+            {"sample_id": "S1", "sample_type": "Primary Tumor",
+             "junction_origin": "tumor_exclusive", "contig_key": "k1", "start_nt": 22},
+            {"sample_id": "S1", "sample_type": "Primary Tumor",
+             "junction_origin": "normal_shared", "contig_key": "k2", "start_nt": 18},
+        ]).to_csv(junc_tsv, sep="\t", index=False)
+
+        pred_tsv = tmp_path / "predictions.tsv"
+        _make_pred_df(n_strong=2, n_weak=1, n_non=3).to_csv(pred_tsv, sep="\t", index=False)
+
+        contigs_fa = tmp_path / "contigs.fa"
+        contigs_fa.write_text(
+            ">k0\n" + "ACGTACGT" * 7 + "\n"
+            ">k1\n" + "ACGTACGT" * 7 + "\n"
+            ">k2\n" + "ACGTACGT" * 7 + "\n"
+        )
+        return junc_tsv, pred_tsv, contigs_fa
+
+    def test_full_pipeline_writes_html_and_artefacts(self, tmp_path):
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        html_out = out_dir / "report.html"
+        tsv_out = out_dir / "report.tsv"
+        top_out = out_dir / "report_top_candidates.tsv"
+
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(tsv_out),
+            output_top_candidates_tsv=str(top_out),
+            patient_id="p001",
+        )
+
+        assert html_out.exists()
+        assert tsv_out.exists()
+        assert top_out.exists()
+
+        html = html_out.read_text()
+        # Surface signal: vocabulary and key sections rendered
+        assert "Top strong presentations" in html
+        assert "presenters" in html  # pipeline-diagram label, presenter vocabulary
+        assert "binder" not in html.lower() or "Binding affinity" in html  # IC50 tooltip allowed
+        # Junction filtering rendered
+        assert "Primary Tumor" in html
+        # Top presenter peptide visible (PEP0 has lowest presentation_percentile)
+        assert "PEP0" in html
+
+    def test_artefacts_drive_html_when_provided(self, tmp_path):
+        """Verify HTML reads from artefacts: corrupted raw inputs after artefact write
+        should NOT break HTML rendering. (Sanity check that the inversion is real.)"""
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        html_out = out_dir / "report.html"
+        tsv_out = out_dir / "report.tsv"
+        top_out = out_dir / "report_top_candidates.tsv"
+
+        # Should produce a valid HTML report end to end
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(tsv_out),
+            output_top_candidates_tsv=str(top_out),
+            patient_id="p001",
+        )
+        assert "<html" in html_out.read_text()

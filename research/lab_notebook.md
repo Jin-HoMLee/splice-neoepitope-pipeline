@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-05-01
+
+### 11:37 UTC — Editor: Developer
+
+#### Issue #79 / PR #210 — review-fix follow-up
+
+[PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) reviewer (Claude code-review action) flagged 2 **Medium** items, 3 **Low** items, and 1 **Nit** on yesterday's Phase 2 refactor. Addressed both mediums in `98ed6fd` and deferred the rest to a single follow-up Issue to keep this PR's diff focused on the original refactor scope.
+
+**Mediums fixed:**
+
+- **Filter alignment.** `_build_report_top_candidates_tsv` was filtering `presentation_class == "strong"` while `_build_report_tsv` and `_resolve_top_candidate_for_structure` both used `isin(["strong", "weak"])`. The divergence meant a patient whose only top presenter was "weak" would have a populated `top_candidate` row in `report.tsv` but an empty `report_top_candidates.tsv` and a `("NA", "NA")` 3D viewer annotation. Aligned all three on `isin(["strong", "weak"])` — this matches the docstring's "all three surfaces stay aligned" claim and is consistent with the percentile gate already referencing the *weak* threshold. Updated the corresponding empty-output log message ("no strong presenters" → "no qualifying presenters") so it doesn't lie about the broader filter.
+- **`_rank_presenters()` helper extracted.** The three-key sort (`genotype_presentation_score` desc → `n_strong_alleles` desc → `best_presentation_percentile` asc, with `presentation_percentile` fallback) was copy-pasted across three functions. Now defined once at the top of the report-generation section; all three call sites do `df = _rank_presenters(df)`.
+
+**Verified:** `pytest workflow/tests/test_generate_report.py` — 57/57 passing.
+
+**Deferred to follow-up Issue (PR #210 polish):**
+
+- Low-Medium: `test_artefacts_drive_html_when_provided` doesn't actually corrupt raw inputs after artefact write — needs to overwrite raw inputs with garbage and assert correct patient ID is still in HTML to genuinely prove the artefact path is active.
+- Low: silent `effective_patient_id` path-derived fallback — needs `log.warning` when the fallback fires.
+- Low: `_build_report_3d_structure_tsv` hardcodes `"mhc"` column for allele — needs `top.get("mhc") or top.get("allele", "")` fallback.
+- Nit: `_build_strong_table_html_from_top_candidates` no truncation notice — parity gap vs raw-path table; low value while `TOP_CANDIDATES_LIMIT=10` but worth a comment.
+
+Reviewer LGTM at 10:56 UTC; deferral rationale accepted ("scope call is reasonable"). [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) merging next.
+
+---
+
 ## 2026-04-30
 
 ### 15:43 UTC — Editor: Scientist
@@ -35,6 +61,37 @@ Both linked under [parent #126](https://github.com/Jin-HoMLee/splice-neoepitope-
 **Manuscript follow-up (not in this PR):** the DISCUSSIONS.md "Normal sample filtering → GTEx pan-tissue filter" section's *scientific reasoning* is unchanged, but if it currently describes the filter as "opt-in" or "fallback when no matched normal", that one-liner needs updating once [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) lands and we have validation numbers to cite.
 
 [Issue #191](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/191) closed by the PR carrying this notebook entry.
+
+### 14:15 UTC — Editor: Developer
+
+#### Issue #79 Phase 2 — HTML now driven by report.tsv + two new artefacts
+
+Completed the data/presentation decoupling for [Issue #79 (regen report.html from report.tsv)](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/79). Phase 1 yesterday wrote three machine-readable artefacts (`report.tsv`, `report_top_candidates.tsv`, `report_3d_structure.tsv`) but HTML still read the raw pipeline files. Phase 2 inverts that — `generate_report()` now writes the artefacts first, then reloads them and renders HTML from those projections.
+
+**New helpers in `generate_report.py`:**
+
+- `_load_report_tsv(path)` — long→wide pivot returning per-stage projections (junction_filtering DataFrame, mhc_prediction count dict, top_candidate dict, hla_typing dict, tcrdock dict). Non-lossless by design — exposes only what the HTML render needs.
+- `_render_contig_peek(peek)` — parses the bracketed plain-text peek from `report_top_candidates.tsv` (e.g. `AAA[CC|GG]TTT`) into the same span-classed HTML `_render_contig` produces from raw sequence. Round-trip locked in by test.
+- `_build_strong_table_html_from_top_candidates(df)` — consumes the wide TSV directly. No raw `pred_df` or contigs FASTA needed; the writer's quality gate, sort order, and `TOP_CANDIDATES_LIMIT=10` cap all flow through automatically.
+- `_presenter_counts_html(mhc_prediction_dict)` — renders presentation-class counts from the loaded `report.tsv` projection.
+- `_resolve_top_candidate_from_manifest()` / `_resolve_top_candidate_for_structure()` — split the two sourcing paths for the 3D viewer's annotation; `_build_structure_section()` signature simplified to `(pdb_path, peptide, allele)`.
+
+**Vocabulary sweep** per `developer/shared/feedback_presenters_terminology.md`: "binder" → "presenter" / "presentation" everywhere user-facing and in internal naming. The IC50 column tooltip "Binding affinity in nM" stays — IC50 IS binding affinity per the rule's stated exception.
+
+**Backward compat:** when `output_tsv` / `output_top_candidates_tsv` / `output_3d_structure_tsv` aren't passed (CLI-only path), the original raw-input renderers are used as fallbacks. No regression for ad-hoc `python generate_report.py` runs.
+
+**Verified:**
+
+- `pytest workflow/tests/`: **226/226 passing** (16 new tests added across `TestRenderContigPeek`, `TestBuildStrongTableHtmlFromTopCandidates`, `TestPresenterCountsHtml`, `TestGenerateReportEndToEnd`)
+- `snakemake -n --configfile config/test_config.yaml`: 6 jobs, `generate_report` resolves
+- `snakemake -n` with GPU overlay: 7 jobs, `generate_report_with_structure` resolves with the 3D manifest output
+
+**Two commits on top of yesterday's three:**
+
+- `3f55309` — feat(report): add `_load_report_tsv()` loader for HTML decoupling
+- `0e1610f` — refactor(report): drive HTML from report.tsv + top-candidates + 3D manifest
+
+**Follow-up still scoped under [Issue #198](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/198):** distributing artefact ownership across the producing scripts (move `report_top_candidates.tsv` and `report_3d_structure.tsv` writes to `run_mhcflurry.py` and `run_tcrdock.py` respectively). Today's PR keeps writers in `generate_report.py` for atomicity — `#198` will redistribute.
 
 ---
 
