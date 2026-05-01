@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-05-01
+
+### 11:37 UTC — Editor: Developer
+
+#### Issue #79 / PR #210 — review-fix follow-up
+
+[PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) reviewer (Claude code-review action) flagged 2 **Medium** items, 3 **Low** items, and 1 **Nit** on yesterday's Phase 2 refactor. Addressed both mediums in `98ed6fd` and deferred the rest to a single follow-up Issue to keep this PR's diff focused on the original refactor scope.
+
+**Mediums fixed:**
+
+- **Filter alignment.** `_build_report_top_candidates_tsv` was filtering `presentation_class == "strong"` while `_build_report_tsv` and `_resolve_top_candidate_for_structure` both used `isin(["strong", "weak"])`. The divergence meant a patient whose only top presenter was "weak" would have a populated `top_candidate` row in `report.tsv` but an empty `report_top_candidates.tsv` and a `("NA", "NA")` 3D viewer annotation. Aligned all three on `isin(["strong", "weak"])` — this matches the docstring's "all three surfaces stay aligned" claim and is consistent with the percentile gate already referencing the *weak* threshold. Updated the corresponding empty-output log message ("no strong presenters" → "no qualifying presenters") so it doesn't lie about the broader filter.
+- **`_rank_presenters()` helper extracted.** The three-key sort (`genotype_presentation_score` desc → `n_strong_alleles` desc → `best_presentation_percentile` asc, with `presentation_percentile` fallback) was copy-pasted across three functions. Now defined once at the top of the report-generation section; all three call sites do `df = _rank_presenters(df)`.
+
+**Verified:** `pytest workflow/tests/test_generate_report.py` — 57/57 passing.
+
+**Deferred to follow-up Issue (PR #210 polish):**
+
+- Low-Medium: `test_artefacts_drive_html_when_provided` doesn't actually corrupt raw inputs after artefact write — needs to overwrite raw inputs with garbage and assert correct patient ID is still in HTML to genuinely prove the artefact path is active.
+- Low: silent `effective_patient_id` path-derived fallback — needs `log.warning` when the fallback fires.
+- Low: `_build_report_3d_structure_tsv` hardcodes `"mhc"` column for allele — needs `top.get("mhc") or top.get("allele", "")` fallback.
+- Nit: `_build_strong_table_html_from_top_candidates` no truncation notice — parity gap vs raw-path table; low value while `TOP_CANDIDATES_LIMIT=10` but worth a comment.
+
+Reviewer LGTM at 10:56 UTC; deferral rationale accepted ("scope call is reasonable"). [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) merging next.
+
+---
+
 ## 2026-04-30
 
 ### 15:43 UTC — Editor: Scientist
