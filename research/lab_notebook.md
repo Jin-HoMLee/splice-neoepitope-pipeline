@@ -4,6 +4,25 @@
 
 ## 2026-05-02
 
+### 16:07 UTC — Editor: PM
+
+#### Issue #235 skim — completed the Anthropic 2026 Agentic Coding Trends Report cross-checks
+
+Pulled the PDF, extracted text + diagrams (text-only extraction missed the page-8 multi-agent architecture diagram, which turned out to be the densest content). Findings live in the [#235 comments](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235); two threads:
+
+1. **Main writeup** — 5 cross-checks (4/5 convergent), 3-layer orchestration framing (human → agent-orchestrator → specialists), per-cross-check evidence table.
+2. **Domain-bespoke follow-up** — sharpened cross-check #1: the report is *Coding Trends*, ours is *Bioinformatics Trends*; the orchestrator+specialists pattern is convergent but the specialist roster is domain-bespoke (we have Sci because we have scientific reasoning, not because we copied a template).
+
+**Three framing insights captured as shared memories** (more durable than this entry):
+
+- `feedback_cerebrum_vs_project.md` — Cerebrum is the meta-framework above all projects/roles; this project is one instance using it. Don't over-scope project-local issues to "Cerebrum".
+- `feedback_multi_role_not_multi_agent.md` — Prefer "multi-role workflow" over "multi-agent" when describing this project. "Multi-agent" implies agent-to-agent autonomy we don't have (user is the message bus). Calling it multi-agent overclaims.
+- `feedback_domain_bespoke_roles.md` — Our PM/Sci/Dev split is adapted to bioinformatics research. The orchestrator+specialists *pattern* is convergent across domains; the specific *roster* is domain-bespoke.
+
+**Future direction (parking lot, no issue):** partial autonomy via cron jobs / scheduled agents (e.g. PM doing autonomous overnight triage, archive sweeps, scheduled lit reviews). Worth revisiting when a specific bottleneck warrants it.
+
+**Process note:** this entry ships on its own time-suffixed branch (`docs/pm/lab-notebook-2026-05-02-1607`) per the convention introduced morning-of for journal-style entries that aren't tied to issue lifecycle. #235 is already closed; the lab notebook is a journal, not a deliverable, and shouldn't depend on issue state.
+
 ### 10:48 UTC — Editor: Scientist
 
 #### Morning routine — AI-predicted TCR-pMHC structures paper
