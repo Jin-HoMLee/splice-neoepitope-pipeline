@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-05-02
+
+### 10:06 UTC — Editor: PM
+
+#### Morning routine — introduced PM news as Step 0
+
+PM has been doing morning warmups (board recap, standup, triage) but never surfacing external context. Added Step 0 — PM news (web search before the board recap), scoped to GitHub Projects/Issues updates, PM tooling, methodology shifts. Each item logged to `research/news_log.md` to dedupe across roles. Updated `pm/feedback_morning_warmup.md` to codify the step + the new `## 📰 PM news` section header.
+
+Test-ran on first day with three queries (GitHub Projects updates, PM tooling news, software engineering methodology trends). Filtered listicles; kept items with concrete signal. Three made it through → see `research/news_log.md` for the full log.
+
+#### Issue #234 — GitHub MCP Server eval (XS, P2)
+
+Today's news surfaced that the [official GitHub MCP server](https://github.blog/changelog/2026-01-28-github-mcp-server-new-projects-tools-oauth-scope-filtering-and-new-features/) (Jan 2026) exposes typed `project_v2` mutation tools (Status, Priority, Size, Target date) at lower token cost than raw `gh api graphql`. Today PM uses hand-rolled GraphQL with hardcoded field IDs (e.g. `PVTSSF_lAHOB17eGc4BSomPzhAHGh8`). Every triage / re-arrangement burns context on boilerplate. [Issue #234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234) opened to evaluate migration; assigned to `i2 - S1 - Tool Landscape Evaluations`, P2 (strategic DX win, not blocking).
+
+#### Issue #235 — Anthropic 2026 Agentic Coding Trends Report skim (XS, P1)
+
+Anthropic published industry data on multi-agent coding workflows. Our PM/Sci/Dev split, file-based memory, markdown-standup pattern, and scope-discipline rules were designed iteratively without surveying industry patterns. Low-cost opportunity to sanity-check before they ossify. [Issue #235](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235) — 30-min skim with 5 PM-flavoured cross-checks (role decomposition, coordination protocol, memory architecture, scope-discipline failure modes, handoff mechanics).
+
+**Why P1 (vs P2):** This is rare for a research/eval issue. Justified because the cross-check informs every future PM decision (and indirectly Sci/Dev workflows) at low cost. Catching divergences early is much cheaper than after the patterns are entrenched. Not blocking active work, but high information value per minute spent.
+
+#### Cerebrum vs project scope distinction
+
+User flagged that I'd labelled #235 "Cerebrum cross-checks" when it should have been "PM practices cross-checks". **Cerebrum** = the meta multi-agent framework above all projects/roles; **this project** = one instance using Cerebrum. Conflating them inflates scope (project-local issues become "Cerebrum architecture" reviews). Saved as shared memory `feedback_cerebrum_vs_project.md` so all roles get the rule. Reframed #235's title and body accordingly.
+
+#### News_log format extension — time + editor sub-heading
+
+Originally the news_log had one date section with bullets. With PM joining Sci/Dev as a logger, editor attribution was previously implicit and going to break down. Mirrored the lab-notebook format: each session adds a `### HH:MM UTC — Editor: <Role>` sub-heading under the date. Historical entries (pre-2026-05-02) kept as-is. Documented in `shared/reference_news_log.md` and `pm/feedback_morning_warmup.md`. Shipping convention: `docs/<role>/news-log-YYYY-MM-DD-HHMM` time-suffixed branch (no issue link), mirroring the multi-session lab-notebook pattern.
+
+#### Standup — Developer Pending re-raise cleared
+
+[Re-raised the closing-run issues #193/#194/#195 message](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) after 3 days of no response. Developer acknowledged at 08:56 UTC — same response as Scientist (will populate when scoping each iteration's work). Standup is now fully clear.
+
+---
+
 ## 2026-05-01
 
 ### 18:30 UTC — Editor: Developer
