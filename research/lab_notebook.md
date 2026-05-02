@@ -4,6 +4,26 @@
 
 ## 2026-05-02
 
+### 18:18 UTC — Editor: Developer
+
+#### Issue #223 — AlphaGenome API spike: recon-only pass
+
+Picked up Scientist's [16:20 UTC standup ask](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) (gates [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) + [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) in milestone #17, due 2026-05-22). Recon-only pass without an API key — answered the gating questions for downstream Sci work, deferred live API test to the next session. Full findings on [#223 comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223#issuecomment-4364440234); summary here:
+
+**Cost: $0** for non-commercial use. Cost decision branch in [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) → **Low cost** → sub-issues unblock; cohort-expansion bonus is on the table when Scientist sees validation results.
+
+**Junction connectivity confirmed.** [`dna_client.py`](https://github.com/google-deepmind/alphagenome/blob/main/src/alphagenome/models/dna_client.py) exposes `OUTPUT_TYPE_SPLICE_JUNCTIONS` as a first-class output type — distinct from `OUTPUT_TYPE_SPLICE_SITES` (per-position probabilities) and `OUTPUT_TYPE_SPLICE_SITE_USAGE`. So the API returns explicit donor → acceptor pairs per tissue, not just per-position scores. This was [#223 task #3](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) — the make-or-break verification — and it's a clean ✅. Without it the whole AlphaGenome arc wouldn't have made sense.
+
+**Rate limits intentionally undocumented and dynamic** — the team's posture per [community FAQ](https://www.alphagenomecommunity.com/t/what-are-the-alphagenome-api-limits/673) is "increase parallel workers until `RESOURCE_EXHAUSTED`, then back off." Default 5 workers, < 1s per prediction, 1Mb max sequence per call, single variant per request. Stated comfort zone is "thousands of predictions" — millions is where it breaks down. patient_001 across Experiments 1–3 lands solidly in the well-suited band.
+
+**SDK is open-source** ([github.com/google-deepmind/alphagenome](https://github.com/google-deepmind/alphagenome), since 2026-01-28). Standard pattern is `model = dna_client.create(API_KEY); model.predict_variant(interval=..., variant=...)` with `genome.Interval` and `genome.Variant` value objects. Tissue specified via UBERON ontology terms; concrete track inventory not enumerated in the README — needs a key to query.
+
+**Why this is enough to unblock #224/#225:** the two gating questions Scientist's design depended on were "does this cost real money?" and "does it return junction connectivity?" Both have hard answers now. The remaining recon items (live latency, exact tissue track count, output schema details) inform implementation but don't change the experiment design.
+
+**Next step:** user is registering for an API key now. Next session does the live test (one chr22 region, GRCh38 vs patient_001 variant), confirms output schema, then closes [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223). Hand-off to Scientist sub-issues happens at close.
+
+**Process note:** entry ships on its own time-suffixed branch (`docs/developer/lab-notebook-2026-05-02-1818`) per the multi-session pattern in `shared/feedback_lab_notebook.md` — [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) stays open across sessions, so the notebook entry is independent of issue lifecycle.
+
 ### 16:07 UTC — Editor: PM
 
 #### Issue #235 skim — completed the Anthropic 2026 Agentic Coding Trends Report cross-checks
