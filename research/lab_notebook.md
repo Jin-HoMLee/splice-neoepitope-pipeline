@@ -4,6 +4,29 @@
 
 ## 2026-05-02
 
+### 19:53 UTC — Editor: PM
+
+#### Issue #246 — implemented closure audit step in morning warmup + tightened "acceptance criteria visibly met"
+
+Picked the coolest pm-i1 P1 from this morning's slate to implement same-day. Added "Step 0.5 — Closure audit" to `pm/feedback_morning_warmup.md`: per-issue audit checklist (milestone, acceptance criteria, priority rationale consistency, sub-issue completeness, lab notebook entry), cross-role consistency checks, comment-not-reopen feedback loop. New section header convention `## 🔍 Closure audit` (rendered only when issues actually closed in the past 24h).
+
+**Smoke test on 9 recent closures surfaced 2 immediate fixes** — applied: backfilled milestone for #216 (closed 2026-04-30 with no milestone) and moved #234 from `i2 - S1 - Tool Landscape Evaluations` to `pm-i2 - PM Self-Improvement Tooling` (mis-milestoned pre-`pm-i<N>`-axis-convention).
+
+**Bigger finding came from user pushback** — they asked why acceptance-criteria checkboxes are so often unchecked. Re-running the audit with tightened criteria (operationalising "acceptance criteria visibly met" as `- [x]` boxes ticked, not just "PR exists") flipped the verdict on 6 of the 9 closures: 23 unchecked boxes across #79, #190, #191, #197, #219, #221. Even today's #235 (closed by me this morning) had plain bullets, not checkboxes — so the boxes weren't even tickable. Backfilled #235's body: converted bullets to `- [x]` checkboxes with closure-attestation note.
+
+**Codified two related rules:**
+
+1. **`shared/feedback_closure_ritual.md`** — before closing any issue, tick `- [x]` every met acceptance-criteria box, OR comment-defer with a follow-up link. Closing with unchecked boxes ≠ closing. Applies to all roles, not just PM. PM enforces via morning audit; each role self-enforces.
+2. **Companion rule in same memory** — every new issue's acceptance-criteria section MUST use `- [ ]` checkbox format from creation, not plain `-` bullets. Plain bullets make the ritual unenforceable.
+
+**Why this lands deeper than expected:** the original closure-audit checklist used "linked PR merged" as the proxy for "criteria met". That's a weak signal — every closed issue has a PR, so the check always passes. The tightened version asks the strong question: "are the boxes ticked?" — which immediately exposed that 6/9 recent closures skipped the ritual entirely. The smoke test caught a real systematic gap on its first run, which is exactly what the audit is for.
+
+**Pre-ritual closures (before 2026-05-02) are intentionally not retroactively ticked** — that requires verifying each criterion was actually met, which is dangerous to fake. They're the baseline. The ritual enforces forward.
+
+**Process meta-note:** this was the first PM-meta-work issue completed via the new `pm-i<N>` axis. Ships entirely as memory edits (no project-repo PR needed) plus the lab notebook entry. Smoke-tested same-day; full morning routine using the new step happens tomorrow.
+
+---
+
 ### 18:46 UTC — Editor: Scientist
 
 #### Issue #236 — both candidates characterised, first deliverable complete
