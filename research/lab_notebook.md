@@ -4,6 +4,32 @@
 
 ## 2026-05-02
 
+### 18:46 UTC — Editor: Scientist
+
+#### Issue #236 — both candidates characterised, first deliverable complete
+
+Picked up [#236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) and worked through inference-mode classification per candidate.
+
+**TCRLens — mode (b)** via WebFetch on the [paper's Methods section](https://academic.oup.com/bioinformaticsadvances/article/6/1/vbag066/8496266). Requires 3D structures generated via the tFold-TCR pipeline. tFold-TCR is **5000× faster than AlphaFold-Multimer** (eliminates MSA via ESM-PPI-TCR), so it qualifies as a genuine fast-structure-predictor-inline. TCRLens is structure-source-agnostic — viable as both **triage** (using tFold-TCR upstream of MHCflurry → TCRdock) AND **cross-check** (reusing our TCRdock outputs). The only candidate so far that can sit upstream of TCRdock.
+
+**t2pmhc — mode (c)**, corrected from yesterday's abstract-only claim to a properly-cited methods-section read. WebFetch blocked on bioRxiv (403), so user supplied the PDF directly in conversation. Methods § Structure Prediction confirms: *"Structures of all TCR-pMHC complexes were predicted using TCRdock (v2.0.0)."* **t2pmhc uses TCRdock specifically** — the same tool we already run — so cross-check is essentially free in our pipeline (only the GNN scoring step adds). Pipeline-fit: cross-check only (mode c rules out triage and replacement). The discussion section also flags structure-prediction quality as the accuracy ceiling, which we'd inherit equally with them.
+
+Consolidated [comment on #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4364300411) with full pipeline-fit table. Second deliverable (pipeline-fit recommendation with scoped follow-ups) deferred until [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) lands patient_001 outputs — the natural shared test bed.
+
+#### Workflow revision — WebFetch envelope and PDF policy
+
+User pushback clarified the actual WebFetch envelope: body text yes, table content yes, figure captions yes, but figure images, layout-dependent content, and supplementaries — no. For deep analysis on eval candidates (benchmarking plots, structural diagrams, supplementary tables), text-only WebFetch is genuinely insufficient and I'd undersold this earlier. Extended `shared/feedback_zotero_defer_inaccessible.md` with an explicit *"always ask for PDF when deeper analysis is needed"* rule. Future flow: surface the WebFetch limitation, ask user to attach the PDF to the Zotero entry, then I fetch via `/items/{key}/file` or use the user-attached PDF in conversation.
+
+#### Zotero hygiene — bioRxiv replacements + HERMES correction
+
+User replaced the three bioRxiv entries that had been added yesterday/this morning via direct API workaround. New keys: `78BQ23IV` (Benchmarking foundation models for splice site and exon annotation), `STQYEVAQ` (t2pmhc, replacing deleted `E3WRMAAH`), `4N2J7SIH` (AI predicted TCR-pMHC structures — first time in Zotero). All three now have PDFs attached. I re-applied project tags via API: `manuscript-METHODS` + `manuscript-DISCUSSION` for `STQYEVAQ`; `manuscript-DISCUSSION` for the other two.
+
+**HERMES correction:** I claimed twice today that HERMES was missing from Zotero based on a title-substring search returning zero hits. Wrong both times. HERMES is in Zotero as `MWZFINV6` — the paper title is *"T cell receptor specificity landscape revealed through de novo peptide design"* (Visani et al., *PNAS* Oct 2025); **HERMES is the method name** introduced in this paper, but the title doesn't contain the word "HERMES" so the title-based search missed it. [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)'s body correctly references `MWZFINV6` — the bug was in my recall, not the issue. Tagged `manuscript-DISCUSSION` to position it alongside t2pmhc/TCRLens in the cross-check role.
+
+#### Standup — Developer cleared the AlphaGenome gate
+
+[Pinged Developer at 16:20 UTC](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) asking them to prioritise [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) (gates P1 Sci work in milestone #17, due 2026-05-22). Developer replied at 18:18 UTC: AlphaGenome is **$0 for non-commercial use** → Low Cost branch hit per #203's decision tree → [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) unblock as soon as Developer finishes the live API test next session. Cohort-expansion bonus is on the table once validation results come in.
+
 ### 18:18 UTC — Editor: Developer
 
 #### Issue #223 — AlphaGenome API spike: recon-only pass
