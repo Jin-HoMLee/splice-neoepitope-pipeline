@@ -727,12 +727,7 @@ def _build_report_tsv(
 
     # --- junction_filtering: patient-level funnel totals (Issue #214) ---
     if junction_filter_stats_tsv is not None:
-        try:
-            stats_df = pd.read_csv(junction_filter_stats_tsv, sep="\t")
-        except Exception as exc:
-            log.warning("Could not read junction_filter_stats TSV %s: %s",
-                        junction_filter_stats_tsv, exc)
-            stats_df = pd.DataFrame()
+        stats_df = pd.read_csv(junction_filter_stats_tsv, sep="\t")
         if not stats_df.empty:
             by_cat = stats_df.groupby("category")["count"].sum()
             for metric, source_cats in (
@@ -740,7 +735,7 @@ def _build_report_tsv(
                 ("junctions_annotated_discarded", ("annotated_discarded",)),
                 ("junctions_unannotated_total", ("normal_shared", "tumor_exclusive")),
             ):
-                value = int(sum(int(by_cat.get(c, 0)) for c in source_cats))
+                value = sum(int(by_cat.get(c, 0)) for c in source_cats)
                 rows.append({
                     "patient_id": patient_id, "stage": "junction_filtering",
                     "metric": metric, "value": value, "notes": "all tumor samples",
@@ -1397,7 +1392,7 @@ def _snakemake_main() -> None:
         output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_top_candidates_tsv=snakemake.output.report_top_candidates_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
-        junction_filter_stats_tsv=getattr(snakemake.input, "junction_filter_stats", None),  # type: ignore[name-defined]  # noqa: F821
+        junction_filter_stats_tsv=snakemake.input.junction_filter_stats,  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 

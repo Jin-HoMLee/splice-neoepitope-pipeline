@@ -326,18 +326,66 @@ class TestClassifyJunctionsStats:
         stats = pd.read_csv(stats_output, sep="\t")
         assert set(stats.columns) == {"sample_id", "sample_type", "category", "count"}
 
-        # Long-format: 4 rows per tumor sample
-        assert len(stats) == 4
+        # Long-format: 5 rows per tumor sample (the 5-step funnel)
+        assert len(stats) == 5
         assert (stats["sample_id"] == "tumor").all()
         assert (stats["sample_type"] == "Primary Tumor").all()
 
         by_cat = dict(zip(stats["category"], stats["count"]))
         # junctions_raw is BEFORE the mean-reads filter — all 4 rows
         assert by_cat["junctions_raw"] == 4
+        # 1 noise junction was below the mean and got filtered out
+        assert by_cat["mean_reads_filtered"] == 1
         # After mean filter, 3 junctions survive: 1 annotated, 1 normal_shared, 1 tumor_exclusive
         assert by_cat["annotated_discarded"] == 1
         assert by_cat["normal_shared"] == 1
         assert by_cat["tumor_exclusive"] == 1
+
+    def test_funnel_reconciles_arithmetically(self, tmp_path):
+        """junctions_raw must equal the sum of the 4 downstream categories."""
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+
+        # Mix of high-read and low-read junctions to exercise the mean filter
+        self._write_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100),  # annotated, high read
+            ("chr22:201:300:+", 100),  # unannotated, high read, in normal → normal_shared
+            ("chr22:301:400:+", 100),  # unannotated, high read → tumor_exclusive
+            ("chr22:701:800:+", 1),    # noise → mean_reads_filtered
+            ("chr22:801:900:+", 1),    # noise → mean_reads_filtered
+        ])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"),
+            ("normal", "Solid Tissue Normal"),
+        ])
+
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+        )
+
+        stats = pd.read_csv(stats_output, sep="\t")
+        by_cat = dict(zip(stats["category"], stats["count"]))
+        # The whole point of the funnel: raw == sum of downstream buckets
+        assert by_cat["junctions_raw"] == (
+            by_cat["mean_reads_filtered"]
+            + by_cat["annotated_discarded"]
+            + by_cat["normal_shared"]
+            + by_cat["tumor_exclusive"]
+        )
 
     def test_stats_tsv_omits_normal_samples(self, tmp_path):
         tumor_f = tmp_path / "tumor" / "junctions.tsv"
@@ -412,8 +460,8 @@ class TestClassifyJunctionsStats:
         )
 
         stats = pd.read_csv(stats_output, sep="\t")
-        # 4 categories × 2 samples = 8 rows
-        assert len(stats) == 8
+        # 5 categories × 2 samples = 10 rows
+        assert len(stats) == 10
         assert set(stats["sample_id"]) == {"tumor1", "tumor2"}
 
     def test_stats_tsv_optional(self, tmp_path):

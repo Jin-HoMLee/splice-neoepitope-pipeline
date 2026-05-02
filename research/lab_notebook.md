@@ -4,6 +4,77 @@
 
 ## 2026-05-02
 
+### 16:48 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — review-cycle fixes
+
+`@claude review` on [PR #240](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/240) caught a real arithmetic bug in this morning's funnel design: `junctions_raw` was captured **before** the per-sample mean-reads filter, but `annotated_discarded` / `normal_shared` / `tumor_exclusive` were counted **after** — so the three patient-level totals didn't reconcile (`extracted_total ≠ annotated + unannotated`). The gap is exactly the noise junctions removed by `reads > mean`. My morning test even demonstrated it (4 raw → 3 classified, gap of 1) and I missed it.
+
+**Fix (Option A from reviewer):** added a 4th intermediate category `mean_reads_filtered` to `junction_filter_stats.tsv` so it now records the full 5-step funnel (`junctions_raw → mean_reads_filtered → {annotated_discarded, normal_shared, tumor_exclusive}`). The 3 patient-level rows in `report.tsv` are unchanged in name but the underlying schema now reconciles arithmetically. Added an explicit test `test_funnel_reconciles_arithmetically` asserting `junctions_raw == sum(4 downstream buckets)`.
+
+**Style nits also addressed in the same commit:**
+
+- Removed a defensive `try/except Exception` around `pd.read_csv(stats_tsv)` in `_build_report_tsv` — `junction_filter_stats.tsv` is a *required* Snakemake input, so the error path can't fire under normal pipeline runs. Per CLAUDE.md "don't validate scenarios that can't happen."
+- Removed a redundant outer `int()` cast on `sum(...)` in the same aggregation.
+- Switched `getattr(snakemake.input, "junction_filter_stats", None)` to direct attribute access `snakemake.input.junction_filter_stats`. The `getattr(...,None)` pattern is reserved for genuinely optional inputs (`hla_qc`, `pdb`, `scores_tsv`); using it for a required input misleads the reader about optionality.
+
+**Lab notebook process change captured as a memory:** user pushed back when I tried to *rewrite* the morning 10:48 entry to be a single self-contained "complete" account. Saved `shared/feedback_lab_notebook.md` "Entries are immutable" rule: each session writes its own entry, never edit/replace previously-committed entries — the lab notebook is a journal not a wiki, and the bug-catch narrative is exactly what's most useful for future-grep ("when did we add `mean_reads_filtered`?" → afternoon entry, not a retroactively-edited morning one).
+
+**Verified:** 234/234 tests passing (5 in `TestClassifyJunctionsStats` now, up from 4); Snakemake dry-run clean; rule graph correctly triggers `filter_junctions` from the code change.
+
+### 16:07 UTC — Editor: PM
+
+#### Issue #235 skim — completed the Anthropic 2026 Agentic Coding Trends Report cross-checks
+
+Pulled the PDF, extracted text + diagrams (text-only extraction missed the page-8 multi-agent architecture diagram, which turned out to be the densest content). Findings live in the [#235 comments](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235); two threads:
+
+1. **Main writeup** — 5 cross-checks (4/5 convergent), 3-layer orchestration framing (human → agent-orchestrator → specialists), per-cross-check evidence table.
+2. **Domain-bespoke follow-up** — sharpened cross-check #1: the report is *Coding Trends*, ours is *Bioinformatics Trends*; the orchestrator+specialists pattern is convergent but the specialist roster is domain-bespoke (we have Sci because we have scientific reasoning, not because we copied a template).
+
+**Three framing insights captured as shared memories** (more durable than this entry):
+
+- `feedback_cerebrum_vs_project.md` — Cerebrum is the meta-framework above all projects/roles; this project is one instance using it. Don't over-scope project-local issues to "Cerebrum".
+- `feedback_multi_role_not_multi_agent.md` — Prefer "multi-role workflow" over "multi-agent" when describing this project. "Multi-agent" implies agent-to-agent autonomy we don't have (user is the message bus). Calling it multi-agent overclaims.
+- `feedback_domain_bespoke_roles.md` — Our PM/Sci/Dev split is adapted to bioinformatics research. The orchestrator+specialists *pattern* is convergent across domains; the specific *roster* is domain-bespoke.
+
+**Future direction (parking lot, no issue):** partial autonomy via cron jobs / scheduled agents (e.g. PM doing autonomous overnight triage, archive sweeps, scheduled lit reviews). Worth revisiting when a specific bottleneck warrants it.
+
+**Process note:** this entry ships on its own time-suffixed branch (`docs/pm/lab-notebook-2026-05-02-1607`) per the convention introduced morning-of for journal-style entries that aren't tied to issue lifecycle. #235 is already closed; the lab notebook is a journal, not a deliverable, and shouldn't depend on issue state.
+
+### 10:48 UTC — Editor: Scientist
+
+#### Morning routine — AI-predicted TCR-pMHC structures paper
+
+Surfaced [*"AI predicted TCR-pMHC structures differentiate immune interactions"*](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1) (bioRxiv 2026-02). Three findings relevant to us: AlphaFold2 most consistent among AI tools for TCR-pMHC multimer prediction; **structural features outperform sequence features** for binding discrimination; non-binders produce less stable conformations under MD simulation. Reinforces the structural step at the top of our funnel and gives independent evidence that energy/stability signals are meaningful — directly relevant to the [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES eval.
+
+User discussion converged on framing the field as **hierarchical convergence**, not a sequence→structure paradigm shift: sequence models scale, structural models discriminate hard cases, and hybrids (structure-informed sequence models) are the emerging best-of-both. Our pipeline already runs MHCflurry (sequence-aware) → TCRdock (full structural) — the new finding doesn't argue against this, it argues *for* keeping a structural step.
+
+#### Issue #232 — S7 manuscript lit review opened
+
+PM's standalone S7 milestone (#16, `i3 - S7 - Publication - Splice Neoantigen Tooling Landscape (Lit Review)`) was greenlit yesterday for the 5 papers accumulated in the [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) lit review session. Opened [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (P2, S) with full paper inventory: Zotero keys + DOI links + per-section mapping (CNNeoPP→INTRODUCTION; splice2neo+AlphaGenome→METHODS; ENEO+SpliceMutr+AlphaGenome→DISCUSSION). PM's suggested title was INTRODUCTION+DISCUSSION only — corrected to INTRODUCTION, METHODS+DISCUSSION since the actual Zotero tags showed METHODS coverage too. AlphaGenome's DISCUSSION entry depends on #223/#224/#225 outcomes; other entries unblocked.
+
+#### Issue #236 — Hybrid TCR-pMHC scoring eval (t2pmhc, TCRLens)
+
+Today's lit search surfaced two strong hybrid candidates that fill a real gap in our TCR-scoring landscape (we had pure-sequence [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET, structure replacement [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2, structure confidence [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES, but no hybrid). Opened [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (P2, S) with explicit framing of three inference-time modes (a/b/c: sequence-only / sequence+fast-structure / sequence+full-AF2) and three pipeline-fit roles (triage / replacement / confidence cross-check). The pipeline-fit decision is a *consequence* of the inference-mode characterisation, not a starting assumption — issue's first deliverable is mode classification per candidate.
+
+t2pmhc abstract review (Zotero key `E3WRMAAH`) revealed it falls in **mode (c)** — uses predicted full TCR-pMHC complex structures as input. This narrows its pipeline-fit to confidence cross-check only (peer to HERMES); triage and replacement are off the table. TCRLens (Zotero key `272HU8FV`) inference mode still pending — paper read deferred to issue execution. Both papers added to Zotero with `manuscript-METHODS` + `manuscript-DISCUSSION` tags.
+
+bioRxiv DOI crash in `zotero_add.py` reproduced for t2pmhc (Issue #229 — empty `container-title` from CrossRef). Worked around via direct Zotero API call.
+
+#### News_log first Scientist entry under new convention
+
+PM merged [PR #238](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/238) this morning establishing the `### HH:MM UTC — Editor: <Role>` sub-heading convention for `news_log.md`. First Scientist entry under that format went out as [PR #239](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/239) (merged 10:44 UTC) covering today's three TCR-pMHC scoring papers. PR hit a conflict with the parallel PM merge (both branches added a `## 2026-05-02` section); resolved by interleaving sub-headings newest-first under the shared date — Scientist 10:04 UTC above PM 09:41 UTC.
+
+#### Memory adjustments — parking-lot leak + Zotero API reference
+
+User pushed back on a single-line glossary entry triggering a full PR; saved `shared/feedback_batch_trivial_docs.md` codifying batch-then-flush for trivial docs. **Initial design leaked state**: I added a "Currently parked" section inside the memory file with the actual pending entries — PM read it cross-role via the `shared/` symlink and was confused. Corrected: memory files are for rules, working tree is for state. Pending entries (today's MD glossary entry) now live as uncommitted edits on a docs branch; the memory file just points there.
+
+Also saved `reference_zotero_api.md` after an avoidable detour hunting for the `.env` location during Zotero tag fetches. Direct-query pattern (collection `Z38GTJNW`, `urllib.request` with `Zotero-API-Key` header) now documented for next time.
+
+#### Standup status
+
+Own message [`2026-05-01 13:57 UTC`] (S7 milestone request) marked Done — PM replied 14:02 UTC and created milestone #16 (now backing #232). No outstanding Pending messages addressed to Scientist.
+
 ### 10:48 UTC — Editor: Developer
 
 #### Issue #214 — junction-funnel totals in report.tsv
@@ -19,6 +90,36 @@ Fast-ship slice of [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-
 **Naming alignment with [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215):** picked the long-format schema and category names (`junctions_raw`, `annotated_discarded`, etc.) to match #215's planned `filtering_stats.tsv`. When #215 ships, it can either supersede `junction_filter_stats.tsv` with the unified multi-step file, or aggregate it as one source among many. Migration cost stays small either way.
 
 **Tests:** 4 new tests in `test_filter_junctions.py` (schema, normal-omission, multi-sample, back-compat for callers without stats path) + 3 in `test_generate_report.py` (totals correctness, back-compat, notes-field convention). 233/233 total. Snakemake dry-run validates the rule graph: `filter_junctions` correctly triggers with the new output, downstream rules unchanged.
+
+### 10:06 UTC — Editor: PM
+
+#### Morning routine — introduced PM news as Step 0
+
+PM has been doing morning warmups (board recap, standup, triage) but never surfacing external context. Added Step 0 — PM news (web search before the board recap), scoped to GitHub Projects/Issues updates, PM tooling, methodology shifts. Each item logged to `research/news_log.md` to dedupe across roles. Updated `pm/feedback_morning_warmup.md` to codify the step + the new `## 📰 PM news` section header.
+
+Test-ran on first day with three queries (GitHub Projects updates, PM tooling news, software engineering methodology trends). Filtered listicles; kept items with concrete signal. Three made it through → see `research/news_log.md` for the full log.
+
+#### Issue #234 — GitHub MCP Server eval (XS, P2)
+
+Today's news surfaced that the [official GitHub MCP server](https://github.blog/changelog/2026-01-28-github-mcp-server-new-projects-tools-oauth-scope-filtering-and-new-features/) (Jan 2026) exposes typed `project_v2` mutation tools (Status, Priority, Size, Target date) at lower token cost than raw `gh api graphql`. Today PM uses hand-rolled GraphQL with hardcoded field IDs (e.g. `PVTSSF_lAHOB17eGc4BSomPzhAHGh8`). Every triage / re-arrangement burns context on boilerplate. [Issue #234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234) opened to evaluate migration; assigned to `i2 - S1 - Tool Landscape Evaluations`, P2 (strategic DX win, not blocking).
+
+#### Issue #235 — Anthropic 2026 Agentic Coding Trends Report skim (XS, P1)
+
+Anthropic published industry data on multi-agent coding workflows. Our PM/Sci/Dev split, file-based memory, markdown-standup pattern, and scope-discipline rules were designed iteratively without surveying industry patterns. Low-cost opportunity to sanity-check before they ossify. [Issue #235](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235) — 30-min skim with 5 PM-flavoured cross-checks (role decomposition, coordination protocol, memory architecture, scope-discipline failure modes, handoff mechanics).
+
+**Why P1 (vs P2):** This is rare for a research/eval issue. Justified because the cross-check informs every future PM decision (and indirectly Sci/Dev workflows) at low cost. Catching divergences early is much cheaper than after the patterns are entrenched. Not blocking active work, but high information value per minute spent.
+
+#### Cerebrum vs project scope distinction
+
+User flagged that I'd labelled #235 "Cerebrum cross-checks" when it should have been "PM practices cross-checks". **Cerebrum** = the meta multi-agent framework above all projects/roles; **this project** = one instance using Cerebrum. Conflating them inflates scope (project-local issues become "Cerebrum architecture" reviews). Saved as shared memory `feedback_cerebrum_vs_project.md` so all roles get the rule. Reframed #235's title and body accordingly.
+
+#### News_log format extension — time + editor sub-heading
+
+Originally the news_log had one date section with bullets. With PM joining Sci/Dev as a logger, editor attribution was previously implicit and going to break down. Mirrored the lab-notebook format: each session adds a `### HH:MM UTC — Editor: <Role>` sub-heading under the date. Historical entries (pre-2026-05-02) kept as-is. Documented in `shared/reference_news_log.md` and `pm/feedback_morning_warmup.md`. Shipping convention: `docs/<role>/news-log-YYYY-MM-DD-HHMM` time-suffixed branch (no issue link), mirroring the multi-session lab-notebook pattern.
+
+#### Standup — Developer Pending re-raise cleared
+
+[Re-raised the closing-run issues #193/#194/#195 message](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) after 3 days of no response. Developer acknowledged at 08:56 UTC — same response as Scientist (will populate when scoping each iteration's work). Standup is now fully clear.
 
 ---
 

@@ -263,9 +263,12 @@ def classify_junctions(
 
     When ``stats_output_path`` is supplied, also writes a long-format
     per-tumor-sample stats TSV (Issue #214) with columns:
-    ``sample_id, sample_type, category, count`` and categories
-    ``junctions_raw`` (pre mean-reads filter), ``annotated_discarded``,
-    ``normal_shared``, ``tumor_exclusive``. Normal samples are omitted.
+    ``sample_id, sample_type, category, count``. Categories form a 5-step
+    funnel that reconciles arithmetically — ``junctions_raw`` (pre-filter raw
+    regtools output) equals the sum of ``mean_reads_filtered`` (noise removed
+    by the per-sample mean-reads filter) + ``annotated_discarded`` (in
+    GENCODE) + ``normal_shared`` + ``tumor_exclusive`` (the two unannotated
+    classes). Normal samples are omitted.
 
     Args:
         junction_files:    List of raw junction quantification TSV paths.
@@ -323,6 +326,7 @@ def classify_junctions(
         # reducing noise from low-evidence junctions.
         mean_reads = sum(r for _, r in rows) / len(rows)
         rows = [(jid, r) for jid, r in rows if r > mean_reads]
+        n_mean_filtered = n_raw - len(rows)
 
         n_annotated = n_normal_shared = n_tumor_exclusive = 0
 
@@ -373,6 +377,7 @@ def classify_junctions(
 
         for category, count in (
             ("junctions_raw", n_raw),
+            ("mean_reads_filtered", n_mean_filtered),
             ("annotated_discarded", n_annotated),
             ("normal_shared", n_normal_shared),
             ("tumor_exclusive", n_tumor_exclusive),
