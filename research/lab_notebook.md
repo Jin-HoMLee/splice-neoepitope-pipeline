@@ -4,6 +4,40 @@
 
 ## 2026-05-02
 
+### 10:48 UTC — Editor: Scientist
+
+#### Morning routine — AI-predicted TCR-pMHC structures paper
+
+Surfaced [*"AI predicted TCR-pMHC structures differentiate immune interactions"*](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1) (bioRxiv 2026-02). Three findings relevant to us: AlphaFold2 most consistent among AI tools for TCR-pMHC multimer prediction; **structural features outperform sequence features** for binding discrimination; non-binders produce less stable conformations under MD simulation. Reinforces the structural step at the top of our funnel and gives independent evidence that energy/stability signals are meaningful — directly relevant to the [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES eval.
+
+User discussion converged on framing the field as **hierarchical convergence**, not a sequence→structure paradigm shift: sequence models scale, structural models discriminate hard cases, and hybrids (structure-informed sequence models) are the emerging best-of-both. Our pipeline already runs MHCflurry (sequence-aware) → TCRdock (full structural) — the new finding doesn't argue against this, it argues *for* keeping a structural step.
+
+#### Issue #232 — S7 manuscript lit review opened
+
+PM's standalone S7 milestone (#16, `i3 - S7 - Publication - Splice Neoantigen Tooling Landscape (Lit Review)`) was greenlit yesterday for the 5 papers accumulated in the [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) lit review session. Opened [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (P2, S) with full paper inventory: Zotero keys + DOI links + per-section mapping (CNNeoPP→INTRODUCTION; splice2neo+AlphaGenome→METHODS; ENEO+SpliceMutr+AlphaGenome→DISCUSSION). PM's suggested title was INTRODUCTION+DISCUSSION only — corrected to INTRODUCTION, METHODS+DISCUSSION since the actual Zotero tags showed METHODS coverage too. AlphaGenome's DISCUSSION entry depends on #223/#224/#225 outcomes; other entries unblocked.
+
+#### Issue #236 — Hybrid TCR-pMHC scoring eval (t2pmhc, TCRLens)
+
+Today's lit search surfaced two strong hybrid candidates that fill a real gap in our TCR-scoring landscape (we had pure-sequence [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET, structure replacement [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2, structure confidence [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES, but no hybrid). Opened [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (P2, S) with explicit framing of three inference-time modes (a/b/c: sequence-only / sequence+fast-structure / sequence+full-AF2) and three pipeline-fit roles (triage / replacement / confidence cross-check). The pipeline-fit decision is a *consequence* of the inference-mode characterisation, not a starting assumption — issue's first deliverable is mode classification per candidate.
+
+t2pmhc abstract review (Zotero key `E3WRMAAH`) revealed it falls in **mode (c)** — uses predicted full TCR-pMHC complex structures as input. This narrows its pipeline-fit to confidence cross-check only (peer to HERMES); triage and replacement are off the table. TCRLens (Zotero key `272HU8FV`) inference mode still pending — paper read deferred to issue execution. Both papers added to Zotero with `manuscript-METHODS` + `manuscript-DISCUSSION` tags.
+
+bioRxiv DOI crash in `zotero_add.py` reproduced for t2pmhc (Issue #229 — empty `container-title` from CrossRef). Worked around via direct Zotero API call.
+
+#### News_log first Scientist entry under new convention
+
+PM merged [PR #238](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/238) this morning establishing the `### HH:MM UTC — Editor: <Role>` sub-heading convention for `news_log.md`. First Scientist entry under that format went out as [PR #239](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/239) (merged 10:44 UTC) covering today's three TCR-pMHC scoring papers. PR hit a conflict with the parallel PM merge (both branches added a `## 2026-05-02` section); resolved by interleaving sub-headings newest-first under the shared date — Scientist 10:04 UTC above PM 09:41 UTC.
+
+#### Memory adjustments — parking-lot leak + Zotero API reference
+
+User pushed back on a single-line glossary entry triggering a full PR; saved `shared/feedback_batch_trivial_docs.md` codifying batch-then-flush for trivial docs. **Initial design leaked state**: I added a "Currently parked" section inside the memory file with the actual pending entries — PM read it cross-role via the `shared/` symlink and was confused. Corrected: memory files are for rules, working tree is for state. Pending entries (today's MD glossary entry) now live as uncommitted edits on a docs branch; the memory file just points there.
+
+Also saved `reference_zotero_api.md` after an avoidable detour hunting for the `.env` location during Zotero tag fetches. Direct-query pattern (collection `Z38GTJNW`, `urllib.request` with `Zotero-API-Key` header) now documented for next time.
+
+#### Standup status
+
+Own message [`2026-05-01 13:57 UTC`] (S7 milestone request) marked Done — PM replied 14:02 UTC and created milestone #16 (now backing #232). No outstanding Pending messages addressed to Scientist.
+
 ### 10:06 UTC — Editor: PM
 
 #### Morning routine — introduced PM news as Step 0
