@@ -13,6 +13,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-02
 
+### 10:04 UTC — Editor: Scientist
+
+- **AI predicted TCR-pMHC structures differentiate immune interactions** (2026-02, bioRxiv) — AlphaFold2 most consistent for TCR-pMHC multimers; structural > sequence features for binding; non-binders less stable in MD. → Reinforces [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) (HERMES eval). *Scientist. portfolio-differentiator.*
+- **t2pmhc** (2026-02, bioRxiv) — Structure-informed GNN for TCR-pMHC binding; mode (c) — needs full predicted complex. → [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (hybrid models eval). *Scientist. portfolio-differentiator.*
+- **TCRLens** (2026-01, Bioinformatics Advances) — Structure-aware EGNN with VAE-GAN augmentation; multi-scale graphs over 5 interface zones. → [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (hybrid models eval). *Scientist. portfolio-differentiator.*
+
 ### 09:41 UTC — Editor: PM
 
 - **GitHub MCP Server — Projects tools** (2026-01-28) — official MCP exposes `project_v2` mutations (Status/Priority/Size/Target date) at lower token cost than raw `gh api graphql`. → [Issue #234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234) (PM eval, migrate hand-rolled GraphQL). *PM. tooling-relevant.*
