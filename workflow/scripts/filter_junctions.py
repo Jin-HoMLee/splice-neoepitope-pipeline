@@ -243,6 +243,7 @@ def classify_junctions(
     manifest_path: str | Path,
     reference_bed: str | Path,
     output_path: str | Path,
+    stats_output_path: str | Path | None = None,
     min_normal_reads: int = 2,
     gencode_gtf: str | Path | None = None,
 ) -> None:
@@ -260,14 +261,22 @@ def classify_junctions(
     reading frame at the splice donor of each junction.  See
     ``_build_cds_donor_lookup`` for details.
 
+    When ``stats_output_path`` is supplied, also writes a long-format
+    per-tumor-sample stats TSV (Issue #214) with columns:
+    ``sample_id, sample_type, category, count`` and categories
+    ``junctions_raw`` (pre mean-reads filter), ``annotated_discarded``,
+    ``normal_shared``, ``tumor_exclusive``. Normal samples are omitted.
+
     Args:
-        junction_files:   List of raw junction quantification TSV paths.
-        manifest_path:    Manifest TSV mapping file_id → sample_type.
-        reference_bed:    Path to reference junction BED file.
-        output_path:      Destination TSV for classified junctions.
-        min_normal_reads: Minimum reads required to trust a normal junction.
-        gencode_gtf:      Optional path to GENCODE GTF for reading frame
-                          annotation.  When None, reading_frame is always "".
+        junction_files:    List of raw junction quantification TSV paths.
+        manifest_path:     Manifest TSV mapping file_id → sample_type.
+        reference_bed:     Path to reference junction BED file.
+        output_path:       Destination TSV for classified junctions.
+        stats_output_path: Optional destination TSV for per-tumor-sample funnel
+                           counts. When None, no stats file is written.
+        min_normal_reads:  Minimum reads required to trust a normal junction.
+        gencode_gtf:       Optional path to GENCODE GTF for reading frame
+                           annotation.  When None, reading_frame is always "".
     """
     ref_junctions = _load_reference_junctions(reference_bed)
     donor_frames = _build_cds_donor_lookup(gencode_gtf) if gencode_gtf else {}
@@ -300,12 +309,15 @@ def classify_junctions(
 
     # Classify tumor junctions
     all_classified: list[dict] = []
+    stats_rows: list[dict] = []
 
     for path, sample_id, sample_type in tumor_files:
         rows = _read_junction_file(path)
         if not rows:
             log.warning("No data rows found in %s", path)
             continue
+
+        n_raw = len(rows)
 
         # Keep only junctions with read count above the per-file mean,
         # reducing noise from low-evidence junctions.
@@ -359,6 +371,19 @@ def classify_junctions(
             sample_id, n_annotated, n_normal_shared, n_tumor_exclusive,
         )
 
+        for category, count in (
+            ("junctions_raw", n_raw),
+            ("annotated_discarded", n_annotated),
+            ("normal_shared", n_normal_shared),
+            ("tumor_exclusive", n_tumor_exclusive),
+        ):
+            stats_rows.append({
+                "sample_id": sample_id,
+                "sample_type": sample_type,
+                "category": category,
+                "count": count,
+            })
+
     df = pd.DataFrame(
         all_classified,
         columns=[
@@ -379,6 +404,16 @@ def classify_junctions(
         (df["junction_origin"] == "normal_shared").sum() if not df.empty else 0,
     )
 
+    if stats_output_path is not None:
+        stats_df = pd.DataFrame(
+            stats_rows,
+            columns=["sample_id", "sample_type", "category", "count"],
+        )
+        stats_output_path = Path(stats_output_path)
+        stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+        stats_df.to_csv(stats_output_path, sep="\t", index=False)
+        log.info("Wrote junction filter stats to %s (%d rows)", stats_output_path, len(stats_df))
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry point
@@ -393,6 +428,7 @@ def _snakemake_main() -> None:
         manifest_path=snakemake.input.manifest,  # type: ignore[name-defined]  # noqa: F821
         reference_bed=snakemake.input.reference_junctions,  # type: ignore[name-defined]  # noqa: F821
         output_path=snakemake.output.novel_junctions,  # type: ignore[name-defined]  # noqa: F821
+        stats_output_path=snakemake.output.stats,  # type: ignore[name-defined]  # noqa: F821
         min_normal_reads=snakemake.params.min_normal_reads,  # type: ignore[name-defined]  # noqa: F821
         gencode_gtf=snakemake.input.gencode_gtf,  # type: ignore[name-defined]  # noqa: F821
     )
@@ -413,6 +449,10 @@ def _cli_main() -> None:
     )
     parser.add_argument("--output", required=True, help="Output classified junctions TSV")
     parser.add_argument(
+        "--stats-output", default=None,
+        help="Optional output TSV for per-tumor-sample funnel counts",
+    )
+    parser.add_argument(
         "--min-normal-reads", type=int, default=2,
         help="Minimum reads to trust a junction in the normal sample (default: 2)",
     )
@@ -427,6 +467,7 @@ def _cli_main() -> None:
         manifest_path=args.manifest,
         reference_bed=args.reference_junctions,
         output_path=args.output,
+        stats_output_path=args.stats_output,
         min_normal_reads=args.min_normal_reads,
         gencode_gtf=args.gencode_gtf,
     )

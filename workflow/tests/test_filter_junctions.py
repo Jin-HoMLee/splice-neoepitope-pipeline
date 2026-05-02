@@ -268,6 +268,179 @@ class TestClassifyJunctions:
 
 
 # ---------------------------------------------------------------------------
+# classify_junctions — junction_filter_stats.tsv (Issue #214)
+# ---------------------------------------------------------------------------
+
+class TestClassifyJunctionsStats:
+    """Per-sample funnel counts surfaced for report.tsv (tumor samples only)."""
+
+    def _write_junction_file(self, path, rows):
+        path.write_text("".join(f"{jid}\t{reads}\n" for jid, reads in rows))
+
+    def _write_manifest(self, path, entries):
+        lines = ["file_id\tfile_name\tsample_type\tproject_id\n"]
+        for file_id, sample_type in entries:
+            lines.append(f"{file_id}\t{file_id}.tsv\t{sample_type}\tlocal\n")
+        path.write_text("".join(lines))
+
+    def _write_reference_bed(self, path, junctions):
+        lines = [f"{c}\t{s}\t{e}\tjunc\t0\t{st}\n" for c, s, e, st in junctions]
+        path.write_text("".join(lines))
+
+    def test_stats_tsv_schema_and_categories(self, tmp_path):
+        # Tumor sample with one annotated, one unannotated tumor_exclusive,
+        # one unannotated normal_shared. Plus a noise junction below the mean
+        # filter so the high-read ones survive.
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+
+        self._write_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100),  # annotated → discarded
+            ("chr22:201:300:+", 100),  # unannotated, in normal → normal_shared
+            ("chr22:301:400:+", 100),  # unannotated, NOT in normal → tumor_exclusive
+            ("chr22:901:1000:+", 1),   # noise — below mean, filtered out
+        ])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"),
+            ("normal", "Solid Tissue Normal"),
+        ])
+
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+        )
+
+        stats = pd.read_csv(stats_output, sep="\t")
+        assert set(stats.columns) == {"sample_id", "sample_type", "category", "count"}
+
+        # Long-format: 4 rows per tumor sample
+        assert len(stats) == 4
+        assert (stats["sample_id"] == "tumor").all()
+        assert (stats["sample_type"] == "Primary Tumor").all()
+
+        by_cat = dict(zip(stats["category"], stats["count"]))
+        # junctions_raw is BEFORE the mean-reads filter — all 4 rows
+        assert by_cat["junctions_raw"] == 4
+        # After mean filter, 3 junctions survive: 1 annotated, 1 normal_shared, 1 tumor_exclusive
+        assert by_cat["annotated_discarded"] == 1
+        assert by_cat["normal_shared"] == 1
+        assert by_cat["tumor_exclusive"] == 1
+
+    def test_stats_tsv_omits_normal_samples(self, tmp_path):
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),
+            ("chr22:401:500:+", 1),
+        ])
+        self._write_junction_file(normal_f, [
+            ("chr22:201:300:+", 5),
+            ("chr22:601:700:+", 5),
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"),
+            ("normal", "Solid Tissue Normal"),
+        ])
+
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+        )
+
+        stats = pd.read_csv(stats_output, sep="\t")
+        # No rows for the normal sample even though it has 2 raw junctions
+        assert "normal" not in set(stats["sample_id"])
+
+    def test_multi_tumor_samples_each_get_their_own_rows(self, tmp_path):
+        tumor1 = tmp_path / "tumor1" / "junctions.tsv"
+        tumor2 = tmp_path / "tumor2" / "junctions.tsv"
+        tumor1.parent.mkdir()
+        tumor2.parent.mkdir()
+
+        self._write_junction_file(tumor1, [
+            ("chr22:201:300:+", 100),
+            ("chr22:401:500:+", 1),
+        ])
+        self._write_junction_file(tumor2, [
+            ("chr22:301:400:+", 100),
+            ("chr22:501:600:+", 1),
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor1", "Primary Tumor"),
+            ("tumor2", "Primary Tumor"),
+        ])
+
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor1, tumor2],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+        )
+
+        stats = pd.read_csv(stats_output, sep="\t")
+        # 4 categories × 2 samples = 8 rows
+        assert len(stats) == 8
+        assert set(stats["sample_id"]) == {"tumor1", "tumor2"}
+
+    def test_stats_tsv_optional(self, tmp_path):
+        """Existing callers that don't pass stats_output_path still work."""
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),
+            ("chr22:401:500:+", 1),
+        ])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        # No stats_output_path — should not raise
+        classify_junctions(
+            junction_files=[tumor_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+        )
+        assert output.exists()
+
+
+# ---------------------------------------------------------------------------
 # _build_cds_donor_lookup
 # ---------------------------------------------------------------------------
 

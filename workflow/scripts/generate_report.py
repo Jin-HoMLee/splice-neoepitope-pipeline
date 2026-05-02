@@ -698,11 +698,18 @@ def _build_report_tsv(
     presentation_percentile_strong: float,
     tcrdock_pdb: str | Path | None,
     presentation_percentile_weak: float = 2.0,
+    junction_filter_stats_tsv: str | Path | None = None,
 ) -> None:
     """Write a structured summary TSV alongside the HTML report.
 
     Schema: patient_id | stage | metric | value | notes
     Stages: junction_filtering, mhc_prediction, top_candidate, hla_typing, tcrdock
+
+    When ``junction_filter_stats_tsv`` is supplied, three patient-level funnel
+    totals are added under stage=``junction_filtering`` (Issue #214):
+    ``junctions_extracted_total``, ``junctions_annotated_discarded``,
+    ``junctions_unannotated_total``. These sum across tumor samples; normal
+    samples are intentionally omitted from the funnel.
     """
     rows: list[dict] = []
 
@@ -716,6 +723,27 @@ def _build_report_tsv(
                 rows.append({
                     "patient_id": patient_id, "stage": "junction_filtering",
                     "metric": metric, "value": int(r.get(metric, 0)), "notes": note,
+                })
+
+    # --- junction_filtering: patient-level funnel totals (Issue #214) ---
+    if junction_filter_stats_tsv is not None:
+        try:
+            stats_df = pd.read_csv(junction_filter_stats_tsv, sep="\t")
+        except Exception as exc:
+            log.warning("Could not read junction_filter_stats TSV %s: %s",
+                        junction_filter_stats_tsv, exc)
+            stats_df = pd.DataFrame()
+        if not stats_df.empty:
+            by_cat = stats_df.groupby("category")["count"].sum()
+            for metric, source_cats in (
+                ("junctions_extracted_total", ("junctions_raw",)),
+                ("junctions_annotated_discarded", ("annotated_discarded",)),
+                ("junctions_unannotated_total", ("normal_shared", "tumor_exclusive")),
+            ):
+                value = int(sum(int(by_cat.get(c, 0)) for c in source_cats))
+                rows.append({
+                    "patient_id": patient_id, "stage": "junction_filtering",
+                    "metric": metric, "value": value, "notes": "all tumor samples",
                 })
 
     # --- mhc_prediction ---
@@ -1177,6 +1205,7 @@ def generate_report(
     output_tsv: str | Path | None = None,
     output_top_candidates_tsv: str | Path | None = None,
     output_3d_structure_tsv: str | Path | None = None,
+    junction_filter_stats_tsv: str | Path | None = None,
     patient_id: str = "",
 ) -> None:
     """Generate the summary HTML report and the machine-readable report artefacts.
@@ -1246,6 +1275,7 @@ def generate_report(
             presentation_percentile_strong=presentation_percentile_strong,
             tcrdock_pdb=tcrdock_pdb,
             presentation_percentile_weak=presentation_percentile_weak,
+            junction_filter_stats_tsv=junction_filter_stats_tsv,
         )
 
     if output_top_candidates_tsv:
@@ -1367,6 +1397,7 @@ def _snakemake_main() -> None:
         output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_top_candidates_tsv=snakemake.output.report_top_candidates_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
+        junction_filter_stats_tsv=getattr(snakemake.input, "junction_filter_stats", None),  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -1384,6 +1415,8 @@ def _cli_main() -> None:
     parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
+    parser.add_argument("--junction-filter-stats", default=None,
+                        help="Per-tumor-sample junction funnel stats TSV (Issue #214)")
     parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
@@ -1397,6 +1430,7 @@ def _cli_main() -> None:
         presentation_percentile_weak=args.presentation_percentile_weak,
         tcrdock_pdb=args.tcrdock_pdb,
         output_tsv=args.output_tsv,
+        junction_filter_stats_tsv=args.junction_filter_stats,
         patient_id=args.patient_id,
     )
 

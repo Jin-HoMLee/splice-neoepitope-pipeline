@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-05-02
+
+### 10:48 UTC — Editor: Developer
+
+#### Issue #214 — junction-funnel totals in report.tsv
+
+Fast-ship slice of [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104), unblocks Scientist's RESULTS.md. Adds three patient-level rows to `report.tsv` under stage `junction_filtering`: `junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total` (all sums across tumor samples; normals omitted by design — see brainstorming below).
+
+**Architecture:** new artefact `junction_filter_stats.tsv` per patient, written by `filter_junctions.py` alongside the existing `novel_junctions.tsv`. Long-format schema (`sample_id, sample_type, category, count`) where `category ∈ {junctions_raw, annotated_discarded, normal_shared, tumor_exclusive}`. `generate_report.py` reads this file (declared as new input on both `generate_report` and `generate_report_with_structure` via the shared `_generate_report_input` helper), aggregates by category, and emits the 3 patient-level totals. The original per-sample rows are preserved untouched.
+
+**Why a new artefact rather than re-reading BED:** `filter_junctions.py` already computes `n_annotated`, `n_normal_shared`, `n_tumor_exclusive` per tumor sample — they were just being logged and thrown away. Persisting them is a 5-line change. The alternative (re-reading BED in `generate_report` and re-classifying junctions) would duplicate the entire reference/normal-set classification logic.
+
+**Why tumor-only:** the spec row `junctions_unannotated_total = normal_shared + tumor_exclusive` is a tumor-classification concept — only tumor samples get split this way (normal samples are used as a filter set, not classified). User confirmed (a) tumor-only over (b)/(c) mixed scopes; flagged that normal-sample `junctions_extracted_total` could be useful in future via a separate Issue if needed.
+
+**Naming alignment with [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215):** picked the long-format schema and category names (`junctions_raw`, `annotated_discarded`, etc.) to match #215's planned `filtering_stats.tsv`. When #215 ships, it can either supersede `junction_filter_stats.tsv` with the unified multi-step file, or aggregate it as one source among many. Migration cost stays small either way.
+
+**Tests:** 4 new tests in `test_filter_junctions.py` (schema, normal-omission, multi-sample, back-compat for callers without stats path) + 3 in `test_generate_report.py` (totals correctness, back-compat, notes-field convention). 233/233 total. Snakemake dry-run validates the rule graph: `filter_junctions` correctly triggers with the new output, downstream rules unchanged.
+
+---
+
 ## 2026-05-01
 
 ### 18:30 UTC — Editor: Developer
