@@ -4,6 +4,22 @@
 
 ## 2026-05-03
 
+### 18:12 UTC — Editor: Developer
+
+#### Issue #223 / PR #254 — review-cycle fixes
+
+`@claude` review on the AlphaGenome primer flagged three actionable items. All addressed in this commit:
+
+1. **Medium — "powers of 2" phrasing was misleading.** The primer (line 230) and the spike script (line 70) both said the four required input lengths were "powers of 2 ≤ 1Mb." Reviewer correctly pointed out that 2^15=32768, 2^16=65536, and 2^18=262144 are also powers of 2 but **not accepted** — only the four specific values 16384, 131072, 524288, 1048576 work. A reader taking the primer literally would expect the intermediate sizes to work and get a `ValueError`. Fixed both call sites to say "these four specific values" and explicitly list the rejected powers of 2.
+
+2. **Low — lenient-threshold caveat.** The primer described the spike's mean |ref − alt| of ~0.00014 as evidence the variant-affected-junction filter is "very lenient." Reviewer pointed out the spike SNV was a synthetic A→G chosen for API plumbing — not designed to disrupt splicing. So the tiny mean delta likely reflects micro-perturbations from a single nucleotide change, not characterisation of how the threshold behaves for biologically meaningful splice-disruptive variants (where deltas would be orders of magnitude larger). Added the caveat explicitly. Also added a one-line acknowledgment that geographic windowing wasn't ruled out by our test (the non-zero-delta rate just makes effect-based filtering the more parsimonious explanation).
+
+3. **Low — dead branch in `summarise_output()`.** The function used `getattr(val, "shape", None) is None` as a "this is a DataFrame, fall through to column listing" heuristic. But pandas DataFrames also have `.shape` (returns `(n_rows, n_cols)` tuple), so the column-listing else-branch was unreachable for `metadata` — instead the script printed `"metadata.shape: (367, 8)"`, which is less informative than the column inventory the comment promised. Fixed by handling `metadata` via its own explicit code path (always print columns) and looping the shape-printing only over `values + interval`. Verified with a mock-DataFrame smoke test.
+
+**Why this matters now:** the spike script is intended as a reusable probe for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)'s AlphaGenome validation notebook. Shipping with dead branches and misleading comments would be a paper-cut for whoever picks that issue up.
+
+**Verified:** smoke test confirms `summarise_output()` now prints the column list for DataFrames; primer + spike consistent on the input-length constraint. No tests changed (script is a one-off probe, not under pytest coverage). Closes [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) when this PR merges.
+
 ### 17:49 UTC — Editor: PM
 
 #### Issue #245 — memory duplicate-check at write time (first pm-i1 same-day ship after #246)
@@ -47,6 +63,27 @@ Memory rule reinforced (didn't have to add): morning-routine news scan must chec
 ---
 
 ## 2026-05-02
+
+### 20:32 UTC — Editor: Developer
+
+#### Issue #223 — live AlphaGenome API spike + primer doc
+
+User registered for the AlphaGenome API key in the same session, so the live test moved up from "next session" to now. Two-call probe in [`scripts/alphagenome_spike.py`](../scripts/alphagenome_spike.py) (committed under `scripts/` for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) reuse): one `predict_interval` and one `predict_variant` against a 131kb chr22 region. SDK is `pip install alphagenome` from PyPI; key loaded from `.env` as `ALPHAGENOME_API_KEY` matching the `zotero_add.py` `load_env` pattern.
+
+**Empirical findings, beyond the morning recon:**
+
+- **Latency**: 0.75–2.6s per call for a 131kb interval. Within the documented "<1s prediction" range (the rest is round-trip).
+- **Required input lengths are constrained to {16384, 131072, 524288, 1048576}** — not arbitrary. First call with 100k failed with a `ValueError`. Plumbing for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) needs to handle this. Documented in the primer.
+- **367 splice-junction tracks** total: 313 ENCODE + 54 GTEx; 195 total RNA-seq + 172 polyA-plus RNA-seq. The 54 GTEx tracks are the relevant subset for the predicted-normal filter ([#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) since GTEx profiled healthy human tissues; ENCODE includes cancer-derived cell lines (HeLa/K562) that are poor "normal patient tissue" proxies.
+- **Output shape is `(n_junctions, n_tracks)`** — a matrix where junctions are SHARED across tracks and tissue specificity lives in the score distribution within each column. This was a major mental-model fix for me; I'd been imagining one set of junctions per track. Documented in the primer as a load-bearing concept.
+- **`predict_variant` filters output to variant-affected junctions**, empirically verified: `predict_interval` returned 6084 junctions, `predict_variant` returned 503; 503/503 of those have ref ≠ alt in at least one track (none have identical values across all 367). User correctly hypothesised this was an effect-based filter (not the geographic windowing I'd guessed). Inclusion threshold appears very lenient — mean |ref − alt| of ~0.00014 still qualifies. So the 503 number is "any model-detectable variant response" rather than "biologically meaningful effect" — meaningful signal for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) lives in delta magnitudes, not the count.
+- **`predict_variants` (plural) is batched single-variant queries, not a multi-variant compositor** — the docstring confirms "Variant outputs for each DNA interval and variant pair." Each variant is processed independently, returning N separate `VariantOutput`s with `max_workers` parallelism. So patient_001's combined germline-variant effect (Experiment 2) needs externally-built patient FASTA + `predict_sequence`, not `predict_variants`. The latter is the right tool for per-variant attribution (Experiment 3).
+
+**Documentation: [`docs/alphagenome_primer.md`](../docs/alphagenome_primer.md)** ships in this PR. ~290 lines covering tracks (the central concept), output shape, API methods as orthogonal query shapes (not different assays), `data_source` as training-time provenance, per-track interpretation, operational details, and the predicted-normal filter sketch. Iterated through several mental-model corrections with the user — the doc preserves the accurate framing rather than my initial half-right intuitions. Originally drafted with a "per-experiment API mapping" section; user pointed out [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)'s Experiment 1 design is Sci's call and shouldn't be encoded in a Dev primer — section dropped; suggestion to refine Exp 1 (use GRCh38 + annotated-only ground truth instead of patient WGS + observed normal) will be posted separately on [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) for Scientist.
+
+**Aggregation choice for the predicted-normal filter:** `max(axis=1)` over the 54 GTEx tracks — captures "if ANY healthy tissue shows signal, treat as normal" — aligned with Scientist's vaccine-CTL safety framing in [#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)/[#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212). Mean would smooth tissue-specific normal signals toward zero and miss them — wrong direction for safety. Max is sensitive to single-track noise; top-k mean / quantile threshold are noise-robust alternatives Sci can pick if needed. Documented.
+
+**Closes [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223)** when this PR merges. [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) unblock for Scientist.
 
 ### 19:53 UTC — Editor: PM
 
