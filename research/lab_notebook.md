@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-05-03
+
+### 14:05 UTC — Editor: Developer
+
+#### Morning routine — standup cleanup + news briefing
+
+Standup cleanup: deleted 4 own Done messages from 2026-04-29 (>3 days, per the standup file rule). One Issue #79 scope-expansion notification + three follow-ups to PM. The durable record stays in commits / lab notebook / project board; standup is for active conversation only.
+
+News briefing surfaced three pipeline-relevant items, all logged in [`research/news_log.md`](news_log.md) so they don't re-surface in future morning briefings (gap caught when I re-surfaced the `googlebatch` executor today even though it was already tracked in [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66)):
+
+1. **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo.** PyTorch's [dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned" — 2.8 dropped Pascal kernels in cu128/cu129 builds. We already pin `torch>=2.0,<2.5` in `python.yaml`; this confirms the pin is **permanent on this hardware**, not a temporary workaround. Updated CLAUDE.md's `python.yaml — PyTorch SM 6.0 / P100 compatibility` section with this detail (this PR).
+2. **Snakemake `googlebatch` executor plugin** — already covered by [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (the issue body literally links the plugin catalog page). User correctly flagged the re-surface; logged it in `news_log.md` so we don't trip on it again.
+3. **Snakemake 9.x deprecates `--use-conda`** in favour of `--software-deployment-method conda`. Affects every snakemake call site in CLAUDE.md, `run_cloud_gpu.sh`, `setup_local.sh`, and possibly internal docs. Posted a [comment on Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4366348544) listing affected files — bundle into the 9.x migration PR rather than fixing separately, since 8.x still accepts both forms.
+
+Memory rule reinforced (didn't have to add): morning-routine news scan must check `news_log.md` first — items already logged shouldn't re-surface unless there's a meaningful update. The googlebatch slip happened because the original Issue #66 was opened before `news_log.md` existed (introduced 2026-05-01); now-logged → won't repeat.
+
+---
+
 ## 2026-05-02
 
 ### 19:53 UTC — Editor: PM
