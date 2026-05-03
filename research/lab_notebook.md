@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-05-03
+
+### 15:26 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — round-3 fix: close the report.tsv funnel
+
+`@claude` round-2 review verified all four round-1 items as closed and approved correctness. One non-blocking design observation: `report.tsv` consumers (RESULTS.md authors) saw a non-closed funnel because the three patient-level totals (`junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total`) didn't include `mean_reads_filtered` — that category only lived in `junction_filter_stats.tsv`, so anyone reading just `report.tsv` would see `extracted_total ≠ annotated_discarded + unannotated_total` with an unexplained gap.
+
+**Fix:** added `junctions_mean_reads_filtered` as a fourth `junction_filtering` row in `_build_report_tsv` (notes: "all tumor samples"). The four rows now reconcile arithmetically: `extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total`. New test `test_junction_funnel_totals_reconcile_in_report_tsv` enforces this invariant on `report.tsv` (separate from the equivalent invariant on `junction_filter_stats.tsv` from round 1). Updated existing tests to include `mean_reads_filtered` rows in their fixture stats data and assert on the new row's value.
+
+**Why not done in round 1/2:** Issue #214's spec named exactly three metrics (extracted/annotated/unannotated). Round 1 implemented exactly what the spec said; round 2 fixed reconciliation in the upstream stats artefact. Round 3 closes the gap between "internal artefact reconciles" and "report.tsv consumers see a closed funnel" — reviewer flagged this in round 2 as non-blocking but worth a conscious decision.
+
+**Verified:** 98/98 tests pass; Snakemake dry-run clean; rule graph unchanged.
+
+---
+
 ## 2026-05-02
 
 ### 16:48 UTC — Editor: Developer

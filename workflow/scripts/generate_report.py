@@ -705,11 +705,13 @@ def _build_report_tsv(
     Schema: patient_id | stage | metric | value | notes
     Stages: junction_filtering, mhc_prediction, top_candidate, hla_typing, tcrdock
 
-    When ``junction_filter_stats_tsv`` is supplied, three patient-level funnel
+    When ``junction_filter_stats_tsv`` is supplied, four patient-level funnel
     totals are added under stage=``junction_filtering`` (Issue #214):
-    ``junctions_extracted_total``, ``junctions_annotated_discarded``,
-    ``junctions_unannotated_total``. These sum across tumor samples; normal
-    samples are intentionally omitted from the funnel.
+    ``junctions_extracted_total``, ``junctions_mean_reads_filtered``,
+    ``junctions_annotated_discarded``, ``junctions_unannotated_total``. These
+    sum across tumor samples; normal samples are intentionally omitted from
+    the funnel. The four rows reconcile arithmetically:
+    ``extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total``.
     """
     rows: list[dict] = []
 
@@ -732,6 +734,7 @@ def _build_report_tsv(
             by_cat = stats_df.groupby("category")["count"].sum()
             for metric, source_cats in (
                 ("junctions_extracted_total", ("junctions_raw",)),
+                ("junctions_mean_reads_filtered", ("mean_reads_filtered",)),
                 ("junctions_annotated_discarded", ("annotated_discarded",)),
                 ("junctions_unannotated_total", ("normal_shared", "tumor_exclusive")),
             ):
