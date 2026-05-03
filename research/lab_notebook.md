@@ -4,6 +4,20 @@
 
 ## 2026-05-03
 
+### 17:49 UTC — Editor: PM
+
+#### Issue #245 — memory duplicate-check at write time (first pm-i1 same-day ship after #246)
+
+Implemented as `shared/feedback_memory_duplicate_check.md` (not `pm/...` per the issue's original AC — shared/ is correct because the rule applies to all roles writing memories). Defines the overlap heuristic (3 signals: name field, description field, keyword/domain), the prompt format (append/replace/proceed-anyway, default append), and exemptions (memories from current session, MEMORY.md itself, reference memories pointing at external systems).
+
+**Meta-test passed**: ran the to-be-codified rule on its own write — scanned shared/MEMORY.md for prior overlap with the proposed memory; closest candidate was `feedback_memory_escalation.md` (escalating an existing rule on repeat correction) which shares the *memory hygiene* domain but has different trigger and action. No overlap, proceeded.
+
+**Smoke test passed**: hypothetical near-duplicate `feedback_cerebrum_project_separation.md` (description: "Cerebrum framework vs project — keep them distinct in scoping decisions") would hit 3-of-3 signals against existing `feedback_cerebrum_vs_project.md`. Heuristic correctly flags.
+
+**Indexed in shared `MEMORY.md` Always-in-effect** as a one-liner pointing at the full rule. Sister rule to `feedback_closure_ritual.md` — together they bracket memory hygiene at write (this) and at close (ritual).
+
+**Sequencing note for the rest of pm-i1**: with #245 + #246 both shipped, the remaining 3 (#244 ask-for-help, #247 capacity recheck, #243 Rulesets) can proceed in any order. P1s (#244, #247) before P2 (#243).
+
 ### 15:26 UTC — Editor: Developer
 
 #### Issue #214 / PR #240 — round-3 fix: close the report.tsv funnel
