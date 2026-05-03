@@ -13,6 +13,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-03
 
+### 14:07 UTC — Editor: Scientist
+
+- **Autogene cevumeran 6-year follow-up** (AACR 2026 abstract, Balachandran/MSK) — ~90% of immune-responders alive at ~6 years post-vaccination in Phase 1 PDAC trial; durable CD8+ T-cell repertoire. → No issue (DISCUSSION reference for clinical translation breadth). *Scientist. clinical-validation.*
+- **Rojas et al. — original Phase 1 autogene cevumeran** (Nature 2023, foundational) — first PDAC personalized mRNA neoantigen vaccine trial; 8/16 immune responders. → No issue (foundational INTRODUCTION + DISCUSSION reference). *Scientist. clinical-validation.*
+- **Nature 2025 follow-up — long-lived CD8+ T cells from autogene cevumeran** — 7.7-year mean estimated T-cell clone lifespan; RFS not reached for responders vs 13.4-mo non-responders. → No issue (DISCUSSION reference for vaccine durability mechanism). *Scientist. clinical-validation.*
+- **Personalized Cancer Vaccines clinical trial pipeline review** (APJCO 2026) — field-wide landscape including TG4050 head/neck (no relapses at 16.2-mo median, Arm A). → No issue (field-landscape DISCUSSION reference). *Scientist. methodology-signal.*
+
 ### 10:49 UTC — Editor: Developer
 
 - **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo** (2026, dev-discuss) — Maxwell/Pascal/Volta described as "feature-complete with no further enhancements planned"; PyTorch 2.8 dropped Pascal kernels in cu128/cu129 builds. → CLAUDE.md note clarifying the `torch<2.5` pin is permanent on this hardware. *Developer. pipeline-relevant.*
