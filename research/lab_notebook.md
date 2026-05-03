@@ -20,6 +20,46 @@
 
 **Verified:** smoke test confirms `summarise_output()` now prints the column list for DataFrames; primer + spike consistent on the input-length constraint. No tests changed (script is a one-off probe, not under pytest coverage). Closes [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) when this PR merges.
 
+### 17:49 UTC — Editor: PM
+
+#### Issue #245 — memory duplicate-check at write time (first pm-i1 same-day ship after #246)
+
+Implemented as `shared/feedback_memory_duplicate_check.md` (not `pm/...` per the issue's original AC — shared/ is correct because the rule applies to all roles writing memories). Defines the overlap heuristic (3 signals: name field, description field, keyword/domain), the prompt format (append/replace/proceed-anyway, default append), and exemptions (memories from current session, MEMORY.md itself, reference memories pointing at external systems).
+
+**Meta-test passed**: ran the to-be-codified rule on its own write — scanned shared/MEMORY.md for prior overlap with the proposed memory; closest candidate was `feedback_memory_escalation.md` (escalating an existing rule on repeat correction) which shares the *memory hygiene* domain but has different trigger and action. No overlap, proceeded.
+
+**Smoke test passed**: hypothetical near-duplicate `feedback_cerebrum_project_separation.md` (description: "Cerebrum framework vs project — keep them distinct in scoping decisions") would hit 3-of-3 signals against existing `feedback_cerebrum_vs_project.md`. Heuristic correctly flags.
+
+**Indexed in shared `MEMORY.md` Always-in-effect** as a one-liner pointing at the full rule. Sister rule to `feedback_closure_ritual.md` — together they bracket memory hygiene at write (this) and at close (ritual).
+
+**Sequencing note for the rest of pm-i1**: with #245 + #246 both shipped, the remaining 3 (#244 ask-for-help, #247 capacity recheck, #243 Rulesets) can proceed in any order. P1s (#244, #247) before P2 (#243).
+
+### 15:26 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — round-3 fix: close the report.tsv funnel
+
+`@claude` round-2 review verified all four round-1 items as closed and approved correctness. One non-blocking design observation: `report.tsv` consumers (RESULTS.md authors) saw a non-closed funnel because the three patient-level totals (`junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total`) didn't include `mean_reads_filtered` — that category only lived in `junction_filter_stats.tsv`, so anyone reading just `report.tsv` would see `extracted_total ≠ annotated_discarded + unannotated_total` with an unexplained gap.
+
+**Fix:** added `junctions_mean_reads_filtered` as a fourth `junction_filtering` row in `_build_report_tsv` (notes: "all tumor samples"). The four rows now reconcile arithmetically: `extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total`. New test `test_junction_funnel_totals_reconcile_in_report_tsv` enforces this invariant on `report.tsv` (separate from the equivalent invariant on `junction_filter_stats.tsv` from round 1). Updated existing tests to include `mean_reads_filtered` rows in their fixture stats data and assert on the new row's value.
+
+**Why not done in round 1/2:** Issue #214's spec named exactly three metrics (extracted/annotated/unannotated). Round 1 implemented exactly what the spec said; round 2 fixed reconciliation in the upstream stats artefact. Round 3 closes the gap between "internal artefact reconciles" and "report.tsv consumers see a closed funnel" — reviewer flagged this in round 2 as non-blocking but worth a conscious decision.
+
+**Verified:** 98/98 tests pass; Snakemake dry-run clean; rule graph unchanged.
+
+### 14:05 UTC — Editor: Developer
+
+#### Morning routine — standup cleanup + news briefing
+
+Standup cleanup: deleted 4 own Done messages from 2026-04-29 (>3 days, per the standup file rule). One Issue #79 scope-expansion notification + three follow-ups to PM. The durable record stays in commits / lab notebook / project board; standup is for active conversation only.
+
+News briefing surfaced three pipeline-relevant items, all logged in [`research/news_log.md`](news_log.md) so they don't re-surface in future morning briefings (gap caught when I re-surfaced the `googlebatch` executor today even though it was already tracked in [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66)):
+
+1. **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo.** PyTorch's [dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned" — 2.8 dropped Pascal kernels in cu128/cu129 builds. We already pin `torch>=2.0,<2.5` in `python.yaml`; this confirms the pin is **permanent on this hardware**, not a temporary workaround. Updated CLAUDE.md's `python.yaml — PyTorch SM 6.0 / P100 compatibility` section with this detail (this PR).
+2. **Snakemake `googlebatch` executor plugin** — already covered by [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (the issue body literally links the plugin catalog page). User correctly flagged the re-surface; logged it in `news_log.md` so we don't trip on it again.
+3. **Snakemake 9.x deprecates `--use-conda`** in favour of `--software-deployment-method conda`. Affects every snakemake call site in CLAUDE.md, `run_cloud_gpu.sh`, `setup_local.sh`, and possibly internal docs. Posted a [comment on Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4366348544) listing affected files — bundle into the 9.x migration PR rather than fixing separately, since 8.x still accepts both forms.
+
+Memory rule reinforced (didn't have to add): morning-routine news scan must check `news_log.md` first — items already logged shouldn't re-surface unless there's a meaningful update. The googlebatch slip happened because the original Issue #66 was opened before `news_log.md` existed (introduced 2026-05-01); now-logged → won't repeat.
+
 ---
 
 ## 2026-05-02
@@ -114,6 +154,24 @@ Picked up Scientist's [16:20 UTC standup ask](https://github.com/Jin-HoMLee/spli
 
 **Process note:** entry ships on its own time-suffixed branch (`docs/developer/lab-notebook-2026-05-02-1818`) per the multi-session pattern in `shared/feedback_lab_notebook.md` — [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) stays open across sessions, so the notebook entry is independent of issue lifecycle.
 
+### 16:48 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — review-cycle fixes
+
+`@claude review` on [PR #240](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/240) caught a real arithmetic bug in this morning's funnel design: `junctions_raw` was captured **before** the per-sample mean-reads filter, but `annotated_discarded` / `normal_shared` / `tumor_exclusive` were counted **after** — so the three patient-level totals didn't reconcile (`extracted_total ≠ annotated + unannotated`). The gap is exactly the noise junctions removed by `reads > mean`. My morning test even demonstrated it (4 raw → 3 classified, gap of 1) and I missed it.
+
+**Fix (Option A from reviewer):** added a 4th intermediate category `mean_reads_filtered` to `junction_filter_stats.tsv` so it now records the full 5-step funnel (`junctions_raw → mean_reads_filtered → {annotated_discarded, normal_shared, tumor_exclusive}`). The 3 patient-level rows in `report.tsv` are unchanged in name but the underlying schema now reconciles arithmetically. Added an explicit test `test_funnel_reconciles_arithmetically` asserting `junctions_raw == sum(4 downstream buckets)`.
+
+**Style nits also addressed in the same commit:**
+
+- Removed a defensive `try/except Exception` around `pd.read_csv(stats_tsv)` in `_build_report_tsv` — `junction_filter_stats.tsv` is a *required* Snakemake input, so the error path can't fire under normal pipeline runs. Per CLAUDE.md "don't validate scenarios that can't happen."
+- Removed a redundant outer `int()` cast on `sum(...)` in the same aggregation.
+- Switched `getattr(snakemake.input, "junction_filter_stats", None)` to direct attribute access `snakemake.input.junction_filter_stats`. The `getattr(...,None)` pattern is reserved for genuinely optional inputs (`hla_qc`, `pdb`, `scores_tsv`); using it for a required input misleads the reader about optionality.
+
+**Lab notebook process change captured as a memory:** user pushed back when I tried to *rewrite* the morning 10:48 entry to be a single self-contained "complete" account. Saved `shared/feedback_lab_notebook.md` "Entries are immutable" rule: each session writes its own entry, never edit/replace previously-committed entries — the lab notebook is a journal not a wiki, and the bug-catch narrative is exactly what's most useful for future-grep ("when did we add `mean_reads_filtered`?" → afternoon entry, not a retroactively-edited morning one).
+
+**Verified:** 234/234 tests passing (5 in `TestClassifyJunctionsStats` now, up from 4); Snakemake dry-run clean; rule graph correctly triggers `filter_junctions` from the code change.
+
 ### 16:07 UTC — Editor: PM
 
 #### Issue #235 skim — completed the Anthropic 2026 Agentic Coding Trends Report cross-checks
@@ -166,6 +224,22 @@ Also saved `reference_zotero_api.md` after an avoidable detour hunting for the `
 #### Standup status
 
 Own message [`2026-05-01 13:57 UTC`] (S7 milestone request) marked Done — PM replied 14:02 UTC and created milestone #16 (now backing #232). No outstanding Pending messages addressed to Scientist.
+
+### 10:48 UTC — Editor: Developer
+
+#### Issue #214 — junction-funnel totals in report.tsv
+
+Fast-ship slice of [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104), unblocks Scientist's RESULTS.md. Adds three patient-level rows to `report.tsv` under stage `junction_filtering`: `junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total` (all sums across tumor samples; normals omitted by design — see brainstorming below).
+
+**Architecture:** new artefact `junction_filter_stats.tsv` per patient, written by `filter_junctions.py` alongside the existing `novel_junctions.tsv`. Long-format schema (`sample_id, sample_type, category, count`) where `category ∈ {junctions_raw, annotated_discarded, normal_shared, tumor_exclusive}`. `generate_report.py` reads this file (declared as new input on both `generate_report` and `generate_report_with_structure` via the shared `_generate_report_input` helper), aggregates by category, and emits the 3 patient-level totals. The original per-sample rows are preserved untouched.
+
+**Why a new artefact rather than re-reading BED:** `filter_junctions.py` already computes `n_annotated`, `n_normal_shared`, `n_tumor_exclusive` per tumor sample — they were just being logged and thrown away. Persisting them is a 5-line change. The alternative (re-reading BED in `generate_report` and re-classifying junctions) would duplicate the entire reference/normal-set classification logic.
+
+**Why tumor-only:** the spec row `junctions_unannotated_total = normal_shared + tumor_exclusive` is a tumor-classification concept — only tumor samples get split this way (normal samples are used as a filter set, not classified). User confirmed (a) tumor-only over (b)/(c) mixed scopes; flagged that normal-sample `junctions_extracted_total` could be useful in future via a separate Issue if needed.
+
+**Naming alignment with [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215):** picked the long-format schema and category names (`junctions_raw`, `annotated_discarded`, etc.) to match #215's planned `filtering_stats.tsv`. When #215 ships, it can either supersede `junction_filter_stats.tsv` with the unified multi-step file, or aggregate it as one source among many. Migration cost stays small either way.
+
+**Tests:** 4 new tests in `test_filter_junctions.py` (schema, normal-omission, multi-sample, back-compat for callers without stats path) + 3 in `test_generate_report.py` (totals correctness, back-compat, notes-field convention). 233/233 total. Snakemake dry-run validates the rule graph: `filter_junctions` correctly triggers with the new output, downstream rules unchanged.
 
 ### 10:06 UTC — Editor: PM
 

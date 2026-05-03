@@ -10,6 +10,9 @@ def _generate_report_input(wildcards):
         "novel_junctions": os.path.join(
             _RES, wildcards.patient_id, "junctions", "novel_junctions.tsv"
         ),
+        "junction_filter_stats": os.path.join(
+            _RES, wildcards.patient_id, "junctions", "junction_filter_stats.tsv"
+        ),
         "predictions_tsv": os.path.join(
             _RES, wildcards.patient_id, "predictions", "mhc_presentation.tsv"
         ),
