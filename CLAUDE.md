@@ -106,6 +106,7 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 ### `python.yaml` — PyTorch SM 6.0 / P100 compatibility
 PyTorch 2.5+ dropped SM 6.0 (Pascal) support. On a P100, `torch.cuda.is_available()` still returns `True` but kernel dispatch fails silently or with a cryptic error.
 **Fix:** pin `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1 which includes SM 6.0 kernels).
+**This pin is permanent on this hardware — not a temporary workaround.** PyTorch 2.8 confirmed Pascal kernel support is gone in cu128/cu129 builds; the [PyTorch dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned." Last supporting combo is PyTorch 2.7 + CUDA ≤12.6. Do not bump the pin without first migrating off P100 hardware.
 `_has_gpu()` in `run_mhcflurry.py` uses a PyTorch smoke-test kernel (not TensorFlow) to catch this case: `torch.nn.functional.relu(torch.zeros(2, device="cuda"))`. TF reported GPU available even when PyTorch kernels would fail — both must work because MHCflurry 2.2.x uses PyTorch for inference.
 
 ### `run_mhcflurry.py` — no ProcessPoolExecutor with GPU

@@ -16,9 +16,92 @@
 
 **Verified:** 98/98 tests pass; Snakemake dry-run clean; rule graph unchanged.
 
+### 14:05 UTC — Editor: Developer
+
+#### Morning routine — standup cleanup + news briefing
+
+Standup cleanup: deleted 4 own Done messages from 2026-04-29 (>3 days, per the standup file rule). One Issue #79 scope-expansion notification + three follow-ups to PM. The durable record stays in commits / lab notebook / project board; standup is for active conversation only.
+
+News briefing surfaced three pipeline-relevant items, all logged in [`research/news_log.md`](news_log.md) so they don't re-surface in future morning briefings (gap caught when I re-surfaced the `googlebatch` executor today even though it was already tracked in [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66)):
+
+1. **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo.** PyTorch's [dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned" — 2.8 dropped Pascal kernels in cu128/cu129 builds. We already pin `torch>=2.0,<2.5` in `python.yaml`; this confirms the pin is **permanent on this hardware**, not a temporary workaround. Updated CLAUDE.md's `python.yaml — PyTorch SM 6.0 / P100 compatibility` section with this detail (this PR).
+2. **Snakemake `googlebatch` executor plugin** — already covered by [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (the issue body literally links the plugin catalog page). User correctly flagged the re-surface; logged it in `news_log.md` so we don't trip on it again.
+3. **Snakemake 9.x deprecates `--use-conda`** in favour of `--software-deployment-method conda`. Affects every snakemake call site in CLAUDE.md, `run_cloud_gpu.sh`, `setup_local.sh`, and possibly internal docs. Posted a [comment on Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4366348544) listing affected files — bundle into the 9.x migration PR rather than fixing separately, since 8.x still accepts both forms.
+
+Memory rule reinforced (didn't have to add): morning-routine news scan must check `news_log.md` first — items already logged shouldn't re-surface unless there's a meaningful update. The googlebatch slip happened because the original Issue #66 was opened before `news_log.md` existed (introduced 2026-05-01); now-logged → won't repeat.
+
 ---
 
 ## 2026-05-02
+
+### 19:53 UTC — Editor: PM
+
+#### Issue #246 — implemented closure audit step in morning warmup + tightened "acceptance criteria visibly met"
+
+Picked the coolest pm-i1 P1 from this morning's slate to implement same-day. Added "Step 0.5 — Closure audit" to `pm/feedback_morning_warmup.md`: per-issue audit checklist (milestone, acceptance criteria, priority rationale consistency, sub-issue completeness, lab notebook entry), cross-role consistency checks, comment-not-reopen feedback loop. New section header convention `## 🔍 Closure audit` (rendered only when issues actually closed in the past 24h).
+
+**Smoke test on 9 recent closures surfaced 2 immediate fixes** — applied: backfilled milestone for #216 (closed 2026-04-30 with no milestone) and moved #234 from `i2 - S1 - Tool Landscape Evaluations` to `pm-i2 - PM Self-Improvement Tooling` (mis-milestoned pre-`pm-i<N>`-axis-convention).
+
+**Bigger finding came from user pushback** — they asked why acceptance-criteria checkboxes are so often unchecked. Re-running the audit with tightened criteria (operationalising "acceptance criteria visibly met" as `- [x]` boxes ticked, not just "PR exists") flipped the verdict on 6 of the 9 closures: 23 unchecked boxes across #79, #190, #191, #197, #219, #221. Even today's #235 (closed by me this morning) had plain bullets, not checkboxes — so the boxes weren't even tickable. Backfilled #235's body: converted bullets to `- [x]` checkboxes with closure-attestation note.
+
+**Codified two related rules:**
+
+1. **`shared/feedback_closure_ritual.md`** — before closing any issue, tick `- [x]` every met acceptance-criteria box, OR comment-defer with a follow-up link. Closing with unchecked boxes ≠ closing. Applies to all roles, not just PM. PM enforces via morning audit; each role self-enforces.
+2. **Companion rule in same memory** — every new issue's acceptance-criteria section MUST use `- [ ]` checkbox format from creation, not plain `-` bullets. Plain bullets make the ritual unenforceable.
+
+**Why this lands deeper than expected:** the original closure-audit checklist used "linked PR merged" as the proxy for "criteria met". That's a weak signal — every closed issue has a PR, so the check always passes. The tightened version asks the strong question: "are the boxes ticked?" — which immediately exposed that 6/9 recent closures skipped the ritual entirely. The smoke test caught a real systematic gap on its first run, which is exactly what the audit is for.
+
+**Pre-ritual closures (before 2026-05-02) are intentionally not retroactively ticked** — that requires verifying each criterion was actually met, which is dangerous to fake. They're the baseline. The ritual enforces forward.
+
+**Process meta-note:** this was the first PM-meta-work issue completed via the new `pm-i<N>` axis. Ships entirely as memory edits (no project-repo PR needed) plus the lab notebook entry. Smoke-tested same-day; full morning routine using the new step happens tomorrow.
+
+---
+
+### 18:46 UTC — Editor: Scientist
+
+#### Issue #236 — both candidates characterised, first deliverable complete
+
+Picked up [#236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) and worked through inference-mode classification per candidate.
+
+**TCRLens — mode (b)** via WebFetch on the [paper's Methods section](https://academic.oup.com/bioinformaticsadvances/article/6/1/vbag066/8496266). Requires 3D structures generated via the tFold-TCR pipeline. tFold-TCR is **5000× faster than AlphaFold-Multimer** (eliminates MSA via ESM-PPI-TCR), so it qualifies as a genuine fast-structure-predictor-inline. TCRLens is structure-source-agnostic — viable as both **triage** (using tFold-TCR upstream of MHCflurry → TCRdock) AND **cross-check** (reusing our TCRdock outputs). The only candidate so far that can sit upstream of TCRdock.
+
+**t2pmhc — mode (c)**, corrected from yesterday's abstract-only claim to a properly-cited methods-section read. WebFetch blocked on bioRxiv (403), so user supplied the PDF directly in conversation. Methods § Structure Prediction confirms: *"Structures of all TCR-pMHC complexes were predicted using TCRdock (v2.0.0)."* **t2pmhc uses TCRdock specifically** — the same tool we already run — so cross-check is essentially free in our pipeline (only the GNN scoring step adds). Pipeline-fit: cross-check only (mode c rules out triage and replacement). The discussion section also flags structure-prediction quality as the accuracy ceiling, which we'd inherit equally with them.
+
+Consolidated [comment on #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4364300411) with full pipeline-fit table. Second deliverable (pipeline-fit recommendation with scoped follow-ups) deferred until [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) lands patient_001 outputs — the natural shared test bed.
+
+#### Workflow revision — WebFetch envelope and PDF policy
+
+User pushback clarified the actual WebFetch envelope: body text yes, table content yes, figure captions yes, but figure images, layout-dependent content, and supplementaries — no. For deep analysis on eval candidates (benchmarking plots, structural diagrams, supplementary tables), text-only WebFetch is genuinely insufficient and I'd undersold this earlier. Extended `shared/feedback_zotero_defer_inaccessible.md` with an explicit *"always ask for PDF when deeper analysis is needed"* rule. Future flow: surface the WebFetch limitation, ask user to attach the PDF to the Zotero entry, then I fetch via `/items/{key}/file` or use the user-attached PDF in conversation.
+
+#### Zotero hygiene — bioRxiv replacements + HERMES correction
+
+User replaced the three bioRxiv entries that had been added yesterday/this morning via direct API workaround. New keys: `78BQ23IV` (Benchmarking foundation models for splice site and exon annotation), `STQYEVAQ` (t2pmhc, replacing deleted `E3WRMAAH`), `4N2J7SIH` (AI predicted TCR-pMHC structures — first time in Zotero). All three now have PDFs attached. I re-applied project tags via API: `manuscript-METHODS` + `manuscript-DISCUSSION` for `STQYEVAQ`; `manuscript-DISCUSSION` for the other two.
+
+**HERMES correction:** I claimed twice today that HERMES was missing from Zotero based on a title-substring search returning zero hits. Wrong both times. HERMES is in Zotero as `MWZFINV6` — the paper title is *"T cell receptor specificity landscape revealed through de novo peptide design"* (Visani et al., *PNAS* Oct 2025); **HERMES is the method name** introduced in this paper, but the title doesn't contain the word "HERMES" so the title-based search missed it. [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)'s body correctly references `MWZFINV6` — the bug was in my recall, not the issue. Tagged `manuscript-DISCUSSION` to position it alongside t2pmhc/TCRLens in the cross-check role.
+
+#### Standup — Developer cleared the AlphaGenome gate
+
+[Pinged Developer at 16:20 UTC](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) asking them to prioritise [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) (gates P1 Sci work in milestone #17, due 2026-05-22). Developer replied at 18:18 UTC: AlphaGenome is **$0 for non-commercial use** → Low Cost branch hit per #203's decision tree → [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) unblock as soon as Developer finishes the live API test next session. Cohort-expansion bonus is on the table once validation results come in.
+
+### 18:18 UTC — Editor: Developer
+
+#### Issue #223 — AlphaGenome API spike: recon-only pass
+
+Picked up Scientist's [16:20 UTC standup ask](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) (gates [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) + [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) in milestone #17, due 2026-05-22). Recon-only pass without an API key — answered the gating questions for downstream Sci work, deferred live API test to the next session. Full findings on [#223 comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223#issuecomment-4364440234); summary here:
+
+**Cost: $0** for non-commercial use. Cost decision branch in [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) → **Low cost** → sub-issues unblock; cohort-expansion bonus is on the table when Scientist sees validation results.
+
+**Junction connectivity confirmed.** [`dna_client.py`](https://github.com/google-deepmind/alphagenome/blob/main/src/alphagenome/models/dna_client.py) exposes `OUTPUT_TYPE_SPLICE_JUNCTIONS` as a first-class output type — distinct from `OUTPUT_TYPE_SPLICE_SITES` (per-position probabilities) and `OUTPUT_TYPE_SPLICE_SITE_USAGE`. So the API returns explicit donor → acceptor pairs per tissue, not just per-position scores. This was [#223 task #3](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) — the make-or-break verification — and it's a clean ✅. Without it the whole AlphaGenome arc wouldn't have made sense.
+
+**Rate limits intentionally undocumented and dynamic** — the team's posture per [community FAQ](https://www.alphagenomecommunity.com/t/what-are-the-alphagenome-api-limits/673) is "increase parallel workers until `RESOURCE_EXHAUSTED`, then back off." Default 5 workers, < 1s per prediction, 1Mb max sequence per call, single variant per request. Stated comfort zone is "thousands of predictions" — millions is where it breaks down. patient_001 across Experiments 1–3 lands solidly in the well-suited band.
+
+**SDK is open-source** ([github.com/google-deepmind/alphagenome](https://github.com/google-deepmind/alphagenome), since 2026-01-28). Standard pattern is `model = dna_client.create(API_KEY); model.predict_variant(interval=..., variant=...)` with `genome.Interval` and `genome.Variant` value objects. Tissue specified via UBERON ontology terms; concrete track inventory not enumerated in the README — needs a key to query.
+
+**Why this is enough to unblock #224/#225:** the two gating questions Scientist's design depended on were "does this cost real money?" and "does it return junction connectivity?" Both have hard answers now. The remaining recon items (live latency, exact tissue track count, output schema details) inform implementation but don't change the experiment design.
+
+**Next step:** user is registering for an API key now. Next session does the live test (one chr22 region, GRCh38 vs patient_001 variant), confirms output schema, then closes [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223). Hand-off to Scientist sub-issues happens at close.
+
+**Process note:** entry ships on its own time-suffixed branch (`docs/developer/lab-notebook-2026-05-02-1818`) per the multi-session pattern in `shared/feedback_lab_notebook.md` — [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) stays open across sessions, so the notebook entry is independent of issue lifecycle.
 
 ### 16:48 UTC — Editor: Developer
 
