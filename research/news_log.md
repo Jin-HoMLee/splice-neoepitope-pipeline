@@ -20,6 +20,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 - **Nature 2025 follow-up — long-lived CD8+ T cells from autogene cevumeran** — 7.7-year mean estimated T-cell clone lifespan; RFS not reached for responders vs 13.4-mo non-responders. → No issue (DISCUSSION reference for vaccine durability mechanism). *Scientist. clinical-validation.*
 - **Personalized Cancer Vaccines clinical trial pipeline review** (APJCO 2026) — field-wide landscape including TG4050 head/neck (no relapses at 16.2-mo median, Arm A). → No issue (field-landscape DISCUSSION reference). *Scientist. methodology-signal.*
 
+### 10:49 UTC — Editor: Developer
+
+- **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo** (2026, dev-discuss) — Maxwell/Pascal/Volta described as "feature-complete with no further enhancements planned"; PyTorch 2.8 dropped Pascal kernels in cu128/cu129 builds. → CLAUDE.md note clarifying the `torch<2.5` pin is permanent on this hardware. *Developer. pipeline-relevant.*
+- **Snakemake `googlebatch` executor plugin** — official replacement for the deprecated Google Life Sciences executor. → Already tracked in [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (logged here so it doesn't re-surface in future briefings). *Developer. pipeline-relevant.*
+- **Snakemake 9.x deprecates `--use-conda`** in favour of `--software-deployment-method conda` — affects every snakemake call site in CLAUDE.md, `run_cloud_gpu.sh`, `setup_local.sh`. → Comment on [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) — bundle into the 9.x migration. *Developer. pipeline-relevant.*
+
 ## 2026-05-02
 
 ### 10:04 UTC — Editor: Scientist
