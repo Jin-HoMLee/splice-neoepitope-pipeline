@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-05-03
+
+### 18:12 UTC — Editor: Developer
+
+#### Issue #223 / PR #254 — review-cycle fixes
+
+`@claude` review on the AlphaGenome primer flagged three actionable items. All addressed in this commit:
+
+1. **Medium — "powers of 2" phrasing was misleading.** The primer (line 230) and the spike script (line 70) both said the four required input lengths were "powers of 2 ≤ 1Mb." Reviewer correctly pointed out that 2^15=32768, 2^16=65536, and 2^18=262144 are also powers of 2 but **not accepted** — only the four specific values 16384, 131072, 524288, 1048576 work. A reader taking the primer literally would expect the intermediate sizes to work and get a `ValueError`. Fixed both call sites to say "these four specific values" and explicitly list the rejected powers of 2.
+
+2. **Low — lenient-threshold caveat.** The primer described the spike's mean |ref − alt| of ~0.00014 as evidence the variant-affected-junction filter is "very lenient." Reviewer pointed out the spike SNV was a synthetic A→G chosen for API plumbing — not designed to disrupt splicing. So the tiny mean delta likely reflects micro-perturbations from a single nucleotide change, not characterisation of how the threshold behaves for biologically meaningful splice-disruptive variants (where deltas would be orders of magnitude larger). Added the caveat explicitly. Also added a one-line acknowledgment that geographic windowing wasn't ruled out by our test (the non-zero-delta rate just makes effect-based filtering the more parsimonious explanation).
+
+3. **Low — dead branch in `summarise_output()`.** The function used `getattr(val, "shape", None) is None` as a "this is a DataFrame, fall through to column listing" heuristic. But pandas DataFrames also have `.shape` (returns `(n_rows, n_cols)` tuple), so the column-listing else-branch was unreachable for `metadata` — instead the script printed `"metadata.shape: (367, 8)"`, which is less informative than the column inventory the comment promised. Fixed by handling `metadata` via its own explicit code path (always print columns) and looping the shape-printing only over `values + interval`. Verified with a mock-DataFrame smoke test.
+
+**Why this matters now:** the spike script is intended as a reusable probe for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)'s AlphaGenome validation notebook. Shipping with dead branches and misleading comments would be a paper-cut for whoever picks that issue up.
+
+**Verified:** smoke test confirms `summarise_output()` now prints the column list for DataFrames; primer + spike consistent on the input-length constraint. No tests changed (script is a one-off probe, not under pytest coverage). Closes [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) when this PR merges.
+
+---
+
 ## 2026-05-02
 
 ### 20:32 UTC — Editor: Developer

@@ -156,15 +156,22 @@ We verified empirically that all 503 junctions show ref ≠ alt in at least
 one track (none have identical values across all 367 tracks). So
 `predict_variant` is filtering its output to **only the junctions where
 the variant has measurable effect somewhere in the (junctions × tracks)
-matrix** — not geographic windowing, not random sub-sampling.
+matrix** — not random sub-sampling. Geographic windowing (variants
+restricted to a window around their position) cannot be ruled out by this
+test alone, but the non-zero-delta rate makes effect-based filtering the
+more parsimonious explanation. We did not verify junction coordinates.
 
 The inclusion threshold appears very lenient: in the spike, mean |ref − alt|
-across the 503 included junctions is ~0.00014. Effectively any non-zero
-variant effect, however small, qualifies a junction for output. This means
-the 503 number is **"all junctions with any model-detectable response to
-the variant"** — not a high-confidence "this variant matters here" set.
-The meaningful biological signal lives in the *magnitude* of ref-vs-alt
-deltas, not the count of returned junctions.
+across the 503 included junctions is ~0.00014. **Caveat:** the spike SNV
+was a synthetic A→G at the interval midpoint — chosen for API plumbing,
+not designed to disrupt splicing. The tiny mean delta likely reflects
+micro-perturbations from a single nucleotide change, not the threshold's
+behaviour for biologically meaningful splice-disruptive variants (where
+deltas would be orders of magnitude larger). The threshold for those
+remains uncharacterised. What's clear is that the 503 number is
+**"any model-detectable response, however small"**, not a high-confidence
+"this variant matters here" set — meaningful biological signal lives in
+the *magnitude* of ref-vs-alt deltas, not the count of returned junctions.
 
 ---
 
@@ -226,9 +233,10 @@ would be observed in that biological context.
 
 ## Operational details
 
-- **Required input lengths.** The model only accepts these region widths:
-  16384, 131072, 524288, 1048576 (powers-of-2-ish, up to 1Mb). Other
-  lengths raise `ValueError`. Pad or trim accordingly.
+- **Required input lengths.** The model only accepts these four specific
+  region widths: **16384, 131072, 524288, 1048576**. Other powers of 2
+  (32768, 65536, 262144) and arbitrary lengths raise `ValueError`. Pad or
+  trim accordingly.
 - **Per-call latency.** ~1–3s wall-clock for a 131kb interval. Cost scales
   modestly with input length thanks to the shared backbone.
 - **Rate limits.** Intentionally not documented; the team's posture per

@@ -37,23 +37,25 @@ def summarise_output(output, label):
         print("    splice_junctions: <attribute missing>")
         return
     print(f"    splice_junctions type: {type(sj).__name__}")
-    # TrackData objects expose .values (np.ndarray), .metadata (DataFrame),
-    # .interval (Interval). Probe each defensively in case the API surface
-    # differs from the README.
-    for attr in ("values", "metadata", "interval"):
-        if hasattr(sj, attr):
-            val = getattr(sj, attr)
-            shape = getattr(val, "shape", None)
-            if shape is not None:
-                print(f"    {attr}.shape: {shape}")
-            else:
-                # metadata is usually a DataFrame; show columns + row count
-                cols = getattr(val, "columns", None)
-                if cols is not None:
-                    print(f"    {attr}: DataFrame with {len(val)} rows, "
-                          f"columns={list(cols)[:8]}{'…' if len(cols) > 8 else ''}")
-                else:
-                    print(f"    {attr}: {val!r}")
+    # JunctionData exposes .values (np.ndarray), .metadata (pd.DataFrame),
+    # .interval (Interval). For values + interval the shape is the useful
+    # summary; for metadata we surface column names directly because
+    # DataFrame.shape is also populated (e.g. (367, 8)) but less informative
+    # than the column inventory.
+    for attr in ("values", "interval"):
+        val = getattr(sj, attr, None)
+        if val is None:
+            continue
+        shape = getattr(val, "shape", None)
+        if shape is not None:
+            print(f"    {attr}.shape: {shape}")
+        else:
+            print(f"    {attr}: {val!r}")
+    md = getattr(sj, "metadata", None)
+    if md is not None:
+        cols = list(md.columns)
+        print(f"    metadata: DataFrame with {len(md)} rows, "
+              f"columns={cols[:8]}{'…' if len(cols) > 8 else ''}")
 
 
 def main() -> int:
@@ -67,9 +69,10 @@ def main() -> int:
     from alphagenome.models import dna_client
     from alphagenome.models.dna_output import OutputType
 
-    # AlphaGenome only accepts specific input lengths (powers of 2 ≤ 1 Mb):
-    # 16384, 131072, 524288, 1048576. We use 131072 (~128 kb) — smallest size
-    # that comfortably spans a typical multi-exon gene.
+    # AlphaGenome only accepts these four specific input lengths:
+    # 16384, 131072, 524288, 1048576. Other powers of 2 (e.g. 32768, 65536,
+    # 262144) raise ValueError. We use 131072 (~128 kb) — smallest size that
+    # comfortably spans a typical multi-exon gene.
     INTERVAL_WIDTH = 131_072
     INTERVAL_START = 42_000_000
     interval = genome.Interval(
