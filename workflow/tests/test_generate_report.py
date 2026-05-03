@@ -244,6 +244,130 @@ class TestBuildReportTsv:
         assert df[df["stage"] == "mhc_prediction"].empty
         assert df[df["stage"] == "top_candidate"].empty
 
+    # ---------- Junction-funnel patient-level totals (Issue #214) ----------
+
+    def _write_stats_tsv(self, path, rows):
+        """rows: list of (sample_id, sample_type, category, count) tuples."""
+        df = pd.DataFrame(rows, columns=["sample_id", "sample_type", "category", "count"])
+        df.to_csv(path, sep="\t", index=False)
+
+    def test_junction_funnel_totals_emitted_when_stats_provided(self, tmp_path):
+        stats = tmp_path / "junction_filter_stats.tsv"
+        # Each sample has mean_reads_filtered too — the funnel must reconcile.
+        self._write_stats_tsv(stats, [
+            ("S1", "Primary Tumor", "junctions_raw", 1000),
+            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "annotated_discarded", 750),
+            ("S1", "Primary Tumor", "normal_shared", 40),
+            ("S1", "Primary Tumor", "tumor_exclusive", 110),
+            ("S2", "Primary Tumor", "junctions_raw", 500),
+            ("S2", "Primary Tumor", "mean_reads_filtered", 50),
+            ("S2", "Primary Tumor", "annotated_discarded", 370),
+            ("S2", "Primary Tumor", "normal_shared", 20),
+            ("S2", "Primary Tumor", "tumor_exclusive", 60),
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=None,
+            junction_filter_stats_tsv=stats,
+        )
+        df = pd.read_csv(out, sep="\t")
+        jf = df[df["stage"] == "junction_filtering"].set_index("metric")["value"]
+        # Patient-level totals are sums across the 2 tumor samples
+        assert int(jf["junctions_extracted_total"]) == 1500
+        assert int(jf["junctions_mean_reads_filtered"]) == 150
+        assert int(jf["junctions_annotated_discarded"]) == 1120
+        # unannotated_total = normal_shared + tumor_exclusive across samples
+        assert int(jf["junctions_unannotated_total"]) == 40 + 110 + 20 + 60
+
+    def test_junction_funnel_totals_reconcile_in_report_tsv(self, tmp_path):
+        """report.tsv consumers should see a closed funnel (PR #240 review observation)."""
+        stats = tmp_path / "junction_filter_stats.tsv"
+        self._write_stats_tsv(stats, [
+            ("S1", "Primary Tumor", "junctions_raw", 1000),
+            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "annotated_discarded", 750),
+            ("S1", "Primary Tumor", "normal_shared", 40),
+            ("S1", "Primary Tumor", "tumor_exclusive", 110),
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=None,
+            junction_filter_stats_tsv=stats,
+        )
+        df = pd.read_csv(out, sep="\t")
+        jf = df[df["stage"] == "junction_filtering"].set_index("metric")["value"]
+        # extracted_total == mean_reads_filtered + annotated_discarded + unannotated_total
+        assert int(jf["junctions_extracted_total"]) == (
+            int(jf["junctions_mean_reads_filtered"])
+            + int(jf["junctions_annotated_discarded"])
+            + int(jf["junctions_unannotated_total"])
+        )
+
+    def test_junction_funnel_totals_omitted_when_no_stats_path(self, tmp_path):
+        """Without stats path, the 4 new totals must not appear (back-compat)."""
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=None,
+        )
+        df = pd.read_csv(out, sep="\t")
+        metrics = set(df[df["stage"] == "junction_filtering"]["metric"])
+        assert "junctions_extracted_total" not in metrics
+        assert "junctions_mean_reads_filtered" not in metrics
+        assert "junctions_annotated_discarded" not in metrics
+        assert "junctions_unannotated_total" not in metrics
+
+    def test_junction_funnel_totals_marked_as_patient_level(self, tmp_path):
+        """The 4 new rows should have a notes value distinguishing them from per-sample rows."""
+        stats = tmp_path / "junction_filter_stats.tsv"
+        self._write_stats_tsv(stats, [
+            ("S1", "Primary Tumor", "junctions_raw", 100),
+            ("S1", "Primary Tumor", "mean_reads_filtered", 10),
+            ("S1", "Primary Tumor", "annotated_discarded", 70),
+            ("S1", "Primary Tumor", "normal_shared", 5),
+            ("S1", "Primary Tumor", "tumor_exclusive", 15),
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=None,
+            junction_filter_stats_tsv=stats,
+        )
+        df = pd.read_csv(out, sep="\t")
+        totals = df[df["metric"].isin([
+            "junctions_extracted_total",
+            "junctions_mean_reads_filtered",
+            "junctions_annotated_discarded",
+            "junctions_unannotated_total",
+        ])]
+        # All 4 rows present
+        assert len(totals) == 4
+        # Notes field distinguishes them from per-sample rows (which carry sample_id)
+        assert (totals["notes"] == "all tumor samples").all()
+
 
 class TestLoadReportTsv:
     """Round-trip: writer output must load into the projections HTML rendering needs."""
