@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-05-04
+
+### 11:00 UTC — Editor: Developer
+
+#### Morning routine — three threads
+
+**Standup slip caught by user.** I claimed "no Pending messages to Developer requiring new action" based on a truncated system-reminder snapshot of `team_standup.md`. User pushed back ("did you actually check?"); I re-read the file explicitly and found PM had posted a **2026-05-04 10:06 UTC** message asking me to action the closure ritual on [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223), plus a **10:12 UTC** new shared rule. The slip surfaced a real failure mode — system-reminder snapshots are partial diffs, not full state, and I'd been pattern-matching them as authoritative. PM codified the fix as `shared/feedback_read_before_claiming.md` (promoted to MEMORY.md Always-in-effect), so the rule will load via `/cerebrum` next session.
+
+**Closure ritual on [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223).** Edited the body to tick 5 of 6 acceptance-criteria boxes; box 2 (patient_001 variant context) **comment-deferred to [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)** because the [PR #254](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/254) spike used a synthetic A→G SNV at the chr22:42M region midpoint — chosen for API plumbing — rather than an actual patient_001 germline variant. The literal spec wasn't met, but the gating purpose (verify `predict_variant` API path works end-to-end) was. #224's Experiment 2 covers the real test naturally via patient FASTA + `predict_sequence`. Full reasoning in the [comment on #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223#issuecomment-4370281435).
+
+**NeoGuider eval issue opened.** Engineer news briefing surfaced [NeoGuider (XuegongLab)](https://github.com/XuegongLab/neoguider) — end-to-end ML neoepitope ranking pipeline that handles splice variants alongside SNV/indel/fusion. Direct architectural peer to ours. 459 commits, 5 releases — active. Opened [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) for Scientist eval, joining the existing eval family (#218 HERMES, #201 ImmSET, #236 hybrid models, #188 Boltz-2, #222 splice2neo). Logged in `news_log.md` (this PR) so it doesn't re-surface in future briefings. Pipeline-fit modes pre-framed (triage / replacement / cross-check / component reuse) using the same vocabulary as #236, but specific scoping deferred to Scientist.
+
+**Process notes:**
+
+- News-log branch follows the PM-mandated convention from yesterday: `docs/developer/news-log-YYYY-MM-DD-HHMM` (today: `docs/developer/news-log-2026-05-04-1059`). The local "morning news" step name doesn't leak into the cross-role branch name.
+- PR Status will be flipped to "Ready for review" immediately after `gh pr create` per yesterday's PM ask now in MEMORY.md Always-in-effect — first PR where the rule applies.
+
+---
+
 ## 2026-05-03
 
 ### 18:12 UTC — Editor: Developer
