@@ -430,6 +430,54 @@ scoring throughout.
 
 ---
 
+## Clinical translation: durability of personalized neoantigen vaccines in low-mutation tumors
+
+Among multiple active personalized neoantigen vaccine trials spanning
+head-and-neck (TG4050), melanoma (mRNA-4157/V940), pancreatic (autogene
+cevumeran), and other indications (Iamukova & Alferova, *Asia-Pacific Journal
+of Clinical Oncology* 2026), the autogene cevumeran trial in pancreatic ductal
+adenocarcinoma (PDAC) has produced the most mature long-term follow-up and
+provides strong clinical validation for the personalized neoantigen vaccine
+paradigm (Sethna et al., *Nature* 2025; original trial: Rojas et al., *Nature*
+2023). At a 3.2-year median follow-up, vaccine responders had not reached
+median recurrence-free survival compared to 13.4 months in non-responders
+(P = 0.007), with vaccine-induced CD8+ T cell clones exhibiting an estimated
+mean lifespan of 7.7 years (range 1.5–~100 years) and ~20% of clones
+persisting on multi-decade timescales. Notably, these long-lived clones are
+primed *de novo* against passenger somatic mutations rather than amplifying
+pre-existing T cell pools, demonstrating that effective neoantigen targets do
+not require pre-existing endogenous immunity to elicit a durable functional
+response.
+
+Two clinical observations are particularly relevant to splice-junction
+neoepitope prediction. First, PDAC is paradigmatic of *low-mutation tumors* —
+gastrointestinal cancers and other immunologically cold tumors with few somatic
+mutations are explicitly identified as ideal initial disease indications for
+this paradigm, yet the somatic mutation pool in such tumors is correspondingly
+limited. Splice-junction-derived neoepitopes are an orthogonal source of
+tumor-specific antigens that scales with the splicing dysregulation
+characteristic of these tumors rather than with point-mutation burden, and can
+substantially expand the predictable target pool in exactly the indications
+where personalized vaccines are most urgently needed. Second, recurrent tumors
+in vaccine non-responders evolved under vaccine-induced selective pressure and
+were *pruned of vaccine-targeted clones* — direct evidence that immune editing
+on a finite vaccine target set permits clonal escape. The authors note this
+clonal pruning may make subclinical clones (microscopic residual disease cells
+below clinical detection at vaccination time) a vaccine-resistance mechanism,
+and propose two non-exclusive future directions: polyvalent vaccines covering
+heterogeneous clones, or alternatively, high-potency vaccines against clonal
+neoantigens.
+
+Our pipeline's primary contribution to this clinical context is expanding the
+predictable target pool through splice-junction neoepitope prediction —
+particularly valuable in low-mutation tumors where the somatic mutation
+candidate pool is scarce. Whether splice-junction antigens are also more
+clonally shared across tumor sub-populations than mutation-derived antigens —
+and thus directly address the heterogeneity-driven escape mechanism the
+authors highlight — remains an open empirical question worth pursuing.
+
+---
+
 ## Immune-pathway gene neoepitopes: the presentation paradox
 
 A subset of the candidates this pipeline produces deserves special clinical attention: splice-junction neoepitopes derived from immune-pathway genes whose loss-of-function drives immune evasion. Genes including *JAK1*, *JAK2*, *STAT1*, *B2M*, *NLRC5*, and *TAP1/2* are recurrently mutated in tumours that have escaped checkpoint blockade (Zaretsky et al., *NEJM* 2016; Sade-Feldman et al., *Cancer Discovery* 2017). Recent base-editing screens have systematically mapped the specific single-amino-acid variants that disrupt IFN-γ signalling and antigen presentation, identifying which residues in JAK1, JAK2, and other pathway components are most vulnerable to point mutation (Coelho et al., *Cancer Cell* 2023). Many of these mutations also generate splice variants — in-frame exon skips, alternative donor/acceptor usage, intron retention — whose junction-spanning peptides are immunogenic in principle.
