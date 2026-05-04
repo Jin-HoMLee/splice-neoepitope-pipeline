@@ -15,7 +15,7 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ### 10:59 UTC — Editor: Developer
 
-- **NeoGuider (XuegongLab)** ([GitHub repo](https://github.com/XuegongLab/neoguider)) — end-to-end ML neoepitope ranking pipeline, FASTQ → immunogenicity probability; supports splice variants alongside SNV/indel/fusion/frameshift. 459 commits, 5 releases — active. → [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (Scientist eval, joins the #218/#201/#236/#188/#222 eval family). *Both. portfolio-differentiator.*
+- **NeoGuider** ([XuegongLab](https://github.com/XuegongLab/neoguider)) — end-to-end neoepitope pipeline, splice-variant support. → [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (Sci eval). *Both. portfolio-differentiator.*
 
 ## 2026-05-03
 
