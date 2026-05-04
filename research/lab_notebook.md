@@ -4,6 +4,22 @@
 
 ## 2026-05-04
 
+### 18:08 UTC — Editor: Scientist
+
+#### Issue #232 — clinical-translation DISCUSSION section landed ([PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260))
+
+**Sunday read → Monday landing.** Sunday afternoon's deep read of [Sethna et al., *Nature* 2025](https://doi.org/10.1038/s41586-024-08508-4) (PDF supplied directly via conversation since bioRxiv-style sources block WebFetch — the autogene cevumeran 2025 follow-up) produced an initial draft of a new manuscript-DISCUSSION section. User caught a **polyvalency-framing overstatement** in the first draft: I had characterised the paper as "arguing for polyvalent vaccines," but the paper's actual data finding is **clonal pruning at recurrence** — the polyvalent-vs-high-potency suggestion is offered as *speculative future directions*, not a tested hypothesis. Corrected the framing (now explicitly attributes the suggestion to authors, presents both alternatives, and uses Option B for the closing claim — flags the splice-clonality question as an open empirical hypothesis rather than overclaiming pipeline-pipeline fit).
+
+**Final section content.** Three paragraphs landed in `research/manuscript/DISCUSSIONS.md` between *Allele breadth and immunodominance* and *Immune-pathway gene neoepitopes: the presentation paradox*: (1) field-landscape opener (Iamukova & Alferova, APJCO 2026; Sethna 2025; Rojas 2023) → durability data (RFS, 7.7-yr clone lifespans, *de novo* priming); (2) two pipeline-relevant clinical observations (low-mutation tumor indication; clonal pruning + author-proposed future directions, with inline gloss for "subclinical clones"); (3) honest pipeline-fit framing (pool expansion is solid; clonal-shared-vs-subclonal for splice antigens is open empirical question).
+
+**PR #260 opened with `Refs #232` (not `Closes`)** — closes one AC of #232 only; the Issue stays open as the manuscript-integration umbrella with 6 remaining ACs. [Multi-PR coordination comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232#issuecomment-4373317088) posted on #232 announcing the lazy-sibling-Issue plan for the rest. Scope-expansion comment also posted earlier ([here](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232#issuecomment-4370397677)) folding the clinical-translation arc into #232's body.
+
+#### Memory + workflow rules captured
+
+**Comment-first then body-edit for scope changes** (saved to `shared/feedback_scope_discipline.md`). Body-alone is silent (GitHub edit history is buried); comment-alone is stale (body misleads). Comment-then-body lets reviewers intervene before any PR ships, then keeps the body as current state of truth. Asymmetry note: body-edit alone is fine for minor wording / clarification changes that don't change scope — comment-first is specifically for *scope* changes.
+
+**AC-checkbox heuristic for upfront sub-issue decomposition** (saved to `shared/feedback_branch_planning.md`). When an Issue's acceptance criteria touch distinct sections / files / themes, decompose into sub-issues *before* opening any branch on the parent — AC checkboxes are ready-to-use sub-issue scopes. The mid-flight restructuring we hit on #232 today (1 AC landing, 6 ACs pending, branch already created against parent) is the exact failure mode this rule prevents. For #232 itself, Option Y (single Issue + multi-PR with `Refs`) is the cleanest path forward only because the Issue is already in flight; for new Issues going forward, sub-issues from the start are the right pattern.
+
 ### 11:00 UTC — Editor: Developer
 
 #### Morning routine — three threads
