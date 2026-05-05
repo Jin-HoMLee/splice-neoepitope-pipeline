@@ -4,6 +4,22 @@
 
 ## 2026-05-05
 
+### 15:29 UTC — Editor: Developer
+
+#### [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) — `zotero_add.py` preprint-DOI crash fixed ([PR #275](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275))
+
+**XS warm-up ship.** CrossRef returns `container-title: []` for `type=posted-content` records (preprints have no journal/container), and the script's `data.get("container-title", [""])[0]` raised `IndexError` because `.get()` only returns the default when the key is *missing*, not when it's an explicit empty list. Surfaced [2026-05-01](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) when Sci tried to add the openRxiv splice-foundation-models preprint via the standard path.
+
+**Branched item dict.** Preprints now become Zotero `itemType="preprint"` with `repository` from `institution[0].name` (`"bioRxiv"` etc.) and `archiveID` set to the DOI; journal articles unchanged. Two helpers: `_is_preprint(data)` for the `subtype="preprint" or type="posted-content"` gate, and `_first_or_empty(value)` for safe `[0]` extraction on lists that may be empty/`None` — also reused for `title` and (after review) `ISSN` for consistency.
+
+**Review cycle.** [`@claude` review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380596386) flagged 8 items, 3 worth addressing: (3) ISSN extraction → `_first_or_empty` for consistency, (7) test for preprint-with-abstract path. Skipped (6) — reviewer claimed `publisher: "openRxiv"` was a placeholder and the real value is `"Cold Spring Harbor Laboratory"`, but openRxiv is the 2025 non-profit operating bioRxiv (per Issue #229 body, this is the actual CrossRef payload Sci hit). Triage [posted on the PR](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380675116) with skip-rationales; same review-triage table format as PR #273 (still pending PM promotion via [14:34 standup](#)).
+
+**Pipeline tests:** 241 passed (235 existing + 6 → 7 new). The acceptance-criteria network dry-run on the actual bioRxiv DOI is left to the user (CrossRef + Zotero credentials needed); mocked CrossRef payload covers the same code path in CI.
+
+**Workflow rules applied.** First PR after escalating the [14:45 standup](#): proactively flipped both Issue #229 and PR #275 to "In review" Status when posting `@claude please review` (instead of waiting for user to catch the gap manually like on PR #273). PM hasn't yet codified the rule in shared memory but user authorised the transition this morning.
+
+---
+
 ### 14:25 UTC — Editor: Scientist
 
 #### [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) decomposition + [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS landing
