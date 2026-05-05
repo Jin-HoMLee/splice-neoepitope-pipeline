@@ -4,6 +4,26 @@
 
 ## 2026-05-05
 
+### 14:25 UTC — Editor: Scientist
+
+#### [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) decomposition + [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS landing
+
+**[#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) auto-closed by yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)** despite `Refs #232` in the body — root cause: `gh issue develop 232 --name <branch>` created a Development-link that auto-closes regardless of the body keyword (verified via `gh pr view 260 --json closingIssuesReferences` listing #232). The "Refs vs Closes" counter-pattern only works when the branch was created without `gh issue develop`, which collides with our Always-in-effect rule mandating `gh issue develop`. PM had reopened in the morning closure-audit; I extended `shared/feedback_github_auto_close.md` with the second auto-close path and broadcast via [/CEREBRUM ALL](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline) standup post.
+
+**Decomposed [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) into 6 sibling sub-issues** ([#267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267)–[#272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272)) per the AC-checkbox heuristic — each remaining acceptance criterion now has a dedicated focused branch target, parent stays open as the umbrella, no more `gh issue develop` collision risk. PM applied Priority + Size + Target on the board: P1 METHODS gates → P1 main DISCUSSION → P2 INTRODUCTION fillers → deferred + reference closer.
+
+**[Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS splice2neo + AlphaGenome.** New `### Comparison to related approaches` subsection at end of Section 3 (Junction Classification) — placement chosen because that's where our junction-origin classification is described, so the splice2neo contrast (variant-driven vs junction-driven) lands naturally. **splice2neo** (Lang et al., 2024, *Bioinform Adv*) starts from somatic SNVs/indels → predicts altered splicing via SpliceAI-style models → derives neoantigens; ours starts from observed junctions → classifies by origin. Variant-driven captures splicing changes attributable to specific variants; junction-driven captures any tumor-exclusive junction regardless of underlying cause. **AlphaGenome** (Avsec et al., 2026, *Nature*) introduced as a candidate computational normal filter under evaluation (Issue [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)); METHODS-section coverage of inputs/outputs only — validation outcome deferred to DISCUSSION via [Sub-Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) once #203 closes. Author/year verified against Zotero (`Z4FAE6QM`, `UZWZ5QEB`).
+
+#### Created-by attribution slip + retro-fix on 8 artifacts
+
+**Slip discovered after morning's GitHub work**: the shared workflow rule `**Created by:** <Role>` on every issue + PR body (documented at `shared/feedback_github_workflow.md:151`) was not promoted to `shared/MEMORY.md` Always-in-effect — only Developer had it inline at their role MEMORY.md. I missed it on today's 6 sub-issues + the [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) body update + yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)/[PR #261](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/261). User flagged.
+
+**Resolution path** — same temporary-stopgap pattern we used today: I added the rule to my role `MEMORY.md` Always-in-effect as a temporary entry to protect the immediate session, pinged PM via standup to request shared-memory promotion + comments-scope clarification, retro-fixed all 8 artifacts via `gh issue edit` / `gh pr edit`. PM landed shared promotion at 14:04 UTC + answered comments-scope (body-only, comments excluded). I removed the Sci-local stopgap to avoid role+shared duplication.
+
+**Tooling note — project item ID lookup.** Burned 3 tool calls paginating `projectV2.items` to find #269's item ID for the Status flip before realising the direct path is `repository → issue → projectItems` — a single GraphQL call regardless of project size. Saved snippet locally as `scientist/reference_project_item_lookup.md` (TEMPORARY) + pinged PM to fold into `shared/feedback_project_board.md` (which already has the field/option IDs, so it's the natural home).
+
+---
+
 ### 10:39 UTC — Editor: Developer
 
 #### Morning routine — TCR-pMHC structure prediction news + glossary batch
