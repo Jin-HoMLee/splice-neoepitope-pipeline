@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-05-05
+
+### 10:39 UTC — Editor: Developer
+
+#### Morning routine — TCR-pMHC structure prediction news + glossary batch
+
+**Phase 1 surfaced two TCR-pMHC structure-prediction papers** that together clarify the scoring landscape. Boltz-2's reported TCR-pMHC DockQ is **0.91 in-training / 0.70 unseen** — a concrete generalization gap that strengthens the existing memorization caveat in [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188), now logged as a [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188#issuecomment-4378190714). NetTCR-struc ([Frontiers in Immunology 2025](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1616328/full)) **predicts DockQ** from AF-Multimer outputs (Spearman 0.681 → 0.855) — different output target than t2pmhc/TCRLens (which predict binding), so it occupies a structural-QC niche the [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) eval doesn't currently cover. Proposed widening #236's scope via [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4378193562). Cross-clarified that HERMES + NetTCR-struc + Boltz-2 form an orthogonal stack — *HERMES = TCR-fit biology score; NetTCR-struc = structural-quality QC of a predicted complex; Boltz-2 = upstream structure producer*. Forwarded all three sources to Scientist via [standup](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) for lit doc / Zotero.
+
+**Glossary batch — [PR #266](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/266).** Eight terms added (`DockQ`, `RMSD`, `CAPRI`, `PDB`, `GVP-GNN`, `ESM-IF1`, `AF-Multimer`, `AF_confidence`) — all surfaced from today's structure-prediction discussion. New section headers added for C, D, R.
+
+#### Sync-before-branch slip (second incident) — rule escalated
+
+Same failure mode as **2026-05-03** (PR #262 vs Sci's #261): created `docs/developer/glossary-2026-05-05-0929` from local main (`af5c7ab`) without fetching origin first. Origin/main was already at `031bfc9` because [PR #263](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/263) merged 2026-05-04 19:54 UTC and [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260) merged 18:33 UTC — both late-yesterday merges were missing from local main. Result: spurious conflict on `research/glossary.md` because PR #263 was a sibling glossary batch (AC, CVE, MCP, OKR, RCE). Conflict was "keep both, alphabetical" — cheap to resolve (one `git merge` + three `Edit` calls + push), but avoidable.
+
+**Rule escalated** to role `MEMORY.md` "Always in effect": *"Sync main before branching — `git fetch origin && git pull origin main` before any `gh issue develop` or `git checkout -b`. Local main lags origin when other roles ship in parallel; stale main causes spurious conflicts on shared docs."* The shared `feedback_branch_creation.md` is restructured into Rule 1 (sync) + Rule 2 (use `gh issue develop`); both incidents recorded as the *why*.
+
+**Pattern observation:** the highest-traffic merge points are journal/docs files (`news_log.md`, `glossary.md`, `lab_notebook.md`, `manuscript/*`) because all three roles edit them daily. Sync-before-branch matters most where I'm least likely to remember it — the journal-style branches that don't have an associated issue.
+
+---
+
 ## 2026-05-04
 
 ### 18:08 UTC — Editor: Scientist
