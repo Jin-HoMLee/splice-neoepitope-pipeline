@@ -2,6 +2,26 @@
 
 ---
 
+## 2026-05-06
+
+### 00:35 UTC — Editor: Developer
+
+#### [Issue #127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/127) closed obsolete; replaced by [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) — patient_002 normal sample switched WES → PBMC scRNA-seq
+
+**Picked up #127** (P1, M, *support pre-aligned BAM as normal input*) and immediately hit the wall: drilled into `b2://osteosarc-data/hudson_lab/PBMC_scRNAseq/cellranger/January2025 (250125)/Capture_1/outs/` and confirmed via search across all 23,607 files in the bucket — **no GEX BAM exists** for the Jan 2025 Cell Ranger Multi run (executed with `--create-bam=false`). The 25.5 GB total for `January2025/` vs 374–431 GB for `November2025/` and `December2025/` is consistent: later runs likely include BAMs, this one does not. The "skip HISAT2 alignment, regtools directly on BAM" optimisation in #127 has no premise.
+
+**Outcome reachable without code change.** 10x 3' GEX has cDNA on R2; cell barcodes (R1) are irrelevant for normal-junction enumeration. The existing HISAT2 single-end path handles R2-only alignment as-is. Closed #127 (with rationale comment), opened #277 as a smaller-scope replacement: one TSV row addition.
+
+**Scope widening before code.** Once the FASTQ path was settled, realised OptiType already runs in `--rna` mode at [hla_typing.smk:121](workflow/rules/hla_typing.smk#L121) — its native use case is RNA-seq, not WES (WES tolerance was a workaround). Since PBMC IS RNA-seq, it can serve both junction filtering AND HLA typing. Dropped the WES blood normal entirely from `patient_002.tsv` and moved the Red Cross serology columns to the new PBMC row. Single sample, two purposes, ~33 GB less compute per run. Updated #277 body to reflect the wider scope (still XS — three lines edited).
+
+**Pedagogical detour.** User dug into the *why* across several axes: (a) what "parse-time wildcard_constraints" mean (briefly considered for routing FASTQ vs BAM rules before the BAM-doesn't-exist finding made it moot — visualised parse-time vs run-time DAG construction with ASCII diagrams), (b) why 10x reads have a 3' bias (poly-T primer chemistry against poly-A tails → cDNA grows backward toward 5' but RT falls off), (c) what GEX stands for (Gene EXpression — distinct from VDJ chemistry on the same Cell Ranger Multi run). Worth keeping the visual-explanation register in mind — user explicitly preferred ASCII diagrams over prose for these conceptual asks.
+
+**Verification.** `pytest workflow/tests/` 235 passed. Snakemake dry-run on patient_002 targeting the new sample's alignment + HLA-typing outputs threads cleanly through `download_fastq` → `hisat2_align` (single-end, only `fastq1` in input) and `run_optitype`. URL percent-encoding (`Jan2025%20%28250125%29/GEX/Pool%201/`) verified accepted by Snakemake's wildcard parser. Top-level patient_002 dry-run hits a pre-existing `MissingInputException` on `resources/gencode.v47.annotation.gtf.gz` (resource not local; downloaded at runtime); not caused by this change.
+
+**Validation deferred to first run.** Single-lane PoC (~28 GB, ~100–200M reads). Two checks on first cloud run: (i) OptiType-on-PBMC HLA call vs known Red Cross serology (`A*01:01/A*01:11N, B*08:01/B*27:05, C*01:02/C*07:01`) — mismatch → file follow-up bug; (ii) normal junction count significantly above WES baseline (~3 junctions) — no meaningful lift → expand to remaining lanes/captures (Pool 1 L003, Pool 2, Pool 3 = 6 R2 files, ~175 GB total) in a follow-up.
+
+---
+
 ## 2026-05-05
 
 ### 20:49 UTC — Editor: Scientist
