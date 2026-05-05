@@ -4,6 +4,20 @@
 
 ## 2026-05-05
 
+### 20:49 UTC — Editor: Scientist
+
+#### [Sub-Issue #270](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/270) DISCUSSION — SpliceMutr + ENEO
+
+**Subsection placement.** New `## Comparison to related neoantigen-prediction tools` inserted before `Structural validation` in [DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md) — broader-context positioning belongs near the end of the discussion, parallel to the METHODS comparison subsection landed via [PR #274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/274) (which closed [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269)).
+
+**SpliceMutr (Palmer et al., *Cancer Research Communications* 2024)** — framed around *causal mutation–splice linkage as cohort-scale tumor-exclusivity proof*. The original draft positioned this as "mutation-driven scope vs. junction-driven scope," but user pushed for the deeper rationale: anchoring each splice event to a predicted-causal somatic SNV (splice-site, branch-point, splice-regulatory-element mutations via SpliceAI/MaxEntScan) gives the splice consequence its tumor-exclusivity proof at the DNA level — no RNA-level normal comparison needed. Two cohort-scale wins: causal interpretability per event + false-positive control across thousands of TCGA samples. Trade-off explicit: misses non-mutation-driven aberrant splicing (SF3B1/U2AF1 *trans* effects, epigenetic dysregulation, transformed-cell spliceosomal noise) — a serious gap for vaccine candidate prioritisation where pool size matters.
+
+**ENEO (Tatoni et al., *NAR Genomics and Bioinformatics* 2025)** — sharpened framing thanks to user's question. Initial draft called it "Bayesian neoantigen calling" without articulating *what the Bayesian classifier actually does*. The user pushed: "is ENEO's Bayesian approach also basically comparing tumor signal against some a priori population knowledge?" — yes, exactly. ENEO replaces the matched-normal sample with **population-level priors at the variant level** (gnomAD-class germline AF + sequencing-error models + somatic prior). This is *the same conceptual move* as our GTEx pan-tissue filter at the junction level. The boundary conditions distinguishing the approaches: (i) antigen source (SNV vs. junction) + (ii) probabilistic-vs-binary thresholding. Probabilistic framing transferable to our pipeline as future work — population-frequency prior over GTEx junction read counts → posterior tumor-specificity score, recovering candidates excluded by single-read GTEx artefacts and downweighting low-coverage tumor candidates appropriately.
+
+**Pedagogical detour.** User asked for the binary-vs-Bayesian distinction explicitly ("never understood the difference") — concrete walk-through with junction-read-count examples (50 tumor reads / 0 GTEx → posterior ≈ 0.99; 50 tumor / 1 in 1 of 900 GTEx → 0.92; 2 tumor / 0 GTEx → 0.55) clarified the uncertainty-handling axis. Worth keeping the explanation pattern in mind for similar future asks: edge cases first, then the gain (rank-ordering, tunable thresholds), then the cost (priors specification, computational weight, communication overhead).
+
+---
+
 ### 15:29 UTC — Editor: Developer
 
 #### [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) — `zotero_add.py` preprint-DOI crash fixed ([PR #275](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275))
