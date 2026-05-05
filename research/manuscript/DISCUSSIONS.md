@@ -547,6 +547,86 @@ The pipeline's GPS prioritisation surfaces splice neoepitopes from immune-pathwa
 
 ---
 
+## Comparison to related neoantigen-prediction tools
+
+Two recently published tools span the same problem space from complementary angles —
+pan-cancer splice-neoantigen burden estimation (SpliceMutr) and tumor-only neoantigen
+calling without matched normal (ENEO). Comparing this pipeline to each clarifies the
+design choices made here and the gaps each leaves uncovered.
+
+### SpliceMutr: causal mutation–splice linkage as cohort-scale tumor-exclusivity proof
+
+SpliceMutr (Palmer et al., *Cancer Research Communications* 2024) quantifies
+splicing-derived neoantigen burden across TCGA tumour types. Each candidate splice
+event is anchored to a somatic mutation predicted to cause it — splice-site mutations
+at the canonical donor/acceptor dinucleotides or splice-regulatory-element mutations
+that disrupt spliceosome recognition. The somatic mutation, called from tumor-vs-normal
+DNA pairs, supplies the tumor-exclusivity proof at the DNA level; the splice consequence
+inherits that proof without an additional RNA-level normal-vs-tumor comparison. This
+mutation-anchored framing serves two cohort-scale needs: causal interpretability (each
+event has a mechanistic explanation) and false-positive control across thousands of
+samples that cannot be manually validated.
+
+This pipeline takes the broader scope: any unannotated junction absent from a matched
+(or pan-tissue GTEx) normal is a candidate, irrespective of an identified somatic
+driver. This captures non-mutation-driven aberrant splicing — splicing-factor mutations
+(e.g. SF3B1, U2AF1) acting in *trans* across many genes, epigenetic dysregulation, and
+stochastic spliceosomal noise in transformed cells — that mutation-anchored approaches
+miss by construction. The cost is reduced mechanistic interpretability per candidate:
+the somatic origin of a junction may be unknown, and tumor-exclusivity must be
+established at the RNA level rather than inherited from DNA.
+
+The two scopes are complementary. SpliceMutr is the appropriate framing for cohort-level
+burden estimation, where causal anchoring controls false positives at scale; this
+pipeline is the appropriate framing for patient-level vaccine candidate prioritisation,
+where the objective is to maximise the candidate pool subject to safety filters and the
+mutation-driven subset alone is too narrow.
+
+### ENEO: population-reference substitution for matched normal at the variant level
+
+ENEO (Tatoni et al., *NAR Genomics and Bioinformatics* 2025) addresses the
+unmatched-normal problem with a Bayesian classifier that separates somatic from
+germline and sequencing-error variants from tumor RNA-seq alone. The classifier's
+priors are drawn from population genomic resources — germline allele frequencies from
+population databases (gnomAD-class), calibrated sequencing error models, and somatic
+prior distributions — converting the matched-normal sample into a population-derived
+reference computed once for any patient. The Bayesian framing is conceptually parallel
+to this pipeline's GTEx pan-tissue filter (see *GTEx pan-tissue filter* above): both
+substitute *population-level reference knowledge* for an individual matched normal,
+just at different antigen-source levels.
+
+Two boundary conditions distinguish the approaches:
+
+- **Antigen source.** ENEO is SNV-driven: candidates are MHC-presented peptides
+  produced by tumor-specific point mutations or short indels in coding sequence. The
+  Bayesian classifier solves the variant identifiability problem under tumor-only
+  conditions but does not address the splice-derived antigen axis, where the
+  tumour-exclusivity signal is at the junction level rather than the variant level.
+  The corresponding tumor-only problem for splice junctions — distinguishing
+  tumour-specific junctions from the patient's unobserved normal splicing repertoire —
+  requires population-level junction reference filtering (GTEx pan-tissue), not
+  variant-level Bayesian classification.
+- **Probabilistic vs. binary thresholding.** ENEO's posterior outputs a continuous
+  probability of somatic origin per variant, allowing rank-ordered candidate lists and
+  context-dependent thresholds. The current GTEx pan-tissue filter is binary: a junction
+  is excluded if observed in any GTEx tissue. The binary filter is robust at scale and
+  trivial to communicate, but loses information at noisy edges — single-read presence
+  in one of ~900 donors triggers exclusion equivalently to consistent presence across
+  all donors, and low-coverage tumor candidates are kept with the same confidence as
+  high-coverage ones.
+
+ENEO's Bayesian framing is conceptually transferable to this pipeline. A
+population-frequency prior over GTEx junction read counts could replace the binary
+inclusion/exclusion criterion with a posterior probability of tumor-specificity per
+junction, which would (i) recover candidates excluded only by single-read GTEx
+artefacts, (ii) downweight low-coverage tumor junctions whose evidence does not warrant
+high confidence, and (iii) yield a continuous tumour-exclusivity score that ranks
+candidates rather than only filtering them. This remains an open avenue for future
+work, particularly for the patient_002-class scenario where matched-normal RNA is
+absent and the binary filter's loss of edge information matters most.
+
+---
+
 ## Structural validation: TCR-pMHC docking and TCR panel design
 
 MHC binding prediction identifies peptides with the thermodynamic potential to occupy the
