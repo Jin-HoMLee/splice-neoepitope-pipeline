@@ -150,10 +150,6 @@ def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
             "tags": [{"tag": t} for t in tags],
         }
     else:
-        # ISSN: prefer print ISSN (index 0)
-        issn_list = data.get("ISSN", [])
-        issn = issn_list[0] if issn_list else ""
-
         item = {
             "itemType": "journalArticle",
             "title": title,
@@ -165,7 +161,7 @@ def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
             "date": date,
             "DOI": data.get("DOI", ""),
             "url": data.get("URL", ""),
-            "ISSN": issn,
+            "ISSN": _first_or_empty(data.get("ISSN")),
             "PMID": pmid or "",
             "collections": [collection],
             "tags": [{"tag": t} for t in tags],

@@ -66,6 +66,14 @@ def test_preprint_path_no_crash_on_empty_container_title():
     assert "ISSN" not in item
 
 
+def test_preprint_with_abstract_populates_abstract_note():
+    data = _biorxiv_crossref()
+    data["abstract"] = "<jats:p>Preprint abstract.</jats:p>"
+    item = crossref_to_zotero(data, _COLLECTION, _TAGS)
+    assert item["itemType"] == "preprint"
+    assert item["abstractNote"] == "Preprint abstract."
+
+
 def test_preprint_with_missing_institution_falls_back_to_empty():
     data = _biorxiv_crossref()
     data.pop("institution")
