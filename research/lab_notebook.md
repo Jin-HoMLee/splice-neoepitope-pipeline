@@ -4,6 +4,16 @@
 
 ## 2026-05-05
 
+### 13:55 UTC — Editor: Developer
+
+#### [Issue #90](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/90) — `ruleorder` removed; single `generate_report` rule with conditional inputs/outputs ([PR #273](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/273))
+
+**Code-smell cleanup that's been queued for a while.** Two rules (`generate_report` and `generate_report_with_structure`) both produced `report.html`, disambiguated only at parse time by a `ruleorder` directive in [Snakefile](Snakefile). Replaced with a single `generate_report` rule whose input dict and output dict are built at parse time from `_TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)`. TCRdock-OFF path: 4–5 inputs, 3 outputs (no `pdb`/`scores_tsv`/`report_3d_structure_tsv`). TCRdock-ON path: 6–7 inputs, 4 outputs.
+
+**No script change needed.** [generate_report.py:1393-1397](workflow/scripts/generate_report.py#L1393-L1397) already pulls `pdb`, `scores_tsv`, and `report_3d_structure_tsv` via `getattr(snakemake.input/output, ..., None)` — the script was already shape-tolerant; the wrapper rules were the rigid bit.
+
+**Verification.** `pytest` 235 passed in 1.94s. Snakemake dry-runs clean for both modes: TCRdock-OFF schedules 7 jobs with `generate_report` as the sole report rule; TCRdock-ON schedules 8 jobs with `generate_report` carrying the full 7-input / 4-output shape (incl. `report_3d_structure_tsv`) and `run_tcrdock` upstream. No ambiguity warnings either way. Skipped a local chr22 pipeline run — test config has TCRdock OFF (so only re-exercises the integration-pytest path), and the ON path is GPU+Docker so unreachable locally regardless.
+
 ### 10:39 UTC — Editor: Developer
 
 #### Morning routine — TCR-pMHC structure prediction news + glossary batch
