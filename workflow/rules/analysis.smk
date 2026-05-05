@@ -26,11 +26,9 @@ def _generate_report_input(wildcards):
             _RES, wildcards.patient_id, "hla_typing", "hla_qc.tsv",
         )
     if _TCRDOCK_ENABLED:
-        d["pdb"] = os.path.join(
-            _RES, wildcards.patient_id, "predictions", "tcrdock", "top_candidate.pdb",
-        )
-        d["scores_tsv"] = os.path.join(
-            _RES, wildcards.patient_id, "predictions", "tcrdock", "docking_scores.tsv",
+        d["pdb"] = rules.run_tcrdock.output.pdb.format(patient_id=wildcards.patient_id)
+        d["scores_tsv"] = rules.run_tcrdock.output.scores_tsv.format(
+            patient_id=wildcards.patient_id
         )
     return d
 
