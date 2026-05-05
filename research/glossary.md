@@ -10,6 +10,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## A
 
+**AC** — Acceptance Criteria. The checklist in an issue body defining what "done" means for that issue. Per the closure ritual, all AC boxes must be ticked (`- [x]`) or comment-deferred before closing. *Domain: project.*
+
 **AF-Multimer** — AlphaFold-Multimer. DeepMind extension of AlphaFold (Evans et al. 2021) trained on protein complexes; predicts both monomeric structure and inter-chain interactions. Used by TCRdock as the structural backbone. *Domain: bio.*
 
 **AF_confidence** — AlphaFold confidence score. Combines pTM (predicted Template Modeling) and ipTM (interface predicted TM); typically `0.8·ipTM + 0.2·pTM`. Standard global-quality metric for AF-Multimer model selection. *Domain: bio.*
@@ -19,6 +21,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## C
 
 **CAPRI** — Critical Assessment of PRedicted Interactions. Community blind-prediction challenge for protein-protein / peptide-MHC docking (since 2001); CAPRI quality bands (high / medium / acceptable / incorrect) are the standard yardstick for docking models — DockQ is the continuous reformulation of these bands. *Domain: bio.*
+
+**CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
 
@@ -52,7 +56,13 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## M
 
+**MCP** — Model Context Protocol. Anthropic's open spec (late 2024) for AI agents to discover and invoke external tools / data sources via per-purpose MCP servers; the standardized way to expose resources to LLMs without bespoke per-tool integration. *"USB-C for AI agents."* Used by Claude Code, the GitHub MCP server, filesystem servers, etc. *Domain: ml.*
+
 **MHC** — Major Histocompatibility Complex. Cell-surface proteins that present peptides to T cells; class I (all nucleated cells, presents endogenous peptides) drives this pipeline. Human MHC = HLA. *Domain: bio.*
+
+## O
+
+**OKR** — Objectives and Key Results. Goal-setting framework popularised by Intel/Google: one qualitative *Objective* + 3–5 quantitative *Key Results*, usually quarterly. Common in software shops; we use S1–S7 lifecycle stages + iteration capacity instead. *Domain: project.*
 
 ## P
 
@@ -69,6 +79,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **PSI** — Percent Spliced In. Fraction of transcripts that include a given alternative exon/junction (vs skip); the standard quantitative readout of splicing in RNA-seq analyses. *Domain: bio.*
 
 ## R
+
+**RCE** — Remote Code Execution. Vulnerability class where an attacker runs arbitrary code on a remote system, typically via input-validation or memory-safety bugs (e.g. CVE-2026-3854's crafted git push trigger). *Domain: security.*
 
 **RMSD** — Root Mean Square Deviation. Average distance (in Å) between corresponding atoms after optimal superposition; the standard structural-similarity metric. Variants used in DockQ: backbone-only, all-atom, interface-only (iRMSD), ligand-only (LRMSD). *Domain: bio.*
 
