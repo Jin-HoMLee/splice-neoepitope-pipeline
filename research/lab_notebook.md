@@ -1,5 +1,7 @@
 # Lab Notebook
 
+> **Frozen 2026-05-06 12:05 UTC.** New lab-notebook entries from this commit onward go to per-role files under [`research/lab_notebook/`](lab_notebook/) (`pm.md`, `scientist.md`, `developer.md`). Pre-existing 2026-05-06 entries in this file (e.g. Scientist's 10:03 UTC entry below) remain valid historical entries — they are immutable per `shared/feedback_lab_notebook.md` and not migrated. Rationale: 3 merge conflicts on this file in 3 days (2026-05-03 → 2026-05-05) drove a structural fix; per-role files eliminate cross-role same-file collisions. Full proposal in standup [2026-05-05 15:13 UTC] post.
+
 ---
 
 ## 2026-05-06
