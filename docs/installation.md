@@ -124,6 +124,12 @@ bash scripts/visualize_dag.sh --clean
 This renders against a symlink-only temp workspace (no `results/`), so snakemake
 sees a "no outputs yet" state and emits every rule. Real `results/` are untouched.
 
+> **Caveat:** `--clean` reads `samples_tsv` from the configfile only. Overrides
+> via `--config samples_tsv=…` extra args are passed through to snakemake but
+> NOT applied to placeholder FASTQ generation, so the DAG can come out pruned or
+> fail. Use a configfile that already points to the desired samples TSV (the
+> wrapper warns at runtime if it detects `--config samples_tsv=…`).
+
 Recommended workflow when changing rules: edit → dry-run → `bash scripts/visualize_dag.sh`
 → open the SVG → confirm intent before opening the PR. Use `--clean` when adding
 or restructuring per-sample rules.

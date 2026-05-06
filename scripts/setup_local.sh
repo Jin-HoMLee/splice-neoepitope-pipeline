@@ -81,9 +81,13 @@ fi
 # 3. Install dev-tooling (snakevision) into the snakemake env
 # ---------------------------------------------------------------------------
 echo ""
-echo "[3/3] Installing dev-tooling (snakevision) into 'snakemake' env..."
-conda run -n snakemake pip install --quiet snakevision
-echo "    snakevision installed (use scripts/visualize_dag.sh to render DAGs)."
+if conda run -n snakemake python -c "import snakevision" 2>/dev/null; then
+    echo "[3/3] snakevision already installed — skipping."
+else
+    echo "[3/3] Installing dev-tooling (snakevision) into 'snakemake' env..."
+    conda run -n snakemake pip install --quiet "snakevision==1.1.0"
+    echo "    snakevision installed (use scripts/visualize_dag.sh to render DAGs)."
+fi
 
 # ---------------------------------------------------------------------------
 # Done

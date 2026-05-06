@@ -73,14 +73,26 @@ if [[ "$CLEAN_MODE" == true ]]; then
         [[ -e "$f" ]] && ln -s "$PWD/$f" "$TMPWORK/$f"
     done
 
-    # Resolve samples_tsv from the configfile (override via --config samples_tsv=...
-    # passed in "$@" is intentionally ignored here for simplicity — pass the right
-    # configfile explicitly if you need a different samples list).
+    # Warn if --config samples_tsv=... is in extra args — placeholder generation
+    # below reads samples_tsv from the configfile, NOT the override. Mismatch
+    # would produce placeholders for the wrong samples and a pruned/failing DAG.
+    for arg in "$@"; do
+        if [[ "$arg" == samples_tsv=* ]]; then
+            echo "Warning: --config $arg detected. --clean reads samples_tsv from the configfile" >&2
+            echo "         only — the override is NOT applied to placeholder FASTQ generation." >&2
+            echo "         Use a configfile that already points to the right samples_tsv." >&2
+            break
+        fi
+    done
+
+    # Resolve samples_tsv from the configfile.
     SAMPLES_TSV=$(awk -F'[: ]+' '/^samples_tsv:/ {gsub(/"/, "", $2); print $2; exit}' "$CONFIGFILE")
     if [[ -n "$SAMPLES_TSV" && -f "$SAMPLES_TSV" ]]; then
         # For each non-URL FASTQ path in the samples TSV, create an empty placeholder
         # at the same relative path inside TMPWORK. URLs (gs://, https://) are produced
         # by the download_fastq rule and don't need placeholders.
+        # NOTE: columns 4 and 5 are fastq1 and fastq2 per the samples TSV schema
+        # (see config/samples/patient_*.tsv header). Update if the schema changes.
         awk -F'\t' 'NR>1 && $1 !~ /^#/ {
             for (i=4; i<=5; i++) {
                 if ($i != "" && $i !~ /^(https?|gs):\/\//) print $i
