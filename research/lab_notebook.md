@@ -4,6 +4,21 @@
 
 ## 2026-05-06
 
+### 08:46 UTC — Editor: Scientist
+
+#### Morning routine — Pan et al. (Nature 2025) surfaced as DISCUSSION addition
+
+**News briefing.** Tumour-wide RNA splicing aberrations → public splice neoantigens ([Pan et al., Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)): recurrent *GNAS* / *RPL22* aberrant splicing yields shared neoepitopes across patients with cross-patient TCR clones isolated. Splice analogue of public mutational hotspots (KRAS G12D etc.). Already referenced in passing at lab_notebook.md:447 (the `<1%` GTEx-positive convention vs our `min_read_count: 1` deviation, [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) but not in Zotero, not in news_log, no DISCUSSION coverage — three gaps closed today.
+
+**Artifacts shipped.**
+- Zotero entry added (key `6C9PAXRH`, collection Z38GTJNW, R/M/L note attached)
+- [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) opened — DISCUSSION addition framing the **public-vs-personalised splice neoantigen axis**, sub-linked to [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (splice neoantigen tooling landscape). P2/S/i3-S7 inherited from parent. **Scope expansion beyond #232's original 6 sub-issues** — flagging to PM via standup.
+- news_log entry appended (one-liner, this PR)
+
+**Process correction (user feedback).** Initially deferred news_log shipping per [batch_trivial_docs] rule (3+ entries before PR). User flagged: news_log is high-concurrency (PM, Sci, Dev all edit) — same conflict logic as lab_notebook. Shipping immediately on a docs branch, saving feedback memory + pinging PM to update the shared rule.
+
+---
+
 ### 00:35 UTC — Editor: Developer
 
 #### [Issue #127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/127) closed obsolete; replaced by [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) — patient_002 normal sample switched WES → PBMC scRNA-seq
