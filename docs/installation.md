@@ -92,3 +92,44 @@ snakemake --cores 1 --use-conda -n \
 
 You should see a list of planned jobs (or "Nothing to be done" if outputs already
 exist). A Python traceback indicates a missing config file or inactive conda env.
+
+---
+
+## 6. DAG Visualization (dev tool)
+
+After editing Snakemake rules, render the rule graph to confirm the DAG matches
+intent — `scripts/setup_local.sh` installs [snakevision](https://pypi.org/project/snakevision/)
+into the `snakemake` env automatically. Wrapper:
+
+```bash
+conda activate snakemake
+bash scripts/visualize_dag.sh                                                       # default: config/test_config.yaml
+bash scripts/visualize_dag.sh config/config.yaml --config samples_tsv=config/samples/patient_002.tsv
+```
+
+The wrapper runs `snakemake --rulegraph --forceall`, pipes the `.dot` to
+`snakevision`, writes `dag.svg`, and (on macOS) opens it. Override the output
+path with `OUTPUT=foo.svg bash scripts/visualize_dag.sh`.
+
+**`--clean` flag — full per-sample DAG.** Snakemake's `--rulegraph` prunes
+rules whose outputs already exist, even with `--forceall`. Once the test
+pipeline has run once, per-sample rules (`run_optitype`, `hisat2_align`,
+`extract_junctions`, `download_fastq`, …) drop off the rendered DAG. To see
+the complete pipeline architecture, use `--clean`:
+
+```bash
+bash scripts/visualize_dag.sh --clean
+```
+
+This renders against a symlink-only temp workspace (no `results/`), so snakemake
+sees a "no outputs yet" state and emits every rule. Real `results/` are untouched.
+
+> **Caveat:** `--clean` reads `samples_tsv` from the configfile only. Overrides
+> via `--config samples_tsv=…` extra args are passed through to snakemake but
+> NOT applied to placeholder FASTQ generation, so the DAG can come out pruned or
+> fail. Use a configfile that already points to the desired samples TSV (the
+> wrapper warns at runtime if it detects `--config samples_tsv=…`).
+
+Recommended workflow when changing rules: edit → dry-run → `bash scripts/visualize_dag.sh`
+→ open the SVG → confirm intent before opening the PR. Use `--clean` when adding
+or restructuring per-sample rules.

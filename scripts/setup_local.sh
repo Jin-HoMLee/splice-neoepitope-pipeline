@@ -6,7 +6,8 @@
 # What this does:
 #   1. Installs Miniforge3 (conda) if not already present
 #   2. Creates a 'snakemake' conda environment with Snakemake
-#   3. Prints next steps
+#   3. Installs dev-tooling (snakevision for DAG visualization) into that env
+#   4. Prints next steps
 #
 # Usage:
 #   bash scripts/setup_local.sh
@@ -24,10 +25,10 @@ echo ""
 # 1. Check / install conda (Miniforge3)
 # ---------------------------------------------------------------------------
 if command -v conda &>/dev/null; then
-    echo "[1/2] conda already installed at: $(conda info --base)"
+    echo "[1/3] conda already installed at: $(conda info --base)"
     echo "      Skipping Miniforge3 installation."
 else
-    echo "[1/2] Installing Miniforge3..."
+    echo "[1/3] Installing Miniforge3..."
     # Miniforge uses "MacOSX" where uname returns "Darwin"
     _OS=$(uname)
     _ARCH=$(uname -m)
@@ -68,12 +69,24 @@ fi
 # ---------------------------------------------------------------------------
 echo ""
 if conda env list | grep -q "^snakemake "; then
-    echo "[2/2] 'snakemake' environment already exists — skipping creation."
+    echo "[2/3] 'snakemake' environment already exists — skipping creation."
 else
-    echo "[2/2] Creating 'snakemake' conda environment..."
+    echo "[2/3] Creating 'snakemake' conda environment..."
     conda create -n snakemake -c conda-forge -c bioconda \
         "snakemake>=8.0,<9" python=3.11 -y
     echo "    Created 'snakemake' environment."
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Install dev-tooling (snakevision) into the snakemake env
+# ---------------------------------------------------------------------------
+echo ""
+if conda run -n snakemake python -c "import snakevision" 2>/dev/null; then
+    echo "[3/3] snakevision already installed — skipping."
+else
+    echo "[3/3] Installing dev-tooling (snakevision) into 'snakemake' env..."
+    conda run -n snakemake pip install --quiet "snakevision==1.1.0"
+    echo "    snakevision installed (use scripts/visualize_dag.sh to render DAGs)."
 fi
 
 # ---------------------------------------------------------------------------
