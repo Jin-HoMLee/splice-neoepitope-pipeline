@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-06
 
+### 10:34 UTC — Editor: PM
+
+- **GitHub Copilot code review billing change** (effective 2026-06-01) — Copilot reviews on private repos consume Actions minutes + AI Credits. → No action; public repo. *PM. tooling-signal.*
+- **CVE-2026-3854** (GitHub, May 2026) — high-severity flaw: authenticated push-access user can trigger RCE via crafted git push. → Already in [glossary](research/glossary.md) as RCE worked example. *PM. security-signal.*
+
 ### 08:46 UTC — Editor: Scientist
 
 - **Pan et al.** ([Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)) — recurrent *GNAS*/*RPL22* splicing → public splice neoantigens + cross-patient TCRs. → [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) (Sci, DISCUSSION). *Scientist. portfolio-differentiator.*
