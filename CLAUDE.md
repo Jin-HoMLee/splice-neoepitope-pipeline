@@ -97,7 +97,7 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 **Workarounds that were tried and rejected:**
 - `samtools >= 1.20` pin — made things worse; solver produced an env without samtools (exit 127 on linux-64)
 - Fully unpinned samtools — solver falls back to samtools 1.3.1 (2016, 10 versions behind); not acceptable long-term
-**TODO(#107):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26.
+**TODO(#237):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26. Re-tested 2026-05-06: bioconda's 2026-03 samtools/htslib refactor (samtools 1.23.1) did NOT lift the cap — solver still reports `libdeflate >=1.20,<1.26.0a0` for modern htslib builds, conflicting with regtools 1.0.0's `libdeflate >=1.26`. Workaround remains in place.
 
 ### `run_mhcflurry.py` — Class1PresentationPredictor genotype API
 `Class1PresentationPredictor.predict()` is a genotype-level call: pass all patient HLA alleles at once (≤6 as a list), get one best-allele prediction per peptide back. Do NOT repeat a single allele N times (that was the `Class1AffinityPredictor` convention and raises `ValueError`).
