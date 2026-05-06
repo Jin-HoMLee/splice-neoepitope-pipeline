@@ -14,6 +14,9 @@ immune tolerance.
 
 Neoepitope-based immunotherapy has emerged as a promising approach in cancer treatment,
 underpinning the development of personalized cancer vaccines and adoptive T-cell therapies.
+Phase 1 trials of personalised mRNA neoantigen vaccines have established clinical
+feasibility — most notably autogene cevumeran in pancreatic ductal adenocarcinoma, where
+8 of 16 patients developed vaccine-induced T-cell responses (Rojas et al., *Nature* 2023).
 Most neoepitope discovery pipelines focus on single-nucleotide variants (SNVs) and small
 insertions/deletions (indels) as the source of altered peptide sequences. However, a
 broader class of tumor-specific alterations — aberrant splicing — has received comparatively
