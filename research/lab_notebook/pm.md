@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-06
 
+### 21:30 UTC — Editor: PM
+
+#### [PR #293](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/293) — gitignore Claude Code transient scheduler state
+
+**Trigger.** User opened `.claude/scheduled_tasks.lock` in the IDE this evening and asked what it was. Inspection: per-session ownership lock for Claude Code's in-process cron scheduler — single-line JSON with `sessionId`, `pid`, `procStart`, `acquiredAt`. Created any time a session arms a cron in this project (today: via `/pong` for the 30-min cache-keepalive). Showed up as untracked noise in `git status`.
+
+**Decision.** Surgical ignore for the two transient files (`.claude/scheduled_tasks.lock` + `.claude/scheduled_tasks.json` for `durable: true` jobs) rather than blanket-ignoring `.claude/` — leaves room to check in `.claude/settings.json` later if shared project-level Claude config ever becomes useful. `.claude/settings.local.json` is already covered by global `~/.config/git/ignore`.
+
+**Mechanics.** Branch `chore/pm/gitignore-claude-scheduler-2026-05-06` off `workspace/pm`; commit, then push as separate steps (per the commit-push-merge three-step rule promoted this morning); PR opened with project board attached + Status flipped to `Ready for review` via single `updateProjectV2ItemFieldValue` GraphQL call. Branch was behind main; user updated via the GitHub UI which created a merge commit (initially read as a bot/auto-update mystery; resolved on clarification).
+
 ### 12:11 UTC — Editor: PM
 
 #### [Issue #286](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/286) — lab-notebook split into per-role files (this PR)
