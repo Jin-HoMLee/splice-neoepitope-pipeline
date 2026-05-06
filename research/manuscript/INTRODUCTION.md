@@ -24,7 +24,7 @@ approaches such as CNNeoPP (Cai et al., *Frontiers in Immunology* 2026) integrat
 language model-derived sequence representations with multi-modal feature fusion to push
 SNV-driven prediction beyond the limits of earlier tools. These advances remain confined
 to two axes: peptide sequence as the antigen source, and binding-prediction confidence as
-the activation signal. The pipeline described here differs along both axes — splice
+the selection criterion. The pipeline described here differs along both axes — splice
 junctions as a complementary antigen source absent from canonical-proteome sequence
 prediction, and an explicit TCR–pMHC docking stage as a downstream structural confidence
 layer.
