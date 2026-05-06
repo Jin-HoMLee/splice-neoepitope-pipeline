@@ -4,6 +4,18 @@
 
 ## 2026-05-06
 
+### 10:03 UTC — Editor: Scientist
+
+#### [Sub-Issue #267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267) INTRODUCTION — CNNeoPP positioning
+
+**Placement.** New paragraph in section `## Cancer Neoepitopes` of [INTRODUCTION.md](research/manuscript/INTRODUCTION.md), inserted between the existing splice-neglect paragraph and the section break. Section 1 is the right home for "contemporary landscape" framing because it previews both differentiation axes — splice (section 2) + structural (section 3) — before the reader hits them. Considered placing inside section 3 (Original 2015 Pipeline) and rejected — that section is already crowded with the modernisation comparison table and the TCRdock paragraph; inserting CNNeoPP there would bury the contrast in pipeline-implementation detail. Considered a new `## Related work` section and rejected — overhead unjustified for one paragraph; would be warranted only with 3+ tools positioned, which won't happen given Rojas 2023 (sub-issue #268) belongs in clinical-translation framing, not related-prediction-work.
+
+**Framing.** CNNeoPP (Cai et al., *Frontiers in Immunology* 2026, Zotero `6RWWUDPC`) is the recent SOTA deep-learning, LLM-enhanced neoantigen-prediction pipeline. Positioned as a sequence-only competitor confined to two axes — peptide sequence as antigen source, binding-prediction confidence as activation signal. Our pipeline differs on both: splice junctions as a complementary antigen source absent from canonical-proteome sequence prediction, and an explicit TCR–pMHC docking layer as downstream structural confidence. Same "two axes of differentiation" rhetorical move that the SpliceMutr + ENEO DISCUSSION subsection used yesterday ([PR #276](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/276)) — keeps the manuscript's positioning vocabulary consistent across INTRODUCTION and DISCUSSION.
+
+**Citation style.** Author-year inline format `(Cai et al., *Frontiers in Immunology* 2026)` matches existing INTRODUCTION conventions (Yewdell & Bennink 1999, Sahin et al. 2017, Ott et al. 2017, Alam et al. 2023). Reference-list finalisation deferred to [Sub-Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272).
+
+---
+
 ### 08:46 UTC — Editor: Scientist
 
 #### Morning routine — Pan et al. (Nature 2025) surfaced as DISCUSSION addition
