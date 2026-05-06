@@ -1,5 +1,134 @@
 # Lab Notebook
 
+> **Frozen 2026-05-06 12:05 UTC.** New lab-notebook entries from this commit onward go to per-role files under [`research/lab_notebook/`](lab_notebook/) (`pm.md`, `scientist.md`, `developer.md`). Pre-existing 2026-05-06 entries in this file (e.g. Scientist's 10:03 UTC entry below) remain valid historical entries — they are immutable per `shared/feedback_lab_notebook.md` and not migrated. Rationale: 3 merge conflicts on this file in 3 days (2026-05-03 → 2026-05-05) drove a structural fix; per-role files eliminate cross-role same-file collisions. Full proposal in standup [2026-05-05 15:13 UTC] post.
+
+---
+
+## 2026-05-06
+
+### 10:03 UTC — Editor: Scientist
+
+#### [Sub-Issue #267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267) INTRODUCTION — CNNeoPP positioning
+
+**Placement.** New paragraph in section `## Cancer Neoepitopes` of [INTRODUCTION.md](research/manuscript/INTRODUCTION.md), inserted between the existing splice-neglect paragraph and the section break. Section 1 is the right home for "contemporary landscape" framing because it previews both differentiation axes — splice (section 2) + structural (section 3) — before the reader hits them. Considered placing inside section 3 (Original 2015 Pipeline) and rejected — that section is already crowded with the modernisation comparison table and the TCRdock paragraph; inserting CNNeoPP there would bury the contrast in pipeline-implementation detail. Considered a new `## Related work` section and rejected — overhead unjustified for one paragraph; would be warranted only with 3+ tools positioned, which won't happen given Rojas 2023 (sub-issue #268) belongs in clinical-translation framing, not related-prediction-work.
+
+**Framing.** CNNeoPP (Cai et al., *Frontiers in Immunology* 2026, Zotero `6RWWUDPC`) is the recent SOTA deep-learning, LLM-enhanced neoantigen-prediction pipeline. Positioned as a sequence-only competitor confined to two axes — peptide sequence as antigen source, binding-prediction confidence as activation signal. Our pipeline differs on both: splice junctions as a complementary antigen source absent from canonical-proteome sequence prediction, and an explicit TCR–pMHC docking layer as downstream structural confidence. Same "two axes of differentiation" rhetorical move that the SpliceMutr + ENEO DISCUSSION subsection used yesterday ([PR #276](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/276)) — keeps the manuscript's positioning vocabulary consistent across INTRODUCTION and DISCUSSION.
+
+**Citation style.** Author-year inline format `(Cai et al., *Frontiers in Immunology* 2026)` matches existing INTRODUCTION conventions (Yewdell & Bennink 1999, Sahin et al. 2017, Ott et al. 2017, Alam et al. 2023). Reference-list finalisation deferred to [Sub-Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272).
+
+---
+
+### 08:46 UTC — Editor: Scientist
+
+#### Morning routine — Pan et al. (Nature 2025) surfaced as DISCUSSION addition
+
+**News briefing.** Tumour-wide RNA splicing aberrations → public splice neoantigens ([Pan et al., Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)): recurrent *GNAS* / *RPL22* aberrant splicing yields shared neoepitopes across patients with cross-patient TCR clones isolated. Splice analogue of public mutational hotspots (KRAS G12D etc.). Already referenced in passing at lab_notebook.md:447 (the `<1%` GTEx-positive convention vs our `min_read_count: 1` deviation, [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) but not in Zotero, not in news_log, no DISCUSSION coverage — three gaps closed today.
+
+**Artifacts shipped.**
+- Zotero entry added (key `6C9PAXRH`, collection Z38GTJNW, R/M/L note attached)
+- [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) opened — DISCUSSION addition framing the **public-vs-personalised splice neoantigen axis**, sub-linked to [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (splice neoantigen tooling landscape). P2/S/i3-S7 inherited from parent. **Scope expansion beyond #232's original 6 sub-issues** — flagging to PM via standup.
+- news_log entry appended (one-liner, this PR)
+
+**Process correction (user feedback).** Initially deferred news_log shipping per [batch_trivial_docs] rule (3+ entries before PR). User flagged: news_log is high-concurrency (PM, Sci, Dev all edit) — same conflict logic as lab_notebook. Shipping immediately on a docs branch, saving feedback memory + pinging PM to update the shared rule.
+
+---
+
+### 00:35 UTC — Editor: Developer
+
+#### [Issue #127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/127) closed obsolete; replaced by [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) — patient_002 normal sample switched WES → PBMC scRNA-seq
+
+**Picked up #127** (P1, M, *support pre-aligned BAM as normal input*) and immediately hit the wall: drilled into `b2://osteosarc-data/hudson_lab/PBMC_scRNAseq/cellranger/January2025 (250125)/Capture_1/outs/` and confirmed via search across all 23,607 files in the bucket — **no GEX BAM exists** for the Jan 2025 Cell Ranger Multi run (executed with `--create-bam=false`). The 25.5 GB total for `January2025/` vs 374–431 GB for `November2025/` and `December2025/` is consistent: later runs likely include BAMs, this one does not. The "skip HISAT2 alignment, regtools directly on BAM" optimisation in #127 has no premise.
+
+**Outcome reachable without code change.** 10x 3' GEX has cDNA on R2; cell barcodes (R1) are irrelevant for normal-junction enumeration. The existing HISAT2 single-end path handles R2-only alignment as-is. Closed #127 (with rationale comment), opened #277 as a smaller-scope replacement: one TSV row addition.
+
+**Scope widening before code.** Once the FASTQ path was settled, realised OptiType already runs in `--rna` mode at [hla_typing.smk:121](workflow/rules/hla_typing.smk#L121) — its native use case is RNA-seq, not WES (WES tolerance was a workaround). Since PBMC IS RNA-seq, it can serve both junction filtering AND HLA typing. Dropped the WES blood normal entirely from `patient_002.tsv` and moved the Red Cross serology columns to the new PBMC row. Single sample, two purposes, ~33 GB less compute per run. Updated #277 body to reflect the wider scope (still XS — three lines edited).
+
+**Pedagogical detour.** User dug into the *why* across several axes: (a) what "parse-time wildcard_constraints" mean (briefly considered for routing FASTQ vs BAM rules before the BAM-doesn't-exist finding made it moot — visualised parse-time vs run-time DAG construction with ASCII diagrams), (b) why 10x reads have a 3' bias (poly-T primer chemistry against poly-A tails → cDNA grows backward toward 5' but RT falls off), (c) what GEX stands for (Gene EXpression — distinct from VDJ chemistry on the same Cell Ranger Multi run). Worth keeping the visual-explanation register in mind — user explicitly preferred ASCII diagrams over prose for these conceptual asks.
+
+**Verification.** `pytest workflow/tests/` 235 passed. Snakemake dry-run on patient_002 targeting the new sample's alignment + HLA-typing outputs threads cleanly through `download_fastq` → `hisat2_align` (single-end, only `fastq1` in input) and `run_optitype`. URL percent-encoding (`Jan2025%20%28250125%29/GEX/Pool%201/`) verified accepted by Snakemake's wildcard parser. Top-level patient_002 dry-run hits a pre-existing `MissingInputException` on `resources/gencode.v47.annotation.gtf.gz` (resource not local; downloaded at runtime); not caused by this change.
+
+**Validation deferred to first run.** Single-lane PoC (~28 GB, ~100–200M reads). Two checks on first cloud run: (i) OptiType-on-PBMC HLA call vs known Red Cross serology (`A*01:01/A*01:11N, B*08:01/B*27:05, C*01:02/C*07:01`) — mismatch → file follow-up bug; (ii) normal junction count significantly above WES baseline (~3 junctions) — no meaningful lift → expand to remaining lanes/captures (Pool 1 L003, Pool 2, Pool 3 = 6 R2 files, ~175 GB total) in a follow-up.
+
+---
+
+## 2026-05-05
+
+### 20:49 UTC — Editor: Scientist
+
+#### [Sub-Issue #270](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/270) DISCUSSION — SpliceMutr + ENEO
+
+**Subsection placement.** New `## Comparison to related neoantigen-prediction tools` inserted before `Structural validation` in [DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md) — broader-context positioning belongs near the end of the discussion, parallel to the METHODS comparison subsection landed via [PR #274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/274) (which closed [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269)).
+
+**SpliceMutr (Palmer et al., *Cancer Research Communications* 2024)** — framed around *causal mutation–splice linkage as cohort-scale tumor-exclusivity proof*. The original draft positioned this as "mutation-driven scope vs. junction-driven scope," but user pushed for the deeper rationale: anchoring each splice event to a predicted-causal somatic SNV (splice-site, branch-point, splice-regulatory-element mutations via SpliceAI/MaxEntScan) gives the splice consequence its tumor-exclusivity proof at the DNA level — no RNA-level normal comparison needed. Two cohort-scale wins: causal interpretability per event + false-positive control across thousands of TCGA samples. Trade-off explicit: misses non-mutation-driven aberrant splicing (SF3B1/U2AF1 *trans* effects, epigenetic dysregulation, transformed-cell spliceosomal noise) — a serious gap for vaccine candidate prioritisation where pool size matters.
+
+**ENEO (Tatoni et al., *NAR Genomics and Bioinformatics* 2025)** — sharpened framing thanks to user's question. Initial draft called it "Bayesian neoantigen calling" without articulating *what the Bayesian classifier actually does*. The user pushed: "is ENEO's Bayesian approach also basically comparing tumor signal against some a priori population knowledge?" — yes, exactly. ENEO replaces the matched-normal sample with **population-level priors at the variant level** (gnomAD-class germline AF + sequencing-error models + somatic prior). This is *the same conceptual move* as our GTEx pan-tissue filter at the junction level. The boundary conditions distinguishing the approaches: (i) antigen source (SNV vs. junction) + (ii) probabilistic-vs-binary thresholding. Probabilistic framing transferable to our pipeline as future work — population-frequency prior over GTEx junction read counts → posterior tumor-specificity score, recovering candidates excluded by single-read GTEx artefacts and downweighting low-coverage tumor candidates appropriately.
+
+**Pedagogical detour.** User asked for the binary-vs-Bayesian distinction explicitly ("never understood the difference") — concrete walk-through with junction-read-count examples (50 tumor reads / 0 GTEx → posterior ≈ 0.99; 50 tumor / 1 in 1 of 900 GTEx → 0.92; 2 tumor / 0 GTEx → 0.55) clarified the uncertainty-handling axis. Worth keeping the explanation pattern in mind for similar future asks: edge cases first, then the gain (rank-ordering, tunable thresholds), then the cost (priors specification, computational weight, communication overhead).
+
+---
+
+### 15:29 UTC — Editor: Developer
+
+#### [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) — `zotero_add.py` preprint-DOI crash fixed ([PR #275](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275))
+
+**XS warm-up ship.** CrossRef returns `container-title: []` for `type=posted-content` records (preprints have no journal/container), and the script's `data.get("container-title", [""])[0]` raised `IndexError` because `.get()` only returns the default when the key is *missing*, not when it's an explicit empty list. Surfaced [2026-05-01](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) when Sci tried to add the openRxiv splice-foundation-models preprint via the standard path.
+
+**Branched item dict.** Preprints now become Zotero `itemType="preprint"` with `repository` from `institution[0].name` (`"bioRxiv"` etc.) and `archiveID` set to the DOI; journal articles unchanged. Two helpers: `_is_preprint(data)` for the `subtype="preprint" or type="posted-content"` gate, and `_first_or_empty(value)` for safe `[0]` extraction on lists that may be empty/`None` — also reused for `title` and (after review) `ISSN` for consistency.
+
+**Review cycle.** [`@claude` review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380596386) flagged 8 items, 3 worth addressing: (3) ISSN extraction → `_first_or_empty` for consistency, (7) test for preprint-with-abstract path. Skipped (6) — reviewer claimed `publisher: "openRxiv"` was a placeholder and the real value is `"Cold Spring Harbor Laboratory"`, but openRxiv is the 2025 non-profit operating bioRxiv (per Issue #229 body, this is the actual CrossRef payload Sci hit). Triage [posted on the PR](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380675116) with skip-rationales; same review-triage table format as PR #273 (still pending PM promotion via [14:34 standup](#)).
+
+**Pipeline tests:** 241 passed (235 existing + 6 → 7 new). The acceptance-criteria network dry-run on the actual bioRxiv DOI is left to the user (CrossRef + Zotero credentials needed); mocked CrossRef payload covers the same code path in CI.
+
+**Workflow rules applied.** First PR after escalating the [14:45 standup](#): proactively flipped both Issue #229 and PR #275 to "In review" Status when posting `@claude please review` (instead of waiting for user to catch the gap manually like on PR #273). PM hasn't yet codified the rule in shared memory but user authorised the transition this morning.
+
+---
+
+### 14:25 UTC — Editor: Scientist
+
+#### [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) decomposition + [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS landing
+
+**[#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) auto-closed by yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)** despite `Refs #232` in the body — root cause: `gh issue develop 232 --name <branch>` created a Development-link that auto-closes regardless of the body keyword (verified via `gh pr view 260 --json closingIssuesReferences` listing #232). The "Refs vs Closes" counter-pattern only works when the branch was created without `gh issue develop`, which collides with our Always-in-effect rule mandating `gh issue develop`. PM had reopened in the morning closure-audit; I extended `shared/feedback_github_auto_close.md` with the second auto-close path and broadcast via [/CEREBRUM ALL](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline) standup post.
+
+**Decomposed [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) into 6 sibling sub-issues** ([#267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267)–[#272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272)) per the AC-checkbox heuristic — each remaining acceptance criterion now has a dedicated focused branch target, parent stays open as the umbrella, no more `gh issue develop` collision risk. PM applied Priority + Size + Target on the board: P1 METHODS gates → P1 main DISCUSSION → P2 INTRODUCTION fillers → deferred + reference closer.
+
+**[Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS splice2neo + AlphaGenome.** New `### Comparison to related approaches` subsection at end of Section 3 (Junction Classification) — placement chosen because that's where our junction-origin classification is described, so the splice2neo contrast (variant-driven vs junction-driven) lands naturally. **splice2neo** (Lang et al., 2024, *Bioinform Adv*) starts from somatic SNVs/indels → predicts altered splicing via SpliceAI-style models → derives neoantigens; ours starts from observed junctions → classifies by origin. Variant-driven captures splicing changes attributable to specific variants; junction-driven captures any tumor-exclusive junction regardless of underlying cause. **AlphaGenome** (Avsec et al., 2026, *Nature*) introduced as a candidate computational normal filter under evaluation (Issue [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)); METHODS-section coverage of inputs/outputs only — validation outcome deferred to DISCUSSION via [Sub-Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) once #203 closes. Author/year verified against Zotero (`Z4FAE6QM`, `UZWZ5QEB`).
+
+#### Created-by attribution slip + retro-fix on 8 artifacts
+
+**Slip discovered after morning's GitHub work**: the shared workflow rule `**Created by:** <Role>` on every issue + PR body (documented at `shared/feedback_github_workflow.md:151`) was not promoted to `shared/MEMORY.md` Always-in-effect — only Developer had it inline at their role MEMORY.md. I missed it on today's 6 sub-issues + the [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) body update + yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)/[PR #261](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/261). User flagged.
+
+**Resolution path** — same temporary-stopgap pattern we used today: I added the rule to my role `MEMORY.md` Always-in-effect as a temporary entry to protect the immediate session, pinged PM via standup to request shared-memory promotion + comments-scope clarification, retro-fixed all 8 artifacts via `gh issue edit` / `gh pr edit`. PM landed shared promotion at 14:04 UTC + answered comments-scope (body-only, comments excluded). I removed the Sci-local stopgap to avoid role+shared duplication.
+
+**Tooling note — project item ID lookup.** Burned 3 tool calls paginating `projectV2.items` to find #269's item ID for the Status flip before realising the direct path is `repository → issue → projectItems` — a single GraphQL call regardless of project size. Saved snippet locally as `scientist/reference_project_item_lookup.md` (TEMPORARY) + pinged PM to fold into `shared/feedback_project_board.md` (which already has the field/option IDs, so it's the natural home).
+
+---
+
+### 13:55 UTC — Editor: Developer
+
+#### [Issue #90](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/90) — `ruleorder` removed; single `generate_report` rule with conditional inputs/outputs ([PR #273](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/273))
+
+**Code-smell cleanup that's been queued for a while.** Two rules (`generate_report` and `generate_report_with_structure`) both produced `report.html`, disambiguated only at parse time by a `ruleorder` directive in [Snakefile](Snakefile). Replaced with a single `generate_report` rule whose input dict and output dict are built at parse time from `_TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)`. TCRdock-OFF path: 4–5 inputs, 3 outputs (no `pdb`/`scores_tsv`/`report_3d_structure_tsv`). TCRdock-ON path: 6–7 inputs, 4 outputs.
+
+**No script change needed.** [generate_report.py:1393-1397](workflow/scripts/generate_report.py#L1393-L1397) already pulls `pdb`, `scores_tsv`, and `report_3d_structure_tsv` via `getattr(snakemake.input/output, ..., None)` — the script was already shape-tolerant; the wrapper rules were the rigid bit.
+
+**Verification.** `pytest` 235 passed in 1.94s. Snakemake dry-runs clean for both modes: TCRdock-OFF schedules 7 jobs with `generate_report` as the sole report rule; TCRdock-ON schedules 8 jobs with `generate_report` carrying the full 7-input / 4-output shape (incl. `report_3d_structure_tsv`) and `run_tcrdock` upstream. No ambiguity warnings either way. Skipped a local chr22 pipeline run — test config has TCRdock OFF (so only re-exercises the integration-pytest path), and the ON path is GPU+Docker so unreachable locally regardless.
+
+### 10:39 UTC — Editor: Developer
+
+#### Morning routine — TCR-pMHC structure prediction news + glossary batch
+
+**Phase 1 surfaced two TCR-pMHC structure-prediction papers** that together clarify the scoring landscape. Boltz-2's reported TCR-pMHC DockQ is **0.91 in-training / 0.70 unseen** — a concrete generalization gap that strengthens the existing memorization caveat in [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188), now logged as a [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188#issuecomment-4378190714). NetTCR-struc ([Frontiers in Immunology 2025](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1616328/full)) **predicts DockQ** from AF-Multimer outputs (Spearman 0.681 → 0.855) — different output target than t2pmhc/TCRLens (which predict binding), so it occupies a structural-QC niche the [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) eval doesn't currently cover. Proposed widening #236's scope via [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4378193562). Cross-clarified that HERMES + NetTCR-struc + Boltz-2 form an orthogonal stack — *HERMES = TCR-fit biology score; NetTCR-struc = structural-quality QC of a predicted complex; Boltz-2 = upstream structure producer*. Forwarded all three sources to Scientist via [standup](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) for lit doc / Zotero.
+
+**Glossary batch — [PR #266](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/266).** Eight terms added (`DockQ`, `RMSD`, `CAPRI`, `PDB`, `GVP-GNN`, `ESM-IF1`, `AF-Multimer`, `AF_confidence`) — all surfaced from today's structure-prediction discussion. New section headers added for C, D, R.
+
+#### Sync-before-branch slip (second incident) — rule escalated
+
+Same failure mode as **2026-05-03** (PR #262 vs Sci's #261): created `docs/developer/glossary-2026-05-05-0929` from local main (`af5c7ab`) without fetching origin first. Origin/main was already at `031bfc9` because [PR #263](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/263) merged 2026-05-04 19:54 UTC and [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260) merged 18:33 UTC — both late-yesterday merges were missing from local main. Result: spurious conflict on `research/glossary.md` because PR #263 was a sibling glossary batch (AC, CVE, MCP, OKR, RCE). Conflict was "keep both, alphabetical" — cheap to resolve (one `git merge` + three `Edit` calls + push), but avoidable.
+
+**Rule escalated** to role `MEMORY.md` "Always in effect": *"Sync main before branching — `git fetch origin && git pull origin main` before any `gh issue develop` or `git checkout -b`. Local main lags origin when other roles ship in parallel; stale main causes spurious conflicts on shared docs."* The shared `feedback_branch_creation.md` is restructured into Rule 1 (sync) + Rule 2 (use `gh issue develop`); both incidents recorded as the *why*.
+
+**Pattern observation:** the highest-traffic merge points are journal/docs files (`news_log.md`, `glossary.md`, `lab_notebook.md`, `manuscript/*`) because all three roles edit them daily. Sync-before-branch matters most where I'm least likely to remember it — the journal-style branches that don't have an associated issue.
+
 ---
 
 ## 2026-05-04

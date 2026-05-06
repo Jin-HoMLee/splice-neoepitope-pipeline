@@ -11,4 +11,6 @@ dependencies:
   # samtools intentionally omitted: regtools >=1.0.0 requires libdeflate >=1.26,
   # but no bioconda linux-64 samtools/htslib build is compatible with libdeflate >=1.26.
   # Using system samtools (apt-get, currently 1.13) instead.
-  # TODO(#107): revisit once bioconda ships an htslib build against libdeflate >=1.26.
+  # TODO(#237): revisit once bioconda ships an htslib build against libdeflate >=1.26.
+  # Re-tested 2026-05-06 (Issue #237): bioconda 2026-03 recipe refactor (samtools 1.23.1)
+  # did NOT lift the cap — modern htslib still pins libdeflate <1.26.0a0. Workaround stays.
