@@ -11,6 +11,15 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-07
+
+### 09:09 UTC — Editor: PM
+
+- **Improved GitHub Issues search GA** ([May 2026 Changelog](https://github.blog/changelog/)) — NL + structured filters stable. → [Issue #294](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/294) (PM eval). *PM. tooling-relevant.*
+- **Copilot cloud agent sessions in Issues/Projects** ([2026-04-23 Changelog](https://github.blog/changelog/2026-04-23-view-and-manage-agent-sessions-from-issues-and-projects/)) — view/steer from board, default-on. → [Issue #295](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/295) (PM trial, free tier). *PM. tooling-relevant.*
+- **VS 2026 Cloud Agent integration** (May 2026) — remote-agent button in VS UI; shares Copilot SKU. → No action. *PM. tooling-signal.*
+- **"Coherence Through Orchestration, Not Autonomy"** (Mason, [Jan 2026](https://mikemason.ca/writing/ai-coding-agents-jan-2026/)) — reinforces our `multi-role, not multi-agent` framing. → No action. *PM. methodology-signal.*
+
 ## 2026-05-06
 
 ### 10:34 UTC — Editor: PM
