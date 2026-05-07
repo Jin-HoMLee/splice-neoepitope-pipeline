@@ -153,6 +153,7 @@ def assemble_contigs(
     output_fasta: str | Path,
     upstream_nt: int = 27,
     downstream_nt: int = 27,
+    stats_output_path: str | Path | None = None,
 ) -> None:
     """Assemble junction-spanning contigs for all novel junctions and write to FASTA.
 
@@ -164,6 +165,11 @@ def assemble_contigs(
                              Should equal 3 * (max(peptide_lengths) - 1).
         downstream_nt:       Nucleotides downstream of the junction to include.
                              Should equal upstream_nt (symmetric flanks).
+        stats_output_path:   Optional destination TSV for the contig-assemble
+                             funnel slice (Issue #215). Two columns —
+                             ``category, count`` — feeding the cross-step
+                             aggregator. Categories: ``contigs_written``,
+                             ``skipped_softclip``, ``skipped_length``.
     """
     novel_junctions_tsv = Path(novel_junctions_tsv)
     output_fasta = Path(output_fasta)
@@ -258,6 +264,19 @@ def assemble_contigs(
         " (UCSC chr-prefix required, not ENSEMBL)" if skip_rate > 0.10 else "",
     )
 
+    if stats_output_path is not None:
+        stats_output_path = Path(stats_output_path)
+        stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(
+            [
+                {"category": "contigs_written", "count": n_written},
+                {"category": "skipped_softclip", "count": n_skipped_softclip},
+                {"category": "skipped_length", "count": n_skipped_length},
+            ],
+            columns=["category", "count"],
+        ).to_csv(stats_output_path, sep="\t", index=False)
+        log.info("Contig-assemble stats written to %s", stats_output_path)
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry point
@@ -273,6 +292,7 @@ def _snakemake_main() -> None:
         output_fasta=snakemake.output.contigs_fasta,  # type: ignore[name-defined]  # noqa: F821
         upstream_nt=snakemake.params.upstream_nt,  # type: ignore[name-defined]  # noqa: F821
         downstream_nt=snakemake.params.downstream_nt,  # type: ignore[name-defined]  # noqa: F821
+        stats_output_path=getattr(snakemake.output, "stats", None),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -288,6 +308,10 @@ def _cli_main() -> None:
     parser.add_argument("--output", required=True, help="Output contigs FASTA")
     parser.add_argument("--upstream-nt", type=int, default=27)
     parser.add_argument("--downstream-nt", type=int, default=27)
+    parser.add_argument(
+        "--stats-output", default=None,
+        help="Optional contig-assemble stats TSV (Issue #215)",
+    )
     args = parser.parse_args()
 
     assemble_contigs(
@@ -296,6 +320,7 @@ def _cli_main() -> None:
         output_fasta=args.output,
         upstream_nt=args.upstream_nt,
         downstream_nt=args.downstream_nt,
+        stats_output_path=args.stats_output,
     )
 
 
