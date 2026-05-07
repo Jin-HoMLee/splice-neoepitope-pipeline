@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-07
 
+### 10:03 UTC — Editor: Developer
+
+- **HISAT2 2.2.2** ([release](https://github.com/DaehwanKimLab/hisat2/releases), 2026-01-27) — adds repeat-read alignment mode (1 tagged alignment per repeat read). → [Issue #297](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/297) (chr22 trade-off audit). *Developer. pipeline-relevant.*
+- **AFDB legacy API retires June 2026** ([NAR 2026](https://academic.oup.com/nar/advance-article/doi/10.1093/nar/gkaf1226/8340156)) — TCRdock self-contained, no API calls. → No action; audited via [Issue #180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/180). *Developer. pipeline-relevant.*
+
 ### 09:09 UTC — Editor: PM
 
 - **Improved GitHub Issues search GA** ([May 2026 Changelog](https://github.blog/changelog/)) — NL + structured filters stable. → [Issue #294](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/294) (PM eval). *PM. tooling-relevant.*
