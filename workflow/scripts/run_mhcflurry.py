@@ -323,6 +323,7 @@ def run_prediction(
     presentation_percentile_strong: float = 0.5,
     presentation_percentile_weak: float = 2.0,
     hla_c_weight: float = 0.5,
+    stats_output_path: str | Path | None = None,
 ) -> None:
     """Run MHCflurry on junction-spanning peptides and write results to TSV.
 
@@ -343,6 +344,14 @@ def run_prediction(
         hla_c_weight:                  Weight for HLA-C alleles in genotype_presentation_score
                                        formula (default 0.5, reflecting ~50% lower surface
                                        density vs HLA-A/B).
+        stats_output_path:             Optional destination TSV for the
+                                       mhc-affinity funnel slice (Issue #215).
+                                       Two columns — ``category, count`` —
+                                       feeding the cross-step aggregator.
+                                       Categories: ``strong_presenters``,
+                                       ``weak_presenters`` (presenter
+                                       vocabulary per CLAUDE.md, distinct from
+                                       affinity-only "binders").
 
     Raises:
         ValueError: If neither alleles nor alleles_tsv is provided, or if
@@ -443,17 +452,27 @@ def run_prediction(
     df = peptides_df.merge(pred_df, on="peptide", how="left")[output_cols]
 
     df.to_csv(output_tsv, sep="\t", index=False)
+    n_strong = int((df["presentation_class"] == "strong").sum())
+    n_weak = int((df["presentation_class"] == "weak").sum())
+    n_non = int((df["presentation_class"] == "non").sum())
     log.info(
         "Predictions: %d rows (%d unique peptides, %d allele(s)); "
         "genotype_presentation_score range [%.4f, %.4f]; "
         "%d strong / %d weak / %d non → %s",
         len(df), len(unique_peptides), len(resolved_alleles),
         df["genotype_presentation_score"].min(), df["genotype_presentation_score"].max(),
-        (df["presentation_class"] == "strong").sum(),
-        (df["presentation_class"] == "weak").sum(),
-        (df["presentation_class"] == "non").sum(),
-        output_tsv,
+        n_strong, n_weak, n_non, output_tsv,
     )
+
+    if stats_output_path is not None:
+        stats_output_path = Path(stats_output_path)
+        stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+        with stats_output_path.open("w", newline="") as fh:
+            writer = csv.writer(fh, delimiter="\t")
+            writer.writerow(["category", "count"])
+            writer.writerow(["strong_presenters", n_strong])
+            writer.writerow(["weak_presenters", n_weak])
+        log.info("MHC-affinity stats written to %s", stats_output_path)
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +494,7 @@ def _snakemake_main() -> None:
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
         hla_c_weight=float(snakemake.params.hla_c_weight),  # type: ignore[name-defined]  # noqa: F821
+        stats_output_path=getattr(snakemake.output, "stats", None),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -498,6 +518,10 @@ def _cli_main() -> None:
         "--hla-c-weight", type=float, default=0.5,
         help="Weight for HLA-C alleles in genotype_presentation_score formula (default 0.5).",
     )
+    parser.add_argument(
+        "--stats-output", default=None,
+        help="Optional MHC-affinity stats TSV (Issue #215)",
+    )
     args = parser.parse_args()
 
     if not args.alleles and not args.alleles_tsv:
@@ -511,6 +535,7 @@ def _cli_main() -> None:
         presentation_percentile_strong=args.presentation_percentile_strong,
         presentation_percentile_weak=args.presentation_percentile_weak,
         hla_c_weight=args.hla_c_weight,
+        stats_output_path=args.stats_output,
     )
 
 
