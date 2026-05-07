@@ -109,7 +109,14 @@ def proteome_filter(
     novel_tsv: Path,
     excluded_tsv: Path,
     peptide_lengths: list[int] | None = None,
+    stats_output_path: str | Path | None = None,
 ) -> None:
+    """Filter translated peptides against the human proteome via k-mer lookup.
+
+    When ``stats_output_path`` is supplied, also writes a 2-column funnel
+    slice (``category, count``) for the proteome-filter step (Issue #215):
+    categories ``novel`` and ``excluded``.
+    """
     if peptide_lengths is None:
         peptide_lengths = [8, 9, 10]
 
@@ -157,6 +164,16 @@ def proteome_filter(
         100 * n_excluded / len(peptides) if peptides else 0,
     )
 
+    if stats_output_path is not None:
+        stats_output_path = Path(stats_output_path)
+        stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+        with stats_output_path.open("w", newline="") as fh:
+            writer = csv.writer(fh, delimiter="\t")
+            writer.writerow(["category", "count"])
+            writer.writerow(["novel", n_novel])
+            writer.writerow(["excluded", n_excluded])
+        log.info("Proteome-filter stats written to %s", stats_output_path)
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry points
@@ -173,6 +190,7 @@ def _snakemake_main() -> None:
         novel_tsv=sm.output.novel_tsv,
         excluded_tsv=sm.output.excluded_tsv,
         peptide_lengths=sm.params.peptide_lengths,
+        stats_output_path=getattr(sm.output, "stats", None),
     )
 
 
@@ -187,6 +205,10 @@ def _cli_main() -> None:
     parser.add_argument(
         "--peptide-lengths", type=int, nargs="+", default=[8, 9, 10],
     )
+    parser.add_argument(
+        "--stats-output", default=None,
+        help="Optional proteome-filter stats TSV (Issue #215)",
+    )
     args = parser.parse_args()
 
     proteome_filter(
@@ -195,6 +217,7 @@ def _cli_main() -> None:
         novel_tsv=args.novel_tsv,
         excluded_tsv=args.excluded_tsv,
         peptide_lengths=args.peptide_lengths,
+        stats_output_path=args.stats_output,
     )
 
 
