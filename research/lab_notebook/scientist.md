@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-07
 
+### 17:18 UTC — Editor: Scientist
+
+#### [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/300) review-feedback fixups — DISCUSSIONS.md year + spelling sweep
+
+Bot review on [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/300) (1m 58s pass) flagged two issues. Both addressed:
+
+1. **Year fix on line 487** — `(Kwok et al., *Nature* 2024)` → `(Kwok et al., *Nature* 2025)`. Paper published online 2026-02-19; the 2024 likely captured pre-publication when the DOI was assigned. This was a pre-existing inconsistency, surfaced cleanly by the new subsection citing the same author with the correct year.
+
+2. **British → American spelling sweep across `research/manuscript/DISCUSSIONS.md`** — user established the new American convention at this point (see [feedback_american_spelling.md](feedback_american_spelling.md) in role memory; index entry in `MEMORY.md`). 32 word changes: `tumour`/`Tumour`/`intratumoural` → `tumor`/`Tumor`/`intratumoral` (~20), `personalised`/`Personalised`/`personalising` → `personalized`/`Personalized`/`personalizing` (~9), `recognise(s)` → `recognize(s)`, `prioritising`/`prioritisation` → `prioritizing`/`prioritization`, `behaviour` → `behavior`, `signalling` → `signaling` (3 occurrences), `favour` → `favor`, `Modelling` → `Modeling`. The other manuscript files (`INTRODUCTION.md`, `METHODS.md`, `CONCLUSIONS.md`, `RESULTS.md`) were already mostly neutral so no sweep needed there in this PR; future American-style edits will harmonize naturally.
+
+**Advisory notes from the bot (not fixed in this PR — flagged for follow-up):**
+
+- `~789 public NJ pool` — no parenthetical source attribution. Could optionally soften to "hundreds of" if the exact count is from `dakwok/SSNIP` rather than the published paper. Not blocking.
+- GTEx denominator `9,166` (Kwok et al.'s usage) vs the commonly-cited `~9,662` for GTEx v8. Sanity-check during [Issue #299](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/299) when querying GTEx v8 directly.
+- Junction coordinates for NEJ<sub>GNAS</sub> / NEJ<sub>RPL22</sub> — bot suggests recording them in [Issue #299](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/299) body so the Snaptron query is self-contained without re-derivation. Will fold in when starting #299.
+
+---
+
 ### 16:19 UTC — Editor: Scientist
 
 #### [Sub-Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) DISCUSSION — public-vs-personalised splice neoantigen axis (Kwok et al.)
