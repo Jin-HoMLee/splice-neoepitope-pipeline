@@ -219,6 +219,8 @@ _HTML_TEMPLATE = """\
   <h2>Pipeline overview</h2>
   {pipeline_diagram}
 
+  {filtering_funnel}
+
   <h2>Junction origin summary</h2>
   <p>Splice junctions detected in the tumor that are absent from the GENCODE
   reference annotation, grouped by whether they also appear in the matched normal
@@ -511,6 +513,89 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
     if len(df) > max_rows:
         out += f"<p><em>Showing {max_rows} of {len(df)} rows.</em></p>"
     return out
+
+
+def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
+    """Render the cross-step filtering funnel section (Issue #215).
+
+    Two tables:
+      1. Per-sample junction-filter view (sample × funnel category counts +
+         raw read distribution summary).
+      2. Patient-level pipeline funnel for the four downstream steps
+         (contig-assemble → mhc-affinity).
+
+    Returns an empty string if the TSV is missing or unreadable —
+    backward-compatible with pipelines that haven't run the aggregator.
+    """
+    if not filtering_stats_tsv or not Path(filtering_stats_tsv).exists():
+        return ""
+    try:
+        df = pd.read_csv(filtering_stats_tsv, sep="\t").fillna("")
+    except Exception as exc:
+        log.warning("Could not read filtering_stats TSV %s: %s", filtering_stats_tsv, exc)
+        return ""
+    if df.empty:
+        return ""
+
+    # ----- Per-sample junction-filter table -----
+    junction_df = df[df["step"] == "junction-filter"].copy()
+    funnel_cats = [
+        "junctions_raw", "mean_reads_filtered", "annotated_discarded",
+        "normal_shared", "tumor_exclusive",
+    ]
+    dist_cats = ["min_reads", "median_reads", "mean_reads", "max_reads"]
+
+    if junction_df.empty:
+        junction_html = "<p><em>No junction-filter stats available.</em></p>"
+    else:
+        funnel_pivot = (
+            junction_df[junction_df["category"].isin(funnel_cats)]
+            .pivot_table(
+                index=["sample_id", "sample_type"],
+                columns="category",
+                values="count",
+                aggfunc="first",
+            )
+            .reset_index()
+            .reindex(columns=["sample_id", "sample_type"] + funnel_cats)
+        )
+        dist_pivot = (
+            junction_df[junction_df["category"].isin(dist_cats)]
+            .pivot_table(
+                index=["sample_id", "sample_type"],
+                columns="category",
+                values="count",
+                aggfunc="first",
+            )
+            .reset_index()
+            .reindex(columns=["sample_id", "sample_type"] + dist_cats)
+        )
+        junction_html = (
+            "<h3>Junction-level (per sample)</h3>"
+            + _df_to_html(funnel_pivot)
+            + "<h3>Raw read-count distribution (per sample, pre-filter)</h3>"
+            + "<p><small>Mean is the threshold used by the per-file noise filter; "
+            "min/median/max describe the input distribution.</small></p>"
+            + _df_to_html(dist_pivot)
+        )
+
+    # ----- Patient-level pipeline funnel for downstream steps -----
+    downstream = df[df["step"] != "junction-filter"][["step", "category", "count"]].copy()
+    if downstream.empty:
+        downstream_html = ""
+    else:
+        downstream_html = (
+            "<h3>Pipeline funnel (patient-level)</h3>"
+            + _df_to_html(downstream)
+        )
+
+    return (
+        "<h2>Filtering funnel (audit trail)</h2>"
+        "<p>Per-step counts of candidates retained vs filtered. "
+        "Full long-format detail lives in <code>filtering_stats.tsv</code>.</p>"
+        + junction_html
+        + downstream_html
+    )
 
 
 def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame) -> str:
@@ -1204,6 +1289,7 @@ def generate_report(
     output_top_candidates_tsv: str | Path | None = None,
     output_3d_structure_tsv: str | Path | None = None,
     junction_filter_stats_tsv: str | Path | None = None,
+    filtering_stats_tsv: str | Path | None = None,
     patient_id: str = "",
 ) -> None:
     """Generate the summary HTML report and the machine-readable report artefacts.
@@ -1337,6 +1423,9 @@ def generate_report(
     # --- HLA typing section (optional, reads upstream artefact directly) ---
     hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
 
+    # --- Filtering funnel (Issue #215) ---
+    filtering_funnel = _build_filtering_funnel_html(filtering_stats_tsv)
+
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
         if structure_manifest is not None:
@@ -1362,6 +1451,7 @@ def generate_report(
 
     report_html = _HTML_TEMPLATE.format(
         pipeline_diagram=_PIPELINE_DIAGRAM,
+        filtering_funnel=filtering_funnel,
         origin_table=origin_html,
         hla_section=hla_section,
         presenter_table=presenter_html,
@@ -1396,6 +1486,7 @@ def _snakemake_main() -> None:
         output_top_candidates_tsv=snakemake.output.report_top_candidates_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
         junction_filter_stats_tsv=snakemake.input.junction_filter_stats,  # type: ignore[name-defined]  # noqa: F821
+        filtering_stats_tsv=getattr(snakemake.input, "filtering_stats", None),  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -1415,6 +1506,8 @@ def _cli_main() -> None:
     parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
     parser.add_argument("--junction-filter-stats", default=None,
                         help="Per-tumor-sample junction funnel stats TSV (Issue #214)")
+    parser.add_argument("--filtering-stats", default=None,
+                        help="Aggregated cross-step filtering audit TSV (Issue #215)")
     parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
@@ -1429,6 +1522,7 @@ def _cli_main() -> None:
         tcrdock_pdb=args.tcrdock_pdb,
         output_tsv=args.output_tsv,
         junction_filter_stats_tsv=args.junction_filter_stats,
+        filtering_stats_tsv=args.filtering_stats,
         patient_id=args.patient_id,
     )
 
