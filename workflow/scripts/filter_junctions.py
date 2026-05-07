@@ -37,6 +37,7 @@ import csv
 import gzip
 import logging
 import re
+import statistics
 from collections import defaultdict
 from pathlib import Path
 
@@ -270,6 +271,12 @@ def classify_junctions(
     GENCODE) + ``normal_shared`` + ``tumor_exclusive`` (the two unannotated
     classes). Normal samples are omitted.
 
+    Issue #215 adds four descriptive (non-funnel) rows per tumor sample —
+    ``min_reads``, ``mean_reads``, ``median_reads``, ``max_reads`` — that
+    summarise the raw read-count distribution before the per-file mean
+    threshold is applied. Use these to sanity-check whether the silent
+    mean threshold was appropriate for the sample's depth.
+
     Args:
         junction_files:    List of raw junction quantification TSV paths.
         manifest_path:     Manifest TSV mapping file_id → sample_type.
@@ -322,9 +329,17 @@ def classify_junctions(
 
         n_raw = len(rows)
 
+        # Capture the raw read-count distribution before the per-file mean
+        # filter is applied — supports the "was the threshold appropriate?"
+        # diagnostic in the filtering audit trail (Issue #215).
+        raw_reads = [r for _, r in rows]
+        dist_min = float(min(raw_reads))
+        dist_max = float(max(raw_reads))
+        dist_median = float(statistics.median(raw_reads))
+
         # Keep only junctions with read count above the per-file mean,
         # reducing noise from low-evidence junctions.
-        mean_reads = sum(r for _, r in rows) / len(rows)
+        mean_reads = sum(raw_reads) / len(raw_reads)
         rows = [(jid, r) for jid, r in rows if r > mean_reads]
         n_mean_filtered = n_raw - len(rows)
 
@@ -381,6 +396,11 @@ def classify_junctions(
             ("annotated_discarded", n_annotated),
             ("normal_shared", n_normal_shared),
             ("tumor_exclusive", n_tumor_exclusive),
+            # Distribution summaries — descriptive, not part of the funnel sum.
+            ("min_reads", dist_min),
+            ("mean_reads", mean_reads),
+            ("median_reads", dist_median),
+            ("max_reads", dist_max),
         ):
             stats_rows.append({
                 "sample_id": sample_id,
