@@ -65,6 +65,9 @@ if _PROTEOME_FILTER_ENABLED:
             excluded_tsv=os.path.join(
                 _RES, "{patient_id}", "peptides", "peptides_excluded.tsv"
             ),
+            stats=os.path.join(
+                _RES, "{patient_id}", "peptides", "proteome_stats.tsv"
+            ),
         log:
             os.path.join(_LOGS, "{patient_id}", "proteome_filter", "proteome_filter.log"),
         params:
