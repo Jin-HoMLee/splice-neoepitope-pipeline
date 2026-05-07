@@ -132,16 +132,21 @@ def translate_all(
     upstream_nt: int = 27,
     peptide_lengths: list[int] | None = None,
     reading_frames: list[int] | None = None,
+    stats_output_path: str | Path | None = None,
 ) -> None:
     """Extract junction-spanning peptides from all contigs and write to TSV.
 
     Args:
-        contigs_fasta:   Input FASTA of junction contigs.
-        output_tsv:      Output TSV (columns: contig_key, start_nt, peptide).
-        upstream_nt:     Junction breakpoint position. Must equal
-                         3 * (max(peptide_lengths) - 1).
-        peptide_lengths: Amino acid lengths to extract. Defaults to [8, 9, 10].
-        reading_frames:  0-based frame offsets. Defaults to [0, 1, 2].
+        contigs_fasta:     Input FASTA of junction contigs.
+        output_tsv:        Output TSV (columns: contig_key, start_nt, peptide).
+        upstream_nt:       Junction breakpoint position. Must equal
+                           3 * (max(peptide_lengths) - 1).
+        peptide_lengths:   Amino acid lengths to extract. Defaults to [8, 9, 10].
+        reading_frames:    0-based frame offsets. Defaults to [0, 1, 2].
+        stats_output_path: Optional destination TSV for the peptide-translate
+                           funnel slice (Issue #215). Two columns —
+                           ``category, count`` — feeding the cross-step
+                           aggregator. Single category: ``peptides_total``.
     """
     if peptide_lengths is None:
         peptide_lengths = [8, 9, 10]
@@ -176,6 +181,15 @@ def translate_all(
         n_peptides, len(records), output_tsv,
     )
 
+    if stats_output_path is not None:
+        stats_output_path = Path(stats_output_path)
+        stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+        with stats_output_path.open("w", newline="") as fh:
+            writer = csv.writer(fh, delimiter="\t")
+            writer.writerow(["category", "count"])
+            writer.writerow(["peptides_total", n_peptides])
+        log.info("Peptide-translate stats written to %s", stats_output_path)
+
 
 # ---------------------------------------------------------------------------
 # Snakemake / CLI entry point
@@ -190,6 +204,7 @@ def _snakemake_main() -> None:
         output_tsv=snakemake.output.peptides_tsv,  # type: ignore[name-defined]  # noqa: F821
         upstream_nt=snakemake.params.upstream_nt,  # type: ignore[name-defined]  # noqa: F821
         peptide_lengths=snakemake.params.peptide_lengths,  # type: ignore[name-defined]  # noqa: F821
+        stats_output_path=getattr(snakemake.output, "stats", None),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -207,6 +222,10 @@ def _cli_main() -> None:
         "--peptide-lengths", type=int, nargs="+", default=[8, 9, 10],
         help="Peptide lengths to extract (default: 8 9 10)",
     )
+    parser.add_argument(
+        "--stats-output", default=None,
+        help="Optional peptide-translate stats TSV (Issue #215)",
+    )
     args = parser.parse_args()
 
     translate_all(
@@ -214,6 +233,7 @@ def _cli_main() -> None:
         output_tsv=args.output,
         upstream_nt=args.upstream_nt,
         peptide_lengths=args.peptide_lengths,
+        stats_output_path=args.stats_output,
     )
 
 
