@@ -625,6 +625,51 @@ candidates rather than only filtering them. This remains an open avenue for futu
 work, particularly for the patient_002-class scenario where matched-normal RNA is
 absent and the binary filter's loss of edge information matters most.
 
+### Kwok et al.: public neoepitopes from recurrent splicing — the off-the-shelf end of the axis
+
+Kwok et al. (*Nature* 2025) identified two public neoepitope candidates —
+NeoA<sub>GNAS</sub> and NeoA<sub>RPL22</sub> — derived from recurrent aberrant splicing
+in *GNAS* and *RPL22* across glioma, mesothelioma, prostate adenocarcinoma, and
+hepatocellular carcinoma. The *GNAS* neojunction exhibited consistent intratumoural
+detection across multi-region biopsy samples, indicating spatial conservation that is
+uncommon for mutation-derived neoantigens. Validation extended beyond bioinformatic
+prediction: TCRs reactive to the two pMHC complexes were isolated from healthy-donor
+CD8+ T cells, transduced into reporter and primary T-cell populations, and shown to
+kill endogenously expressing tumor cell lines in an HLA-dependent, peptide-dose-dependent
+manner.
+
+The pipeline framed here and the Kwok et al. framework target the same molecular
+substrate — aberrant splice junctions presented as MHC-I peptides — at opposite ends of
+a public-vs-personalised axis. Kwok et al. select for *cross-patient recurrence*
+(`PSR_TCGA ≥ 10%`) and obtain off-the-shelf shared TCR targets that may be deployed via
+TCR-engineered T-cell therapy across patients sharing the relevant HLA allele. This
+pipeline selects per-patient *absence from a matched (or pan-tissue) normal* without a
+recurrence requirement, retaining patient-private junctions that cannot be reused across
+patients but cover the residual population whose tumours generate no public NJ at
+sufficient TCGA prevalence. The two strategies serve complementary patient populations:
+Kwok-class targets favour the subset whose tumour expresses a known recurrent junction;
+this pipeline addresses the residual majority by personalising candidate selection at
+the cost of cohort-scale TCR reuse.
+
+The designs also differ on the GTEx normal-tissue filter at the threshold level. Kwok et
+al. retain junctions with `PSR_GTEx < 1%` (up to ~91 expressing samples among 9,166 GTEx
+normals); this pipeline applies `min_read_count: 1`, equivalent to `PSR_GTEx = 0%`. The
+permissive threshold is appropriate to their workflow: each public candidate is taken
+through cell-line proteomic confirmation, TCR isolation, and tumor-cell killing assays,
+so a transcript-level normal-tissue trace with no demonstrated MHC presentation is
+treated as acceptable noise. This pipeline emits patient vaccine candidates without
+per-candidate T-cell validation, and the zero-tolerance threshold is the deliberate
+vaccine-safety bias that this design choice imposes (consistent with the *GTEx
+pan-tissue filter* discussion above). At the population level, at least some of Kwok et
+al.'s ~789 public NJ pool — which by their inclusion criterion spans
+`0% ≤ PSR_GTEx < 1%` — would be excluded by this pipeline's filter. Whether the
+specific NeoA<sub>GNAS</sub> and NeoA<sub>RPL22</sub> targets cross that boundary is not
+resolvable from the published manuscript or supplementary data; verifying it requires
+re-deriving `PSR_GTEx` for those exact junction coordinates against GTEx v8 and is
+deferred to follow-up work.
+
+<!-- TODO(#299): re-derive PSR_GTEx for the NEJ_GNAS and NEJ_RPL22 junction coordinates against GTEx v8 to determine whether these specific validated targets would survive this pipeline's zero-tolerance filter. -->
+
 ---
 
 ## Structural validation: TCR-pMHC docking and TCR panel design
