@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-08
+
+### 13:18 UTC — Editor: PM
+
+- **Anthropic Managed Agents — Dreaming + Multiagent Orchestration** ([2026-05-07, 9to5Mac](https://9to5mac.com/2026/05/07/anthropic-updates-claude-managed-agents-with-three-new-features/)) — agents review past sessions to self-improve; lead delegates to specialists. → [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) (PM eval, memory tightening). *PM. methodology-signal.*
+- **Claude Code May 2026 update** ([changelog](https://code.claude.com/docs/en/changelog)) — `claude project purge`, smarter /model picker, plugin URLs, OAuth fixes. → No action; Dev-tooling. *PM. tooling-signal.*
+
 ## 2026-05-07
 
 ### 10:03 UTC — Editor: Developer
@@ -34,7 +41,7 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ### 08:46 UTC — Editor: Scientist
 
-- **Pan et al.** ([Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)) — recurrent *GNAS*/*RPL22* splicing → public splice neoantigens + cross-patient TCRs. → [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) (Sci, DISCUSSION). *Scientist. portfolio-differentiator.*
+- **Kwok et al.** ([Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)) — recurrent *GNAS*/*RPL22* splicing → public splice neoantigens + cross-patient TCRs. → [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) (Sci, DISCUSSION). *Scientist. portfolio-differentiator.*
 
 ## 2026-05-04
 

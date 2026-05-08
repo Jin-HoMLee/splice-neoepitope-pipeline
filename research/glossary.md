@@ -22,6 +22,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CAPRI** — Critical Assessment of PRedicted Interactions. Community blind-prediction challenge for protein-protein / peptide-MHC docking (since 2001); CAPRI quality bands (high / medium / acceptable / incorrect) are the standard yardstick for docking models — DockQ is the continuous reformulation of these bands. *Domain: bio.*
 
+**CAR-T** — Chimeric Antigen Receptor T-cell therapy. Adoptive cell therapy where patient T cells are transduced with a synthetic chimeric receptor (scFv + CD3ζ + costim domains); recognizes surface antigen directly, MHC-independent. FDA-approved CD19/BCMA-targeting products for B-cell malignancies and myeloma. Distinct from TCR-T (native MHC-restricted TCR). *Domain: bio.*
+
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
@@ -50,6 +52,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **HLA** — Human Leukocyte Antigen. Human MHC class I/II proteins (HLA-A/B/C class I; HLA-DR/DP/DQ class II); patient typing via OptiType drives MHCflurry's per-allele predictions. *Domain: bio.*
 
+**HLA-LOH** — HLA Loss of Heterozygosity. Tumor immune-escape mechanism: somatic deletion or copy-neutral loss of one HLA allele, narrowing the peptide-presentation repertoire and shielding the tumor from neoantigen-specific T cells. Detected from WES (e.g. LOHHLA); candidates predicted on a lost allele are no longer presented. *Domain: bio.*
+
 ## I
 
 **IC50** — half-maximal Inhibitory Concentration. Concentration (in nM) at which a peptide displaces 50% of a reference ligand from MHC; classic affinity metric, retained as informational column alongside the percentile-based presentation score. *Domain: bio.*
@@ -59,6 +63,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **MCP** — Model Context Protocol. Anthropic's open spec (late 2024) for AI agents to discover and invoke external tools / data sources via per-purpose MCP servers; the standardized way to expose resources to LLMs without bespoke per-tool integration. *"USB-C for AI agents."* Used by Claude Code, the GitHub MCP server, filesystem servers, etc. *Domain: ml.*
 
 **MHC** — Major Histocompatibility Complex. Cell-surface proteins that present peptides to T cells; class I (all nucleated cells, presents endogenous peptides) drives this pipeline. Human MHC = HLA. *Domain: bio.*
+
+## N
+
+**NJ** — Neojunction. Tumor-specific or recurrent splice junction absent from canonical normal-tissue annotation; the upstream substrate from which splice neoepitopes are translated. Notation introduced by Nejo et al. (*Nat. Med.* 2023). Kwok et al. additionally use **NEJ** (neoepitope-encoding junction) for the validated subset yielding a presented peptide (e.g. NEJ<sub>GNAS</sub>, NEJ<sub>RPL22</sub>). *Domain: bio.*
 
 ## O
 
@@ -78,6 +86,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **PSI** — Percent Spliced In. Fraction of transcripts that include a given alternative exon/junction (vs skip); the standard quantitative readout of splicing in RNA-seq analyses. *Domain: bio.*
 
+**PSR** — Positive Sample Rate. Percentage of samples in a cohort expressing a splice junction at a read frequency ≥1% relative to the canonical junction (Kwok et al., *Nature* 2025); thresholded as `PSR_TCGA ≥ 10%` (tumor-recurrence) and `PSR_GTEx < 1%` (normal-exclusion). Distinct from **PSI** (within-sample inclusion fraction): PSR is a binary cross-sample detection rate at a fixed relative-frequency threshold; PSI is a continuous within-sample metric. *Domain: bio.*
+
 ## R
 
 **RCE** — Remote Code Execution. Vulnerability class where an attacker runs arbitrary code on a remote system, typically via input-validation or memory-safety bugs (e.g. CVE-2026-3854's crafted git push trigger). *Domain: security.*
@@ -92,7 +102,11 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **TCR** — T-Cell Receptor. Heterodimeric (α/β) receptor on T cells that recognises peptide-MHC complexes; modelled here via TCRdock for the top neoepitope candidate. *Domain: bio.*
 
+**TCR-T** — TCR-engineered T-cell therapy. Adoptive cell therapy where autologous patient T cells are transduced with a tumor-reactive TCR (typically discovered in HLA-matched healthy donors to bypass tumor-induced tolerance). MHC-restricted; distinct from CAR-T (synthetic chimeric receptor) and TIL therapy (non-engineered expanded patient T cells). *Domain: bio.*
+
 **TF** — Transcription Factor. DNA-binding regulatory protein controlling gene expression; binding sites are one of the modalities ENCODE-style assays (ChIP-seq) and predictors like AlphaGenome map. *Domain: bio.*
+
+**TIL** — Tumor-Infiltrating Lymphocyte. T cell isolated from a tumor biopsy; expanded ex vivo and re-infused as TIL therapy (FDA-approved 2024 for advanced melanoma as lifileucel/Amtagvi). Distinct from TCR-T (engineered TCR) and CAR-T (synthetic chimeric receptor). *Domain: bio.*
 
 ## W
 

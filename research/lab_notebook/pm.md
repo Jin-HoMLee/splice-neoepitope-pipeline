@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-08
+
+### 13:18 UTC — Editor: PM
+
+#### Standup file split — memory broadcasts moved to dedicated `team_memory_broadcasts.md`
+
+**Trigger.** Early in this morning's session, user flagged that `team_standup.md` hit the Read tool ceiling (27,267 tokens vs 25k limit, 786 lines) — only 1 day after archiving 6 own Done messages. Yesterday's >3-day archive cleanup didn't dent it because the bulk wasn't *old* traffic but 13 memory broadcasts on 2026-05-05/06 (5 in a single afternoon). The >3-day archive band addresses missed-message recurrence; file-size growth from broadcast spikes is a distinct failure mode the band can't cover.
+
+**Decision.** Split broadcasts into `shared/team_memory_broadcasts.md` rather than tightening the archive band. User picked via AskUserQuestion among 4 options (split-file [Recommended], >1-day band, >2-day band, per-role cap). Split was the structural fix because broadcasts are inherently archival/documentation (rule changes), not operational coordination — aligning content type with file purpose addresses the cause; band-tightening was a symptom-level fix and would cascade into follow-up reply lifecycles (rejected yesterday for the missed-message concern).
+
+**Mechanics.** Python script split standup on `\n\n---\n\n` separators, filtered blocks by `[/CEREBRUM ALL]` marker, wrote both files atomically. Treated as user's explicit one-time approval to bulk-transform `team_standup.md` — the bulk-edit exclusion rule targets uncontrolled sed/find-replace, not careful structural migrations with full content preservation. **Result:** 13 broadcasts moved, 37 non-broadcast messages preserved verbatim. Active standup: 786 → 648 lines (-19%, -12.5k chars). New file: 164 lines, 13.7k chars. Verification: 0 broadcast headers leaked into standup; 15 inline `/CEREBRUM ALL` references inside non-broadcast messages preserved (immutability rule).
+
+**Documentation updates** (direct memory edits, no PR — cerebrum repo is off-project per the no-cerebrum-git rule):
+
+- `shared/MEMORY.md` Always-in-effect: NEW rule "Memory broadcasts have a dedicated file"; bulk-edit exclusion extended to `team_memory_broadcasts.md`.
+- `shared/feedback_team_standup.md`: replaced the old `[/CEREBRUM ALL]` section with new file pointer + simpler post format (no `→ To: All [/CEREBRUM ALL]` marker — the file itself implies "to all").
+- `pm/MEMORY.md` Always-in-effect: NEW rule "Cerebrum within morning routine" — separate fix earlier this session. After running `/cerebrum`, I stopped and waited for next instruction (per the skill's literal output) instead of continuing into the morning-routine agenda + TodoWrite. User asked why. Root cause: the skill's "wait for next instruction" was overriding the morning-routine pacing rule when /cerebrum is part of a routine. Promoted the precedence inline so it sticks.
+
+**Going-forward convention.** Cross-role rule-change posts → `team_memory_broadcasts.md` (no marker needed). Coordination/asks/follow-ups → `team_standup.md`. Same immutability + sender-owned-Status rules apply to both files.
+
+**Inaugural posts.** Posted the first new-convention broadcast to `team_memory_broadcasts.md` (top of file, no marker, full rule details). Operational pointer also posted to standup [2026-05-08 13:18 UTC] PM → All so any active Sci/Dev sessions today catch the change before their next /cerebrum.
+
+---
+
 ## 2026-05-06
 
 ### 21:30 UTC — Editor: PM
