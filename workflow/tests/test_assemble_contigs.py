@@ -7,6 +7,8 @@ from assemble_contigs import (
     _build_upstream_bed,
     _has_soft_clip,
     _parse_fasta,
+    _write_zero_stats,
+    assemble_contigs,
 )
 
 
@@ -99,3 +101,81 @@ class TestParseFasta:
         fa = tmp_path / "empty.fa"
         fa.write_text("")
         assert _parse_fasta(fa) == {}
+
+
+class TestEmptyPipelineEarlyReturns:
+    """Issue #215 follow-up: when the pipeline produces zero candidates, the
+    early-return paths must still write a zero-count stats TSV so the
+    cross-step aggregator does not fail with missing input.
+    """
+
+    _NOVEL_COLUMNS = [
+        "junction_id", "chrom", "start", "end", "strand",
+        "junction_origin", "sample_id", "sample_type",
+    ]
+
+    def _expected_zero_stats(self):
+        return pd.DataFrame(
+            [
+                {"category": "contigs_written", "count": 0},
+                {"category": "skipped_softclip", "count": 0},
+                {"category": "skipped_length", "count": 0},
+            ],
+            columns=["category", "count"],
+        )
+
+    def test_write_zero_stats_helper_emits_three_rows(self, tmp_path):
+        out = tmp_path / "stats.tsv"
+        _write_zero_stats(out)
+        got = pd.read_csv(out, sep="\t")
+        pd.testing.assert_frame_equal(got, self._expected_zero_stats())
+
+    def test_write_zero_stats_helper_no_path_is_noop(self, tmp_path):
+        # No exception, no file created
+        _write_zero_stats(None)
+        assert list(tmp_path.iterdir()) == []
+
+    def test_empty_novel_junctions_writes_zero_stats(self, tmp_path):
+        novel_tsv = tmp_path / "novel.tsv"
+        pd.DataFrame(columns=self._NOVEL_COLUMNS).to_csv(
+            novel_tsv, sep="\t", index=False
+        )
+        fasta_out = tmp_path / "contigs.fa"
+        stats_out = tmp_path / "contig_stats.tsv"
+
+        assemble_contigs(
+            novel_junctions_tsv=novel_tsv,
+            genome_fasta=tmp_path / "fake.fa",  # never read in early-return path
+            output_fasta=fasta_out,
+            stats_output_path=stats_out,
+        )
+
+        assert fasta_out.exists()
+        got = pd.read_csv(stats_out, sep="\t")
+        pd.testing.assert_frame_equal(got, self._expected_zero_stats())
+
+    def test_only_normal_shared_writes_zero_stats(self, tmp_path):
+        novel_tsv = tmp_path / "novel.tsv"
+        pd.DataFrame({
+            "junction_id": ["j1", "j2"],
+            "chrom": ["chr22", "chr22"],
+            "start": [100, 200],
+            "end": [200, 300],
+            "strand": ["+", "+"],
+            "junction_origin": ["normal_shared", "normal_shared"],
+            "sample_id": ["s1", "s1"],
+            "sample_type": ["tumor", "tumor"],
+        }).to_csv(novel_tsv, sep="\t", index=False)
+        fasta_out = tmp_path / "contigs.fa"
+        stats_out = tmp_path / "contig_stats.tsv"
+
+        assemble_contigs(
+            novel_junctions_tsv=novel_tsv,
+            genome_fasta=tmp_path / "fake.fa",
+            output_fasta=fasta_out,
+            stats_output_path=stats_out,
+        )
+
+        assert fasta_out.exists()
+        got = pd.read_csv(stats_out, sep="\t")
+        pd.testing.assert_frame_equal(got, self._expected_zero_stats())

@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-08
+
+### 15:46 UTC — Editor: Developer
+
+**Headline:** [PR #301](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/301) (Issue #215 — full filtering audit trail) reviewed and ready to merge after a fix iteration: bot review surfaced 2 functional bugs (empty-pipeline early returns + hardwired `proteome` input in the aggregator) plus 3 minor cosmetic items, all addressed across 4 fix commits with 12 new regression tests; re-review came back "all clear, ready to merge"; CI green.
+
+**Work shipped (morning + early afternoon):**
+
+- [PR #301](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/301) (Issue #215 — full filtering audit trail) — bot review iteration:
+  - **Bug 1 (empty-pipeline early returns):** `assemble_contigs.py` and `run_mhcflurry.py` early-return paths touched the canonical output (FASTA / empty TSV) but skipped the new stats TSV — would have cascaded into a missing-input failure on the aggregator any time a patient yielded zero contigs or zero peptides. Factored a `_write_zero_stats` helper into each script (`assemble_contigs.py` uses `pd.DataFrame.to_csv`; `run_mhcflurry.py` uses `csv.writer` for parity with the existing main-path stats writer). 6 new tests across both files. Commits 3fccba1, c3f2042.
+  - **Bug 2 (proteome optional):** the aggregator hardwired `proteome=...` as a rule input, but `proteome_filter.smk` only defines its rule when `proteome_filter.enabled: true`. With proteome filter disabled (a supported config), the aggregator failed with a missing input. Fix in commit 6e2cbae: `analysis.smk` aggregator input is now a function (`unpack`) gating the `proteome` key on `_PROTEOME_FILTER_ENABLED_REPORT`; `aggregate_filtering_stats.py` makes `proteome_tsv` optional (default `None`); Snakemake entry uses `getattr(sm.input, "proteome", None)`.
+  - **Minor 1 (vocab):** `analysis.smk` docstring "binder" → "presenter" (CLAUDE.md vocabulary; folded into the same commit as bug 2).
+  - **Minor 2 (NaN render):** `generate_report.py` `_build_filtering_funnel_html` adds `.fillna(0)` after each `.reindex(...)` so partial-category inputs don't render "NaN" cells. The top-level `df.fillna("")` before the pivot was insufficient — reindex introduces new NaN columns post-pivot. Commit 04069b7.
+  - **Minor 3 (column validation):** `_read_per_sample_stats` / `_read_per_patient_stats` now raise a clear `ValueError` listing the missing columns (`_PER_SAMPLE_REQUIRED` / `_PER_PATIENT_REQUIRED` set diff) instead of letting schema drift surface as an opaque `KeyError` at the unified-schema reindex downstream. Folded into commit 6e2cbae.
+- 259 pytest tests pass (was 247; +12 new). CI green (pytest + snakemake-dry-run both SUCCESS).
+
+**Issues created today:**
+
+- [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304) (sensitivity-analysis utility scoping ticket; P2/M; blocked on full read of [Prélot et al. bioRxiv 2025.09.10.674685](https://doi.org/10.1101/2025.09.10.674685) for the 35-parameter matrix). Surfaced from this morning's news briefing.
+- [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) (`fix(scripts): zotero_add.py — bioRxiv preprints need 'publicationTitle', not 'repository'`; P2/S; bug). Caught when adding the Prélot DOI to Zotero — the script's CrossRef preprint branch writes `repository: "bioRxiv"` (semantically correct per Zotero's preprint itemType) while bioRxiv's own .ris export and most CSL citation styles want `publicationTitle: "bioRxiv"` on a `journalArticle` itemType. [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) AC 1 (literal `--dry-run` smoke test against bioRxiv) had been deferred — that gap was a yellow flag I missed.
+
+**Memory updates (broadcast at 14:54 UTC):**
+
+- **Extended Always-in-effect** in `shared/MEMORY.md`: **Created-by attribution** now applies to **comments you author** (`gh issue comment`, `gh pr comment`, follow-up replies), not just issue/PR bodies. Place at the bottom of comments. Standup posts unchanged (already carry attribution via `From: <Role>` header). Updated `shared/feedback_github_workflow.md` with placement guidance.
+- **NEW Always-in-effect** in `shared/MEMORY.md` (promoted from Reference): **No bare hash-numbers in GitHub text** — `#N` auto-links, so `AC #1`, `step #3`, `finding #7` all autolink to unrelated artifacts. Drop the `#`. Caught in own [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) body and [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) follow-up comment — both fixed retroactively.
+- New shared memory `developer/shared/feedback_zotero_biorxiv.md`: warn before firing `zotero_add.py` on `10.1101/*` DOIs — the CrossRef path is unreliable for bioRxiv. Retire when [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) closes.
+- Extended `developer/feedback_morning_routine.md`: news briefing scope now requires a concrete Dev hook (config flag, benchmark, code change, infra/dep update) — not just "pipeline-relevant." Caught after StriMap (Sci-territory TCR-pMHC predictor) was wrongly included in this morning's Phase 1.
+
+**Process notes:**
+
+- Bot-review iteration ran cleanly: 4 fix commits → push → re-fire `@claude review` → "ready to merge" verdict in 4m 19s. The shape worked because the bot's findings were specific (file + line + suggested fix) and verifiable against the codebase.
+- Snakemake CLI's `--config 'proteome_filter={"enabled": false}'` override didn't apply for nested keys in this version — tried in zsh and the dry-run still listed `proteome_filter_peptides` in the DAG. Disabled-proteome path is covered at the script level by 2 unit tests; the gap (no snakemake-level demonstration of the disabled path) is flagged in the [PR #301 iteration comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/301#issuecomment-4407641304) — could close with a CI matrix entry if it becomes load-bearing.
+- Standup-protocol exercise: posted today's broadcast (14:54 UTC) after the user enacted both rule changes (Created-by extension + bare-hash promotion). PM posted a sibling broadcast at 15:17 UTC adding a 7-day archive cadence for `team_memory_broadcasts.md` — picked up via the `/cerebrum`-on-modified-shared-memory pattern.
+
+---
+
 ## 2026-05-06
 
 ### 17:04 UTC — Editor: Developer

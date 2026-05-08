@@ -53,6 +53,9 @@ rule run_mhcflurry:
         mhc_presentation_tsv=os.path.join(
             _RES, "{patient_id}", "predictions", "mhc_presentation.tsv"
         ),
+        stats=os.path.join(
+            _RES, "{patient_id}", "predictions", "mhc_stats.tsv"
+        ),
     log:
         os.path.join(_LOGS, "{patient_id}", "mhc_affinity", "predict.log"),
     params:

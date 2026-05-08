@@ -326,8 +326,9 @@ class TestClassifyJunctionsStats:
         stats = pd.read_csv(stats_output, sep="\t")
         assert set(stats.columns) == {"sample_id", "sample_type", "category", "count"}
 
-        # Long-format: 5 rows per tumor sample (the 5-step funnel)
-        assert len(stats) == 5
+        # Long-format per tumor sample: 5 funnel rows (Issue #214) +
+        # 4 descriptive distribution rows (Issue #215) = 9 total.
+        assert len(stats) == 9
         assert (stats["sample_id"] == "tumor").all()
         assert (stats["sample_type"] == "Primary Tumor").all()
 
@@ -460,8 +461,8 @@ class TestClassifyJunctionsStats:
         )
 
         stats = pd.read_csv(stats_output, sep="\t")
-        # 5 categories × 2 samples = 10 rows
-        assert len(stats) == 10
+        # 9 categories per tumor sample (5 funnel + 4 distribution) × 2 samples = 18 rows
+        assert len(stats) == 18
         assert set(stats["sample_id"]) == {"tumor1", "tumor2"}
 
     def test_stats_tsv_optional(self, tmp_path):
@@ -486,6 +487,43 @@ class TestClassifyJunctionsStats:
             output_path=output,
         )
         assert output.exists()
+
+    def test_stats_tsv_includes_read_distribution(self, tmp_path):
+        """Issue #215 — 4 descriptive distribution rows on the raw read counts.
+
+        These rows let the Scientist sanity-check the silent per-file mean
+        threshold against the sample's actual read-count distribution.
+        """
+        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f.parent.mkdir()
+        # Read counts: 1, 5, 10, 100. min=1, median=7.5, mean=29.0, max=100.
+        self._write_junction_file(tumor_f, [
+            ("chr22:101:200:+", 1),
+            ("chr22:201:300:+", 5),
+            ("chr22:301:400:+", 10),
+            ("chr22:401:500:+", 100),
+        ])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+        )
+
+        stats = pd.read_csv(stats_output, sep="\t")
+        by_cat = dict(zip(stats["category"], stats["count"]))
+        assert by_cat["min_reads"] == 1
+        assert by_cat["median_reads"] == 7.5
+        assert by_cat["mean_reads"] == 29.0
+        assert by_cat["max_reads"] == 100
 
 
 # ---------------------------------------------------------------------------

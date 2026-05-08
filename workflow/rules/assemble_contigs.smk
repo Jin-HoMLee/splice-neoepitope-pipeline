@@ -17,6 +17,9 @@ rule assemble_contigs:
         contigs_fasta=os.path.join(
             _RES, "{patient_id}", "contigs", "contigs.fa"
         ),
+        stats=os.path.join(
+            _RES, "{patient_id}", "contigs", "contig_assemble_stats.tsv"
+        ),
     log:
         os.path.join(_LOGS, "{patient_id}", "assemble_contigs", "assemble.log"),
     params:

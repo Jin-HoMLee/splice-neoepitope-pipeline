@@ -4,6 +4,48 @@
 
 _HLA_QC_ENABLED = config.get("hla", {}).get("enabled", False)
 _TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
+_PROTEOME_FILTER_ENABLED_REPORT = config.get("proteome_filter", {}).get("enabled", True)
+
+
+def _aggregate_filtering_stats_input(wildcards):
+    d = {
+        "junction_filter": os.path.join(
+            _RES, wildcards.patient_id, "junctions", "junction_filter_stats.tsv"
+        ),
+        "contig_assemble": os.path.join(
+            _RES, wildcards.patient_id, "contigs", "contig_assemble_stats.tsv"
+        ),
+        "translate": os.path.join(
+            _RES, wildcards.patient_id, "peptides", "translate_stats.tsv"
+        ),
+        "mhc": os.path.join(
+            _RES, wildcards.patient_id, "predictions", "mhc_stats.tsv"
+        ),
+    }
+    if _PROTEOME_FILTER_ENABLED_REPORT:
+        d["proteome"] = os.path.join(
+            _RES, wildcards.patient_id, "peptides", "proteome_stats.tsv"
+        )
+    return d
+
+
+rule aggregate_filtering_stats:
+    """Concatenate the per-step funnel stats TSVs into a single per-patient
+    ``filtering_stats.tsv`` (Issue #215). Unified schema:
+    ``patient_id, sample_id, sample_type, step, category, count``.
+    The ``proteome`` input is omitted when ``proteome_filter.enabled: false``."""
+    input:
+        unpack(_aggregate_filtering_stats_input),
+    output:
+        filtering_stats=os.path.join(
+            _RES, "{patient_id}", "reports", "filtering_stats.tsv"
+        ),
+    log:
+        os.path.join(_LOGS, "{patient_id}", "analysis", "aggregate_filtering_stats.log"),
+    conda:
+        "../envs/python.yaml"
+    script:
+        "../scripts/aggregate_filtering_stats.py"
 
 
 def _generate_report_input(wildcards):
@@ -13,6 +55,9 @@ def _generate_report_input(wildcards):
         ),
         "junction_filter_stats": os.path.join(
             _RES, wildcards.patient_id, "junctions", "junction_filter_stats.tsv"
+        ),
+        "filtering_stats": os.path.join(
+            _RES, wildcards.patient_id, "reports", "filtering_stats.tsv"
         ),
         "predictions_tsv": os.path.join(
             _RES, wildcards.patient_id, "predictions", "mhc_presentation.tsv"
@@ -50,8 +95,8 @@ rule generate_report:
     """Generate a summary HTML report showing:
     - Junction origin counts (tumor_exclusive vs normal_shared per sample)
     - HLA typing results with source and normal/tumor concordance (when enabled)
-    - Neoepitope prediction summary (strong / weak / non binder counts)
-    - Top strong binders table (presentation_percentile ≤ strong threshold)
+    - Neoepitope prediction summary (strong / weak / non presenter counts)
+    - Top strong presenters table (presentation_percentile ≤ strong threshold)
     - Embedded Mol* 3D viewer for the top TCR-pMHC candidate (when TCRdock enabled)"""
     input:
         unpack(_generate_report_input),
