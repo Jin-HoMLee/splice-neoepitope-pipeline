@@ -93,6 +93,18 @@ def fetch_crossref(doi):
         return json.loads(resp.read())["message"]
 
 
+def _first_or_empty(value):
+    """Return value[0] if value is a non-empty list, else ''. Tolerates None."""
+    if isinstance(value, list) and value:
+        return value[0]
+    return ""
+
+
+def _is_preprint(data):
+    """CrossRef marks preprints with type='posted-content' and/or subtype='preprint'."""
+    return data.get("subtype") == "preprint" or data.get("type") == "posted-content"
+
+
 def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract=None, pmid=None):
     import re
 
@@ -114,30 +126,47 @@ def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
     # Use PubMed date if it has more precision (more components)
     date = pubmed_date if pubmed_date and pubmed_date.count("-") > crossref_date.count("-") else crossref_date
 
-    # ISSN: prefer print ISSN (index 0)
-    issn_list = data.get("ISSN", [])
-    issn = issn_list[0] if issn_list else ""
-
     # Abstract: CrossRef first (strips JATS tags), fall back to PubMed
     raw_abstract = data.get("abstract", "")
     abstract = re.sub(r"<[^>]+>", "", raw_abstract).strip() or pubmed_abstract or ""
 
-    item = {
-        "itemType": "journalArticle",
-        "title": data.get("title", [""])[0],
-        "creators": authors,
-        "publicationTitle": data.get("container-title", [""])[0],
-        "volume": data.get("volume", ""),
-        "issue": data.get("issue", ""),
-        "pages": data.get("page", ""),
-        "date": date,
-        "DOI": data.get("DOI", ""),
-        "url": data.get("URL", ""),
-        "ISSN": issn,
-        "PMID": pmid or "",
-        "collections": [collection],
-        "tags": [{"tag": t} for t in tags],
-    }
+    title = _first_or_empty(data.get("title"))
+
+    if _is_preprint(data):
+        # Preprints have an empty container-title; the host (bioRxiv, medRxiv, …) is in institution[].name.
+        institutions = data.get("institution") or []
+        repository = institutions[0].get("name", "") if institutions else ""
+        item = {
+            "itemType": "preprint",
+            "title": title,
+            "creators": authors,
+            "repository": repository,
+            "date": date,
+            "DOI": data.get("DOI", ""),
+            "url": data.get("URL", ""),
+            "archiveID": data.get("DOI", ""),
+            "PMID": pmid or "",
+            "collections": [collection],
+            "tags": [{"tag": t} for t in tags],
+        }
+    else:
+        item = {
+            "itemType": "journalArticle",
+            "title": title,
+            "creators": authors,
+            "publicationTitle": _first_or_empty(data.get("container-title")),
+            "volume": data.get("volume", ""),
+            "issue": data.get("issue", ""),
+            "pages": data.get("page", ""),
+            "date": date,
+            "DOI": data.get("DOI", ""),
+            "url": data.get("URL", ""),
+            "ISSN": _first_or_empty(data.get("ISSN")),
+            "PMID": pmid or "",
+            "collections": [collection],
+            "tags": [{"tag": t} for t in tags],
+        }
+
     if abstract:
         item["abstractNote"] = abstract
     return item
@@ -245,8 +274,11 @@ def main():
 
     print(f"Title: {item['title']}")
     print(f"Authors: {len(item['creators'])} authors")
-    print(f"Journal: {item['publicationTitle']} {item['volume']}({item['issue']}): {item['pages']}, {item['date']}")
-    print(f"ISSN: {item.get('ISSN', '—')}")
+    if item["itemType"] == "preprint":
+        print(f"Preprint: {item.get('repository', '—')}, {item['date']}")
+    else:
+        print(f"Journal: {item['publicationTitle']} {item['volume']}({item['issue']}): {item['pages']}, {item['date']}")
+        print(f"ISSN: {item.get('ISSN', '—')}")
     print(f"Abstract: {'yes' if item.get('abstractNote') else 'not available'}")
     print(f"Tags: {[t['tag'] for t in item['tags']]}")
 

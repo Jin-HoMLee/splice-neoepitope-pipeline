@@ -430,6 +430,54 @@ scoring throughout.
 
 ---
 
+## Clinical translation: durability of personalized neoantigen vaccines in low-mutation tumors
+
+Among multiple active personalized neoantigen vaccine trials spanning
+head-and-neck (TG4050), melanoma (mRNA-4157/V940), pancreatic (autogene
+cevumeran), and other indications (Iamukova & Alferova, *Asia-Pacific Journal
+of Clinical Oncology* 2026), the autogene cevumeran trial in pancreatic ductal
+adenocarcinoma (PDAC) has produced the most mature long-term follow-up and
+provides strong clinical validation for the personalized neoantigen vaccine
+paradigm (Sethna et al., *Nature* 2025; original trial: Rojas et al., *Nature*
+2023). At a 3.2-year median follow-up, vaccine responders had not reached
+median recurrence-free survival compared to 13.4 months in non-responders
+(P = 0.007), with vaccine-induced CD8+ T cell clones exhibiting an estimated
+mean lifespan of 7.7 years (range 1.5–~100 years) and ~20% of clones
+persisting on multi-decade timescales. Notably, these long-lived clones are
+primed *de novo* against passenger somatic mutations rather than amplifying
+pre-existing T cell pools, demonstrating that effective neoantigen targets do
+not require pre-existing endogenous immunity to elicit a durable functional
+response.
+
+Two clinical observations are particularly relevant to splice-junction
+neoepitope prediction. First, PDAC is paradigmatic of *low-mutation tumors* —
+gastrointestinal cancers and other immunologically cold tumors with few somatic
+mutations are explicitly identified as ideal initial disease indications for
+this paradigm, yet the somatic mutation pool in such tumors is correspondingly
+limited. Splice-junction-derived neoepitopes are an orthogonal source of
+tumor-specific antigens that scales with the splicing dysregulation
+characteristic of these tumors rather than with point-mutation burden, and can
+substantially expand the predictable target pool in exactly the indications
+where personalized vaccines are most urgently needed. Second, recurrent tumors
+in vaccine non-responders evolved under vaccine-induced selective pressure and
+were *pruned of vaccine-targeted clones* — direct evidence that immune editing
+on a finite vaccine target set permits clonal escape. The authors note this
+clonal pruning may make subclinical clones (microscopic residual disease cells
+below clinical detection at vaccination time) a vaccine-resistance mechanism,
+and propose two non-exclusive future directions: polyvalent vaccines covering
+heterogeneous clones, or alternatively, high-potency vaccines against clonal
+neoantigens.
+
+Our pipeline's primary contribution to this clinical context is expanding the
+predictable target pool through splice-junction neoepitope prediction —
+particularly valuable in low-mutation tumors where the somatic mutation
+candidate pool is scarce. Whether splice-junction antigens are also more
+clonally shared across tumor sub-populations than mutation-derived antigens —
+and thus directly address the heterogeneity-driven escape mechanism the
+authors highlight — remains an open empirical question worth pursuing.
+
+---
+
 ## Immune-pathway gene neoepitopes: the presentation paradox
 
 A subset of the candidates this pipeline produces deserves special clinical attention: splice-junction neoepitopes derived from immune-pathway genes whose loss-of-function drives immune evasion. Genes including *JAK1*, *JAK2*, *STAT1*, *B2M*, *NLRC5*, and *TAP1/2* are recurrently mutated in tumours that have escaped checkpoint blockade (Zaretsky et al., *NEJM* 2016; Sade-Feldman et al., *Cancer Discovery* 2017). Recent base-editing screens have systematically mapped the specific single-amino-acid variants that disrupt IFN-γ signalling and antigen presentation, identifying which residues in JAK1, JAK2, and other pathway components are most vulnerable to point mutation (Coelho et al., *Cancer Cell* 2023). Many of these mutations also generate splice variants — in-frame exon skips, alternative donor/acceptor usage, intron retention — whose junction-spanning peptides are immunogenic in principle.
@@ -496,6 +544,86 @@ flowchart TD
 **Figure 1. Rescue strategies for HLA-I presentation under JAK1/2 loss-of-function.** The canonical IFN-γ → JAK1/JAK2 → STAT1 axis drives HLA-I gene transcription; in JAK-LOF tumours the kinase is catalytically dead and the signal terminates at JAK. Three bypass routes restore HLA-I transcription independently of the JAK1/2 break: TLR agonists via NF-κB / IRF3, STING agonists via type I IFN (impaired in JAK1-LOF because JAK1+TYK2 is shared with type II IFN signalling), and HDAC / DNMT inhibitors via epigenetic derepression of HLA-A/B/C promoters. NLRC5 maintains a constitutive baseline that is JAK-independent. Surface HLA-I — reduced but not absent — supports vaccine-primed T-cell killing, while the residual HLA-low cells are targeted by NK cells via missing-self recognition (potentiated by NK-cell engagers).
 
 The pipeline's GPS prioritisation surfaces splice neoepitopes from immune-pathway genes whenever they meet the presentation thresholds; these candidates merit triage to first-in-line clinical translation despite — and partly because of — the presentation paradox.
+
+---
+
+## Comparison to related neoantigen-prediction tools
+
+Two recently published tools span the same problem space from complementary angles —
+pan-cancer splice-neoantigen burden estimation (SpliceMutr) and tumor-only neoantigen
+calling without matched normal (ENEO). Comparing this pipeline to each clarifies the
+design choices made here and the gaps each leaves uncovered.
+
+### SpliceMutr: causal mutation–splice linkage as cohort-scale tumor-exclusivity proof
+
+SpliceMutr (Palmer et al., *Cancer Research Communications* 2024) quantifies
+splicing-derived neoantigen burden across TCGA tumor types. Each candidate splice
+event is anchored to a somatic mutation predicted to cause it — splice-site mutations
+at the canonical donor/acceptor dinucleotides or splice-regulatory-element mutations
+that disrupt spliceosome recognition. The somatic mutation, called from tumor-vs-normal
+DNA pairs, supplies the tumor-exclusivity proof at the DNA level; the splice consequence
+inherits that proof without an additional RNA-level normal-vs-tumor comparison. This
+mutation-anchored framing serves two cohort-scale needs: causal interpretability (each
+event has a mechanistic explanation) and false-positive control across thousands of
+samples that cannot be manually validated.
+
+This pipeline takes the broader scope: any unannotated junction absent from a matched
+(or pan-tissue GTEx) normal is a candidate, irrespective of an identified somatic
+driver. This captures non-mutation-driven aberrant splicing — splicing-factor mutations
+(e.g. SF3B1, U2AF1) acting in *trans* across many genes, epigenetic dysregulation, and
+stochastic spliceosomal noise in transformed cells — that mutation-anchored approaches
+miss by construction. The cost is reduced mechanistic interpretability per candidate:
+the somatic origin of a junction may be unknown, and tumor-exclusivity must be
+established at the RNA level rather than inherited from DNA.
+
+The two scopes are complementary. SpliceMutr is the appropriate framing for cohort-level
+burden estimation, where causal anchoring controls false positives at scale; this
+pipeline is the appropriate framing for patient-level vaccine candidate prioritization,
+where the objective is to maximize the candidate pool subject to safety filters and the
+mutation-driven subset alone is too narrow.
+
+### ENEO: population-reference substitution for matched normal at the variant level
+
+ENEO (Tatoni et al., *NAR Genomics and Bioinformatics* 2025) addresses the
+unmatched-normal problem with a Bayesian classifier that separates somatic from
+germline and sequencing-error variants from tumor RNA-seq alone. The classifier's
+priors are drawn from population genomic resources — germline allele frequencies from
+population databases (gnomAD-class), calibrated sequencing error models, and somatic
+prior distributions — eliminating the matched-normal requirement entirely. The
+Bayesian framing is conceptually parallel to this pipeline's GTEx pan-tissue filter
+(see *GTEx pan-tissue filter* above): both substitute *population-level reference
+knowledge* for an individual matched normal — ENEO at the variant level (somatic
+SNVs/indels), this pipeline at the junction level (splice events).
+
+Two boundary conditions distinguish the approaches:
+
+- **Antigen source.** ENEO is SNV-driven: candidates are MHC-presented peptides
+  produced by tumor-specific point mutations or short indels in coding sequence. The
+  Bayesian classifier solves the variant identifiability problem under tumor-only
+  conditions but does not address the splice-derived antigen axis, where the
+  tumor-exclusivity signal is at the junction level rather than the variant level.
+  The corresponding tumor-only problem for splice junctions — distinguishing
+  tumor-specific junctions from the patient's unobserved normal splicing repertoire —
+  requires population-level junction reference filtering (GTEx pan-tissue), not
+  variant-level Bayesian classification.
+- **Probabilistic vs. binary thresholding.** ENEO's posterior outputs a continuous
+  probability of somatic origin per variant, allowing rank-ordered candidate lists and
+  context-dependent thresholds. The current GTEx pan-tissue filter is binary: a junction
+  is excluded if observed in any GTEx tissue. The binary filter is robust at scale and
+  trivial to communicate, but loses information at noisy edges — single-read presence
+  in one of ~900 donors triggers exclusion equivalently to consistent presence across
+  all donors, and low-coverage tumor candidates are kept with the same confidence as
+  high-coverage ones.
+
+ENEO's Bayesian framing is conceptually transferable to this pipeline. A
+population-frequency prior over GTEx junction read counts could replace the binary
+inclusion/exclusion criterion with a posterior probability of tumor-specificity per
+junction, which would (i) recover candidates excluded only by single-read GTEx
+artifacts, (ii) downweight low-coverage tumor junctions whose evidence does not warrant
+high confidence, and (iii) yield a continuous tumor-exclusivity score that ranks
+candidates rather than only filtering them. This remains an open avenue for future
+work, particularly for the patient_002-class scenario where matched-normal RNA is
+absent and the binary filter's loss of edge information matters most.
 
 ---
 

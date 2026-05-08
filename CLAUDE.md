@@ -14,6 +14,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 - `run_cloud_gpu.sh` defaults to the current local branch; the VM git-pulls it automatically — no `--branch` flag needed unless deliberately running a different branch on the VM
 - **NVIDIA driver pinned to `nvidia-headless-570-server` (DKMS)** — do not upgrade. Driver ≥575 dropped P100 Pascal (SM 6.0) support. Image family `common-cu129-ubuntu-2204-nvidia-580` is used but the driver is overridden to 570 in the setup script.
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
+- GitHub project board: user project #9 ("JH M Lee Lab") under user `Jin-HoMLee` — query via `gh api graphql` with `user(login: "Jin-HoMLee") { projectV2(number: 9) { ... } }` (it's a user project, not org)
 
 ## Pipeline Design Decisions
 
@@ -96,7 +97,7 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 **Workarounds that were tried and rejected:**
 - `samtools >= 1.20` pin — made things worse; solver produced an env without samtools (exit 127 on linux-64)
 - Fully unpinned samtools — solver falls back to samtools 1.3.1 (2016, 10 versions behind); not acceptable long-term
-**TODO(#107):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26.
+**TODO(#237):** revisit once bioconda ships an htslib/samtools build against libdeflate >= 1.26. Re-tested 2026-05-06: bioconda's 2026-03 samtools/htslib refactor (samtools 1.23.1) did NOT lift the cap — solver still reports `libdeflate >=1.20,<1.26.0a0` for modern htslib builds, conflicting with regtools 1.0.0's `libdeflate >=1.26`. Workaround remains in place.
 
 ### `run_mhcflurry.py` — Class1PresentationPredictor genotype API
 `Class1PresentationPredictor.predict()` is a genotype-level call: pass all patient HLA alleles at once (≤6 as a list), get one best-allele prediction per peptide back. Do NOT repeat a single allele N times (that was the `Class1AffinityPredictor` convention and raises `ValueError`).
@@ -105,6 +106,7 @@ The old `config.yaml` had an `assembly:` block (`upstream_nt`, `downstream_nt`, 
 ### `python.yaml` — PyTorch SM 6.0 / P100 compatibility
 PyTorch 2.5+ dropped SM 6.0 (Pascal) support. On a P100, `torch.cuda.is_available()` still returns `True` but kernel dispatch fails silently or with a cryptic error.
 **Fix:** pin `torch>=2.0,<2.5` in `python.yaml` (installs 2.4.1 which includes SM 6.0 kernels).
+**This pin is permanent on this hardware — not a temporary workaround.** PyTorch 2.8 confirmed Pascal kernel support is gone in cu128/cu129 builds; the [PyTorch dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned." Last supporting combo is PyTorch 2.7 + CUDA ≤12.6. Do not bump the pin without first migrating off P100 hardware.
 `_has_gpu()` in `run_mhcflurry.py` uses a PyTorch smoke-test kernel (not TensorFlow) to catch this case: `torch.nn.functional.relu(torch.zeros(2, device="cuda"))`. TF reported GPU available even when PyTorch kernels would fail — both must work because MHCflurry 2.2.x uses PyTorch for inference.
 
 ### `run_mhcflurry.py` — no ProcessPoolExecutor with GPU

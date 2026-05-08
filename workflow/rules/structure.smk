@@ -54,31 +54,3 @@ if _TCRDOCK_ENABLED:
             "../envs/python.yaml"
         script:
             "../scripts/run_tcrdock.py"
-
-    rule generate_report_with_structure:
-        """Generate HTML report including embedded Mol* 3D structure viewer.
-
-        Extends the standard report with an interactive TCR-peptide-MHC
-        structure for the top candidate, with the PDB inlined as text so
-        the report remains fully self-contained.
-        """
-        input:
-            unpack(_generate_report_input),
-            pdb=rules.run_tcrdock.output.pdb,
-            scores_tsv=rules.run_tcrdock.output.scores_tsv,
-        output:
-            report_html=os.path.join(
-                _RES, "{patient_id}", "reports", "report.html"
-            ),
-            report_tsv=os.path.join(
-                _RES, "{patient_id}", "reports", "report.tsv"
-            ),
-        log:
-            os.path.join(_LOGS, "{patient_id}", "structure", "report.log"),
-        params:
-            presentation_percentile_strong=config["mhcflurry"]["presentation_percentile_strong"],
-            presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
-        conda:
-            "../envs/python.yaml"
-        script:
-            "../scripts/generate_report.py"

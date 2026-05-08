@@ -47,10 +47,6 @@ include: "workflow/rules/mhc_affinity.smk"
 include: "workflow/rules/analysis.smk"
 include: "workflow/rules/structure.smk"
 
-# When TCRdock is enabled, prefer the structure report over the plain report.
-if config.get("tcrdock", {}).get("enabled", False):
-    ruleorder: generate_report_with_structure > generate_report
-
 # ── final target ─────────────────────────────────────────────────────────────
 # _read_samples_tsv (common.smk) validates exactly one patient per run.
 PATIENT_ID = _read_samples_tsv(config["samples_tsv"])[0]["patient_id"]

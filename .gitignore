@@ -220,9 +220,18 @@ resources/mhcflurry_models.done
 # Logs
 pipeline.log
 
+# DAG visualization output (scripts/visualize_dag.sh / snakevision)
+dag.svg
+dag.png
+dag.pdf
+
 # macOS metadata
 .DS_Store
 
 # Claude Code — per-machine, per-worktree notes (e.g. role binding, local paths)
 CLAUDE.local.md
 .claude/commands/
+
+# Claude Code — transient scheduler state (per-session lock + durable cron jobs)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json

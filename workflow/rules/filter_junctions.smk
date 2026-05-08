@@ -72,6 +72,9 @@ rule filter_junctions:
         novel_junctions=os.path.join(
             _RES, "{patient_id}", "junctions", "novel_junctions.tsv"
         ),
+        stats=os.path.join(
+            _RES, "{patient_id}", "junctions", "junction_filter_stats.tsv"
+        ),
     log:
         os.path.join(_LOGS, "{patient_id}", "filter_junctions", "filter.log"),
     params:

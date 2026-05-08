@@ -1,8 +1,658 @@
 # Lab Notebook
 
+> **Frozen 2026-05-06 12:05 UTC.** New lab-notebook entries from this commit onward go to per-role files under [`research/lab_notebook/`](lab_notebook/) (`pm.md`, `scientist.md`, `developer.md`). Pre-existing 2026-05-06 entries in this file (e.g. Scientist's 10:03 UTC entry below) remain valid historical entries — they are immutable per `shared/feedback_lab_notebook.md` and not migrated. Rationale: 3 merge conflicts on this file in 3 days (2026-05-03 → 2026-05-05) drove a structural fix; per-role files eliminate cross-role same-file collisions. Full proposal in standup [2026-05-05 15:13 UTC] post.
+
+---
+
+## 2026-05-06
+
+### 10:03 UTC — Editor: Scientist
+
+#### [Sub-Issue #267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267) INTRODUCTION — CNNeoPP positioning
+
+**Placement.** New paragraph in section `## Cancer Neoepitopes` of [INTRODUCTION.md](research/manuscript/INTRODUCTION.md), inserted between the existing splice-neglect paragraph and the section break. Section 1 is the right home for "contemporary landscape" framing because it previews both differentiation axes — splice (section 2) + structural (section 3) — before the reader hits them. Considered placing inside section 3 (Original 2015 Pipeline) and rejected — that section is already crowded with the modernisation comparison table and the TCRdock paragraph; inserting CNNeoPP there would bury the contrast in pipeline-implementation detail. Considered a new `## Related work` section and rejected — overhead unjustified for one paragraph; would be warranted only with 3+ tools positioned, which won't happen given Rojas 2023 (sub-issue #268) belongs in clinical-translation framing, not related-prediction-work.
+
+**Framing.** CNNeoPP (Cai et al., *Frontiers in Immunology* 2026, Zotero `6RWWUDPC`) is the recent SOTA deep-learning, LLM-enhanced neoantigen-prediction pipeline. Positioned as a sequence-only competitor confined to two axes — peptide sequence as antigen source, binding-prediction confidence as activation signal. Our pipeline differs on both: splice junctions as a complementary antigen source absent from canonical-proteome sequence prediction, and an explicit TCR–pMHC docking layer as downstream structural confidence. Same "two axes of differentiation" rhetorical move that the SpliceMutr + ENEO DISCUSSION subsection used yesterday ([PR #276](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/276)) — keeps the manuscript's positioning vocabulary consistent across INTRODUCTION and DISCUSSION.
+
+**Citation style.** Author-year inline format `(Cai et al., *Frontiers in Immunology* 2026)` matches existing INTRODUCTION conventions (Yewdell & Bennink 1999, Sahin et al. 2017, Ott et al. 2017, Alam et al. 2023). Reference-list finalisation deferred to [Sub-Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272).
+
+---
+
+### 08:46 UTC — Editor: Scientist
+
+#### Morning routine — Pan et al. (Nature 2025) surfaced as DISCUSSION addition
+
+**News briefing.** Tumour-wide RNA splicing aberrations → public splice neoantigens ([Pan et al., Nature 2025](https://www.nature.com/articles/s41586-024-08552-0)): recurrent *GNAS* / *RPL22* aberrant splicing yields shared neoepitopes across patients with cross-patient TCR clones isolated. Splice analogue of public mutational hotspots (KRAS G12D etc.). Already referenced in passing at lab_notebook.md:447 (the `<1%` GTEx-positive convention vs our `min_read_count: 1` deviation, [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) but not in Zotero, not in news_log, no DISCUSSION coverage — three gaps closed today.
+
+**Artifacts shipped.**
+- Zotero entry added (key `6C9PAXRH`, collection Z38GTJNW, R/M/L note attached)
+- [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) opened — DISCUSSION addition framing the **public-vs-personalised splice neoantigen axis**, sub-linked to [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (splice neoantigen tooling landscape). P2/S/i3-S7 inherited from parent. **Scope expansion beyond #232's original 6 sub-issues** — flagging to PM via standup.
+- news_log entry appended (one-liner, this PR)
+
+**Process correction (user feedback).** Initially deferred news_log shipping per [batch_trivial_docs] rule (3+ entries before PR). User flagged: news_log is high-concurrency (PM, Sci, Dev all edit) — same conflict logic as lab_notebook. Shipping immediately on a docs branch, saving feedback memory + pinging PM to update the shared rule.
+
+---
+
+### 00:35 UTC — Editor: Developer
+
+#### [Issue #127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/127) closed obsolete; replaced by [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) — patient_002 normal sample switched WES → PBMC scRNA-seq
+
+**Picked up #127** (P1, M, *support pre-aligned BAM as normal input*) and immediately hit the wall: drilled into `b2://osteosarc-data/hudson_lab/PBMC_scRNAseq/cellranger/January2025 (250125)/Capture_1/outs/` and confirmed via search across all 23,607 files in the bucket — **no GEX BAM exists** for the Jan 2025 Cell Ranger Multi run (executed with `--create-bam=false`). The 25.5 GB total for `January2025/` vs 374–431 GB for `November2025/` and `December2025/` is consistent: later runs likely include BAMs, this one does not. The "skip HISAT2 alignment, regtools directly on BAM" optimisation in #127 has no premise.
+
+**Outcome reachable without code change.** 10x 3' GEX has cDNA on R2; cell barcodes (R1) are irrelevant for normal-junction enumeration. The existing HISAT2 single-end path handles R2-only alignment as-is. Closed #127 (with rationale comment), opened #277 as a smaller-scope replacement: one TSV row addition.
+
+**Scope widening before code.** Once the FASTQ path was settled, realised OptiType already runs in `--rna` mode at [hla_typing.smk:121](workflow/rules/hla_typing.smk#L121) — its native use case is RNA-seq, not WES (WES tolerance was a workaround). Since PBMC IS RNA-seq, it can serve both junction filtering AND HLA typing. Dropped the WES blood normal entirely from `patient_002.tsv` and moved the Red Cross serology columns to the new PBMC row. Single sample, two purposes, ~33 GB less compute per run. Updated #277 body to reflect the wider scope (still XS — three lines edited).
+
+**Pedagogical detour.** User dug into the *why* across several axes: (a) what "parse-time wildcard_constraints" mean (briefly considered for routing FASTQ vs BAM rules before the BAM-doesn't-exist finding made it moot — visualised parse-time vs run-time DAG construction with ASCII diagrams), (b) why 10x reads have a 3' bias (poly-T primer chemistry against poly-A tails → cDNA grows backward toward 5' but RT falls off), (c) what GEX stands for (Gene EXpression — distinct from VDJ chemistry on the same Cell Ranger Multi run). Worth keeping the visual-explanation register in mind — user explicitly preferred ASCII diagrams over prose for these conceptual asks.
+
+**Verification.** `pytest workflow/tests/` 235 passed. Snakemake dry-run on patient_002 targeting the new sample's alignment + HLA-typing outputs threads cleanly through `download_fastq` → `hisat2_align` (single-end, only `fastq1` in input) and `run_optitype`. URL percent-encoding (`Jan2025%20%28250125%29/GEX/Pool%201/`) verified accepted by Snakemake's wildcard parser. Top-level patient_002 dry-run hits a pre-existing `MissingInputException` on `resources/gencode.v47.annotation.gtf.gz` (resource not local; downloaded at runtime); not caused by this change.
+
+**Validation deferred to first run.** Single-lane PoC (~28 GB, ~100–200M reads). Two checks on first cloud run: (i) OptiType-on-PBMC HLA call vs known Red Cross serology (`A*01:01/A*01:11N, B*08:01/B*27:05, C*01:02/C*07:01`) — mismatch → file follow-up bug; (ii) normal junction count significantly above WES baseline (~3 junctions) — no meaningful lift → expand to remaining lanes/captures (Pool 1 L003, Pool 2, Pool 3 = 6 R2 files, ~175 GB total) in a follow-up.
+
+---
+
+## 2026-05-05
+
+### 20:49 UTC — Editor: Scientist
+
+#### [Sub-Issue #270](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/270) DISCUSSION — SpliceMutr + ENEO
+
+**Subsection placement.** New `## Comparison to related neoantigen-prediction tools` inserted before `Structural validation` in [DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md) — broader-context positioning belongs near the end of the discussion, parallel to the METHODS comparison subsection landed via [PR #274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/274) (which closed [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269)).
+
+**SpliceMutr (Palmer et al., *Cancer Research Communications* 2024)** — framed around *causal mutation–splice linkage as cohort-scale tumor-exclusivity proof*. The original draft positioned this as "mutation-driven scope vs. junction-driven scope," but user pushed for the deeper rationale: anchoring each splice event to a predicted-causal somatic SNV (splice-site, branch-point, splice-regulatory-element mutations via SpliceAI/MaxEntScan) gives the splice consequence its tumor-exclusivity proof at the DNA level — no RNA-level normal comparison needed. Two cohort-scale wins: causal interpretability per event + false-positive control across thousands of TCGA samples. Trade-off explicit: misses non-mutation-driven aberrant splicing (SF3B1/U2AF1 *trans* effects, epigenetic dysregulation, transformed-cell spliceosomal noise) — a serious gap for vaccine candidate prioritisation where pool size matters.
+
+**ENEO (Tatoni et al., *NAR Genomics and Bioinformatics* 2025)** — sharpened framing thanks to user's question. Initial draft called it "Bayesian neoantigen calling" without articulating *what the Bayesian classifier actually does*. The user pushed: "is ENEO's Bayesian approach also basically comparing tumor signal against some a priori population knowledge?" — yes, exactly. ENEO replaces the matched-normal sample with **population-level priors at the variant level** (gnomAD-class germline AF + sequencing-error models + somatic prior). This is *the same conceptual move* as our GTEx pan-tissue filter at the junction level. The boundary conditions distinguishing the approaches: (i) antigen source (SNV vs. junction) + (ii) probabilistic-vs-binary thresholding. Probabilistic framing transferable to our pipeline as future work — population-frequency prior over GTEx junction read counts → posterior tumor-specificity score, recovering candidates excluded by single-read GTEx artefacts and downweighting low-coverage tumor candidates appropriately.
+
+**Pedagogical detour.** User asked for the binary-vs-Bayesian distinction explicitly ("never understood the difference") — concrete walk-through with junction-read-count examples (50 tumor reads / 0 GTEx → posterior ≈ 0.99; 50 tumor / 1 in 1 of 900 GTEx → 0.92; 2 tumor / 0 GTEx → 0.55) clarified the uncertainty-handling axis. Worth keeping the explanation pattern in mind for similar future asks: edge cases first, then the gain (rank-ordering, tunable thresholds), then the cost (priors specification, computational weight, communication overhead).
+
+---
+
+### 15:29 UTC — Editor: Developer
+
+#### [Issue #229](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) — `zotero_add.py` preprint-DOI crash fixed ([PR #275](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275))
+
+**XS warm-up ship.** CrossRef returns `container-title: []` for `type=posted-content` records (preprints have no journal/container), and the script's `data.get("container-title", [""])[0]` raised `IndexError` because `.get()` only returns the default when the key is *missing*, not when it's an explicit empty list. Surfaced [2026-05-01](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/229) when Sci tried to add the openRxiv splice-foundation-models preprint via the standard path.
+
+**Branched item dict.** Preprints now become Zotero `itemType="preprint"` with `repository` from `institution[0].name` (`"bioRxiv"` etc.) and `archiveID` set to the DOI; journal articles unchanged. Two helpers: `_is_preprint(data)` for the `subtype="preprint" or type="posted-content"` gate, and `_first_or_empty(value)` for safe `[0]` extraction on lists that may be empty/`None` — also reused for `title` and (after review) `ISSN` for consistency.
+
+**Review cycle.** [`@claude` review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380596386) flagged 8 items, 3 worth addressing: (3) ISSN extraction → `_first_or_empty` for consistency, (7) test for preprint-with-abstract path. Skipped (6) — reviewer claimed `publisher: "openRxiv"` was a placeholder and the real value is `"Cold Spring Harbor Laboratory"`, but openRxiv is the 2025 non-profit operating bioRxiv (per Issue #229 body, this is the actual CrossRef payload Sci hit). Triage [posted on the PR](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/275#issuecomment-4380675116) with skip-rationales; same review-triage table format as PR #273 (still pending PM promotion via [14:34 standup](#)).
+
+**Pipeline tests:** 241 passed (235 existing + 6 → 7 new). The acceptance-criteria network dry-run on the actual bioRxiv DOI is left to the user (CrossRef + Zotero credentials needed); mocked CrossRef payload covers the same code path in CI.
+
+**Workflow rules applied.** First PR after escalating the [14:45 standup](#): proactively flipped both Issue #229 and PR #275 to "In review" Status when posting `@claude please review` (instead of waiting for user to catch the gap manually like on PR #273). PM hasn't yet codified the rule in shared memory but user authorised the transition this morning.
+
+---
+
+### 14:25 UTC — Editor: Scientist
+
+#### [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) decomposition + [Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS landing
+
+**[#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) auto-closed by yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)** despite `Refs #232` in the body — root cause: `gh issue develop 232 --name <branch>` created a Development-link that auto-closes regardless of the body keyword (verified via `gh pr view 260 --json closingIssuesReferences` listing #232). The "Refs vs Closes" counter-pattern only works when the branch was created without `gh issue develop`, which collides with our Always-in-effect rule mandating `gh issue develop`. PM had reopened in the morning closure-audit; I extended `shared/feedback_github_auto_close.md` with the second auto-close path and broadcast via [/CEREBRUM ALL](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline) standup post.
+
+**Decomposed [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) into 6 sibling sub-issues** ([#267](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/267)–[#272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272)) per the AC-checkbox heuristic — each remaining acceptance criterion now has a dedicated focused branch target, parent stays open as the umbrella, no more `gh issue develop` collision risk. PM applied Priority + Size + Target on the board: P1 METHODS gates → P1 main DISCUSSION → P2 INTRODUCTION fillers → deferred + reference closer.
+
+**[Sub-Issue #269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269) METHODS splice2neo + AlphaGenome.** New `### Comparison to related approaches` subsection at end of Section 3 (Junction Classification) — placement chosen because that's where our junction-origin classification is described, so the splice2neo contrast (variant-driven vs junction-driven) lands naturally. **splice2neo** (Lang et al., 2024, *Bioinform Adv*) starts from somatic SNVs/indels → predicts altered splicing via SpliceAI-style models → derives neoantigens; ours starts from observed junctions → classifies by origin. Variant-driven captures splicing changes attributable to specific variants; junction-driven captures any tumor-exclusive junction regardless of underlying cause. **AlphaGenome** (Avsec et al., 2026, *Nature*) introduced as a candidate computational normal filter under evaluation (Issue [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)); METHODS-section coverage of inputs/outputs only — validation outcome deferred to DISCUSSION via [Sub-Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) once #203 closes. Author/year verified against Zotero (`Z4FAE6QM`, `UZWZ5QEB`).
+
+#### Created-by attribution slip + retro-fix on 8 artifacts
+
+**Slip discovered after morning's GitHub work**: the shared workflow rule `**Created by:** <Role>` on every issue + PR body (documented at `shared/feedback_github_workflow.md:151`) was not promoted to `shared/MEMORY.md` Always-in-effect — only Developer had it inline at their role MEMORY.md. I missed it on today's 6 sub-issues + the [#232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) body update + yesterday's [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260)/[PR #261](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/261). User flagged.
+
+**Resolution path** — same temporary-stopgap pattern we used today: I added the rule to my role `MEMORY.md` Always-in-effect as a temporary entry to protect the immediate session, pinged PM via standup to request shared-memory promotion + comments-scope clarification, retro-fixed all 8 artifacts via `gh issue edit` / `gh pr edit`. PM landed shared promotion at 14:04 UTC + answered comments-scope (body-only, comments excluded). I removed the Sci-local stopgap to avoid role+shared duplication.
+
+**Tooling note — project item ID lookup.** Burned 3 tool calls paginating `projectV2.items` to find #269's item ID for the Status flip before realising the direct path is `repository → issue → projectItems` — a single GraphQL call regardless of project size. Saved snippet locally as `scientist/reference_project_item_lookup.md` (TEMPORARY) + pinged PM to fold into `shared/feedback_project_board.md` (which already has the field/option IDs, so it's the natural home).
+
+---
+
+### 13:55 UTC — Editor: Developer
+
+#### [Issue #90](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/90) — `ruleorder` removed; single `generate_report` rule with conditional inputs/outputs ([PR #273](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/273))
+
+**Code-smell cleanup that's been queued for a while.** Two rules (`generate_report` and `generate_report_with_structure`) both produced `report.html`, disambiguated only at parse time by a `ruleorder` directive in [Snakefile](Snakefile). Replaced with a single `generate_report` rule whose input dict and output dict are built at parse time from `_TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)`. TCRdock-OFF path: 4–5 inputs, 3 outputs (no `pdb`/`scores_tsv`/`report_3d_structure_tsv`). TCRdock-ON path: 6–7 inputs, 4 outputs.
+
+**No script change needed.** [generate_report.py:1393-1397](workflow/scripts/generate_report.py#L1393-L1397) already pulls `pdb`, `scores_tsv`, and `report_3d_structure_tsv` via `getattr(snakemake.input/output, ..., None)` — the script was already shape-tolerant; the wrapper rules were the rigid bit.
+
+**Verification.** `pytest` 235 passed in 1.94s. Snakemake dry-runs clean for both modes: TCRdock-OFF schedules 7 jobs with `generate_report` as the sole report rule; TCRdock-ON schedules 8 jobs with `generate_report` carrying the full 7-input / 4-output shape (incl. `report_3d_structure_tsv`) and `run_tcrdock` upstream. No ambiguity warnings either way. Skipped a local chr22 pipeline run — test config has TCRdock OFF (so only re-exercises the integration-pytest path), and the ON path is GPU+Docker so unreachable locally regardless.
+
+### 10:39 UTC — Editor: Developer
+
+#### Morning routine — TCR-pMHC structure prediction news + glossary batch
+
+**Phase 1 surfaced two TCR-pMHC structure-prediction papers** that together clarify the scoring landscape. Boltz-2's reported TCR-pMHC DockQ is **0.91 in-training / 0.70 unseen** — a concrete generalization gap that strengthens the existing memorization caveat in [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188), now logged as a [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188#issuecomment-4378190714). NetTCR-struc ([Frontiers in Immunology 2025](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1616328/full)) **predicts DockQ** from AF-Multimer outputs (Spearman 0.681 → 0.855) — different output target than t2pmhc/TCRLens (which predict binding), so it occupies a structural-QC niche the [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) eval doesn't currently cover. Proposed widening #236's scope via [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4378193562). Cross-clarified that HERMES + NetTCR-struc + Boltz-2 form an orthogonal stack — *HERMES = TCR-fit biology score; NetTCR-struc = structural-quality QC of a predicted complex; Boltz-2 = upstream structure producer*. Forwarded all three sources to Scientist via [standup](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) for lit doc / Zotero.
+
+**Glossary batch — [PR #266](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/266).** Eight terms added (`DockQ`, `RMSD`, `CAPRI`, `PDB`, `GVP-GNN`, `ESM-IF1`, `AF-Multimer`, `AF_confidence`) — all surfaced from today's structure-prediction discussion. New section headers added for C, D, R.
+
+#### Sync-before-branch slip (second incident) — rule escalated
+
+Same failure mode as **2026-05-03** (PR #262 vs Sci's #261): created `docs/developer/glossary-2026-05-05-0929` from local main (`af5c7ab`) without fetching origin first. Origin/main was already at `031bfc9` because [PR #263](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/263) merged 2026-05-04 19:54 UTC and [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260) merged 18:33 UTC — both late-yesterday merges were missing from local main. Result: spurious conflict on `research/glossary.md` because PR #263 was a sibling glossary batch (AC, CVE, MCP, OKR, RCE). Conflict was "keep both, alphabetical" — cheap to resolve (one `git merge` + three `Edit` calls + push), but avoidable.
+
+**Rule escalated** to role `MEMORY.md` "Always in effect": *"Sync main before branching — `git fetch origin && git pull origin main` before any `gh issue develop` or `git checkout -b`. Local main lags origin when other roles ship in parallel; stale main causes spurious conflicts on shared docs."* The shared `feedback_branch_creation.md` is restructured into Rule 1 (sync) + Rule 2 (use `gh issue develop`); both incidents recorded as the *why*.
+
+**Pattern observation:** the highest-traffic merge points are journal/docs files (`news_log.md`, `glossary.md`, `lab_notebook.md`, `manuscript/*`) because all three roles edit them daily. Sync-before-branch matters most where I'm least likely to remember it — the journal-style branches that don't have an associated issue.
+
+---
+
+## 2026-05-04
+
+### 18:08 UTC — Editor: Scientist
+
+#### Issue #232 — clinical-translation DISCUSSION section landed ([PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260))
+
+**Sunday read → Monday landing.** Sunday afternoon's deep read of [Sethna et al., *Nature* 2025](https://doi.org/10.1038/s41586-024-08508-4) (PDF supplied directly via conversation since bioRxiv-style sources block WebFetch — the autogene cevumeran 2025 follow-up) produced an initial draft of a new manuscript-DISCUSSION section. User caught a **polyvalency-framing overstatement** in the first draft: I had characterised the paper as "arguing for polyvalent vaccines," but the paper's actual data finding is **clonal pruning at recurrence** — the polyvalent-vs-high-potency suggestion is offered as *speculative future directions*, not a tested hypothesis. Corrected the framing (now explicitly attributes the suggestion to authors, presents both alternatives, and uses Option B for the closing claim — flags the splice-clonality question as an open empirical hypothesis rather than overclaiming pipeline-pipeline fit).
+
+**Final section content.** Three paragraphs landed in `research/manuscript/DISCUSSIONS.md` between *Allele breadth and immunodominance* and *Immune-pathway gene neoepitopes: the presentation paradox*: (1) field-landscape opener (Iamukova & Alferova, APJCO 2026; Sethna 2025; Rojas 2023) → durability data (RFS, 7.7-yr clone lifespans, *de novo* priming); (2) two pipeline-relevant clinical observations (low-mutation tumor indication; clonal pruning + author-proposed future directions, with inline gloss for "subclinical clones"); (3) honest pipeline-fit framing (pool expansion is solid; clonal-shared-vs-subclonal for splice antigens is open empirical question).
+
+**PR #260 opened with `Refs #232` (not `Closes`)** — closes one AC of #232 only; the Issue stays open as the manuscript-integration umbrella with 6 remaining ACs. [Multi-PR coordination comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232#issuecomment-4373317088) posted on #232 announcing the lazy-sibling-Issue plan for the rest. Scope-expansion comment also posted earlier ([here](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232#issuecomment-4370397677)) folding the clinical-translation arc into #232's body.
+
+#### Memory + workflow rules captured
+
+**Comment-first then body-edit for scope changes** (saved to `shared/feedback_scope_discipline.md`). Body-alone is silent (GitHub edit history is buried); comment-alone is stale (body misleads). Comment-then-body lets reviewers intervene before any PR ships, then keeps the body as current state of truth. Asymmetry note: body-edit alone is fine for minor wording / clarification changes that don't change scope — comment-first is specifically for *scope* changes.
+
+**AC-checkbox heuristic for upfront sub-issue decomposition** (saved to `shared/feedback_branch_planning.md`). When an Issue's acceptance criteria touch distinct sections / files / themes, decompose into sub-issues *before* opening any branch on the parent — AC checkboxes are ready-to-use sub-issue scopes. The mid-flight restructuring we hit on #232 today (1 AC landing, 6 ACs pending, branch already created against parent) is the exact failure mode this rule prevents. For #232 itself, Option Y (single Issue + multi-PR with `Refs`) is the cleanest path forward only because the Issue is already in flight; for new Issues going forward, sub-issues from the start are the right pattern.
+
+### 11:00 UTC — Editor: Developer
+
+#### Morning routine — three threads
+
+**Standup slip caught by user.** I claimed "no Pending messages to Developer requiring new action" based on a truncated system-reminder snapshot of `team_standup.md`. User pushed back ("did you actually check?"); I re-read the file explicitly and found PM had posted a **2026-05-04 10:06 UTC** message asking me to action the closure ritual on [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223), plus a **10:12 UTC** new shared rule. The slip surfaced a real failure mode — system-reminder snapshots are partial diffs, not full state, and I'd been pattern-matching them as authoritative. PM codified the fix as `shared/feedback_read_before_claiming.md` (promoted to MEMORY.md Always-in-effect), so the rule will load via `/cerebrum` next session.
+
+**Closure ritual on [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223).** Edited the body to tick 5 of 6 acceptance-criteria boxes; box 2 (patient_001 variant context) **comment-deferred to [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)** because the [PR #254](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/254) spike used a synthetic A→G SNV at the chr22:42M region midpoint — chosen for API plumbing — rather than an actual patient_001 germline variant. The literal spec wasn't met, but the gating purpose (verify `predict_variant` API path works end-to-end) was. #224's Experiment 2 covers the real test naturally via patient FASTA + `predict_sequence`. Full reasoning in the [comment on #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223#issuecomment-4370281435).
+
+**NeoGuider eval issue opened.** Engineer news briefing surfaced [NeoGuider (XuegongLab)](https://github.com/XuegongLab/neoguider) — end-to-end ML neoepitope ranking pipeline that handles splice variants alongside SNV/indel/fusion. Direct architectural peer to ours. 459 commits, 5 releases — active. Opened [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) for Scientist eval, joining the existing eval family (#218 HERMES, #201 ImmSET, #236 hybrid models, #188 Boltz-2, #222 splice2neo). Logged in `news_log.md` (this PR) so it doesn't re-surface in future briefings. Pipeline-fit modes pre-framed (triage / replacement / cross-check / component reuse) using the same vocabulary as #236, but specific scoping deferred to Scientist.
+
+**Process notes:**
+
+- News-log branch follows the PM-mandated convention from yesterday: `docs/developer/news-log-YYYY-MM-DD-HHMM` (today: `docs/developer/news-log-2026-05-04-1059`). The local "morning news" step name doesn't leak into the cross-role branch name.
+- PR Status will be flipped to "Ready for review" immediately after `gh pr create` per yesterday's PM ask now in MEMORY.md Always-in-effect — first PR where the rule applies.
+
+---
+
+## 2026-05-03
+
+### 18:12 UTC — Editor: Developer
+
+#### Issue #223 / PR #254 — review-cycle fixes
+
+`@claude` review on the AlphaGenome primer flagged three actionable items. All addressed in this commit:
+
+1. **Medium — "powers of 2" phrasing was misleading.** The primer (line 230) and the spike script (line 70) both said the four required input lengths were "powers of 2 ≤ 1Mb." Reviewer correctly pointed out that 2^15=32768, 2^16=65536, and 2^18=262144 are also powers of 2 but **not accepted** — only the four specific values 16384, 131072, 524288, 1048576 work. A reader taking the primer literally would expect the intermediate sizes to work and get a `ValueError`. Fixed both call sites to say "these four specific values" and explicitly list the rejected powers of 2.
+
+2. **Low — lenient-threshold caveat.** The primer described the spike's mean |ref − alt| of ~0.00014 as evidence the variant-affected-junction filter is "very lenient." Reviewer pointed out the spike SNV was a synthetic A→G chosen for API plumbing — not designed to disrupt splicing. So the tiny mean delta likely reflects micro-perturbations from a single nucleotide change, not characterisation of how the threshold behaves for biologically meaningful splice-disruptive variants (where deltas would be orders of magnitude larger). Added the caveat explicitly. Also added a one-line acknowledgment that geographic windowing wasn't ruled out by our test (the non-zero-delta rate just makes effect-based filtering the more parsimonious explanation).
+
+3. **Low — dead branch in `summarise_output()`.** The function used `getattr(val, "shape", None) is None` as a "this is a DataFrame, fall through to column listing" heuristic. But pandas DataFrames also have `.shape` (returns `(n_rows, n_cols)` tuple), so the column-listing else-branch was unreachable for `metadata` — instead the script printed `"metadata.shape: (367, 8)"`, which is less informative than the column inventory the comment promised. Fixed by handling `metadata` via its own explicit code path (always print columns) and looping the shape-printing only over `values + interval`. Verified with a mock-DataFrame smoke test.
+
+**Why this matters now:** the spike script is intended as a reusable probe for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)'s AlphaGenome validation notebook. Shipping with dead branches and misleading comments would be a paper-cut for whoever picks that issue up.
+
+**Verified:** smoke test confirms `summarise_output()` now prints the column list for DataFrames; primer + spike consistent on the input-length constraint. No tests changed (script is a one-off probe, not under pytest coverage). Closes [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) when this PR merges.
+
+### 17:49 UTC — Editor: PM
+
+#### Issue #245 — memory duplicate-check at write time (first pm-i1 same-day ship after #246)
+
+Implemented as `shared/feedback_memory_duplicate_check.md` (not `pm/...` per the issue's original AC — shared/ is correct because the rule applies to all roles writing memories). Defines the overlap heuristic (3 signals: name field, description field, keyword/domain), the prompt format (append/replace/proceed-anyway, default append), and exemptions (memories from current session, MEMORY.md itself, reference memories pointing at external systems).
+
+**Meta-test passed**: ran the to-be-codified rule on its own write — scanned shared/MEMORY.md for prior overlap with the proposed memory; closest candidate was `feedback_memory_escalation.md` (escalating an existing rule on repeat correction) which shares the *memory hygiene* domain but has different trigger and action. No overlap, proceeded.
+
+**Smoke test passed**: hypothetical near-duplicate `feedback_cerebrum_project_separation.md` (description: "Cerebrum framework vs project — keep them distinct in scoping decisions") would hit 3-of-3 signals against existing `feedback_cerebrum_vs_project.md`. Heuristic correctly flags.
+
+**Indexed in shared `MEMORY.md` Always-in-effect** as a one-liner pointing at the full rule. Sister rule to `feedback_closure_ritual.md` — together they bracket memory hygiene at write (this) and at close (ritual).
+
+**Sequencing note for the rest of pm-i1**: with #245 + #246 both shipped, the remaining 3 (#244 ask-for-help, #247 capacity recheck, #243 Rulesets) can proceed in any order. P1s (#244, #247) before P2 (#243).
+
+### 15:26 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — round-3 fix: close the report.tsv funnel
+
+`@claude` round-2 review verified all four round-1 items as closed and approved correctness. One non-blocking design observation: `report.tsv` consumers (RESULTS.md authors) saw a non-closed funnel because the three patient-level totals (`junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total`) didn't include `mean_reads_filtered` — that category only lived in `junction_filter_stats.tsv`, so anyone reading just `report.tsv` would see `extracted_total ≠ annotated_discarded + unannotated_total` with an unexplained gap.
+
+**Fix:** added `junctions_mean_reads_filtered` as a fourth `junction_filtering` row in `_build_report_tsv` (notes: "all tumor samples"). The four rows now reconcile arithmetically: `extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total`. New test `test_junction_funnel_totals_reconcile_in_report_tsv` enforces this invariant on `report.tsv` (separate from the equivalent invariant on `junction_filter_stats.tsv` from round 1). Updated existing tests to include `mean_reads_filtered` rows in their fixture stats data and assert on the new row's value.
+
+**Why not done in round 1/2:** Issue #214's spec named exactly three metrics (extracted/annotated/unannotated). Round 1 implemented exactly what the spec said; round 2 fixed reconciliation in the upstream stats artefact. Round 3 closes the gap between "internal artefact reconciles" and "report.tsv consumers see a closed funnel" — reviewer flagged this in round 2 as non-blocking but worth a conscious decision.
+
+**Verified:** 98/98 tests pass; Snakemake dry-run clean; rule graph unchanged.
+
+### 14:05 UTC — Editor: Developer
+
+#### Morning routine — standup cleanup + news briefing
+
+Standup cleanup: deleted 4 own Done messages from 2026-04-29 (>3 days, per the standup file rule). One Issue #79 scope-expansion notification + three follow-ups to PM. The durable record stays in commits / lab notebook / project board; standup is for active conversation only.
+
+News briefing surfaced three pipeline-relevant items, all logged in [`research/news_log.md`](news_log.md) so they don't re-surface in future morning briefings (gap caught when I re-surfaced the `googlebatch` executor today even though it was already tracked in [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66)):
+
+1. **PyTorch 2.7 + CUDA 12.6 = last P100-supporting combo.** PyTorch's [dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) describes Maxwell/Pascal/Volta as "feature-complete with no further enhancements planned" — 2.8 dropped Pascal kernels in cu128/cu129 builds. We already pin `torch>=2.0,<2.5` in `python.yaml`; this confirms the pin is **permanent on this hardware**, not a temporary workaround. Updated CLAUDE.md's `python.yaml — PyTorch SM 6.0 / P100 compatibility` section with this detail (this PR).
+2. **Snakemake `googlebatch` executor plugin** — already covered by [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (the issue body literally links the plugin catalog page). User correctly flagged the re-surface; logged it in `news_log.md` so we don't trip on it again.
+3. **Snakemake 9.x deprecates `--use-conda`** in favour of `--software-deployment-method conda`. Affects every snakemake call site in CLAUDE.md, `run_cloud_gpu.sh`, `setup_local.sh`, and possibly internal docs. Posted a [comment on Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4366348544) listing affected files — bundle into the 9.x migration PR rather than fixing separately, since 8.x still accepts both forms.
+
+Memory rule reinforced (didn't have to add): morning-routine news scan must check `news_log.md` first — items already logged shouldn't re-surface unless there's a meaningful update. The googlebatch slip happened because the original Issue #66 was opened before `news_log.md` existed (introduced 2026-05-01); now-logged → won't repeat.
+
+---
+
+## 2026-05-02
+
+### 20:32 UTC — Editor: Developer
+
+#### Issue #223 — live AlphaGenome API spike + primer doc
+
+User registered for the AlphaGenome API key in the same session, so the live test moved up from "next session" to now. Two-call probe in [`scripts/alphagenome_spike.py`](../scripts/alphagenome_spike.py) (committed under `scripts/` for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) reuse): one `predict_interval` and one `predict_variant` against a 131kb chr22 region. SDK is `pip install alphagenome` from PyPI; key loaded from `.env` as `ALPHAGENOME_API_KEY` matching the `zotero_add.py` `load_env` pattern.
+
+**Empirical findings, beyond the morning recon:**
+
+- **Latency**: 0.75–2.6s per call for a 131kb interval. Within the documented "<1s prediction" range (the rest is round-trip).
+- **Required input lengths are constrained to {16384, 131072, 524288, 1048576}** — not arbitrary. First call with 100k failed with a `ValueError`. Plumbing for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) needs to handle this. Documented in the primer.
+- **367 splice-junction tracks** total: 313 ENCODE + 54 GTEx; 195 total RNA-seq + 172 polyA-plus RNA-seq. The 54 GTEx tracks are the relevant subset for the predicted-normal filter ([#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) since GTEx profiled healthy human tissues; ENCODE includes cancer-derived cell lines (HeLa/K562) that are poor "normal patient tissue" proxies.
+- **Output shape is `(n_junctions, n_tracks)`** — a matrix where junctions are SHARED across tracks and tissue specificity lives in the score distribution within each column. This was a major mental-model fix for me; I'd been imagining one set of junctions per track. Documented in the primer as a load-bearing concept.
+- **`predict_variant` filters output to variant-affected junctions**, empirically verified: `predict_interval` returned 6084 junctions, `predict_variant` returned 503; 503/503 of those have ref ≠ alt in at least one track (none have identical values across all 367). User correctly hypothesised this was an effect-based filter (not the geographic windowing I'd guessed). Inclusion threshold appears very lenient — mean |ref − alt| of ~0.00014 still qualifies. So the 503 number is "any model-detectable variant response" rather than "biologically meaningful effect" — meaningful signal for [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) lives in delta magnitudes, not the count.
+- **`predict_variants` (plural) is batched single-variant queries, not a multi-variant compositor** — the docstring confirms "Variant outputs for each DNA interval and variant pair." Each variant is processed independently, returning N separate `VariantOutput`s with `max_workers` parallelism. So patient_001's combined germline-variant effect (Experiment 2) needs externally-built patient FASTA + `predict_sequence`, not `predict_variants`. The latter is the right tool for per-variant attribution (Experiment 3).
+
+**Documentation: [`docs/alphagenome_primer.md`](../docs/alphagenome_primer.md)** ships in this PR. ~290 lines covering tracks (the central concept), output shape, API methods as orthogonal query shapes (not different assays), `data_source` as training-time provenance, per-track interpretation, operational details, and the predicted-normal filter sketch. Iterated through several mental-model corrections with the user — the doc preserves the accurate framing rather than my initial half-right intuitions. Originally drafted with a "per-experiment API mapping" section; user pointed out [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)'s Experiment 1 design is Sci's call and shouldn't be encoded in a Dev primer — section dropped; suggestion to refine Exp 1 (use GRCh38 + annotated-only ground truth instead of patient WGS + observed normal) will be posted separately on [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) for Scientist.
+
+**Aggregation choice for the predicted-normal filter:** `max(axis=1)` over the 54 GTEx tracks — captures "if ANY healthy tissue shows signal, treat as normal" — aligned with Scientist's vaccine-CTL safety framing in [#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)/[#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212). Mean would smooth tissue-specific normal signals toward zero and miss them — wrong direction for safety. Max is sensitive to single-track noise; top-k mean / quantile threshold are noise-robust alternatives Sci can pick if needed. Documented.
+
+**Closes [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223)** when this PR merges. [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) unblock for Scientist.
+
+### 19:53 UTC — Editor: PM
+
+#### Issue #246 — implemented closure audit step in morning warmup + tightened "acceptance criteria visibly met"
+
+Picked the coolest pm-i1 P1 from this morning's slate to implement same-day. Added "Step 0.5 — Closure audit" to `pm/feedback_morning_warmup.md`: per-issue audit checklist (milestone, acceptance criteria, priority rationale consistency, sub-issue completeness, lab notebook entry), cross-role consistency checks, comment-not-reopen feedback loop. New section header convention `## 🔍 Closure audit` (rendered only when issues actually closed in the past 24h).
+
+**Smoke test on 9 recent closures surfaced 2 immediate fixes** — applied: backfilled milestone for #216 (closed 2026-04-30 with no milestone) and moved #234 from `i2 - S1 - Tool Landscape Evaluations` to `pm-i2 - PM Self-Improvement Tooling` (mis-milestoned pre-`pm-i<N>`-axis-convention).
+
+**Bigger finding came from user pushback** — they asked why acceptance-criteria checkboxes are so often unchecked. Re-running the audit with tightened criteria (operationalising "acceptance criteria visibly met" as `- [x]` boxes ticked, not just "PR exists") flipped the verdict on 6 of the 9 closures: 23 unchecked boxes across #79, #190, #191, #197, #219, #221. Even today's #235 (closed by me this morning) had plain bullets, not checkboxes — so the boxes weren't even tickable. Backfilled #235's body: converted bullets to `- [x]` checkboxes with closure-attestation note.
+
+**Codified two related rules:**
+
+1. **`shared/feedback_closure_ritual.md`** — before closing any issue, tick `- [x]` every met acceptance-criteria box, OR comment-defer with a follow-up link. Closing with unchecked boxes ≠ closing. Applies to all roles, not just PM. PM enforces via morning audit; each role self-enforces.
+2. **Companion rule in same memory** — every new issue's acceptance-criteria section MUST use `- [ ]` checkbox format from creation, not plain `-` bullets. Plain bullets make the ritual unenforceable.
+
+**Why this lands deeper than expected:** the original closure-audit checklist used "linked PR merged" as the proxy for "criteria met". That's a weak signal — every closed issue has a PR, so the check always passes. The tightened version asks the strong question: "are the boxes ticked?" — which immediately exposed that 6/9 recent closures skipped the ritual entirely. The smoke test caught a real systematic gap on its first run, which is exactly what the audit is for.
+
+**Pre-ritual closures (before 2026-05-02) are intentionally not retroactively ticked** — that requires verifying each criterion was actually met, which is dangerous to fake. They're the baseline. The ritual enforces forward.
+
+**Process meta-note:** this was the first PM-meta-work issue completed via the new `pm-i<N>` axis. Ships entirely as memory edits (no project-repo PR needed) plus the lab notebook entry. Smoke-tested same-day; full morning routine using the new step happens tomorrow.
+
+---
+
+### 18:46 UTC — Editor: Scientist
+
+#### Issue #236 — both candidates characterised, first deliverable complete
+
+Picked up [#236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) and worked through inference-mode classification per candidate.
+
+**TCRLens — mode (b)** via WebFetch on the [paper's Methods section](https://academic.oup.com/bioinformaticsadvances/article/6/1/vbag066/8496266). Requires 3D structures generated via the tFold-TCR pipeline. tFold-TCR is **5000× faster than AlphaFold-Multimer** (eliminates MSA via ESM-PPI-TCR), so it qualifies as a genuine fast-structure-predictor-inline. TCRLens is structure-source-agnostic — viable as both **triage** (using tFold-TCR upstream of MHCflurry → TCRdock) AND **cross-check** (reusing our TCRdock outputs). The only candidate so far that can sit upstream of TCRdock.
+
+**t2pmhc — mode (c)**, corrected from yesterday's abstract-only claim to a properly-cited methods-section read. WebFetch blocked on bioRxiv (403), so user supplied the PDF directly in conversation. Methods § Structure Prediction confirms: *"Structures of all TCR-pMHC complexes were predicted using TCRdock (v2.0.0)."* **t2pmhc uses TCRdock specifically** — the same tool we already run — so cross-check is essentially free in our pipeline (only the GNN scoring step adds). Pipeline-fit: cross-check only (mode c rules out triage and replacement). The discussion section also flags structure-prediction quality as the accuracy ceiling, which we'd inherit equally with them.
+
+Consolidated [comment on #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236#issuecomment-4364300411) with full pipeline-fit table. Second deliverable (pipeline-fit recommendation with scoped follow-ups) deferred until [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) lands patient_001 outputs — the natural shared test bed.
+
+#### Workflow revision — WebFetch envelope and PDF policy
+
+User pushback clarified the actual WebFetch envelope: body text yes, table content yes, figure captions yes, but figure images, layout-dependent content, and supplementaries — no. For deep analysis on eval candidates (benchmarking plots, structural diagrams, supplementary tables), text-only WebFetch is genuinely insufficient and I'd undersold this earlier. Extended `shared/feedback_zotero_defer_inaccessible.md` with an explicit *"always ask for PDF when deeper analysis is needed"* rule. Future flow: surface the WebFetch limitation, ask user to attach the PDF to the Zotero entry, then I fetch via `/items/{key}/file` or use the user-attached PDF in conversation.
+
+#### Zotero hygiene — bioRxiv replacements + HERMES correction
+
+User replaced the three bioRxiv entries that had been added yesterday/this morning via direct API workaround. New keys: `78BQ23IV` (Benchmarking foundation models for splice site and exon annotation), `STQYEVAQ` (t2pmhc, replacing deleted `E3WRMAAH`), `4N2J7SIH` (AI predicted TCR-pMHC structures — first time in Zotero). All three now have PDFs attached. I re-applied project tags via API: `manuscript-METHODS` + `manuscript-DISCUSSION` for `STQYEVAQ`; `manuscript-DISCUSSION` for the other two.
+
+**HERMES correction:** I claimed twice today that HERMES was missing from Zotero based on a title-substring search returning zero hits. Wrong both times. HERMES is in Zotero as `MWZFINV6` — the paper title is *"T cell receptor specificity landscape revealed through de novo peptide design"* (Visani et al., *PNAS* Oct 2025); **HERMES is the method name** introduced in this paper, but the title doesn't contain the word "HERMES" so the title-based search missed it. [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)'s body correctly references `MWZFINV6` — the bug was in my recall, not the issue. Tagged `manuscript-DISCUSSION` to position it alongside t2pmhc/TCRLens in the cross-check role.
+
+#### Standup — Developer cleared the AlphaGenome gate
+
+[Pinged Developer at 16:20 UTC](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) asking them to prioritise [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) (gates P1 Sci work in milestone #17, due 2026-05-22). Developer replied at 18:18 UTC: AlphaGenome is **$0 for non-commercial use** → Low Cost branch hit per #203's decision tree → [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) unblock as soon as Developer finishes the live API test next session. Cohort-expansion bonus is on the table once validation results come in.
+
+### 18:18 UTC — Editor: Developer
+
+#### Issue #223 — AlphaGenome API spike: recon-only pass
+
+Picked up Scientist's [16:20 UTC standup ask](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) (gates [#224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) + [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) in milestone #17, due 2026-05-22). Recon-only pass without an API key — answered the gating questions for downstream Sci work, deferred live API test to the next session. Full findings on [#223 comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223#issuecomment-4364440234); summary here:
+
+**Cost: $0** for non-commercial use. Cost decision branch in [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) → **Low cost** → sub-issues unblock; cohort-expansion bonus is on the table when Scientist sees validation results.
+
+**Junction connectivity confirmed.** [`dna_client.py`](https://github.com/google-deepmind/alphagenome/blob/main/src/alphagenome/models/dna_client.py) exposes `OUTPUT_TYPE_SPLICE_JUNCTIONS` as a first-class output type — distinct from `OUTPUT_TYPE_SPLICE_SITES` (per-position probabilities) and `OUTPUT_TYPE_SPLICE_SITE_USAGE`. So the API returns explicit donor → acceptor pairs per tissue, not just per-position scores. This was [#223 task #3](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) — the make-or-break verification — and it's a clean ✅. Without it the whole AlphaGenome arc wouldn't have made sense.
+
+**Rate limits intentionally undocumented and dynamic** — the team's posture per [community FAQ](https://www.alphagenomecommunity.com/t/what-are-the-alphagenome-api-limits/673) is "increase parallel workers until `RESOURCE_EXHAUSTED`, then back off." Default 5 workers, < 1s per prediction, 1Mb max sequence per call, single variant per request. Stated comfort zone is "thousands of predictions" — millions is where it breaks down. patient_001 across Experiments 1–3 lands solidly in the well-suited band.
+
+**SDK is open-source** ([github.com/google-deepmind/alphagenome](https://github.com/google-deepmind/alphagenome), since 2026-01-28). Standard pattern is `model = dna_client.create(API_KEY); model.predict_variant(interval=..., variant=...)` with `genome.Interval` and `genome.Variant` value objects. Tissue specified via UBERON ontology terms; concrete track inventory not enumerated in the README — needs a key to query.
+
+**Why this is enough to unblock #224/#225:** the two gating questions Scientist's design depended on were "does this cost real money?" and "does it return junction connectivity?" Both have hard answers now. The remaining recon items (live latency, exact tissue track count, output schema details) inform implementation but don't change the experiment design.
+
+**Next step:** user is registering for an API key now. Next session does the live test (one chr22 region, GRCh38 vs patient_001 variant), confirms output schema, then closes [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223). Hand-off to Scientist sub-issues happens at close.
+
+**Process note:** entry ships on its own time-suffixed branch (`docs/developer/lab-notebook-2026-05-02-1818`) per the multi-session pattern in `shared/feedback_lab_notebook.md` — [#223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) stays open across sessions, so the notebook entry is independent of issue lifecycle.
+
+### 16:48 UTC — Editor: Developer
+
+#### Issue #214 / PR #240 — review-cycle fixes
+
+`@claude review` on [PR #240](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/240) caught a real arithmetic bug in this morning's funnel design: `junctions_raw` was captured **before** the per-sample mean-reads filter, but `annotated_discarded` / `normal_shared` / `tumor_exclusive` were counted **after** — so the three patient-level totals didn't reconcile (`extracted_total ≠ annotated + unannotated`). The gap is exactly the noise junctions removed by `reads > mean`. My morning test even demonstrated it (4 raw → 3 classified, gap of 1) and I missed it.
+
+**Fix (Option A from reviewer):** added a 4th intermediate category `mean_reads_filtered` to `junction_filter_stats.tsv` so it now records the full 5-step funnel (`junctions_raw → mean_reads_filtered → {annotated_discarded, normal_shared, tumor_exclusive}`). The 3 patient-level rows in `report.tsv` are unchanged in name but the underlying schema now reconciles arithmetically. Added an explicit test `test_funnel_reconciles_arithmetically` asserting `junctions_raw == sum(4 downstream buckets)`.
+
+**Style nits also addressed in the same commit:**
+
+- Removed a defensive `try/except Exception` around `pd.read_csv(stats_tsv)` in `_build_report_tsv` — `junction_filter_stats.tsv` is a *required* Snakemake input, so the error path can't fire under normal pipeline runs. Per CLAUDE.md "don't validate scenarios that can't happen."
+- Removed a redundant outer `int()` cast on `sum(...)` in the same aggregation.
+- Switched `getattr(snakemake.input, "junction_filter_stats", None)` to direct attribute access `snakemake.input.junction_filter_stats`. The `getattr(...,None)` pattern is reserved for genuinely optional inputs (`hla_qc`, `pdb`, `scores_tsv`); using it for a required input misleads the reader about optionality.
+
+**Lab notebook process change captured as a memory:** user pushed back when I tried to *rewrite* the morning 10:48 entry to be a single self-contained "complete" account. Saved `shared/feedback_lab_notebook.md` "Entries are immutable" rule: each session writes its own entry, never edit/replace previously-committed entries — the lab notebook is a journal not a wiki, and the bug-catch narrative is exactly what's most useful for future-grep ("when did we add `mean_reads_filtered`?" → afternoon entry, not a retroactively-edited morning one).
+
+**Verified:** 234/234 tests passing (5 in `TestClassifyJunctionsStats` now, up from 4); Snakemake dry-run clean; rule graph correctly triggers `filter_junctions` from the code change.
+
+### 16:07 UTC — Editor: PM
+
+#### Issue #235 skim — completed the Anthropic 2026 Agentic Coding Trends Report cross-checks
+
+Pulled the PDF, extracted text + diagrams (text-only extraction missed the page-8 multi-agent architecture diagram, which turned out to be the densest content). Findings live in the [#235 comments](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235); two threads:
+
+1. **Main writeup** — 5 cross-checks (4/5 convergent), 3-layer orchestration framing (human → agent-orchestrator → specialists), per-cross-check evidence table.
+2. **Domain-bespoke follow-up** — sharpened cross-check #1: the report is *Coding Trends*, ours is *Bioinformatics Trends*; the orchestrator+specialists pattern is convergent but the specialist roster is domain-bespoke (we have Sci because we have scientific reasoning, not because we copied a template).
+
+**Three framing insights captured as shared memories** (more durable than this entry):
+
+- `feedback_cerebrum_vs_project.md` — Cerebrum is the meta-framework above all projects/roles; this project is one instance using it. Don't over-scope project-local issues to "Cerebrum".
+- `feedback_multi_role_not_multi_agent.md` — Prefer "multi-role workflow" over "multi-agent" when describing this project. "Multi-agent" implies agent-to-agent autonomy we don't have (user is the message bus). Calling it multi-agent overclaims.
+- `feedback_domain_bespoke_roles.md` — Our PM/Sci/Dev split is adapted to bioinformatics research. The orchestrator+specialists *pattern* is convergent across domains; the specific *roster* is domain-bespoke.
+
+**Future direction (parking lot, no issue):** partial autonomy via cron jobs / scheduled agents (e.g. PM doing autonomous overnight triage, archive sweeps, scheduled lit reviews). Worth revisiting when a specific bottleneck warrants it.
+
+**Process note:** this entry ships on its own time-suffixed branch (`docs/pm/lab-notebook-2026-05-02-1607`) per the convention introduced morning-of for journal-style entries that aren't tied to issue lifecycle. #235 is already closed; the lab notebook is a journal, not a deliverable, and shouldn't depend on issue state.
+
+### 10:48 UTC — Editor: Scientist
+
+#### Morning routine — AI-predicted TCR-pMHC structures paper
+
+Surfaced [*"AI predicted TCR-pMHC structures differentiate immune interactions"*](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1) (bioRxiv 2026-02). Three findings relevant to us: AlphaFold2 most consistent among AI tools for TCR-pMHC multimer prediction; **structural features outperform sequence features** for binding discrimination; non-binders produce less stable conformations under MD simulation. Reinforces the structural step at the top of our funnel and gives independent evidence that energy/stability signals are meaningful — directly relevant to the [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES eval.
+
+User discussion converged on framing the field as **hierarchical convergence**, not a sequence→structure paradigm shift: sequence models scale, structural models discriminate hard cases, and hybrids (structure-informed sequence models) are the emerging best-of-both. Our pipeline already runs MHCflurry (sequence-aware) → TCRdock (full structural) — the new finding doesn't argue against this, it argues *for* keeping a structural step.
+
+#### Issue #232 — S7 manuscript lit review opened
+
+PM's standalone S7 milestone (#16, `i3 - S7 - Publication - Splice Neoantigen Tooling Landscape (Lit Review)`) was greenlit yesterday for the 5 papers accumulated in the [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) lit review session. Opened [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (P2, S) with full paper inventory: Zotero keys + DOI links + per-section mapping (CNNeoPP→INTRODUCTION; splice2neo+AlphaGenome→METHODS; ENEO+SpliceMutr+AlphaGenome→DISCUSSION). PM's suggested title was INTRODUCTION+DISCUSSION only — corrected to INTRODUCTION, METHODS+DISCUSSION since the actual Zotero tags showed METHODS coverage too. AlphaGenome's DISCUSSION entry depends on #223/#224/#225 outcomes; other entries unblocked.
+
+#### Issue #236 — Hybrid TCR-pMHC scoring eval (t2pmhc, TCRLens)
+
+Today's lit search surfaced two strong hybrid candidates that fill a real gap in our TCR-scoring landscape (we had pure-sequence [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET, structure replacement [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2, structure confidence [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES, but no hybrid). Opened [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (P2, S) with explicit framing of three inference-time modes (a/b/c: sequence-only / sequence+fast-structure / sequence+full-AF2) and three pipeline-fit roles (triage / replacement / confidence cross-check). The pipeline-fit decision is a *consequence* of the inference-mode characterisation, not a starting assumption — issue's first deliverable is mode classification per candidate.
+
+t2pmhc abstract review (Zotero key `E3WRMAAH`) revealed it falls in **mode (c)** — uses predicted full TCR-pMHC complex structures as input. This narrows its pipeline-fit to confidence cross-check only (peer to HERMES); triage and replacement are off the table. TCRLens (Zotero key `272HU8FV`) inference mode still pending — paper read deferred to issue execution. Both papers added to Zotero with `manuscript-METHODS` + `manuscript-DISCUSSION` tags.
+
+bioRxiv DOI crash in `zotero_add.py` reproduced for t2pmhc (Issue #229 — empty `container-title` from CrossRef). Worked around via direct Zotero API call.
+
+#### News_log first Scientist entry under new convention
+
+PM merged [PR #238](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/238) this morning establishing the `### HH:MM UTC — Editor: <Role>` sub-heading convention for `news_log.md`. First Scientist entry under that format went out as [PR #239](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/239) (merged 10:44 UTC) covering today's three TCR-pMHC scoring papers. PR hit a conflict with the parallel PM merge (both branches added a `## 2026-05-02` section); resolved by interleaving sub-headings newest-first under the shared date — Scientist 10:04 UTC above PM 09:41 UTC.
+
+#### Memory adjustments — parking-lot leak + Zotero API reference
+
+User pushed back on a single-line glossary entry triggering a full PR; saved `shared/feedback_batch_trivial_docs.md` codifying batch-then-flush for trivial docs. **Initial design leaked state**: I added a "Currently parked" section inside the memory file with the actual pending entries — PM read it cross-role via the `shared/` symlink and was confused. Corrected: memory files are for rules, working tree is for state. Pending entries (today's MD glossary entry) now live as uncommitted edits on a docs branch; the memory file just points there.
+
+Also saved `reference_zotero_api.md` after an avoidable detour hunting for the `.env` location during Zotero tag fetches. Direct-query pattern (collection `Z38GTJNW`, `urllib.request` with `Zotero-API-Key` header) now documented for next time.
+
+#### Standup status
+
+Own message [`2026-05-01 13:57 UTC`] (S7 milestone request) marked Done — PM replied 14:02 UTC and created milestone #16 (now backing #232). No outstanding Pending messages addressed to Scientist.
+
+### 10:48 UTC — Editor: Developer
+
+#### Issue #214 — junction-funnel totals in report.tsv
+
+Fast-ship slice of [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104), unblocks Scientist's RESULTS.md. Adds three patient-level rows to `report.tsv` under stage `junction_filtering`: `junctions_extracted_total`, `junctions_annotated_discarded`, `junctions_unannotated_total` (all sums across tumor samples; normals omitted by design — see brainstorming below).
+
+**Architecture:** new artefact `junction_filter_stats.tsv` per patient, written by `filter_junctions.py` alongside the existing `novel_junctions.tsv`. Long-format schema (`sample_id, sample_type, category, count`) where `category ∈ {junctions_raw, annotated_discarded, normal_shared, tumor_exclusive}`. `generate_report.py` reads this file (declared as new input on both `generate_report` and `generate_report_with_structure` via the shared `_generate_report_input` helper), aggregates by category, and emits the 3 patient-level totals. The original per-sample rows are preserved untouched.
+
+**Why a new artefact rather than re-reading BED:** `filter_junctions.py` already computes `n_annotated`, `n_normal_shared`, `n_tumor_exclusive` per tumor sample — they were just being logged and thrown away. Persisting them is a 5-line change. The alternative (re-reading BED in `generate_report` and re-classifying junctions) would duplicate the entire reference/normal-set classification logic.
+
+**Why tumor-only:** the spec row `junctions_unannotated_total = normal_shared + tumor_exclusive` is a tumor-classification concept — only tumor samples get split this way (normal samples are used as a filter set, not classified). User confirmed (a) tumor-only over (b)/(c) mixed scopes; flagged that normal-sample `junctions_extracted_total` could be useful in future via a separate Issue if needed.
+
+**Naming alignment with [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215):** picked the long-format schema and category names (`junctions_raw`, `annotated_discarded`, etc.) to match #215's planned `filtering_stats.tsv`. When #215 ships, it can either supersede `junction_filter_stats.tsv` with the unified multi-step file, or aggregate it as one source among many. Migration cost stays small either way.
+
+**Tests:** 4 new tests in `test_filter_junctions.py` (schema, normal-omission, multi-sample, back-compat for callers without stats path) + 3 in `test_generate_report.py` (totals correctness, back-compat, notes-field convention). 233/233 total. Snakemake dry-run validates the rule graph: `filter_junctions` correctly triggers with the new output, downstream rules unchanged.
+
+### 10:06 UTC — Editor: PM
+
+#### Morning routine — introduced PM news as Step 0
+
+PM has been doing morning warmups (board recap, standup, triage) but never surfacing external context. Added Step 0 — PM news (web search before the board recap), scoped to GitHub Projects/Issues updates, PM tooling, methodology shifts. Each item logged to `research/news_log.md` to dedupe across roles. Updated `pm/feedback_morning_warmup.md` to codify the step + the new `## 📰 PM news` section header.
+
+Test-ran on first day with three queries (GitHub Projects updates, PM tooling news, software engineering methodology trends). Filtered listicles; kept items with concrete signal. Three made it through → see `research/news_log.md` for the full log.
+
+#### Issue #234 — GitHub MCP Server eval (XS, P2)
+
+Today's news surfaced that the [official GitHub MCP server](https://github.blog/changelog/2026-01-28-github-mcp-server-new-projects-tools-oauth-scope-filtering-and-new-features/) (Jan 2026) exposes typed `project_v2` mutation tools (Status, Priority, Size, Target date) at lower token cost than raw `gh api graphql`. Today PM uses hand-rolled GraphQL with hardcoded field IDs (e.g. `PVTSSF_lAHOB17eGc4BSomPzhAHGh8`). Every triage / re-arrangement burns context on boilerplate. [Issue #234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234) opened to evaluate migration; assigned to `i2 - S1 - Tool Landscape Evaluations`, P2 (strategic DX win, not blocking).
+
+#### Issue #235 — Anthropic 2026 Agentic Coding Trends Report skim (XS, P1)
+
+Anthropic published industry data on multi-agent coding workflows. Our PM/Sci/Dev split, file-based memory, markdown-standup pattern, and scope-discipline rules were designed iteratively without surveying industry patterns. Low-cost opportunity to sanity-check before they ossify. [Issue #235](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235) — 30-min skim with 5 PM-flavoured cross-checks (role decomposition, coordination protocol, memory architecture, scope-discipline failure modes, handoff mechanics).
+
+**Why P1 (vs P2):** This is rare for a research/eval issue. Justified because the cross-check informs every future PM decision (and indirectly Sci/Dev workflows) at low cost. Catching divergences early is much cheaper than after the patterns are entrenched. Not blocking active work, but high information value per minute spent.
+
+#### Cerebrum vs project scope distinction
+
+User flagged that I'd labelled #235 "Cerebrum cross-checks" when it should have been "PM practices cross-checks". **Cerebrum** = the meta multi-agent framework above all projects/roles; **this project** = one instance using Cerebrum. Conflating them inflates scope (project-local issues become "Cerebrum architecture" reviews). Saved as shared memory `feedback_cerebrum_vs_project.md` so all roles get the rule. Reframed #235's title and body accordingly.
+
+#### News_log format extension — time + editor sub-heading
+
+Originally the news_log had one date section with bullets. With PM joining Sci/Dev as a logger, editor attribution was previously implicit and going to break down. Mirrored the lab-notebook format: each session adds a `### HH:MM UTC — Editor: <Role>` sub-heading under the date. Historical entries (pre-2026-05-02) kept as-is. Documented in `shared/reference_news_log.md` and `pm/feedback_morning_warmup.md`. Shipping convention: `docs/<role>/news-log-YYYY-MM-DD-HHMM` time-suffixed branch (no issue link), mirroring the multi-session lab-notebook pattern.
+
+#### Standup — Developer Pending re-raise cleared
+
+[Re-raised the closing-run issues #193/#194/#195 message](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues) after 3 days of no response. Developer acknowledged at 08:56 UTC — same response as Scientist (will populate when scoping each iteration's work). Standup is now fully clear.
+
+---
+
+## 2026-05-01
+
+### 18:30 UTC — Editor: Developer
+
+#### CLAUDE.md — pin GitHub project board ID
+
+Quick board scan surfaced that the project board ID isn't documented in-repo, and `gh api graphql` against `organization(login: "Jin-HoMLee")` silently returns null because it's a *user* project, not an org project. Added a one-liner to CLAUDE.md pinning project #9 + the correct GraphQL shape ([PR #231](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/231)).
+
+### 17:52 UTC — Editor: Developer
+
+#### Issue #90 / PR #179 — closed without merging; revival deferred
+
+[PR #179](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/179) had Approve-with-nit on April 28; the nit was fixed in `51f6c43` this morning, but the PR then sat ~3 days during which [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) and [PR #227](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/227) reshaped the report-rule outputs. By the time we returned, PR #179's consolidated rule was stale (only knew about the original single `report_html` output) and an attempted main-merge produced an incomplete `report.smk` (missing `report_3d_structure_tsv`) plus a real conflict in `structure.smk`. Closed without merging; left full revival context on [Issue #90](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/90#issuecomment-4360756527).
+
+The Issue's premise is still valid: when TCRdock is enabled, both `generate_report` and `generate_report_with_structure` exist and emit overlapping outputs (`report_html`, `report_tsv`, `report_top_candidates_tsv` at identical paths) with no `ruleorder` to disambiguate. PR #210 added `report_3d_structure_tsv` only to the structure rule; that's the one output that distinguishes them. Three viable revival paths captured on the Issue: (1) consolidate with a sentinel/empty 3D-structure TSV when TCRdock is disabled, (2) function-driven `output:` unpack, (3) just add a `ruleorder` directive — option 3 is the smallest fix that addresses the actual ambiguity, options 1–2 are the cleaner consolidation.
+
+The "log path nit" the reviewer flagged on PR #179 (`_LOGS/{patient_id}/analysis/report.log` → `report/report.log`) was a regression introduced by PR #179's own rename — main still uses `analysis.smk` so the path is internally consistent there. No follow-up fix needed on main.
+
+### 14:51 UTC — Editor: Developer
+
+#### Issue #221 — PR #210 review-fix follow-ups
+
+Bundled the four lower-priority items deferred from PR #210 review into one PR. Reviewer flagged them as Low/Nit so the diff stays focused on the original refactor; this picks them up while context is fresh.
+
+**Items addressed:**
+
+1. **Test now actually verifies the artefact-driven path** (was Low-Medium). The original test claimed corrupted raw inputs shouldn't break HTML rendering but never corrupted anything — it ran `generate_report` once and asserted `<html` was in the output, a tautology that would pass whether the inversion was real or not. The reviewer's literal suggestion ("overwrite raw inputs with garbage, call generate_report with artefact paths") doesn't work because `generate_report` always reads raw inputs at the top of every call before writing artefacts — corrupting them just crashes the second call. Equivalent-strength approach: monkey-patch `_build_report_top_candidates_tsv` so that AFTER it writes the artefact we inject a sentinel peptide name ("SENTINELPEPTIDE") into the file. The HTML rendering happens after the writer and reads from the modified file. The sentinel would never appear in the HTML if the renderer fell back to raw `pred_df` — its presence proves the artefact path is genuinely active.
+
+2. **`effective_patient_id` path-derived fallback now warns.** When `patient_id` isn't passed, the function falls back to `output_html.parts[-3]` assuming the layout `…/{patient_id}/reports/report.html`. If that layout ever changes, every artefact row records the wrong patient ID silently. Added a `log.warning` when the fallback fires — the Snakemake path always passes `wildcards.patient_id`, so the warning only surfaces on ad-hoc CLI runs (which is when it's most useful).
+
+3. **`_build_report_3d_structure_tsv` gracefully handles column rename.** Was hardcoding `top.get("mhc", "")` for the allele. If TCRdock ever renames the column (or some local TCRdock version uses a different convention), the manifest silently records empty allele → 3D viewer shows "NA". One-liner change to `top.get("mhc") or top.get("allele", "")`.
+
+4. **Truncation-notice nit kicked to a proper Issue.** `_build_strong_table_html_from_top_candidates` (artefact path) can't say "Showing N of M rows" the way the raw `_build_strong_table_html` can — when the artefact is written, the writer caps to `TOP_CANDIDATES_LIMIT=10` and the original count is discarded. A literal parity fix needs a schema change in `report.tsv` to surface the pre-cap total. That's not trivial and not appropriate for a "nit" PR — opened [Issue #226](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/226) for the proper fix and added a docstring note linking to it.
+
+**Verified:** `pytest workflow/tests/test_generate_report.py` — 57/57 passing. The new sentinel test would fail if anyone broke the artefact-driven path, so it's a real regression guard now.
+
+[Issue #221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/221) closed by the PR carrying this entry.
+
+### 14:00 UTC — Editor: Scientist
+
+#### Issue #203 — rescope to AlphaGenome-only + validation strategy designed
+
+Picked up [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (Backlog, P1) per "what's next" recommendation — only pure-Scientist research issue in the queue. Set Status to In progress and refreshed the issue body in two steps over the session.
+
+**Rescope: population-panel axis closed.** #203 originally proposed two complementary axes for rethinking normal filtering — (1) GTEx population panel as always-on filter, (2) AlphaGenome predicted-normal fallback for unmatched-normal patients. Yesterday's [#191](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/191) decomposition session resolved (1) cleanly via [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) → [#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) + [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212), with the key design choice of *pan-tissue* (vaccine systemic-CTL safety dominates) over *tissue-matched*. So #203 is now narrowed strictly to axis (2) — AlphaGenome predicted-normal fallback. Updated body explicitly strikes through axis (1) with pointers to where it lives, so any reader of #203 understands the boundary.
+
+**Literature review (2024–2026) on unmatched-normal handling.** Searched three angles: clinical pipelines that handle unmatched-normal cases, AlphaGenome's published splice-junction validation, and prior art on predicted-normal approaches. Five papers added to the Zotero collection with `manuscript-INTRODUCTION` / `-METHODS` / `-DISCUSSION` tags so the manuscript-section relevance is captured up-front:
+
+| Paper | Year | Key role for us |
+|---|---|---|
+| [splice2neo](https://academic.oup.com/bioinformaticsadvances/article/4/1/vbae080/7684965) | 2024 | Closest published methodological analog (sequence-based prediction → validate against healthy tissue) |
+| [AlphaGenome](https://www.nature.com/articles/s41586-025-10014-0) | 2026 | Core technology candidate; predicts splice site presence + usage + junction connectivity from sequence |
+| [ENEO](https://academic.oup.com/nargab/article/7/3/lqaf026/8196479) | 2025 | Closest unmatched-normal pipeline (Bayesian tumor-only); inspires probabilistic combination framing |
+| [SpliceMutr](https://aacrjournals.org/cancerrescommun/article/4/12/3137/750561) | 2024 | Pan-cancer splice neoantigen burden reference |
+| [CNNeoPP](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2026.1722117/full) | 2026 | Newest end-to-end personalized pipeline (LLM-enhanced) |
+
+**Convergent finding from lit review:** the published default for cancer-specific splicing is `positive sample rate < 1%` in GTEx (per splice2neo and the [Tumour-wide RNA splicing aberrations](https://www.nature.com/articles/s41586-024-08552-0) paper). Our [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) config uses `min_read_count: 1` — strictly more aggressive than the 1%-positive-rate convention. Justified by the vaccine-safety framing (precision ≫ recall for 10–20 vaccine slots), but worth flagging so the deviation is read as deliberate, not arbitrary. Posted as a non-scope-changing comment on [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212#issuecomment-4359624169) — natural relaxation point if future analysis shows we lose too many true tumor-exclusive junctions.
+
+**Sharpening finding on AlphaGenome.** The lit review surfaced a meaningful gap in AlphaGenome's published benchmarking. The Nature 2026 paper covers (a) tissue-aggregate junction prediction across 7 GTEx tissues, (b) variant-effect on junction counts, (c) held-out genomic interval performance. But **per-individual normal junction prediction from WGS — our actual use case — is not directly benchmarked**. AlphaGenome is trained on healthy reference data; feeding it a patient's WGS may produce something closer to a "tissue prior" than a "patient-specific normal predictor". This isn't a deal-breaker, but it sharpens the validation question: we have to test whether patient-specificity is actually present, not assume it.
+
+**Validation strategy (three experiments on patient_001).** Patient_001 has matched-normal RNA-seq, so it functions as the gold standard:
+
+- **Experiment 1 — Predictive validity.** AlphaGenome on patient_001 WGS → precision/recall/F1 vs. observed matched-normal BED, stratified by tissue track.
+- **Experiment 2 — Patient-specificity test (the discriminating experiment).** AlphaGenome on GRCh38 reference for the same regions → quantify how many predictions change when patient germline variants are included. **If delta is small, AlphaGenome is a tissue prior (redundant with #211/#212); if meaningful, it captures germline-driven splicing variation (genuine 3rd source).**
+- **Experiment 3 — Comparative filter strength.** Apply matched-normal / GTEx pan-tissue / AlphaGenome separately on patient_001's tumor junction set → quantify overlap, unique contributions, total filtered.
+
+**Decision rules locked into [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body:** F1 ≥ 0.8 AND patient-specific delta > 10% → adopt as 3rd always-on source; F1 ≥ 0.7 AND ≥ 5% unique vs GTEx → adopt as fallback only; F1 < 0.5 OR delta < 1% → no-go.
+
+**Why this is publishable either way.** Both outcomes yield novel insights: a *positive* result is the first demonstration of foundation-model-driven per-individual normal filtering for splice neoantigens (methodological contribution); a *negative* result is a cautionary insight that genome foundation models operate as tissue priors not individual predictors on this task (informs the field's expectations + framing). The discriminating measurement is Exp 2's patient-specificity delta — that's the scientific novelty regardless of direction. Manuscript follow-up tracked under PM's standalone S7 [milestone #16](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/16).
+
+**Sub-issues created and linked under [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203):**
+
+- [Sub-Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) — `feat(api): confirm AlphaGenome API access + cost feasibility` (Dev, XS) — gates B+C. Cohort upscale signal captured: if costs are low enough, expand beyond patient_001 for statistical power.
+- [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) — `research(filter): patient_001 notebook for Experiments 1+2` (Sci, S, blocked by #223)
+- [Sub-Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) — `research(filter): Experiment 3 — comparative filter strength` (Sci, XS, blocked by #224)
+
+**Side products of the lit review session:**
+- [Issue #222](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/222) — `research(splice): evaluate splice2neo as alternative or component` opened. splice2neo is the closest published methodological analog to our pipeline; the question is whether it's a better-engineered version of what we're building or whether our differentiation (GPS scoring, TCRdock structural validation, vaccine-safety pan-tissue filter) keeps it complementary. Same eval pattern as [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) (Boltz-2), [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) (HERMES), [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) (ImmSET) — but on the upstream junction-calling side rather than the structure side.
+- [Threshold-stringency comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212#issuecomment-4359624169) on [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (see above).
+
+[Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) stays In progress while sub-issues run; Sci closure happens after Exp 3 + decision write-up + S7 manuscript follow-up issue scoping.
+
+### 11:52 UTC — Editor: Developer
+
+#### Issue #219 — `research/news_log.md` shared news-deduplication file
+
+Established a shared news log convention to prevent re-surfacing the same items across morning briefings (Developer + Scientist). Without it, repeated WebSearches over a single sprint hit the same tool releases / papers / deprecations and waste briefing time. Two cerebrum changes already landed this morning to wire the convention into the morning routine — this PR commits the actual file to the repo so both roles can read + append.
+
+**Format (minimal — won't grow unwieldy):**
+
+```
+- **Item** (date) — keywords. → action. *Role. Signal.*
+```
+
+- *Role* = Developer / Scientist / Both (whoever surfaced it)
+- *Signal* = pipeline-relevant / industry-standard / rising-trend / portfolio-differentiator (per `feedback_portfolio_lens.md`)
+- *Action* = Issue number opened, or "no action" / "no action; revisit if X"
+
+Initial entries cover items from this week's briefings: `uv 0.11.8 / ruff 0.15.7` (industry-standard, no action), HERMES (portfolio-differentiator, → [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)), MHCflurry 2.2.0 (pipeline-relevant, no action — torch already compat), Snakemake 9.19.0 (pipeline-relevant, → [#200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200)), AlphaGenome (portfolio-differentiator, → [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)), ImmSET (portfolio-differentiator, → [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201)).
+
+**Cerebrum side (already done, not in this PR):** `feedback_morning_routine.md` Phase 1 now starts with "read `research/news_log.md` before WebSearch"; new shared memory `reference_news_log.md` documents the convention; `developer/shared/MEMORY.md` lists the news log under a new "Always read before morning routine (Phase 1 — news)" section.
+
+[Issue #219](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/219) closed by the PR carrying this entry.
+
+### 11:37 UTC — Editor: Developer
+
+#### Issue #79 / PR #210 — review-fix follow-up
+
+[PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) reviewer (Claude code-review action) flagged 2 **Medium** items, 3 **Low** items, and 1 **Nit** on yesterday's Phase 2 refactor. Addressed both mediums in `98ed6fd` and deferred the rest to a single follow-up Issue to keep this PR's diff focused on the original refactor scope.
+
+**Mediums fixed:**
+
+- **Filter alignment.** `_build_report_top_candidates_tsv` was filtering `presentation_class == "strong"` while `_build_report_tsv` and `_resolve_top_candidate_for_structure` both used `isin(["strong", "weak"])`. The divergence meant a patient whose only top presenter was "weak" would have a populated `top_candidate` row in `report.tsv` but an empty `report_top_candidates.tsv` and a `("NA", "NA")` 3D viewer annotation. Aligned all three on `isin(["strong", "weak"])` — this matches the docstring's "all three surfaces stay aligned" claim and is consistent with the percentile gate already referencing the *weak* threshold. Updated the corresponding empty-output log message ("no strong presenters" → "no qualifying presenters") so it doesn't lie about the broader filter.
+- **`_rank_presenters()` helper extracted.** The three-key sort (`genotype_presentation_score` desc → `n_strong_alleles` desc → `best_presentation_percentile` asc, with `presentation_percentile` fallback) was copy-pasted across three functions. Now defined once at the top of the report-generation section; all three call sites do `df = _rank_presenters(df)`.
+
+**Verified:** `pytest workflow/tests/test_generate_report.py` — 57/57 passing.
+
+**Deferred to follow-up Issue (PR #210 polish):**
+
+- Low-Medium: `test_artefacts_drive_html_when_provided` doesn't actually corrupt raw inputs after artefact write — needs to overwrite raw inputs with garbage and assert correct patient ID is still in HTML to genuinely prove the artefact path is active.
+- Low: silent `effective_patient_id` path-derived fallback — needs `log.warning` when the fallback fires.
+- Low: `_build_report_3d_structure_tsv` hardcodes `"mhc"` column for allele — needs `top.get("mhc") or top.get("allele", "")` fallback.
+- Nit: `_build_strong_table_html_from_top_candidates` no truncation notice — parity gap vs raw-path table; low value while `TOP_CANDIDATES_LIMIT=10` but worth a comment.
+
+Reviewer LGTM at 10:56 UTC; deferral rationale accepted ("scope call is reasonable"). [PR #210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/210) merging next.
+
+### 11:23 UTC — Editor: Scientist
+
+#### Issue #103 — folded into Issue #215 (filtering audit trail)
+
+While running the "what's next" recommendation algorithm, [#103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/103) (track per-file mean threshold + read-count distribution) surfaced as a top-3 candidate. On closer look it overlapped substantially with [#215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215) (full filtering audit trail, sub-issue of [#104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104)).
+
+**Column-by-column overlap:** 3/7 of #103's TSV columns (`n_junctions_raw`, `n_after_mean_filter`, `pct_retained`) duplicate #215's `junction-filter | junctions_raw` and `after_mean_filter` rows. The remaining 4/7 (`min_reads`, `mean_reads`, `median_reads`, `max_reads`) are uniquely additive — they answer the **threshold-tuning question** ("is the per-file mean appropriate for each sample?") rather than the **funnel question** ("where are junctions lost?") that #215 already covers. The mean filter is currently silent (the threshold value isn't recorded anywhere); on a deeply-sequenced sample it can sit at hundreds of reads and silently filter out rare-but-real junctions.
+
+**Format compatibility ruling:** #215 is long-format (`step | category | count`). The 4 distribution stats are different *measurements* of the same `junction-filter` step on the same sample, so they fit naturally as 4 additional rows under `junction-filter`, not as a separate file or hybrid schema. No restructuring needed.
+
+**Decision: fold #103 into #215.** Updated #215's body to add the 4 distribution categories under `junction-filter` and a new "Why include the 4 distribution stats" section that captures the threshold-tuning rationale (so the motivation isn't lost when #103 closes). Single coherent instrumentation pass for Developer, no sequencing dance, marginal scope add (~XS-worth on top of an S issue, well within the band). #103 closed with a comment explaining the overlap analysis and pointing to #215. FYI heads-up posted to Developer in standup — net effect is 4 extra stat rows per sample, no sequencing change.
+
+### 09:30 UTC — Editor: Scientist
+
+#### Issue #218 — HERMES (Visani et al., PNAS 2025) eval issue created
+
+Developer flagged [HERMES (PNAS, Oct 2025)](https://doi.org/10.1073/pnas.2504783122) in standup as a structure-based ML scoring candidate for TCR-pMHC. Despite zero TCR-pMHC training, HERMES achieves 0.72 correlation with experimental binding affinities — it's a physics-guided 3D-equivariant model trained on the protein universe, predicting amino acid preferences from local structural environments. The [Feb 2026 bioRxiv follow-up](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1.full) applies AF2-predicted structures with the same scoring logic.
+
+Framed for our pipeline as a **post-TCRdock confidence cross-check** rather than a replacement: HERMES could score the structural quality / interaction strength of the TCRdock-predicted complex, particularly appealing for neoantigens where domain-specific TCR-pMHC training data is scarce. A second potential use is **VDJdb panel pre-screening** before expensive co-folding ([#205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205)). Same eval pattern as [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) (Boltz-2) and [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) (ImmSET) — assess methodology, decide whether to integrate.
+
+[Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) opened. Zotero key `MWZFINV6`. Follow-up reply to Developer in standup confirming.
+
 ---
 
 ## 2026-04-30
+
+### 15:43 UTC — Editor: Scientist
+
+#### Issue #191 — decomposition session for Issue #126 (GTEx pan-tissue junction filter)
+
+Decomposed [parent Issue #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) into two implementation sub-issues. Most of the parent's scientific design was already locked (pan-tissue scope, GTEx V10 source, `filter_junctions.py` integration point), so the session was mostly mechanical — except for one important design pivot.
+
+**Design pivot — adopted *always-on stacking*, rejected *tissue-matched scope*.**
+
+The morning's Sci+Dev discussion (captured in [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203), Developer-created) had floated changing #126's design in two ways at once: (a) always-on filter that stacks with matched-normal (vs. opt-in fallback), and (b) tissue-matched scope (vs. pan-tissue). The morning framing motivated both via the GATK Panel-of-Normals analogue from somatic variant calling.
+
+On reflection in this Sci session, **(a) was kept and (b) was rejected**:
+
+- **Always-on stacking ✅ adopted.** Matched normal captures one observation of one individual in one tissue; GTEx pan-tissue captures population-level expression across ~54 tissues. They are complementary, not redundant. Stacking is the right default.
+- **Tissue-matched scope ❌ rejected.** A vaccine-induced CTL response is *systemic* — patrols all tissues, not just the tumour's lineage. Restricting GTEx to e.g. bone tissue for an osteosarcoma patient leaves heart, liver, kidney, etc. unprotected against autoimmune off-tumour toxicity from cross-tissue junction expression. The PoN analogue from somatic variant calling is useful framing for *always-on stacking*, but the *tissue scope* choice is dominated by the vaccination-specific safety argument — same reasoning as the original [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) spec, which I now re-confirm.
+
+This is why the Scientist role exists separately from the Developer role: the GATK PoN intuition is sound for somatic SNV/indel calling, but breaks at the vaccination/autoimmunity level because the deliverable is no longer a list of mutations but a population of CTLs released into a patient's circulation. Captured this distinction explicitly in the resolution comment on [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203#issuecomment-4353911289).
+
+**Locked-in defaults (`gtex_filter` config):**
+- `enabled: true` (always-on; was `false` in #126)
+- `min_read_count: 1` (most aggressive — precision over recall, vaccine 10–20 slot framing)
+- `reference_bed: gs://splice-neoepitope-project/resources/gtex/v10/gtex_v10_pan_tissue_junctions.bed` (GCS-staged, consistent with rest of pipeline data flow)
+
+**Output:**
+- [Sub-Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) — `feat(filter): GTEx V10 pan-tissue junction reference set construction` (M) — pin GTEx V10 release, build pan-tissue union BED, stage to GCS
+- [Sub-Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) — `feat(filter): integrate GTEx pan-tissue filter into filter_junctions.py — always-on, stacks with matched-normal` (M, blocked by #211) — wire into pipeline, validate on patient_001 (stacking) + patient_002 (sole filter beyond annotated)
+
+Both linked under [parent #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126), milestone i2-S3. Cross-reference comment posted on [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126#issuecomment-4353911112) recording the default-flag change so the parent body's `enabled: false` snippet doesn't mislead future readers.
+
+**Manuscript follow-up (not in this PR):** the DISCUSSIONS.md "Normal sample filtering → GTEx pan-tissue filter" section's *scientific reasoning* is unchanged, but if it currently describes the filter as "opt-in" or "fallback when no matched normal", that one-liner needs updating once [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) lands and we have validation numbers to cite.
+
+[Issue #191](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/191) closed by the PR carrying this notebook entry.
+
+### 14:15 UTC — Editor: Developer
+
+#### Issue #79 Phase 2 — HTML now driven by report.tsv + two new artefacts
+
+Completed the data/presentation decoupling for [Issue #79 (regen report.html from report.tsv)](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/79). Phase 1 yesterday wrote three machine-readable artefacts (`report.tsv`, `report_top_candidates.tsv`, `report_3d_structure.tsv`) but HTML still read the raw pipeline files. Phase 2 inverts that — `generate_report()` now writes the artefacts first, then reloads them and renders HTML from those projections.
+
+**New helpers in `generate_report.py`:**
+
+- `_load_report_tsv(path)` — long→wide pivot returning per-stage projections (junction_filtering DataFrame, mhc_prediction count dict, top_candidate dict, hla_typing dict, tcrdock dict). Non-lossless by design — exposes only what the HTML render needs.
+- `_render_contig_peek(peek)` — parses the bracketed plain-text peek from `report_top_candidates.tsv` (e.g. `AAA[CC|GG]TTT`) into the same span-classed HTML `_render_contig` produces from raw sequence. Round-trip locked in by test.
+- `_build_strong_table_html_from_top_candidates(df)` — consumes the wide TSV directly. No raw `pred_df` or contigs FASTA needed; the writer's quality gate, sort order, and `TOP_CANDIDATES_LIMIT=10` cap all flow through automatically.
+- `_presenter_counts_html(mhc_prediction_dict)` — renders presentation-class counts from the loaded `report.tsv` projection.
+- `_resolve_top_candidate_from_manifest()` / `_resolve_top_candidate_for_structure()` — split the two sourcing paths for the 3D viewer's annotation; `_build_structure_section()` signature simplified to `(pdb_path, peptide, allele)`.
+
+**Vocabulary sweep** per `developer/shared/feedback_presenters_terminology.md`: "binder" → "presenter" / "presentation" everywhere user-facing and in internal naming. The IC50 column tooltip "Binding affinity in nM" stays — IC50 IS binding affinity per the rule's stated exception.
+
+**Backward compat:** when `output_tsv` / `output_top_candidates_tsv` / `output_3d_structure_tsv` aren't passed (CLI-only path), the original raw-input renderers are used as fallbacks. No regression for ad-hoc `python generate_report.py` runs.
+
+**Verified:**
+
+- `pytest workflow/tests/`: **226/226 passing** (16 new tests added across `TestRenderContigPeek`, `TestBuildStrongTableHtmlFromTopCandidates`, `TestPresenterCountsHtml`, `TestGenerateReportEndToEnd`)
+- `snakemake -n --configfile config/test_config.yaml`: 6 jobs, `generate_report` resolves
+- `snakemake -n` with GPU overlay: 7 jobs, `generate_report_with_structure` resolves with the 3D manifest output
+
+**Two commits on top of yesterday's three:**
+
+- `3f55309` — feat(report): add `_load_report_tsv()` loader for HTML decoupling
+- `0e1610f` — refactor(report): drive HTML from report.tsv + top-candidates + 3D manifest
+
+**Follow-up still scoped under [Issue #198](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/198):** distributing artefact ownership across the producing scripts (move `report_top_candidates.tsv` and `report_3d_structure.tsv` writes to `run_mhcflurry.py` and `run_tcrdock.py` respectively). Today's PR keeps writers in `generate_report.py` for atomicity — `#198` will redistribute.
+
+---
 
 ### 10:54 UTC — Editor: Scientist
 

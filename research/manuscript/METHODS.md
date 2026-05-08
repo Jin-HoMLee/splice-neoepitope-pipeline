@@ -61,6 +61,27 @@ carried forward to neoepitope prediction.
 When no matched normal sample is available, all unannotated junctions are labeled
 `tumor_exclusive` with a warning.
 
+### Comparison to related approaches
+
+Two recently published resources are relevant to this pipeline's junction classification approach:
+
+- **splice2neo** (Lang et al., 2024, *Bioinform Adv*) is **variant-driven**: it starts from
+  somatic SNVs/indels, predicts altered splicing as a downstream consequence, and derives
+  candidate neoantigens from the predicted altered transcripts. The pipeline described
+  here is **junction-driven**: it starts from observed RNA-seq junctions and classifies
+  them by origin (annotated, normal-shared, tumor-exclusive). The variant-driven approach
+  captures splicing changes attributable to specific somatic variants; the junction-driven
+  approach captures any tumor-exclusive junction regardless of underlying cause (somatic
+  variant, intronic mis-splicing, intron retention, or splicing-factor dysregulation).
+- **AlphaGenome** (Avsec et al., 2026, *Nature*) is a deep-learning model that predicts
+  regulatory and splicing outcomes from sequence context, with a dedicated splice-junction
+  output that returns donor–acceptor pair probabilities. We are evaluating AlphaGenome as
+  a candidate **computational normal filter** — an alternative or complement to the
+  matched-normal RNA-seq filter described above, that does not require a per-patient
+  normal sample. Inputs are junction coordinates and the GRCh38 reference; outputs are
+  per-junction tissue-specific splicing probabilities. The validation outcome is reported
+  in the Discussion.
+
 ---
 
 ## 4. HLA Typing

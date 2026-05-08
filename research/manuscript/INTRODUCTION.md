@@ -14,10 +14,23 @@ immune tolerance.
 
 Neoepitope-based immunotherapy has emerged as a promising approach in cancer treatment,
 underpinning the development of personalized cancer vaccines and adoptive T-cell therapies.
+Phase 1 trials of personalized mRNA neoantigen vaccines have established clinical
+feasibility — most notably autogene cevumeran in pancreatic ductal adenocarcinoma, where
+8 of 16 patients developed vaccine-induced T-cell responses (Rojas et al., *Nature* 2023).
 Most neoepitope discovery pipelines focus on single-nucleotide variants (SNVs) and small
 insertions/deletions (indels) as the source of altered peptide sequences. However, a
 broader class of tumor-specific alterations — aberrant splicing — has received comparatively
 less attention despite its potential to generate highly immunogenic neoepitopes.
+
+Recent neoantigen prediction pipelines have advanced rapidly. Contemporary deep learning
+approaches such as CNNeoPP (Cai et al., *Frontiers in Immunology* 2026) integrate large
+language model-derived sequence representations with multi-modal feature fusion to push
+SNV-driven prediction beyond the limits of earlier tools. These advances remain confined
+to two axes: peptide sequence as the antigen source, and binding-prediction confidence as
+the selection criterion. The pipeline described here differs along both axes — splice
+junctions as a complementary antigen source not surfaced by SNV-driven sequence
+prediction, and an explicit TCR–pMHC docking stage as a downstream structural confidence
+layer.
 
 ---
 
@@ -111,10 +124,10 @@ biologically cleaner winner than one with one strong and five near-zero predicti
 A complementary but distinct biological force is **immunodominance** — the well-documented
 hierarchy in which the strongest-binding epitope for the dominant allele tends to drive the
 T cell response while weaker epitopes become subdominant or cryptic (Yewdell & Bennink,
-*Annu Rev Immunol* 1999). In natural anti-tumour immunity, a peptide with one exceptionally
+*Annu Rev Immunol* 1999). In natural anti-tumor immunity, a peptide with one exceptionally
 strong allele can elicit a more potent focused T cell response than a peptide with moderate
 breadth, through intramolecular competition of peptides for the available MHC grooves of
-that allele and through immunodomination — dominant T cell clones monopolising
+that allele and through immunodomination — dominant T cell clones monopolizing
 antigen-presenting cells and suppressing priming of clones restricted to weaker alleles
 (Chen & McCluskey, *Adv Cancer Res* 2006). GPS alone does not capture this.
 
@@ -126,13 +139,13 @@ competing directly with the endogenous peptidome for empty MHC grooves achieve a
 complete bypass than mRNA vaccines, which re-enter intracellular antigen processing inside
 the APC — but the suppression of subdominant T cell clones through APC killing is
 alleviated in either case. Combined with the threat of HLA loss of heterozygosity under
-immune pressure and the limited number of peptide slots in a personalised vaccine
+immune pressure and the limited number of peptide slots in a personalized vaccine
 formulation (typically 10–20 candidates in current clinical trials; Sahin et al.,
 *Nature* 2017; Ott et al., *Nature* 2017), GPS becomes the committed primary
 ranking criterion for our application. `best_presentation_percentile` is retained not as a
 competing ranking dimension but as a minimum quality gate — at least one allele must reach
 strong or weak binder threshold to ensure sufficient pMHC density for vaccine-primed T
-cells to recognise the tumour at the site of disease.
+cells to recognize the tumor at the site of disease.
 
 ### Differential surface expression across HLA loci
 

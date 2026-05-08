@@ -4,8 +4,8 @@
 Produces a self-contained HTML page showing:
   1. Junction origin summary — counts of tumor_exclusive vs normal_shared
      junctions per sample, so results can be quickly verified.
-  2. Top strong binders — the highest-affinity predicted neoepitopes
-     (IC50 < strong threshold).
+  2. Top strong presenters — the highest-presentation predicted neoepitopes
+     (presentation_percentile <= strong threshold).
 
 Usage (standalone):
   python generate_report.py \\
@@ -22,6 +22,7 @@ import html as html_mod
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from Bio import SeqIO
@@ -51,7 +52,7 @@ flowchart TD
     asm["Contig assembly<br/>50 nt per junction"]
     trans["In-silico translation<br/>3 reading frames - 9-mers"]
     pred["MHCflurry prediction<br/>IC50 + presentation_score per peptide (best allele)"]
-    out(["Neoepitope candidates<br/>strong / weak binders"])
+    out(["Neoepitope candidates<br/>strong / weak presenters"])
 
     reads --> align
     align --> hla
@@ -230,7 +231,7 @@ _HTML_TEMPLATE = """\
   {hla_section}
 
   <h2>Neoepitope prediction summary</h2>
-  {binder_table}
+  {presenter_table}
 
   <h2>Top strong presentations (presentation_percentile &le; {presentation_percentile_strong}%)</h2>
   {strong_table}
@@ -376,6 +377,39 @@ def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
     return contigs
 
 
+def _render_contig_peek(peek: str) -> str:
+    """Render a bracketed contig peek (from report_top_candidates.tsv) as styled HTML.
+
+    Parses the plain-text format produced by ``_build_contig_peek``:
+      - ``[`` and ``]`` enclose peptide nucleotides
+      - ``|`` marks the splice junction
+      - other chars are flanking nucleotides
+
+    Output styling matches ``_render_contig`` so the artefact-driven render
+    looks identical to the raw-driven one.
+    """
+    if not peek:
+        return ""
+    in_peptide = False
+    seen_junction = False
+    parts: list[str] = []
+    for ch in peek:
+        if ch == "[":
+            in_peptide = True
+        elif ch == "]":
+            in_peptide = False
+        elif ch == "|":
+            parts.append('<span class="junction-mark">|</span>')
+            seen_junction = True
+        else:
+            if in_peptide:
+                cls = "nt-pep-down" if seen_junction else "nt-pep-up"
+            else:
+                cls = "nt-down" if seen_junction else "nt-up"
+            parts.append(f'<span class="{cls}">{ch}</span>')
+    return f'<span class="contig">{"".join(parts)}</span>'
+
+
 def _render_contig(seq: str, start_nt: int, end_nt_incl: int,
                    upstream_nt: int = 26) -> str:
     """Render a 50 nt contig as HTML with junction marker and peptide highlighted."""
@@ -405,7 +439,7 @@ def _build_strong_table_html(
     """Build the top strong presentations table ranked by genotype_presentation_score."""
     strong_df = pred_df[pred_df["presentation_class"] == "strong"].copy()
 
-    # Quality gate: at least one allele must reach weak-binder threshold
+    # Quality gate: at least one allele must reach weak-presenter threshold
     if "best_presentation_percentile" in strong_df.columns:
         strong_df = strong_df[strong_df["best_presentation_percentile"] <= presentation_percentile_weak]
 
@@ -479,11 +513,137 @@ def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
     return out
 
 
+def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame) -> str:
+    """Build the top presenters table from the wide ``report_top_candidates.tsv``.
+
+    The artefact is already quality-gated, sorted, capped, and carries a
+    plain-text ``contig_peek`` that this function re-styles via
+    ``_render_contig_peek``. No raw inputs needed.
+
+    Parity gap with ``_build_strong_table_html``: this renderer cannot emit a
+    "Showing N of M rows" notice because the writer caps the artefact at
+    ``TOP_CANDIDATES_LIMIT`` and the pre-cap total is lost. Tracked in
+    Issue #226 — fix is to surface the total in ``report.tsv``'s
+    ``mhc_prediction`` stage and render the notice from there.
+    """
+    if top_candidates_df is None or top_candidates_df.empty:
+        return "<p><em>No strong presentations found.</em></p>"
+
+    has_gps = "genotype_presentation_score" in top_candidates_df.columns
+
+    rows = []
+    for _, row in top_candidates_df.iterrows():
+        contig_html = _render_contig_peek(str(row.get("contig_peek", ""))) or "<em>n/a</em>"
+
+        gps_cell = ""
+        if has_gps:
+            gps_val = row.get("genotype_presentation_score", "")
+            gps_cell = f"<td>{float(gps_val):.4f}</td>" if gps_val != "" and pd.notna(gps_val) else "<td></td>"
+
+        pct_val = row.get("best_presentation_percentile", "")
+        pct_cell = f"<td>{float(pct_val):.3f}</td>" if pct_val != "" and pd.notna(pct_val) else "<td></td>"
+
+        ic50_val = row.get("ic50_nM", "")
+        ic50_cell = f"<td>{float(ic50_val):.1f}</td>" if ic50_val != "" and pd.notna(ic50_val) else "<td></td>"
+
+        rows.append(
+            f"<tr>"
+            f"<td>{html_mod.escape(str(row.get('contig_key', '')))}</td>"
+            f"<td>{html_mod.escape(str(row.get('peptide', '')))}</td>"
+            f"<td>{html_mod.escape(str(row.get('best_allele', '')))}</td>"
+            f"{pct_cell}"
+            f"{gps_cell}"
+            f"{ic50_cell}"
+            f"<td>{contig_html}</td>"
+            f"</tr>"
+        )
+
+    legend = (
+        "upstream <span class='junction-mark'>|</span> downstream — "
+        "<span class='nt-pep-up'>peptide (upstream)</span> "
+        "<span class='nt-pep-down'>peptide (downstream)</span>"
+    )
+    gps_header = (
+        "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
+        if has_gps else ""
+    )
+    return (
+        f"<table><thead><tr>"
+        f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
+        f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
+        f"{gps_header}"
+        f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
+        f"<th>Contig ({legend})</th>"
+        f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+    )
+
+
+def _presenter_counts_html(
+    mp: dict[str, int],
+    thresholds: dict[str, str] | None = None,
+) -> str:
+    """Render the presentation-class count table from the loaded report.tsv projection.
+
+    ``mp`` is the ``mhc_prediction`` dict (from ``_load_report_tsv``); the
+    ``total_predictions`` entry is excluded from the table and the remaining
+    metrics become the per-class rows.
+    """
+    if not mp or all(k == "total_predictions" for k in mp):
+        return "<p><em>No predictions available.</em></p>"
+
+    rows = [(cls, cnt) for cls, cnt in mp.items() if cls != "total_predictions"]
+    if not rows:
+        return "<p><em>No predictions available.</em></p>"
+
+    df = pd.DataFrame(rows, columns=["presentation_class", "count"])
+    return _df_to_html(df)
+
+
+def _rank_presenters(df: pd.DataFrame) -> pd.DataFrame:
+    """Sort presenters by genotype_presentation_score desc, then percentile asc."""
+    if "genotype_presentation_score" in df.columns:
+        return df.sort_values(
+            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
+            ascending=[False, False, True],
+        )
+    return df.sort_values("presentation_percentile")
+
+
 # ---------------------------------------------------------------------------
 # Report generation
 # ---------------------------------------------------------------------------
 
-def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation_percentile_weak: float = 2.0) -> str:
+def _resolve_top_candidate_for_structure(
+    pred_df: pd.DataFrame,
+    presentation_percentile_weak: float = 2.0,
+) -> tuple[str, str]:
+    """Resolve top candidate peptide + allele from raw predictions.
+
+    Mirrors the candidate-selection ranking used by ``run_tcrdock.py`` and
+    ``_build_report_top_candidates_tsv`` so all three surfaces stay aligned.
+    Returns ``("NA", "NA")`` when no candidate passes the quality gate.
+    """
+    presenters = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
+    if "best_presentation_percentile" in presenters.columns:
+        presenters = presenters[presenters["best_presentation_percentile"] <= presentation_percentile_weak]
+    presenters = _rank_presenters(presenters)
+    top = presenters.head(1)
+    if top.empty:
+        return "NA", "NA"
+    return str(top.iloc[0]["peptide"]), str(top.iloc[0]["best_allele"])
+
+
+def _resolve_top_candidate_from_manifest(
+    structure_manifest: pd.DataFrame,
+) -> tuple[str, str]:
+    """Read top candidate peptide + allele from the 3D structure manifest."""
+    if structure_manifest is None or structure_manifest.empty:
+        return "NA", "NA"
+    top = structure_manifest.iloc[0]
+    return str(top.get("peptide", "NA")), str(top.get("allele", "NA"))
+
+
+def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
     """Build the Mol* 3D viewer section for the top TCRdock candidate.
 
     The PDB is inlined as a JSON string so the HTML report is fully
@@ -491,7 +651,8 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation
 
     Args:
         pdb_path: Path to the TCRdock-predicted PDB file.
-        pred_df:  MHCflurry predictions DataFrame (used for annotation).
+        peptide:  Top candidate peptide (already resolved by caller).
+        allele:   Top candidate allele (already resolved by caller).
 
     Returns:
         HTML string containing the Mol* viewer and inlined PDB.
@@ -502,25 +663,8 @@ def _build_structure_section(pdb_path: Path, pred_df: pd.DataFrame, presentation
         log.warning("Could not read PDB file %s: %s", pdb_path, exc)
         return "<p><em>Structure not available.</em></p>"
 
-    # Annotate with the top candidate's peptide and allele.
-    # Match run_tcrdock.py's candidate selection: quality-gated binders ranked by
-    # genotype_presentation_score desc → n_strong_alleles desc → best_presentation_percentile asc.
-    binders = pred_df[pred_df["presentation_class"].isin(("strong", "weak"))].copy()
-    if "best_presentation_percentile" in binders.columns:
-        binders = binders[binders["best_presentation_percentile"] <= presentation_percentile_weak]
-    if "genotype_presentation_score" in binders.columns:
-        binders = binders.sort_values(
-            ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-            ascending=[False, False, True],
-        )
-    else:
-        binders = binders.sort_values("presentation_percentile")
-    top = binders.head(1)
-    if top.empty:
-        peptide, allele = "NA", "NA"
-    else:
-        peptide = html_mod.escape(str(top.iloc[0]["peptide"]))
-        allele  = html_mod.escape(str(top.iloc[0]["best_allele"]))
+    peptide = html_mod.escape(peptide)
+    allele = html_mod.escape(allele)
 
     pdb_text = _build_compnd_records(pdb_text, peptide, allele)
 
@@ -554,11 +698,20 @@ def _build_report_tsv(
     presentation_percentile_strong: float,
     tcrdock_pdb: str | Path | None,
     presentation_percentile_weak: float = 2.0,
+    junction_filter_stats_tsv: str | Path | None = None,
 ) -> None:
     """Write a structured summary TSV alongside the HTML report.
 
     Schema: patient_id | stage | metric | value | notes
     Stages: junction_filtering, mhc_prediction, top_candidate, hla_typing, tcrdock
+
+    When ``junction_filter_stats_tsv`` is supplied, four patient-level funnel
+    totals are added under stage=``junction_filtering`` (Issue #214):
+    ``junctions_extracted_total``, ``junctions_mean_reads_filtered``,
+    ``junctions_annotated_discarded``, ``junctions_unannotated_total``. These
+    sum across tumor samples; normal samples are intentionally omitted from
+    the funnel. The four rows reconcile arithmetically:
+    ``extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total``.
     """
     rows: list[dict] = []
 
@@ -572,6 +725,23 @@ def _build_report_tsv(
                 rows.append({
                     "patient_id": patient_id, "stage": "junction_filtering",
                     "metric": metric, "value": int(r.get(metric, 0)), "notes": note,
+                })
+
+    # --- junction_filtering: patient-level funnel totals (Issue #214) ---
+    if junction_filter_stats_tsv is not None:
+        stats_df = pd.read_csv(junction_filter_stats_tsv, sep="\t")
+        if not stats_df.empty:
+            by_cat = stats_df.groupby("category")["count"].sum()
+            for metric, source_cats in (
+                ("junctions_extracted_total", ("junctions_raw",)),
+                ("junctions_mean_reads_filtered", ("mean_reads_filtered",)),
+                ("junctions_annotated_discarded", ("annotated_discarded",)),
+                ("junctions_unannotated_total", ("normal_shared", "tumor_exclusive")),
+            ):
+                value = sum(int(by_cat.get(c, 0)) for c in source_cats)
+                rows.append({
+                    "patient_id": patient_id, "stage": "junction_filtering",
+                    "metric": metric, "value": value, "notes": "all tumor samples",
                 })
 
     # --- mhc_prediction ---
@@ -597,13 +767,7 @@ def _build_report_tsv(
         top_candidates = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
         if "best_presentation_percentile" in top_candidates.columns:
             top_candidates = top_candidates[top_candidates["best_presentation_percentile"] <= presentation_percentile_weak]
-        if "genotype_presentation_score" in top_candidates.columns:
-            top_candidates = top_candidates.sort_values(
-                ["genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile"],
-                ascending=[False, False, True],
-            )
-        else:
-            top_candidates = top_candidates.sort_values("presentation_percentile")
+        top_candidates = _rank_presenters(top_candidates)
         strong_df = top_candidates
     else:
         strong_df = pd.DataFrame()
@@ -662,6 +826,370 @@ def _build_report_tsv(
     log.info("Report TSV written to %s", output_path)
 
 
+# ---------------------------------------------------------------------------
+# Machine-readable artefacts: top presenters and 3D structure manifest
+# ---------------------------------------------------------------------------
+
+# Cap on how many top-ranked presenters land in both report_top_candidates.tsv
+# and the HTML rendering. Single source of truth: change here, both surfaces follow.
+TOP_CANDIDATES_LIMIT = 10
+
+
+def _allele_slot_map(predictions_columns: list[str]) -> dict[str, str]:
+    """Map per-allele percentile column names to stable slot names.
+
+    The mhc_presentation.tsv emits per-allele columns like
+    ``HLA-A*02:01_presentation_percentile``. Slot mapping turns that into
+    a stable wide schema (``hla_a1_pct``, ``hla_a2_pct``, ...) so
+    ``report_top_candidates.tsv`` has a fixed column set across patients.
+
+    Allocation: alleles are grouped by locus letter (A/B/C), sorted
+    lexicographically within the locus, then assigned to slot 1, slot 2.
+    Homozygous loci yield one slot mapped; the second slot stays empty.
+
+    Returns:
+        ``{allele_id: slot_letter_index}`` e.g. ``{"HLA-A*02:01": "a1"}``.
+    """
+    suffix = "_presentation_percentile"
+    by_locus: dict[str, list[str]] = {"a": [], "b": [], "c": []}
+    for col in predictions_columns:
+        if not col.startswith("HLA-") or not col.endswith(suffix):
+            continue
+        allele = col[: -len(suffix)]
+        # allele looks like "HLA-A*02:01"; locus letter is index 4
+        locus_letter = allele[4].lower()
+        if locus_letter in by_locus:
+            by_locus[locus_letter].append(allele)
+
+    slot_map: dict[str, str] = {}
+    for locus, alleles in by_locus.items():
+        for slot_idx, allele in enumerate(sorted(set(alleles))[:2], start=1):
+            slot_map[allele] = f"{locus}{slot_idx}"
+    return slot_map
+
+
+def _build_contig_peek(seq: str, start_nt: int, end_nt_incl: int, upstream_nt: int = 26) -> str:
+    """Render a 50 nt contig as a plain-text peek with junction and peptide markers.
+
+    Format: brackets ``[ ... ]`` enclose the nucleotides that translate to the
+    displayed peptide; ``|`` marks the splice junction inside the peptide.
+    Peptides in this pipeline are junction-spanning by construction, so the
+    bracketed region always contains the ``|``. Example (peptide spans junction):
+    ``ATCGATCGATCG[CGAT|CGATCGAT]CGATCGATCGATCGATCGATCG`` — empty if seq is empty.
+    """
+    if not seq:
+        return ""
+    parts: list[str] = []
+    for i, nt in enumerate(seq):
+        if i == upstream_nt:
+            parts.append("|")
+        if i == start_nt:
+            parts.append("[")
+        parts.append(nt)
+        if i == end_nt_incl:
+            parts.append("]")
+    return "".join(parts)
+
+
+def _round_or_blank(value, ndigits: int) -> str | float:
+    """Round numeric values; return empty string for missing/non-numeric."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    try:
+        return round(float(value), ndigits)
+    except (TypeError, ValueError):
+        return ""
+
+
+def _build_report_top_candidates_tsv(
+    patient_id: str,
+    pred_df: pd.DataFrame,
+    contigs: dict[str, str],
+    output_tsv: str | Path,
+    presentation_percentile_weak: float = 2.0,
+    upstream_nt: int = 26,
+) -> None:
+    """Write the top presenters as a wide-format TSV, ranked by genotype_presentation_score.
+
+    Schema (stable, cross-patient comparable):
+      patient_id | rank | peptide | best_allele
+        | best_presentation_percentile | genotype_presentation_score | ic50_nM
+        | n_strong_alleles | presentation_class
+        | hla_a1_id | hla_a1_pct | hla_a2_id | hla_a2_pct
+        | hla_b1_id | hla_b1_pct | hla_b2_id | hla_b2_pct
+        | hla_c1_id | hla_c1_pct | hla_c2_id | hla_c2_pct
+        | contig_key | contig_start_nt | contig_peek
+
+    The HLA slot columns map the patient's alleles into stable positions
+    (a1/a2/b1/b2/c1/c2) so downstream consumers can compare across patients
+    without per-patient column lookups; allele identity is preserved in
+    the ``hla_<slot>_id`` columns.
+
+    Limited to ``TOP_CANDIDATES_LIMIT`` rows after the same quality gate the
+    HTML render uses (``best_presentation_percentile <= presentation_percentile_weak``).
+    """
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    slot_columns = [
+        "hla_a1_id", "hla_a1_pct", "hla_a2_id", "hla_a2_pct",
+        "hla_b1_id", "hla_b1_pct", "hla_b2_id", "hla_b2_pct",
+        "hla_c1_id", "hla_c1_pct", "hla_c2_id", "hla_c2_pct",
+    ]
+    schema = [
+        "patient_id", "rank", "peptide", "best_allele",
+        "best_presentation_percentile", "genotype_presentation_score", "ic50_nM",
+        "n_strong_alleles", "presentation_class",
+        *slot_columns,
+        "contig_key", "contig_start_nt", "contig_peek",
+    ]
+
+    if pred_df.empty:
+        pd.DataFrame(columns=schema).to_csv(output_path, sep="\t", index=False)
+        log.info("Top presenters TSV written (empty) to %s", output_path)
+        return
+
+    df = pred_df[pred_df["presentation_class"].isin(["strong", "weak"])].copy()
+    if "best_presentation_percentile" in df.columns:
+        df = df[df["best_presentation_percentile"] <= presentation_percentile_weak]
+
+    df = _rank_presenters(df)
+    df = df.head(TOP_CANDIDATES_LIMIT).reset_index(drop=True)
+
+    if df.empty:
+        pd.DataFrame(columns=schema).to_csv(output_path, sep="\t", index=False)
+        log.info("Top presenters TSV written (no qualifying presenters) to %s", output_path)
+        return
+
+    slot_map = _allele_slot_map(list(pred_df.columns))
+    inverse_slot: dict[str, str] = {v: k for k, v in slot_map.items()}
+
+    rows: list[dict] = []
+    for rank, (_, row) in enumerate(df.iterrows(), start=1):
+        contig_key = row.get("contig_key", "")
+        start_nt = int(row.get("start_nt", 0)) if pd.notna(row.get("start_nt")) else 0
+        peptide = str(row.get("peptide", ""))
+        end_nt_incl = start_nt + len(peptide) * 3 - 1 if peptide else start_nt
+        seq = contigs.get(contig_key, "")
+
+        out: dict = {
+            "patient_id": patient_id,
+            "rank": rank,
+            "peptide": peptide,
+            "best_allele": row.get("best_allele", ""),
+            "best_presentation_percentile": _round_or_blank(row.get("best_presentation_percentile"), 4),
+            "genotype_presentation_score": _round_or_blank(row.get("genotype_presentation_score"), 4),
+            "ic50_nM": _round_or_blank(row.get("ic50_nM"), 1),
+            "n_strong_alleles": int(row["n_strong_alleles"]) if pd.notna(row.get("n_strong_alleles")) else "",
+            "presentation_class": row.get("presentation_class", ""),
+            "contig_key": contig_key,
+            "contig_start_nt": start_nt,
+            "contig_peek": _build_contig_peek(seq, start_nt, end_nt_incl, upstream_nt),
+        }
+        for slot in ("a1", "a2", "b1", "b2", "c1", "c2"):
+            allele = inverse_slot.get(slot, "")
+            out[f"hla_{slot}_id"] = allele
+            if allele:
+                pct_col = f"{allele}_presentation_percentile"
+                out[f"hla_{slot}_pct"] = _round_or_blank(row.get(pct_col), 4)
+            else:
+                out[f"hla_{slot}_pct"] = ""
+        rows.append(out)
+
+    pd.DataFrame(rows, columns=schema).to_csv(output_path, sep="\t", index=False)
+    log.info("Top presenters TSV (%d rows) written to %s", len(rows), output_path)
+
+
+# Chain mapping for relabel_pdb_chains() in run_tcrdock.py — duplicated here to
+# avoid a cross-script import (run_tcrdock imports torch/Bio at module load
+# which we don't want pulled into report generation).
+_TCRDOCK_CHAIN_NAMES = {"A": "MHC", "B": "peptide", "C": "TCR-alpha", "D": "TCR-beta"}
+
+
+def _build_report_3d_structure_tsv(
+    patient_id: str,
+    docking_scores_tsv: str | Path,
+    pdb_relative_path: str,
+    output_tsv: str | Path,
+) -> None:
+    """Write the 3D structure manifest TSV.
+
+    The PDB itself stays as the canonical machine-readable representation in
+    its TCRdock output location; this manifest exposes the metadata + chain
+    labelling so any downstream tool can locate and interpret the structure
+    without re-running TCRdock or re-deriving the chain mapping.
+
+    Schema:
+      patient_id | rank | peptide | allele | pdb_path
+        | chain_A | chain_B | chain_C | chain_D
+        | <pass-through plddt/pae/ptm columns from docking_scores.tsv>
+
+    ``pdb_path`` is recorded relative to the patient result directory
+    (typically ``predictions/tcrdock/top_candidate.pdb``) so consumers can
+    resolve it from the patient root regardless of how reports/ was copied.
+
+    The manifest tracks the single PDB that's actually written today
+    (n_candidates=1). If TCRdock starts emitting multiple PDBs per run, the
+    rank column is the natural extension point.
+    """
+    output_path = Path(output_tsv)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fixed_columns = [
+        "patient_id", "rank", "peptide", "allele", "pdb_path",
+        "chain_A", "chain_B", "chain_C", "chain_D",
+    ]
+
+    docking_path = Path(docking_scores_tsv)
+    if not docking_path.exists():
+        pd.DataFrame(columns=fixed_columns).to_csv(output_path, sep="\t", index=False)
+        log.warning("docking_scores.tsv not found at %s — wrote empty manifest", docking_path)
+        return
+
+    scores_df = pd.read_csv(docking_path, sep="\t")
+    if scores_df.empty:
+        pd.DataFrame(columns=fixed_columns).to_csv(output_path, sep="\t", index=False)
+        log.warning("docking_scores.tsv at %s is empty — wrote empty manifest", docking_path)
+        return
+
+    # Pass-through any plddt/pae/ptm columns that exist; preserves whatever
+    # TCRdock currently emits without forcing a hard schema dependency.
+    metric_cols = [c for c in scores_df.columns
+                   if any(k in c.lower() for k in ("plddt", "pae", "ptm"))]
+
+    top = scores_df.iloc[0]
+    row: dict = {
+        "patient_id": patient_id,
+        "rank": 1,
+        "peptide": top.get("peptide", ""),
+        "allele": top.get("mhc") or top.get("allele", ""),
+        "pdb_path": pdb_relative_path,
+        "chain_A": _TCRDOCK_CHAIN_NAMES["A"],
+        "chain_B": _TCRDOCK_CHAIN_NAMES["B"],
+        "chain_C": _TCRDOCK_CHAIN_NAMES["C"],
+        "chain_D": _TCRDOCK_CHAIN_NAMES["D"],
+    }
+    for col in metric_cols:
+        row[col] = _round_or_blank(top.get(col), 4)
+
+    pd.DataFrame([row], columns=fixed_columns + metric_cols).to_csv(
+        output_path, sep="\t", index=False
+    )
+    log.info("3D structure manifest written to %s", output_path)
+
+
+# Numeric metrics in the top_candidate stage — typed back to float on load.
+# Mirrors the writer's set in _build_report_tsv. Keep in sync with the writer.
+_TOP_CANDIDATE_NUMERIC_METRICS = frozenset({
+    "presentation_percentile", "ic50_nM", "genotype_presentation_score",
+})
+
+
+def _load_report_tsv(path: str | Path) -> dict[str, Any]:
+    """Load report.tsv into a stage-keyed structure for HTML rendering.
+
+    Inverts the long-format ``patient_id | stage | metric | value | notes`` shape
+    written by ``_build_report_tsv`` into per-stage projections. Non-lossless
+    by design — only the projections HTML needs are exposed; consumers needing
+    the raw long form should read the TSV directly.
+
+    Returns:
+        {
+          'junction_filtering':        DataFrame[sample_id, sample_type,
+                                                 unannotated, normal_shared, tumor_exclusive],
+          'mhc_prediction':            {metric: int}      # total_predictions + class counts
+          'mhc_prediction_thresholds': {metric: str}      # threshold notes per class
+          'top_candidate':             {metric: str|float}# numerics typed; strings as-is
+          'hla_typing':                {locus: {alleles, notes}}  # locus stripped of "HLA-" prefix
+          'tcrdock':                   {metric: bool}     # pdb_available cast to bool
+        }
+    """
+    df = pd.read_csv(path, sep="\t")
+
+    out: dict[str, Any] = {
+        "junction_filtering": _empty_origin_df(),
+        "mhc_prediction": {},
+        "mhc_prediction_thresholds": {},
+        "top_candidate": {},
+        "hla_typing": {},
+        "tcrdock": {},
+    }
+
+    # --- junction_filtering: long → wide, parsing "sid (stype)" from notes ---
+    jf = df[df["stage"] == "junction_filtering"]
+    if not jf.empty:
+        rows: dict[tuple[str, str], dict] = {}
+        for _, r in jf.iterrows():
+            note = str(r.get("notes", "")).strip()
+            # Format produced by writer: "<sample_id> (<sample_type>)"
+            if " (" in note and note.endswith(")"):
+                sid, rest = note.rsplit(" (", 1)
+                stype = rest[:-1]
+            else:
+                sid, stype = note, ""
+            key = (sid, stype)
+            row = rows.setdefault(key, {"sample_id": sid, "sample_type": stype})
+            row[str(r["metric"])] = int(r["value"])
+        origin_df = pd.DataFrame(list(rows.values()))
+        for col in ("unannotated", "normal_shared", "tumor_exclusive"):
+            if col not in origin_df.columns:
+                origin_df[col] = 0
+        out["junction_filtering"] = origin_df[
+            ["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
+        ]
+
+    # --- mhc_prediction: counts (int) + thresholds (str) ---
+    mp = df[df["stage"] == "mhc_prediction"]
+    for _, r in mp.iterrows():
+        metric = str(r["metric"])
+        out["mhc_prediction"][metric] = int(r["value"])
+        if metric != "total_predictions":
+            note = r.get("notes", "")
+            if pd.notna(note) and str(note).strip():
+                out["mhc_prediction_thresholds"][metric] = str(note)
+
+    # --- top_candidate: numerics typed, strings as-is ---
+    tc = df[df["stage"] == "top_candidate"]
+    for _, r in tc.iterrows():
+        metric = str(r["metric"])
+        value = r["value"]
+        if metric in _TOP_CANDIDATE_NUMERIC_METRICS:
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                pass
+        else:
+            value = str(value)
+        out["top_candidate"][metric] = value
+
+    # --- hla_typing: keyed by locus (HLA- prefix stripped) ---
+    ht = df[df["stage"] == "hla_typing"]
+    for _, r in ht.iterrows():
+        locus = str(r["metric"]).removeprefix("HLA-")
+        out["hla_typing"][locus] = {
+            "alleles": str(r["value"]),
+            "notes": "" if pd.isna(r.get("notes")) else str(r["notes"]),
+        }
+
+    # --- tcrdock: pdb_available cast to bool ---
+    td = df[df["stage"] == "tcrdock"]
+    for _, r in td.iterrows():
+        metric = str(r["metric"])
+        if metric == "pdb_available":
+            out["tcrdock"][metric] = (str(r["value"]).strip().lower() == "true")
+        else:
+            out["tcrdock"][metric] = r["value"]
+
+    return out
+
+
+def _empty_origin_df() -> pd.DataFrame:
+    """Empty origin DataFrame with the canonical column set."""
+    return pd.DataFrame(columns=[
+        "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+    ])
+
+
 def generate_report(
     novel_junctions_tsv: str | Path,
     predictions_tsv: str | Path,
@@ -671,10 +1199,14 @@ def generate_report(
     presentation_percentile_strong: float = 0.5,
     presentation_percentile_weak: float = 2.0,
     tcrdock_pdb: str | Path | None = None,
+    docking_scores_tsv: str | Path | None = None,
     output_tsv: str | Path | None = None,
+    output_top_candidates_tsv: str | Path | None = None,
+    output_3d_structure_tsv: str | Path | None = None,
+    junction_filter_stats_tsv: str | Path | None = None,
     patient_id: str = "",
 ) -> None:
-    """Generate the summary HTML report and optional structured TSV.
+    """Generate the summary HTML report and the machine-readable report artefacts.
 
     Args:
         novel_junctions_tsv:           Classified junctions TSV (with junction_origin column).
@@ -685,7 +1217,12 @@ def generate_report(
         presentation_percentile_strong: Strong-presentation percentile threshold.
         presentation_percentile_weak:  Weak-presentation percentile threshold (quality gate).
         tcrdock_pdb:                   TCRdock-predicted PDB file (optional).
-        output_tsv:                    Destination for the machine-readable summary TSV (optional).
+        docking_scores_tsv:            TCRdock raw docking scores TSV; consumed as input
+                                       for the 3D structure manifest (optional).
+        output_tsv:                    Destination for the run-summary report.tsv (optional).
+        output_top_candidates_tsv:     Destination for the wide top-presenters TSV (optional).
+        output_3d_structure_tsv:       Destination for the 3D structure manifest TSV
+                                       (optional; only written when TCRdock is enabled).
         patient_id:                    Patient identifier written into every report.tsv row.
     """
     output_html = Path(output_html)
@@ -695,11 +1232,9 @@ def generate_report(
     pred_df = pd.read_csv(predictions_tsv, sep="\t")
     contigs = _load_contigs(contigs_fasta) if contigs_fasta else {}
 
-    # --- Junction origin summary ---
+    # --- Build origin_df (intermediate; also written into report.tsv below) ---
     if junc_df.empty or "junction_origin" not in junc_df.columns:
-        origin_df = pd.DataFrame(
-            columns=["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
-        )
+        origin_df = _empty_origin_df()
     else:
         origin_rows = []
         for sample_id, grp in junc_df.groupby("sample_id"):
@@ -714,28 +1249,103 @@ def generate_report(
             })
         origin_df = pd.DataFrame(origin_rows)
 
-    origin_html = _df_to_html(origin_df)
-
-    # --- Prediction summary ---
-    if pred_df.empty:
-        binder_html = "<p><em>No predictions available.</em></p>"
+    if patient_id:
+        effective_patient_id = patient_id
     else:
-        binder_counts = pred_df["presentation_class"].value_counts().reset_index()
-        binder_counts.columns = ["presentation_class", "count"]
-        binder_html = _df_to_html(binder_counts)
+        effective_patient_id = output_html.parts[-3]
+        log.warning(
+            "patient_id not provided; falling back to output_html path component "
+            "[-3]=%r. This assumes output is …/{patient_id}/reports/report.html — "
+            "if the path layout changes, every artefact row will record the wrong "
+            "patient_id silently. Pass patient_id explicitly to be safe.",
+            effective_patient_id,
+        )
 
-    # --- Top strong binders with contig visualisation ---
-    if pred_df.empty:
+    # === Phase 2: write artefacts FIRST, then render HTML from them ===
+
+    if output_tsv:
+        _build_report_tsv(
+            patient_id=effective_patient_id,
+            origin_df=origin_df,
+            pred_df=pred_df,
+            hla_qc_tsv=hla_qc_tsv,
+            output_tsv=output_tsv,
+            presentation_percentile_strong=presentation_percentile_strong,
+            tcrdock_pdb=tcrdock_pdb,
+            presentation_percentile_weak=presentation_percentile_weak,
+            junction_filter_stats_tsv=junction_filter_stats_tsv,
+        )
+
+    if output_top_candidates_tsv:
+        _build_report_top_candidates_tsv(
+            patient_id=effective_patient_id,
+            pred_df=pred_df,
+            contigs=contigs,
+            output_tsv=output_top_candidates_tsv,
+            presentation_percentile_weak=presentation_percentile_weak,
+        )
+
+    if output_3d_structure_tsv and docking_scores_tsv:
+        # PDB lives in predictions/tcrdock/ next to the docking scores.
+        # reports/ and predictions/ are siblings under results/{patient_id}/
+        # so this relative path resolves from any patient root.
+        pdb_relative_path = "predictions/tcrdock/top_candidate.pdb"
+        _build_report_3d_structure_tsv(
+            patient_id=effective_patient_id,
+            docking_scores_tsv=docking_scores_tsv,
+            pdb_relative_path=pdb_relative_path,
+            output_tsv=output_3d_structure_tsv,
+        )
+
+    # --- Reload artefacts to drive HTML rendering ---
+    report_data = _load_report_tsv(output_tsv) if output_tsv else None
+    top_candidates_df = (
+        pd.read_csv(output_top_candidates_tsv, sep="\t")
+        if output_top_candidates_tsv else None
+    )
+    structure_manifest = (
+        pd.read_csv(output_3d_structure_tsv, sep="\t")
+        if (output_3d_structure_tsv and docking_scores_tsv) else None
+    )
+
+    # --- Junction origin summary ---
+    origin_html = _df_to_html(
+        report_data["junction_filtering"] if report_data is not None else origin_df
+    )
+
+    # --- Prediction summary (presentation-class counts) ---
+    if report_data is not None:
+        presenter_html = _presenter_counts_html(report_data["mhc_prediction"])
+    elif pred_df.empty:
+        presenter_html = "<p><em>No predictions available.</em></p>"
+    else:
+        presenter_counts = pred_df["presentation_class"].value_counts().reset_index()
+        presenter_counts.columns = ["presentation_class", "count"]
+        presenter_html = _df_to_html(presenter_counts)
+
+    # --- Top presenters table with contig visualisation ---
+    if top_candidates_df is not None:
+        strong_html = _build_strong_table_html_from_top_candidates(top_candidates_df)
+    elif pred_df.empty:
         strong_html = "<p><em>No predictions available.</em></p>"
     else:
-        strong_html = _build_strong_table_html(pred_df, contigs, presentation_percentile_weak=presentation_percentile_weak)
+        strong_html = _build_strong_table_html(
+            pred_df, contigs,
+            presentation_percentile_weak=presentation_percentile_weak,
+        )
 
-    # --- HLA typing section (optional) ---
+    # --- HLA typing section (optional, reads upstream artefact directly) ---
     hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
 
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
-        structure_section = _build_structure_section(Path(tcrdock_pdb), pred_df, presentation_percentile_weak=presentation_percentile_weak)
+        if structure_manifest is not None:
+            peptide, allele = _resolve_top_candidate_from_manifest(structure_manifest)
+        else:
+            peptide, allele = _resolve_top_candidate_for_structure(
+                pred_df, presentation_percentile_weak=presentation_percentile_weak,
+            )
+        structure_section = _build_structure_section(Path(tcrdock_pdb), peptide, allele)
     else:
         structure_section = ""
 
@@ -754,7 +1364,7 @@ def generate_report(
         pipeline_diagram=_PIPELINE_DIAGRAM,
         origin_table=origin_html,
         hla_section=hla_section,
-        binder_table=binder_html,
+        presenter_table=presenter_html,
         strong_table=strong_html,
         structure_section=structure_section,
         presentation_percentile_strong=presentation_percentile_strong,
@@ -762,18 +1372,6 @@ def generate_report(
     )
     output_html.write_text(report_html, encoding="utf-8")
     log.info("Report written to %s", output_html)
-
-    if output_tsv:
-        _build_report_tsv(
-            patient_id=patient_id or output_html.parts[-3],
-            origin_df=origin_df,
-            pred_df=pred_df,
-            hla_qc_tsv=hla_qc_tsv,
-            output_tsv=output_tsv,
-            presentation_percentile_strong=presentation_percentile_strong,
-            tcrdock_pdb=tcrdock_pdb,
-            presentation_percentile_weak=presentation_percentile_weak,
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -793,7 +1391,11 @@ def _snakemake_main() -> None:
         presentation_percentile_strong=float(snakemake.params.presentation_percentile_strong),  # type: ignore[name-defined]  # noqa: F821
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
         tcrdock_pdb=getattr(snakemake.input, "pdb", None),  # type: ignore[name-defined]  # noqa: F821
+        docking_scores_tsv=getattr(snakemake.input, "scores_tsv", None),  # type: ignore[name-defined]  # noqa: F821
         output_tsv=snakemake.output.report_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_top_candidates_tsv=snakemake.output.report_top_candidates_tsv,  # type: ignore[name-defined]  # noqa: F821
+        output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
+        junction_filter_stats_tsv=snakemake.input.junction_filter_stats,  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -811,6 +1413,8 @@ def _cli_main() -> None:
     parser.add_argument("--presentation-percentile-strong", type=float, default=0.5)
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     parser.add_argument("--output-tsv", default=None, help="Output machine-readable summary TSV")
+    parser.add_argument("--junction-filter-stats", default=None,
+                        help="Per-tumor-sample junction funnel stats TSV (Issue #214)")
     parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
@@ -824,6 +1428,7 @@ def _cli_main() -> None:
         presentation_percentile_weak=args.presentation_percentile_weak,
         tcrdock_pdb=args.tcrdock_pdb,
         output_tsv=args.output_tsv,
+        junction_filter_stats_tsv=args.junction_filter_stats,
         patient_id=args.patient_id,
     )
 
