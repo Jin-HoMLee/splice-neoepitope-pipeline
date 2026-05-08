@@ -5,7 +5,12 @@ import csv
 import pandas as pd
 import pytest
 
-from run_mhcflurry import _load_alleles_from_tsv, classify_by_percentile, run_prediction
+from run_mhcflurry import (
+    _load_alleles_from_tsv,
+    _write_zero_stats,
+    classify_by_percentile,
+    run_prediction,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +181,43 @@ class TestRunPredictionEmpty:
                 output_tsv=tmp_path / "out.tsv",
                 alleles_tsv=str(alleles_tsv),
             )
+
+    def test_empty_input_writes_zero_stats(self, tmp_path):
+        """Issue #215 follow-up: zero-peptides early-return must still write
+        the mhc-affinity stats TSV so the cross-step aggregator does not
+        fail with missing input."""
+        peptides_tsv = tmp_path / "peptides.tsv"
+        peptides_tsv.write_text("contig_key\tstart_nt\tpeptide\n")
+
+        output_tsv = tmp_path / "predictions.tsv"
+        stats_tsv = tmp_path / "mhc_stats.tsv"
+        run_prediction(
+            peptides_tsv=peptides_tsv,
+            output_tsv=output_tsv,
+            alleles=["HLA-A*02:01"],
+            stats_output_path=stats_tsv,
+        )
+
+        assert stats_tsv.exists()
+        stats = pd.read_csv(stats_tsv, sep="\t")
+        assert list(stats["category"]) == ["strong_presenters", "weak_presenters"]
+        assert list(stats["count"]) == [0, 0]
+
+
+class TestWriteZeroStats:
+    """The _write_zero_stats helper must produce a valid 2-row mhc-affinity
+    stats TSV using presenter vocabulary (per CLAUDE.md)."""
+
+    def test_emits_two_presenter_rows(self, tmp_path):
+        out = tmp_path / "stats.tsv"
+        _write_zero_stats(out)
+        stats = pd.read_csv(out, sep="\t")
+        assert list(stats["category"]) == ["strong_presenters", "weak_presenters"]
+        assert list(stats["count"]) == [0, 0]
+
+    def test_no_path_is_noop(self, tmp_path):
+        _write_zero_stats(None)
+        assert list(tmp_path.iterdir()) == []
 
 
 # ---------------------------------------------------------------------------

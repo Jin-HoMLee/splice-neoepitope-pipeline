@@ -312,6 +312,28 @@ def _load_predictor() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Stats helpers
+# ---------------------------------------------------------------------------
+
+def _write_zero_stats(stats_output_path: str | Path | None) -> None:
+    """Emit a zero-count mhc-affinity stats TSV for empty-input cases.
+
+    Required so the cross-step aggregator (``aggregate_filtering_stats``)
+    finds the file even when zero peptides reach the prediction step.
+    """
+    if stats_output_path is None:
+        return
+    stats_output_path = Path(stats_output_path)
+    stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+    with stats_output_path.open("w", newline="") as fh:
+        writer = csv.writer(fh, delimiter="\t")
+        writer.writerow(["category", "count"])
+        writer.writerow(["strong_presenters", 0])
+        writer.writerow(["weak_presenters", 0])
+    log.info("MHC-affinity stats (zero-count) written to %s", stats_output_path)
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
@@ -399,6 +421,7 @@ def run_prediction(
             "genotype_presentation_score", "n_strong_alleles", "best_presentation_percentile",
         ])
         empty_df.to_csv(output_tsv, sep="\t", index=False)
+        _write_zero_stats(stats_output_path)
         return
 
     unique_peptides = peptides_df["peptide"].unique().tolist()
