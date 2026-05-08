@@ -653,7 +653,10 @@ the cost of cohort-scale TCR reuse.
 
 The designs also differ on the GTEx normal-tissue filter at the threshold level. Kwok et
 al. retain junctions with `PSR_GTEx < 1%` (up to ~91 expressing samples among 9,166 GTEx
-normals); this pipeline applies `min_read_count: 1`, equivalent to `PSR_GTEx = 0%`. The
+normals); this pipeline applies `min_read_count: 1`, which is stricter than Kwok's
+`PSR_GTEx = 0%` floor — Kwok's PSR counts only samples whose NJ read frequency exceeds
+1% of the canonical junction, whereas this filter excludes any normal-sample read
+regardless of relative frequency. The
 permissive threshold is appropriate to their workflow: each public candidate is taken
 through cell-line proteomic confirmation, TCR isolation, and tumor-cell killing assays,
 so a transcript-level normal-tissue trace with no demonstrated MHC presentation is
