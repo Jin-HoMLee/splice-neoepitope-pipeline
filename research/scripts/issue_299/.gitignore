@@ -1,0 +1,2 @@
+# Cached Snaptron query responses — regenerable from snaptron_query.py
+*.tsv
