@@ -169,27 +169,27 @@ reference is needed as a substitute or supplement.
 
 GTEx (V10) provides RNA-seq from approximately 54 distinct tissue types across ~900
 donors, with junction-level read counts available as pre-computed files. Rather than
-filtering against a single tissue matched to the tumour of origin, we argue that a
+filtering against a single tissue matched to the tumor of origin, we argue that a
 **pan-tissue filter** — removing any junction present in any GTEx tissue — is the
 scientifically correct choice for a vaccination application.
 
-The reasoning follows directly from the clinical context. A personalised cancer vaccine
+The reasoning follows directly from the clinical context. A personalized cancer vaccine
 induces a systemic cytotoxic T cell response: once primed, vaccine-specific T cells
-circulate and patrol all tissues, not only the tumour. A junction present in any normal
+circulate and patrol all tissues, not only the tumor. A junction present in any normal
 tissue — regardless of organ — means the derived peptide is part of that tissue's
 normal transcriptome and could be presented on its cell surface. Vaccine-trained T cells
-targeting that peptide could therefore cause off-tumour autoimmune toxicity in any
+targeting that peptide could therefore cause off-tumor autoimmune toxicity in any
 tissue expressing the junction. Restricting the normal filter to matched or
-mesenchymally-related tissues would leave these off-tumour risks unaddressed.
+mesenchymally-related tissues would leave these off-tumor risks unaddressed.
 
 The pan-tissue filter therefore serves two complementary purposes:
 
 - **Safety.** Junctions present in any GTEx tissue are excluded, reducing the
   autoimmune risk to normal tissues from vaccine-induced T cells.
 - **Candidate quality.** A junction absent from all ~54 GTEx tissue types across the
-  population is a far stronger tumour-exclusivity claim than one filtered only against
+  population is a far stronger tumor-exclusivity claim than one filtered only against
   a single matched normal or not filtered at all. Given the limited number of peptide
-  slots in a personalised vaccine formulation (10–20 candidates; Sahin et al.,
+  slots in a personalized vaccine formulation (10–20 candidates; Sahin et al.,
   *Nature* 2017; Ott et al., *Nature* 2017), precision outweighs recall: the cost of
   a wasted slot or an autoimmune adverse event exceeds the cost of a missed candidate.
 
@@ -200,7 +200,7 @@ they are filtered (pan-tissue normal reference for systemic safety).
 
 Note that junction-level filtering is a necessary but not sufficient safety check: it
 catches cases where the source splice event itself occurs in normal tissue, but does not
-address cross-reactivity between a tumour-exclusive peptide and a structurally similar
+address cross-reactivity between a tumor-exclusive peptide and a structurally similar
 normal peptide. The proteome-level BLAST check (see above) addresses that orthogonal
 concern.
 
@@ -281,7 +281,7 @@ The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communicati
 Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional
 affinity-percentile cutoff applied in the field.
 
-Epitopes are ranked by `presentation_percentile` (ascending), prioritising candidates
+Epitopes are ranked by `presentation_percentile` (ascending), prioritizing candidates
 that are both strongly bound and well processed — the subset most likely to be immunogenic.
 
 Note: `affinity_percentile` is not included in the output because
@@ -366,14 +366,14 @@ benefit of multi-allele coverage: robustness to HLA loss of heterozygosity (LOH)
 T cell recruitment, and the ability to deliberately boost subdominant responses in a
 vaccine context.
 
-### Application to personalised cancer vaccine candidate selection
+### Application to personalized cancer vaccine candidate selection
 
-This pipeline is designed for personalised cancer vaccination, which determines the
+This pipeline is designed for personalized cancer vaccination, which determines the
 committed role of each signal.
 
-In natural anti-tumour immunity, immunodomination enforces a strict epitope hierarchy:
+In natural anti-tumor immunity, immunodomination enforces a strict epitope hierarchy:
 dominant T cell clones eliminate APCs before competing clones can be primed, and the
-resulting response is largely fixed by the tumour's antigen presentation dynamics. The
+resulting response is largely fixed by the tumor's antigen presentation dynamics. The
 dominance signal (`best_presentation_percentile`) is the more relevant lens in that
 context.
 
@@ -387,14 +387,14 @@ partially restoring peptide competition for MHC grooves. In both formats, howeve
 APC-level suppression of subdominant T cell clones through cytotoxic killing is alleviated
 relative to natural immunity.
 
-Two further considerations commit personalised vaccine design to allele breadth as the
+Two further considerations commit personalized vaccine design to allele breadth as the
 primary ranking criterion:
 
-- **HLA LOH robustness.** Tumours under immune pressure — including vaccine-induced
+- **HLA LOH robustness.** Tumors under immune pressure — including vaccine-induced
   pressure — frequently silence individual HLA alleles as an escape mechanism. A candidate
   presented by multiple alleles remains targetable after partial HLA LOH; a single-allele
   candidate may be rendered invisible by loss of that allele alone.
-- **Vaccine slot efficiency.** Personalised neoantigen vaccines include a limited number
+- **Vaccine slot efficiency.** Personalized neoantigen vaccines include a limited number
   of peptide candidates — typically 10–20 in current clinical trials (Sahin et al.,
   *Nature* 2017; Ott et al., *Nature* 2017). Each slot should maximise coverage of the
   patient's HLA genotype; `genotype_presentation_score` directly quantifies this.
@@ -405,7 +405,7 @@ The committed role of each signal in this pipeline is therefore:
 |--------|------|-----------|
 | `genotype_presentation_score` | **Primary ranking criterion** | Multi-allele coverage; LOH robustness; vaccine slot efficiency |
 | `n_strong_alleles` | **Secondary ranking criterion** | Number of alleles at clinically meaningful threshold; intuitive breadth summary |
-| `best_presentation_percentile` | **Minimum quality gate** | Ensures ≥1 allele generates sufficient pMHC density for T cell recognition at the tumour |
+| `best_presentation_percentile` | **Minimum quality gate** | Ensures ≥1 allele generates sufficient pMHC density for T cell recognition at the tumor |
 
 `best_presentation_percentile` as a quality gate means a candidate is filtered out if no
 allele meets the weak-binder threshold (presentation_percentile ≤ 2%), regardless of its
@@ -423,7 +423,7 @@ each with `presentation_score = 0.4` would yield `genotype_presentation_score �
 while all alleles remain below the weak-binder percentile threshold. A peptide could
 therefore pass the `genotype_presentation_score` ranking stage but be eliminated by the
 quality gate — which is the
-intended behaviour, since the gate is designed to catch exactly this scenario. Future work
+intended behavior, since the gate is designed to catch exactly this scenario. Future work
 could explore replacing `presentation_score` in the breadth formula with a calibrated
 transformation of `presentation_percentile` to achieve fully consistent allele-relative
 scoring throughout.
@@ -480,17 +480,17 @@ authors highlight — remains an open empirical question worth pursuing.
 
 ## Immune-pathway gene neoepitopes: the presentation paradox
 
-A subset of the candidates this pipeline produces deserves special clinical attention: splice-junction neoepitopes derived from immune-pathway genes whose loss-of-function drives immune evasion. Genes including *JAK1*, *JAK2*, *STAT1*, *B2M*, *NLRC5*, and *TAP1/2* are recurrently mutated in tumours that have escaped checkpoint blockade (Zaretsky et al., *NEJM* 2016; Sade-Feldman et al., *Cancer Discovery* 2017). Recent base-editing screens have systematically mapped the specific single-amino-acid variants that disrupt IFN-γ signalling and antigen presentation, identifying which residues in JAK1, JAK2, and other pathway components are most vulnerable to point mutation (Coelho et al., *Cancer Cell* 2023). Many of these mutations also generate splice variants — in-frame exon skips, alternative donor/acceptor usage, intron retention — whose junction-spanning peptides are immunogenic in principle.
+A subset of the candidates this pipeline produces deserves special clinical attention: splice-junction neoepitopes derived from immune-pathway genes whose loss-of-function drives immune evasion. Genes including *JAK1*, *JAK2*, *STAT1*, *B2M*, *NLRC5*, and *TAP1/2* are recurrently mutated in tumors that have escaped checkpoint blockade (Zaretsky et al., *NEJM* 2016; Sade-Feldman et al., *Cancer Discovery* 2017). Recent base-editing screens have systematically mapped the specific single-amino-acid variants that disrupt IFN-γ signaling and antigen presentation, identifying which residues in JAK1, JAK2, and other pathway components are most vulnerable to point mutation (Coelho et al., *Cancer Cell* 2023). Many of these mutations also generate splice variants — in-frame exon skips, alternative donor/acceptor usage, intron retention — whose junction-spanning peptides are immunogenic in principle.
 
-These targets sit at a clinically interesting intersection: the very mutations that make a tumour clone HLA-low also tag it with a candidate neoepitope. Two clinical implications follow.
+These targets sit at a clinically interesting intersection: the very mutations that make a tumor clone HLA-low also tag it with a candidate neoepitope. Two clinical implications follow.
 
-**Preventive vaccination.** Driver mutations in immune-pathway genes recur across patients, making them candidates for **public neoantigen vaccines** (Kwok et al., *Nature* 2024). A vaccine primed against these neoepitopes — administered early, before resistance clones have fixed in the tumour — could establish T-cell memory that recognises the mutant clone the moment it arises. Even with partial JAK1/2 loss-of-function, constitutive HLA-I expression (NLRC5-driven, JAK/STAT-independent) maintains baseline antigen presentation; vaccine-trained T cells can engage these residual pMHC complexes, supplemented by NK-cell killing of HLA-low cells via the missing-self mechanism.
+**Preventive vaccination.** Driver mutations in immune-pathway genes recur across patients, making them candidates for **public neoantigen vaccines** (Kwok et al., *Nature* 2025). A vaccine primed against these neoepitopes — administered early, before resistance clones have fixed in the tumor — could establish T-cell memory that recognizes the mutant clone the moment it arises. Even with partial JAK1/2 loss-of-function, constitutive HLA-I expression (NLRC5-driven, JAK/STAT-independent) maintains baseline antigen presentation; vaccine-trained T cells can engage these residual pMHC complexes, supplemented by NK-cell killing of HLA-low cells via the missing-self mechanism.
 
-**Combination therapy for established tumours.** For tumours that already carry IFN-γ pathway lesions, vaccination must be paired with **downstream HLA-I rescue** — and the rescue must land at or below the broken signalling node. Although the molecular cause of JAK loss-of-function is a protein-level defect (catalytically dead kinase), the clinical bottleneck is transcriptional: phosphorylated STAT1 fails to drive HLA-I gene transcription, and surface HLA-I stays low because the mRNA is never produced. Upstream interventions — intratumoural recombinant IFN-γ or receptor delivery — cannot bypass this defect; the signal still terminates at the dead kinase. Effective combinations must engage HLA-I transcription via an alternative regulatory layer (Figure 1):
+**Combination therapy for established tumors.** For tumors that already carry IFN-γ pathway lesions, vaccination must be paired with **downstream HLA-I rescue** — and the rescue must land at or below the broken signaling node. Although the molecular cause of JAK loss-of-function is a protein-level defect (catalytically dead kinase), the clinical bottleneck is transcriptional: phosphorylated STAT1 fails to drive HLA-I gene transcription, and surface HLA-I stays low because the mRNA is never produced. Upstream interventions — intratumoral recombinant IFN-γ or receptor delivery — cannot bypass this defect; the signal still terminates at the dead kinase. Effective combinations must engage HLA-I transcription via an alternative regulatory layer (Figure 1):
 
 - **TLR3/7/8/9 agonists** (poly-I:C, R848, CpG) drive HLA-I via NF-κB and IRF3, independent of JAK/STAT.
-- **STING agonists** induce type I IFN-driven HLA-I; effective for JAK2-only loss-of-function but impaired in JAK1-loss-of-function (which also disables type I IFN signalling, JAK1 + TYK2).
-- **HDAC and DNMT inhibitors** (vorinostat, decitabine) derepress HLA-I epigenetically, opening chromatin and demethylating CpG islands at HLA-A/B/C promoters — restoring transcription independent of any signal-driven activator. Decitabine has entered clinical trials in combination with checkpoint inhibitors specifically for HLA-low tumours (Chiappinelli et al., *Cell* 2015).
+- **STING agonists** induce type I IFN-driven HLA-I; effective for JAK2-only loss-of-function but impaired in JAK1-loss-of-function (which also disables type I IFN signaling, JAK1 + TYK2).
+- **HDAC and DNMT inhibitors** (vorinostat, decitabine) derepress HLA-I epigenetically, opening chromatin and demethylating CpG islands at HLA-A/B/C promoters — restoring transcription independent of any signal-driven activator. Decitabine has entered clinical trials in combination with checkpoint inhibitors specifically for HLA-low tumors (Chiappinelli et al., *Cell* 2015).
 - **NK-cell engagers** complement the strategy by exploiting (rather than rescuing) the HLA-low state.
 
 HDAC and DNMT inhibitors are particularly noteworthy because they directly address the transcriptional bottleneck: although the upstream cause is a broken kinase, the downstream consequence is a failure of HLA-I mRNA production, and chromatin-level rescue restores that production through a parallel pathway.
@@ -541,9 +541,9 @@ flowchart TD
     NKE["NK-cell engagers"]:::rescue --> NKkill
 ```
 
-**Figure 1. Rescue strategies for HLA-I presentation under JAK1/2 loss-of-function.** The canonical IFN-γ → JAK1/JAK2 → STAT1 axis drives HLA-I gene transcription; in JAK-LOF tumours the kinase is catalytically dead and the signal terminates at JAK. Three bypass routes restore HLA-I transcription independently of the JAK1/2 break: TLR agonists via NF-κB / IRF3, STING agonists via type I IFN (impaired in JAK1-LOF because JAK1+TYK2 is shared with type II IFN signalling), and HDAC / DNMT inhibitors via epigenetic derepression of HLA-A/B/C promoters. NLRC5 maintains a constitutive baseline that is JAK-independent. Surface HLA-I — reduced but not absent — supports vaccine-primed T-cell killing, while the residual HLA-low cells are targeted by NK cells via missing-self recognition (potentiated by NK-cell engagers).
+**Figure 1. Rescue strategies for HLA-I presentation under JAK1/2 loss-of-function.** The canonical IFN-γ → JAK1/JAK2 → STAT1 axis drives HLA-I gene transcription; in JAK-LOF tumors the kinase is catalytically dead and the signal terminates at JAK. Three bypass routes restore HLA-I transcription independently of the JAK1/2 break: TLR agonists via NF-κB / IRF3, STING agonists via type I IFN (impaired in JAK1-LOF because JAK1+TYK2 is shared with type II IFN signaling), and HDAC / DNMT inhibitors via epigenetic derepression of HLA-A/B/C promoters. NLRC5 maintains a constitutive baseline that is JAK-independent. Surface HLA-I — reduced but not absent — supports vaccine-primed T-cell killing, while the residual HLA-low cells are targeted by NK cells via missing-self recognition (potentiated by NK-cell engagers).
 
-The pipeline's GPS prioritisation surfaces splice neoepitopes from immune-pathway genes whenever they meet the presentation thresholds; these candidates merit triage to first-in-line clinical translation despite — and partly because of — the presentation paradox.
+The pipeline's GPS prioritization surfaces splice neoepitopes from immune-pathway genes whenever they meet the presentation thresholds; these candidates merit triage to first-in-line clinical translation despite — and partly because of — the presentation paradox.
 
 ---
 
@@ -625,6 +625,54 @@ candidates rather than only filtering them. This remains an open avenue for futu
 work, particularly for the patient_002-class scenario where matched-normal RNA is
 absent and the binary filter's loss of edge information matters most.
 
+### Kwok et al.: public neoepitopes from recurrent splicing — the off-the-shelf end of the axis
+
+Kwok et al. (*Nature* 2025) identified two public neoepitope candidates —
+NeoA<sub>GNAS</sub> and NeoA<sub>RPL22</sub> — derived from recurrent aberrant splicing
+in *GNAS* and *RPL22* across glioma, mesothelioma, prostate adenocarcinoma, and
+hepatocellular carcinoma. The *GNAS* neojunction exhibited consistent intratumoral
+detection across multi-region biopsy samples, indicating spatial conservation that is
+uncommon for mutation-derived neoantigens. Validation extended beyond bioinformatic
+prediction: TCRs reactive to the two pMHC complexes were isolated from healthy-donor
+CD8+ T cells, transduced into reporter and primary T-cell populations, and shown to
+kill endogenously expressing tumor cell lines in an HLA-dependent, peptide-dose-dependent
+manner.
+
+The pipeline framed here and the Kwok et al. framework target the same molecular
+substrate — aberrant splice junctions presented as MHC-I peptides — at opposite ends of
+a public-vs-personalized axis. Kwok et al. select for *cross-patient recurrence*
+(`PSR_TCGA ≥ 10%`) and obtain off-the-shelf shared TCR targets that may be deployed via
+TCR-engineered T-cell therapy across patients sharing the relevant HLA allele. This
+pipeline selects per-patient *absence from a matched (or pan-tissue) normal* without a
+recurrence requirement, retaining patient-private junctions that cannot be reused across
+patients but cover the residual population whose tumors generate no public NJ at
+sufficient TCGA prevalence. The two strategies serve complementary patient populations:
+Kwok-class targets favor the subset whose tumor expresses a known recurrent junction;
+this pipeline addresses the residual majority by personalizing candidate selection at
+the cost of cohort-scale TCR reuse.
+
+The designs also differ on the GTEx normal-tissue filter at the threshold level. Kwok et
+al. retain junctions with `PSR_GTEx < 1%` (up to ~91 expressing samples among 9,166 GTEx
+normals); this pipeline applies `min_read_count: 1`, which is stricter than Kwok's
+`PSR_GTEx = 0%` floor — Kwok's PSR counts only samples whose NJ read frequency exceeds
+1% of the canonical junction, whereas this filter excludes any normal-sample read
+regardless of relative frequency. The
+permissive threshold is appropriate to their workflow: each public candidate is taken
+through cell-line proteomic confirmation, TCR isolation, and tumor-cell killing assays,
+so a transcript-level normal-tissue trace with no demonstrated MHC presentation is
+treated as acceptable noise. This pipeline emits patient vaccine candidates without
+per-candidate T-cell validation, and the zero-tolerance threshold is the deliberate
+vaccine-safety bias that this design choice imposes (consistent with the *GTEx
+pan-tissue filter* discussion above). At the population level, at least some of Kwok et
+al.'s ~789 public NJ pool — which by their inclusion criterion spans
+`0% ≤ PSR_GTEx < 1%` — would be excluded by this pipeline's filter. Whether the
+specific NeoA<sub>GNAS</sub> and NeoA<sub>RPL22</sub> targets cross that boundary is not
+resolvable from the published manuscript or supplementary data; verifying it requires
+re-deriving `PSR_GTEx` for those exact junction coordinates against GTEx v8 and is
+deferred to follow-up work.
+
+<!-- TODO(#299): re-derive PSR_GTEx for the NEJ_GNAS and NEJ_RPL22 junction coordinates against GTEx v8 to determine whether these specific validated targets would survive this pipeline's zero-tolerance filter. -->
+
 ---
 
 ## Structural validation: TCR-pMHC docking and TCR panel design
@@ -645,7 +693,7 @@ clonotype originally raised against MART-1/Melan-A — is used as a structural s
 all docking runs. DMF5 was adopted during the early phase of the pipeline when only
 HLA-A\*02:01 was supported. Now that full six-allele HLA typing is standard, this approach
 is problematic: TCR-pMHC contacts are determined jointly by the peptide sequence and the
-restricting MHC allele. Modelling a peptide presented by, for example, HLA-B\*35:01 against
+restricting MHC allele. Modeling a peptide presented by, for example, HLA-B\*35:01 against
 an A\*02:01-restricted TCR produces structurally artefactual complexes that cannot be
 meaningfully interpreted.
 
