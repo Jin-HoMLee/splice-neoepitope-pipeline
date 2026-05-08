@@ -147,6 +147,27 @@ def _has_soft_clip(sequence: str) -> bool:
     return any(c.islower() for c in sequence)
 
 
+def _write_zero_stats(stats_output_path: str | Path | None) -> None:
+    """Emit a zero-count contig-assemble stats TSV for empty-pipeline cases.
+
+    Required so the cross-step aggregator (``aggregate_filtering_stats``)
+    finds the file even when no candidates make it through earlier steps.
+    """
+    if stats_output_path is None:
+        return
+    stats_output_path = Path(stats_output_path)
+    stats_output_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"category": "contigs_written", "count": 0},
+            {"category": "skipped_softclip", "count": 0},
+            {"category": "skipped_length", "count": 0},
+        ],
+        columns=["category", "count"],
+    ).to_csv(stats_output_path, sep="\t", index=False)
+    log.info("Contig-assemble stats (zero-count) written to %s", stats_output_path)
+
+
 def assemble_contigs(
     novel_junctions_tsv: str | Path,
     genome_fasta: str | Path,
@@ -179,6 +200,7 @@ def assemble_contigs(
     if df.empty:
         log.warning("No novel junctions found in %s", novel_junctions_tsv)
         output_fasta.touch()
+        _write_zero_stats(stats_output_path)
         return
 
     # Keep only tumor_exclusive junctions for neoepitope prediction.
@@ -195,6 +217,7 @@ def assemble_contigs(
     if df.empty:
         log.warning("No tumor_exclusive junctions remain after origin filter")
         output_fasta.touch()
+        _write_zero_stats(stats_output_path)
         return
 
     # Deduplicate junctions (same coordinates may appear in multiple samples)
