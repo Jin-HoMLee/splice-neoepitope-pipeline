@@ -41,9 +41,19 @@ UNIFIED_COLUMNS = [
 ]
 
 
+_PER_SAMPLE_REQUIRED = {"sample_id", "sample_type", "category", "count"}
+_PER_PATIENT_REQUIRED = {"category", "count"}
+
+
 def _read_per_sample_stats(path: Path, step: str) -> pd.DataFrame:
     """Load a stats file that already has sample_id / sample_type columns."""
     df = pd.read_csv(path, sep="\t")
+    missing = _PER_SAMPLE_REQUIRED - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"{path}: per-sample stats file missing required columns "
+            f"{sorted(missing)}. Got: {sorted(df.columns)}"
+        )
     df["step"] = step
     return df
 
@@ -51,6 +61,12 @@ def _read_per_sample_stats(path: Path, step: str) -> pd.DataFrame:
 def _read_per_patient_stats(path: Path, step: str) -> pd.DataFrame:
     """Load a stats file with just (category, count). Sample columns left blank."""
     df = pd.read_csv(path, sep="\t")
+    missing = _PER_PATIENT_REQUIRED - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"{path}: per-patient stats file missing required columns "
+            f"{sorted(missing)}. Got: {sorted(df.columns)}"
+        )
     df["sample_id"] = ""
     df["sample_type"] = ""
     df["step"] = step
@@ -62,18 +78,26 @@ def aggregate(
     junction_filter_tsv: str | Path,
     contig_assemble_tsv: str | Path,
     translate_tsv: str | Path,
-    proteome_tsv: str | Path,
     mhc_tsv: str | Path,
     output_tsv: str | Path,
+    proteome_tsv: str | Path | None = None,
 ) -> None:
-    """Concatenate per-step stats files into a unified filtering_stats.tsv."""
+    """Concatenate per-step stats files into a unified filtering_stats.tsv.
+
+    ``proteome_tsv`` is optional: when ``proteome_filter.enabled`` is false in
+    the pipeline config, the proteome step does not run, no stats file is
+    produced, and the proteome-filter rows are simply omitted from the audit
+    trail.
+    """
     frames: list[pd.DataFrame] = [
         _read_per_sample_stats(Path(junction_filter_tsv), "junction-filter"),
         _read_per_patient_stats(Path(contig_assemble_tsv), "contig-assemble"),
         _read_per_patient_stats(Path(translate_tsv), "peptide-translate"),
-        _read_per_patient_stats(Path(proteome_tsv), "proteome-filter"),
-        _read_per_patient_stats(Path(mhc_tsv), "mhc-affinity"),
     ]
+    if proteome_tsv is not None:
+        frames.append(_read_per_patient_stats(Path(proteome_tsv), "proteome-filter"))
+    frames.append(_read_per_patient_stats(Path(mhc_tsv), "mhc-affinity"))
+
     df = pd.concat(frames, ignore_index=True, sort=False)
     df["patient_id"] = patient_id
     df = df[UNIFIED_COLUMNS]
@@ -94,9 +118,9 @@ def _snakemake_main() -> None:
         junction_filter_tsv=sm.input.junction_filter,
         contig_assemble_tsv=sm.input.contig_assemble,
         translate_tsv=sm.input.translate,
-        proteome_tsv=sm.input.proteome,
         mhc_tsv=sm.input.mhc,
         output_tsv=sm.output.filtering_stats,
+        proteome_tsv=getattr(sm.input, "proteome", None),
     )
 
 
@@ -108,7 +132,11 @@ def _cli_main() -> None:
     parser.add_argument("--junction-filter", required=True)
     parser.add_argument("--contig-assemble", required=True)
     parser.add_argument("--translate", required=True)
-    parser.add_argument("--proteome", required=True)
+    parser.add_argument(
+        "--proteome",
+        default=None,
+        help="Optional. Omit when proteome_filter is disabled in the pipeline config.",
+    )
     parser.add_argument("--mhc", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
@@ -118,9 +146,9 @@ def _cli_main() -> None:
         junction_filter_tsv=args.junction_filter,
         contig_assemble_tsv=args.contig_assemble,
         translate_tsv=args.translate,
-        proteome_tsv=args.proteome,
         mhc_tsv=args.mhc,
         output_tsv=args.output,
+        proteome_tsv=args.proteome,
     )
 
 
