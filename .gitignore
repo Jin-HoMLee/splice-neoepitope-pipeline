@@ -225,3 +225,4 @@ pipeline.log
 
 # Claude Code — per-machine, per-worktree notes (e.g. role binding, local paths)
 CLAUDE.local.md
+.claude/commands/
