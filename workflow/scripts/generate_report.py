@@ -558,6 +558,7 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
             )
             .reset_index()
             .reindex(columns=["sample_id", "sample_type"] + funnel_cats)
+            .fillna(0)
         )
         dist_pivot = (
             junction_df[junction_df["category"].isin(dist_cats)]
@@ -569,6 +570,7 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
             )
             .reset_index()
             .reindex(columns=["sample_id", "sample_type"] + dist_cats)
+            .fillna(0)
         )
         junction_html = (
             "<h3>Junction-level (per sample)</h3>"
