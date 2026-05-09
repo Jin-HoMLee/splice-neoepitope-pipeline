@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-09
+
+### 09:21 UTC — Editor: PM
+
+- **Copilot CLI cross-family Rubber Duck** ([release](https://releasebot.io/updates/anthropic/claude-code)) — Claude critic dispatched when GPT is orchestrator; formalizes our manual dual-LLM review pattern. → No action. *PM. methodology-signal.*
+- **Anthropic doubles Pro/Max/Team limits, peak-hour reduction removed** ([release](https://releasebot.io/updates/anthropic)) — caps lift; relevant to Max→Pro downgrade after evening-compact usage drop. → Track usage 1–2 weeks. *PM. ops-signal.*
+
 ## 2026-05-08
 
 ### 13:18 UTC — Editor: PM
