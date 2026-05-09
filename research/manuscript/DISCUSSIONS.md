@@ -651,6 +651,16 @@ Kwok-class targets favor the subset whose tumor expresses a known recurrent junc
 this pipeline addresses the residual majority by personalizing candidate selection at
 the cost of cohort-scale TCR reuse.
 
+A note on mechanism scope: both frameworks take the molecular event to be alternative
+splicing on (mostly) wild-type DNA, since Kwok's public criterion — recurrence across
+patients with diverse mutational backgrounds — only holds when the cryptic acceptor
+exists in the reference genome and is selected by the spliceosome rather than created
+by a somatic indel at the splice site. Indel-driven splice neoantigens are typically
+private and map to the personalized end of the axis above; complementary public-
+recurrence mechanisms such as splicing-factor mutations (e.g., SF3B1 / SRSF2) operate
+on wild-type splice sites through altered splicing-factor specificity and are
+discussed elsewhere.
+
 The designs also differ on the GTEx normal-tissue filter at the threshold level. Kwok et
 al. retain junctions with `PSR_GTEx < 1%` (up to ~91 expressing samples among 9,166 GTEx
 normals); this pipeline applies `min_read_count: 1`, which is stricter than Kwok's
@@ -665,13 +675,21 @@ per-candidate T-cell validation, and the zero-tolerance threshold is the deliber
 vaccine-safety bias that this design choice imposes (consistent with the *GTEx
 pan-tissue filter* discussion above). At the population level, at least some of Kwok et
 al.'s ~789 public NJ pool — which by their inclusion criterion spans
-`0% ≤ PSR_GTEx < 1%` — would be excluded by this pipeline's filter. Whether the
-specific NeoA<sub>GNAS</sub> and NeoA<sub>RPL22</sub> targets cross that boundary is not
-resolvable from the published manuscript or supplementary data; verifying it requires
-re-deriving `PSR_GTEx` for those exact junction coordinates against GTEx v8 and is
-deferred to follow-up work.
-
-<!-- TODO(#299): re-derive PSR_GTEx for the NEJ_GNAS and NEJ_RPL22 junction coordinates against GTEx v8 to determine whether these specific validated targets would survive this pipeline's zero-tolerance filter. -->
+`0% ≤ PSR_GTEx < 1%` — would be excluded by this pipeline's filter. Re-derivation
+of `PSR_GTEx` for the two validated public NEJs against Snaptron's GTEx hg19
+cohort (n=9,662; identified by signed A3 acceptor-shift signature, since the exact
+junction coordinates are not published in the paper, supplementary tables, or the
+SSNIP repo) detects a candidate matching NeoA<sub>RPL22</sub>'s molecular signature
+in 1 of 9,662 GTEx samples (`PSR_GTEx ≈ 0%`, below Kwok's `<1%` cutoff) — within
+Kwok's pipeline this junction is retained, whereas this pipeline's `min_read_count: 1`
+filter would reject it. NeoA<sub>GNAS</sub> is undetectable in the same cohort and
+would be retained by both filters. The threshold tradeoff is therefore concrete and
+target-specific for NeoA<sub>RPL22</sub>, illustrating at the level of a validated
+target what the population-level statement above only asserts in aggregate. The
+single positive sample is in GTEx's standard analysis freeze (`SMAFRZE = "USE ME"`)
+— likely but not formally verifiable to be in Kwok's 9,166-sample QC subset — and
+falls in testis, a splicing-permissive tissue where low-frequency cryptic events
+are well-documented.
 
 ---
 

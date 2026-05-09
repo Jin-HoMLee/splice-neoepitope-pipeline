@@ -6,6 +6,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-09
+
+### 21:09 UTC — Editor: Scientist
+
+#### [Issue #299](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/299) — PSR_GTEx validation tightening + DISCUSSION edit landing
+
+**Notebook audit & tightening.** Yesterday's [`36771df`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/36771df) PSR_GTEx validation notebook produced the headline result (NEJ_RPL22 detected at offset −6 in 1/9,662 GTEx samples, NEJ_GNAS undetectable). A user-driven audit session this evening surfaced four logical gaps; fixed in commit [`c0f3965`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/c0f3965). Empirical outcome unchanged.
+
+1. **Outcome states (§1) — exposed Kwok's relative-frequency inner gate.** Original two-row outcome table conflated `PSR_GTEx = 0%` with "no NEJ reads in any sample" and concluded "filter not the discriminator." But Kwok's PSR has an inner gate (sample counts only if `NEJ/canonical ≥ 1%` at same donor) — so PSR=0% can also mean "NEJ reads exist but all sub-1% relative to canonical." The RPL22 result (1 sample at ratio 0.92%, sub-1% gate) lands in the "discriminator IS active" row that the original table missed. Replaced with four-state table mapping each per-sample state to PSR and our absolute-presence filter independently.
+
+2. **Signed A3 matching (§5) — `abs(offset)` → strict signed offset.** Original `abs(offset) == loss_nt` matching admitted both A3 *loss* and A3 *gain* offsets ("sign can go either way"). WebSearch verification against [rMATS-turbo README](https://github.com/Xinglab/rmats-turbo/blob/master/README.md) and a [worked + strand example](https://groups.google.com/g/rmats-user-group/c/LWWvruwr-pg) confirmed the sign is biologically determined: A3 "loss of N nt" shifts the acceptor downstream-in-mRNA by exactly N, mapping to **+N on + strand** and **−N on − strand** + strand coords. Tightened to `(acceptor − a) == sign·loss_nt`. Re-run via `research/.venv` `jupyter nbconvert --execute` reproduced same hits (RPL22 at −6, GNAS zero).
+
+3. **Mechanism scope caveat (§9) — alt-splicing on WT DNA vs somatic indel.** Added a new caveat: the predicate assumes alt-splicing on reference-sequence DNA (cryptic acceptor exists in the genome and the spliceosome chooses it). Matches Kwok's public-NEJ premise (cross-patient recurrence on diverse mutational backgrounds requires WT splice sites) and our use of GTEx healthy tissue. **Somatic indel at the splice site** is a different mechanism: canonical AG destroyed, nearby cryptic AG forced into use, aligner-reported junctions may not satisfy the signed-offset rule. Indel-driven splice neoantigens are typically *private* and map to the personalized end of the public-vs-personalized DISCUSSION axis.
+
+4. **Sample-level QC check (§9) — single positive sample 51959 metadata.** User flagged a real confounder: the discriminator finding rests on **one** sample (`rail_id 51959`, `GTEX-SNOS-1126-SM-4DM67`) with **one** NEJ read; if 51959 is in the 5% Kwok dropped to reach `n=9,166`, the comparison isn't apples-to-apples. Queried Snaptron's `/samples?ids=51959` endpoint: RIN 7.1, mapping rate 93.6%, **`SMAFRZE = "USE ME"`** (in GTEx's standard analysis freeze), Hardy 1, 54-min ischemic time, 33,902 genes detected — no red flags, likely in Kwok's subset under any reasonable QC. Tissue is **testis** (splicing-permissive); the single read is consistent with testis-specific splicing noise. Cohort-size caveat walked back from "immaterial" — the 9,662 vs 9,166 difference IS load-bearing for our absolute-presence filter (only PSR_GTEx itself is robust to denominator choice).
+
+**DISCUSSION edit landed in [research/manuscript/DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md).** Three edits to the existing Kwok subsection (lines 628–674):
+- Resolved the `<!-- TODO(#299) -->` HTML comment by replacing the "is not resolvable from the published manuscript" sentence with the empirical PSR finding (1/9,662 RPL22 at PSR ≈ 0%, hedged with sample-51959 inclusion contingency + testis context).
+- Inserted a mechanism-scope sentence after the public-vs-personalized axis paragraph: both frameworks take the molecular event to be alt-splicing on (mostly) WT DNA, since Kwok's public criterion only holds when the cryptic acceptor exists in the reference genome. Indel-driven splice neoantigens map to the personalized end of the axis. Splicing-factor mutations (SF3B1/SRSF2 — Kim et al. *Cell* 2025, to be folded in via [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311)) flagged as discussed elsewhere.
+- Removed the resolved TODO marker.
+
+**Sparring note.** Productive user-driven audit. Each gap surfaced by a user question requiring WebSearch (rMATS conventions), the Snaptron samples endpoint (51959 QC), or careful biology reasoning. The user's pushback on "intron extends" language led to a precision improvement — the canonical intron doesn't *extend* when an alternative acceptor is used; the spliceosome *selects a different intron* with different boundaries (donor stays fixed, acceptor moves). Notebook §4 and §5 now use this more careful framing.
+
+---
+
 ## 2026-05-08
 
 ### 15:03 UTC — Editor: Scientist
