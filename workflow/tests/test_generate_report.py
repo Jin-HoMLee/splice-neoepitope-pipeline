@@ -7,6 +7,7 @@ from generate_report import (
     _build_chain_legend,
     _build_compnd_records,
     _build_contig_peek,
+    _build_filtering_funnel_html,
     _build_report_tsv,
     _build_strong_table_html,
     _build_strong_table_html_from_top_candidates,
@@ -682,6 +683,82 @@ class TestBuildStrongTableHtmlFromTopCandidates:
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=1))
         assert '<span class="junction-mark">' in html
         assert '<span class="nt-pep-up">' in html
+
+
+class TestBuildFilteringFunnelHtml:
+    """Issue #215 — funnel renders for the unified filtering_stats.tsv."""
+
+    def _write_unified_stats(self, tmp_path):
+        path = tmp_path / "filtering_stats.tsv"
+        pd.DataFrame([
+            # Junction-filter — per-sample funnel + distribution rows
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "junctions_raw", "count": 100},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "tumor_exclusive", "count": 30},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "mean_reads", "count": 12.5},
+            # Downstream patient-level steps
+            {"patient_id": "p1", "sample_id": "", "sample_type": "",
+             "step": "contig-assemble", "category": "contigs_written", "count": 25},
+            {"patient_id": "p1", "sample_id": "", "sample_type": "",
+             "step": "mhc-affinity", "category": "strong_presenters", "count": 18},
+        ]).to_csv(path, sep="\t", index=False)
+        return path
+
+    def test_returns_empty_when_path_missing(self):
+        assert _build_filtering_funnel_html(None) == ""
+
+    def test_returns_empty_when_file_does_not_exist(self, tmp_path):
+        assert _build_filtering_funnel_html(tmp_path / "nope.tsv") == ""
+
+    def test_renders_section_header(self, tmp_path):
+        path = self._write_unified_stats(tmp_path)
+        html = _build_filtering_funnel_html(path)
+        assert "Filtering funnel" in html
+        assert "filtering_stats.tsv" in html
+
+    def test_includes_per_sample_table(self, tmp_path):
+        path = self._write_unified_stats(tmp_path)
+        html = _build_filtering_funnel_html(path)
+        assert "Junction-level (per sample)" in html
+        assert "T1" in html
+        assert "tumor_exclusive" in html
+
+    def test_includes_distribution_table(self, tmp_path):
+        path = self._write_unified_stats(tmp_path)
+        html = _build_filtering_funnel_html(path)
+        assert "Raw read-count distribution" in html
+        assert "mean_reads" in html
+
+    def test_includes_downstream_steps(self, tmp_path):
+        path = self._write_unified_stats(tmp_path)
+        html = _build_filtering_funnel_html(path)
+        assert "Pipeline funnel" in html
+        assert "contig-assemble" in html
+        assert "strong_presenters" in html
+
+    def test_no_nan_when_funnel_categories_partially_missing(self, tmp_path):
+        """Issue #215 follow-up: ``reindex`` introduces NaN columns when a
+        funnel/distribution category is absent from the input — fillna runs
+        AFTER the reindex now so the output table never renders 'NaN'."""
+        path = tmp_path / "filtering_stats.tsv"
+        # Only 2 of the 5 funnel categories present (junctions_raw +
+        # tumor_exclusive); the other 3 must reindex-fill to 0.
+        # Only 1 of the 4 distribution categories present (mean_reads); the
+        # other 3 must reindex-fill to 0.
+        pd.DataFrame([
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "junctions_raw", "count": 100},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "tumor_exclusive", "count": 30},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "mean_reads", "count": 12.5},
+        ]).to_csv(path, sep="\t", index=False)
+
+        html = _build_filtering_funnel_html(path)
+        assert "NaN" not in html
+        assert "T1" in html  # still rendered
 
 
 class TestPresenterCountsHtml:

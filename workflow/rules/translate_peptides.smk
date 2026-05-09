@@ -14,6 +14,9 @@ rule translate_peptides:
         peptides_tsv=os.path.join(
             _RES, "{patient_id}", "peptides", "peptides.tsv"
         ),
+        stats=os.path.join(
+            _RES, "{patient_id}", "peptides", "translate_stats.tsv"
+        ),
     log:
         os.path.join(_LOGS, "{patient_id}", "translate_peptides", "translate.log"),
     params:
