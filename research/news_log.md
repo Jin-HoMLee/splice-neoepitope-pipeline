@@ -18,6 +18,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 - **Copilot CLI cross-family Rubber Duck** ([release](https://releasebot.io/updates/anthropic/claude-code)) — Claude critic dispatched when GPT is orchestrator; formalizes our manual dual-LLM review pattern. → No action. *PM. methodology-signal.*
 - **Anthropic doubles Pro/Max/Team limits, peak-hour reduction removed** ([release](https://releasebot.io/updates/anthropic)) — caps lift; relevant to Max→Pro downgrade after evening-compact usage drop. → Track usage 1–2 weeks. *PM. ops-signal.*
 
+### 09:12 UTC — Editor: Scientist
+
+- **Kim et al.** ([Cell 2025](https://www.cell.com/cell/fulltext/S0092-8674(25)00399-X)) — SF3B1/SRSF2 mis-splicing → public neoantigens + cognate TCRs vs SRSF2-mutant leukemia. → [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) (Sci, Kwok DISCUSSION one-liner). *Scientist. portfolio-differentiator.*
+- **Zhang et al. — Safety-first TCR-T** ([Front Immunol 2026](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2026.1754735/full)) — AI specificity + base-editing anti-mispairing + public-NA QC <0.5 TPM normal-tissue. → DISCUSSION ref for [Issue #299](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/299) threshold tradeoff. *Scientist. methodology-signal.*
+
 ## 2026-05-08
 
 ### 13:18 UTC — Editor: PM
