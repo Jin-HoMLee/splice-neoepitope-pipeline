@@ -72,6 +72,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **OKR** — Objectives and Key Results. Goal-setting framework popularised by Intel/Google: one qualitative *Objective* + 3–5 quantitative *Key Results*, usually quarterly. Common in software shops; we use S1–S7 lifecycle stages + iteration capacity instead. *Domain: project.*
 
+**OOD** — Out-of-distribution. Inputs whose features fall in low-density regions of the model's training distribution; predictions on OOD inputs are typically over-confident yet unreliable since the model never learned to constrain them. Detected operationally via density estimators, embedding-space distance to training samples, or ensemble disagreement. Relevant for splice-junction-spanning peptides — systematically under-represented in canonical-proteome MHC training data. *Domain: ml.*
+
 ## P
 
 **PAE** — Predicted Aligned Error. AlphaFold/TCRdock per-residue-pair error estimate (in Å); summarised globally to gauge inter-domain confidence (e.g. relative MHC↔TCR docking confidence). *Domain: bio.*
@@ -107,6 +109,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **TF** — Transcription Factor. DNA-binding regulatory protein controlling gene expression; binding sites are one of the modalities ENCODE-style assays (ChIP-seq) and predictors like AlphaGenome map. *Domain: bio.*
 
 **TIL** — Tumor-Infiltrating Lymphocyte. T cell isolated from a tumor biopsy; expanded ex vivo and re-infused as TIL therapy (FDA-approved 2024 for advanced melanoma as lifileucel/Amtagvi). Distinct from TCR-T (engineered TCR) and CAR-T (synthetic chimeric receptor). *Domain: bio.*
+
+**TPM** — Transcripts Per Million. Normalised RNA expression unit; reads per kb of transcript scaled so per-sample values sum to 10⁶, making cross-sample comparisons direct (unlike RPKM/FPKM). Conventional thresholds: ~1 TPM = expressed, <0.5 TPM = below detection floor (functionally silent in that tissue), >10 TPM = moderately–highly expressed. Used as a tier-1 normal-tissue QC for public-neoantigen prioritisation (e.g. Zhang et al. 2026: <0.5 TPM in normal tissues). *Domain: bio.*
 
 ## W
 
