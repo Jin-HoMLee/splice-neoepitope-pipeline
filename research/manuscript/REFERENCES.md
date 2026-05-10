@@ -193,18 +193,18 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Chen & McCluskey, *Adv Cancer Res* 2006 | ✅ | |
 | Chiappinelli et al., *Cell* 2015 | ✅ | |
 | Coelho et al., *Cancer Cell* 2023 | ✅ | |
-| Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026 | ✅ | |
+| Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026 | ✅ | Manuscript uses full form ("Asia-Pacific Journal of Clinical Oncology") |
 | Jiang et al., *Commun Biol* 2024 | ✅ | |
 | Kim et al., *Cell* 2025 | ✅ | |
 | Kwok et al., *Nature* 2025 | ✅ | |
 | Lang et al., *Bioinform Adv* 2024 | ✅ | |
 | McKeithan, *PNAS* 1995 | ✅ | |
-| O'Donnell et al., *Cell Syst* 2020 | ✅ | |
+| O'Donnell et al., *Cell Syst* 2020 | ✅ | Manuscript uses full form ("Cell Systems"); also year-before-journal ordering |
 | Ott et al., *Nature* 2017 | ✅ | |
 | Palmer et al., *Cancer Res Commun* 2024 | ✅ | Manuscript uses full form ("Cancer Research Communications") |
 | Peacock et al., *Bioinformatics* 2023 | ✅ | |
 | Rojas et al., *Nature* 2023 | ✅ | |
-| Sade-Feldman et al., *Cancer Discov* 2017 | ✅ | |
+| Sade-Feldman et al., *Cancer Discov* 2017 | ✅ | Manuscript uses full form ("Cancer Discovery") |
 | Sahin et al., *Nature* 2017 | ✅ | |
 | Sethna et al., *Nature* 2025 | ✅ | |
 | Szolek et al., *Bioinformatics* 2014 | ✅ | |
@@ -213,11 +213,12 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Valitutti et al., *Nature* 1995 | ✅ | |
 | van Bergen et al. 2004 | ✅ | Journal TBD — no journal given in-text |
 | Yewdell & Bennink, *Annu Rev Immunol* 1999 | ✅ | |
-| Zaretsky et al., *N Engl J Med* 2016 | ✅ | |
+| Zaretsky et al., *N Engl J Med* 2016 | ✅ | Manuscript uses "NEJM" abbreviation rather than "N Engl J Med" |
 | Zemmour & Parham 1992 | ✅ | Journal TBD — no journal given in-text |
 
 ### Open items before submission
 
 1. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Jiang et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
 2. **Journal-name style normalization** — abbreviated form is the stated house style here, but several recent in-text citations use full forms (`Frontiers in Immunology`, `Nature Methods`, `NAR Genomics and Bioinformatics`, `Cancer Research Communications`). Decide one style and sweep all of `INTRODUCTION.md`, `METHODS.md`, `DISCUSSIONS.md` to match. Non-blocking until pre-submission proofread.
-3. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).
+3. **Citation ordering inconsistency in METHODS.md** — METHODS.md uses year-before-journal format (e.g. `Lang et al., 2024, *Bioinform Adv*` at line 68, `Avsec et al., 2026, *Nature*` at line 76, `Szolek et al., 2014` at line 89, `van Bergen et al., 2004` at line 213) while INTRODUCTION.md and DISCUSSIONS.md use the house-style year-after-journal form (`*Journal* YEAR`). Sweep METHODS.md to match house style during pre-submission proofread. Distinct from the abbreviated-vs-full journal-name issue (item #2).
+4. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).
