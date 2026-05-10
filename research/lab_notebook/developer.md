@@ -6,6 +6,50 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-10
+
+### 17:04 UTC — Editor: Developer
+
+**Headline:** Two warm-ups shipped — [PR #319](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/319) ([Issue #309](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/309) — CLAUDE.md "Expected unavailability" subsection for the P100 capacity outages) and [PR #320](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/320) ([Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) — `zotero_add.py` preprint path now emits `journalArticle`+`publicationTitle` to match bioRxiv's own .ris export, fixing citation-rendering breakage). [Issue #321](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/321) opened as a P3/XS follow-up to fix the local `pytest` collection hang that forced a direct-python test runner during PR #320.
+
+**Work shipped:**
+
+- [PR #319](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/319) ([Issue #309](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/309) — P100 unavailability docs) — single-file edit to `CLAUDE.md`: new `### Expected unavailability — P100 in europe-west1-b` subsection under `## Infrastructure` consolidating the 2026-05-06 → 2026-05-08 outage evidence (~46h sustained `ZONE_RESOURCE_POOL_EXHAUSTED`, 11 launch attempts on 05-06 over ~7h16m), mitigation (overnight retry), forward refs to [Issue #285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/285) (parent epic) and [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) (T4/L4 hybrid fallback, blocked on Google T4 quota grant). Last-verified date `2026-05-08`. CI green; squash-merged at 16:35 UTC.
+
+- [PR #320](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/320) ([Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) — zotero bioRxiv fix) — `crossref_to_zotero` preprint branch flipped from `itemType=preprint`+`repository` to `itemType=journalArticle`+`publicationTitle`, matching the `TY=JOUR`+`JF=bioRxiv` ground truth from bioRxiv's own .ris export (user pasted a real bioRxiv .ris for Lu et al `10.64898/2025.11.30.691400` to anchor the choice). Dropped legacy `archiveID` (self-referential DOI duplicate). `main()` status-line discriminator switched from `item["itemType"] == "preprint"` to `_is_preprint(data)` since `itemType` no longer separates the two paths. 8 unit tests pass (added `test_biorxiv_preprint_matches_native_ris_export` anchored to .ris ground truth + `test_medrxiv_preprint_uses_medrxiv_as_publication_title` post-review for the medRxiv-on-same-codepath case). Bot review approved with 2 nits — both folded in via `7582fb2` (tighter inline comment + medRxiv test). Squash-merged at 16:54 UTC.
+
+**Smoke-test approach for [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) AC:**
+
+The "Real bioRxiv smoke test" AC was satisfied by **dry-run** rather than a real Zotero post. Rationale: dry-run output on Lu et al matched the bioRxiv .ris field-for-field — `itemType=journalArticle`, `publicationTitle=bioRxiv`, 5 authors exact, full abstract present, no legacy `repository`/`archiveID`. CrossRef's date (`2025-12-2`) was *finer* than the RIS's coarse `Y1=2025/01/01` default — i.e. the auto-add path is now strictly better than the manual workaround on at least one field. A real post on this DOI would have duplicated the existing manually-imported entry (the paper is tracked in [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)); deferred strict "real post" verification to the next bioRxiv DOI added in normal workflow — first one out of the gate post-merge implicitly serves as the live smoke test.
+
+**Memory cleanup (post-merge):**
+
+- Deleted `cerebrum/.../developer/shared/feedback_zotero_biorxiv.md` (warning was specific to the now-fixed CrossRef path).
+- Removed the pointer line from `developer/shared/MEMORY.md` (was line 88).
+
+**Issues opened today:**
+
+- [Issue #321](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/321) (`pytest.ini` to exclude `.snakemake/` + `.venv/`) — caught when local `.venv/bin/python -m pytest` hung indefinitely; even `pytest --version` didn't return. Direct `python -c "from test_x import ..."` invocation runs in <1s, so the script + tests are fine; pytest's collection phase appears to be walking conda envs (Snakemake-built locally) for vendor-package conftest.py files. Workaround used in this PR: bypass pytest, run test functions directly. Permanent fix: a `pytest.ini` with `norecursedirs = .snakemake .venv ...` + `testpaths = workflow/tests research/scripts`. P3/XS, role:developer.
+
+**Standup follow-ups (Pending → Done):**
+
+- PM 2026-05-09 11:46 UTC ask (priority rationales for [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310), [Issue #309](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/309), [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307), [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304)) — all 4 already had rationale lines at issue-creation time; PM's audit grep had missed them. Updated [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) (P1→P2, body now matches PM's revised triage) and [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307) (P2→P1) bodies; left [Issue #309](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/309) and [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304) as-is (already matched). Posted follow-up flagging the audit-format ergonomics gap; PM acked + flipped to Done.
+- PM 2026-05-09 11:09 UTC ask ([Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215) lab-notebook closure-audit) — false positive; the 2026-05-08 15:46 UTC entry was bundled into [PR #301](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/301) itself (`git show e382d21 -- research/lab_notebook/developer.md` confirms +36 lines). Posted follow-up pointing at the existing entry; PM acked + flipped to Done.
+
+**Memory updates:**
+
+- **NEW Always-in-effect** in `developer/MEMORY.md`: *"News_log/standup-archive/memory-broadcast PRs are exempt from lab notebook entries."* The doc itself IS the journal record — duplicating it adds no signal. Self-promoted from the implicit `reference_news_log.md` hint ("log = journal, not deliverable") after user flagged it. Also clarified in `shared/reference_news_log.md` directly with an explicit "no lab notebook entry required" paragraph.
+- **NEW Always-in-effect in `shared/MEMORY.md`** (added by user mid-session): *"Role-path only — never canonical shared."* Reach shared memory via `developer/shared/<file>` (the `<role>/shared/` symlink resolves to `../shared/`). Caught after my earlier `reference_news_log.md` edit used the canonical `splice-neoepitope-pipeline/shared/...` path — going forward all Read/Write/Edit operations on shared memory must start with the role dir.
+- **Retired** in `developer/shared/MEMORY.md`: the `feedback_zotero_biorxiv.md` warning entry — fix landed via [PR #320](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/320), warning is stale.
+
+**Process notes:**
+
+- The `pytest --version` hang was the only real surprise of the session. Strong candidate for tomorrow's first warm-up if the `pytest.ini` fix is XS-shaped (it is — single config file + a CLAUDE.md note). Worth doing before someone else hits the same wall on a different test file.
+- Bot review iteration on [PR #320](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/320) was tight — single round, both nits genuinely useful (the inline comment was over-explaining the `_is_preprint` choice; the medRxiv test closes a real coverage gap). Same shape as [PR #301](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/301)'s iteration on 2026-05-08 — fast, specific, verifiable.
+- PM's morning closure-audit produced 2 false positives in this session (rationales-already-present and [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215)-entry-already-present). Both flagged in standup follow-ups with audit-format suggestions (substring grep on `**Priority rationale:**`; raw GitHub blob for closure audit instead of local clone). PM acked the resolutions.
+
+---
+
 ## 2026-05-08
 
 ### 15:46 UTC — Editor: Developer
