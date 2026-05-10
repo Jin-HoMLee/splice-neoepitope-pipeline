@@ -230,7 +230,7 @@ composed entirely of non-binding alleles.
 
 ## 7. Structural Validation (TCRdock)
 
-The top strong-binding candidate is submitted to TCRdock (Bradley et al.) for structural
+The top strong-binding candidate is submitted to TCRdock (Bradley, *eLife* 2023) for structural
 prediction of the TCR–peptide–MHC ternary complex. TCRdock uses a modified AlphaFold v2
 multimer backend adapted specifically for TCR:pMHC modelling. Predictions run on a GCP
 Spot GPU VM (NVIDIA P100, 16 GB) inside a Docker container to isolate CUDA/cuDNN

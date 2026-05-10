@@ -8,6 +8,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-10
 
+### 17:04 UTC — Editor: Scientist
+
+#### [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322) follow-up — Bradley/Alam TCRdock citation resolved (open item #1)
+
+While waiting for the bot review pass on [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322), used the time to resolve the deferred open item #1 from the REFERENCES.md draft (orphan-branch flag: *"Bradley et al. (METHODS §7) ↔ Alam et al. Science 2023 — almost certainly the same paper; reconciliation deferred"*).
+
+**Verification.** Three independent confirmations that TCRdock = Bradley P., *eLife* 2023 (single-author paper):
+
+1. WebSearch returned the canonical citation: *Bradley P. Structure-based prediction of T cell receptor:peptide-MHC interactions. eLife 2023;12:e82813.* doi:10.7554/eLife.82813
+2. The project's own infrastructure cites Bradley directly: [`docker/Dockerfile.pipeline:15`](docker/Dockerfile.pipeline#L15) clones from `phbradley/TCRdock`, [`workflow/scripts/run_tcrdock.py:12`](workflow/scripts/run_tcrdock.py#L12) references the same repo.
+3. WebSearch for "Alam et al. Science 2023 TCR" returned no matching paper — the Alam attribution in the orphan draft appears to be a hallucination from the previous bot session.
+
+**Fix applied across the manuscript:**
+
+- [INTRODUCTION.md:68](research/manuscript/INTRODUCTION.md#L68) toolchain table: `(Alam et al., *Science* 2023)` → `(Bradley, *eLife* 2023)`
+- [DISCUSSIONS.md:704](research/manuscript/DISCUSSIONS.md#L704) structural validation paragraph: `(Alam et al., *Science* 2023)` → `(Bradley, *eLife* 2023)`
+- [METHODS.md:233](research/manuscript/METHODS.md#L233): `TCRdock (Bradley et al.)` → `TCRdock (Bradley, *eLife* 2023)` (was correct author, missing year/journal)
+- [REFERENCES.md](research/manuscript/REFERENCES.md): dropped the speculative `Alam et al., *Science* 2023` entry, replaced the placeholder `Bradley et al.` with full `Bradley, *eLife* 2023` metadata. Cross-reference table updated; open item #1 removed (3 remain).
+
+**Note on author form:** TCRdock is a single-author paper (Philip Bradley, Fred Hutch), so the citation is `(Bradley, *eLife* 2023)` not `(Bradley et al., …)`. Flagged in the REFERENCES.md entry for future reference.
+
+Folded into [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322) rather than opened as a separate follow-up: same files, naturally bundles, resolves an open item the PR itself surfaced. Bot review will re-trigger on the new commit.
+
 ### 16:26 UTC — Editor: Scientist
 
 #### [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272) — REFERENCES.md cherry-pick + refresh against today's manuscript state

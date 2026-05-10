@@ -13,10 +13,6 @@
 **Abramson et al., *Nature* 2024** — Accurate structure prediction of biomolecular interactions with AlphaFold 3. *Nature* 2024;630(8016):493–500. doi:10.1038/s41586-024-07487-w
 → Cited in DISCUSSIONS.md (TCR–pMHC docking, future directions)
 
-**Alam et al., *Science* 2023** — [TCRdock — title TBD]. *Science* 2023.
-→ Cited in DISCUSSIONS.md (structural validation section)
-**⚠ Note:** METHODS.md §7 cites TCRdock as "Bradley et al." (no year/journal). These may or may not be the same paper — reconciliation deferred to follow-up (see open items).
-
 **★ Avsec et al., *Nature* 2026** — Advancing regulatory variant effect prediction with AlphaGenome. *Nature* 2026. doi:10.1038/s41586-025-10014-0
 → Cited in METHODS.md §3 (aligner comparison; AlphaGenome as candidate splice-junction predictor for predicted-normal validation)
 
@@ -27,8 +23,8 @@
 **Bagaev et al., *Nat Methods* 2020** — [VDJdb — title TBD]. *Nat Methods* 2020.
 → Cited in DISCUSSIONS.md (patient-HLA-matched VDJdb TCR panel)
 
-**Bradley et al.** — [TCRdock — author/title/journal/year TBD]
-→ Cited in METHODS.md §7 (Structural Validation). May be the same paper as Alam et al., *Science* 2023 — reconciliation deferred.
+**Bradley, *eLife* 2023** — Structure-based prediction of T cell receptor:peptide-MHC interactions. *eLife* 2023;12:e82813. doi:10.7554/eLife.82813
+→ Cited in INTRODUCTION.md (toolchain table), METHODS.md §7 (Structural Validation), DISCUSSIONS.md (structural validation section). Single-author paper — note "Bradley" not "Bradley et al.".
 
 ---
 
@@ -190,10 +186,9 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | In-text citation | Reference entry | Notes |
 |---|---|---|
 | Abramson et al., *Nature* 2024 | ✅ | |
-| Alam et al., *Science* 2023 | ✅ | METHODS.md §7 cites same tool as "Bradley et al." — reconciliation deferred |
 | Avsec et al., *Nature* 2026 | ✅ | |
 | Bagaev et al., *Nat Methods* 2020 | ✅ | Manuscript uses full form ("Nature Methods") — style normalization deferred |
-| Bradley et al. (METHODS.md §7) | ⚠ | Likely same as Alam et al., *Science* 2023; deferred |
+| Bradley, *eLife* 2023 | ✅ | Single-author paper; INTRODUCTION/METHODS/DISCUSSIONS now harmonized on this citation |
 | Cai et al., *Front Immunol* 2026 | ✅ | Manuscript uses full form ("Frontiers in Immunology") |
 | Chen & McCluskey, *Adv Cancer Res* 2006 | ✅ | |
 | Chiappinelli et al., *Cell* 2015 | ✅ | |
@@ -223,7 +218,6 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 
 ### Open items before submission
 
-1. **Reconcile Bradley et al. (METHODS.md §7) ↔ Alam et al., *Science* 2023 (DISCUSSIONS.md)** — the orphan draft flagged these as "almost certainly the same paper" but the claim is unverified. Either unify the in-text citations or keep both with separate reference entries. Defer until the TCRdock citation provenance is checked.
-2. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Jiang et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
-3. **Journal-name style normalization** — abbreviated form is the stated house style here, but several recent in-text citations use full forms (`Frontiers in Immunology`, `Nature Methods`, `NAR Genomics and Bioinformatics`, `Cancer Research Communications`). Decide one style and sweep all of `INTRODUCTION.md`, `METHODS.md`, `DISCUSSIONS.md` to match. Non-blocking until pre-submission proofread.
-4. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).
+1. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Jiang et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
+2. **Journal-name style normalization** — abbreviated form is the stated house style here, but several recent in-text citations use full forms (`Frontiers in Immunology`, `Nature Methods`, `NAR Genomics and Bioinformatics`, `Cancer Research Communications`). Decide one style and sweep all of `INTRODUCTION.md`, `METHODS.md`, `DISCUSSIONS.md` to match. Non-blocking until pre-submission proofread.
+3. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).

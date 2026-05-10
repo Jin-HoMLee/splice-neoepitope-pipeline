@@ -701,7 +701,7 @@ MHC groove, but a candidate neoepitope vaccine requires productive TCR engagemen
 cytotoxic T-cell response. Two peptides with identical MHCflurry presentation scores may
 differ substantially in their structural complementarity with available T-cell receptor
 clonotypes. The pipeline therefore includes a structural validation step using TCRdock
-(Alam et al., *Science* 2023), an AlphaFold2-based model fine-tuned on TCR-pMHC crystal
+(Bradley, *eLife* 2023), an AlphaFold2-based model fine-tuned on TCR-pMHC crystal
 structures, which outputs a per-complex confidence score (ipTM) used as a proxy for
 docking quality.
 
