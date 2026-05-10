@@ -86,6 +86,15 @@ def test_preprint_with_missing_institution_falls_back_to_empty():
     assert item["publicationTitle"] == ""
 
 
+def test_medrxiv_preprint_uses_medrxiv_as_publication_title():
+    """Same code path as bioRxiv — verify the institution label propagates verbatim."""
+    data = _biorxiv_crossref()
+    data["institution"] = [{"name": "medRxiv"}]
+    item = crossref_to_zotero(data, _COLLECTION, _TAGS)
+    assert item["itemType"] == "journalArticle"
+    assert item["publicationTitle"] == "medRxiv"
+
+
 def test_first_or_empty_handles_empty_list_and_none():
     assert _first_or_empty([]) == ""
     assert _first_or_empty(None) == ""

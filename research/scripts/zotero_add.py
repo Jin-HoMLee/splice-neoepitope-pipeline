@@ -276,7 +276,7 @@ def main():
     print(f"Title: {item['title']}")
     print(f"Authors: {len(item['creators'])} authors")
     if _is_preprint(data):
-        # Preprint emitted as journalArticle (matches bioRxiv .ris convention) — distinguish source by CrossRef classification.
+        # itemType is now journalArticle for both paths; use CrossRef classification to tell them apart.
         print(f"Preprint ({item['publicationTitle'] or '—'}): {item['date']}")
     else:
         print(f"Journal: {item['publicationTitle']} {item['volume']}({item['issue']}): {item['pages']}, {item['date']}")
