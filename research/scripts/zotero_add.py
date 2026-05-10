@@ -133,18 +133,19 @@ def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
     title = _first_or_empty(data.get("title"))
 
     if _is_preprint(data):
-        # Preprints have an empty container-title; the host (bioRxiv, medRxiv, …) is in institution[].name.
+        # Mirror bioRxiv's own .ris export: TY=JOUR, JF=bioRxiv (publicationTitle).
+        # journalArticle renders correctly across CSL citation styles; the host
+        # (bioRxiv, medRxiv, …) is taken from CrossRef's institution[].name.
         institutions = data.get("institution") or []
-        repository = institutions[0].get("name", "") if institutions else ""
+        publication_title = institutions[0].get("name", "") if institutions else ""
         item = {
-            "itemType": "preprint",
+            "itemType": "journalArticle",
             "title": title,
             "creators": authors,
-            "repository": repository,
+            "publicationTitle": publication_title,
             "date": date,
             "DOI": data.get("DOI", ""),
             "url": data.get("URL", ""),
-            "archiveID": data.get("DOI", ""),
             "PMID": pmid or "",
             "collections": [collection],
             "tags": [{"tag": t} for t in tags],
@@ -274,8 +275,9 @@ def main():
 
     print(f"Title: {item['title']}")
     print(f"Authors: {len(item['creators'])} authors")
-    if item["itemType"] == "preprint":
-        print(f"Preprint: {item.get('repository', '—')}, {item['date']}")
+    if _is_preprint(data):
+        # itemType is now journalArticle for both paths; use CrossRef classification to tell them apart.
+        print(f"Preprint ({item['publicationTitle'] or '—'}): {item['date']}")
     else:
         print(f"Journal: {item['publicationTitle']} {item['volume']}({item['issue']}): {item['pages']}, {item['date']}")
         print(f"ISSN: {item.get('ISSN', '—')}")

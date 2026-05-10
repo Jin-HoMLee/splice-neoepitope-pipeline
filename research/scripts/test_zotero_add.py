@@ -56,13 +56,17 @@ def test_journal_article_path():
     assert item["abstractNote"] == "Cancer abstract."
 
 
-def test_preprint_path_no_crash_on_empty_container_title():
+def test_biorxiv_preprint_matches_native_ris_export():
+    """bioRxiv's own .ris export uses TY=JOUR + JF=bioRxiv. Verify our output
+    mirrors that convention: itemType=journalArticle, publicationTitle=<institution>."""
     item = crossref_to_zotero(_biorxiv_crossref(), _COLLECTION, _TAGS)
-    assert item["itemType"] == "preprint"
-    assert item["repository"] == "bioRxiv"
+    assert item["itemType"] == "journalArticle"
+    assert item["publicationTitle"] == "bioRxiv"
     assert item["DOI"] == "10.64898/2026.02.22.707219"
-    assert item["archiveID"] == "10.64898/2026.02.22.707219"
-    assert "publicationTitle" not in item
+    # Legacy preprint-itemType fields removed
+    assert "repository" not in item
+    assert "archiveID" not in item
+    # CrossRef preprints don't carry ISSN
     assert "ISSN" not in item
 
 
@@ -70,7 +74,7 @@ def test_preprint_with_abstract_populates_abstract_note():
     data = _biorxiv_crossref()
     data["abstract"] = "<jats:p>Preprint abstract.</jats:p>"
     item = crossref_to_zotero(data, _COLLECTION, _TAGS)
-    assert item["itemType"] == "preprint"
+    assert item["itemType"] == "journalArticle"
     assert item["abstractNote"] == "Preprint abstract."
 
 
@@ -78,8 +82,17 @@ def test_preprint_with_missing_institution_falls_back_to_empty():
     data = _biorxiv_crossref()
     data.pop("institution")
     item = crossref_to_zotero(data, _COLLECTION, _TAGS)
-    assert item["itemType"] == "preprint"
-    assert item["repository"] == ""
+    assert item["itemType"] == "journalArticle"
+    assert item["publicationTitle"] == ""
+
+
+def test_medrxiv_preprint_uses_medrxiv_as_publication_title():
+    """Same code path as bioRxiv — verify the institution label propagates verbatim."""
+    data = _biorxiv_crossref()
+    data["institution"] = [{"name": "medRxiv"}]
+    item = crossref_to_zotero(data, _COLLECTION, _TAGS)
+    assert item["itemType"] == "journalArticle"
+    assert item["publicationTitle"] == "medRxiv"
 
 
 def test_first_or_empty_handles_empty_list_and_none():
