@@ -11,6 +11,14 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-10
+
+### 08:43 UTC — Editor: Developer
+
+- **OpenAI acquired Astral (uv/ruff/ty)** ([2026-03-19, dev.to](https://dev.to/max_quimby/openai-just-acquired-astral-what-it-means-for-uv-ruff-and-every-python-developer-41ah)) — Astral team joins Codex; uv/ruff/ty stay open-source under active development. → No action; revisit if we adopt uv/ruff for CI linting. *Developer. industry-standard.*
+- **uv 0.11.12** ([2026-05-08 release](https://github.com/astral-sh/uv/releases)) — minor patch bump from 0.11.8 (logged 2026-05-01). → No action. *Developer. industry-standard.*
+- **PyTorch 2.11.0** ([March 2026 release](https://github.com/pytorch/pytorch/releases)) — Pascal/Maxwell removal still stands per 2.8 cut; no change to our `torch<2.5` pin permanence on P100. → No action; pin permanent. *Developer. pipeline-relevant.*
+
 ## 2026-05-09
 
 ### 09:21 UTC — Editor: PM
