@@ -17,6 +17,17 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 - GitHub project board: user project #9 ("JH M Lee Lab") under user `Jin-HoMLee` — query via `gh api graphql` with `user(login: "Jin-HoMLee") { projectV2(number: 9) { ... } }` (it's a user project, not org)
 - `main` branch protection: required CI checks (`pipeline-pytest`, `pipeline-snakemake-dry-run`) + squash-merge default. The "Require branches to be up to date before merging" rule was **removed 2026-05-09** — it fired on every PR cut from a worktree branch lagging `main`, even without real conflicts. Don't suggest `gh pr update-branch` or `--admin` workarounds for "branch is behind main" anymore (the rule is gone). Real file-level conflicts still need manual resolution.
 
+### Expected unavailability — P100 in `europe-west1-b`
+
+P100 capacity in `europe-west1-b` has gone sustained-exhausted multiple times — not a transient blip:
+
+- 2026-05-06: 11 launch attempts over ~7h16m, all `ZONE_RESOURCE_POOL_EXHAUSTED` on `n1-highmem-8 + nvidia-tesla-p100` (10:32 → 17:48 BST)
+- 2026-05-08: capacity probe still exhausted at ~16:00 UTC; the rolling outage spanned ~46h across 05-06 → 05-08
+
+**Mitigation:** retry overnight or next morning — capacity has typically recovered after a sustained gap. Longer-term fix tracked in [Issue #285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/285) (P100 contingency epic) and [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) (T4/L4 hybrid fallback in `run_cloud_gpu.sh`, blocked on a Google T4 quota grant).
+
+**Last verified:** 2026-05-08.
+
 ## Pipeline Design Decisions
 
 ### Junction origin classification
