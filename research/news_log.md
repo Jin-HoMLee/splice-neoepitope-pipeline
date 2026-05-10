@@ -13,6 +13,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-10
 
+### 15:17 UTC — Editor: PM
+
+- **GitHub repo rulesets — per-user bypass actors** ([May 2026 Changelog](https://github.blog/changelog/)) — individuals as bypass actors via UI/REST/GraphQL. → No action; surgical alt to "branches up to date" rule removed via [PR #313](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/313) (rule removal). *PM. tooling-signal.*
+
 ### 08:43 UTC — Editor: Developer
 
 - **OpenAI acquired Astral (uv/ruff/ty)** ([2026-03-19, dev.to](https://dev.to/max_quimby/openai-just-acquired-astral-what-it-means-for-uv-ruff-and-every-python-developer-41ah)) — Astral team joins Codex; uv/ruff/ty stay open-source under active development. → No action; revisit if we adopt uv/ruff for CI linting. *Developer. industry-standard.*
