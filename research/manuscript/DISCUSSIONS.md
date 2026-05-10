@@ -658,8 +658,8 @@ exists in the reference genome and is selected by the spliceosome rather than cr
 by a somatic indel at the splice site. Indel-driven splice neoantigens are typically
 private and map to the personalized end of the axis above; complementary public-
 recurrence mechanisms such as splicing-factor mutations (e.g., SF3B1 / SRSF2) operate
-on wild-type splice sites through altered splicing-factor specificity and are
-discussed elsewhere.
+on wild-type splice sites through altered splicing-factor specificity (Kim et al.,
+*Cell* 2025).<!-- TODO(#311): integrate Kim et al. discussion when SF mutation paragraph is drafted -->
 
 The designs also differ on the GTEx normal-tissue filter at the threshold level. Kwok et
 al. retain junctions with `PSR_GTEx < 1%` (up to ~91 expressing samples among 9,166 GTEx
