@@ -674,8 +674,9 @@ treated as acceptable noise. This pipeline emits patient vaccine candidates with
 per-candidate T-cell validation, and the zero-tolerance threshold is the deliberate
 vaccine-safety bias that this design choice imposes (consistent with the *GTEx
 pan-tissue filter* discussion above). At the population level, at least some of Kwok et
-al.'s ~789 public NJ pool — which by their inclusion criterion spans
-`0% ≤ PSR_GTEx < 1%` — would be excluded by this pipeline's filter. Re-derivation
+al.'s 789 characterized public NJs (the glioma-focused set taken through peptide-presentation
+validation) — which by their inclusion criterion spans `0% ≤ PSR_GTEx < 1%` —
+would be excluded by this pipeline's filter. Re-derivation
 of `PSR_GTEx` for the two validated public NEJs against Snaptron's GTEx hg19
 cohort (n=9,662; identified by signed A3 acceptor-shift signature, since the exact
 junction coordinates are not published in the paper, supplementary tables, or the
