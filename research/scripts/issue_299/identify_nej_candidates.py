@@ -78,13 +78,10 @@ def find_a3_candidates(junctions, strand, loss_nt):
         canonical_acceptors = canonical_acceptors_by_donor.get(donor, set())
         if not canonical_acceptors:
             continue
-        if strand == "+":
-            acceptor = int(j["end"])
-            # Try both directions: +loss_nt = exon shortens, -loss_nt = exon lengthens
-            matching = sorted({a for a in canonical_acceptors if abs(acceptor - a) == loss_nt})
-        else:
-            acceptor = int(j["start"])
-            matching = sorted({a for a in canonical_acceptors if abs(a - acceptor) == loss_nt})
+        sign = +1 if strand == "+" else -1
+        expected_offset = sign * loss_nt
+        acceptor = int(j["end"]) if strand == "+" else int(j["start"])
+        matching = sorted(a for a in canonical_acceptors if (acceptor - a) == expected_offset)
         if matching:
             candidates.append({
                 "junc": j,
@@ -158,7 +155,9 @@ def main():
         # Build per-donor canonical sample-counts: aggregate all annotated junctions sharing the donor
         annot_samples_by_donor = defaultdict(lambda: defaultdict(int))
         for j in junctions:
-            if j["strand"] != strand or j["annotated"] != "1":
+            if j["strand"] != strand:
+                continue
+            if not (is_donor_annotated(j, strand) and is_acceptor_annotated(j, strand)):
                 continue
             donor = int(j["start"]) if strand == "+" else int(j["end"])
             for sid, cnt in parse_samples(j["samples"]).items():

@@ -12,6 +12,9 @@ import csv
 import sys
 import urllib.request
 from io import StringIO
+from pathlib import Path
+
+HERE = Path(__file__).parent
 
 # Gene coords from UCSC hg19 (GRCh37, Ensembl 75 / GENCODE v33)
 # Widened ~25 kb on each flank to cover all promoter variants + extended UTRs.
@@ -39,7 +42,7 @@ if __name__ == "__main__":
         out[gene] = query(gene, chrom, s, e)
     # Save raw responses
     for gene, rows in out.items():
-        path = f"research/scripts/issue_299/snaptron_{gene}_gtex_hg19.tsv"
+        path = HERE / f"snaptron_{gene}_gtex_hg19.tsv"
         with open(path, "w") as f:
             if rows:
                 w = csv.DictWriter(f, fieldnames=rows[0].keys(), delimiter="\t")
