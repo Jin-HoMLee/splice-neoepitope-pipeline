@@ -1,6 +1,9 @@
 """
 Issue #299 — identify NEJ_GNAS / NEJ_RPL22 candidates from Snaptron GTEx hg19.
 
+Prereq: run `snaptron_query.py` first to fetch the GTEx hg19 TSVs
+(`snaptron_{GNAS,RPL22}_gtex_hg19.tsv`, gitignored due to size).
+
 Strategy: filter Snaptron junctions in each gene region for the molecular
 signature described in Kwok et al. (Nature 2025):
 - NEJ_GNAS  (chr20, + strand): A3 acceptor shift, loss of 2 nt -> frameshift
