@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-11
 
+### 16:31 UTC — Editor: PM
+
+#### Process discussion: morning-routine throughput + Backlog growth diagnosis
+
+**Trigger.** User after lunch: *"Issues are piling up in Backlog and we don't really progress much. The morning routine takes almost the entire day and we haven't done much real work in the day... what do you think?"* — meta-process concern, not a specific task.
+
+**Diagnosis (after drilling twice).** First drilled past "is something slowing us down" to specifically morning routines, then past "all the rules" to specifically the morning-routine steps. Read all three role morning-routine memories side-by-side. Common shape across PM/Sci/Dev: `/cerebrum` → news (read shared news_log → WebSearch → write entry → cut docs branch off `origin/main` → PR → wait CI → merge) → role status/queue. **Three separate PRs/day for news_log entries** — same shared ritual paid 3×, with no real peer-review value (other roles can't usefully judge what's interesting in another's domain). PM's Step 0.5 closure audit is the second-largest accretion: per-issue checklist + 5 mechanical compliance checks bolted on after various incidents.
+
+**User reframe — not process time, but Issue creation rate.** I was framing the problem as "morning routine is slow"; user clarified the actual concern is "Backlog piles up". Different problems, different levers. Math: 3 roles × 2–4 news items × daily = 6–12 candidate items/day; close rate ~5/week → asymmetric, structural, doesn't dissolve with practice. User asked: *"will this go on like this?"* — honest answer was yes; practice makes mornings *faster* but doesn't change Issue creation rate.
+
+**Decision: discipline cap on news → Issue conversion.** User chose minimum-change option over my proposed structural cuts (lower news cadence, drop PM news, direct-commit news_log). Rule: max 1 Issue/day per role from news, only if item clears a **concrete-hook gate** — a one-sentence pipeline/manuscript/portfolio hook stated in the Issue body. No spillover — if daily slot used, defer to tomorrow. Sci's Zotero adds NOT capped (reading log, not work commitment).
+
+**Implementation — fold into existing memories, not a new rule.** I initially drafted a new `shared/feedback_news_issue_cap.md` + Always-in-effect entry in `shared/MEMORY.md` + broadcast. User pushed back: *"instead of creating a new rule, shouldn't we just change the existing ones?"* — correct critique on rule proliferation. Reverted to editing each role's `feedback_morning_routine.md` "How to apply" section directly: PM (new bullet under Step 0), Sci (new bullet, explicit Zotero carve-out), Dev (replaced existing "flag one Issue worth opening" sentence, tied gate to existing signal-type tagging — only `→ pipeline-relevant` / `→ portfolio differentiator` with concrete hook qualify). No new shared rule, no broadcast — change propagates at each role's next morning routine since they consult their own routine file at that point. Tradeoff: Sci/Dev don't see it at `/cerebrum` (only reads `MEMORY.md` index, not feedback files), which is fine because the change is morning-routine-local.
+
+**Going-forward principle (implicit, worth surfacing).** When a discipline change is local to one workflow, fold it into the workflow's memory file. Reserve `shared/MEMORY.md` Always-in-effect for cross-cutting rules that apply outside any single workflow. Keeps the Always-in-effect surface bounded — itself a contribution to the morning-routine cost the user was flagging.
+
 ### 14:17 UTC — Editor: PM
 
 #### Closure: #330 — Priority backfill for 24 pre-rule open issues (post-incident cleanup)
