@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-11
+
+### 14:17 UTC — Editor: PM
+
+#### Closure: #330 — Priority backfill for 24 pre-rule open issues (post-incident cleanup)
+
+**Trigger.** After lunch, user asked to "quickly re-assign all priorities" — citing that the other roles couldn't decide their next-best-step without it. This closes the loop on the morning's `updateProjectV2Field` incident (see `shared/feedback_project_field_options_destructive.md`), where 25 older open issues without `**Priority rationale:**` body lines stayed MISSING after the auto-restore swept the 29 issues that did have parseable rationale lines.
+
+**Scope reframe.** Original #330 listed 25 issues; #272 closed naturally between #330's creation (13:33 UTC) and this work (14:17 UTC), so 24 remained. Spot-check of the 29 auto-restored issues found one inconsistency — #330's own board Priority was P0 while its body said P3. User kept it at P0 with the reasoning that the missing values were actively blocking cross-role triage, and asked me to also flip #330 Status to "In progress" so the lifecycle reflects the active work. Reverted P0 back to "closes at P0 since the work was completed in one session" in the body rationale at close-time.
+
+**Decision: P1 inheritance from P1 parents.** Initially proposed only 3 P1s (the in-progress epics #24/#86/#126). User pushed back and promoted more — accepted the candidates I flagged: #17 (STAR strategic), #204/#205/#206 (TCR-panel sub-issues of #86), #211/#212 (GTEx sub-issues of #126). Final 9 P1s. Sub-issues of #203 (#224, #225) kept at P2 because both are externally blocked (#223 AlphaGenome API access) — the inheritance rule only applies to ready/queued sub-issues. The pattern: a P1 parent + ready-or-queued sub-issue → P1 sub-issue; a P1 parent + externally-blocked sub-issue → P2 (lifts to P1 when unblocked).
+
+**Mechanics.** Pulled 295-item board via paginated GraphQL (3 calls), filtered to 54 OPEN issues, split MISSING vs restored. Looped `updateProjectV2ItemFieldValue` for the 24 missing issues. Python script appended/replaced `**Priority rationale:** PN — <sentence>` lines on all 24 issue bodies (16 replaced existing malformed lines like "Strategic —", 8 appended fresh). Wrote each rationale by hand — no template — to capture the specific reason per issue. Final audit query: 54 OPEN, 0 MISSING.
+
+**Distribution after backfill** (all OPEN issues): 1 P0 (#330 itself, pre-close), 12 P1, 32 P2, 9 P3. Board is now fully populated; Sci and Dev can pick next-best-step by sorting on Priority + Status.
+
+**Closure ritual.** ACs ticked on #330, body updated with outcome table + final rationale rewritten as P0 (active-blocker), closed as completed with summary comment. Status set to Done. Per-role lab notebook entry: this one.
+
+---
+
 ## 2026-05-08
 
 ### 13:18 UTC — Editor: PM
