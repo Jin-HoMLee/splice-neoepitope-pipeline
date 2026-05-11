@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-11
+
+### 09:11 UTC — Editor: PM
+
+- **GitHub Issues from Slack — `@GitHub` natural-language mentions** ([May 2026 Changelog](https://github.blog/changelog/)) — NL mention in any channel creates structured issue in repo. → No action; we don't use Slack. *PM. tooling-signal.*
+- **Sakana Fugu — multi-agent orchestration as a foundation model** ([Sakana 2026](https://sakana.ai/fugu-beta/)) — beta dynamically assembles agent teams from a pool, no fixed roles. Opposite of our PM/Sci/Dev split. → 3 borrow-Issues filed: [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) (model routing), [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) (post-merge critic), [Issue #326](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/326) (memory consolidation). *PM. methodology-signal.*
+
 ## 2026-05-10
 
 ### 15:17 UTC — Editor: PM
