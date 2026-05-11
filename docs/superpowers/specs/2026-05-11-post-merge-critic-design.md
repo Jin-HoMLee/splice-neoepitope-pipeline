@@ -21,9 +21,9 @@ Manual auditing produced false positives on 2026-05-10 (caught by `pm/feedback_c
 ## Goals
 
 - Run the 3 closure-ritual checks automatically on PR-merge and issue-close.
-- Post a single non-blocking comment on the closing PR (or the closed issue) listing any gaps, with idempotent updates on re-runs.
+- Post a single non-blocking comment on the closing PR (or the closed issue) listing any gaps. Post-only (no edit-in-place); the comment is a snapshot of close-time state.
 - Be silent on the clean path (no comment if all 3 checks pass).
-- Maintain a unit-tested pure-logic library so checks can be evolved (v2 enhancements) without rewrites.
+- Keep the script small (~180 LOC) and unit-tested at the parsing edges. Easy to delete if the experiment doesn't pan out — see kill criterion on PR #332.
 
 ## Non-goals (v2 candidates)
 
@@ -46,20 +46,21 @@ Manual auditing produced false positives on 2026-05-10 (caught by `pm/feedback_c
    │                                                              │
    │ - checkout (shallow)                                         │
    │ - setup-python                                               │
-   │ - run: python workflow/scripts/closure_audit.py              │
+   │ - run: python tools/ci/closure_audit.py                      │
    │     --event-type {pr|issue}                                  │
    │     --number {N}                                             │
    └──────────────────────────────┬──────────────────────────────┘
                                   ▼
    ┌──────────────────────────────────────────────────────────────┐
-   │ workflow/scripts/closure_audit.py                            │
+   │ tools/ci/closure_audit.py (single file — no lib split)       │
    │                                                              │
    │ 1. Fetch payload via `gh` (issue/PR body, labels,            │
    │    closingIssuesReferences, changed files for PR, comments)  │
    │ 2. Exemption-path filter on PR (skip notebook check iff all  │
    │    touched paths match exemption list)                       │
-   │ 3. Call closure_audit_lib functions → collect gaps           │
-   │ 4. Post or edit comment via `gh {pr|issue} comment`          │
+   │ 3. Run the 3 checks → collect gaps                           │
+   │ 4. If any gap: post comment via `gh {pr|issue} comment`.     │
+   │    Silent if all 3 checks pass.                              │
    │ 5. Exit 0 (non-blocking)                                     │
    └──────────────────────────────────────────────────────────────┘
 ```
@@ -75,9 +76,9 @@ No PAT or OAuth required.
 
 ### Idempotency
 
-Posted comment is prefixed with the marker `<!-- closure-audit -->`. On re-fire (e.g. role edits issue body after the first comment, then the audit re-runs on a follow-up PR merge to a linked issue), the script searches for an existing comment with that marker and edits it in place, rather than appending a new comment.
+v1 is **post-only** — comments are written but never edited or deleted. The audit fires exactly once per merge / close event in normal flow, so re-fire / drift handling is deferred. Posted comments are prefixed with the marker `<!-- closure-audit -->` so a future v2 could grep for them and update in place.
 
-If all gaps are now resolved, the existing comment is edited to a brief `✅ All clear` form rather than deleted (audit trail preservation).
+Silent on the clean path (no comment if all 3 checks pass). The all-clear case is a no-op — there is no `✅ All clear` notification.
 
 ## The 3 checks
 
@@ -150,44 +151,29 @@ PR #325 merged with the following items still open:
 - ⚠️ **Lab notebook entry** missing for `developer` on 2026-05-11 (no `#325` reference under `## 2026-05-11` in `research/lab_notebook/developer.md`)
 - ✅ **Priority rationale** present
 
-Per [closure ritual](shared/feedback_closure_ritual.md), either tick the boxes, add a comment-deferral, or add the missing entry/rationale. This comment auto-updates on next merge to a linked issue.
+Per [closure ritual](shared/feedback_closure_ritual.md): tick the boxes, add a comment-deferral, or add the missing entry/rationale. This comment is a snapshot of close-time state — it won't auto-update after fixes.
 
-_— closure-audit bot_
+_— closure-audit bot (experiment, see #325)_
 ```
 
-Clean-state comment (after all gaps resolved):
-
-```markdown
-<!-- closure-audit -->
-✅ Closure audit — all clear
-
-_— closure-audit bot_
-```
+Clean state: no comment posted (silent no-op).
 
 ## File layout
 
 ```
-.github/workflows/closure-audit.yml        # event triggers, dispatches script
-workflow/scripts/closure_audit.py          # main: gh I/O, comment posting
-workflow/scripts/closure_audit_lib.py      # pure functions (parsers, gap detection)
-workflow/tests/test_closure_audit.py       # pytest unit tests
-workflow/tests/fixtures/closure_audit/     # fixture issue/PR body .md files
+.github/workflows/closure-audit.yml      # event triggers, dispatches script
+tools/ci/closure_audit.py                # main: pure checks + gh I/O in one file
+tools/ci/test_closure_audit.py           # pytest unit tests (parsing edge cases)
+tools/ci/conftest.py                     # sys.path bootstrap for the non-package dir
 ```
 
-Splitting orchestration (`closure_audit.py`) from logic (`closure_audit_lib.py`) keeps the testable surface free of network and auth concerns.
+v1 keeps everything in one ~180-LOC file (no lib/main split). The pure-function surface is still trivially testable since tests import `closure_audit` directly and call the check / formatter functions without going through `_gh()`.
 
 ## Test strategy
 
-Fixture-driven pytest. Each `.md` fixture represents a real-shape issue or PR body. Tests load the fixture, call lib functions directly, assert gap output.
+Lean pytest. Tests target the gnarly parsing and edge cases — block-slicing across multi-date notebooks, deferral-comment handling, exemption-path filtering, role resolution dedupe. Trivial one-liner checks (e.g. `"priority rationale" in body.lower()`) skipped intentionally.
 
-Coverage targets (≥1 test per branch):
-
-- **AC check:** all-ticked / some-unticked-no-defer / some-unticked-with-defer / no-checkbox-body (legacy, no-gap).
-- **Lab notebook check:** date+ref present / date present no ref / no date header / exempted-path PR.
-- **Priority rationale check:** present / present-with-formatting-variation / missing.
-- **Exemption logic:** PR with only `research/news_log.md` → skip; mixed paths → don't skip.
-
-CI integration: add the new test file to `pipeline-pytest`'s discovery in `tests.yml`. Audit *tests* run pre-merge; audit *workflow* fires only post-close.
+CI integration: separate `ci-tools-pytest` job in `.github/workflows/tests.yml`, isolated from `pipeline-pytest` so a tooling-test failure doesn't block real pipeline PRs.
 
 ## Edge cases
 

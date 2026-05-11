@@ -46,6 +46,22 @@ def test_ac_no_checkboxes_no_gap():
     assert ca.check_ac("- one\n- two\n", comments=[]) is None
 
 
+def test_priority_rationale_present_no_gap():
+    body = "Some text.\n\n**Priority rationale:** P2 — example.\n"
+    assert ca.check_priority_rationale(body) is None
+
+
+def test_priority_rationale_header_form_no_gap():
+    """Case-insensitive substring tolerates `## Priority rationale` header form."""
+    body = "Some text.\n\n## Priority Rationale\n\nP1 — blocks i3.\n"
+    assert ca.check_priority_rationale(body) is None
+
+
+def test_priority_rationale_missing_is_gap():
+    body = "Some text without the magic phrase.\n"
+    assert ca.check_priority_rationale(body) is not None
+
+
 def test_exempt_paths_all_or_nothing():
     assert ca.is_exempt(["research/news_log.md"]) is True
     assert ca.is_exempt([

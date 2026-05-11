@@ -22,6 +22,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMENT_MARKER = "<!-- closure-audit -->"
 
+# Matches only `- [ ]` / `- [x]` style — `*` and `+` bullet markers are not
+# recognized. The repo's issue templates use `-` throughout; revisit if other
+# styles show up.
 _UNTICKED = re.compile(r"^\s*-\s*\[\s\]\s", re.MULTILINE)
 _TICKED = re.compile(r"^\s*-\s*\[[xX]\]\s", re.MULTILINE)
 _EXEMPT_FILES = {"research/news_log.md", "research/glossary.md"}
@@ -180,7 +183,8 @@ def audit_pr(n: int) -> None:
             if d := check_lab_notebook(path.read_text(), date, n):
                 nb_gaps.append((role, d))
 
-    post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))
+    if ac_gaps or pr_gaps or nb_gaps:
+        post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))
 
 
 def audit_issue(n: int) -> None:
@@ -207,7 +211,8 @@ def audit_issue(n: int) -> None:
         if d := check_lab_notebook(path.read_text(), date, n):
             nb_gaps.append((role, d))
 
-    post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))
+    if ac_gaps or pr_gaps or nb_gaps:
+        post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))
 
 
 def main() -> int:
