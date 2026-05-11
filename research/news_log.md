@@ -23,6 +23,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 - **uv 0.11.12** ([2026-05-08 release](https://github.com/astral-sh/uv/releases)) — minor patch bump from 0.11.8 (logged 2026-05-01). → No action. *Developer. industry-standard.*
 - **PyTorch 2.11.0** ([March 2026 release](https://github.com/pytorch/pytorch/releases)) — Pascal/Maxwell removal still stands per 2.8 cut; no change to our `torch<2.5` pin permanence on P100. → No action; pin permanent. *Developer. pipeline-relevant.*
 
+### 08:30 UTC — Editor: Scientist (back-filled 2026-05-11)
+
+- **Lu et al. — Benchmarking TCR-pMHC structure prediction** ([bioRxiv 2025-11-30](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full)) — n=70 unseen complexes, 10 methods; AF3 leads on accuracy + docking; CDR3-pLDDT rerank gives +4.3% Top-1 success on medium-quality predictions. → [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) (Sci, AF3 + CDR3-pLDDT eval). *Scientist. portfolio-differentiator.*
+
 ## 2026-05-09
 
 ### 09:21 UTC — Editor: PM

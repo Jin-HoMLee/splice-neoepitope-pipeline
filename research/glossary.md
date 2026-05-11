@@ -24,6 +24,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CAR-T** — Chimeric Antigen Receptor T-cell therapy. Adoptive cell therapy where patient T cells are transduced with a synthetic chimeric receptor (scFv + CD3ζ + costim domains); recognizes surface antigen directly, MHC-independent. FDA-approved CD19/BCMA-targeting products for B-cell malignancies and myeloma. Distinct from TCR-T (native MHC-restricted TCR). *Domain: bio.*
 
+**CDR3** — Complementarity-Determining Region 3. Hypervariable loop on each TCR chain (α and β) that makes direct contact with the peptide in pMHC; the primary specificity-encoding region of the TCR. Average `pLDDT` across CDR3 residues used as a TCR-pMHC docking quality signal (Lu et al. 2025, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)). *Domain: bio.*
+
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
@@ -80,7 +82,7 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **PDB** — Protein Data Bank ([rcsb.org](https://www.rcsb.org)). Public archive of experimentally determined 3D structures (~220k entries); training source for AlphaFold / Boltz / HERMES; reference ground truth for DockQ scoring. *Domain: bio.*
 
-**pLDDT** — predicted Local Distance Difference Test. Per-residue confidence score (0–100) emitted by AlphaFold/TCRdock; high pLDDT = the model is confident in that region's local geometry. *Domain: bio.*
+**pLDDT** — predicted Local Distance Difference Test. AlphaFold/TCRdock per-residue confidence score (0–100); per-residue version of the global `AF_confidence`. >90 = high, >70 = confident, <50 = low confidence. CDR3-region average used as a TCR-pMHC docking quality flag (Lu et al. 2025, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)). *Domain: bio.*
 
 **pMHC** — peptide-MHC. The complex of a peptide bound in the MHC groove; the molecular target a TCR recognises. "TCR-pMHC interaction" = the central event in adaptive immune recognition. *Domain: bio.*
 
