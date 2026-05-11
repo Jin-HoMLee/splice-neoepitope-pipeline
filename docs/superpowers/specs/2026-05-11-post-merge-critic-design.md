@@ -171,7 +171,7 @@ v1 keeps everything in one ~180-LOC file (no lib/main split). The pure-function 
 
 ## Test strategy
 
-Lean pytest. Tests target the gnarly parsing and edge cases — block-slicing across multi-date notebooks, deferral-comment handling, exemption-path filtering, role resolution dedupe. Trivial one-liner checks (e.g. `"priority rationale" in body.lower()`) skipped intentionally.
+Lean pytest. Tests target the gnarly parsing and edge cases — block-slicing across multi-date notebooks, deferral-comment handling, exemption-path filtering, role resolution dedupe. The trivial substring check `check_priority_rationale` gets a small present/header-variant/missing trio for completeness.
 
 CI integration: separate `ci-tools-pytest` job in `.github/workflows/tests.yml`, isolated from `pipeline-pytest` so a tooling-test failure doesn't block real pipeline PRs.
 
