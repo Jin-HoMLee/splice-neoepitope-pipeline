@@ -65,7 +65,7 @@ The reimplementation updates the toolchain to current standards:
 | Aligner | TopHat | HISAT2 / STAR |
 | Junction extraction | TopHat output | regtools |
 | MHC binding prediction | NetMHCPan | MHCflurry 2.x |
-| Structural validation | — | TCRdock (Alam et al., *Science* 2023) |
+| Structural validation | — | TCRdock (Bradley, *eLife* 2023) |
 | Workflow management | custom scripts | Snakemake |
 | Reference genome | GRCh37/hg19 | GRCh38/hg38 |
 | Gene annotation | Ensembl | GENCODE v47 |

@@ -6,6 +6,86 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-10
+
+### 17:04 UTC — Editor: Scientist
+
+#### [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322) follow-up — Bradley/Alam TCRdock citation resolved (open item #1)
+
+While waiting for the bot review pass on [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322), used the time to resolve the deferred open item #1 from the REFERENCES.md draft (orphan-branch flag: *"Bradley et al. (METHODS §7) ↔ Alam et al. Science 2023 — almost certainly the same paper; reconciliation deferred"*).
+
+**Verification.** Three independent confirmations that TCRdock = Bradley P., *eLife* 2023 (single-author paper):
+
+1. WebSearch returned the canonical citation: *Bradley P. Structure-based prediction of T cell receptor:peptide-MHC interactions. eLife 2023;12:e82813.* doi:10.7554/eLife.82813
+2. The project's own infrastructure cites Bradley directly: [`docker/Dockerfile.pipeline:15`](docker/Dockerfile.pipeline#L15) clones from `phbradley/TCRdock`, [`workflow/scripts/run_tcrdock.py:12`](workflow/scripts/run_tcrdock.py#L12) references the same repo.
+3. WebSearch for "Alam et al. Science 2023 TCR" returned no matching paper — the Alam attribution in the orphan draft appears to be a hallucination from the previous bot session.
+
+**Fix applied across the manuscript:**
+
+- [INTRODUCTION.md:68](research/manuscript/INTRODUCTION.md#L68) toolchain table: `(Alam et al., *Science* 2023)` → `(Bradley, *eLife* 2023)`
+- [DISCUSSIONS.md:704](research/manuscript/DISCUSSIONS.md#L704) structural validation paragraph: `(Alam et al., *Science* 2023)` → `(Bradley, *eLife* 2023)`
+- [METHODS.md:233](research/manuscript/METHODS.md#L233): `TCRdock (Bradley et al.)` → `TCRdock (Bradley, *eLife* 2023)` (was correct author, missing year/journal)
+- [REFERENCES.md](research/manuscript/REFERENCES.md): dropped the speculative `Alam et al., *Science* 2023` entry, replaced the placeholder `Bradley et al.` with full `Bradley, *eLife* 2023` metadata. Cross-reference table updated; open item #1 removed (3 remain).
+
+**Note on author form:** TCRdock is a single-author paper (Philip Bradley, Fred Hutch), so the citation is `(Bradley, *eLife* 2023)` not `(Bradley et al., …)`. Flagged in the REFERENCES.md entry for future reference.
+
+Folded into [PR #322](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/322) rather than opened as a separate follow-up: same files, naturally bundles, resolves an open item the PR itself surfaced. Bot review will re-trigger on the new commit.
+
+### 16:26 UTC — Editor: Scientist
+
+#### [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272) — REFERENCES.md cherry-pick + refresh against today's manuscript state
+
+**Background.** [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272) is the citation-finalisation umbrella for [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) — three closed sibling issues ([#269](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/269), [#270](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/270), [#311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) closed today) explicitly defer their citation work here. A 2026-05-05 orphan branch (`claude/issue-272-20260505-1025`) has a 214-line REFERENCES.md draft from a previous bot run; PM agreed 2026-05-06 16:52 UTC to *(a) cherry-pick + refresh* against today's state.
+
+**Survey before branching.** Cross-checked the 8-paper inventory against today's manuscript:
+
+| Paper (Zotero key) | Cite present | Section |
+|---|---|---|
+| CNNeoPP (`6RWWUDPC`) | ✅ | INTRODUCTION.md |
+| splice2neo (`Z4FAE6QM`) | ✅ | METHODS.md §2-3 |
+| AlphaGenome (`UZWZ5QEB`) | ✅ | METHODS.md §3 |
+| ENEO (`9T3C58HQ`) | ✅ | DISCUSSIONS.md |
+| SpliceMutr (`VQMU6JWH`) | ✅ | DISCUSSIONS.md |
+| Rojas et al. 2023 (`UIN9DIUP`) | ✅ | INTRODUCTION.md + DISCUSSIONS.md |
+| Sethna et al. 2025 (`N2QF8MC6`) | ✅ | DISCUSSIONS.md |
+| Iamukova & Alferova 2026 (`II24UIUZ`) | ✅ | DISCUSSIONS.md |
+
+Plus two new papers added to the manuscript since the orphan draft (and not in its inventory): **Kwok et al. 2025** (`5ZT8KC8X`, *Nature*) added by [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/300) closing [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280); **Kim et al. 2025** (`XB3CPX5P`, *Cell*) added today by [PR #315](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/315) commit [`70591c9`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/70591c9) (closing [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311)).
+
+**Sibling state.** 6 of 7 sub-issues closed; only [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) (AlphaGenome validation strategy) still open — but it's deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes and is about adding a substantive DISCUSSION subsection rather than new citations. Proceeding now is consistent with the issue body's "depends on sibling sub-issues closing first" gate (effectively cleared).
+
+**File written: `research/manuscript/REFERENCES.md` (~210 lines).** Cherry-picked the orphan's structure (alphabetical sections, ★-flagged inventory entries, cross-reference summary table at the bottom, open-items list). Refreshed:
+
+- All 5 splice-tooling papers had "TBD title" in the orphan; pulled full author lists + titles + journal + DOI from Zotero (collection `Z38GTJNW`) for each.
+- Sethna et al. and APJCO 2026 entries upgraded from "title TBD" to full metadata.
+- **Kwok year fix:** orphan listed *Nature* 2024; correct is 2025 (DOI `10.1038/s41586-024-08552-0`, online 2026-02-19, in print 2025-03-13). Lab notebook caught this on 2026-05-07.
+- **Kim et al. entry added** (sister paper to Kwok; cited in DISCUSSIONS.md line 661 via [`70591c9`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/70591c9)).
+
+**Cross-reference verification.** Grepped all `(Author et al., *Journal* YEAR)`-pattern citations in INTRODUCTION/METHODS/DISCUSSIONS; every in-text cite has a matching reference entry, and every reference entry has at least one in-text use. Style discrepancy flagged in cross-ref table: orphan's house style is abbreviated journal names (`*Nat Methods*`, `*Cell Syst*`, etc.), but several recent in-text citations use full forms (`*Nature Methods*`, `*Frontiers in Immunology*`, `*NAR Genomics and Bioinformatics*`, `*Cancer Research Communications*`) — listed as open item #3 for pre-submission proofread sweep, non-blocking.
+
+**Deferred to follow-up:** the orphan flagged METHODS.md §7's `Bradley et al.` (TCRdock; no year/journal in-text) as "almost certainly the same paper" as DISCUSSIONS's `Alam et al., *Science* 2023`. Claim is unverified; preserved both entries with cross-link warning, deferred reconciliation to a future PR with TCRdock provenance verification (open item #1). Also deferred: AlphaGenome validation strategy citations (pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271)/[Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closure).
+
+#### Earlier today — [PR #315](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/315) review-fix follow-ups (merged) + [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) manual closure
+
+**[PR #315](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/315) bot review** surfaced 3 bugs + 3 observations on yesterday's commit. Fixed across 4 follow-up commits, all merged via squash to main as [`d173ed2`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/d173ed2):
+
+1. **[`e26baec`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/e26baec)** — bug fixes in `research/scripts/issue_299/`: signed-offset matching in `find_a3_candidates()` (replaced `abs(offset) == loss_nt` with `(acceptor − a) == sign·loss_nt` matching the notebook), endpoint-based canonical filter in aggregation loop (replaced `j["annotated"] != "1"` — Snaptron's `annotated` is a count of DBs, not a boolean — with `is_donor_annotated() and is_acceptor_annotated()`), and `Path(__file__).parent`-anchored output in `snaptron_query.py`. Empirical outcome unchanged (RPL22 1/9,662 REJECT; GNAS undetectable); canonical pool roughly doubled after the annotated-filter fix (GNAS 34→68, RPL22 28→113).
+2. **[`70591c9`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/70591c9)** — DISCUSSIONS.md: replaced "discussed elsewhere" with `(Kim et al., *Cell* 2025)` inline citation + HTML TODO comment pointing at [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) for the eventual SF-mutation paragraph. Verified Kim et al. covers SRSF2/SF3B1/U2AF1-mutant myeloid malignancies via 2026-05-08 lab notebook entry before citing.
+3. **[`fcbb41f`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/fcbb41f)** — DISCUSSIONS.md: tightened `~789 public NJ pool` to `789 characterized public NJs (the glioma-focused set taken through peptide-presentation validation)`. Verified against the Kwok PDF (downloaded via Zotero API): `789` appears 5+ times in the paper (Fig. 2 caption, Fig. 3 prose, line 697 peptide-presentation section, Extended Data Fig. 2). Bot's provenance concern was unfounded but the framing genuinely conflated the glioma-focused set with the pan-cancer pool (Kwok cites "94 public NJs per TCGA tumour type" on average across 12 cancer types, not enumerated in aggregate).
+4. **[`d6df95b`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/d6df95b)** — `identify_nej_candidates.py` docstring: added "Prereq: run `snaptron_query.py` first" since the input TSVs are gitignored due to size.
+
+Bot re-review confirmed *"This PR is ready to merge"* with no remaining blockers; merged via squash + branch deleted; project board flipped to Done automatically.
+
+**[Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) manually closed** — work landed via [PR #315](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/315) commit [`70591c9`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/70591c9) as a side-effect of bot review obs #4. PR body had `Closes #299`, not `Closes #311`, so the auto-link didn't fire. Closed manually with a pointer comment; ACs #1, #2, #4 ticked; AC #3 (manuscript reference list) deferred to [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272) — picked up in this same PR.
+
+#### Process notes from this session
+
+- **`shared/MEMORY.md` post-compaction gap.** I chained `git commit && git push` for 4 commits today (PR #315 follow-ups + the [Issue #311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/311) closure body edit). User caught it. Root cause: the `Commit, push, merge — three separate steps` rule lives in `shared/MEMORY.md` Always-in-effect (line 31), but `shared/MEMORY.md` was loaded at session start and dropped during a `/compact` mid-session — leaving only `scientist/MEMORY.md` (which didn't have the rule inlined). Fix: copied the rule inline to `scientist/MEMORY.md` Always-in-effect (now line 13), with the post-compaction root cause documented in the bullet itself. Same pattern as the archive-don't-delete rule promoted by PM 2026-05-09 11:50 UTC.
+- **Standup hygiene.** Flipped own [2026-05-09 11:10 UTC] post (archive-don't-delete proposal) to Done since PM actioned it; archived 3 stale Sci-authored Done >3 days messages (2026-05-06 dates) into `team_standup_archive/2026-05.md` (51→54 messages, `_index.md` count bumped); standup file shrunk 413→360 lines.
+- **[Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) closure audit cleared.** PM's 2026-05-09 11:09 UTC nudge: 6/6 ACs unticked + missing Priority rationale. Verified each AC against [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/300) (DISCUSSIONS + news_log + lab notebook); all met. Body edited to tick all 6 + add `**Priority rationale:**` line; reply comment posted with one annotation: AC #5's "news_log line 23" actually landed at line 37 because line numbers shifted between issue creation and merge — same fix, different line.
+
+---
+
 ## 2026-05-09
 
 ### 21:09 UTC — Editor: Scientist
