@@ -6,6 +6,27 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-11
+
+### 16:32 UTC — Editor: Developer
+
+**Headline:** [PR #332](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/332) opened against [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) — closure-audit critic ships as a 2-week probe of Sakana Fugu's "critic-as-default" lesson on a human-supervised pipeline.
+
+**Work shipped:**
+
+- [PR #332](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/332) ([Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) — closure-audit critic) — GitHub Actions workflow fires on `pull_request.closed && merged` and `issues.closed`, runs `tools/ci/closure_audit.py` (~180 LOC) which performs the 3 closure-ritual checks (AC checkbox count, lab notebook date+`#<N>`-ref, `**Priority rationale:**` substring) and posts one marker-tagged comment listing gaps. Silent on the clean path; post-only (no edit-in-place). Path exemptions: `research/news_log.md`, `research/glossary.md`, `research/lab_notebook/*.md` (the last one to avoid a circular self-check). 9 focused unit tests cover the gnarly parsing (block-slicing across multiple `## YYYY-MM-DD` headers, deferral-comment handling, exemption filter, role resolution from `role:*` labels). Tests run in a separate `ci-tools-pytest` job in [`tests.yml`](.github/workflows/tests.yml) so a tooling test failure doesn't block real pipeline PRs.
+
+**Process notes:**
+
+- Two course-corrections during drafting: (1) the original implementation plan was 10 tasks + 26 tests, which the user correctly flagged as overkill for a ~180-LOC tool — pivoted to inline execution with 9 focused tests; (2) initial file placement under `workflow/scripts/` mixed CI tooling with Snakemake-pipeline files — moved to new top-level `tools/ci/` folder with a `conftest.py` for sys.path setup.
+- Spec was preserved at [docs/superpowers/specs/2026-05-11-post-merge-critic-design.md](docs/superpowers/specs/2026-05-11-post-merge-critic-design.md) — design contract worth keeping even though the bloated plan doc was dropped.
+- **Kill criterion baked into the PR body:** explicit re-evaluation at 2026-05-25. If the bot's comments are >50% noise, get ignored, or cost more maintenance than they save, rip it out. Issue #325 stays open during the trial.
+- `gh auth refresh -s workflow` needed before the push could land — adding new `.github/workflows/*.yml` files requires the `workflow` OAuth scope that the default gh CLI auth lacks. One-time interactive step.
+
+**Why this is a probe, not infrastructure:** the user already controls closure ritual manually as supervisor of 3 AI roles; PM's morning audit is the existing safety net; this critic is a safety-net-for-the-safety-net. The Sakana Fugu "critic-as-default" lesson is really for agent loops with no human in the loop. Worth knowing whether it adds value here, but no commitment to keep it.
+
+---
+
 ## 2026-05-10
 
 ### 17:04 UTC — Editor: Developer
