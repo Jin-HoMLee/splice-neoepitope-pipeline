@@ -18,6 +18,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **AFDB** — AlphaFold Database (alphafold.ebi.ac.uk). DeepMind/EBI's public repo of ~200M predicted protein structures. *Domain: bio.*
 
+**AP** — Access Point. In HTCondor topology, the machine where jobs are submitted, files staged, and conda envs built. Distinct from the EP (execution point) when there is no shared FS; the AP→EP env-deployment gap is the same problem cloud executors (Google Batch) face. *Domain: cloud.*
+
 ## C
 
 **CAPRI** — Critical Assessment of PRedicted Interactions. Community blind-prediction challenge for protein-protein / peptide-MHC docking (since 2001); CAPRI quality bands (high / medium / acceptable / incorrect) are the standard yardstick for docking models — DockQ is the continuous reformulation of these bands. *Domain: bio.*
@@ -26,9 +28,13 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CDR3** — Complementarity-Determining Region 3. Hypervariable loop on each TCR chain (α and β) that makes direct contact with the peptide in pMHC; the primary specificity-encoding region of the TCR. Average `pLDDT` across CDR3 residues used as a TCR-pMHC docking quality signal (Lu et al. 2025, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)). *Domain: bio.*
 
+**CHTC** — Center for High Throughput Computing (UW-Madison). Develops and maintains HTCondor; took over maintenance of Snakemake's HTCondor executor plugin at the 2026 Snakemake Hackathon. *Domain: cloud.*
+
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
+
+**DAG** — Directed Acyclic Graph. Snakemake's compiled job-dependency graph; computed from rule wildcards + I/O files, traversed for scheduling. Rendered via `scripts/visualize_dag.sh` after a dry-run. *Domain: pipeline.*
 
 **DockQ** — Docking Quality. Continuous 0–1 score combining Fnat (fraction of native contacts), iRMSD (interface RMSD), and LRMSD (ligand RMSD); maps onto CAPRI bands; used to evaluate predicted protein-protein / TCR-pMHC complex structures against experimental ground truth. *Domain: bio.*
 
@@ -36,11 +42,17 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **ENCODE** — Encyclopedia of DNA Elements. NIH consortium (since 2003) cataloging functional genome features via standardized high-throughput assays (RNA-seq, ChIP-seq, ATAC-seq, Hi-C, CAGE, bisulfite-seq, etc.). "ENCODE-style assays" = this standard set of functional genomics readouts, regardless of which project produced the data. *Domain: bio.*
 
+**EP** — Execution Point. In HTCondor topology, the machine where a job actually runs. In no-shared-FS topologies the conda env built on the AP must be transported to (or rebuilt on) the EP — the same constraint cloud workers face. *Domain: cloud.*
+
 **ESM-IF1** — Evolutionary Scale Modeling Inverse Folding (v1). Meta AI model (Hsu et al. 2022) trained on 12M protein structures; given a backbone, infers compatible sequences. Used as a structure-aware embedding source by structure-informed TCR-pMHC scorers (e.g. NetTCR-struc). *Domain: ml.*
 
 ## G
 
 **GATK** — Genome Analysis Toolkit (Broad Institute). Canonical somatic/germline variant calling suite; reference for the Panel of Normals (PoN) concept reused by neoepitope filtering. *Domain: bio.*
+
+**GCP** — Google Cloud Platform. The cloud provider hosting this pipeline's VMs and storage bucket (zone `europe-west1-b`). *Domain: cloud.*
+
+**GCS** — Google Cloud Storage. GCP's object store; pipeline results, logs, and reference data live in `gs://splice-neoepitope-project`. *Domain: cloud.*
 
 **GKE** — Google Kubernetes Engine. Managed Kubernetes on GCP. *Domain: cloud.*
 
@@ -56,9 +68,17 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **HLA-LOH** — HLA Loss of Heterozygosity. Tumor immune-escape mechanism: somatic deletion or copy-neutral loss of one HLA allele, narrowing the peptide-presentation repertoire and shielding the tumor from neoantigen-specific T cells. Detected from WES (e.g. LOHHLA); candidates predicted on a lost allele are no longer presented. *Domain: bio.*
 
+**HPC** — High-Performance Computing. Cluster compute systems with job schedulers (SLURM, LSF, HTCondor); distinct from cloud "on-demand" compute models (GCP, AWS Batch). Pipeline currently runs on cloud, not HPC. *Domain: cloud.*
+
+**HTCondor** — High-Throughput Condor. Distributed batch scheduler from UW-Madison's CHTC; dominant in physics/astronomy (e.g. CERN ATLAS). Supports no-shared-FS topologies natively — relevant precedent for cloud-executor design. *Domain: cloud.*
+
 ## I
 
 **IC50** — half-maximal Inhibitory Concentration. Concentration (in nM) at which a peptide displaces 50% of a reference ligand from MHC; classic affinity metric, retained as informational column alongside the percentile-based presentation score. *Domain: bio.*
+
+## L
+
+**LSF** — Load Sharing Facility (IBM Spectrum). Commercial HPC batch scheduler; used at DKFZ Heidelberg among others. Snakemake has a dedicated LSF executor plugin. *Domain: cloud.*
 
 ## M
 

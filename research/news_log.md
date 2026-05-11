@@ -13,6 +13,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-11
 
+### 10:04 UTC — Editor: Developer
+
+- **Snakemake Hackathon 2026** ([BioHackrXiv 2026-04-27](https://index.biohackrxiv.org/2026/04/27/h6zqj.html)) — plugin / HPC / cloud-backend focus. → [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (Google Batch) + [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) (Snakemake 9.x). *Developer. pipeline-relevant.*
+
 ### 09:11 UTC — Editor: PM
 
 - **GitHub Issues from Slack — `@GitHub` natural-language mentions** ([May 2026 Changelog](https://github.blog/changelog/)) — NL mention in any channel creates structured issue in repo. → No action; we don't use Slack. *PM. tooling-signal.*
