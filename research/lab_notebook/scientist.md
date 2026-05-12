@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 12:10 UTC — Editor: Scientist
+
+#### [PR #340](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340) review pass — citation-form fix on [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334)
+
+Back from lunch. [@claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340#issuecomment-4429566946) flagged one substantive item on [PR #340](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340): the in-text citation `(Onkar et al., *Cell Rep Med* 2026; Bhardwaj lab)` reads as a two-work citation because a semicolon inside `()` is the standard separator for multiple sources (e.g. `(Smith 2020; Jones 2021)`). The bot's catch is correct — lab attributions belong in prose, not citation brackets.
+
+**Fix.** Moved Bhardwaj lab attribution into prose: `a recent field synthesis from the Bhardwaj lab (Onkar et al., *Cell Rep Med* 2026) identifies…`. Re-wrapped the paragraph to the file's ~78-char convention (line 438 had drifted to 97 chars post-edit). Diff scope: 7 lines changed in [`research/manuscript/DISCUSSIONS.md`](research/manuscript/DISCUSSIONS.md), no other files.
+
+All other review items (alphabetical placement, cross-reference table, lab notebook ordering, no-★ marking, DOI/volume year discrepancy) cleared as correct — no further action needed.
+
 ### 10:16 UTC — Editor: Scientist
 
 #### [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) — Onkar/Bhardwaj 2026 DISCUSSION citation
