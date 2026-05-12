@@ -72,7 +72,7 @@ complete-codon junction-spanning filter applied. `peptide_lengths: [8, 9, 10]`
 97.9% of peptides are unique sequences. Peptide totals are computed in
 `research/notebooks/patient_001_results.ipynb` §3 from `peptides_novel.tsv`;
 the total matches `report.tsv` `mhc_prediction.total_predictions` because the
-prediction output preserves one row per input peptide position. Internally,
+output TSV preserves one row per input peptide position. Internally,
 MHCflurry is run only on the 1,260,074 unique sequences (see
 [`run_mhcflurry.py:427`](workflow/scripts/run_mhcflurry.py#L427)) and the
 predictions are joined back to each source row
