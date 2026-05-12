@@ -54,3 +54,29 @@ Note format (three sections, max 2 bullets each):
 - **Results:** `• [finding] — [why it matters generally] / [why it matters for us]`
 - **Methods:** `• [tool/approach] — [reuse potential]`
 - **Limitations:** `• [gap] — [how we address it / open question]`
+
+---
+
+## scripts/aggregate_cohort.py
+
+Combines per-patient `report.tsv` files into a single cohort table for cross-patient analysis (Issue #84). Pipeline runs are single-patient by design, so this is a post-pipeline research-time step rather than a Snakemake rule.
+
+Each per-patient `report.tsv` carries the schema `patient_id | stage | metric | value | notes`; aggregation is a sorted concatenation.
+
+**By explicit input paths:**
+```bash
+python research/scripts/aggregate_cohort.py \
+  --inputs results/patient_001/reports/report.tsv \
+           results/patient_002/reports/report.tsv \
+  --output research/cohort_summary.tsv
+```
+
+**By patient IDs (paths resolved as `{results-root}/{ID}/reports/report.tsv`):**
+```bash
+python research/scripts/aggregate_cohort.py \
+  --patients patient_001 patient_002 \
+  --results-root results \
+  --output research/cohort_summary.tsv
+```
+
+Output is sorted by `(patient_id, stage, metric)` for stable diffs.
