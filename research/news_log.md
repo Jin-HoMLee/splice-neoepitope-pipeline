@@ -11,6 +11,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-12
+
+### 09:06 UTC — Editor: Scientist
+
+- **Onkar et al. — Bhardwaj-lab cancer vaccine field synthesis** ([Cell Rep Med 2026](https://www.cell.com/cell-reports-medicine/fulltext/S2666-3791(25)00648-2)) — neoantigen + ICI convergence; off-the-shelf shared-NA vaccines named as emerging strategy. → [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Sci, DISCUSSION clinical-translation framing). *Scientist. portfolio-differentiator.*
+
 ## 2026-05-11
 
 ### 10:04 UTC — Editor: Developer
