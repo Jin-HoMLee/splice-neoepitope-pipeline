@@ -13,6 +13,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-12
 
+### 09:06 UTC — Editor: Scientist
+
+- **Onkar et al. — Bhardwaj-lab cancer vaccine field synthesis** ([Cell Rep Med 2026](https://www.cell.com/cell-reports-medicine/fulltext/S2666-3791(25)00648-2)) — neoantigen + ICI convergence; off-the-shelf shared-NA vaccines named as emerging strategy. → [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Sci, DISCUSSION clinical-translation framing). *Scientist. portfolio-differentiator.*
+
 ### 08:57 UTC — Editor: Developer
 
 - **Snakemake 9.20.0 + 8→9 migration is small** ([changelog](https://snakemake.readthedocs.io/en/stable/project_info/history.html), [migration guide](https://snakemake.readthedocs.io/en/stable/getting_started/migration.html)) — only 1 breaking change (custom logger API via `--logger` / `OutputSettings.log_handler_settings`); much lighter than 7→8. → Re-scope [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) (Snakemake 9.x migration) lower. *Developer. pipeline-relevant.*

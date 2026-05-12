@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-12
+
+### 09:06 UTC — Editor: Scientist
+
+#### Morning routine — news_log + Zotero + [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Onkar et al. 2026 cancer-vaccine field synthesis)
+
+Surfaced Onkar et al. (Bhardwaj lab) review in *Cell Reports Medicine* during morning routine. Synthesizes decades of cancer vaccine work, names neoantigen + ICI combinations as the convergent field direction, and off-the-shelf shared-neoantigen vaccines as the emerging strategy to bypass personalized manufacturing time/cost.
+
+- **news_log**: bullet under `## 2026-05-12 / 09:06 UTC — Editor: Scientist`, linked to [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334).
+- **Zotero**: added to collection `Z38GTJNW` (key `P6K7QWR4`), three-section HTML note (Findings / Methods / vs. our pipeline). Pre-checked DOI for dedup — no existing entry.
+- **[Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (parked in Backlog)**: AC checkboxes, Priority rationale (P2 — review reference; pairs with Kwok + Kim shared-splice-NA axis), Created-by attribution. Concrete DISCUSSION hook: clinical-translation section as field-state opener. No board Status/Priority flip — `gh project` auth scope missing this session; left for whoever picks up.
+
+No manuscript files touched — citation work waits for [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) to be picked up.
+
+**Closure-ritual note for self.** Briefly overshot: created the [#334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) linked branch (`docs/scientist/issue-334-bhardwaj-discussion`) via `gh issue develop` and started drafting the manuscript edit before user re-grounded the scope. Rolled back: empty branch deleted locally + remotely. Lesson: "create Issue for X" ≠ "start work on X" — Backlog parking is the default unless explicitly asked to pick up.
+
+---
+
 ## 2026-05-10
 
 ### 17:04 UTC — Editor: Scientist
