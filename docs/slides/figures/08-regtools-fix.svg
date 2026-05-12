@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" width="700" height="220" font-family="ui-monospace,monospace" font-size="13">
+  <text x="20" y="35" font-size="13" fill="#374151" font-family="ui-sans-serif,system-ui"><tspan font-weight="bold">regtools junctions extract</tspan> <tspan>— what </tspan><tspan font-family="ui-monospace,monospace">-s XS</tspan><tspan> does:</tspan></text>
+  <rect x="20" y="50" width="660" height="40" fill="#f3f4f6" stroke="#d1d5db" rx="3"/>
+  <text x="30" y="76" font-size="13" fill="#1f2937">regtools junctions extract -s XS -a 8 -m 50 -M 500000 -o out.bed in.bam</text>
+
+  <text x="20" y="115" font-size="13" fill="#374151" font-family="ui-sans-serif,system-ui">→ regtools reads the XS tag on each spliced read to call junction strand.</text>
+  <text x="20" y="135" font-size="13" fill="#374151" font-family="ui-sans-serif,system-ui">→ <tspan font-weight="bold">No XS → strand defaults to "?" or heuristic guess.</tspan></text>
+
+  <rect x="20" y="155" width="660" height="60" fill="#fee2e2" stroke="#ef4444" rx="4"/>
+  <text x="350" y="178" text-anchor="middle" font-size="14" fill="#991b1b" font-weight="bold" font-family="ui-sans-serif,system-ui">Pipeline today (unstranded HISAT2) → unreliable XS → ambiguous strand calls</text>
+  <text x="350" y="200" text-anchor="middle" font-size="13" fill="#991b1b" font-family="ui-sans-serif,system-ui">Junction strand may flip for non-canonical splices; downstream filters lose specificity.</text>
+</svg>

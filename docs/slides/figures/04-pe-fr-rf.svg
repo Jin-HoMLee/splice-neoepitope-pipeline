@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 260" width="700" height="260" font-family="ui-sans-serif,system-ui" font-size="14">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+  <line x1="60" y1="40" x2="640" y2="40" stroke="#9ca3af" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="40" y="44" fill="#6b7280" font-size="12">5'</text>
+  <text x="645" y="44" fill="#6b7280" font-size="12">3'</text>
+  <text x="350" y="28" fill="#374151" font-size="13" text-anchor="middle" font-style="italic">gene on + strand (sense)</text>
+
+  <text x="40" y="80" fill="#1e3a8a" font-weight="bold">FR (forward-stranded)</text>
+  <text x="40" y="98" fill="#6b7280" font-size="12">e.g. Ligation; R1 matches gene direction</text>
+  <line x1="160" y1="118" x2="240" y2="118" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="200" y="135" fill="#3b82f6" font-size="13" text-anchor="middle">R1 →</text>
+  <line x1="440" y1="118" x2="360" y2="118" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <text x="400" y="135" fill="#ef4444" font-size="13" text-anchor="middle">← R2</text>
+
+  <line x1="60" y1="155" x2="640" y2="155" stroke="#e5e7eb" stroke-width="1"/>
+
+  <text x="40" y="180" fill="#1e3a8a" font-weight="bold">RF (reverse-stranded)</text>
+  <text x="40" y="198" fill="#6b7280" font-size="12">e.g. dUTP / TruSeq Stranded mRNA; R1 opposes gene, R2 matches</text>
+  <line x1="240" y1="218" x2="160" y2="218" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <text x="200" y="235" fill="#ef4444" font-size="13" text-anchor="middle">← R1</text>
+  <line x1="360" y1="218" x2="440" y2="218" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="400" y="235" fill="#3b82f6" font-size="13" text-anchor="middle">R2 →</text>
+</svg>

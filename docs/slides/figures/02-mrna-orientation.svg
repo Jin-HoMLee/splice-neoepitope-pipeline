@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" width="700" height="220" font-family="ui-monospace,monospace" font-size="16">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+    </marker>
+  </defs>
+  <text x="40" y="50" fill="#ef4444" opacity="0.5">3'</text>
+  <line x1="70" y1="46" x2="620" y2="46" stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>
+  <text x="200" y="40" fill="#ef4444" font-size="13" opacity="0.6">T A C G T C A T G C C A T A A G T C</text>
+  <text x="640" y="50" fill="#ef4444" opacity="0.5">5'</text>
+  <text x="40" y="68" fill="#6b7280" font-size="12" font-family="ui-sans-serif,system-ui">antisense template (DNA)</text>
+  <line x1="350" y1="80" x2="350" y2="110" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="365" y="100" fill="#10b981" font-size="13" font-family="ui-sans-serif,system-ui">transcription</text>
+  <text x="40" y="145" fill="#3b82f6">5'-cap</text>
+  <line x1="90" y1="140" x2="600" y2="140" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="200" y="133" fill="#3b82f6" font-size="14">A U G C A G U A C G G U A U U C A G</text>
+  <text x="605" y="145" fill="#3b82f6" font-size="13">- (A)n 3'</text>
+  <text x="40" y="170" fill="#3b82f6" font-size="13" font-family="ui-sans-serif,system-ui">mRNA — single-stranded, 5'→3', poly-A at 3' end</text>
+  <text x="40" y="200" fill="#6b7280" font-size="13" font-family="ui-sans-serif,system-ui">→ mRNA sequence = SENSE-strand sequence (T → U)</text>
+</svg>
