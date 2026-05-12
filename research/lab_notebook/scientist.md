@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 12:30 UTC — Editor: Scientist
+
+#### [Issue #342](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/342) — RESULTS.md prose: duplicate-peptide dedup misrepresentation
+
+User scrutiny pass on the patient_001 RESULTS.md tables surfaced a count discrepancy: *Peptide Translation* reports `Total = 1,286,492` / `Unique sequences = 1,260,074`, while *MHC Presentation Predictions* reports `Total predictions = 1,286,492` — suggesting MHCflurry is called on non-deduped peptides (~26k wasted predictions). Traced [`run_mhcflurry.py`](workflow/scripts/run_mhcflurry.py): dedup happens at [line 427](workflow/scripts/run_mhcflurry.py#L427) (`peptides_df["peptide"].unique()`), prediction runs on the 1,260,074 unique sequences only, then the predictions are merge-joined back to all 1,286,492 source rows at [line 475](workflow/scripts/run_mhcflurry.py#L475) to preserve `contig_key`/`start_nt` traceability.
+
+**Verdict:** compute is already efficient; the prose just misrepresents the design. Current wording *"one prediction per input peptide; duplicate sequences from different junctions or reading frames are each predicted separately"* is factually wrong — duplicates are predicted **once** and **replicated across source rows**, not predicted independently.
+
+**Fix.** Rewrote `RESULTS.md` lines 72–76 to explicitly state: (a) one row per input peptide position in the output; (b) MHCflurry runs only on the 1,260,074 unique sequences internally; (c) predictions are joined back per source row for `contig_key`/`start_nt` traceability. Added inline code links to `run_mhcflurry.py:427` + `:475` so a future reader can verify directly. Patient_002 section grepped clean — no equivalent misleading prose to fix.
+
 ### 12:10 UTC — Editor: Scientist
 
 #### [PR #340](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340) review pass — citation-form fix on [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334)
