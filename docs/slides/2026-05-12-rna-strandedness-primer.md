@@ -3,7 +3,7 @@ marp: true
 theme: default
 paginate: true
 header: 'RNA-Seq Strandedness — Visual Primer'
-footer: '2026-05-13 · splice-neoepitope-pipeline · context: Issue #279'
+footer: '2026-05-12 · splice-neoepitope-pipeline · context: Issue #279'
 style: |
   section { font-size: 22px; }
   h1 { color: #1e3a8a; }
