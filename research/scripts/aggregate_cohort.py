@@ -42,7 +42,7 @@ def resolve_inputs(
     patients: list[str] | None,
     results_root: str,
 ) -> list[Path]:
-    if inputs:
+    if inputs is not None:
         return [Path(p) for p in inputs]
     return [
         Path(results_root) / pid / "reports" / "report.tsv" for pid in patients
@@ -63,6 +63,8 @@ def load_report(path: Path) -> pd.DataFrame:
 
 
 def aggregate(paths: list[Path]) -> pd.DataFrame:
+    if not paths:
+        raise ValueError("aggregate() requires at least one input path")
     frames = [load_report(p) for p in paths]
     cohort = pd.concat(frames, ignore_index=True)
     return cohort.sort_values(SORT_KEYS, kind="stable").reset_index(drop=True)

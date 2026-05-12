@@ -58,6 +58,15 @@ def test_aggregate_sorts_by_patient_stage_metric(tmp_path: Path):
     assert cohort["stage"].tolist()[:2] == ["junction_filtering", "mhc_prediction"]
 
 
+def test_aggregate_empty_paths_raises():
+    with pytest.raises(ValueError, match="at least one"):
+        aggregate([])
+
+
+def test_resolve_inputs_empty_inputs_treated_as_explicit():
+    assert resolve_inputs([], None, "results") == []
+
+
 def test_load_report_rejects_missing_patient_id_column(tmp_path: Path):
     bad = tmp_path / "bad.tsv"
     pd.DataFrame({"stage": ["s"], "metric": ["m"], "value": ["1"], "notes": [""]}).to_csv(
