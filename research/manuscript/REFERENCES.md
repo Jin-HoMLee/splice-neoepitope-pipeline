@@ -87,6 +87,9 @@
 **O'Donnell et al., *Cell Syst* 2020** — MHCflurry 2.0: Improved pan-allele prediction of MHC class I-presented peptides by incorporating antigen processing. *Cell Syst* 2020;11(1):42–48.
 → Cited in DISCUSSIONS.md (MHC binding prediction section; composite presentation score)
 
+**Onkar et al., *Cell Rep Med* 2026** — Pipe dream to pipeline: Journey of cancer vaccines and the road ahead. *Cell Rep Med* 2026;7(2):102575. doi:10.1016/j.xcrm.2025.102575
+→ Cited in DISCUSSIONS.md (clinical translation section; field synthesis — neoantigen + ICI convergence, off-the-shelf shared-NA vaccines)
+
 **Ott et al., *Nature* 2017** — An immunogenic personal neoantigen vaccine for patients with melanoma. *Nature* 2017;547(7662):217–221. doi:10.1038/nature22991
 → Cited in INTRODUCTION.md, DISCUSSIONS.md (vaccine slot efficiency; 10–20 candidates per trial)
 
@@ -200,6 +203,7 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Lang et al., *Bioinform Adv* 2024 | ✅ | |
 | McKeithan, *PNAS* 1995 | ✅ | |
 | O'Donnell et al., *Cell Syst* 2020 | ✅ | Manuscript uses full form ("Cell Systems"); also year-before-journal ordering |
+| Onkar et al., *Cell Rep Med* 2026 | ✅ | |
 | Ott et al., *Nature* 2017 | ✅ | |
 | Palmer et al., *Cancer Res Commun* 2024 | ✅ | Manuscript uses full form ("Cancer Research Communications") |
 | Peacock et al., *Bioinformatics* 2023 | ✅ | |

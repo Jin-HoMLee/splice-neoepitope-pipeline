@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 10:16 UTC — Editor: Scientist
+
+#### [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) — Onkar/Bhardwaj 2026 DISCUSSION citation
+
+Picked up [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) from Backlog as a short ship before lunch. Work is the natural follow-on to the morning news_log entry; Zotero entry was already attached this morning (key `P6K7QWR4`) so this PR is purely manuscript-side.
+
+**DISCUSSIONS.md edit.** Added a new opening paragraph to the *Clinical translation: durability of personalized neoantigen vaccines in low-mutation tumors* section (before the existing "Among multiple active personalized neoantigen vaccine trials..." paragraph). The opener uses Onkar et al. as the analytical-synthesis framing — neoantigen + ICI convergence + off-the-shelf shared-NA vaccines as the emerging strategy + manufacturing-time / biomarker as unsolved field-wide problems. Naturally bookends with the existing trial-pipeline reference (Iamukova & Alferova 2026) and sets up the Kwok subsection downstream where the personalized-vs-shared axis is concretely treated for splice neoantigens.
+
+**REFERENCES.md.** Added Onkar et al. entry under `## O` (alphabetically between O'Donnell and Ott), with full DOI metadata (`10.1016/j.xcrm.2025.102575`) and `→ Cited in DISCUSSIONS.md (clinical translation section; field synthesis)` annotation. Added matching row to the *All current in-text citations* cross-reference table. Not marked with ★ since Onkar/Bhardwaj is not in the original 8-paper inventory of [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) / [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272); it's a discretionary morning-news addition.
+
+**Issue body typo.** AC 1 references `DISCUSSION.md` (singular) but the actual file is `DISCUSSIONS.md` (plural) — corrected in the Issue body when ticking the AC. Pre-merge body edit; not a hidden change.
+
 ### 09:06 UTC — Editor: Scientist
 
 #### Morning routine — news_log + Zotero + [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Onkar et al. 2026 cancer-vaccine field synthesis)
