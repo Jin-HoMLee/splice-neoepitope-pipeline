@@ -277,9 +277,8 @@ A single classification label `presentation_class` is derived from `presentation
 returns one prediction per peptide — the best-allele score across the patient's HLA-A/B/C
 alleles.
 
-The 0.5% strong threshold is the cutoff used by Jiang et al. (2024, *Communications
-Biology*) for MHCflurry-PS predictions. The 2.0% weak threshold is the conventional
-affinity-percentile cutoff applied in the field.
+The 0.5% strong and 2% weak cutoffs are MHCflurry's documented defaults (O'Donnell
+et al. 2020, *Cell Systems*), inheriting the IEDB/NetMHCPan binder-percentile convention.
 
 Epitopes are ranked by `presentation_percentile` (ascending), prioritizing candidates
 that are both strongly bound and well processed — the subset most likely to be immunogenic.

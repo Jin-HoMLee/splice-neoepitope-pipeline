@@ -116,7 +116,7 @@ Allele breadth is also clinically relevant beyond the initial ranking:
   three alleles has three independent opportunities to engage a cognate T cell in the
   patient's repertoire.
 
-The integer count of alleles for which a peptide qualifies as a strong binder
+The integer count of alleles for which a peptide qualifies as a strong presenter
 (`n_strong_alleles`) provides a secondary signal: among peptides with equal
 GPS, a peptide classified as strong by three alleles is a
 biologically cleaner winner than one with one strong and five near-zero predictions.

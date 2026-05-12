@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 21:10 UTC — Editor: Scientist
+
+#### [Issue #347](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/347) — manuscript §6 hygiene: presenter terminology + phantom Jiang citation cleanup
+
+Terminology-drift scan on `research/manuscript/*` surfaced two bundled issues.
+
+**Issue 1 — phantom citation.** Three places (METHODS.md:202, DISCUSSIONS.md:280-282, REFERENCES.md:56) cited *"Jiang et al. (2024, Communications Biology)"* as the precedent for the 0.5%/2% percentile threshold on MHCflurry's `presentation_percentile`. REFERENCES.md entry had placeholder title "TBD" and the paper cannot be located via Zotero, PubMed, or web search — confirmed unverifiable. Pivoted to O'Donnell et al. 2020 (MHCflurry 2.0, *Cell Systems*, DOI `10.1016/j.cels.2020.06.010`) — the actual source of MHCflurry's documented default cutoffs, already in REFERENCES.md (line 87) but missing from Zotero. Added O'Donnell to Zotero (key `SBQGHWRP`) with three-section note.
+
+**Issue 2 — presenter terminology drift.** Two lines described our pipeline's own outputs using legacy "binder" vocab: METHODS.md:233 ("top strong-binding candidate" → "top strong-presenting candidate") and INTRODUCTION.md:119 ("qualifies as a strong binder" → "…strong presenter"). The remaining 7 "X-binder threshold" hits across the manuscript reference the IEDB/NetMHCPan binder-percentile convention — rather than rewrite all 7, added an explicit *Note on terminology* caveat at METHODS §6 that acknowledges the adaptation and names the cutoffs as "strong/weak presenter thresholds" throughout. INTRODUCTION.md:125 "strongest-binding epitope" legitimately retained (cites Yewdell & Bennink 1999 immunodominance framework — sourced biological vocabulary).
+
+**Edits.** 8 surgical edits across REFERENCES.md (4 — Jiang entry removal + O'Donnell "Cited in" update + tracking-table row + title-TBD list), METHODS.md (2 — caveat + line 233), DISCUSSIONS.md (1 — line 280-282 O'Donnell pivot), INTRODUCTION.md (1 — line 119).
+
 ### 12:30 UTC — Editor: Scientist
 
 #### [Issue #342](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/342) — RESULTS.md prose: duplicate-peptide dedup misrepresentation
