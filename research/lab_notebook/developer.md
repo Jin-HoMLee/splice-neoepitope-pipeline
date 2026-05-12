@@ -8,6 +8,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 21:19 UTC — Editor: Developer
+
+**Headline:** New `docs/slides/` directory + 9-slide Marp visual primer on RNA-seq strandedness ([Issue #348](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/348), [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350)). Research surfaced two technical errors in the [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) body — follow-up correction comment to be posted there.
+
+**Work shipped:**
+
+- [Issue #348](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/348) filed (deck request, P3, XS); [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) opened with the deck.
+- `docs/slides/2026-05-12-rna-strandedness-primer.md` — [Marp](https://marp.app) deck, 9 slides, all SVG schematics inline. Covers: dsDNA setup, mRNA orientation, library prep flow (where strand info survives or is lost), PE FR/RF, SE F/R syntax pitfall, 10x 3' GEX R2 chemistry, HISAT2 `--rna-strandness` + XS tag mechanics, regtools `-s XS` dependency, and a tool-mapping cheat sheet (HISAT2 / htseq / Salmon / featureCounts).
+- Sets a new convention for the repo: `docs/slides/YYYY-MM-DD-<topic>.md` for visual primers. First entry in the dir.
+
+**Issue #279 corrections surfaced during research:**
+
+1. **SE syntax:** HISAT2 SE takes a single letter (`F` or `R`); `FR`/`RF` is PE-only. Issue body uses `RF` for SE — copy-paste from PE docs.
+2. **Direction:** 10x Chromium 3' GEX v3 R2 reads come from the **sense (coding)** strand ([10x Tech Note CG000376](https://assets.ctfassets.net/an68im79xiti/awNZTarmwqmwxKcvDv9wv/b05500661e36290b8ce59689ff889ea8/CG000376_TechNote_Antisense_Intronic_Reads_SingleCellGeneExpression_RevA.pdf), [scg_lib_structs 10xChromium3v3](https://scg-lib-structs.readthedocs.io/en/latest/ge/10xChromium3v3.html)) → forward-stranded. Issue body claims reverse-stranded.
+
+→ Correct flag for 10x R2 SE alignment is `--rna-strandness F` (not `RF`). Implementation work on [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) should use `F`.
+
+**Process notes:**
+
+- Skipped spec doc + writing-plans flow per `feedback_brainstorming_scope.md` (XS docs work). Single `AskUserQuestion` covered scope/audience; second covered how to handle the issue-body discrepancy.
+- Caught a wrong date in the initial filename (`2026-05-13` instead of today's UTC date `2026-05-12`) right after the first push — fixed via `git mv` + new commit before review. Reminder for future date-prefixed files: always confirm via `date -u` before naming.
+- `marp-cli` not installed locally; trusted markdown syntax + manual SVG review. PR test plan asks reviewer to render in VS Code Marp extension as the validation step.
+
+---
+
 ### 10:07 UTC — Editor: Developer
 
 **Headline:** Cohort aggregation tool ships as a standalone research-time CLI ([Issue #84](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/84)) — `research/scripts/aggregate_cohort.py`, not a Snakemake rule. Also: [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) Snakemake 9 re-scope comment landed.
