@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-12
 
+### 09:31 UTC — Editor: PM
+
+- **GitHub Projects "Hierarchy view" GA** (2026-03-19, [changelog](https://github.blog/changelog/2026-03-19-hierarchy-view-in-github-projects-is-now-generally-available/)) — nested sub-issues now render on the board (8 levels), inline create + drag-to-reparent. → User-facing only; agent-side `gh api .../sub_issues` unchanged (new rule `feedback_ui_vs_agent.md`). *PM. tooling-signal.*
+- **AddyOsmani — "The Code Agent Orchestra"** ([blog post](https://addyosmani.com/blog/code-agent-orchestra/)) — essay on what makes multi-agent coding work; convergent with PM/Sci/Dev orchestrator pattern. → [Issue #337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337) (PM, landscape doc + backfill). *PM. methodology-signal.*
+
 ### 09:06 UTC — Editor: Scientist
 
 - **Onkar et al. — Bhardwaj-lab cancer vaccine field synthesis** ([Cell Rep Med 2026](https://www.cell.com/cell-reports-medicine/fulltext/S2666-3791(25)00648-2)) — neoantigen + ICI convergence; off-the-shelf shared-NA vaccines named as emerging strategy. → [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Sci, DISCUSSION clinical-translation framing). *Scientist. portfolio-differentiator.*
