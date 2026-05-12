@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 12:10 UTC — Editor: Scientist
+
+#### [PR #340](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340) review pass — citation-form fix on [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334)
+
+Back from lunch. [@claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340#issuecomment-4429566946) flagged one substantive item on [PR #340](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/340): the in-text citation `(Onkar et al., *Cell Rep Med* 2026; Bhardwaj lab)` reads as a two-work citation because a semicolon inside `()` is the standard separator for multiple sources (e.g. `(Smith 2020; Jones 2021)`). The bot's catch is correct — lab attributions belong in prose, not citation brackets.
+
+**Fix.** Moved Bhardwaj lab attribution into prose: `a recent field synthesis from the Bhardwaj lab (Onkar et al., *Cell Rep Med* 2026) identifies…`. Re-wrapped the paragraph to the file's ~78-char convention (line 438 had drifted to 97 chars post-edit). Diff scope: 7 lines changed in [`research/manuscript/DISCUSSIONS.md`](research/manuscript/DISCUSSIONS.md), no other files.
+
+All other review items (alphabetical placement, cross-reference table, lab notebook ordering, no-★ marking, DOI/volume year discrepancy) cleared as correct — no further action needed.
+
+### 10:16 UTC — Editor: Scientist
+
+#### [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) — Onkar/Bhardwaj 2026 DISCUSSION citation
+
+Picked up [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) from Backlog as a short ship before lunch. Work is the natural follow-on to the morning news_log entry; Zotero entry was already attached this morning (key `P6K7QWR4`) so this PR is purely manuscript-side.
+
+**DISCUSSIONS.md edit.** Added a new opening paragraph to the *Clinical translation: durability of personalized neoantigen vaccines in low-mutation tumors* section (before the existing "Among multiple active personalized neoantigen vaccine trials..." paragraph). The opener uses Onkar et al. as the analytical-synthesis framing — neoantigen + ICI convergence + off-the-shelf shared-NA vaccines as the emerging strategy + manufacturing-time / biomarker as unsolved field-wide problems. Naturally bookends with the existing trial-pipeline reference (Iamukova & Alferova 2026) and sets up the Kwok subsection downstream where the personalized-vs-shared axis is concretely treated for splice neoantigens.
+
+**REFERENCES.md.** Added Onkar et al. entry under `## O` (alphabetically between O'Donnell and Ott), with full DOI metadata (`10.1016/j.xcrm.2025.102575`) and `→ Cited in DISCUSSIONS.md (clinical translation section; field synthesis)` annotation. Added matching row to the *All current in-text citations* cross-reference table. Not marked with ★ since Onkar/Bhardwaj is not in the original 8-paper inventory of [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) / [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272); it's a discretionary morning-news addition.
+
+**Issue body typo.** AC 1 references `DISCUSSION.md` (singular) but the actual file is `DISCUSSIONS.md` (plural) — corrected in the Issue body when ticking the AC. Pre-merge body edit; not a hidden change.
+
 ### 09:06 UTC — Editor: Scientist
 
 #### Morning routine — news_log + Zotero + [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Onkar et al. 2026 cancer-vaccine field synthesis)

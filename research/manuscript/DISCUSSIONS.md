@@ -432,6 +432,15 @@ scoring throughout.
 
 ## Clinical translation: durability of personalized neoantigen vaccines in low-mutation tumors
 
+The personalized neoantigen vaccine paradigm has consolidated into a
+recognisable trajectory: a recent field synthesis from the Bhardwaj lab (Onkar
+et al., *Cell Rep Med* 2026) identifies neoantigen-based vaccines in combination
+with immune checkpoint inhibitors as the convergent direction of cancer
+vaccinology, and highlights "off-the-shelf" shared-neoantigen vaccines as the
+emerging strategy to bypass the manufacturing time and cost of fully
+personalized formulations. Manufacturing turnaround and biomarker discovery for
+response prediction remain field-wide unsolved problems.
+
 Among multiple active personalized neoantigen vaccine trials spanning
 head-and-neck (TG4050), melanoma (mRNA-4157/V940), pancreatic (autogene
 cevumeran), and other indications (Iamukova & Alferova, *Asia-Pacific Journal
