@@ -6,6 +6,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-12
+
+### 10:07 UTC — Editor: Developer
+
+**Headline:** Cohort aggregation tool ships as a standalone research-time CLI ([Issue #84](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/84)) — `research/scripts/aggregate_cohort.py`, not a Snakemake rule. Also: [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) Snakemake 9 re-scope comment landed.
+
+**Work shipped:**
+
+- `research/scripts/aggregate_cohort.py` ([Issue #84](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/84) — cohort aggregation) — argparse CLI that concatenates per-patient `report.tsv` files (`patient_id | stage | metric | value | notes` schema) into a single cohort table. Two invocation modes: `--inputs PATH [PATH ...]` for explicit paths, or `--patients ID [ID ...] --results-root DIR` that resolves to `{root}/{ID}/reports/report.tsv`. Output sorted by `(patient_id, stage, metric)` for stable diffs. 7 pytest cases covering happy-path concat, sort order, schema validation, missing-file, and CLI entrypoint.
+- [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) re-scope [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4429153617) — Snakemake 8→9 has exactly one breaking change (custom logger plugin API); much lighter than 7→8. Re-scopes the upgrade evaluation lower.
+- Morning news_log entry shipped via [PR #335](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/335) (Snakemake 9.20 / PyTorch 2.12 / libdeflate; news_log PR is exempt from lab notebook by convention).
+
+**Design choice on Issue #84:** the original sketch in the issue body assumed `PATIENT_IDS` would be globally available to a Snakemake `aggregate_cohort` rule. But `workflow/rules/common.smk::_read_samples_tsv` enforces single-patient-per-run (`raise ValueError(... must contain exactly one patient_id per run ...)`) — cohort aggregation is inherently a **cross-run** operation. User picked the cleanest reframe: ship as a standalone CLI in `research/scripts/` alongside `zotero_add.py`, not as a Snakemake rule. Pairs naturally with `research/notebooks/results_comparison.ipynb` (already named in `research/README.md`).
+
+**Process notes:**
+
+- Pre-empted closure-audit gap by backfilling a `**Priority rationale:**` line on [Issue #84](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/84) (pre-conventions issue from 2026-04-21). No AC checkboxes to tick — the issue body is prose-style, so `check_ac` finds no unticked boxes and stays clean.
+- Skipped the spec-doc + writing-plans flow per `feedback_brainstorming_scope.md` (XS/S Issues only need it for M+ tasks). Single design check via `AskUserQuestion` covered the cross-run reframe; user redirected from any of the three pre-baked options to "standalone CLI in research/, not workflow/", which was the right call.
+
+**Closure-audit smoke test (PR #335 + Issue #200 comment earlier today):** workflow ran on the PR-merge but stayed silent (clean) — no marker comment posted. First real-traffic data point for the [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) 1-week trial.
+
+---
+
 ## 2026-05-11
 
 ### 16:32 UTC — Editor: Developer
