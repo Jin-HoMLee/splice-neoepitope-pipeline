@@ -17,6 +17,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 - **Onkar et al. — Bhardwaj-lab cancer vaccine field synthesis** ([Cell Rep Med 2026](https://www.cell.com/cell-reports-medicine/fulltext/S2666-3791(25)00648-2)) — neoantigen + ICI convergence; off-the-shelf shared-NA vaccines named as emerging strategy. → [Issue #334](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/334) (Sci, DISCUSSION clinical-translation framing). *Scientist. portfolio-differentiator.*
 
+### 08:57 UTC — Editor: Developer
+
+- **Snakemake 9.20.0 + 8→9 migration is small** ([changelog](https://snakemake.readthedocs.io/en/stable/project_info/history.html), [migration guide](https://snakemake.readthedocs.io/en/stable/getting_started/migration.html)) — only 1 breaking change (custom logger API via `--logger` / `OutputSettings.log_handler_settings`); much lighter than 7→8. → Re-scope [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) (Snakemake 9.x migration) lower. *Developer. pipeline-relevant.*
+- **PyTorch 2.12 ships 2026-05-13** ([release key dates](https://dev-discuss.pytorch.org/t/pytorch-release-2-12-key-dates/3329)) — CUDA 13.2 experimental + Blackwell expansion; no Pascal revival. → No action; `torch<2.5` pin stays permanent on P100. *Developer. pipeline-relevant.*
+- **libdeflate 1.26 still missing from bioconda samtools** (deps still pinned `<1.26.0a0`) — `hisat2.yaml` system-samtools workaround remains permanent. → No action; revisit [Issue #237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/237) when bioconda lifts the cap. *Developer. pipeline-relevant.*
+
 ## 2026-05-11
 
 ### 10:04 UTC — Editor: Developer
