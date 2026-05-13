@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 14:48 UTC — Editor: PM
+
+#### [PR #344](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/344) merge — Managed Agents primary-source swap + body cleanup
+
+**Trigger.** After [PR #363](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/363) merge, surveyed remaining open PRs: only [PR #344](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/344) (multi-agent landscape doc, open since 2026-05-12) still in flight. CI all green, 8/8 Test plan ticked, Claude review approved with one polish nit + body cosmetics (missing `**Created by:** PM`, deprecated `🤖 Generated with Claude Code` footer from older template). Offered user three paths: merge as-is, fix nit + clean body, or just body cleanup. User chose **path 2** ("go on 2.") — full polish before merge.
+
+**Managed Agents source swap.** Original entry cited [9to5Mac coverage from 2026-05-07](https://9to5mac.com/2026/05/07/anthropic-updates-claude-managed-agents-with-three-new-features/) — third-party. Claude review's reasoning: *"for a doc framed as a portfolio artifact ('we surveyed the field; we're not cargo-culting'), citing a secondary source for the first Anthropic entry looks weaker than it should."* WebSearch on `claude.com / anthropic.com` returned the primary announcement at [claude.com/blog/new-in-claude-managed-agents](https://claude.com/blog/new-in-claude-managed-agents) (2026-05-06, one day before 9to5Mac coverage). One-line edit, committed as `9d66f17`. Symphony's "no public docs yet" line (Claude review nit 2) intentionally left as-is per the maintenance section's stale-watch convention.
+
+**Body cleanup.** Rewrote PR body: `**Created by:** PM` at top per Always-in-effect rule, dropped the auto-generated 🤖 Claude Code footer (artifact of older PR template — the new template is the minimal one per [`shared/feedback_lab_notebook.md` "PR body" rule](https://github.com/Jin-HoMLee/cerebrum/blob/main/splice-neoepitope-pipeline/shared/feedback_lab_notebook.md)), added two new Test plan boxes for today's commits (Pattern Language 2026 morning add at `1cf8dc1`, Managed Agents swap at `9d66f17`). Body now passes the `**Created by:**` audit check.
+
+**Merge.** Squash-merge after CI green-verified on the new commit. [Issue #337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337) auto-closed via `Closes` keyword at 14:43:41 UTC.
+
+**Closure audit caught two more gaps.** Audit bot flagged: (a) AC checkboxes on [#337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337) — 8/8 unticked (4 Scope + 4 Acceptance criteria); (b) `## 2026-05-13` block in PM notebook didn't reference `#344` (only had the 14:07 UTC #244 entry). Same root-cause as the morning's #244 audit miss — PR-driven close doesn't auto-tick parent ACs. Fixed: all 8 ACs flipped to `[x]` via `gh issue edit --body-file`; this entry IS the lab-notebook fix for gap (b). The **Cross-repo PR-driven close** rule added to [closure_ritual](https://github.com/Jin-HoMLee/cerebrum/commit/f5bff8b) earlier this session would have caught (a) if I had applied it pre-merge — adjacent gap: **same-repo PR-driven close also has the tick-the-source-issue step**, just less obviously remote. Rule wording is already correct (line 22: *"before merging the closing PR, do the box-ticking on the parent issue"*) — the failure was application, not rule-clarity. Audit is doing its job.
+
 ### 14:07 UTC — Editor: PM
 
 #### Post-lunch pickup: [Issue #244](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/244) — codify "flag uncertainty before executing" rule
