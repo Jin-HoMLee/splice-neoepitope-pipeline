@@ -8,6 +8,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 14:35 UTC — Editor: Scientist
+
+#### [Issue #222](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/222) — splice2neo evaluation (close as benchmark; spun off [Issue #365](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/365))
+
+Picked up [Issue #222](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/222) (P2 tool-landscape eval, Scientist-led, decision-only) after `/compact` from earlier in this session. Closest published methodological analog to our pipeline; already framed at a high level in [METHODS.md L64-83](research/manuscript/METHODS.md#L64-L83) from [PR #274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/274) (variant-driven vs junction-driven METHODS subsection).
+
+**Tool baseline.** [splice2neo](https://github.com/TRON-Bioinformatics/splice2neo) is an actively maintained R package (TRON-Bioinformatics, v0.6.14 Oct 2025). Inputs: somatic VCFs (parsed via SpliceAI v1.3.1 / MMSplice v2.1.1 outputs) + RNA-seq junctions (parsed via RegTools, LeafCutter, SplAdder, others). Filtering: GENCODE canonical exclusion + GTEx 1,740-sample / 53-tissue population-level filter + detection rule `SpliceAI ≥ 0.35 OR MMSplice ≤ −0.35` with ≥3 junction reads. Outputs: peptide candidates with junction position + frameshift annotation. HLA prediction external (NeoFox in paper). Paper cohort: 85+27 melanoma; reports 1.7 candidates/patient at FDR 0.04–0.07.
+
+**Comparison vs our pipeline.** Overlap is the *upstream* peptide-generation step (both accept regtools-style RNA-seq junctions and produce junction-spanning peptides). Differentiation runs both directions:
+
+| Axis | splice2neo | This pipeline |
+|---|---|---|
+| Evidence streams | Variant-driven (SpliceAI/MMSplice) + RNA-seq detection, cross-confirmed | RNA-seq detection alone |
+| Tumor-specificity filter | GTEx population-level (1740 samples, 53 tissues) | Matched normal (per-patient; clinically conservative) |
+| FDR estimate | Permutation across cohort (FDR 0.04–0.07) | None |
+| HLA presentation | External (NeoFox) | Integrated MHCflurry 2.x `Class1PresentationPredictor` (genotype-aware) |
+| Structural validation | None | TCRdock (AlphaFold-based MHC-pep-TCR complex) |
+| Genome | GRCh37 (hg19) per paper; hg38 support in repo undocumented | GRCh38 (UCSC hg38) |
+| Stack | R / Bioconductor (component) | Python + Snakemake (end-to-end automation) |
+
+**Decision: (b) benchmark, not (a) replace, not (c) irrelevant.** Wrapping an R component mid-Snakemake-DAG would be a significant adapter layer for marginal gain — splice2neo's *peptide-level* output overlaps with our pipeline's mid-stage; the downstream HLA/structural value-add is ours alone. The methodologically valuable piece is the **variant-driven evidence stream** (SpliceAI/MMSplice on somatic VCF), but porting it natively in Python is closer in spirit to [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (AlphaGenome computational normal filter — sibling on the upstream evidence axis) than to "integrate splice2neo".
+
+**Follow-up.** Filed [Issue #365](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/365) (`role:developer`, P3 exploratory) for Dev-side eval of porting the variant-driven prong as a parallel Python step. Gating question: do current/planned cohort patients have matched DNA-seq + somatic VCFs? If no, defer until inputs available. No DISCUSSIONS hook added — [METHODS.md L64-83](research/manuscript/METHODS.md#L64-L83) already frames the comparison.
+
+Zotero entry `Z4FAE6QM` (splice2neo paper) note retro-updated to convention (Findings / Methods / vs. our pipeline, ~63 words, `<ul><li>` bold-keyword pattern). Initial draft used wrong format (`<p>` prose) and was re-pushed in correct format after user correction.
+
+---
+
 ### 13:30 UTC — Editor: Scientist
 
 #### [Issue #361](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/361) — INTRODUCTION.md Sahin 2026 follow-up to [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359)
