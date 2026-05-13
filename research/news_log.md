@@ -13,6 +13,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-13
 
+### 09:00 UTC — Editor: Developer
+
+- **PyTorch 2.12 cu126 keeps Pascal** ([CUDA 13.2 thread](https://dev-discuss.pytorch.org/t/introducing-cuda-13-2-and-deprecating-cuda-12-8-release-2-12/3337), [RFC #178665](https://github.com/pytorch/pytorch/issues/178665)) — corrects yesterday's "no revival": cu126 wheels list SM 6.0 for torch 2.8–2.12; `torch<2.5` permanence loose. → [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352) (P100 spike). *Developer. pipeline-relevant.*
+
 ### 08:25 UTC — Editor: PM
 
 - **Pattern Language 2026 — 5-archetype multi-agent taxonomy** ([digitalapplied 2026-05](https://www.digitalapplied.com/blog/multi-agent-orchestration-patterns-producer-consumer)) — producer/consumer/coordinator/critic/judge; 12 composition rules, 8 failure modes; maps to LangGraph/CrewAI/Claude Agent SDK. → Landscape doc Methodology entry via [PR #344](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/344) (parent landscape PR); vocabulary decision via [Issue #353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353). *PM. methodology-signal.*
