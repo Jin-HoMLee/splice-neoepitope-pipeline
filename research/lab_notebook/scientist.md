@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 13:30 UTC — Editor: Scientist
+
+#### [Issue #361](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/361) — INTRODUCTION.md Sahin 2026 follow-up to [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359)
+
+Held-back follow-up from the [10:14 UTC entry below](research/lab_notebook/scientist.md), picked up post-merge after the [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359) closure-audit / at-mention cleanup wrapped.
+
+**Edit.** [`INTRODUCTION.md:144`](research/manuscript/INTRODUCTION.md#L144) — appended `Sahin et al., *Nature* 2026` to the existing vaccine-slot citation paren supporting the "typically 10–20 candidates in current clinical trials" claim. Citation list grows: `Sahin 2017; Ott 2017` → `Sahin 2017; Ott 2017; Sahin 2026`. Single-line diff; kept the original line-break position (after "primary") rather than reflowing — L144 grows from 75 → 105 chars (longest in file by 8 over L105's 97), accepted as a wrap-stretch since the alternative reflow cascaded into 3-4 surrounding lines for no semantic gain. No other prose change. REFERENCES.md untouched — Sahin 2026 entry at L116-117 + tracking-row at L208 already present from [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359).
+
+**Scope correction (archaeology).** The 10:14 UTC entry below (and the [Issue #351 closure-audit comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351#issuecomment-4441387311), and the [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359) body) all named "L144 and L192" as the held-back INTRODUCTION locations. Pre-edit grep showed only L143-144 has a Sahin citation (one combined paren with Ott 2017); L192 in current `main` is the Patient_002 osteosarcoma block — no Sahin reference. The L192 ref appears to have been a confabulated line number that propagated through three artifacts before today's correction. [Issue #361](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/361) body documents the correction; the prior artifacts (immutable PR body + audit comments) remain uncorrected — relying on this notebook entry as the canonical correction.
+
+**Argument strength.** The 2017 citations support the slot-count claim with two papers from a single year. Adding Sahin 2026 demonstrates the 10–20 range has been platform-stable across a 9-year span and multiple tumor types (melanoma → PDAC → TNBC). Strengthens the empirical anchor for the "limited number of peptide slots" argument, which is load-bearing for the GPS-as-primary-ranker rationale in this paragraph.
+
+---
+
 ### 10:14 UTC — Editor: Scientist
 
 #### [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351) — Sahin et al. 2026 (TNBC mRNA vaccine) citation in DISCUSSIONS clinical-translation
