@@ -8,6 +8,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 10:25 UTC — Editor: Developer
+
+**Headline:** [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) (HISAT2 `--rna-strandness F` for 10x R2 SE) shipped via [PR #358](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/358) — per-sample `strandness` column added to `samples.tsv`, pure helper module + 11 pytest cases, `alignment.smk` wires it through `params.strandness`. Closes [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) on merge.
+
+**Work shipped:**
+
+- **Schema:** new `strandness` column appended to `config/samples/*.tsv` headers (3 files). Values: `unstranded | forward | reverse` — biological direction, abstracted from tool-specific HISAT2 SE/PE syntax. Backward-compat: missing column / empty / unrecognized value → `unstranded` (no flag passed), preserves current pipeline behavior on `patient_001` / `patient_001_test`.
+- **Pure helper:** `workflow/scripts/strandness.py` — `get_strandness_flag(strandness, is_paired_end)` maps `(biological direction, SE/PE)` → HISAT2 flag string (`F` / `R` / `FR` / `RF` or `""`). 11 pytest cases cover recognized values × SE/PE, missing/empty (backward compat), case-insensitive normalization, unrecognized strings (graceful fallback to `""`).
+- **Rule wiring:** `workflow/rules/alignment.smk` — adds `_get_hisat2_strandness(wildcards)` wrapper that reads the row + delegates to the pure helper. `hisat2_align` gains `params.strandness`; shell conditionally injects `--rna-strandness {value}` only when non-empty (preserves current behavior on rows with no strandness entry).
+- **Sample-side change:** `patient_002` PBMC normal (`PBMC_scRNA_Pool1_L002`) → `forward` (10x R2 = sense strand per [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) slide 8). All other rows default to unstranded.
+
+**Design decision (per-sample column over sample-type-driven):**
+
+User picked per-sample column over the simpler sample-type-driven default. Tradeoff: per-sample column adds samples.tsv schema change + helper module (re-sized Issue XS → S during the prep body update) but is more robust — handles future non-10x R2 normals or stranded tumors without an `if sample_type == "normal"` heuristic that would break for bulk RNA-seq normals. Documented in [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) body + [PR #358](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/358) body.
+
+**Process notes:**
+
+- TDD: wrote `test_strandness.py` (11 cases) before `strandness.py`. Tests passed on first implementation — no debugging cycle.
+- Skipped local `snakemake --dry-run` per the local-pipeline-run-ownership rule (user-only); rely on CI `pipeline-snakemake-dry-run` for rule-parse validation.
+- Skipped DAG visualization — the change adds a `params` entry to an existing rule with no new edges, so DAG topology is unchanged.
+- Issue body locked in the design decision (per-sample column) + re-sized XS → S during prep, documenting the scope change pre-code per `feedback_scope_discipline.md`.
+
+---
+
 ### 08:49 UTC — Editor: Developer
 
 **Headline:** [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) review fixes + merge ([Issue #348](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/348) closes). [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352) spike filed — direct evidence the "Last supporting combo is PyTorch 2.7 + CUDA ≤12.6" claim in [CLAUDE.md](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/CLAUDE.md) is provably loose; PyTorch 2.12 cu126 wheels may keep Pascal SM 6.0 dispatch alive on our P100s.
