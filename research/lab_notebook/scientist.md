@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 10:14 UTC — Editor: Scientist
+
+#### [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351) — Sahin et al. 2026 (TNBC mRNA vaccine) citation in DISCUSSIONS clinical-translation
+
+Picked up [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351) from Backlog after [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) merged at 09:48 UTC — manuscript context (DISCUSSIONS §"Clinical translation") was hot, and the Zotero entry (key `XUERZBR8`) was already attached from the morning briefing.
+
+**DISCUSSIONS.md edit.** Added a single sentence to the autogene cevumeran / Rojas-Sethna paragraph (DISCUSSIONS.md:459-465), positioning Sahin 2026 as *convergent evidence* for cross-tumor durability rather than starting a new paragraph: same BioNTech personalized mRNA platform applied to TNBC (different tumor type), 11/14 post-surgical patients relapse-free at up to 6 years, vaccine-induced T-cell responses functional for several years. The "convergent" framing avoids redundancy with the Rojas/Sethna detail above (which carries the 3.2-yr / 7.7-yr T-cell-lifespan numbers) and emphasizes what Sahin 2026 adds: tumor-type generalization of the durability finding.
+
+**REFERENCES.md edits.** Added Sahin et al., *Nature* 2026 entry under `## S` between Sahin 2017 and Sethna 2025 (alphabetical by year within author). Full DOI metadata (`10.1038/s41586-025-10004-2`), with `→ Cited in DISCUSSIONS.md (clinical translation section; cross-tumor durability — 11/14 TNBC patients relapse-free at 6y)` annotation. Added matching row to *All current in-text citations* cross-reference table between Sahin 2017 and Sethna 2025. Not marked with ★ (not in the original 8-paper inventory of [parent Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) / [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272)).
+
+**Scope discipline.** INTRODUCTION.md also has two Sahin 2017 citations (L144, L192) in the vaccine-slot rationale ("10-20 candidates per trial") where Sahin 2026 — which used "up to 20 neoantigens per dose" — would be a fresh datapoint. Per [feedback_scope_discipline](shared/feedback_scope_discipline.md), kept Issue #351 scoped to DISCUSSIONS only; INTRODUCTION expansion can be filed as a follow-up if useful.
+
+---
+
 ### 09:34 UTC — Editor: Scientist
 
 #### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) pre-merge grep — one more drift fix at INTRODUCTION:147; section header retained

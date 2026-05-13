@@ -456,7 +456,11 @@ persisting on multi-decade timescales. Notably, these long-lived clones are
 primed *de novo* against passenger somatic mutations rather than amplifying
 pre-existing T cell pools, demonstrating that effective neoantigen targets do
 not require pre-existing endogenous immunity to elicit a durable functional
-response.
+response. Convergent evidence from a separate trial in triple-negative breast
+cancer (TNBC) using the same BioNTech personalized mRNA platform extends this
+durability finding across tumor types: 11 of 14 post-surgical patients
+remained relapse-free at up to 6 years post-vaccination, with vaccine-induced
+T-cell responses functional for several years (Sahin et al., *Nature* 2026).
 
 Two clinical observations are particularly relevant to splice-junction
 neoepitope prediction. First, PDAC is paradigmatic of *low-mutation tumors* —
