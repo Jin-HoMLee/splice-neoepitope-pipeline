@@ -30,6 +30,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CHTC** — Center for High Throughput Computing (UW-Madison). Develops and maintains HTCondor; took over maintenance of Snakemake's HTCondor executor plugin at the 2026 Snakemake Hackathon. *Domain: cloud.*
 
+**CR** — Complete Remission (a.k.a. Complete Response). Oncologic response criterion: full disappearance of detectable disease following therapy; distinguished from PR (partial response), SD (stable disease), PD (progressive disease) in RECIST 1.1 solid-tumor criteria. The weakest TNBC vaccine responder in Sahin et al. 2026 achieved CR on subsequent anti-PD-1 rescue. *Domain: bio.*
+
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
@@ -76,7 +78,11 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **IC50** — half-maximal Inhibitory Concentration. Concentration (in nM) at which a peptide displaces 50% of a reference ligand from MHC; classic affinity metric, retained as informational column alongside the percentile-based presentation score. *Domain: bio.*
 
+**IV** — Intravenous. Drug delivery route via direct venous injection; chosen for personalized mRNA cancer vaccines to deliver LNP-mRNA payloads systemically (Sahin et al. 2026; Rojas et al. 2023). *Domain: bio.*
+
 ## L
+
+**LNP-mRNA** — Lipid Nanoparticle-formulated mRNA. Delivery format: ionizable-lipid encapsulation protects mRNA from RNases and mediates dendritic-cell uptake. Foundation of COVID-19 mRNA vaccines (BioNTech/Moderna) and current personalized cancer-vaccine trials (autogene cevumeran; Sahin et al. 2026). *Domain: bio.*
 
 **LSF** — Load Sharing Facility (IBM Spectrum). Commercial HPC batch scheduler; used at DKFZ Heidelberg among others. Snakemake has a dedicated LSF executor plugin. *Domain: cloud.*
 
@@ -131,6 +137,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **TF** — Transcription Factor. DNA-binding regulatory protein controlling gene expression; binding sites are one of the modalities ENCODE-style assays (ChIP-seq) and predictors like AlphaGenome map. *Domain: bio.*
 
 **TIL** — Tumor-Infiltrating Lymphocyte. T cell isolated from a tumor biopsy; expanded ex vivo and re-infused as TIL therapy (FDA-approved 2024 for advanced melanoma as lifileucel/Amtagvi). Distinct from TCR-T (engineered TCR) and CAR-T (synthetic chimeric receptor). *Domain: bio.*
+
+**TNBC** — Triple-Negative Breast Cancer. Breast cancer subtype lacking ER, PR, and HER2 expression; lacks targeted hormonal / HER2 therapy options. ~10–15% of breast cancers; relatively higher tumor mutation burden makes it a recurrent personalized-vaccine trial target (Sahin et al., *Nature* 2026). *Domain: bio.*
 
 **TPM** — Transcripts Per Million. Normalised RNA expression unit; reads per kb of transcript scaled so per-sample values sum to 10⁶, making cross-sample comparisons direct (unlike RPKM/FPKM). Conventional thresholds: ~1 TPM = expressed, <0.5 TPM = below detection floor (functionally silent in that tissue), >10 TPM = moderately–highly expressed. Used as a tier-1 normal-tissue QC for public-neoantigen prioritisation (e.g. Zhang et al. 2026: <0.5 TPM in normal tissues). *Domain: bio.*
 
