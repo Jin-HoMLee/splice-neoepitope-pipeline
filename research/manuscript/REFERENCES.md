@@ -113,6 +113,9 @@
 **Sahin et al., *Nature* 2017** — Personalized RNA mutanome vaccines mobilize poly-specific therapeutic immunity against cancer. *Nature* 2017;547(7662):222–226. doi:10.1038/nature23003
 → Cited in INTRODUCTION.md, DISCUSSIONS.md (vaccine slot efficiency; 10–20 candidates per trial)
 
+**Sahin et al., *Nature* 2026** — Individualized mRNA vaccines evoke durable T cell immunity in adjuvant TNBC. *Nature* 2026;651(8107):1088–1096. doi:10.1038/s41586-025-10004-2
+→ Cited in DISCUSSIONS.md (clinical translation section; cross-tumor durability — 11/14 TNBC patients relapse-free at 6y)
+
 **★ Sethna et al., *Nature* 2025** — RNA neoantigen vaccines prime long-lived CD8+ T cells in pancreatic cancer. *Nature* 2025. doi:10.1038/s41586-024-08508-4
 → Cited in DISCUSSIONS.md (clinical translation section; 3.2-year follow-up, 7.7-yr mean T-cell clone lifespan)
 
@@ -202,6 +205,7 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Rojas et al., *Nature* 2023 | ✅ | |
 | Sade-Feldman et al., *Cancer Discov* 2017 | ✅ | Manuscript uses full form ("Cancer Discovery") |
 | Sahin et al., *Nature* 2017 | ✅ | |
+| Sahin et al., *Nature* 2026 | ✅ | |
 | Sethna et al., *Nature* 2025 | ✅ | |
 | Szolek et al., *Bioinformatics* 2014 | ✅ | |
 | Tatoni et al., *NAR Genom Bioinform* 2025 | ✅ | Manuscript uses full form ("NAR Genomics and Bioinformatics") |
