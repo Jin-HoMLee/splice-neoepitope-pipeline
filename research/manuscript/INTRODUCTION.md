@@ -144,7 +144,7 @@ formulation (typically 10–20 candidates in current clinical trials; Sahin et a
 *Nature* 2017; Ott et al., *Nature* 2017), GPS becomes the committed primary
 ranking criterion for our application. `best_presentation_percentile` is retained not as a
 competing ranking dimension but as a minimum quality gate — at least one allele must reach
-strong or weak binder threshold to ensure sufficient pMHC density for vaccine-primed T
+strong or weak presenter threshold to ensure sufficient pMHC density for vaccine-primed T
 cells to recognize the tumor at the site of disease.
 
 ### Differential surface expression across HLA loci

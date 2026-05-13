@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 09:34 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) pre-merge grep — one more drift fix at INTRODUCTION:147; section header retained
+
+Final pre-merge `grep -nE "binder|binding"` across `research/manuscript/*.md` surfaced one more caveat-coherence drift hit the bot's two passes missed:
+
+- [`INTRODUCTION.md:147`](research/manuscript/INTRODUCTION.md) — `at least one allele must reach strong or weak binder threshold` → `strong or weak presenter threshold` (describes our pipeline's quality gate, same category as METHODS §6 fix).
+
+**Section-header question closed without rename.** Grep also flagged DISCUSSIONS.md:251 section header `## MHC binding prediction: composite presentation score over affinity-only` and made the REFERENCES.md "Cited in" tweak from [87be2db](research/manuscript/REFERENCES.md) look like it pointed at a non-existent literal header. Inspected: the section's title structure is `Topic: our choice`, where "MHC binding prediction" names the broader field category and "composite presentation score over affinity-only" names our position within it. Renaming `binding` → `presentation` in the header would (a) collapse the rhetorical contrast the section is built around, and (b) create the awkward `"presentation prediction: composite presentation score..."` tautology. The REFERENCES tweak remains valid as an internal-vocabulary description of where O'Donnell is cited; it doesn't require literal header-match because the cross-ref isn't an anchor link.
+
+All other `binder/binding` grep hits classify as biological reality (binding affinity, peptide-binding grooves), Yewdell-quote retention, broader step-name references (the pipeline step is conventionally "MHC binding prediction" across the field), or the §6 caveat itself naming the field convention.
+
+---
+
 ### 09:25 UTC — Editor: Scientist
 
 #### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot 2nd-pass follow-up — 2 more drift fixes in Calibration note + L421 parenthetical drop
