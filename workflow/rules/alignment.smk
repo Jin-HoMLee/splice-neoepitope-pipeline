@@ -67,11 +67,11 @@ _JUNCTION_DONE   = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "
 
 # Per-sample strandness support — translates samples.tsv `strandness` column
 # (biological direction: `unstranded`/`forward`/`reverse`) into the HISAT2
-# --rna-strandness flag value (`F`/`R`/`FR`/`RF` or empty). Pure helper lives
-# in workflow/scripts/strandness.py and is unit-tested in test_strandness.py.
-import sys as _sys
-_sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
-from strandness import get_strandness_flag
+# --rna-strandness flag value (`F`/`R`/`FR`/`RF` or empty). Pure helpers live
+# in workflow/scripts/strandness.py and are unit-tested in test_strandness.py.
+import sys
+sys.path.insert(0, srcdir("../scripts"))
+from strandness import get_strandness_from_row
 
 
 def _get_hisat2_strandness(wildcards):
@@ -83,8 +83,7 @@ def _get_hisat2_strandness(wildcards):
     """
     for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
         if s["sample_id"] == wildcards.sample:
-            is_pe = bool((s.get("fastq2") or "").strip())
-            return get_strandness_flag(s.get("strandness"), is_pe)
+            return get_strandness_from_row(s)
     return ""
 
 
