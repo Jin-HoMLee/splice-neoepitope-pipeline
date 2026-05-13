@@ -6,6 +6,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-13
+
+### 08:49 UTC — Editor: Developer
+
+**Headline:** [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) review fixes + merge ([Issue #348](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/348) closes). [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352) spike filed — direct evidence the "Last supporting combo is PyTorch 2.7 + CUDA ≤12.6" claim in [CLAUDE.md](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/CLAUDE.md) is provably loose; PyTorch 2.12 cu126 wheels may keep Pascal SM 6.0 dispatch alive on our P100s.
+
+**Work shipped:**
+
+- **[PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) review-fix commit `8565450`** — addressed both items from the bot review:
+  - §4 (real fix): Salmon column in the cheat-sheet was using PE codes only (`IU`/`ISF`/`ISR`); a SE reader copying `ISF` into a `salmon quant` invocation would error or silently mis-quantify. Split into Salmon SE + Salmon PE columns (`U`/`SF`/`SR` and `IU`/`ISF`/`ISR`) and added a warning blockquote about the SE-leading-`I` drift. Added Salmon `SF` to the pipeline-case summary line.
+  - §3 (clarity): R2 label in `06-10x-chemistry.svg` was potentially confusing because the arrow points R→L (sequencing direction) into a "SENSE strand" block while alignment on the genome is L→R. Split the label into a bold conclusion line + italic clarifier noting the arrow shows sequencing direction (R2 primer reads back into cDNA), not alignment direction. ViewBox bumped 280→300 to fit the second line.
+- **[Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352) filed** — spike to verify whether PyTorch 2.12 + CUDA 12.6 wheels dispatch on P100 (SM 6.0) at runtime. Surfaced during Phase 1 morning news after digging into the [CUDA 13.2 release thread](https://dev-discuss.pytorch.org/t/introducing-cuda-13-2-and-deprecating-cuda-12-8-release-2-12/3337):
+  - **cu126 wheels exist for torch 2.8 → 2.12** (verified at [download.pytorch.org/whl/cu126/torch/](https://download.pytorch.org/whl/cu126/torch/)).
+  - **[PyTorch RFC #178665](https://github.com/pytorch/pytorch/issues/178665) build matrix for cu126 in 2.12 explicitly includes Pascal (6.0):** `Maxwell(5.0), Pascal(6.0), Volta(7.0), Turing(7.5), Ampere(8.0, 8.6), Hopper(9.0)`.
+  - Original [Pascal-removal dev-discuss thread](https://dev-discuss.pytorch.org/t/cuda-toolkit-version-and-architecture-support-update-maxwell-and-pascal-architecture-support-removed-in-cuda-12-8-and-12-9-builds/3128) explicitly says "removing Maxwell and Pascal GPU support from **CUDA-12.8 binaries**" — only cu128/cu129, not cu126. The cu126 channel has stayed Pascal-compatible through 2.12.
+  - → CLAUDE.md's "Last supporting combo is PyTorch 2.7 + CUDA ≤12.6" line conflates the cu128 cut with all of 2.8+. Spike will confirm whether build-matrix listing translates to runtime kernel dispatch on actual P100 hardware — needed before any `python.yaml` refactor to lift the `torch<2.5` pin.
+
+**Process notes:**
+
+- **Foot-gun caught + recovered:** First version of the updated [PR #350](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/350) body included two literal `@claude` mentions ("validated via @claude bot review"), which would have re-triggered the Claude Code GitHub Action via the issue-comment event subscription. Per the no-`@claude`-in-bodies rule, rephrased to "the bot review" before pushing the lab notebook + merging. Reminder for future PR body edits: scan for literal `@claude` strings before submit.
+- Bot review came back fast (5 min from ping yesterday at 21:38 UTC) with verdict "Approve with optional improvements." Solid signal-to-noise — caught a real user-facing bug (Salmon SE codes) that I missed during initial review.
+- For [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352): scope is deliberately XS (single SSH session + single `pip install` + smoke-test on a running P100 VM). Filed as a deferred spike rather than starting work today; user will run the smoke-test when convenient.
+
+---
+
 ## 2026-05-12
 
 ### 21:19 UTC — Editor: Developer
