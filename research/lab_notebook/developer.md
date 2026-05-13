@@ -8,6 +8,35 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 14:40 UTC — Editor: Developer
+
+**Headline:** [PR #358](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/358) ([Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) HISAT2 strandness) merged (squash `5c485f9`). Bot re-review surfaced two real correctness improvements applied + one bot-suggested Snakemake-7 idiom that broke CI and got reverted. [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) filed for an unrelated local pytest collection hang surfaced during verification.
+
+**Bot review cycle:**
+
+- **Item 1 — `srcdir()` over `workflow.basedir`:** bot suggested `sys.path.insert(0, srcdir("../scripts"))` as the more idiomatic Snakemake form. Applied + pushed; CI `pipeline-snakemake-dry-run` failed with `NameError: name 'srcdir' is not defined` at parse time. `srcdir()` was a Snakemake-7 helper that is no longer exposed at the `.smk` module scope in Snakemake 8. Reverted to the `workflow.basedir`-based form. Cost: one CI cycle.
+- **Item 2 — raise on typo:** bot flagged that silent fallback to `""` (unstranded) on any unrecognized string was a real correctness risk — a typo like `forwrd` would silently produce wrong alignment with no log signal. Applied: introduced `_VALID = {"", "unstranded", "forward", "reverse"}` + `raise ValueError` on anything else. Backward compat preserved for `None` / empty / whitespace / `unstranded`. Tests flipped to `pytest.raises(ValueError, match=...)`. Stronger coverage than before.
+- **Item 3 — extract `get_strandness_from_row(row: dict)`:** bot recommended moving the `is_pe` detection out of the Snakemake glue layer into a second pure function. Applied: `_get_hisat2_strandness` in `alignment.smk` reduced to a row-lookup + delegate. Added 5 row-level test cases (PBMC forward SE, PE unstranded, missing `strandness` key, whitespace `fastq2`, PE reverse) grounded in real `samples.tsv` rows. Total test count: 11 → 20.
+
+**Downstream documentation:**
+
+- **CLAUDE.md** gained a "Snakemake 8 Gotchas" section grouping the existing `--configfile`-flag-collapsing note with the new `srcdir()` unavailability note. Records what was tried (with the failing CI evidence) so a future code-review bot or contributor doesn't re-suggest the same fix.
+- **`alignment.smk`** has an inline comment at the import block explaining the `srcdir()` constraint for anyone reading that file directly.
+- **PR #358 re-review** (post-revert) approved the work without changes; one non-blocking suggestion — scoping the strandness import + `_get_hisat2_strandness` helper inside the `if aligner == "hisat2":` guard so they don't run on STAR-selected configs — was applied in commit `a4e8ebb` as a pure relocation.
+
+**Issue #364 filed (separate concern):**
+
+Local pytest collection hung > 5 min during verification — even a bare `import pandas` hung > 2.5 min. System diagnostics showed only ~60 MB free pages + load average 3.4 on the 8 GB M1 box. Hypothesis: module-level heavy imports across many test files (pandas, mhcflurry, etc.) compound under memory pressure and tip pytest collection into disk-thrashing. CI runners have more RAM so it's a local-only friction. Issue body proposes a per-file import time profile + selective hoist into pytest fixtures.
+
+**Process notes / lessons:**
+
+- **Bot framework-idiom claims need a local smoke-test before commit.** The `srcdir()` suggestion was plausible, well-cited, and CI-evident-wrong. A 5-second local `snakemake -n` parse check would have caught it before the push. The `receiving-code-review` skill principle ("verify before agreeing") applies even when the reviewer is the bot and the claim is about a documented built-in.
+- **Inline a discovered gotcha in two places** — the file that has the workaround (so a code reader sees the rationale) AND the project-wide CLAUDE.md (so anyone writing a *new* `.smk` doesn't re-discover it). Did both this round.
+- **Local pytest is not a reliable gate today.** Per the test-before-PR rule I want to run the full suite locally, but the system memory pressure makes that unreliable. Workaround: ran only the touched test file (20 cases, 0.02 s), pushed to let CI cover the rest. Tracked under [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) so this isn't ad-hoc forever.
+- **One self-violation worth naming.** When I applied the bot's review fixes, I committed all 3 files (helper + tests + smk) in a single commit. The multi-file-feature-workflow rule says one-file-per-commit. Justified here — each file in isolation breaks the import chain (helper ↔ tests ↔ consumer), so split commits would each red CI — but the justification belongs in the commit message and was there.
+
+---
+
 ### 10:25 UTC — Editor: Developer
 
 **Headline:** [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) (HISAT2 `--rna-strandness F` for 10x R2 SE) shipped via [PR #358](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/358) — per-sample `strandness` column added to `samples.tsv`, pure helper module + 11 pytest cases, `alignment.smk` wires it through `params.strandness`. Closes [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) on merge.
