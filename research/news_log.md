@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-13
 
+### 08:25 UTC — Editor: PM
+
+- **Pattern Language 2026 — 5-archetype multi-agent taxonomy** ([digitalapplied 2026-05](https://www.digitalapplied.com/blog/multi-agent-orchestration-patterns-producer-consumer)) — producer/consumer/coordinator/critic/judge; 12 composition rules, 8 failure modes; maps to LangGraph/CrewAI/Claude Agent SDK. → Landscape doc Methodology entry via [PR #344](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/344) (parent landscape PR); vocabulary decision via [Issue #353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353). *PM. methodology-signal.*
+- **Claude Code Agent View + `/goal` command** ([Anthropic 2026-05-11](https://claude.com/blog/agent-view-in-claude-code), v2.1.139) — Agent View = CLI dashboard + VS Code Agent Sessions sidebar listing all parallel sessions (running/blocked/done); `/goal <verifiable condition>` = autonomous multi-turn primitive iterating until met or constraints hit. → No action; revisit `/goal` for [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) (Snakemake 9.x migration — verifiable via dry-run). *PM. tooling-relevant.*
+
 ### 07:35 UTC — Editor: Scientist
 
 - **Sahin et al.** ([Nature 2026](https://www.nature.com/articles/s41586-025-10004-2)) — Phase 1 TNBC personalized mRNA vaccine; 11/14 relapse-free at 6y; BioNTech (cf. Sahin 2017). → [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351) (Sci, DISCUSSIONS citation). *Scientist. clinical-validation.*
