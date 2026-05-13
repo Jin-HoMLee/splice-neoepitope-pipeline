@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 280" width="700" height="280" font-family="ui-sans-serif,system-ui" font-size="14">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+    </marker>
+  </defs>
+  <line x1="80" y1="30" x2="500" y2="30" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="40" y="34" fill="#3b82f6" font-size="13">mRNA 5'</text>
+  <text x="505" y="34" fill="#3b82f6" font-size="13">3' (A)n</text>
+  <line x1="290" y1="50" x2="290" y2="75" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="305" y="68" fill="#374151" font-size="13">reverse transcription</text>
+  <text x="40" y="100" fill="#ef4444" font-size="13">first-strand cDNA 3'</text>
+  <line x1="500" y1="96" x2="180" y2="96" stroke="#ef4444" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+  <text x="505" y="100" fill="#ef4444" font-size="13">5' (T)n</text>
+  <text x="160" y="118" fill="#ef4444" font-size="12" font-style="italic">antisense to mRNA</text>
+  <line x1="200" y1="135" x2="120" y2="170" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <line x1="380" y1="135" x2="460" y2="170" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-blue)"/>
+  <text x="135" y="160" fill="#10b981" font-size="13">stranded protocol</text>
+  <text x="430" y="160" fill="#6b7280" font-size="13">unstranded protocol</text>
+  <rect x="40" y="180" width="280" height="80" fill="#d1fae5" stroke="#10b981" rx="4"/>
+  <text x="180" y="205" fill="#065f46" font-size="14" text-anchor="middle" font-weight="bold">Strand info PRESERVED</text>
+  <text x="180" y="225" fill="#065f46" font-size="12" text-anchor="middle">dUTP marks 2nd strand → destroyed</text>
+  <text x="180" y="243" fill="#065f46" font-size="12" text-anchor="middle">10x: only one orientation amplified</text>
+  <rect x="380" y="180" width="280" height="80" fill="#fef3c7" stroke="#f59e0b" rx="4"/>
+  <text x="520" y="205" fill="#92400e" font-size="14" text-anchor="middle" font-weight="bold">Strand info LOST</text>
+  <text x="520" y="225" fill="#92400e" font-size="12" text-anchor="middle">Both strands sequenced equally</text>
+  <text x="520" y="243" fill="#92400e" font-size="12" text-anchor="middle">Can't tell sense from antisense</text>
+</svg>

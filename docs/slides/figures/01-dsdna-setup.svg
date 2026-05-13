@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 240" width="700" height="240" font-family="ui-monospace,monospace" font-size="16">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#10b981"/>
+    </marker>
+  </defs>
+  <text x="40" y="80" fill="#3b82f6">5'</text>
+  <line x1="70" y1="75" x2="620" y2="75" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="200" y="68" fill="#3b82f6" font-size="14">A T G C A G T A C G G T A T T C A G</text>
+  <text x="640" y="80" fill="#3b82f6">3'</text>
+  <text x="40" y="100" fill="#3b82f6" font-size="13" font-family="ui-sans-serif,system-ui">SENSE (+, coding) — same sequence as mRNA</text>
+  <g stroke="#9ca3af" stroke-dasharray="2,2">
+    <line x1="90" y1="120" x2="90" y2="140"/>
+    <line x1="130" y1="120" x2="130" y2="140"/>
+    <line x1="170" y1="120" x2="170" y2="140"/>
+    <line x1="210" y1="120" x2="210" y2="140"/>
+    <line x1="250" y1="120" x2="250" y2="140"/>
+    <line x1="290" y1="120" x2="290" y2="140"/>
+    <line x1="330" y1="120" x2="330" y2="140"/>
+    <line x1="370" y1="120" x2="370" y2="140"/>
+    <line x1="410" y1="120" x2="410" y2="140"/>
+    <line x1="450" y1="120" x2="450" y2="140"/>
+    <line x1="490" y1="120" x2="490" y2="140"/>
+    <line x1="530" y1="120" x2="530" y2="140"/>
+    <line x1="570" y1="120" x2="570" y2="140"/>
+    <line x1="610" y1="120" x2="610" y2="140"/>
+  </g>
+  <text x="200" y="172" fill="#ef4444" font-size="14">T A C G T C A T G C C A T A A G T C</text>
+  <text x="640" y="160" fill="#ef4444">5'</text>
+  <line x1="620" y1="155" x2="70" y2="155" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="40" y="160" fill="#ef4444">3'</text>
+  <text x="40" y="195" fill="#ef4444" font-size="13" font-family="ui-sans-serif,system-ui">ANTISENSE (−, template) — read by RNA polymerase</text>
+  <line x1="100" y1="220" x2="600" y2="220" stroke="#10b981" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrow-green)"/>
+  <text x="350" y="215" fill="#10b981" font-size="13" text-anchor="middle" font-family="ui-sans-serif,system-ui">RNA pol travels 3'→5' along template, synthesises mRNA 5'→3'</text>
+</svg>

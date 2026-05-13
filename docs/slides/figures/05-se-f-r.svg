@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" width="700" height="220" font-family="ui-sans-serif,system-ui" font-size="14">
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+  <line x1="60" y1="40" x2="640" y2="40" stroke="#9ca3af" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="40" y="44" fill="#6b7280" font-size="12">5'</text>
+  <text x="645" y="44" fill="#6b7280" font-size="12">3'</text>
+  <text x="350" y="28" fill="#374151" font-size="13" text-anchor="middle" font-style="italic">gene on + strand (sense)</text>
+
+  <text x="40" y="80" fill="#1e3a8a" font-weight="bold">F — read matches gene direction (sense)</text>
+  <line x1="200" y1="105" x2="380" y2="105" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="290" y="125" fill="#3b82f6" font-size="13" text-anchor="middle">read →</text>
+
+  <line x1="60" y1="145" x2="640" y2="145" stroke="#e5e7eb" stroke-width="1"/>
+
+  <text x="40" y="170" fill="#1e3a8a" font-weight="bold">R — read is the reverse complement of the transcript (antisense)</text>
+  <line x1="380" y1="195" x2="200" y2="195" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
+  <text x="290" y="213" fill="#ef4444" font-size="13" text-anchor="middle">← read</text>
+</svg>
