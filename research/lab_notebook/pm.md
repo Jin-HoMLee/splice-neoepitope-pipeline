@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-13
+
+### 14:07 UTC — Editor: PM
+
+#### Post-lunch pickup: [Issue #244](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/244) — codify "flag uncertainty before executing" rule
+
+**Pick rationale.** After lunch, scanned open PM Backlog and proposed two candidates: [#244](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/244) (P1, S, pm-i1, due 2026-05-21) and [#353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353) (P2, S, pm-i2, due 2026-05-27). Recommended #244 — closer deadline, P1 over P2, calibration value compounds across every future triage. User picked #244 with "ok gogo".
+
+**Scope.** Spec called for new `pm/feedback_ask_for_help.md` codifying when to propose-and-confirm vs. auto-execute, with 3–5 worked examples from real recent triages, plus cross-ref from `pm/feedback_milestones.md` and index entry in `pm/MEMORY.md`. Cross-repo work: issue in splice-neoepitope-pipeline, deliverable in cerebrum repo.
+
+**Mid-task pause for review.** First Write call was rejected with *"what is this now?"* — I had jumped from "ok gogo" straight to a ~120-line draft without surfacing the file content for review. Recapped scope inline, offered to paste-then-write / trim / pause. User said *"ah ok continue!"* — proceeded as drafted. Lesson lands inside the rule itself: even mid-implementation, when about to commit a substantial artifact for the first time, surface the draft before writing. Adjacent to the rule but one level down (artifact-level, not triage-level).
+
+**Worked examples chosen.** Five, mix of ❌ should-have-flagged and ✅ correctly-handled to anchor calibration both directions: (1) 2026-05-13 #337 milestone misattribution → role-cut ambiguity ❌; (2) 2026-05-02 `<role>-i<N>` axis creation → first-of-pattern ✅; (3) 2026-05-13 #353 vocabulary adoption → scope expansion ❌; (4) 2026-05-13 #346 priority rationale backfill → don't-flag ✅; (5) hypothetical 4.5d→5d capacity cap → capacity pressure ✅. The ❌ cases are real misses from earlier today — concrete, dated, traceable to user corrections in the morning routine.
+
+**Cerebrum PR shape.** Branch `feat/pm/issue-244-flag-uncertainty` cut from `origin/main` on cerebrum repo. 3-file commit (`pm/feedback_ask_for_help.md` new, `pm/feedback_milestones.md` cross-ref added in new `### Flag uncertainty before executing the decision tree` subsection right after the decision-tree priority rule, `pm/MEMORY.md` index entry under Role: PM). Excluded a pre-existing uncommitted edit to `shared/feedback_mechanism_over_memory.md` (in-flight work from another session — not mine to touch). Opened as [cerebrum PR #4](https://github.com/Jin-HoMLee/cerebrum/pull/4) with `Closes Jin-HoMLee/splice-neoepitope-pipeline#244` cross-repo reference + 5-item summary + worked-examples list.
+
+**Claude review trigger.** User: *"ping claude for review pls"*. Posted `@claude review` as canonical trigger phrase per `shared/feedback_no_at_claude_mention.md` (the one legitimate `@claude` use — bot-triggered review on a PR comment, not a body/AC mention). Bot reviewed; user merged via squash.
+
+**Cross-repo closure worked.** Auto-closed: [Issue #244](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/244) flipped to CLOSED / COMPLETED at 14:02:29 UTC; project board Status auto-flipped Backlog → In Progress (manual, at start) → Done (auto, on close). Remote feature branch auto-deleted on merge. Local branch left at `[gone]` marker — working tree had uncommitted edits to defer cleanup until user sweeps.
+
+**Closure audit catch.** Bot flagged two gaps: AC checkboxes 4/4 unticked (the issue body still had `- [ ]` for all four, not auto-flipped by cross-repo PR merge) + no `## 2026-05-13` lab notebook header. Ticked all four ACs via `gh issue edit --body-file`; this entry is the lab-notebook backfill. The cross-repo close mechanism doesn't tick ACs in the source issue's body — worth knowing for future cross-repo work patterns (manual tick-step required even when the PR's `Closes` keyword auto-flips Status).
+
+---
+
 ## 2026-05-12
 
 ### 12:02 UTC — Editor: PM
