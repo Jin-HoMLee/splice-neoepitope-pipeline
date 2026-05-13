@@ -14,7 +14,7 @@ Concrete products / tooling that could plausibly displace, augment, or be borrow
 
 ### Anthropic Managed Agents — Dreaming + Multiagent Orchestration
 
-- **Source:** [9to5Mac coverage, 2026-05-07](https://9to5mac.com/2026/05/07/anthropic-updates-claude-managed-agents-with-three-new-features/)
+- **Source:** [Anthropic blog, 2026-05-06](https://claude.com/blog/new-in-claude-managed-agents)
 - **Summary:** Agents review past sessions to self-improve ("dreaming"); a lead agent delegates to specialists rather than the human dispatching each role.
 - **Our rationale:** **Observe.** Dreaming is the closest production analog to our `/cerebrum` memory-rehydration pattern. Orchestrator-delegation is what PM does for Sci/Dev today, *but in our setup the human opens the next session* — we don't have agent-to-agent triggers (per [multi-role, not multi-agent](#our-position)). Tracking via [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) (PM eval + memory tightening borrow).
 
