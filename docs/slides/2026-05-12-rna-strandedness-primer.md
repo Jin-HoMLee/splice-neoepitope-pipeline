@@ -102,12 +102,14 @@ Why this deck exists: strandedness terminology drifts between tools (HISAT2 `F`/
 
 ## Cheat sheet
 
-|                          | HISAT2 SE | HISAT2 PE | htseq    | Salmon | featureCounts |
-|--------------------------|-----------|-----------|----------|--------|---------------|
-| Unstranded               | (omit)    | (omit)    | `no`     | `IU`   | `0`           |
-| Forward-stranded (sense) | `F`       | `FR`      | `yes`    | `ISF`  | `1`           |
-| Reverse-stranded (anti)  | `R`       | `RF`      | `reverse`| `ISR`  | `2`           |
+|                          | HISAT2 SE | HISAT2 PE | htseq    | Salmon SE | Salmon PE | featureCounts |
+|--------------------------|-----------|-----------|----------|-----------|-----------|---------------|
+| Unstranded               | (omit)    | (omit)    | `no`     | `U`       | `IU`      | `0`           |
+| Forward-stranded (sense) | `F`       | `FR`      | `yes`    | `SF`      | `ISF`     | `1`           |
+| Reverse-stranded (anti)  | `R`       | `RF`      | `reverse`| `SR`      | `ISR`     | `2`           |
 
-**This pipeline's case:** 10x 3' GEX v3, R2-only SE, normal samples → **forward-stranded** (R2 = sense) → HISAT2 `--rna-strandness F` · featureCounts `1` · htseq `yes`.
+> ⚠️ **Salmon SE vs PE codes:** SE drops the leading `I` (inner/insert); copying a PE code (`ISF`/`ISR`/`IU`) into a SE Salmon command will error or silently mis-quantify.
+
+**This pipeline's case:** 10x 3' GEX v3, R2-only SE, normal samples → **forward-stranded** (R2 = sense) → HISAT2 `--rna-strandness F` · featureCounts `1` · htseq `yes` · Salmon `SF`.
 
 **Sources:** [HISAT2 manual](http://daehwankimlab.github.io/hisat2/manual/) · [10x Tech Note CG000376](https://assets.ctfassets.net/an68im79xiti/awNZTarmwqmwxKcvDv9wv/b05500661e36290b8ce59689ff889ea8/CG000376_TechNote_Antisense_Intronic_Reads_SingleCellGeneExpression_RevA.pdf) · [scg_lib_structs 10xChromium3v3](https://scg-lib-structs.readthedocs.io/en/latest/ge/10xChromium3v3.html) · [Strandedness review (Bfunc Gen 2020)](https://academic.oup.com/bfg/article/19/5-6/339/5837822)
