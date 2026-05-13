@@ -1,4 +1,4 @@
-patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_B1	serology_B2	serology_C1	serology_C2
+patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_B1	serology_B2	serology_C1	serology_C2	strandness
 # Boston Gene osteosarcoma BG003082, paired-end RNA-seq (Nov 2022).
 # Normal sample (issue #277): Jan 2025 Hudson Lab PBMC scRNA-seq (sorted CD3+ T cells,
 # 10x 3' GEX). Single-end alignment of R2 only — R1 is barcode+UMI, not cDNA. The
@@ -12,4 +12,4 @@ patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_
 # Serology (Red Cross): A*01:01/A*01:11N, B*08:01/B*27:05, C*01:02/C*07:01.
 # A*01:11N is a null allele (not expressed); excluded from prediction, shown in QC.
 patient_002	BG003082_T0	Primary Tumor	https://b2.osteosarc.com/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R1.fastq.gz	https://b2.osteosarc.com/rna-seq/fastq/bostongene_2022/202211_bostongene_tumor_rna_BG003082_R2.fastq.gz
-patient_002	PBMC_scRNA_Pool1_L002	Blood Derived Normal	https://b2.osteosarc.com/hudson_lab/PBMC_scRNAseq/FASTQ/Jan2025%20%28250125%29/GEX/Pool%201/23059-22-01-01-01_S3_L002_R2_001.fastq.gz		HLA-A*01:01	HLA-A*01:11N	HLA-B*08:01	HLA-B*27:05	HLA-C*01:02	HLA-C*07:01
+patient_002	PBMC_scRNA_Pool1_L002	Blood Derived Normal	https://b2.osteosarc.com/hudson_lab/PBMC_scRNAseq/FASTQ/Jan2025%20%28250125%29/GEX/Pool%201/23059-22-01-01-01_S3_L002_R2_001.fastq.gz		HLA-A*01:01	HLA-A*01:11N	HLA-B*08:01	HLA-B*27:05	HLA-C*01:02	HLA-C*07:01	forward
