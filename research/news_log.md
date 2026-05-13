@@ -11,6 +11,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-13
+
+### 07:35 UTC — Editor: Scientist
+
+- **Sahin et al.** ([Nature 2026](https://www.nature.com/articles/s41586-025-10004-2)) — Phase 1 TNBC personalized mRNA vaccine; 11/14 relapse-free at 6y; BioNTech (cf. Sahin 2017). → [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351) (Sci, DISCUSSIONS citation). *Scientist. clinical-validation.*
+
 ## 2026-05-12
 
 ### 09:31 UTC — Editor: PM
