@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-13
 
+### 09:25 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot 2nd-pass follow-up — 2 more drift fixes in Calibration note + L421 parenthetical drop
+
+[@claude review 2nd pass](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349#issuecomment-4439100502) confirmed the DISCUSSIONS apposition from the [08:45 UTC commit](research/lab_notebook/scientist.md) is appropriately explanatory (not redundant) and surfaced 3 new hits in the *Calibration note: presentation_score vs. presentation_percentile* subsection that weren't in scope of the first review.
+
+**Fixes (caveat-coherence):**
+- [`DISCUSSIONS.md:411`](research/manuscript/DISCUSSIONS.md) — `weak-binder threshold` → `weak-presenter threshold` (describes pipeline gate behavior).
+- [`DISCUSSIONS.md:423`](research/manuscript/DISCUSSIONS.md) — `weak-binder percentile threshold` → `weak-presenter percentile threshold` (same).
+
+**L421 parenthetical drop — scientifically motivated, not just drift:**
+
+Bot called L421 (`(non-binder territory)`) "defensible either way" — covered by the §6 caveat as field-convention orientation. User pushed back with a sharper critique: the phrase *sounds* like quantitative inference of poor binding from a 3–5% percentile, but `presentation_percentile` is **rank-relative to a random peptide background for that allele**, not absolute affinity. On a promiscuous allele like HLA-A\*02:01, a peptide at 3–5% percentile can still have a competitive IC50 (~200 nM) — it's just outranked by many similarly-scoring peptides in the calibration pool. The parenthetical undercuts the very scale-mismatch argument the surrounding paragraph is trying to motivate.
+
+Resolution: drop the parenthetical entirely on L421. L423 immediately below already explicitly states the gate-failure consequence (`"while all alleles remain below the weak-presenter percentile threshold"`), so dropping is genuinely lossless and cleaner scientifically.
+
+**Style call retained as deferred:** bot's first-pass observation that the parenthetical `(no allele reaches weak-presenter threshold)` on METHODS.md:230 is redundant with `> 2%` — still open, separate style call.
+
+---
+
 ### 08:45 UTC — Editor: Scientist
 
 #### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot-review follow-up — 3 residual presenter-drift fixes + REFERENCES "Cited in" tweak

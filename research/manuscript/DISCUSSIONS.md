@@ -408,7 +408,7 @@ The committed role of each signal in this pipeline is therefore:
 | `best_presentation_percentile` | **Minimum quality gate** | Ensures ≥1 allele generates sufficient pMHC density for T cell recognition at the tumor |
 
 `best_presentation_percentile` as a quality gate means a candidate is filtered out if no
-allele meets the weak-binder threshold (presentation_percentile ≤ 2%), regardless of its
+allele meets the weak-presenter threshold (presentation_percentile ≤ 2%), regardless of its
 genotype_presentation_score — not used to rank candidates against one another.
 
 ### Calibration note: presentation_score vs. presentation_percentile
@@ -418,9 +418,9 @@ The `genotype_presentation_score` formula uses `presentation_score` (an absolute
 of `presentation_score` among a large allele-specific random peptide set). These two
 metrics are calibrated on different scales and can disagree: for a promiscuous allele
 where many random peptides score well, a `presentation_score` of 0.4 may correspond to a
-`presentation_percentile` of 3–5% (non-binder territory). In such a case, six alleles
+`presentation_percentile` of 3–5%. In such a case, six alleles
 each with `presentation_score = 0.4` would yield `genotype_presentation_score ≈ 0.95`
-while all alleles remain below the weak-binder percentile threshold. A peptide could
+while all alleles remain below the weak-presenter percentile threshold. A peptide could
 therefore pass the `genotype_presentation_score` ranking stage but be eliminated by the
 quality gate — which is the
 intended behavior, since the gate is designed to catch exactly this scenario. Future work
