@@ -141,7 +141,7 @@ the APC — but the suppression of subdominant T cell clones through APC killing
 alleviated in either case. Combined with the threat of HLA loss of heterozygosity under
 immune pressure and the limited number of peptide slots in a personalized vaccine
 formulation (typically 10–20 candidates in current clinical trials; Sahin et al.,
-*Nature* 2017; Ott et al., *Nature* 2017), GPS becomes the committed primary
+*Nature* 2017; Ott et al., *Nature* 2017; Sahin et al., *Nature* 2026), GPS becomes the committed primary
 ranking criterion for our application. `best_presentation_percentile` is retained not as a
 competing ranking dimension but as a minimum quality gate — at least one allele must reach
 strong or weak presenter threshold to ensure sufficient pMHC density for vaccine-primed T
