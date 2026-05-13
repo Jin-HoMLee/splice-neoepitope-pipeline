@@ -32,6 +32,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-12
 
+### 14:32 UTC — Editor: PM
+
+#### [Issue #337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337) scaffold — multi-agent orchestration landscape doc + PR-body minimalism rule
+
+**Doc scaffold.** Created `research/multi_agent_landscape.md` with three sections: Frameworks (Symphony, Managed Agents, Fugu), Methodology / framing (Trends Report, Mason, Code Agent Orchestra), Our position. Each backfilled entry has source link, one-line summary, rationale tagged **Observe / Pattern-confirmation / Counter-position / Pattern borrow + roster reject / Direct reinforcement / Convergent vocabulary** — six distinct stances surfacing the asymmetry between borrowing the *pattern* (one orchestrator + N specialists) and the *roster* (PM/Sci/Dev) on a per-item basis. "Our position" reproduces the 3 framing rules inline (since the cerebrum repo is gitignored and not portfolio-readable) plus the 3-layer orchestration shape (human → PM → Sci/Dev).
+
+**Cross-link side of the work.** Updated all 3 framing memories (`feedback_multi_role_not_multi_agent`, `feedback_domain_bespoke_roles`, `feedback_cerebrum_vs_project`) with a closing `**Cross-reference:**` block pointing at the landscape doc. Goal: when a future role re-reads a framing memory in isolation, they discover the landscape doc as the curated synthesis — and when they read the landscape doc, the inline rationales bottom out at the framing memories. Reciprocal pointers, no duplicated content.
+
+**Reference + workflow hook.** Registered the landscape doc in `shared/reference_docs_inventory.md` as a stale-watch artifact. Maintenance hook lives in PM's `feedback_morning_routine.md` Step 0 ("How to apply"): when news_log gets a `methodology-signal` entry, scan against the landscape doc and pick (a) backfill, (b) update existing rationale, or (c) skip. No new reference memory file created — keeping rule-proliferation in check (same discipline as yesterday's [16:31 UTC] entry where I folded the news-cap into existing morning-routine files instead of spawning `feedback_news_issue_cap.md`).
+
+**PR-body minimalism rule (mid-session capture).** User asked, *"do you feel the PR body is redundant?"* — looking at [PR #341](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/341)'s Summary section (5 bullets that mirrored the lab-notebook entry's `####` topic headings), yes. The lab notebook IS the artifact; markdown renders in the diff view; the Summary section was content re-serialization. User caught me drafting it as a new file (`feedback_lab_notebook_pr_body.md`) — same rule-proliferation slip I just praised yesterday's entry for avoiding. Reverted to extending `shared/feedback_lab_notebook.md` with a new "PR body — minimal, no content re-serialization" section + template + Why + How to apply. Today's [PR #341](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/341) became the "before" example (immutable; merged). This PR is the first one using the new template.
+
+**Design rationale — why "living .md" over parent-issue-with-sub-issues.** This decision was made earlier today during the morning routine; recording the full reasoning here. Three framings were on the table:
+- Parent-issue-with-sub-issues (one Issue per framework) — high signal/board churn for items that may never become work; many would just sit as `methodology-signal: observe` with no action.
+- Living .md with portfolio framing (chosen) — low-ceremony append; reviewer can read all six items + our rationale in one place; doubles as portfolio artifact.
+- Lightweight notes append (just keep extending news_log) — chronological order obscures by-framework comparison; no synthesis surface.
+
+The first option is rejected by the "Issue cap from news" rule (1/day, concrete-hook gate); the third option fails the synthesis test. Living .md is the only framing that survives both constraints.
+
+**Process meta — `gh issue develop` flag name slip.** Used `--branch` then got an error showing the correct flag is `--name`. Minor; not memory-worthy. Worth noting only because the per-role branch-creation rule (`feedback_branch_creation.md`) emphasizes `gh issue develop`, but doesn't pin the flag name — and the gh help output is the source of truth, not memory.
+
+**Side-thread: stray reflog cleanup.** During the rebase-before-write step, `git fetch` failed with `fatal: bad object refs/heads/docs/scientist/issue-334-bhardwaj-discussion 2`. Diagnosis: a stray reflog file with literal " 2" suffix in `.git/logs/refs/heads/docs/scientist/` (macOS Finder copy artifact from 11:00 today). Confirmed it was a reflog (history), not a ref (branch state); the actual branch lives in the scientist worktree. User approved deletion; fetch restored. Logged here because it's the kind of incident future-grep might want to find — search "fatal: bad object refs/heads/" + "Finder copy" lands here.
+
 ### 12:02 UTC — Editor: PM
 
 #### Morning routine: UI-vs-agent rule capture + [Issue #337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337) creation + closure-audit retro-backfill realization
