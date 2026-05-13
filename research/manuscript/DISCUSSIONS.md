@@ -280,8 +280,9 @@ alleles.
 The 0.5% strong and 2% weak cutoffs are MHCflurry's documented defaults (O'Donnell
 et al. 2020, *Cell Systems*), inheriting the IEDB/NetMHCPan binder-percentile convention.
 
-Epitopes are ranked by `presentation_percentile` (ascending), prioritizing candidates
-that are both strongly bound and well processed — the subset most likely to be immunogenic.
+Epitopes are ranked by `presentation_percentile` (ascending), prioritizing strong
+presenters — candidates that combine high MHC affinity with efficient antigen
+processing — as the subset most likely to be immunogenic.
 
 Note: `affinity_percentile` is not included in the output because
 `Class1PresentationPredictor.predict()` (MHCflurry 2.2.x) does not expose it directly.

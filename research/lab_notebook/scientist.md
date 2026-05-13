@@ -6,6 +6,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-13
+
+### 08:45 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot-review follow-up — 3 residual presenter-drift fixes + REFERENCES "Cited in" tweak
+
+[@claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349#issuecomment-4434913139) on yesterday's manuscript §6 hygiene PR flagged 3 residual binder-vocab hits I'd intentionally left untouched (they describe our pipeline's own quality-gate output, originally classified borderline). Bot's argument was sharp: the terminology caveat I added asserts "throughout this manuscript", so leaving these contradicts the scope claim. Fixing is the cheaper path than narrowing the note's scope.
+
+**Fixes.**
+- [`METHODS.md`](research/manuscript/METHODS.md) §6 ranking-and-quality-gate paragraph: `weak-binder threshold` → `weak-presenter threshold`; `non-binding alleles` → `non-presenting alleles`.
+- [`DISCUSSIONS.md`](research/manuscript/DISCUSSIONS.md) §"MHC presentation prediction": rewrote `prioritizing candidates that are both strongly bound and well processed` → `prioritizing strong presenters — candidates that combine high MHC affinity with efficient antigen processing` (avoids the "presented + processed" double-counting that MHCflurry 2.x's combined `presentation_score` would otherwise create).
+- [`REFERENCES.md`](research/manuscript/REFERENCES.md) O'Donnell "Cited in" line: `MHC binding prediction section` → `MHC presentation prediction section`. Internal tracking should also follow the manuscript's chosen vocabulary, per the bot's minor catch.
+
+**Deferred.** Bot's secondary observation that the parenthetical `(no allele reaches weak-presenter threshold)` is redundant with the `best_presentation_percentile > 2%` condition — left as a separate style call.
+
+---
+
 ## 2026-05-12
 
 ### 21:10 UTC — Editor: Scientist

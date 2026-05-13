@@ -227,8 +227,8 @@ Candidates are ranked by `genotype_presentation_score` (descending) as the prima
 with `n_strong_alleles` (descending) as a secondary tie-breaker and
 `best_presentation_percentile` (ascending) as a tertiary tie-breaker. A candidate is
 excluded from the top-candidates list if `best_presentation_percentile > 2%` (no allele
-reaches weak-binder threshold), providing a quality gate against high-GPS candidates
-composed entirely of non-binding alleles.
+reaches weak-presenter threshold), providing a quality gate against high-GPS candidates
+composed entirely of non-presenting alleles.
 
 ---
 

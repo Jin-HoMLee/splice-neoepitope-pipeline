@@ -78,7 +78,7 @@
 ## O
 
 **O'Donnell et al., *Cell Syst* 2020** — MHCflurry 2.0: Improved pan-allele prediction of MHC class I-presented peptides by incorporating antigen processing. *Cell Syst* 2020;11(1):42–48. doi:10.1016/j.cels.2020.06.010
-→ Cited in METHODS.md §6 (presentation thresholds; MHCflurry default cutoffs), DISCUSSIONS.md (MHC binding prediction section; composite presentation score)
+→ Cited in METHODS.md §6 (presentation thresholds; MHCflurry default cutoffs), DISCUSSIONS.md (MHC presentation prediction section; composite presentation score)
 
 **Onkar et al., *Cell Rep Med* 2026** — Pipe dream to pipeline: Journey of cancer vaccines and the road ahead. *Cell Rep Med* 2026;7(2):102575. doi:10.1016/j.xcrm.2025.102575
 → Cited in DISCUSSIONS.md (clinical translation section; field synthesis — neoantigen + ICI convergence, off-the-shelf shared-NA vaccines)
