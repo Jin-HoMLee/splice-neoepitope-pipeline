@@ -54,6 +54,12 @@ Essays and reports that shape how the field talks about itself. Distinct from fr
 - **Summary:** Essay on what makes multi-agent coding work — section roles, conductor metaphor.
 - **Our rationale:** **Convergent vocabulary.** Maps cleanly onto our 3-layer orchestration: human (conductor) → PM (section leader) → Sci/Dev (instrumentalists). No new action items — this landscape doc itself ([Issue #337](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/337)) is the response to the essay.
 
+### digitalapplied — "Pattern Language 2026"
+
+- **Source:** [digitalapplied, 2026-05](https://www.digitalapplied.com/blog/multi-agent-orchestration-patterns-producer-consumer)
+- **Summary:** Formal taxonomy reducing every reliable multi-agent system to 5 archetypes — producer (decomposes ambiguity into work items), consumer (executes them), coordinator (routes + bounded fan-out), critic (suggestions, no gate authority), judge (binary go/no-go). 12 composition rules (acyclicity, idempotent consumers, bounded fan-out, etc.); 8 predictable failure modes (cycle formation, critic-judge deadlock, coordinator overload, silent drift, others). Maps cleanly to LangGraph, CrewAI, OpenAI Agents SDK, Claude Agent SDK without changing the underlying shape.
+- **Our rationale:** **Vocabulary candidate — open question.** Distinct from AddyOsmani above (essay vs. taxonomy) and from the Trends Report (coding-scoped vs. domain-agnostic). Possible re-description of our shape: `human = meta-coordinator → PM = coordinator + judge → Scientist = producer + critic + Developer = consumer + producer (infra) + critic`. The 8-failure-mode list doubles as a portfolio audit lens (have we hit critic-judge deadlock? silent drift?). Decision tracked via [Issue #353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353) (PM vocabulary adoption).
+
 ---
 
 ## Our position
