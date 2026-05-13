@@ -6,7 +6,70 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-13
+
+### 09:34 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) pre-merge grep — one more drift fix at INTRODUCTION:147; section header retained
+
+Final pre-merge `grep -nE "binder|binding"` across `research/manuscript/*.md` surfaced one more caveat-coherence drift hit the bot's two passes missed:
+
+- [`INTRODUCTION.md:147`](research/manuscript/INTRODUCTION.md) — `at least one allele must reach strong or weak binder threshold` → `strong or weak presenter threshold` (describes our pipeline's quality gate, same category as METHODS §6 fix).
+
+**Section-header question closed without rename.** Grep also flagged DISCUSSIONS.md:251 section header `## MHC binding prediction: composite presentation score over affinity-only` and made the REFERENCES.md "Cited in" tweak from [87be2db](research/manuscript/REFERENCES.md) look like it pointed at a non-existent literal header. Inspected: the section's title structure is `Topic: our choice`, where "MHC binding prediction" names the broader field category and "composite presentation score over affinity-only" names our position within it. Renaming `binding` → `presentation` in the header would (a) collapse the rhetorical contrast the section is built around, and (b) create the awkward `"presentation prediction: composite presentation score..."` tautology. The REFERENCES tweak remains valid as an internal-vocabulary description of where O'Donnell is cited; it doesn't require literal header-match because the cross-ref isn't an anchor link.
+
+All other `binder/binding` grep hits classify as biological reality (binding affinity, peptide-binding grooves), Yewdell-quote retention, broader step-name references (the pipeline step is conventionally "MHC binding prediction" across the field), or the §6 caveat itself naming the field convention.
+
+---
+
+### 09:25 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot 2nd-pass follow-up — 2 more drift fixes in Calibration note + L421 parenthetical drop
+
+[@claude review 2nd pass](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349#issuecomment-4439100502) confirmed the DISCUSSIONS apposition from the [08:45 UTC commit](research/lab_notebook/scientist.md) is appropriately explanatory (not redundant) and surfaced 3 new hits in the *Calibration note: presentation_score vs. presentation_percentile* subsection that weren't in scope of the first review.
+
+**Fixes (caveat-coherence):**
+- [`DISCUSSIONS.md:411`](research/manuscript/DISCUSSIONS.md) — `weak-binder threshold` → `weak-presenter threshold` (describes pipeline gate behavior).
+- [`DISCUSSIONS.md:423`](research/manuscript/DISCUSSIONS.md) — `weak-binder percentile threshold` → `weak-presenter percentile threshold` (same).
+
+**L421 parenthetical drop — scientifically motivated, not just drift:**
+
+Bot called L421 (`(non-binder territory)`) "defensible either way" — covered by the §6 caveat as field-convention orientation. User pushed back with a sharper critique: the phrase *sounds* like quantitative inference of poor binding from a 3–5% percentile, but `presentation_percentile` is **rank-relative to a random peptide background for that allele**, not absolute affinity. On a promiscuous allele like HLA-A\*02:01, a peptide at 3–5% percentile can still have a competitive IC50 (~200 nM) — it's just outranked by many similarly-scoring peptides in the calibration pool. The parenthetical undercuts the very scale-mismatch argument the surrounding paragraph is trying to motivate.
+
+Resolution: drop the parenthetical entirely on L421. L423 immediately below already explicitly states the gate-failure consequence (`"while all alleles remain below the weak-presenter percentile threshold"`), so dropping is genuinely lossless and cleaner scientifically.
+
+**Style call retained as deferred:** bot's first-pass observation that the parenthetical `(no allele reaches weak-presenter threshold)` on METHODS.md:230 is redundant with `> 2%` — still open, separate style call.
+
+---
+
+### 08:45 UTC — Editor: Scientist
+
+#### [PR #349](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349) bot-review follow-up — 3 residual presenter-drift fixes + REFERENCES "Cited in" tweak
+
+[@claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/349#issuecomment-4434913139) on yesterday's manuscript §6 hygiene PR flagged 3 residual binder-vocab hits I'd intentionally left untouched (they describe our pipeline's own quality-gate output, originally classified borderline). Bot's argument was sharp: the terminology caveat I added asserts "throughout this manuscript", so leaving these contradicts the scope claim. Fixing is the cheaper path than narrowing the note's scope.
+
+**Fixes.**
+- [`METHODS.md`](research/manuscript/METHODS.md) §6 ranking-and-quality-gate paragraph: `weak-binder threshold` → `weak-presenter threshold`; `non-binding alleles` → `non-presenting alleles`.
+- [`DISCUSSIONS.md`](research/manuscript/DISCUSSIONS.md) §"MHC presentation prediction": rewrote `prioritizing candidates that are both strongly bound and well processed` → `prioritizing strong presenters — candidates that combine high MHC affinity with efficient antigen processing` (avoids the "presented + processed" double-counting that MHCflurry 2.x's combined `presentation_score` would otherwise create).
+- [`REFERENCES.md`](research/manuscript/REFERENCES.md) O'Donnell "Cited in" line: `MHC binding prediction section` → `MHC presentation prediction section`. Internal tracking should also follow the manuscript's chosen vocabulary, per the bot's minor catch.
+
+**Deferred.** Bot's secondary observation that the parenthetical `(no allele reaches weak-presenter threshold)` is redundant with the `best_presentation_percentile > 2%` condition — left as a separate style call.
+
+---
+
 ## 2026-05-12
+
+### 21:10 UTC — Editor: Scientist
+
+#### [Issue #347](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/347) — manuscript §6 hygiene: presenter terminology + phantom Jiang citation cleanup
+
+Terminology-drift scan on `research/manuscript/*` surfaced two bundled issues.
+
+**Issue 1 — phantom citation.** Three places (METHODS.md:202, DISCUSSIONS.md:280-282, REFERENCES.md:56) cited *"Jiang et al. (2024, Communications Biology)"* as the precedent for the 0.5%/2% percentile threshold on MHCflurry's `presentation_percentile`. REFERENCES.md entry had placeholder title "TBD" and the paper cannot be located via Zotero, PubMed, or web search — confirmed unverifiable. Pivoted to O'Donnell et al. 2020 (MHCflurry 2.0, *Cell Systems*, DOI `10.1016/j.cels.2020.06.010`) — the actual source of MHCflurry's documented default cutoffs, already in REFERENCES.md (line 87) but missing from Zotero. Added O'Donnell to Zotero (key `SBQGHWRP`) with three-section note.
+
+**Issue 2 — presenter terminology drift.** Two lines described our pipeline's own outputs using legacy "binder" vocab: METHODS.md:233 ("top strong-binding candidate" → "top strong-presenting candidate") and INTRODUCTION.md:119 ("qualifies as a strong binder" → "…strong presenter"). The remaining 7 "X-binder threshold" hits across the manuscript reference the IEDB/NetMHCPan binder-percentile convention — rather than rewrite all 7, added an explicit *Note on terminology* caveat at METHODS §6 that acknowledges the adaptation and names the cutoffs as "strong/weak presenter thresholds" throughout. INTRODUCTION.md:125 "strongest-binding epitope" legitimately retained (cites Yewdell & Bennink 1999 immunodominance framework — sourced biological vocabulary).
+
+**Edits.** 8 surgical edits across REFERENCES.md (4 — Jiang entry removal + O'Donnell "Cited in" update + tracking-table row + title-TBD list), METHODS.md (2 — caveat + line 233), DISCUSSIONS.md (1 — line 280-282 O'Donnell pivot), INTRODUCTION.md (1 — line 119).
 
 ### 12:30 UTC — Editor: Scientist
 

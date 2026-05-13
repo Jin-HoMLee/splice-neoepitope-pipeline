@@ -51,13 +51,6 @@
 
 ---
 
-## J
-
-**Jiang et al., *Commun Biol* 2024** — [MHCflurry presentation score threshold — title TBD]. *Commun Biol* 2024.
-→ Cited in METHODS.md §6, DISCUSSIONS.md (0.5% strong-binder presentation_percentile threshold)
-
----
-
 ## K
 
 **★ Kim et al., *Cell* 2025** — Mis-splicing-derived neoantigens and cognate TCRs in splicing factor mutant leukemias. *Cell* 2025. doi:10.1016/j.cell.2025.03.047
@@ -84,8 +77,8 @@
 
 ## O
 
-**O'Donnell et al., *Cell Syst* 2020** — MHCflurry 2.0: Improved pan-allele prediction of MHC class I-presented peptides by incorporating antigen processing. *Cell Syst* 2020;11(1):42–48.
-→ Cited in DISCUSSIONS.md (MHC binding prediction section; composite presentation score)
+**O'Donnell et al., *Cell Syst* 2020** — MHCflurry 2.0: Improved pan-allele prediction of MHC class I-presented peptides by incorporating antigen processing. *Cell Syst* 2020;11(1):42–48. doi:10.1016/j.cels.2020.06.010
+→ Cited in METHODS.md §6 (presentation thresholds; MHCflurry default cutoffs), DISCUSSIONS.md (MHC presentation prediction section; composite presentation score)
 
 **Onkar et al., *Cell Rep Med* 2026** — Pipe dream to pipeline: Journey of cancer vaccines and the road ahead. *Cell Rep Med* 2026;7(2):102575. doi:10.1016/j.xcrm.2025.102575
 → Cited in DISCUSSIONS.md (clinical translation section; field synthesis — neoantigen + ICI convergence, off-the-shelf shared-NA vaccines)
@@ -197,7 +190,6 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Chiappinelli et al., *Cell* 2015 | ✅ | |
 | Coelho et al., *Cancer Cell* 2023 | ✅ | |
 | Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026 | ✅ | Manuscript uses full form ("Asia-Pacific Journal of Clinical Oncology") |
-| Jiang et al., *Commun Biol* 2024 | ✅ | |
 | Kim et al., *Cell* 2025 | ✅ | |
 | Kwok et al., *Nature* 2025 | ✅ | |
 | Lang et al., *Bioinform Adv* 2024 | ✅ | |
@@ -222,7 +214,7 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 
 ### Open items before submission
 
-1. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Jiang et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
+1. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
 2. **Journal-name style normalization** — abbreviated form is the stated house style here, but several recent in-text citations use full forms (`Frontiers in Immunology`, `Nature Methods`, `NAR Genomics and Bioinformatics`, `Cancer Research Communications`). Decide one style and sweep all of `INTRODUCTION.md`, `METHODS.md`, `DISCUSSIONS.md` to match. Non-blocking until pre-submission proofread.
 3. **Citation ordering inconsistency in METHODS.md** — METHODS.md uses year-before-journal format (e.g. `Lang et al., 2024, *Bioinform Adv*` at line 68, `Avsec et al., 2026, *Nature*` at line 76, `Szolek et al., 2014` at line 89, `van Bergen et al., 2004` at line 213) while INTRODUCTION.md and DISCUSSIONS.md use the house-style year-after-journal form (`*Journal* YEAR`). Sweep METHODS.md to match house style during pre-submission proofread. Distinct from the abbreviated-vs-full journal-name issue (item #2).
 4. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).

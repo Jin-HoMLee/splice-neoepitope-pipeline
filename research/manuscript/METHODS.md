@@ -199,8 +199,12 @@ Peptides are assigned a single classification label based on `presentation_perce
 
 - **`presentation_class`** — strong (≤ 0.5%), weak (≤ 2%), non (> 2%)
 
-The 0.5% threshold is consistent with Jiang et al. (2024, *Communications Biology*)
-and analogous to the conventional IC50 ≤ 50 nM cutoff.
+*Note on terminology.* The 0.5% (strong) and 2% (weak) cutoffs originate as the canonical
+IEDB/NetMHCPan **binder** percentile thresholds, originally defined on binding-affinity
+percentile. We apply them here to MHCflurry's `presentation_percentile` and refer to them
+as strong/weak **presenter** thresholds throughout this manuscript. These are also
+MHCflurry's documented default thresholds (O'Donnell et al. 2020, *Cell Systems*); the
+0.5% is analogous to the conventional IC50 ≤ 50 nM cutoff.
 
 **Level 2 — genotype presentation score.**
 Per-allele scores are combined into a single genotype-level probability using a
@@ -223,14 +227,14 @@ Candidates are ranked by `genotype_presentation_score` (descending) as the prima
 with `n_strong_alleles` (descending) as a secondary tie-breaker and
 `best_presentation_percentile` (ascending) as a tertiary tie-breaker. A candidate is
 excluded from the top-candidates list if `best_presentation_percentile > 2%` (no allele
-reaches weak-binder threshold), providing a quality gate against high-GPS candidates
-composed entirely of non-binding alleles.
+reaches weak-presenter threshold), providing a quality gate against high-GPS candidates
+composed entirely of non-presenting alleles.
 
 ---
 
 ## 7. Structural Validation (TCRdock)
 
-The top strong-binding candidate is submitted to TCRdock (Bradley, *eLife* 2023) for structural
+The top strong-presenting candidate is submitted to TCRdock (Bradley, *eLife* 2023) for structural
 prediction of the TCR–peptide–MHC ternary complex. TCRdock uses a modified AlphaFold v2
 multimer backend adapted specifically for TCR:pMHC modelling. Predictions run on a GCP
 Spot GPU VM (NVIDIA P100, 16 GB) inside a Docker container to isolate CUDA/cuDNN
