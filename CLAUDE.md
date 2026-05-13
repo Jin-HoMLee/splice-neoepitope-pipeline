@@ -75,13 +75,23 @@ snakemake --cores $(nproc) --use-conda ...
 
 **Conda env cleanup after `workflow/envs/*.yaml` changes:** Automatic cleanup was removed from `run_cloud_gpu.sh`. When any `workflow/envs/*.yaml` file changes, manually delete the affected old environment on the VM before running — old envs will not be rebuilt automatically and stale cached packages will be used instead.
 
-## Snakemake 8 `--configfile` Gotcha
+## Snakemake 8 Gotchas
+
+### `--configfile` flag collapsing
 In Snakemake 8, passing `--configfile` as **separate flags** (`--configfile A --configfile B`) causes the second invocation to replace the first due to argparse `nargs="+"` semantics. Only the last file is loaded.
 **Fix:** pass multiple config files in a **single** `--configfile` invocation:
 ```bash
 snakemake --configfile config/test_config.yaml config/gpu_config.yaml   # correct
 # NOT: --configfile config/test_config.yaml --configfile config/gpu_config.yaml
 ```
+
+### `srcdir()` not available at .smk module level
+`srcdir(path)` was a Snakemake-7 helper for resolving paths relative to the calling Snakefile. In Snakemake 8 it is no longer exposed at the `.smk` module scope and a top-level call (`sys.path.insert(0, srcdir("../scripts"))`) fails with `NameError: name 'srcdir' is not defined` at parse time — CI's `snakemake -n` dry-run will catch it.
+**Fix:** use `workflow.basedir` instead, which is always exposed and points at the Snakefile's directory (the repo root in this project):
+```python
+sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
+```
+Caught in [PR #358](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/358) when a code-review suggestion swapped the working `workflow.basedir` form for the deprecated `srcdir()`.
 
 ## HISAT2 Index Cache Invalidation
 

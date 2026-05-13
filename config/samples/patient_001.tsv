@@ -1,4 +1,4 @@
-patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_B1	serology_B2	serology_C1	serology_C2
+patient_id	sample_id	sample_type	fastq1	fastq2	serology_A1	serology_A2	serology_B1	serology_B2	serology_C1	serology_C2	strandness
 # Matched gastric cancer tumor/normal pair (SRR9143066 / SRR9143065)
 # Source: https://www.ebi.ac.uk/ena/browser/view/SRR9143066
 # No clinical HLA serotyping available for this patient.

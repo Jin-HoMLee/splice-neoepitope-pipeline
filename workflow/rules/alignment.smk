@@ -69,6 +69,28 @@ _JUNCTION_DONE   = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "
 
 if config.get("alignment", {}).get("aligner") == "hisat2":
 
+    # Per-sample strandness support — translates samples.tsv `strandness` column
+    # (biological direction: `unstranded`/`forward`/`reverse`) into the HISAT2
+    # --rna-strandness flag value (`F`/`R`/`FR`/`RF` or empty). Pure helpers live
+    # in workflow/scripts/strandness.py and are unit-tested in test_strandness.py.
+    # `srcdir()` is unavailable in Snakemake 8 — use `workflow.basedir` (which
+    # points at the Snakefile's directory, i.e. the repo root here) instead.
+    import sys
+    sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
+    from strandness import get_strandness_from_row
+
+    def _get_hisat2_strandness(wildcards):
+        """Resolve the HISAT2 --rna-strandness flag value for a single sample.
+
+        Returns the empty string for samples without a `strandness` column entry
+        or with `unstranded` — the rule then omits the flag entirely (preserves
+        backward compat with samples.tsv files predating this column).
+        """
+        for s in _read_samples_tsv(config["samples_tsv"], wildcards.patient_id):
+            if s["sample_id"] == wildcards.sample:
+                return get_strandness_from_row(s)
+        return ""
+
     # Configurable index directory — allows test (chr22) and production
     # (full genome) to maintain separate indices without overwriting.
     _HISAT2_INDEX_DIR = config.get("alignment", {}).get(
@@ -164,6 +186,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_align.log"),
         params:
             index_prefix=_HISAT2_INDEX_PREFIX,
+            strandness=_get_hisat2_strandness,
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=20000,
@@ -188,9 +211,15 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 FASTQ_ARGS="-U {input.fastq1}"
             fi
 
+            STRANDNESS_ARGS=""
+            if [[ -n "{params.strandness}" ]]; then
+                STRANDNESS_ARGS="--rna-strandness {params.strandness}"
+            fi
+
             hisat2 \\
                 -p {threads} \\
                 -x {params.index_prefix} \\
+                $STRANDNESS_ARGS \\
                 $FASTQ_ARGS \\
                 2>> {log} | \\
                 samtools sort -@ {threads} -m 1G -o {output.bam} - 2>> {log}
