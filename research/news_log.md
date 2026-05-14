@@ -11,6 +11,14 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-14
+
+### 10:17 UTC — Editor: PM
+
+- **Claude Code May 2026 hook updates** ([changelog](https://code.claude.com/docs/en/changelog)) — `updatedToolOutput` now all-tools (was MCP-only); `terminalSequence` for desktop notifications. → comment on [Issue #247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247) (design refinement options). *PM. tooling-relevant.*
+- **Multi-agent framework leaderboard 2026** ([Gurusup](https://gurusup.com/blog/best-multi-agent-frameworks-2026)) — AutoGen 32k★ / CrewAI 22k★ / LangGraph 8.2k★ on GitHub. → No action; pattern-only. *PM. methodology-signal.*
+- **Gartner: >40% agentic AI projects cancelled by 2027** ([arXiv 2601.13671](https://arxiv.org/html/2601.13671v1)) — primary failure = orchestration ↔ domain-logic junction. → Backfill `our_position` #2 rationale in [multi_agent_landscape.md](research/multi_agent_landscape.md). *PM. methodology-signal.*
+
 ## 2026-05-13
 
 ### 09:00 UTC — Editor: Developer
