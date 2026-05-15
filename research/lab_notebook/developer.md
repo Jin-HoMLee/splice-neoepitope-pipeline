@@ -6,6 +6,108 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-15
+
+### 18:40 UTC — Editor: Developer
+
+**Headline:** [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) (P0/critical: regtools BED12 anchor-outer encoding shifted every HISAT2-path junction by 100–150 bp on each side; every neoepitope ever predicted on that path was derived from wrong coords) fixed via [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) merged (squash `ca7ec79`). Two follow-up issues filed for the deferred ACs: [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) (CI canary cross-check vs `regtools junctions annotate`) and [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) (patient_002 PoC re-run for empirical verification). Closure-audit ritual applied in full despite the merge slip (see Process notes).
+
+**Root-cause reasoning:**
+
+The buggy code at [`alignment.smk:238-240`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/ca7ec79/workflow/rules/alignment.smk) was:
+
+```awk
+awk -F'\t' '{if ($5 > 0) print $1":"$2":"$3":"$6"\t"$5}' {output.bed} > {output.junctions}
+```
+
+`regtools junctions extract` emits BED12 where cols 2-3 (`chromStart`/`chromEnd`) are the **anchor outer boundaries** of the spliced-read pile-up — not the intron donor/acceptor. The actual intron coords are inset by the anchor lengths recorded in `blockSizes` (col 11) and `blockStarts` (col 12):
+
+```
+chr1  16914  17368  JUNC00000004  177  -  ...  2  141,136  0,318
+                                                  ^^^^^^^   ^^^^^
+                                                  anchors   block starts
+donor    (0-based) = 16914 + 141 = 17055
+acceptor (0-based, exclusive) = 16914 + 318 = 17232
+```
+
+The pipeline was emitting `chr1:16914:17368:-` — shifted by 141 bp on the left and 136 bp on the right. Every annotated junction missed the GENCODE reference; the funnel collapsed to `annotated = 0, tumor_exclusive = 57708` on patient_002 (biologically impossible — any human RNA-seq sample hits tens of thousands of annotated junctions).
+
+**Why it went undetected for as long as it did:** the funnel-stats arithmetic checked out (`junctions_raw = mean_reads_filtered + annotated + normal_shared + tumor_exclusive` summed correctly), `bedtools getfasta` happily extracted *some* sequence from the wrong coords, MHCflurry scored the resulting peptides without complaint, and the `annotated_discarded` field was only added to the funnel output in 2026-04-25 ([Issue #214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/214)) — so a value of zero had nowhere to be seen for ~5 months. Arithmetic was sanity-checked; biology was not.
+
+**Approach considered (Issue #370 body, summarized):**
+
+| Option | Description | Rejected because |
+|---|---|---|
+| (A) Fix HISAT2 awk + use STAR col 6 | Apply blockSizes formula on HISAT2; read STAR's `annotated` flag from `SJ.out.tab` col 6 directly | Selected — smallest diff, no new tool |
+| (B) Migrate to `regtools junctions annotate` | Pipe BED12 through annotate; consume `known_junction` flag | Annotate's `end += 1` quirk ([regtools/junctions_annotator.cc:66-83](https://github.com/griffithlab/regtools/blob/master/src/junctions/junctions_annotator.cc#L66-L83)) means the output `end` is +1 vs every other convention in the pipeline; requires a shim AND a `SJ.out.tab → BED12` converter for the STAR path |
+| (B') | Use annotate for the flag only, do our own coord math | Eliminates the shim by ignoring regtools' coord output — at which point we keep our own coord code anyway |
+
+(A) won. (B) was filed as a future option in [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) (CI canary cross-check) — we get the safety-net signal without committing to migration.
+
+**Implementation:**
+
+Extracted the awk replacement into [`workflow/scripts/bed12_to_junctions.py`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/ca7ec79/workflow/scripts/bed12_to_junctions.py) rather than inlining the corrected math back into the `.smk` shell block. Reasons:
+
+1. **Testability.** The arithmetic is the entire correctness story — needs unit tests with controlled fixtures, not "did the pipeline run?"
+2. **The bug was a semantic misread by a human reading the awk.** A Python helper with named variables (`donor_0based`, `acceptor_0based_exclusive`) and a comment explaining the genomic-orientation convention is harder to misread than `$2 + bs[1]` / `$2 + bst[2]`.
+3. **Tested coverage is wider than possible inline.** 8 tests: core regression, zero-read skip, minus strand, multiple records, GENCODE-match round-trip (the test that would have caught the original bug), unstranded `.` records, malformed short lines, comment/blank lines.
+
+**Format round-trip verified end-to-end:**
+
+```
+bed12_to_junctions emits:  chr22:101:200:+   (1-based donor, 0-based exclusive acceptor)
+filter_junctions._parse_junction_id:
+    start = int("101") - 1 = 100   # 0-based intron start
+    end   = int("200")     = 200   # 0-based exclusive intron end
+GENCODE BED reference: chr22  100  200  ref_junc  0  +
+                        → match ✓
+```
+
+The Claude review traced this trip independently and verified it. STAR path is unaffected — `SJ.out.tab` cols 2-3 are 1-based intron donor/acceptor directly, and the existing STAR awk in [`alignment.smk:347-352`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/ca7ec79/workflow/rules/alignment.smk) is accidentally correct (1-based inclusive `[a,b]` → 0-based half-open `[a-1, b)` requires `-1` on start, no change on end — which is exactly what `_parse_junction_id` does).
+
+**Bot review cycle:**
+
+The [Claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372#issuecomment-4462167720) verdict was "correct and safe to merge" with three minor non-blocking notes. All three were addressed in two follow-up commits before merge:
+
+- **`_snakemake_main()` is dead code** — removed in `c3b7f54`. The rule invokes the helper via `shell:` + CLI, so the `snakemake` global never exists at runtime and the `try/except NameError` always fell through to `_cli_main()`. Reviewer was right; design-pattern carryover from another script in the codebase.
+- **Donor/acceptor naming is genomic, not transcript-oriented** — clarifying comment added in `c3b7f54`. On `+` strand, `donor_0based` is the biological 5' splice site; on `-` strand it's the 3' splice site. GENCODE BED uses the same genomic convention so downstream matching is symmetric — no correctness change, but a confused future reader is now disambiguated by the comment.
+- **Missing defensive-guard tests** — added in `74e08e5`. Three new tests: unstranded `.` round-trip, lines with `<12` fields skipped, comment + blank lines skipped. Each guard was already in the code; they just weren't covered.
+
+**Closure-audit ritual:**
+
+Four of five [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) ACs were not met at merge-time. Handled per the `shared/feedback_closure_ritual.md` rule:
+
+| AC | Status | Disposition |
+|---|---|---|
+| CLAUDE.md gotcha note | ✅ Met | Ticked in issue body |
+| `annotated_discarded` plausible fraction on re-run | ❎ Empirical, post-merge | Deferred to [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) |
+| `tumor_exclusive` drops to single-digit-thousands | ❎ Empirical, post-merge | Deferred to [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) |
+| Spiked annotated junction unit test (both paths) | ❎ Partial | HISAT2 covered by `test_annotated_junction_matches_gencode_reference`; STAR path was never broken — deferred to [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375) (STAR col 6 emission) |
+| CI canary regtools annotate cross-check | ❎ Out-of-scope per original body | Tracked in [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) |
+
+Comment posted on [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370#issuecomment-4462324530) makes the deferrals visible — the audit trail is the comment, not silent omission.
+
+PR test plan: ticked the two CI boxes (`pipeline-pytest`, `pipeline-snakemake-dry-run` from run `25924541450`), updated the unit-test box to reflect the new test count (262 / 25 skipped after polish commits, vs the body's pre-polish 259 / 25), and reformatted the post-merge re-run line as `- [x] (post-merge: tracked in #378)` per the closure-ritual pattern for explicitly-post-merge verification.
+
+**Process notes / lessons:**
+
+- **I shipped the work before writing this lab notebook entry — that's the failure mode the `feedback_lab_notebook.md` rule was designed to prevent.** When I drafted the closure-audit plan, I listed the lab notebook entry as the *last* step, after merge + board status updates. User caught it ("why are we doing lab notebook entries post merge now? Is that written in memory?"). The rule was explicit; I had forgotten it because it wasn't surfaced in my MEMORY.md Always-in-effect block. Slip acknowledged, rule re-read, and the rule itself was updated to clarify the ordering: **commit → push → open PR → review(s) → notebook entry → merge** (previously stated as "notebook entry → commit → push → merge" which implied notebook-first; the actual intent is that the entry captures the post-review final state but still ships *in the same PR*). The entry-after-review framing was the user's framing — better than the old one because it lets the entry reflect review-driven changes rather than the pre-review draft state.
+- **This entry is retroactive.** Per the rule it should have been bundled into [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) between the polish commits and merge. Since the PR is now squash-merged at `ca7ec79`, it lands on its own `docs/developer/lab-notebook-2026-05-15-1840` branch. Future me reading this entry should see the "[PR #372 merged]" timestamp + "[notebook entry merged]" timestamp diverge and recognize this as the recorded slip, not a new pattern.
+- **The "helper file vs inline" call paid for itself within the same review.** Three of the reviewer's three notes were file-level concerns (dead-code branch, naming comment placement, defensive-guard test coverage) that simply don't exist when the math is inline awk in an `.smk` shell block. Inline awk has no place to put a `Path`-typed function signature, an `argparse` entry point, or a `_VALID` enum guard. Extracting the script unlocked the review feedback.
+- **TDD on the helper was tighter than I usually run.** Wrote the failing import test first (`ModuleNotFoundError`), then the minimal `convert_bed12_to_junctions` signature, then the GENCODE-match scenario. The minimum-viable implementation didn't need an `if` branch on `reads <= 0` until that test was added — small, but it kept dead defensive code out.
+
+**Cross-references:**
+
+- [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) (root P0 bug) — closed by [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372)
+- [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) (the fix) — squash-merged `ca7ec79`
+- [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) (CI canary cross-check follow-up, P2)
+- [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) (patient_002 re-run follow-up, P1)
+- [Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374) (STAR strand=0 motif rescue, filed earlier today, P1)
+- [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375) (STAR col 6 annotated flag emission, filed earlier today, P2)
+- [PR #371](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/371) (separately-merged `chore: ignore /memory symlink for personas tooling`) — landed before the [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) work began
+
+---
+
 ## 2026-05-13
 
 ### 14:40 UTC — Editor: Developer
