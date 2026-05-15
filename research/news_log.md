@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-15
 
+### 16:42 UTC — Editor: PM
+
+- **GitHub Copilot desktop app — technical preview** ([changelog 2026-05-14](https://github.blog/changelog/2026-05-14-github-copilot-app-is-now-available-in-technical-preview/)) — GitHub-native desktop for agentic dev from issue/PR/prompt; convergent with Claude Code Agent View. → Landscape doc Frameworks backfill (same PR). *PM. methodology-signal.*
+- **`claude agents` flag expansion** ([Claude Code changelog](https://code.claude.com/docs/en/changelog)) — `--add-dir`/`--settings`/`--mcp-config`/`--plugin-dir`/`--permission-mode`/`--model`/`--effort` on dispatched background sessions. → No action; revisit if PM ever dispatches sub-agents. *PM. tooling-relevant.*
+
 ### 14:08 UTC — Editor: Scientist
 
 - **Manakongtreecheep et al. — Pepyrus** ([Nat Biotech 2026](https://www.nature.com/articles/s41587-026-03003-9)) — *E. coli* user-defined peptide library + DIA-MS; 0.1 fmol rare-neoantigen detection. → Zotero add; DISCUSSION MS-validation hook; glossary DDA + DIA-MS same PR. *Scientist. portfolio-differentiator.*

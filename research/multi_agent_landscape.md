@@ -30,6 +30,12 @@ Concrete products / tooling that could plausibly displace, augment, or be borrow
 - **Summary:** Multi-agent orchestration as a foundation model — dynamically assembles agent teams from a pool, no fixed roles.
 - **Our rationale:** **Explicit counter-position.** Opposite of our fixed PM/Sci/Dev split — per [Role decomposition is domain-bespoke](#our-position), our roster is intentionally bespoke to bioinformatics research (Scientist exists because literature/biology reasoning has no analog in pure coding). Fugu optimises for generality; we optimise for domain fit. Still borrowed three secondary mechanics: [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) (model routing per task type), [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) (post-merge critic), [Issue #326](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/326) (memory consolidation).
 
+### GitHub Copilot desktop app
+
+- **Source:** [GitHub changelog 2026-05-14](https://github.blog/changelog/2026-05-14-github-copilot-app-is-now-available-in-technical-preview/) (technical preview)
+- **Summary:** GitHub-native desktop client to start agentic dev sessions from an issue/PR/prompt; isolates work in-flight, supports mid-session steering, lands via PR review.
+- **Our rationale:** **Pattern-confirmation, no action.** Same parallel-session UI shape as Claude Code Agent View (news_log 2026-05-13) and convergent with our PM/Sci/Dev orchestration — but GitHub-anchored rather than terminal/IDE-anchored. Fits the "boards-as-control-plane" framing (cf. [OpenAI Symphony](#openai-symphony)). Tech preview only; too early for adoption decision but worth watching for GA + agent-callable surface (per [UI features ≠ agent capabilities](#our-position)). No action.
+
 ---
 
 ## Methodology / framing
@@ -94,5 +100,6 @@ PM-owned. Update triggers:
 - New Issue concretely borrows from or extends a framework listed here → backfill the framework's rationale block with the Issue link.
 - Framework deprecated or pivoted → don't delete the entry; update the rationale with the deprecation note (the doc is a journal of *which* options we considered, not just current options).
 
-Last sweep: 2026-05-14 (Gartner cancellation forecast backfilled to `our_position` #2 as external validation).
+Last sweep: 2026-05-15 (GitHub Copilot desktop app backfilled to Frameworks as pattern-confirmation).
+Prior: 2026-05-14 (Gartner cancellation forecast backfilled to `our_position` #2 as external validation).
 Prior: 2026-05-12 (initial scaffold; 6 backfilled items: Symphony, Trends Report, Managed Agents, Mason, Fugu, Code Agent Orchestra).
