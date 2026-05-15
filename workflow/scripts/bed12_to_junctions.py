@@ -70,6 +70,11 @@ def convert_bed12_to_junctions(input_path: str | Path, output_path: str | Path) 
             if len(block_sizes) < 2 or len(block_starts) < 2:
                 continue
 
+            # Coordinates are genomic (chrom+) orientation regardless of strand.
+            # "donor"/"acceptor" here mean left/right intron boundary in genomic
+            # coords — on the minus strand these are swapped vs. transcript
+            # direction. GENCODE BED uses the same genomic convention, so the
+            # downstream reference lookup matches symmetrically.
             donor_0based = chrom_start + block_sizes[0]
             acceptor_0based_exclusive = chrom_start + block_starts[1]
 
@@ -83,16 +88,6 @@ def convert_bed12_to_junctions(input_path: str | Path, output_path: str | Path) 
     return n_written
 
 
-def _snakemake_main() -> None:
-    log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
-    logging.getLogger().addHandler(logging.FileHandler(log_file))
-
-    convert_bed12_to_junctions(
-        snakemake.input.bed,  # type: ignore[name-defined]  # noqa: F821
-        snakemake.output.junctions,  # type: ignore[name-defined]  # noqa: F821
-    )
-
-
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert regtools BED12 to a 2-column junctions TSV."
@@ -104,8 +99,4 @@ def _cli_main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        snakemake  # type: ignore[name-defined]  # noqa: F821
-        _snakemake_main()
-    except NameError:
-        _cli_main()
+    _cli_main()
