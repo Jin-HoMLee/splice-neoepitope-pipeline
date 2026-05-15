@@ -235,9 +235,13 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 {output.bam} \\
                 2>> {log}
 
-            awk -F'\\t' '{{
-                if ($5 > 0) print $1":"$2":"$3":"$6"\\t"$5
-            }}' {output.bed} > {output.junctions}
+            # regtools BED12 cols 2-3 are anchor outer boundaries, NOT intron
+            # donor/acceptor — see Issue #370. The helper derives the real
+            # intron coords from blockSizes/blockStarts.
+            python workflow/scripts/bed12_to_junctions.py \\
+                --input {output.bed} \\
+                --output {output.junctions} \\
+                2>> {log}
 
             echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
             """
