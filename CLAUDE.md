@@ -145,6 +145,16 @@ On macOS arm64, sra-tools conda installation is unreliable due to libcurl/openss
 regtools junctions extract -s XS -a 8 -m 50 -M 500000 -o out.bed input.bam
 ```
 
+## regtools BED12 — `chromStart`/`chromEnd` are anchor outers, NOT donor/acceptor
+`regtools junctions extract` emits BED12. Columns 2-3 (`chromStart`, `chromEnd`) are the **anchor outer boundaries** of the spliced read pile-up, not the intron donor/acceptor. The actual intron coords are recovered from `blockSizes` (col 11) and `blockStarts` (col 12):
+```
+donor    (0-based)            = chromStart + blockSizes[0]
+acceptor (0-based, exclusive) = chromStart + blockStarts[1]
+```
+Treating cols 2-3 as donor/acceptor shifts every junction by the anchor lengths (typically 100–150 bp on each side) — and silently misses every GENCODE-annotated junction in downstream filtering. Issue #370 replaced the buggy inline `awk` in `alignment.smk` with `workflow/scripts/bed12_to_junctions.py`, which does the blockSizes math correctly.
+
+The STAR path is unaffected — `SJ.out.tab` cols 2-3 are 1-based intron donor/acceptor directly.
+
 ## UCSC vs ENSEMBL Chromosome Naming
 Both naming conventions use "GRCh38" in filenames, making it easy to mix them silently.
 - `hg38_*` (UCSC) — chromosomes have `chr` prefix: `chr1`, `chr2`, ..., `chrM`
