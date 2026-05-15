@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-15
+
+### 14:08 UTC — Editor: Scientist
+
+- **Manakongtreecheep et al. — Pepyrus** ([Nat Biotech 2026](https://www.nature.com/articles/s41587-026-03003-9)) — *E. coli* user-defined peptide library + DIA-MS; 0.1 fmol rare-neoantigen detection. → Zotero add; DISCUSSION MS-validation hook; glossary DDA + DIA-MS same PR. *Scientist. portfolio-differentiator.*
+- **Prélot et al.** ([bioRxiv 2025-09-16](https://www.biorxiv.org/content/10.1101/2025.09.10.674685v1)) — splice-neoepitope 69-86% cross-pipeline divergence benchmark; already in Zotero `ZXAUQAJL` + [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304). → Audit-trail backfill. *Scientist. audit-trail.*
+
 ## 2026-05-14
 
 ### 10:17 UTC — Editor: PM
