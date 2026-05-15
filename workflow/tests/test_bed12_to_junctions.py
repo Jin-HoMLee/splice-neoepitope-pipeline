@@ -88,6 +88,41 @@ class TestConvertBed12ToJunctions:
             "chr1:1101:1200:+\t5",
         ]
 
+    def test_unstranded_record(self, tmp_path):
+        unstranded = _BED12_LINE.replace("\t+\t", "\t.\t")
+        bed = tmp_path / "regtools.bed"
+        bed.write_text(unstranded + "\n")
+        out = tmp_path / "junctions.tsv"
+
+        convert_bed12_to_junctions(bed, out)
+        assert out.read_text().strip() == "chr22:101:200:.\t10"
+
+    def test_skips_malformed_short_lines(self, tmp_path):
+        # Fewer than 12 fields → silently skipped
+        bed = tmp_path / "regtools.bed"
+        bed.write_text(
+            "chr22\t50\t250\tjunc_short\t10\t+\n"  # only 6 fields
+            + _BED12_LINE + "\n"
+        )
+        out = tmp_path / "junctions.tsv"
+
+        convert_bed12_to_junctions(bed, out)
+        # Only the well-formed line emits a junction
+        assert out.read_text().strip() == "chr22:101:200:+\t10"
+
+    def test_skips_comment_and_blank_lines(self, tmp_path):
+        bed = tmp_path / "regtools.bed"
+        bed.write_text(
+            "# regtools v1.0.0 header comment\n"
+            "\n"
+            + _BED12_LINE + "\n"
+            "   \n"  # whitespace-only
+        )
+        out = tmp_path / "junctions.tsv"
+
+        convert_bed12_to_junctions(bed, out)
+        assert out.read_text().strip() == "chr22:101:200:+\t10"
+
     def test_annotated_junction_matches_gencode_reference(self, tmp_path):
         """End-to-end: emitted junction parses to coords that match a GENCODE
         BED reference entry — this is the regression scenario that motivated
