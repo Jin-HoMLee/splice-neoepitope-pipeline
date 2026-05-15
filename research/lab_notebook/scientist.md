@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-15
+
+### 14:08 UTC — Editor: Scientist
+
+#### Glossary — DDA + DIA-MS entries surfaced from Pepyrus news re-search
+
+Morning Phase 1 (Science news) initially surfaced Prélot et al. 2025 (splice neoepitope methodological-divergence benchmark) — paper turned out to already be in Zotero `ZXAUQAJL` (added 2026-05-08 by Dev session during the `zotero_add.py` bioRxiv bug-hunt that produced [Issue #307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/307)) and [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304) already cites it. **Dedup miss:** I grep'd `news_log.md` (clean) but not the Zotero collection — morning-news dedup currently walks news_log only. Worth adding a Zotero `/items/top` DOI query to the dedup sweep; the rule `shared/feedback_zotero_dedup_check.md` already exists for `zotero_add.py` calls but doesn't cover the morning-news pre-surface check.
+
+**Fresh re-search** dumped the full 29-item Zotero collection as a denylist, then searched unexplored angles (ERAP1/proteasome, single-cell immunopeptidomics). Surfaced [Manakongtreecheep et al. — *Sensitive detection of cancer antigens enabled by user-defined peptide libraries* (Pepyrus)](https://www.nature.com/articles/s41587-026-03003-9) (Nat Biotech 2026, doi:10.1038/s41587-026-03003-9): user-defined *E. coli* peptide libraries paired with DIA-MS enable ID of low-abundance neoantigens that classical DDA misses, including patient-specific splice-derived ones. >75% recovery from >10K-entry libraries per single injection; 0.1 fmol detection in complex background. Direct manuscript hook: addresses the empirical-validation gap left by Prélot (cross-pipeline disagreement → which candidates are real?) and closes the loop for low-stoichiometry splice neoepitopes specifically.
+
+**This PR ships glossary only.** User asked for DIA-MS to be defined to help understand the Pepyrus paper; DDA bundled since DIA-MS only makes sense in contrast. Two entries inserted alphabetically in section **D** (DDA after DAG, DIA-MS after DDA, both before DockQ). Pepyrus + Prélot light news_log entries queued for the next batch (await user go-ahead on Pepyrus + Zotero add via paywall-deferred manual fetch per `feedback_zotero_defer_inaccessible.md`).
+
+**Why DIA-MS matters in one paragraph.** DDA fragments only the top-N most intense MS1 precursors per cycle — stochastic and intensity-biased, low-abundance neoantigens routinely missed across replicates. DIA-MS fragments every precursor in a stepped m/z window regardless of intensity — comprehensive coverage but multiplexed MS2 spectra require a reference library for deconvolution. Public DIA libraries cover canonical proteomes but not patient-specific neoepitopes, so Pepyrus generates the custom library from *E. coli* expression of predicted candidate sequences before running DIA on the patient sample. This is the first practical MS-validation path for splice-derived neoepitopes at our pipeline's output stoichiometry.
+
+---
+
 ## 2026-05-13
 
 ### 14:35 UTC — Editor: Scientist

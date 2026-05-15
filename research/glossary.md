@@ -38,6 +38,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **DAG** — Directed Acyclic Graph. Snakemake's compiled job-dependency graph; computed from rule wildcards + I/O files, traversed for scheduling. Rendered via `scripts/visualize_dag.sh` after a dry-run. *Domain: pipeline.*
 
+**DDA** — Data-Dependent Acquisition. Mass-spec acquisition mode where the instrument picks the top-N most intense MS1 precursors per cycle and fragments only those. Stochastic and intensity-biased — low-abundance peptides (including most neoantigens) are routinely missed across replicate runs. Historical default; superseded by DIA-MS for immunopeptidomics. *Domain: bio.*
+
+**DIA-MS** — Data-Independent Acquisition Mass Spectrometry. Acquisition mode where the instrument fragments every precursor in a stepped m/z window, regardless of intensity — no peptide is "missed", but resulting MS2 spectra are multiplexed and require a reference spectral library for deconvolution. Public libraries cover canonical proteomes; patient-specific neoantigens need custom libraries (e.g. Pepyrus, [Manakongtreecheep et al. 2026](https://www.nature.com/articles/s41587-026-03003-9)). *Domain: bio.*
+
 **DockQ** — Docking Quality. Continuous 0–1 score combining Fnat (fraction of native contacts), iRMSD (interface RMSD), and LRMSD (ligand RMSD); maps onto CAPRI bands; used to evaluate predicted protein-protein / TCR-pMHC complex structures against experimental ground truth. *Domain: bio.*
 
 ## E
