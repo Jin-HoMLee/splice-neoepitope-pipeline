@@ -14,10 +14,14 @@ import sys
 
 
 def main() -> int:
-    data = json.load(sys.stdin)
+    try:
+        data = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        return 0
+
     cmd = data.get("tool_input", {}).get("command", "")
 
-    if not re.search(r"(^|[;&|]\s*)gh\s+(pr|issue)\s+(comment|create)\b", cmd):
+    if not re.search(r"(^|[;&|]\s*)gh\s+(pr|issue)\s+(comment|create|edit)\b", cmd):
         return 0
 
     if "@claude" not in cmd:
@@ -27,7 +31,7 @@ def main() -> int:
     canonical = len(re.findall(r'--body\s+"@claude review"', cmd)) + len(
         re.findall(r"--body\s+'@claude review'", cmd)
     )
-    if total > 0 and total == canonical:
+    if total == canonical:
         return 0
 
     print(
