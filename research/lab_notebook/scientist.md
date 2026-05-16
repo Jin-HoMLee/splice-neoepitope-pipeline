@@ -24,6 +24,35 @@ Continuation of [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pip
 
 ---
 
+## 2026-05-16
+
+### 20:26 UTC — Editor: Scientist
+
+#### [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) — design audit caught WGS gap; Exp 2 carved off into [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381) before branching
+
+Afternoon session, no science news (already shipped at 14:08 UTC the day before). Standup clean for Scientist. Queue audit surfaced [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) (patient_001 notebook for AlphaGenome predicted-normal validation, Exp 1+2) as the natural next pick — Backlog, P2, S, parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (In progress, P1).
+
+**Design audit before branching.** User asked to re-read both #224 and parent #203 (latest revision 2026-05-13 [comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203#issuecomment-4443079527)) to verify scope still holds. Read [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) closure (API access confirmed, junction connectivity verified via [`scripts/alphagenome_spike.py`](scripts/alphagenome_spike.py), [`docs/alphagenome_primer.md`](docs/alphagenome_primer.md) rich + current), cross-checked patient_001 inputs, conda envs, and recent pipeline state.
+
+**Critical finding: patient_001 has no WGS — only RNA-seq.** [`config/samples/patient_001.tsv`](config/samples/patient_001.tsv) is RNA-seq-only (SRR9143066 tumor + SRR9143065 normal). The pipeline references "WGS" only in HLA serotyping context (germline typing source), never as actual input data. Exp 2 explicitly requires "AlphaGenome on patient_001 WGS with germline variants applied" — not runnable as designed.
+
+**Secondary findings:** (a) [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) regtools BED12 coord-fix merged 2026-05-15 18:38 UTC invalidates any pre-fix patient_001 normal BED — affects ground-truth construction in Exp 1; (b) AlphaGenome SDK not pinned in any [workflow/envs/](workflow/envs/) — needs `alphagenome.yaml` or extension to `python.yaml`; (c) no local `results/` dir — patient_001 outputs live on GCS or require local re-run on chr22 test config.
+
+**Resolution.** User chose (a) scope-reduction over (b) GATK RNA-seq SNV proxy or (d) TCGA-STAD donor substitution. Plus chr22 local re-run over GCS fetch — clean coords, smaller region, avoids the pre-fix bug. Issue admin executed:
+
+1. **Comment on [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)** ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224#issuecomment-4468006508)) defers Exp 2, tightens scope to Exp 1 only, replaces task list with 7 Exp-1-only tasks.
+2. **Created [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381)** under parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) for Exp 2 — carries the WGS-acquisition precursor (decision (a) RNA-seq SNV calls vs (b) TCGA-STAD donor substitution deferred into the sub-issue's scoping). Milestone i2-S4 (same as #224, due 2026-05-22) — flagged that Exp 2 likely spills past milestone given the WGS lift.
+3. **Linked [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381) to parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)** via REST `POST /repos/.../issues/203/sub_issues` — parent sub-issue count now 4 (was 3: closed [Issue #223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/223) + open [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) + open [Sub-Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225); now plus [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381)).
+4. **[Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) Status → In progress** (option `47fc9ee4`) via `updateProjectV2ItemFieldValue` GraphQL mutation.
+
+**Workspace prep.** Fast-forwarded `workspace/scientist` from `5eac679` to `f40edb4` (2 commits behind origin/main — [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) regtools fix + [PR #379](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/379) developer lab notebook). Branch `research/scientist/issue-224-alphagenome-exp1-notebook` created via `gh issue develop 224 --base main --checkout`. No code or scaffold yet — that lands next session.
+
+**Why this matters for the manuscript.** [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)'s "publishable either way" framing holds either outcome of Exp 1 alone (tissue-prior vs. per-individual signal) — the carve-out preserves the publishability argument. Exp 2 was always the *patient-specificity* discriminator; deferring it to [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381) means the AlphaGenome filter validation arc lands in two stages instead of one, but Exp 1 alone yields a real result (with documented WGS-data-availability caveat).
+
+**Process catch.** User's "re-read the issue before branching" instinct surfaced the WGS gap that would otherwise have been caught only after the first failed Exp 2 task. The original [Sub-Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) body and the parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (refreshed 2026-05-01, revised 2026-05-13) both assumed "patient WGS" without ever cross-checking the sample TSV — a 2-week-old design assumption that aged poorly. Worth a project-level note about pre-branch input-availability checks on multi-experiment sub-issues.
+
+---
+
 ## 2026-05-15
 
 ### 14:08 UTC — Editor: Scientist
