@@ -176,3 +176,17 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 - HISAT2 index stored in `resources/test/hisat2_index/` (separate from production)
 - All test outputs go to `results/test/` and `logs/test/`
 - **STAR is not usable for local development** — its genome index build requires >8 GB RAM, exceeding the M1 8 GB limit. HISAT2 was chosen for local testing specifically because its index fits within available memory.
+
+## GitHub Safety Wrappers
+
+Mechanisms that fire automatically to enforce GitHub-related discipline rules that have broken repeatedly despite being documented in memory. Per the mechanism-over-memory ladder (memory → inline Always-in-effect → mechanism), these are the rung-3 escalation when a rule has slipped ≥2× on the same shape.
+
+### `@claude` mention guard ([PreToolUse hook](.claude/settings.json))
+
+Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `@claude` substring, except the exact canonical review-trigger `--body "@claude review"` (and the single-quoted variant). The hook runs `.claude/hooks/check_at_claude.py` on stdin-piped PreToolUse JSON and emits a `permissionDecision: deny` when the guard fires.
+
+**Why:** the `Claude Code` GitHub Action subscribes to `issues` events and triggers on ANY literal `@claude` — including inside parens, ACs, code spans, quoted historical refs, or markdown link descriptions. The rule lives in `memory/shared/feedback_no_at_claude_mention.md` and is inlined into shared Always-in-effect, yet broke on PR #359 (2026-05-13) and originally on Issue #272 (2026-05-06).
+
+**Workaround for non-trigger references:** use `@-claude` (zero-width hyphen between `@` and `claude`). The literal substring `@claude` must not appear.
+
+**Sister mechanism:** [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) (`audit_and_merge.sh` — closure-ritual enforcement at merge time) — same shape, will live in this section once shipped.
