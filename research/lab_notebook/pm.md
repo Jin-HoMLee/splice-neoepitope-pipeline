@@ -6,6 +6,92 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-16
+
+### 20:08 UTC — Editor: PM
+
+#### Saturday afternoon morning-routine (news section skipped, Friday cleanup skipped — Saturday)
+
+**Trigger.** User opened with *"good afternoon"*, then *"maybe let's do a bit of morning routine without the news section"*. Routine reduced to: closure audit → board recap → standup → triage. Only closure signal: [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) (the P0 regtools coords bug closed yesterday by [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372)).
+
+#### [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) closure audit — two-layer catch
+
+Two distinct audit loops fired on yesterday's close at 18:38 UTC:
+
+- **Closure-audit bot at 18:38 UTC** caught the priority-rationale + lab-notebook gaps. Dev resolved both within 25 min ([PR #379](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/379) for the lab notebook, body edit for the rationale).
+- **My follow-up at 19:43 UTC** caught the AC gap — 4 of 5 ACs unticked. Posted as standup nudge + issue comment.
+
+The bot caught what it can (mechanical presence checks — does the body have a `**Priority rationale:**` line? does the lab notebook have today's date header?); the human-PM caught what only the human-PM can (whether the AC content actually matches the merged work). Two complementary layers — neither alone covers both classes.
+
+**Stale-clone false-alarm sub-finding.** Initial grep on [`research/lab_notebook/developer.md`](research/lab_notebook/developer.md) showed no `## 2026-05-15` header, suggesting the bot's flag was still unaddressed. Wrong — local clone was 2 commits behind `origin/main` ([PR #379](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/379) had merged but I hadn't pulled). Fast-forwarded `workspace/pm` to `origin/main` and re-verified — entry is at the top. **Lesson:** before declaring any file "still missing X" during audit, verify the working tree's git state against `origin/main`, not just the local file contents. Adjacent to [`feedback_read_before_claiming.md`](memory/shared/feedback_read_before_claiming.md), one level up (working-tree freshness, not file-content freshness).
+
+#### Sub-issue retroactive linkage to a closed parent — user correction
+
+Initially proposed retroactively linking [Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374), [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375), [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377), [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) as sub-issues of the (closed) [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) to give the unmet ACs natural defer targets. User pushed back: *"but Issue 370 is already closed. Is that ok?"*
+
+GitHub mechanics allow it (linkage is structural, not status-bound). The conceptual fit fails. Per [`feedback_parent_sub_issues.md`](memory/shared/feedback_parent_sub_issues.md), **linkage = scope, not dependency**. [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) was filed as a single coherent P0 bug, not an epic with sub-scope. The 4 follow-ups are *related-discovered* (surfaced during the same debugging session) but each has independent scope. Retroactively turning [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) into a parent would muddle the closure narrative: closed parents read as "scope complete"; adding open sub-issues makes the closure look premature.
+
+**Right move instead:** comment-defer the unmet ACs on [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) pointing at the specific follow-up issues — same audit-trail visibility, no closed-parent semantics drift.
+
+**Rule gap surfaced.** [`feedback_parent_sub_issues.md`](memory/shared/feedback_parent_sub_issues.md) covers the scope-vs-dependency principle but doesn't explicitly call out the closed-parent edge case. Candidate for a future memory-update PR (not this entry's scope).
+
+#### Milestone capacity — count vs size-weighted days — second user correction
+
+Proposed putting all 4 follow-ups in [`i3 - S3 - Data Preparation - Aligner & Input Format Improvements`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/11) on topical-fit grounds, citing "6 open / 10 total — moderate but not bloated." User: *"do we limit the milestone sizes by number of issues or by combined estimated duration (days) now?"*
+
+Re-ran with the correct metric. Per [`feedback_milestones.md`](memory/feedback_milestones.md): iteration budget = ~5d size-weighted (XS≈0.5d, S≈1d, M≈2.5d, L≈3.5d, XL≈5d).
+
+[`i3 - S3 - Data Preparation - Aligner & Input Format Improvements`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/11) committed work — open + closed counts (total committed gates capacity, not remaining):
+
+| # | Size | Days | State |
+|---|---|---|---|
+| [Issue #17](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/17) | L | 3.5 | Open (Ready) |
+| [Issue #127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/127) | M | 2.5 | Done |
+| [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) | XS | 0.5 | Done |
+| [Issue #279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/279) | XS | 0.5 | Done |
+| [Issue #297](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/297) | S | 1.0 | Open (Backlog) |
+| [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) | M | 2.5 | Done |
+| **Total** | | **10.5d** | |
+
+That's **2.1× the 5d budget** before adding any of yesterday's follow-ups. Adding 4 more (S+S+S+M = 5.5d) would push it to **16d → 3.2× budget**. The rule explicitly says "Once total reaches ~5d, the iteration is full — even if all current issues are closed. Don't refill freed capacity."
+
+**Why I got it wrong initially.** Anchored on issue count + topical fit. Both real signals — but count is not the capacity gate. Size-weighted days is the rule. I applied the easier-to-eyeball signal and skipped the rule.
+
+**Triggered propose-and-confirm.** Per [`feedback_ask_for_help.md`](memory/feedback_ask_for_help.md) "capacity within ~10% of cap" trigger (here: 2–3× over cap is well past it), surfaced three options via `AskUserQuestion`: (A) new iteration, (B) absorb + slip [`i3 - S3 - Data Preparation - Aligner & Input Format Improvements`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/11) due_on by ~3 weeks, (C) split — keep [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) in i3-S3, move others. User picked **A**.
+
+#### Created [`i5 - S3 - Data Preparation - STAR Polish & Aligner Verification`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/24)
+
+**Naming.** Per `i<N> - S<stage> - <Stage Name> - <Arc>`. Existing S3 iterations: i2 (GTEx), i3 (HISAT2/regtools), i4 (nf-core). Next unused = **i5**. Arc captures the two halves — STAR polish ([Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374) + [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375)) + Aligner Verification ([Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) + [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378)).
+
+**Capacity check.** New milestone load = 5.5d → 1.1× budget. Marginally over but well within rounding.
+
+**due_on = 2026-06-12.** Parallel with [`i3 - S3 - Data Preparation - Aligner & Input Format Improvements`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/11) rather than sequenced after it. Rationale: [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) is the empirical AC verification for [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) (which lives in i3 - S3) — strict sequencing would leave the [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) fix unvalidated until i3 - S3 is already closed. P100 capacity uncertainty (CLAUDE.md flags sustained exhaustion in `europe-west1-b`) is the main risk on [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) — but that slips the issue, not the milestone.
+
+#### Triage applied — all 4 → i5 - S3 - Data Preparation - STAR Polish & Aligner Verification
+
+| # | Size | Priority change | Scope |
+|---|---|---|---|
+| [Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374) | S | P1 (unchanged) | STAR strand=0 silent contamination |
+| [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375) | S | P2 (unchanged) | STAR col 6 annotated flag |
+| [Issue #377](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/377) | S | — → P2 | CI canary regtools annotate cross-check |
+| [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) | M | — → P1 | patient_002 PoC re-run with [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372) fix |
+
+All 4 already had `**Priority rationale:**` lines in their bodies at creation — Dev did the rationale work; PM propagated milestone + size + missing board priorities.
+
+#### Two open follow-ups carried into next session
+
+1. **Standup at 19:40 UTC yesterday — [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) ACs Pending.** Dev hasn't responded (~24h elapsed at write time). Re-raise threshold is >1d → re-raise Monday morning if still no response.
+2. **Older drift from 2026-05-13** — [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352), [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357), [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364), [Issue #365](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/365) still unmilestoned with no priority/size. Deferred to Monday's weekly full-board sweep.
+
+#### Lessons carried forward
+
+- **Run the right metric before triage.** Topical fit + issue count are useful signals but not the capacity gate. Size-weighted days is the rule.
+- **Closed-parent retroactive linkage is conceptually wrong even though mechanically allowed.** Scope ≠ historical association.
+- **Two-layer audit works.** Mechanical (bot) + judgment (human-PM) catch complementary classes.
+- **Verify git state before declaring "X missing."** Local clone staleness is a real false-positive vector during audit.
+
+---
+
 ## 2026-05-13
 
 ### 14:48 UTC — Editor: PM
