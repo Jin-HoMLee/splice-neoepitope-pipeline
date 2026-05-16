@@ -6,6 +6,57 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-16
+
+### 20:18 UTC — Editor: Developer
+
+**Headline:** [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) (pre-flight at-mention grep) shipped via [PR #380](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/380) — a rung-3 mechanism-over-memory PreToolUse hook. Bot review surfaced one real bug + one real coverage gap + one threat-model misread; hardened via `6469096` (try/except fail-open, `gh (pr|issue) edit --body` coverage, redundant guard removed, 12 subprocess tests added under [`tools/ci/`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/feat/dev-360-at-claude-grep/tools/ci/test_check_at_claude.py)). Pushed back on the "Critical" finding with explicit threat-model reasoning (hook protects local Claude Code Bash sessions, not the bot itself).
+
+**Why this work happened:**
+
+The bot-mention rule (`memory/shared/feedback_no_at_claude_mention.md`) was inlined into shared Always-in-effect at MEMORY.md line 30, yet broke twice on the same shape — [PR #359](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/359) (2026-05-13) and [Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272) (2026-05-06 originating). Per `memory/shared/feedback_mechanism_over_memory.md`, when a rule breaks ≥2× on the same shape despite being inlined, escalation goes from memory → mechanism. The trigger lives many tool calls deep from session start — by the time the agent is composing a `gh issue comment --body "..."`, the at-mention rule has fallen out of working attention. A PreToolUse hook intercepts at the only point where intent and action align (the `gh` Bash invocation itself), so it cannot be forgotten regardless of how much downstream context has accumulated.
+
+**Implementation reasoning:**
+
+Option B (PreToolUse hook) over Option A (wrapper script): zero memory-discipline overhead. Option A would have required every agent to remember "use `gh_safe_comment.sh` instead of bare `gh`" — exactly the kind of memory-discipline rule that already failed twice. Option B fires automatically on every `gh` Bash call regardless of which command form the agent reached for. Per-machine config trade-off (`.claude/settings.json` is project-committed, but the harness has to be configured to load it — which it is in every Claude Code session) is acceptable.
+
+The hook is intentionally narrow in scope:
+
+```python
+re.search(r"(^|[;&|]\s*)gh\s+(pr|issue)\s+(comment|create|edit)\b", cmd)
+```
+
+Matches `gh pr|issue` followed by `comment|create|edit` (the three body-writing subcommands), anchored to start-of-command or after a shell separator (`;&|`) to avoid matching `gh` substrings inside unrelated commands. The downstream regex check then re-filters for the bot-username substring, with a canonical-exception clause for the exact `--body "<bot> review"` form (the legitimate way to trigger the review bot on demand).
+
+**Bot review findings — triage:**
+
+| # | Finding | Triage |
+|---|---|---|
+| 1 | Critical: hook may not fire in GitHub Actions context | **Pushback.** Threat-model mismatch — hook guards local Claude Code sessions, not the bot. The bot posts via the Action's machinery (GitHub API), not Claude Code's Bash tool, so the hook has nothing to enforce on the bot's surface. The "deleted in working tree" observation also self-contradicts: bot quotes `.claude/settings.json:10`/`:11` content while claiming the file is absent. |
+| 2 | Bug: no try/except on `json.load(sys.stdin)` | **Accepted + fixed.** Wrapped in `try/except (JSONDecodeError, ValueError) → return 0`. Fail-open is correct — the regex check is the secondary defense, and a hook traceback on malformed harness input would block every `gh` call without clear remediation. |
+| 3 | Design: relative command path | **Pushback.** Standard Claude Code hook form; paths resolve from project root. |
+| 4 | Design: over-broad `"if": "Bash(gh *)"` | **Pushback.** Script exits in <10ms for non-gh commands; cost is negligible. Tightening would be marginal. |
+| 5 | Minor: redundant `total > 0` clause | **Accepted + fixed.** Preceding `if "<bot>" not in cmd: return 0` already guarantees ≥1 match. |
+| 6 | Missing: `gh pr edit --body` / `gh issue edit --body` | **Accepted + fixed.** Real gap — `edit --body` overwrites a body and bypasses the comment/create guard. Extended regex `(comment\|create)` → `(comment\|create\|edit)` plus 2 new deny-path tests. |
+
+**Test approach:**
+
+Added [`tools/ci/test_check_at_claude.py`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/feat/dev-360-at-claude-grep/tools/ci/test_check_at_claude.py) with 12 subprocess tests covering allow / deny / fail-open paths. Tests invoke the hook the same way the harness does (pipe PreToolUse JSON to stdin, read deny decision from stdout) — so any wiring drift (e.g. a future settings.json refactor that breaks the hook command path) is caught by `ci-tools-pytest`. Subprocess form was chosen over import-based testing because the hook lives under `.claude/hooks/` (non-standard sys.path) and the subprocess mirror is more honest about what's actually being tested.
+
+**Process notes:**
+
+- Closure ritual applied in full: all 5 ACs on [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) ticked before merge (`gh issue edit 360 --body-file ...`).
+- Confirmed PR auto-closes [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) via `closingIssuesReferences` (PR title contains `closes #360`) — no manual `gh issue close` needed.
+- Entry written post-review, pre-merge, per the Always-in-effect rule "Lab notebook entry comes AFTER review, before merge — not before commit" — reflects the final post-review state including the `6469096` hardening commit.
+- Sister mechanism [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) (`audit_and_merge.sh` — closure-ritual enforcement at merge time) remains open — same shape, same rung-3 escalation, different rule.
+
+**Open follow-ups:**
+
+- None blocking. The `--body-file` foot-gun (a file containing a stray bot at-mention would bypass the regex check since the command line only carries the path) is a known limitation already present for `comment`/`create` and not flagged by the bot — out of scope here.
+- If the hook ever needs to also guard `gh release create --notes "..."`, the regex extends naturally.
+
+---
+
 ## 2026-05-15
 
 ### 18:40 UTC — Editor: Developer
