@@ -12,11 +12,11 @@ For our position relative to this landscape — why PM/Sci/Dev, why "multi-role"
 
 Concrete products / tooling that could plausibly displace, augment, or be borrowed from for our PM/Sci/Dev workflow.
 
-### Anthropic Managed Agents — Dreaming + Multiagent Orchestration
+### Anthropic Managed Agents — Multiagent Orchestration + Dreaming + Outcomes
 
-- **Source:** [Anthropic blog, 2026-05-06](https://claude.com/blog/new-in-claude-managed-agents)
-- **Summary:** Agents review past sessions to self-improve ("dreaming"); a lead agent delegates to specialists rather than the human dispatching each role.
-- **Our rationale:** **Observe.** Dreaming is the closest production analog to our `/cerebrum` memory-rehydration pattern. Orchestrator-delegation is what PM does for Sci/Dev today, *but in our setup the human opens the next session* — we don't have agent-to-agent triggers (per [multi-role, not multi-agent](#our-position)). Tracking via [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) (PM eval + memory tightening borrow).
+- **Source:** [Anthropic blog, 2026-05-06](https://claude.com/blog/new-in-claude-managed-agents); [9to5Mac coverage, 2026-05-07](https://9to5mac.com/2026/05/07/anthropic-updates-claude-managed-agents-with-three-new-features/).
+- **Summary:** Three features. **Multiagent Orchestration:** a lead agent delegates to autonomous specialist agents on a shared filesystem; specialists run in parallel, lead checks back mid-workflow, persistent events so every agent remembers what it has done. **Dreaming:** scheduled review of past sessions to extract patterns and curate memory across agents — auto-update by default, optional human review gate. **Outcomes:** users write success rubrics; agents iterate autonomously toward them, with an independent grader that "isn't influenced by the agent's reasoning"; webhook on completion.
+- **Our rationale:** **Observe — per-feature mapping.** **Multiagent Orchestration** maps directly onto the autonomous pattern that [multi-role, not multi-agent](#our-position) explicitly does *not* claim — in our setup the human opens the next session and there is no agent-to-agent trigger. The model vendor itself using "multi-agent" in this autonomous sense validates the framing distinction. **Dreaming** is the closest production analog to our `/memory` memory-rehydration pattern, but inverted: their default is auto-update with optional review; ours is always human-initiated and reviewed at write time. **Outcomes** has no direct analog in our setup (we don't yet codify success rubrics for autonomous iteration; closest precursor is the GitHub-Actions `Claude Code` review trigger, which has a human-set criterion but no agent-driven re-iteration). Closed [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) with landscape-tightening (the concrete contrast belongs here; the framing rule in `shared/feedback_multi_role_not_multi_agent.md` stays unchanged).
 
 ### OpenAI Symphony
 
