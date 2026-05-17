@@ -1,0 +1,16 @@
+name: splice-neoepitope-alphagenome
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python >=3.11,<3.13
+  - pandas >=2.0
+  - numpy >=1.25
+  - matplotlib >=3.8
+  - scipy >=1.11
+  - seaborn >=0.13
+  - pyarrow >=15.0
+  - ipykernel
+  - pip
+  - pip:
+    - alphagenome >=0.6,<0.7
