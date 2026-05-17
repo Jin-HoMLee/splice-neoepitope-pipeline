@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-17
+
+### 14:50 UTC — Editor: Scientist
+
+#### [Sub-Issue #385](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/385) (env pin) → [PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386) shipped — Plan B chosen after auto-close foot-gun audit
+
+Continuation of [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) work (Exp 1 patient_001 notebook). Morning routine itself was a no-op (Yu et al. bioRxiv 2026-02-24 already in Zotero + news_log + [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)).
+
+**Plan choice for scaffold work: 1 sub-issue for env yaml, rest on the existing notebook branch.** Auto-close audit caught a foot-gun: `gh issue develop`-linked branches auto-close their parent issue on PR merge regardless of body content. The user pushed back when I initially claimed only PR-body closing keywords could auto-close — re-read of `feedback_github_auto_close.md` corrected the picture (specific 2026-05-04 incident [PR #260](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/260) → [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232)). Mitigation: file sub-issues upfront so each PR closes only what it should. Net: env yaml ships under [Sub-Issue #385](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/385); the existing notebook feature branch (created via `gh issue develop 224` yesterday) is reserved for the final scaffold + execution PR that legitimately closes [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224).
+
+**[Sub-Issue #385](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/385) administration.** `gh issue create` with full body template (Created by + Parent + Scope + ACs + Priority rationale), linked to parent [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) via REST `POST /repos/.../issues/224/sub_issues`. Status field ID lookup needed live query (`PVTSSF_lAHOB17eGc4BSomPzhAHFf8`) — wasn't in memory. Set Size XS + Priority P2 + Status In progress on board.
+
+**[PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386) (`workflow/envs/alphagenome.yaml`, 16 lines).** Pinned `alphagenome>=0.6,<0.7` (PyPI 0.6.1 latest, pip-only; verified via `https://pypi.org/pypi/alphagenome/json`). Notebook-side deps on conda-forge (numpy, pandas, matplotlib, scipy, seaborn, pyarrow, ipykernel). Python `>=3.11,<3.13` matching `python.yaml`. Smoke tests: mamba dry-run resolved 160 conda packages cleanly; pip dry-run resolved alphagenome-0.6.1 + 21 transitive deps cleanly (macOS arm64). CI 3/3 green. Pre-merge `closingIssuesReferences` audit: #385 only, #224 NOT in list (correct). Merged 14:49:39Z; #385 auto-closed 14:49:40Z; #224 stayed open. Board auto-set #385 + PR #386 Status to Done.
+
+**Two process misses caught by user.** (1) Shipped [PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386) without a lab notebook entry preceding the merge — literal violation of `feedback_closure_ritual.md` "Entry precedes the ship action — never follows it"; recovery is this entry on its own docs branch (separate-entry option per user choice). (2) Yesterday's scope-reduction on [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) was added as a *comment*, but the body's 9-task list was never rewritten to the 7 Exp-1-only tasks — the body has been stale for 24h. Body rewrite + Task 3 tick lands as part of today's recovery alongside this entry.
+
+---
+
 ## 2026-05-15
 
 ### 14:08 UTC — Editor: Scientist
