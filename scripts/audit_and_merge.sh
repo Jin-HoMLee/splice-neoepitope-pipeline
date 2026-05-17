@@ -71,13 +71,13 @@ count_boxes_under() {
 FAILED=0
 
 PR_BODY=$(gh pr view "$PR" --repo "$REPO" --json body --jq .body)
-TEST_PLAN_GAPS=$(echo "$PR_BODY" | unticked_under "Test plan")
-TEST_PLAN_TOTAL=$(echo "$PR_BODY" | count_boxes_under "Test plan")
+TEST_PLAN_GAPS=$(printf '%s\n' "$PR_BODY" | unticked_under "Test plan")
+TEST_PLAN_TOTAL=$(printf '%s\n' "$PR_BODY" | count_boxes_under "Test plan")
 if [[ -n "$TEST_PLAN_GAPS" ]]; then
     echo "✗ PR #${PR} Test plan has unticked boxes:" >&2
-    echo "$TEST_PLAN_GAPS" | sed 's/^/    /' >&2
+    printf '%s\n' "$TEST_PLAN_GAPS" | sed 's/^/    /' >&2
     FAILED=1
-elif ! echo "$PR_BODY" | grep -q '^## Test plan'; then
+elif ! printf '%s\n' "$PR_BODY" | grep -q '^## Test plan'; then
     echo "⚠ PR #${PR} has no '## Test plan' section (audit skipped)." >&2
 fi
 
@@ -87,11 +87,11 @@ AC_TOTAL=0
 for ISSUE in $LINKED_ISSUES; do
     LINKED_COUNT=$((LINKED_COUNT + 1))
     ISSUE_BODY=$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq .body)
-    AC_GAPS=$(echo "$ISSUE_BODY" | unticked_under "Acceptance criteria")
-    AC_TOTAL=$((AC_TOTAL + $(echo "$ISSUE_BODY" | count_boxes_under "Acceptance criteria")))
+    AC_GAPS=$(printf '%s\n' "$ISSUE_BODY" | unticked_under "Acceptance criteria")
+    AC_TOTAL=$((AC_TOTAL + $(printf '%s\n' "$ISSUE_BODY" | count_boxes_under "Acceptance criteria")))
     if [[ -n "$AC_GAPS" ]]; then
         echo "✗ Issue #${ISSUE} Acceptance criteria has unticked boxes:" >&2
-        echo "$AC_GAPS" | sed 's/^/    /' >&2
+        printf '%s\n' "$AC_GAPS" | sed 's/^/    /' >&2
         FAILED=1
     fi
 done
