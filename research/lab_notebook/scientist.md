@@ -8,6 +8,40 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-17
 
+### 19:28 UTC — Editor: Scientist
+
+#### [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) (AlphaGenome Exp 1) — notebook scaffold + chr22 matched-normal BED produced; metric-framing question surfaced
+
+Afternoon session, 1h time-box. Standup clean for Scientist (PM→Dev message about dev-i1 milestone close, not addressed). Work-route view picked [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) Task 1 (matched-normal junction BED via chr22 test config) as the bounded, foundational pick — without the BED, no ground truth, no §4-§5 metrics. Branch `research/scientist/issue-224-alphagenome-exp1-notebook` (created 2026-05-16 via `gh issue develop`) was at origin/main with no own commits yet.
+
+**Local toolchain gap caught upfront: macOS `samtools` not installed.** `which samtools` returned not-found. Per [CLAUDE.md](../../CLAUDE.md) "hisat2.yaml — samtools omitted (libdeflate conflict)", the pipeline relies on system `samtools` (apt-get on Ubuntu cloud VMs). On macOS that's `brew install samtools` — one-time install, ran in background (~3 min, samtools 1.23.1 at `/opt/homebrew/bin/samtools`). Worth noting for future Scientist sessions: the chr22 local-dev path has a hidden brew prerequisite not captured in `prepare_test_data.sh`.
+
+**Notebook scaffold shipped: [`research/notebooks/issue_224_alphagenome_exp1_patient_001.ipynb`](research/notebooks/issue_224_alphagenome_exp1_patient_001.ipynb).** Sixteen cells across six sections — §1 matched-normal load (coord-aware: TSV format is asymmetric `<chrom>:<donor_1based>:<acceptor_0based_exclusive>:<strand>\t<reads>`), §2 GENCODE chr22 intron derivation from exons, §3 intersection ground truth, §4 AlphaGenome predict (stub — actual client wiring deferred until env installed locally), §5 P/R/F1 sweep, §6 decision-rule outcome + caveats. The §1 load cell explicitly normalizes to 0-based half-open intron coords (`donor_0based = donor_1based - 1`; `acceptor_0based_excl` unchanged) so set-ops vs. GENCODE annotated introns are coord-aligned.
+
+**chr22 pipeline run produced the BED.** `snakemake --cores 4 --use-conda results/.../junctions.tsv --configfile config/test_config.yaml` — index build (chr22 only, ~7s) + align + regtools junctions extract + `bed12_to_junctions.py` — total **~1 min wall time** end-to-end. Output `results/patient_001_test/alignment/SRR9143065_test/junctions.tsv` (47,994 bytes, 1,714 junctions, all on chr22). The hisat2 conda env was first-time build during this run (~3 min within the 1 min number — Snakemake reports rule time, not env build time).
+
+**Snakemake 8 argparse gotcha hit + CLAUDE.md extended.** First run attempt failed instantly with `FileNotFoundError: results/.../junctions.tsv` — Snakemake was *interpreting the positional target as a second config file* because of `nargs="+"` on `--configfile`. The existing CLAUDE.md gotcha note covers the "two separate `--configfile` flags" form but not the "target follows configfile" form. Extended the note with the companion form + three workarounds (target before `--configfile`, or `--` separator, or use `-n` which accidentally breaks the nargs sequence). Bundled into this PR per user agreement when surfaced.
+
+**Smoke test of §1-§3 cells against real chr22 data — empirical findings.** Ran `load + intersect` end-to-end in a Bash python invocation under the snakemake env. Numbers:
+
+- Matched-normal junctions: **1,714** (median 1 read, max 23, mean 1.2 — sparse, expected for 500K reads)
+- GENCODE chr22 annotated unique introns: **7,731** (from 21,211 exon records across 3,364 transcripts)
+- Ground truth = mn ∩ ann: **259** (15.1% of matched-normal, **3.4% of annotated chr22 introns**)
+
+The 3.4% recovery is a structural floor at 500K-read depth — most chr22 annotated introns belong to transcripts not expressed (or under-detected) in normal stomach at this depth. Recorded in the notebook §6 markdown alongside the metric-framing question (below) so the empirical context is captured even before §4-§5 are wired.
+
+**Open metric-framing question surfaced + documented in notebook §6.** N=259 positives is small; AG predictions evaluated against this set will give noisy P/R unless we restrict the evaluable universe. Three framings sketched:
+
+1. Restrict evaluable universe to **annotated chr22 introns** (7,731): pos = ground truth (259), neg = annotated minus matched-normal (7,472). AG evaluated on annotated set only; P/R measure tissue-expression classification ability. ← *cleanest framing for chr22 PoC*; scaffold defaults to this.
+2. Whole-genome AG predictions vs. matched-normal ∩ annotated: pessimistic, conflates "should predict" with "predicts at all".
+3. Scale up first — re-run on full FASTQs on production GPU so the matched-normal sample is denser; only then evaluate.
+
+Decision needed before §4-§5 execution. Flagging as next-session topic — not blocking the scaffold + BED PR shipping now.
+
+**Scope of this PR.** Notebook scaffold + chr22 matched-normal BED (Task 1 of [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)) + CLAUDE.md gotcha extension. **Does NOT close [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)** — Tasks 4-7 (AlphaGenome client wiring, prediction run, P/R/F1 figures, decision-rule outcome, final lab notebook entry on findings) remain open. Task 3 (env pin) was already ticked via [PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386). The chr22 BED also closes Task 2 (ground truth = mn ∩ ann) since the smoke test produced the intersection numbers; ticking that AC.
+
+---
+
 ### 14:50 UTC — Editor: Scientist
 
 #### [Sub-Issue #385](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/385) (env pin) → [PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386) shipped — Plan B chosen after auto-close foot-gun audit
