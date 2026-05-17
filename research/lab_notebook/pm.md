@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-17
+
+### 19:12 UTC — Editor: PM
+
+#### [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) closure — landscape-doc tightening, not memory edit
+
+Issue scope said tighten [`shared/feedback_multi_role_not_multi_agent.md`](memory/shared/feedback_multi_role_not_multi_agent.md) against Anthropic Managed Agents (2026-05-07) OR comment-defer. Initial proposal was a "Concrete contrast" paragraph inside the memory file. **User correction:** the contrast already lives in [`research/multi_agent_landscape.md`](research/multi_agent_landscape.md) (Frameworks → Anthropic Managed Agents) — the memory's job is rule-enforcement, the landscape doc's job is concrete tracking. The memory's own footer cross-references the landscape doc; that pointer was the signal I missed.
+
+**Landed instead.** Tightened the existing Managed Agents entry in [`research/multi_agent_landscape.md`](research/multi_agent_landscape.md) with per-feature mapping: Multiagent Orchestration ↔ multi-role-not-multi-agent autonomy bar; Dreaming ↔ `/memory` rehydration (auto vs human-initiated); Outcomes ↔ no direct analog. Added the third feature (Outcomes) that the prior entry missed; added 9to5Mac source alongside the Anthropic blog primary. Memory file unchanged.
+
+**Adjacent finding — `/cerebrum` → `/memory` rename incomplete.** Landscape doc still used `/cerebrum` (old skill name); fixed in this edit. ~18 other `/cerebrum` references remain across the personas repo (`shared/team_memory_broadcasts.md` at minimum) — out of scope for [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305), surfaced for follow-up Issue.
+
+**Process slip recap.** Two user corrections in this issue: (1) initial session-opening recommendation surfaced a Developer PR while in PM session (role-boundary slip, caught with *"but PR 389 is the Developer's work"*); (2) initial proposal placed concrete contrast in the memory file when it belonged in the landscape doc (adjacent-artifact slip, caught with *"why did we write this whole memory file again? We also have the research/multi_agent_landscape.md file"*). Sister failures — both about *where* content/work lives in the artifact map. [`feedback_best_next_issue.md`](memory/shared/feedback_best_next_issue.md) Step 1 already covers slip (1); the duplicate-check rule ([`feedback_memory_duplicate_check.md`](memory/shared/feedback_memory_duplicate_check.md)) could be extended to cover slip (2) by adding an adjacent-artifact scan. Candidate follow-up memory-update; not landed here.
+
+---
+
 ## 2026-05-16
 
 ### 20:08 UTC — Editor: PM
