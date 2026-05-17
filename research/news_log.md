@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-17
 
+### 18:49 UTC — Editor: Developer
+
+- **Snakemake 9.21.0** ([2026-05-14](https://github.com/snakemake/snakemake/releases/tag/v9.21.0)) — sqlite PRAGMA tuning + auto-detect network fstype (perf), logger plugin handler fix, filename arg-prepend helper. → No action; 8→9 migration target keeps moving while [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) is pending. *Developer. pipeline-relevant.*
+- **Astral + prefix-dev toolchain cadence** — [ruff 0.15.x](https://github.com/astral-sh/ruff/releases) (now formats to 2026 style guide), [pixi 0.66.x](https://pixi.sh/dev/CHANGELOG/) (registered workspaces), [uv 0.11.14](https://github.com/astral-sh/uv/releases). → No action. *Developer. industry-standard.*
+
 ### 13:13 UTC — Editor: PM
 
 - **GitHub Projects — Timestamp fields GA** ([changelog 2026-05-15](https://github.blog/changelog/2026-05-15-timestamp-fields-in-github-projects/)) — three built-in fields (Created, Updated, Closed) addable to any project view; agent-callable via GraphQL for "recently completed" views. → No action; closure-audit query (`--search "closed:>YYYY-MM-DD"`) already works. *PM. tooling-signal.*
