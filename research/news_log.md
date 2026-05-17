@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-17
+
+### 13:13 UTC — Editor: PM
+
+- **GitHub Projects — Timestamp fields GA** ([changelog 2026-05-15](https://github.blog/changelog/2026-05-15-timestamp-fields-in-github-projects/)) — three built-in fields (Created, Updated, Closed) addable to any project view; agent-callable via GraphQL for "recently completed" views. → No action; closure-audit query (`--search "closed:>YYYY-MM-DD"`) already works. *PM. tooling-signal.*
+- **Claude Code — Agent `subagent_type` matching + `/goal` evaluator fix** ([changelog](https://code.claude.com/docs/en/changelog)) — case-/separator-insensitive resolution ("Code Reviewer" → `code-reviewer`); `/goal` no longer fires while background shells or delegated subagents are still running. → No action; quality-of-life only. *PM. tooling-relevant.*
+
 ## 2026-05-15
 
 ### 16:42 UTC — Editor: PM
