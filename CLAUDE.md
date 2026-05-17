@@ -189,4 +189,22 @@ Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `
 
 **Workaround for non-trigger references:** use `@-claude` (zero-width hyphen between `@` and `claude`). The literal substring `@claude` must not appear.
 
-**Sister mechanism:** [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) (`audit_and_merge.sh` — closure-ritual enforcement at merge time) — same shape, will live in this section once shipped.
+### Closure-ritual gate (`scripts/audit_and_merge.sh`)
+
+Refuses to run `gh pr merge` if any `- [ ]` remains on the PR body Test plan OR on any Issue in `closingIssuesReferences` (under that Issue's Acceptance criteria). Operational usage lives under [Merge workflow](#merge-workflow); this section captures the mechanism-over-memory rationale.
+
+**Why:** the closure-ritual rule has broken 4× in 10 days despite being inlined into shared MEMORY.md — [Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280), [Issue #299](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/299), [PR #328](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/328), [Issue #347](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/347). Memory of a declarative rule cannot reliably survive the action-distance from session start to `gh pr merge`. The script enforces at the exact moment of action — the merge invocation itself — so the gate cannot be forgotten regardless of how much downstream context has accumulated.
+
+**Workaround for genuine deferrals:** comment-defer per `memory/shared/feedback_closure_ritual.md` by ticking `- [x]` with a link to the carrier Issue (or remove the line entirely). The script does NOT parse "deferred" inline tags — keep the tick/remove convention explicit.
+
+## Merge workflow
+
+For all `gh pr merge` invocations, prefer the closure-ritual gate:
+
+```bash
+bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
+```
+
+Defaults: `--squash --delete-branch`. The script audits the PR body Test plan + every linked Issue's Acceptance criteria for unticked `- [ ]` boxes, prints any gaps to stderr, exits 1 without merging if any remain. On a clean audit it forwards to `gh pr merge` with the chosen flags.
+
+This is the operational path for shipping; bare `gh pr merge` bypasses the closure-ritual gate and should not be used.
