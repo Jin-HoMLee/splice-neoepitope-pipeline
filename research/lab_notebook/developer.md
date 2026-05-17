@@ -6,6 +6,37 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-17
+
+### 14:49 UTC — Editor: Developer
+
+**Headline:** [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) (post-merge closure-audit critic) closing as KEEP — 7-day trial outcome one day ahead of the 2026-05-18 endpoint. Bot continues running; 4/11 production flags surfaced real persistent signal (3 priority-rationale gaps, 1 lab-notebook gap); kill criterion ("adds noise without catching anything the closure ritual doesn't catch within minutes") not met.
+
+**Why this is the final entry on the trial:** [PR #332](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/332) shipped the v1 lean-experiment implementation 2026-05-11; the issue was reopened same day as a trial-tracker with a 2026-05-18 kill/keep decision endpoint. The [2026-05-13 trial summary](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325#issuecomment-4442526736) (issue comment) already documented the evidence and recommended KEEP. Today's action finalizes that recommendation and closes the trial-tracker.
+
+**Decision rationale recap (from the 2026-05-13 summary):**
+
+| Flag category | Count | Real signal? |
+|---|---|---|
+| AC checkboxes | ~10 | Transient by read-time, but acting as workflow nudge — [PR #368](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/368) credited the audit explicitly for prompting a post-merge fix. Not noise. |
+| Priority rationale | 3 ([Issue #361](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/361), [Issue #351](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/351), [Issue #347](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/347)) | All 3 still missing — persistent signal that would otherwise have stayed invisible. |
+| Lab notebook ref | 4 | 1 persistent ([scientist nb, PR #343](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/343) `#342` ≠ `#343` strictness gap); 3 driven to fix. |
+
+Total persistent signal: 4/11. Snapshot-staleness on the transient flags is not noise — v1 spec explicitly accepted that ("Out of scope: comment edit-in-place after fixes"), and the workflow-nudge effect was the desired secondary behavior.
+
+**Parked follow-ups (both deferred, neither blocking):**
+
+- **Trigger delay 10–15 min** — would silence transient AC-checkbox flags but only worth doing once snapshot-staleness dominates reader experience. Re-evaluate after [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) (`audit_and_merge.sh`) lands, since pre-merge enforcement should reduce post-merge noise.
+- **Broaden lab-notebook number-match** — accept PR # OR parent-issue # OR sub-issue #. The single persistent lab-notebook gap is below the cost threshold for the relaxation.
+
+**Process notes:**
+
+- Lab notebook entry precedes the issue close per `shared/feedback_lab_notebook.md` rule (entry on main before close).
+- ACs all ticked at issue creation since they document the v1 lean-experiment scope, which [PR #332](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/332) delivered — no re-tick needed at trial-close.
+- Closes the [`dev-i1 - Dev Tooling Quick Wins`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/23) milestone pending [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) — 2 of 7 milestone issues remained; this one resolves via trial-close, [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) remains as real implementation work.
+
+---
+
 ## 2026-05-16
 
 ### 20:18 UTC — Editor: Developer
