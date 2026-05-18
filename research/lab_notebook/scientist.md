@@ -6,6 +6,40 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-18
+
+### 10:41 UTC — Editor: Scientist
+
+#### [Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393) (AlphaGenome chr22 PoC) — Framing 1 executed end-to-end; AUC-PR 0.210, recall 0.35 → GREEN-with-caveats for scale-up
+
+Morning session, Framing-decision-through-execution arc. F1 framing locked in after recommendation review (annotated-chr22-introns universe; 7,731 introns / 259 positives / 7,472 negatives — production-filter use case mirror). Notebook §4 wired from scratch (3 cells: env + smoke + sweep), §5 refactored to universe-restricted F1 + AUC-PR + bootstrap CI + 3-panel plot. End-to-end run completed.
+
+**Local env setup (one-time).** `conda env create -f workflow/envs/alphagenome.yaml` (~3 min); kernel `splice-neoepitope-alphagenome (Python 3.12.13)` auto-discovered by VSCode. Note: user's normal pattern is pyenv + .venv from `research/requirements.txt` (3.14.4), but `alphagenome 0.6.1` supports ≤3.13 only — conda env used here as a per-notebook isolation. Avoid the option of downgrading the project-wide Python pin for one notebook's SDK constraint.
+
+**AG API operational learnings:**
+- **Per-minute MB quota** caps free tier at ~15 MB/min — first sweep hit `RESOURCE_EXHAUSTED` at tile 16 (`gdmscience.googleapis.com`). Mitigation: `time.sleep(5)` between calls (~12 MB/min) + exponential backoff retry on `grpc.StatusCode.RESOURCE_EXHAUSTED` (60/120/240 s).
+- **Sweep range restriction** — first naive sweep tiled chr22:0-50.8M (49 tiles); tiles 1-10 (0-10.5 Mb) burned ~10 MB on the acrocentric N region for 0 returned junctions. Annotated-range restriction (`[annotated.donor.min(), annotated.acceptor.max()]`) cut to 39 tiles, all in productive range. Total sweep: 443 s wall, 2,702,077 raw junctions → 2,632,983 unique after dedup.
+- **Single stomach GTEx track** in AG inventory (index 212, `biosample_name='stomach'`, `polyA plus RNA-seq`) — max-over-stomach aggregation reduces to a single-column lookup. Coverage asymmetry vs. liver (4 tracks) flagged in §6 caveats.
+
+**Results (Framing 1, chr22 PoC):**
+
+| Metric | Value | Read |
+|---|---|---|
+| AUC-PR | 0.210 | 6.3× baseline (0.034); the rule-of-thumb 0.7 referred to AUC-ROC, AUC-PR is harder on this 3.4%-prevalence class imbalance |
+| Best F1 | 0.282 at τ=3.50 | TP=91, FP=296, FN=168 — the operating point we'd ship if AG-only |
+| Recall at best F1 | **0.351** | **The honest headline number** — depth confounder doesn't bias recall. AG identifies ~⅓ of confirmed tissue-expressed introns |
+| Precision at best F1 | 0.235 | Lower bound — many of the 296 "FPs" are plausibly tissue-expressed introns the 500K-read matched-normal missed |
+| F1 95% bootstrap CI | [0.238, 0.321] | 1000-iter resample of 259-positive bag at best τ — wide as expected |
+| AG-predicted introns | 5,728 / 7,731 (74.1%) | Fraction of annotated chr22 introns with non-zero stomach signal |
+
+**Decision call: GREEN-with-caveats for full-genome scale-up.** AG is not a standalone matched-normal replacement at this scale, but a viable **secondary evidence stream** to stack with GTEx pan-tissue ([Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) + matched-normal-where-available. The Exp 3 comparative-strength experiment ([Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)) is the natural next step. Recall-as-primary-readout matches the production decision shape: "what fraction of normal-expressed candidates does AG correctly call out, so we don't falsely flag them as tumor-specific?"
+
+**Caveats baked in to every headline number** (per §6): chr22 PoC scope; 500K-read matched-normal depth confounder (precision is a lower bound); single stomach GTEx track; annotated-only ground truth (no novel-splicing signal); n=259 positives (wide CI).
+
+**Scope of the PR.** Notebook §4 wiring (3 cells: env loader + smoke + sweep with rate-limit handling) + §5 refactor (universe-restricted F1 + AUC-PR + bootstrap CI + 3-panel plot) + §6 outcome population (this metrics table + decision call + operational notes) + AlphaGenome predictions parquet at `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` (2.6M rows). Closes [Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393); parent [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) stay open (scale-up + decision-rule integration remain).
+
+---
+
 ## 2026-05-17
 
 ### 19:28 UTC — Editor: Scientist
