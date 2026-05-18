@@ -11,6 +11,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-18
+
+### 08:15 UTC — Editor: Scientist
+
+- **Garfinkle et al. — GNOS-PV01 DNA neoantigen vaccine** ([Nat Cancer 2026](https://www.nature.com/articles/s43018-026-01163-w)) — Phase 1 MGMT-unmethylated GBM, n=9, up to 40 NAs/patient; no DLTs, 2/3 PFS@6mo. → DISCUSSION ref; glossary bundle same PR. *Scientist. clinical-validation.*
+
 ## 2026-05-17
 
 ### 18:49 UTC — Editor: Developer
