@@ -63,6 +63,23 @@ class TestDirectStrand:
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:-\t10"
 
+    @pytest.mark.parametrize("strand,motif,expected", [
+        (1, 2, "+"),  # col 4 says +, motif says -; col 4 wins
+        (2, 1, "-"),  # col 4 says -, motif says +; col 4 wins
+        (1, 0, "+"),  # col 4 says +, motif is non-canonical; col 4 wins
+        (2, 0, "-"),  # col 4 says -, motif is non-canonical; col 4 wins
+    ])
+    def test_direct_strand_takes_priority_over_motif(
+        self, tmp_path, strand, motif, expected
+    ):
+        """Core invariant: when STAR sets col 4 (1 or 2), motif is ignored."""
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(strand=strand, motif=motif) + "\n")
+        out = tmp_path / "junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+        assert out.read_text().strip() == f"chr22:101:200:{expected}\t10"
+
 
 class TestMotifRescue:
     """When col 4 = 0, col 5 (intron motif) recovers strand for codes 1-6."""
