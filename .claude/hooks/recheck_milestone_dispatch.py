@@ -31,6 +31,8 @@ PATTERN_ITEMID = re.compile(r'itemId:\s*"(PVTI_[A-Za-z0-9_-]+)"')
 
 
 def run_recheck(*args: str) -> str:
+    if not Path(SCRIPT).is_file():
+        return f"(recheck error: script not found at {SCRIPT})"
     try:
         result = subprocess.run(
             ["python3", SCRIPT, *args],
@@ -39,12 +41,14 @@ def run_recheck(*args: str) -> str:
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         return f"(recheck error: {exc})"
     out = result.stdout
-    if result.returncode == 1:
+    if result.stderr:
         out += result.stderr
     return out
 
 
 def lookup_milestone_number_by_title(title: str) -> int | None:
+    # per_page=100 covers the current ~17 milestones with headroom. If this repo
+    # ever exceeds 100 (closed + open), switch to --paginate.
     result = subprocess.run(
         ["gh", "api", f"repos/{REPO}/milestones?state=all&per_page=100"],
         capture_output=True, text=True, check=False,

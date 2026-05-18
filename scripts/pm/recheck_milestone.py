@@ -107,6 +107,11 @@ def compute_recheck(milestone_number: int) -> int:
     print(f"Remaining capacity: {remaining}d")
 
     if remaining == 0:
+        unsized_count = sum(1 for n in issue_numbers if sizes.get(n) is None)
+        if unsized_count > 0:
+            print(f"Proposed due_on: (cannot compute — {unsized_count} open issue(s) missing Size)")
+            print("Status: [UNSIZED] — assign Size on the project board, then re-run")
+            return 2
         print("Proposed due_on: (no open work)")
         print("Status: [No change] — milestone has no remaining capacity")
         return 0
