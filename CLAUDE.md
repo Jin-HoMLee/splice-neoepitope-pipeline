@@ -166,7 +166,27 @@ acceptor (0-based, exclusive) = chromStart + blockStarts[1]
 ```
 Treating cols 2-3 as donor/acceptor shifts every junction by the anchor lengths (typically 100–150 bp on each side) — and silently misses every GENCODE-annotated junction in downstream filtering. Issue #370 replaced the buggy inline `awk` in `alignment.smk` with `workflow/scripts/bed12_to_junctions.py`, which does the blockSizes math correctly.
 
-The STAR path is unaffected — `SJ.out.tab` cols 2-3 are 1-based intron donor/acceptor directly.
+The STAR path is unaffected by the anchor-outer issue — `SJ.out.tab` cols 2-3 are 1-based intron donor/acceptor directly. STAR has its own silent-contamination bug class on **col 4** instead (next section).
+
+## STAR `SJ.out.tab` — `strand=0` rescue from intron motif
+
+`SJ.out.tab` col 4 encodes strand: `0=undefined, 1=+, 2=-`. STAR sets col 4 = 0 when it cannot infer strand from the intron motif (non-canonical splice site, or insufficient evidence in a non-stranded library). The original inline awk in `alignment.smk` silently emitted these records with strand `.`, which flowed through to `assemble_contigs.py` — `bedtools getfasta` without `-s` takes forward-orientation flanking sequence for strand-`.` records, so true minus-strand junctions got sequence-reversed contigs and `translate_peptides.py` read them in the wrong frame.
+
+**Fix:** `workflow/scripts/star_sj_to_junctions.py` rescues strand from **col 5** (intron motif) when col 4 = 0:
+
+| col 5 | motif    | strand |
+|-------|----------|--------|
+| 0     | non-canonical | dropped (cannot infer) |
+| 1     | GT/AG    | `+` |
+| 2     | CT/AC    | `-` |
+| 3     | GC/AG    | `+` |
+| 4     | CT/GC    | `-` |
+| 5     | AT/AC    | `+` |
+| 6     | GT/AT    | `-` |
+
+Truly non-canonical (col 5 = 0) and unknown codes are **dropped** rather than emitted as strand `.`, on the theory that contaminating the candidate set is worse than slightly under-recalling. Per-run breakdown (direct vs rescued vs dropped) is logged at INFO. Issue #374 replaced the inline awk with this script, mirroring the HISAT2 path's [bed12_to_junctions.py](workflow/scripts/bed12_to_junctions.py) extraction.
+
+The HISAT2 path is unaffected by this — `regtools junctions extract` derives strand from the XS BAM tag set during alignment and never emits `.` strand.
 
 ## UCSC vs ENSEMBL Chromosome Naming
 Both naming conventions use "GRCh38" in filenames, making it easy to mix them silently.

@@ -6,6 +6,35 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-18
+
+### 21:59 UTC — Editor: Developer
+
+**Headline:** [PR #402](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/402) (STAR strand=0 motif rescue, closes [Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374)) review-response shipped — second silent-contamination axis on the splice-junction extraction surface, sibling to the HISAT2 BED12 anchor-outer bug fixed in [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372). Inline awk in `alignment.smk` was emitting STAR `SJ.out.tab` records with strand `.` whenever STAR couldn't infer strand directly (col 4 = 0); `bedtools getfasta` (called without `-s` in [`assemble_contigs.py`](workflow/scripts/assemble_contigs.py)) then treated `.` as forward orientation, yielding reverse-orientation flanking sequence for true minus-strand junctions and wrong-frame translation downstream.
+
+**Implementation:** new [`workflow/scripts/star_sj_to_junctions.py`](workflow/scripts/star_sj_to_junctions.py) mirrors the structure of [`bed12_to_junctions.py`](workflow/scripts/bed12_to_junctions.py) introduced in [PR #372](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/372). Uses STAR's col 4 directly when ∈ {1,2}; rescues strand from col 5 (intron motif) when col 4 = 0, with the 6 canonical/semi-canonical motifs mapping to ± and motif=0 (truly non-canonical) dropped rather than emitted as `.`. Drop-vs-`.` policy is the explicit lesson from PR #372: contaminating the candidate set is worse than under-recalling. Output format unchanged (`<chrom>:<donor>:<end>:<strand>\t<reads>`), so DAG stays identical and downstream rules are aligner-agnostic.
+
+**Review iteration:** bot review at [comment-4479665786](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/402#issuecomment-4479665786) surfaced 2 actionable items + 3 verified-correct observations. Both items applied:
+
+- `e14b560` — added 4-case parametric test pinning the "col 4 takes priority over motif" invariant (`strand=1 motif=2 → +`, `strand=2 motif=1 → -`, plus the non-canonical-motif counterparts). Reviewer correctly identified that the priority rule was the core of the rescue logic and had no test coverage — `TestDirectStrand` only exercised the agreeing pairs.
+- `d3f02d1` — made the `strand_code == 0` branch in `_resolve_strand` explicit; any other code now returns `None` (drop) rather than falling through to motif lookup. No behavior change for STAR-spec inputs (col 4 ∈ {0,1,2}), just tightens intent. Borderline against "don't validate scenarios that can't happen" — applied for clarity, not defense.
+
+Reply at [comment-4482564368](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/402#issuecomment-4482564368).
+
+**Verification trail:**
+
+- Full pytest suite **282 passed, 25 skipped** on `d3f02d1` (was 278 pre-review; +4 new priority cases, no regressions).
+- All 3 CI checks (`pipeline-pytest`, `pipeline-snakemake-dry-run`, `ci-tools-pytest`) green on the post-review SHA.
+- DAG sanity: `snakemake --rulegraph` output on `origin/main` vs HEAD is identical when sorted (only edge-emission order differs, which is non-deterministic in snakemake's dot output). Required running `bash scripts/prepare_test_data.sh` first to materialize `resources/test/chr22.fa` — `--rulegraph` still does an input-existence check at DAG-build time.
+
+**Process notes:**
+
+- DAG render attempt initially failed with `MissingInputException` because this clone had no `resources/test/`. `--clean` mode in [`visualize_dag.sh`](scripts/visualize_dag.sh) generates placeholders for sample FASTQs only, not for reference files like `chr22.fa` — the symlink workspace inherits the missing parent. Followed user's call to download via `prepare_test_data.sh` rather than tick the box on inspection alone; the airtight sort-diff result was worth the ~15 min download.
+- Spurious `git -c commit.gpgsign=true` slipped into the first commit attempt and failed because no GPG secret key is configured for `jinho.michael.lee@gmail.com`. Recent branch commits are unsigned (`git log --pretty='%G?' → N`), so signing is opt-out by user config — re-ran without the override. Not a memory-worthy slip; just a stray flag.
+- Two review-response commits split per-concern (test first, then refactor) to match the existing branch's per-file commit pattern (`921fabf test`, `3dff7bb feat`, `160ba9e refactor`, `d7dffec docs`).
+
+---
+
 ## 2026-05-17
 
 ### 19:31 UTC — Editor: Developer

@@ -348,14 +348,14 @@ elif config.get("alignment", {}).get("aligner") == "star":
                 --outSJfilterCountTotalMin 1 1 1 1 \\
                 2>&1 | tee {log}
 
-            awk -F'\\t' '{{
-                strand = ".";
-                if ($4 == 1) strand = "+";
-                else if ($4 == 2) strand = "-";
-                if ($7 > 0) print $1":"$2":"$3":"strand"\\t"$7
-            }}' {params.output_prefix}SJ.out.tab > {output.junctions}
-
-            echo "Converted $(wc -l < {output.junctions}) junctions from STAR output"
+            # SJ.out.tab col 4=0 means STAR couldn't infer strand; rescue from
+            # col 5 (intron motif) where possible, drop truly non-canonical —
+            # see Issue #374. The helper also handles the col 7 > 0 filter
+            # and emits the same junctions.tsv format as the HISAT2 path.
+            python workflow/scripts/star_sj_to_junctions.py \\
+                --input {params.output_prefix}SJ.out.tab \\
+                --output {output.junctions} \\
+                2>&1 | tee -a {log}
             """
 
 else:
