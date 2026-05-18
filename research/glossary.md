@@ -42,6 +42,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **DIA-MS** — Data-Independent Acquisition Mass Spectrometry. Acquisition mode where the instrument fragments every precursor in a stepped m/z window, regardless of intensity — no peptide is "missed", but resulting MS2 spectra are multiplexed and require a reference spectral library for deconvolution. Public libraries cover canonical proteomes; patient-specific neoantigens need custom libraries (e.g. Pepyrus, [Manakongtreecheep et al. 2026](https://www.nature.com/articles/s41587-026-03003-9)). *Domain: bio.*
 
+**DLT** — Dose-Limiting Toxicity. Pre-defined adverse-event severity threshold (typically CTCAE grade ≥3) in Phase 1 dose-escalation trials; reaching DLT caps further escalation. "No DLTs" is the standard Phase 1 safety endpoint reported in neoantigen-vaccine trials (e.g. GNOS-PV01, [Garfinkle et al. 2026](https://www.nature.com/articles/s43018-026-01163-w)). *Domain: bio.*
+
 **DockQ** — Docking Quality. Continuous 0–1 score combining Fnat (fraction of native contacts), iRMSD (interface RMSD), and LRMSD (ligand RMSD); maps onto CAPRI bands; used to evaluate predicted protein-protein / TCR-pMHC complex structures against experimental ground truth. *Domain: bio.*
 
 ## E
@@ -56,11 +58,15 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **GATK** — Genome Analysis Toolkit (Broad Institute). Canonical somatic/germline variant calling suite; reference for the Panel of Normals (PoN) concept reused by neoepitope filtering. *Domain: bio.*
 
+**GBM** — Glioblastoma (Multiforme). WHO grade 4 astrocytoma; most aggressive primary adult brain tumor (~15-mo median OS post standard-of-care surgery + radiation + temozolomide). MGMT-unmethylated subset has the worst prognosis (resistant to temozolomide); subject of the GNOS-PV01 personalized DNA vaccine Phase 1 ([Garfinkle et al. 2026](https://www.nature.com/articles/s43018-026-01163-w)). *Domain: bio.*
+
 **GCP** — Google Cloud Platform. The cloud provider hosting this pipeline's VMs and storage bucket (zone `europe-west1-b`). *Domain: cloud.*
 
 **GCS** — Google Cloud Storage. GCP's object store; pipeline results, logs, and reference data live in `gs://splice-neoepitope-project`. *Domain: cloud.*
 
 **GKE** — Google Kubernetes Engine. Managed Kubernetes on GCP. *Domain: cloud.*
+
+**GNOS-PV01** — Personalized DNA neoantigen vaccine (Geneos Therapeutics + WashU Medicine). Encodes up to 40 patient-specific neoantigens on a DNA backbone, delivered intramuscularly with electroporation; Phase 1 in MGMT-unmethylated GBM ([Garfinkle et al., Nat Cancer 2026](https://www.nature.com/articles/s43018-026-01163-w)). Adds **DNA** to the platform diversity census alongside peptide / mRNA / DC. *Domain: bio.*
 
 **GPS** — Genotype Presentation Score. Project-specific scoring formula combining per-allele MHCflurry presentation percentiles into a single rank for the patient's genotype; primary ranking key for top neoepitope candidates. *Domain: pipeline.*
 
@@ -93,6 +99,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## M
 
 **MCP** — Model Context Protocol. Anthropic's open spec (late 2024) for AI agents to discover and invoke external tools / data sources via per-purpose MCP servers; the standardized way to expose resources to LLMs without bespoke per-tool integration. *"USB-C for AI agents."* Used by Claude Code, the GitHub MCP server, filesystem servers, etc. *Domain: ml.*
+
+**MGMT** — O⁶-methylguanine-DNA methyltransferase. DNA repair enzyme; promoter methylation silences the gene and sensitizes glioma to alkylating chemotherapy (temozolomide). **MGMT-unmethylated** GBM has worse prognosis (temozolomide-resistant) — the poor-response subset targeted by the GNOS-PV01 vaccine trial ([Garfinkle et al. 2026](https://www.nature.com/articles/s43018-026-01163-w)). *Domain: bio.*
 
 **MHC** — Major Histocompatibility Complex. Cell-surface proteins that present peptides to T cells; class I (all nucleated cells, presents endogenous peptides) drives this pipeline. Human MHC = HLA. *Domain: bio.*
 
