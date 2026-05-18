@@ -90,11 +90,11 @@ snakemake --configfile config/test_config.yaml config/gpu_config.yaml   # correc
 # FAILS — junctions.tsv is interpreted as a second --configfile argument
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml results/.../junctions.tsv
 
-# OK — put the target before --configfile
-snakemake --cores 4 --use-conda results/.../junctions.tsv --configfile config/test_config.yaml
-
-# OK — use `--` to terminate the configfile list
+# OK (canonical) — `--` terminates the configfile list; order-independent
 snakemake --cores 4 --use-conda --configfile config/test_config.yaml -- results/.../junctions.tsv
+
+# OK — put the target before --configfile (order-dependent; fragile if more flags get added later)
+snakemake --cores 4 --use-conda results/.../junctions.tsv --configfile config/test_config.yaml
 ```
 Dry-runs (`-n` flag between `--configfile` and the target) accidentally hide this bug because the flag breaks the nargs sequence. Caught 2026-05-17 while running the chr22 test pipeline for [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224).
 

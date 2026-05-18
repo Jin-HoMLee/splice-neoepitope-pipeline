@@ -8,6 +8,40 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-18
 
+### 11:27 UTC — Editor: Scientist
+
+#### [PR #398](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/398) review response — AP convention + dense threshold grid bumped headline F1 0.282→0.300, recall 0.351→0.405
+
+`@claude review` on the morning's PR caught three issues + one CLAUDE.md nit. Web-source cross-check (user prompted) was the difference between accepting the bot's framing and verifying its actual impact — turned out two of the bot's items were materially larger than first read.
+
+**Issues triaged + their verified impact:**
+
+1. **Bootstrap CI documentation gap** (bot called it minor). Apply — added explicit "positives-only resampling → conservative" note in §5 markdown + §6 caveat 6.
+2. **AUC-PR `distinct` mask first-of-tied + trapezoid integration** (bot called it minor). Verified against [sklearn docs](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html): sklearn explicitly warns trapezoidal AUC "uses linear interpolation and can be too optimistic." Implemented `average_precision_numpy` matching sklearn's AP formula `Σₙ (Rₙ−Rₙ₋₁) Pₙ` exactly — **delta vs `sklearn.metrics.average_precision_score` = 0.000000**. Tie-handling fix (first→last of tied) had near-zero impact on our data (biggest tie cluster at score=0, n=2003, sits at bottom of ranking). Net AP shift: 0.210 → 0.214 (the trapezoid number was actually slightly LOW because of missing recall=0 anchor — not the universal "trapezoid > AP" the literature describes; depends on curve shape).
+3. **Threshold grid 41-quantile points is coarse** (bot called it cosmetic). **NOT cosmetic.** Dense grid (`np.unique(scores)`, 5,729 points) shifted best F1 from 0.282 at τ=3.50 to **0.300 at τ=3.16** — a real ~6% improvement that the coarse grid hid. Recall jumped 0.351 → **0.405**. The bot under-rated this one and I would have under-applied if I hadn't run the dense-grid comparison.
+4. **CLAUDE.md `--` workaround ordering**: applied; `--` is now the canonical first option (order-independent vs the order-dependent "target before --configfile" alternative).
+
+**Bonus design improvement:** Cached-parquet load branch added to §4 sweep cell. Re-execution is now idempotent — skips the 49 × 1 Mb API calls if `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` exists. Made headless re-execution via `jupyter nbconvert --execute` viable without burning more API quota; verified the post-fix notebook outputs match my standalone sklearn cross-check exactly.
+
+**Corrected headline numbers (sklearn-verified):**
+
+| Metric | Morning value (committed in `5bad904`) | Corrected value (this revision) |
+|---|---|---|
+| AP / AUC-PR | 0.210 (trapezoid + first-of-tied) | **0.214** (sklearn AP exact) |
+| Best F1 | 0.282 at τ=3.50 | **0.300** at τ=3.16 |
+| Recall at best F1 | 0.351 | **0.405** |
+| Precision at best F1 | 0.235 | 0.238 (≈ same) |
+| F1 95% bootstrap CI | [0.238, 0.321] | [0.258, 0.333] |
+| Best-F1 confusion matrix | TP=91 / FP=296 / FN=168 / TN=7176 | TP=105 / FP=336 / FN=154 / TN=7136 |
+
+**Decision call unchanged.** GREEN-with-caveats holds: recall 40% still means AG is not a standalone matched-normal replacement; it remains a viable secondary evidence stream for the multi-filter design in [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203). The improved numbers tighten the case rather than overturn it.
+
+**Process meta-note.** User's "double-check with web sources" instinct on my acceptance of the bot review was a real save. My initial read of issues #2 and #3 was "small documentation tweaks" — pulling the actual sklearn docs (which explicitly warn against trapezoid AUC-PR) and running the dense-grid comparison showed both were materially larger. Worth a Scientist-facing memory: when a bot review touches a methodology that has a canonical reference implementation (sklearn, scipy, etc.), verify against the reference before deciding "small."
+
+**Scope of this PR revision:** notebook §4 sweep cell (cached-parquet branch) + §5 metrics (dense grid) + cb450049 (sklearn-style AP + last-of-tied) + §5 markdown (AP convention) + §5 plot (titles + symlog x-axis) + §6 markdown (corrected numbers + caveats 5-6 + operational notes). Plus `CLAUDE.md` `--` workaround reorder. Notebook headless-re-executed via `jupyter nbconvert` (sweep loaded from parquet — no API quota burned).
+
+---
+
 ### 10:41 UTC — Editor: Scientist
 
 #### [Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393) (AlphaGenome chr22 PoC) — Framing 1 executed end-to-end; AUC-PR 0.210, recall 0.35 → GREEN-with-caveats for scale-up
