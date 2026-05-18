@@ -234,7 +234,6 @@ dag.pdf
 
 # Claude Code — per-machine, per-worktree notes (e.g. role binding, local paths)
 CLAUDE.local.md
-.claude/commands/
 
 # Claude Code — transient scheduler state (per-session lock + durable cron jobs)
 .claude/scheduled_tasks.lock
