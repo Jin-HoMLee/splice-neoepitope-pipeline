@@ -6,6 +6,67 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-18
+
+### 10:36 UTC — Editor: PM
+
+#### Morning routine + dev-i1 milestone close + [Issue #247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247) Phase 0 ship — PostToolUse recheck hook
+
+Monday morning routine ran clean: PM news (zero items — territory swept yesterday), closure audit (4/4 closed-issue checks passed; one soft observation on [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357)'s missing lab notebook entry, folded into a standup celebration broadcast at 08:52 UTC), board recap, triage. Weekly full-board sweep surfaced 4 field-incomplete issues, all triaged auto + 1 by-prompt ([Issue #345](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/345) → i5-S3 / P3 / XS; [Issue #352](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/352) → **new dev-i2 milestone** / P2 / XS; [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) → dev-i2 / P3 / S; [Issue #394](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/394) → P3 / XS).
+
+**`dev-i1` milestone closed 7/7 one day early.** Created `dev-i2 - Dev Tooling Quick Wins II` (milestone 25, due 2026-06-18) for Dev's follow-up tooling axis. Posted [`team_standup.md` celebration broadcast at 08:52 UTC](memory/shared/team_standup.md) addressed to Developer (cc: Scientist) covering: 7/7 closed, 0 carry-over, the complete closure-ritual safety net (pre-merge gate [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) + post-merge detective [Issue #325](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/325) + [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) at-mention guard = 3 rung-3 mechanism-over-memory escalations in a single iteration), and the soft observation that [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357)'s ship merits its own time section in [`developer.md`](research/lab_notebook/developer.md) (substance is in the [2026-05-17 20:15 UTC standup post](memory/shared/team_standup.md) but per the spirit of the closure-ritual rule the lab notebook should mirror it).
+
+**pm-i1 closing-run survey.** Burndown was 4 closed / 3 open with due Thu 2026-05-21. Opted for 6/7 shape: land [Issue #247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247) (P1, fully scoped) + [Issue #243](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/243) (P2, fully scoped); slip [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) (per-role model routing — M, still skeletal) to `pm-i2 - PM Self-Improvement Tooling`. Per-role model routing belongs in pm-i2 by topic anyway; the slip is honest, not corner-cutting. Audit-trail comment posted on [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) explaining the move ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324#issuecomment-4476433931)).
+
+**[Issue #247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247) Phase 0 implementation — recheck atom + dispatch hook + settings.local.json wiring.**
+
+Three artifacts shipped on branch `feat/pm/issue-247-milestone-recheck-hook`:
+
+1. [`scripts/pm/recheck_milestone.py`](scripts/pm/recheck_milestone.py) (~110 lines) — recheck atom. CLI: `--issue N` or `--milestone N`. Sums size-weighted days from open issues (XS=0.5, S=1, M=2.5, L=3.5, XL=5 capacity-days), applies `new_due_on = today + remaining/1.5 × 7 days`, prints standardized output, exits 0 (`[No change]`) or 2 (`[UPDATE NEEDED]` when |delta| > 7 days) per AC spec. Single-query GraphQL with aliases for per-issue Size lookup — efficient enough for any milestone size.
+
+2. [`.claude/hooks/recheck_milestone_dispatch.py`](.claude/hooks/recheck_milestone_dispatch.py) (~120 lines) — PostToolUse hook entry. Reads PostToolUse JSON from stdin, pattern-matches the Bash command against 4 trigger shapes, invokes the recheck script, emits `additionalContext` wrapped in `hookSpecificOutput` JSON. Patterns:
+   - `\bgh\s+issue\s+close\s+(\d+)` → recheck issue's milestone (trigger 1, close)
+   - `\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b` → recheck **both** milestones via `/issues/N/events` history lookup (resolves title → number) (trigger 2, move)
+   - Size field ID (`PVTSSF_lAHOB17eGc4BSomPzhAHGiA`) present in command + `itemId: "PVTI_..."` → resolve item → issue → milestone, recheck (trigger 3, resize)
+   - `gh api` + (`-X PATCH` OR `--method PATCH`) + `/milestones/N` (order-agnostic — initial regex required PATCH after milestones path, broke on real commands) → recheck milestone (trigger 4, due_on edit)
+
+3. [`.claude/settings.local.json`](.claude/settings.local.json) (Phase 0, gitignored per AC spec) — added `hooks.PostToolUse` array with single Bash matcher + `if: "Bash(gh *)"` filter + 30s timeout. Phase 1 (promote to committed [`.claude/settings.json`](.claude/settings.json)) deferred to follow-up Issue.
+
+**Three real findings surfaced by the recheck script** during smoke-testing — drift that would otherwise have stayed invisible:
+
+| Milestone | Current `due_on` | Proposed | Delta | Action taken |
+|---|---|---|---|---|
+| `pm-i3 - PM Workflow Quick Wins II` | 2026-05-24 | 2026-06-06 | +13 days | ✓ PATCHed to 2026-06-06 (live test AC 6) |
+| `i2 - S4 - AlphaGenome Predicted-Normal Filter Validation` | 2026-05-22 | 2026-07-04 | +43 days | ⚠ pending decision (scope vs date) |
+| `pm-i2 - PM Self-Improvement Tooling` | 2026-06-11 | 2026-08-03 | +53 days | ⚠ pending decision (likely needs displacement to a pm-i4) |
+
+The pm-i3 PATCH was a real `gh api -X PATCH` invocation — the hook fired live and surfaced the post-PATCH recheck as `additionalContext` confirming `[No change]` (delta now 0). That's AC 6 verified live; the harness reloads `settings.local.json` mid-session (good to know — Claude Code doesn't require a session restart for hook config changes).
+
+**AC status at merge:**
+
+- AC 1–3 (script, formula, hook config): ✓ shipped
+- AC 4 (manual close test): pattern verified via dispatch unit test with mocked stdin (Test 1 above shows correct JSON output); live `gh issue close N` trigger deferred — rare in practice since most closes happen via `gh pr merge`'s `closingIssuesReferences` auto-close path, which is NOT caught by the current `\bgh\s+issue\s+close\s+(\d+)` pattern. Adding a `gh pr merge` trigger is a clean Phase 1 extension (parse the PR's linked issues, recheck each one's milestone) — surfaced as a known coverage gap, not landed in Phase 0.
+- AC 5 (manual move test): pattern verified via dispatch unit test (Test 5 above — used [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324)'s real move history; both pm-i1 source + pm-i2 destination rechecked correctly via `/issues/N/events` lookup). Live trigger deferred to next natural move event.
+- AC 6 (manual due_on PATCH test): ✓ live trigger verified end-to-end as above.
+- AC 7 (update [`memory/feedback_milestones.md`](memory/feedback_milestones.md)): ✓ reframed "Recheck `due_on`" section from memory-led to mechanism-led; also tightened the "Sub-issues closed" bullet (was awkward double-duty as both trigger and rationale snippet) to a cleaner "Issue closes" generalization per user catch.
+- AC 8 (this entry): ✓
+
+**Phase 1 follow-up candidates** (to be filed as separate Issues, not landed here):
+
+- Promote hook to committed [`.claude/settings.json`](.claude/settings.json) — makes the recheck available to all 3 roles' worktrees.
+- Add `gh pr merge` trigger covering the auto-close-via-`closingIssuesReferences` path.
+- Add `gh issue reopen` as a counterpart to close (remaining capacity goes back up).
+- **Heredoc false-positive guard** — surfaced live during this Issue's own ship. The `gh issue edit 247 --body-file ...` command (with the body file written via `cat > ... <<EOF` heredoc inline) caused the dispatch script to match the close pattern + due_on PATCH pattern against text inside the heredoc body (the body documents these very triggers). Both rechecks were harmless `[No change]`, but the false-positive is real. Mitigation in this session was to run `gh issue edit --body-file <existing-file>` as a standalone Bash command (no inline heredoc) — the standalone command string is clean. Phase 1 hardening should detect heredoc structure and exclude its content before pattern matching.
+- Optional: pytest coverage for the dispatch script (mirroring [`tools/ci/test_check_at_claude.py`](tools/ci/test_check_at_claude.py) pattern from [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) — clean precedent).
+
+**Process notes:**
+
+- Lab notebook entry written before merge per closure ritual; PR opens next.
+- Plan to ship via [`scripts/audit_and_merge.sh`](scripts/audit_and_merge.sh) — inaugural PM-side use of yesterday's [Issue #357](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/357) closure-ritual gate.
+- Three "UPDATE NEEDED" findings on milestones (pm-i3, i2-S4, pm-i2) are independent of [Issue #247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247)'s ship — but the script's job is to make them visible, and one (pm-i3) was actioned during the smoke test. The other two need separate triage decisions (scope reduction on i2-S4 with Sci; capacity displacement on pm-i2 — perhaps create pm-i4 to absorb overflow).
+
+---
+
 ## 2026-05-17
 
 ### 19:12 UTC — Editor: PM
