@@ -53,16 +53,18 @@ def _resolve_strand(strand_code: int, motif_code: int) -> str | None:
     """Return '+'/'-' for this junction, or None if it should be dropped.
 
     STAR's col 4 takes priority — if STAR inferred strand directly, use it.
-    Otherwise fall back to the motif table. Motif 0 (truly non-canonical) and
-    unknown codes return None so the caller drops the record entirely rather
-    than emitting strand '.', which downstream `bedtools getfasta` would treat
-    as forward orientation.
+    Only ``strand_code == 0`` (STAR could not infer) triggers the motif rescue.
+    Motif 0 (truly non-canonical), unknown motif codes, and unknown strand codes
+    all return None so the caller drops the record rather than emitting strand
+    '.', which downstream `bedtools getfasta` would treat as forward orientation.
     """
     if strand_code == 1:
         return "+"
     if strand_code == 2:
         return "-"
-    return _MOTIF_TO_STRAND.get(motif_code)
+    if strand_code == 0:
+        return _MOTIF_TO_STRAND.get(motif_code)
+    return None
 
 
 def convert_sj_to_junctions(input_path: str | Path, output_path: str | Path) -> int:
