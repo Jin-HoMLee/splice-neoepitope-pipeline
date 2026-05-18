@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-18
 
+### 11:33 UTC — Editor: Scientist
+
+#### Project convention: research-notebook outputs live under `research/notebooks/<notebook>_outputs/`, not `results/`
+
+User pulled on the conceptual split between `results/` and `research/`. Settled on: **research-notebook-produced artefacts belong under `research/`** because the existing project split is `results/` = Snakemake-rule outputs (pipeline), `research/` = exploratory + manuscript stuff (notebooks, lab notebook, manuscript). Mixing notebook caches into `results/` muddles the `rm -rf results/` reset and obscures where to look for notebook artefacts.
+
+Convention adopted: `research/notebooks/<notebook_name>_outputs/` is the sibling-output dir for any notebook. Concrete change in this PR — moved `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` → `research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet`. `.gitignore` extended with `research/notebooks/*_outputs/` so the 16 MB parquet stays out of git. Earlier lab notebook entries (this morning's 10:41 UTC + this afternoon's 11:27 UTC) reference the old `results/alphagenome/...` path — they're historically accurate at the time of writing and left as-is per the immutable-entries rule. The notebook setup cell + §6 operational notes carry the new path going forward.
+
+**Why it matters as a convention.** Sets a clear rule for the next research notebook (and Exp 3 in [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)): its outputs go to `research/notebooks/issue_225_*_outputs/`. Discoverable next to the notebook, easy to gitignore, doesn't pollute the production pipeline cache.
+
+---
+
 ### 11:27 UTC — Editor: Scientist
 
 #### [PR #398](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/398) review response — AP convention + dense threshold grid bumped headline F1 0.282→0.300, recall 0.351→0.405

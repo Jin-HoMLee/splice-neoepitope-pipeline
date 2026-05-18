@@ -213,9 +213,13 @@ logs/
 
 # Snakemake
 .snakemake/
-# Pipeline outputs
+# Pipeline outputs (Snakemake-rule outputs)
 results/
 resources/mhcflurry_models.done
+
+# Research-notebook outputs — exploratory artefacts, re-derivable from notebooks
+# (e.g. research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet)
+research/notebooks/*_outputs/
 
 # Logs
 pipeline.log
