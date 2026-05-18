@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""PostToolUse hook: trigger milestone recheck on capacity-change events.
+
+Watches Bash commands for 4 trigger shapes from feedback_milestones.md:
+  1. gh issue close N                              -> recheck issue's milestone
+  2. gh issue edit N ... --milestone X             -> recheck old + new milestones (via /events history)
+  3. project board Size mutation (Size field ID)   -> recheck affected issue's milestone
+  4. gh api .../milestones/N PATCH (due_on edit)   -> recheck milestone N
+
+For each match, invokes scripts/pm/recheck_milestone.py and emits its output as
+`additionalContext` so it appears in the next prompt.
+"""
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
+SIZE_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHGiA"
+SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_milestone.py")
+
+PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
+PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")
+PATTERN_GH_API = re.compile(r"\bgh\s+api\b")
+PATTERN_MILESTONE_PATH = re.compile(r"/milestones/(\d+)\b")
+PATTERN_PATCH_METHOD = re.compile(r"-X\s+PATCH|--method\s+PATCH|method=PATCH")
+PATTERN_ITEMID = re.compile(r'itemId:\s*"(PVTI_[A-Za-z0-9_-]+)"')
+
+
+def run_recheck(*args: str) -> str:
+    if not Path(SCRIPT).is_file():
+        return f"(recheck error: script not found at {SCRIPT})"
+    try:
+        result = subprocess.run(
+            ["python3", SCRIPT, *args],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        return f"(recheck error: {exc})"
+    out = result.stdout
+    if result.stderr:
+        out += result.stderr
+    return out
+
+
+def lookup_milestone_number_by_title(title: str) -> int | None:
+    # per_page=100 covers the current ~17 milestones with headroom. If this repo
+    # ever exceeds 100 (closed + open), switch to --paginate.
+    result = subprocess.run(
+        ["gh", "api", f"repos/{REPO}/milestones?state=all&per_page=100"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    for m in data:
+        if m.get("title") == title:
+            return m.get("number")
+    return None
+
+
+def lookup_issue_for_item(item_id: str) -> int | None:
+    query = f'query {{ node(id: "{item_id}") {{ ... on ProjectV2Item {{ content {{ ... on Issue {{ number }} }} }} }} }}'
+    result = subprocess.run(
+        ["gh", "api", "graphql", "-f", f"query={query}",
+         "--jq", ".data.node.content.number"],
+        capture_output=True, text=True, check=False,
+    )
+    out = result.stdout.strip()
+    return int(out) if out.isdigit() else None
+
+
+def prior_milestones_for_issue(issue: int) -> list[int]:
+    """Return milestone numbers from the 2 most recent milestoned/demilestoned events."""
+    result = subprocess.run(
+        ["gh", "api", f"repos/{REPO}/issues/{issue}/events?per_page=100",
+         "--jq",
+         'map(select(.event == "milestoned" or .event == "demilestoned")) '
+         '| sort_by(.created_at) | reverse | .[0:2] | .[].milestone.title'],
+        capture_output=True, text=True, check=False,
+    )
+    titles = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    numbers: list[int] = []
+    for title in titles:
+        ms = lookup_milestone_number_by_title(title)
+        if ms is not None and ms not in numbers:
+            numbers.append(ms)
+    return numbers
+
+
+def dispatch(cmd: str) -> list[str]:
+    outputs: list[str] = []
+
+    m = PATTERN_CLOSE.search(cmd)
+    if m:
+        outputs.append(
+            f"[milestone recheck — close #{m.group(1)}]\n{run_recheck('--issue', m.group(1))}"
+        )
+
+    m = PATTERN_MOVE.search(cmd)
+    if m:
+        issue = int(m.group(1))
+        ms_numbers = prior_milestones_for_issue(issue)
+        if not ms_numbers:
+            outputs.append(
+                f"[milestone recheck — move on #{issue} "
+                f"(milestone history empty; rechecking current only)]\n"
+                f"{run_recheck('--issue', str(issue))}"
+            )
+        else:
+            for ms in ms_numbers:
+                outputs.append(
+                    f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
+                    f"{run_recheck('--milestone', str(ms))}"
+                )
+
+    if SIZE_FIELD_ID in cmd:
+        item_match = PATTERN_ITEMID.search(cmd)
+        if item_match:
+            issue = lookup_issue_for_item(item_match.group(1))
+            if issue:
+                outputs.append(
+                    f"[milestone recheck — size change on #{issue}]\n"
+                    f"{run_recheck('--issue', str(issue))}"
+                )
+
+    if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd):
+        m = PATTERN_MILESTONE_PATH.search(cmd)
+        if m:
+            outputs.append(
+                f"[milestone recheck — due_on PATCH on milestone {m.group(1)}]\n"
+                f"{run_recheck('--milestone', m.group(1))}"
+            )
+
+    return outputs
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        return 0  # fail open
+
+    cmd = (payload.get("tool_input") or {}).get("command", "")
+    if not cmd:
+        return 0
+
+    outputs = dispatch(cmd)
+    if not outputs:
+        return 0
+
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": "\n\n".join(outputs),
+        }
+    }))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
