@@ -6,7 +6,121 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-18
+
+### 11:33 UTC — Editor: Scientist
+
+#### Project convention: research-notebook outputs live under `research/notebooks/<notebook>_outputs/`, not `results/`
+
+User pulled on the conceptual split between `results/` and `research/`. Settled on: **research-notebook-produced artefacts belong under `research/`** because the existing project split is `results/` = Snakemake-rule outputs (pipeline), `research/` = exploratory + manuscript stuff (notebooks, lab notebook, manuscript). Mixing notebook caches into `results/` muddles the `rm -rf results/` reset and obscures where to look for notebook artefacts.
+
+Convention adopted: `research/notebooks/<notebook_name>_outputs/` is the sibling-output dir for any notebook. Concrete change in this PR — moved `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` → `research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet`. `.gitignore` extended with `research/notebooks/*_outputs/` so the 16 MB parquet stays out of git. Earlier lab notebook entries (this morning's 10:41 UTC + this afternoon's 11:27 UTC) reference the old `results/alphagenome/...` path — they're historically accurate at the time of writing and left as-is per the immutable-entries rule. The notebook setup cell + §6 operational notes carry the new path going forward.
+
+**Why it matters as a convention.** Sets a clear rule for the next research notebook (and Exp 3 in [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)): its outputs go to `research/notebooks/issue_225_*_outputs/`. Discoverable next to the notebook, easy to gitignore, doesn't pollute the production pipeline cache.
+
+---
+
+### 11:27 UTC — Editor: Scientist
+
+#### [PR #398](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/398) review response — AP convention + dense threshold grid bumped headline F1 0.282→0.300, recall 0.351→0.405
+
+`@claude review` on the morning's PR caught three issues + one CLAUDE.md nit. Web-source cross-check (user prompted) was the difference between accepting the bot's framing and verifying its actual impact — turned out two of the bot's items were materially larger than first read.
+
+**Issues triaged + their verified impact:**
+
+1. **Bootstrap CI documentation gap** (bot called it minor). Apply — added explicit "positives-only resampling → conservative" note in §5 markdown + §6 caveat 6.
+2. **AUC-PR `distinct` mask first-of-tied + trapezoid integration** (bot called it minor). Verified against [sklearn docs](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html): sklearn explicitly warns trapezoidal AUC "uses linear interpolation and can be too optimistic." Implemented `average_precision_numpy` matching sklearn's AP formula `Σₙ (Rₙ−Rₙ₋₁) Pₙ` exactly — **delta vs `sklearn.metrics.average_precision_score` = 0.000000**. Tie-handling fix (first→last of tied) had near-zero impact on our data (biggest tie cluster at score=0, n=2003, sits at bottom of ranking). Net AP shift: 0.210 → 0.214 (the trapezoid number was actually slightly LOW because of missing recall=0 anchor — not the universal "trapezoid > AP" the literature describes; depends on curve shape).
+3. **Threshold grid 41-quantile points is coarse** (bot called it cosmetic). **NOT cosmetic.** Dense grid (`np.unique(scores)`, 5,729 points) shifted best F1 from 0.282 at τ=3.50 to **0.300 at τ=3.16** — a real ~6% improvement that the coarse grid hid. Recall jumped 0.351 → **0.405**. The bot under-rated this one and I would have under-applied if I hadn't run the dense-grid comparison.
+4. **CLAUDE.md `--` workaround ordering**: applied; `--` is now the canonical first option (order-independent vs the order-dependent "target before --configfile" alternative).
+
+**Bonus design improvement:** Cached-parquet load branch added to §4 sweep cell. Re-execution is now idempotent — skips the 49 × 1 Mb API calls if `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` exists. Made headless re-execution via `jupyter nbconvert --execute` viable without burning more API quota; verified the post-fix notebook outputs match my standalone sklearn cross-check exactly.
+
+**Corrected headline numbers (sklearn-verified):**
+
+| Metric | Morning value (committed in `5bad904`) | Corrected value (this revision) |
+|---|---|---|
+| AP / AUC-PR | 0.210 (trapezoid + first-of-tied) | **0.214** (sklearn AP exact) |
+| Best F1 | 0.282 at τ=3.50 | **0.300** at τ=3.16 |
+| Recall at best F1 | 0.351 | **0.405** |
+| Precision at best F1 | 0.235 | 0.238 (≈ same) |
+| F1 95% bootstrap CI | [0.238, 0.321] | [0.258, 0.333] |
+| Best-F1 confusion matrix | TP=91 / FP=296 / FN=168 / TN=7176 | TP=105 / FP=336 / FN=154 / TN=7136 |
+
+**Decision call unchanged.** GREEN-with-caveats holds: recall 40% still means AG is not a standalone matched-normal replacement; it remains a viable secondary evidence stream for the multi-filter design in [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203). The improved numbers tighten the case rather than overturn it.
+
+**Process meta-note.** User's "double-check with web sources" instinct on my acceptance of the bot review was a real save. My initial read of issues #2 and #3 was "small documentation tweaks" — pulling the actual sklearn docs (which explicitly warn against trapezoid AUC-PR) and running the dense-grid comparison showed both were materially larger. Worth a Scientist-facing memory: when a bot review touches a methodology that has a canonical reference implementation (sklearn, scipy, etc.), verify against the reference before deciding "small."
+
+**Scope of this PR revision:** notebook §4 sweep cell (cached-parquet branch) + §5 metrics (dense grid) + cb450049 (sklearn-style AP + last-of-tied) + §5 markdown (AP convention) + §5 plot (titles + symlog x-axis) + §6 markdown (corrected numbers + caveats 5-6 + operational notes). Plus `CLAUDE.md` `--` workaround reorder. Notebook headless-re-executed via `jupyter nbconvert` (sweep loaded from parquet — no API quota burned).
+
+---
+
+### 10:41 UTC — Editor: Scientist
+
+#### [Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393) (AlphaGenome chr22 PoC) — Framing 1 executed end-to-end; AUC-PR 0.210, recall 0.35 → GREEN-with-caveats for scale-up
+
+Morning session, Framing-decision-through-execution arc. F1 framing locked in after recommendation review (annotated-chr22-introns universe; 7,731 introns / 259 positives / 7,472 negatives — production-filter use case mirror). Notebook §4 wired from scratch (3 cells: env + smoke + sweep), §5 refactored to universe-restricted F1 + AUC-PR + bootstrap CI + 3-panel plot. End-to-end run completed.
+
+**Local env setup (one-time).** `conda env create -f workflow/envs/alphagenome.yaml` (~3 min); kernel `splice-neoepitope-alphagenome (Python 3.12.13)` auto-discovered by VSCode. Note: user's normal pattern is pyenv + .venv from `research/requirements.txt` (3.14.4), but `alphagenome 0.6.1` supports ≤3.13 only — conda env used here as a per-notebook isolation. Avoid the option of downgrading the project-wide Python pin for one notebook's SDK constraint.
+
+**AG API operational learnings:**
+- **Per-minute MB quota** caps free tier at ~15 MB/min — first sweep hit `RESOURCE_EXHAUSTED` at tile 16 (`gdmscience.googleapis.com`). Mitigation: `time.sleep(5)` between calls (~12 MB/min) + exponential backoff retry on `grpc.StatusCode.RESOURCE_EXHAUSTED` (60/120/240 s).
+- **Sweep range restriction** — first naive sweep tiled chr22:0-50.8M (49 tiles); tiles 1-10 (0-10.5 Mb) burned ~10 MB on the acrocentric N region for 0 returned junctions. Annotated-range restriction (`[annotated.donor.min(), annotated.acceptor.max()]`) cut to 39 tiles, all in productive range. Total sweep: 443 s wall, 2,702,077 raw junctions → 2,632,983 unique after dedup.
+- **Single stomach GTEx track** in AG inventory (index 212, `biosample_name='stomach'`, `polyA plus RNA-seq`) — max-over-stomach aggregation reduces to a single-column lookup. Coverage asymmetry vs. liver (4 tracks) flagged in §6 caveats.
+
+**Results (Framing 1, chr22 PoC):**
+
+| Metric | Value | Read |
+|---|---|---|
+| AUC-PR | 0.210 | 6.3× baseline (0.034); the rule-of-thumb 0.7 referred to AUC-ROC, AUC-PR is harder on this 3.4%-prevalence class imbalance |
+| Best F1 | 0.282 at τ=3.50 | TP=91, FP=296, FN=168 — the operating point we'd ship if AG-only |
+| Recall at best F1 | **0.351** | **The honest headline number** — depth confounder doesn't bias recall. AG identifies ~⅓ of confirmed tissue-expressed introns |
+| Precision at best F1 | 0.235 | Lower bound — many of the 296 "FPs" are plausibly tissue-expressed introns the 500K-read matched-normal missed |
+| F1 95% bootstrap CI | [0.238, 0.321] | 1000-iter resample of 259-positive bag at best τ — wide as expected |
+| AG-predicted introns | 5,728 / 7,731 (74.1%) | Fraction of annotated chr22 introns with non-zero stomach signal |
+
+**Decision call: GREEN-with-caveats for full-genome scale-up.** AG is not a standalone matched-normal replacement at this scale, but a viable **secondary evidence stream** to stack with GTEx pan-tissue ([Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) + matched-normal-where-available. The Exp 3 comparative-strength experiment ([Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)) is the natural next step. Recall-as-primary-readout matches the production decision shape: "what fraction of normal-expressed candidates does AG correctly call out, so we don't falsely flag them as tumor-specific?"
+
+**Caveats baked in to every headline number** (per §6): chr22 PoC scope; 500K-read matched-normal depth confounder (precision is a lower bound); single stomach GTEx track; annotated-only ground truth (no novel-splicing signal); n=259 positives (wide CI).
+
+**Scope of the PR.** Notebook §4 wiring (3 cells: env loader + smoke + sweep with rate-limit handling) + §5 refactor (universe-restricted F1 + AUC-PR + bootstrap CI + 3-panel plot) + §6 outcome population (this metrics table + decision call + operational notes) + AlphaGenome predictions parquet at `results/alphagenome/issue_224_exp1/chr22_stomach_predicted_junctions.parquet` (2.6M rows). Closes [Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393); parent [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) and [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) stay open (scale-up + decision-rule integration remain).
+
+---
+
 ## 2026-05-17
+
+### 19:28 UTC — Editor: Scientist
+
+#### [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) (AlphaGenome Exp 1) — notebook scaffold + chr22 matched-normal BED produced; metric-framing question surfaced
+
+Afternoon session, 1h time-box. Standup clean for Scientist (PM→Dev message about dev-i1 milestone close, not addressed). Work-route view picked [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) Task 1 (matched-normal junction BED via chr22 test config) as the bounded, foundational pick — without the BED, no ground truth, no §4-§5 metrics. Branch `research/scientist/issue-224-alphagenome-exp1-notebook` (created 2026-05-16 via `gh issue develop`) was at origin/main with no own commits yet.
+
+**Local toolchain gap caught upfront: macOS `samtools` not installed.** `which samtools` returned not-found. Per [CLAUDE.md](../../CLAUDE.md) "hisat2.yaml — samtools omitted (libdeflate conflict)", the pipeline relies on system `samtools` (apt-get on Ubuntu cloud VMs). On macOS that's `brew install samtools` — one-time install, ran in background (~3 min, samtools 1.23.1 at `/opt/homebrew/bin/samtools`). Worth noting for future Scientist sessions: the chr22 local-dev path has a hidden brew prerequisite not captured in `prepare_test_data.sh`.
+
+**Notebook scaffold shipped: [`research/notebooks/issue_224_alphagenome_exp1_patient_001.ipynb`](research/notebooks/issue_224_alphagenome_exp1_patient_001.ipynb).** Sixteen cells across six sections — §1 matched-normal load (coord-aware: TSV format is asymmetric `<chrom>:<donor_1based>:<acceptor_0based_exclusive>:<strand>\t<reads>`), §2 GENCODE chr22 intron derivation from exons, §3 intersection ground truth, §4 AlphaGenome predict (stub — actual client wiring deferred until env installed locally), §5 P/R/F1 sweep, §6 decision-rule outcome + caveats. The §1 load cell explicitly normalizes to 0-based half-open intron coords (`donor_0based = donor_1based - 1`; `acceptor_0based_excl` unchanged) so set-ops vs. GENCODE annotated introns are coord-aligned.
+
+**chr22 pipeline run produced the BED.** `snakemake --cores 4 --use-conda results/.../junctions.tsv --configfile config/test_config.yaml` — index build (chr22 only, ~7s) + align + regtools junctions extract + `bed12_to_junctions.py` — total **~1 min wall time** end-to-end. Output `results/patient_001_test/alignment/SRR9143065_test/junctions.tsv` (47,994 bytes, 1,714 junctions, all on chr22). The hisat2 conda env was first-time build during this run (~3 min within the 1 min number — Snakemake reports rule time, not env build time).
+
+**Snakemake 8 argparse gotcha hit + CLAUDE.md extended.** First run attempt failed instantly with `FileNotFoundError: results/.../junctions.tsv` — Snakemake was *interpreting the positional target as a second config file* because of `nargs="+"` on `--configfile`. The existing CLAUDE.md gotcha note covers the "two separate `--configfile` flags" form but not the "target follows configfile" form. Extended the note with the companion form + three workarounds (target before `--configfile`, or `--` separator, or use `-n` which accidentally breaks the nargs sequence). Bundled into this PR per user agreement when surfaced.
+
+**Smoke test of §1-§3 cells against real chr22 data — empirical findings.** Ran `load + intersect` end-to-end in a Bash python invocation under the snakemake env. Numbers:
+
+- Matched-normal junctions: **1,714** (median 1 read, max 23, mean 1.2 — sparse, expected for 500K reads)
+- GENCODE chr22 annotated unique introns: **7,731** (from 21,211 exon records across 3,364 transcripts)
+- Ground truth = mn ∩ ann: **259** (15.1% of matched-normal, **3.4% of annotated chr22 introns**)
+
+The 3.4% recovery is a structural floor at 500K-read depth — most chr22 annotated introns belong to transcripts not expressed (or under-detected) in normal stomach at this depth. Recorded in the notebook §6 markdown alongside the metric-framing question (below) so the empirical context is captured even before §4-§5 are wired.
+
+**Open metric-framing question surfaced + documented in notebook §6.** N=259 positives is small; AG predictions evaluated against this set will give noisy P/R unless we restrict the evaluable universe. Three framings sketched:
+
+1. Restrict evaluable universe to **annotated chr22 introns** (7,731): pos = ground truth (259), neg = annotated minus matched-normal (7,472). AG evaluated on annotated set only; P/R measure tissue-expression classification ability. ← *cleanest framing for chr22 PoC*; scaffold defaults to this.
+2. Whole-genome AG predictions vs. matched-normal ∩ annotated: pessimistic, conflates "should predict" with "predicts at all".
+3. Scale up first — re-run on full FASTQs on production GPU so the matched-normal sample is denser; only then evaluate.
+
+Decision needed before §4-§5 execution. Flagging as next-session topic — not blocking the scaffold + BED PR shipping now.
+
+**Scope of this PR.** Notebook scaffold + chr22 matched-normal BED (Task 1 of [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)) + CLAUDE.md gotcha extension. **Does NOT close [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224)** — Tasks 4-7 (AlphaGenome client wiring, prediction run, P/R/F1 figures, decision-rule outcome, final lab notebook entry on findings) remain open. Task 3 (env pin) was already ticked via [PR #386](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/386). The chr22 BED also closes Task 2 (ground truth = mn ∩ ann) since the smoke test produced the intersection numbers; ticking that AC.
+
+---
 
 ### 14:50 UTC — Editor: Scientist
 

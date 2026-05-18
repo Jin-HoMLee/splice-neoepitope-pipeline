@@ -85,6 +85,19 @@ snakemake --configfile config/test_config.yaml config/gpu_config.yaml   # correc
 # NOT: --configfile config/test_config.yaml --configfile config/gpu_config.yaml
 ```
 
+**Companion form: positional target after `--configfile`.** The same `nargs="+"` argparse semantics also swallow a *target* if it follows `--configfile`. The target gets loaded as a (non-existent) config file and the run fails with `FileNotFoundError` on the target path:
+```bash
+# FAILS — junctions.tsv is interpreted as a second --configfile argument
+snakemake --cores 4 --use-conda --configfile config/test_config.yaml results/.../junctions.tsv
+
+# OK (canonical) — `--` terminates the configfile list; order-independent
+snakemake --cores 4 --use-conda --configfile config/test_config.yaml -- results/.../junctions.tsv
+
+# OK — put the target before --configfile (order-dependent; fragile if more flags get added later)
+snakemake --cores 4 --use-conda results/.../junctions.tsv --configfile config/test_config.yaml
+```
+Dry-runs (`-n` flag between `--configfile` and the target) accidentally hide this bug because the flag breaks the nargs sequence. Caught 2026-05-17 while running the chr22 test pipeline for [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224).
+
 ### `srcdir()` not available at .smk module level
 `srcdir(path)` was a Snakemake-7 helper for resolving paths relative to the calling Snakefile. In Snakemake 8 it is no longer exposed at the `.smk` module scope and a top-level call (`sys.path.insert(0, srcdir("../scripts"))`) fails with `NameError: name 'srcdir' is not defined` at parse time — CI's `snakemake -n` dry-run will catch it.
 **Fix:** use `workflow.basedir` instead, which is always exposed and points at the Snakefile's directory (the repo root in this project):
