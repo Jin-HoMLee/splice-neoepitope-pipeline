@@ -221,6 +221,14 @@ resources/mhcflurry_models.done
 # (e.g. research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet)
 research/notebooks/*_outputs/
 
+# Quarto slide-deck build artefacts — regenerable via `quarto render`
+research/slides/**/*.html
+research/slides/**/*.pdf
+research/slides/**/*_files/
+research/slides/**/.quarto/
+research/slides/**/slides.tex
+research/slides/**/slides.log
+
 # Logs
 pipeline.log
 
