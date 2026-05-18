@@ -69,50 +69,51 @@ from reference alone?
 
 ---
 
-## Method — block diagram
+## Method — block diagram {.smaller}
 
-```
-                    chr22 GENCODE v47
-                    annotated introns (7,731)
-                            │
-matched-normal              ▼
-RNA-seq        ┌─►   ground truth  ◄──── intersection
-SRR9143065     │      (n = 259)
-(500K reads)   │                          │
-               │                          ▼
-   regtools ───┤                  Precision / Recall / F1
-   junctions.tsv                    on this universe
-   (1,714)     │                          ▲
-               │                          │
-               └─►   AG predictions ──────┘
-                    (reference-only;
-                     gastric/stomach GTEx track)
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Matched-normal<br/>RNA-seq<br/>(500K reads)"] -->|"HISAT2 +<br/>regtools"| B["Observed junctions<br/>n = 1,714"]
+    C["GENCODE v47<br/>chr22 GTF"] -->|"parse exons<br/>→ introns"| D["Annotated introns<br/>n = 7,731<br/>← UNIVERSE"]
+    E["GRCh38 chr22<br/>reference<br/>(no variants)"] -->|"AlphaGenome<br/>predict_interval<br/>(stomach GTEx)"| F["AG scores<br/>per junction"]
+    B --> G((("Positives<br/>n = 259")))
+    D --> G
+    G --> M["P / R / F1<br/>vs threshold τ"]
+    D --> M
+    F --> M
+
+    style G fill:#ffe6a3,stroke:#b8860b,stroke-width:2px
+    style M fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
 ```
 
-. . .
+**Flow (left to right):**
+
+::: {.incremental}
+1. **3 inputs** — matched-normal RNA-seq, GENCODE annotation, GRCh38 reference.
+2. **3 derived sets** — observed junctions (regtools), annotated introns (universe), AG scores.
+3. **Universe = Positives (259) + Negatives (7,472)** *(negatives depth-confounded → slide 11)*
+4. **Evaluate** — sweep τ, compute P/R/F1. *Recall = 105/259 is the unconfounded view.*
+:::
 
 ::: {.callout-tip appearance="simple"}
-Tools: `regtools` [@cotto2023regtools] · `HISAT2` [@kim2019hisat2] · `AlphaGenome` [@avsec2026alphagenome]
+`regtools` [@cotto2023regtools] · `HISAT2` [@kim2019hisat2] · `AlphaGenome` [@avsec2026alphagenome]
 :::
 
 ---
 
-## Data scope
+## Data scope {.smaller}
 
 | Field | Value |
 |---|---|
 | Patient | patient_001 |
-| Tumor / matched normal | SRR9143066 / SRR9143065 (gastric cancer + adjacent stomach) |
-| Read depth | 500K reads each (test dataset) |
-| Chromosome | **chr22 only** |
+| Samples | Tumor SRR9143066 + matched normal SRR9143065 (gastric cancer, adjacent stomach) |
+| Read depth | 500K reads per sample (test dataset) |
+| Chromosome | **chr22 only** (PoC scope) |
 | Reference | GRCh38 (UCSC hg38) |
-| AG tissue track | `stomach` (GTEx, polyA RNA-seq) — **1 track only** |
-| AG tile width | 1,048,576 bp · 39 tiles · ~7.4 min wall |
-
-. . .
 
 ::: {.callout-warning appearance="simple"}
-Single stomach track in the AG inventory — coverage asymmetry vs liver (4 tracks), brain (many).
+**AG sweep:** stomach GTEx track is the *only* available stomach track in AlphaGenome's inventory (1 of 1; polyA RNA-seq). 39 × 1,048,576-bp tiles · ~7.4 min wall. Coverage asymmetry vs liver (4 tracks) is a caveat we return to.
 :::
 
 ---
@@ -127,16 +128,17 @@ We chose **annotated-chr22-introns as the evaluable universe** [@frankish2021gen
 
 . . .
 
-**Rejected framings:**
+**Three framings were on the table — what would count as a "false positive"?**
 
-| Framing | Why rejected |
-|---|---|
-| 2 — Whole-genome AG vs. matched-normal-only | Conflates "*should predict*" with "*predicts at all*"; pessimistic |
-| 3 — Scale-up reads first, then evaluate | Better as a follow-up sub-issue (deferred to Exp 3) |
+| Framing | Universe | A "false positive" is… | Verdict |
+|---|---|---|---|
+| **1 (chosen)** | 7,731 annotated chr22 introns | An annotated intron AG predicts that isn't in matched-normal | Mirrors production filter |
+| 2 | All AG predictions genome-wide | **Any** AG call not in our 259-set — including AG calls that are correct but missed by our shallow 500K-read sample | Pessimistic; conflates *"should predict"* with *"predicts at all"* |
+| 3 | Same as #1 but with deeper matched-normal first | Deferred (depends on the rerun) | Better as Exp 3 follow-up |
 
 . . .
 
-**Why Framing 1:** mirrors the production filter use case — *"given a candidate junction, is it likely normal-expressed?"*
+**Why Framing 1:** mirrors the production filter use case — *"given a candidate junction, is it likely normal-expressed?"* Universe = the candidate set; AG = the classifier.
 
 ---
 
@@ -173,15 +175,23 @@ sklearn explicitly warns that the *trapezoidal* AUC (`auc(recall, precision)`) i
 
 ---
 
-## Precision–Recall curve
+## How does the classifier trade off? {.smaller}
 
-![Precision–Recall curve over the 7,731-intron universe; baseline = positive prevalence (0.034). AP = 0.214.](figures/pr_curve.png){width=72%}
+![Precision–Recall curve over the 7,731-intron universe; threshold τ implicit, swept along the curve. Baseline = positive prevalence (0.034). **AP = 0.214 ≈ 6.3× chance.**](figures/pr_curve.png){width=68%}
+
+::: {.fragment}
+Each point = one threshold's (recall, precision) pair. Curve summarizes *all* thresholds at once → AP.
+:::
 
 ---
 
-## Precision / Recall / F1 across τ
+## Where should we set τ in production? {.smaller}
 
-![Dense threshold sweep (5,729 unique scores). Best F1 marked at τ ≈ 3.16.](figures/prf1_vs_threshold.png){width=72%}
+![Three lines vs threshold τ on the x-axis. Best F1 = 0.300 at τ ≈ 3.16. Dense grid: 5,729 unique scores.](figures/prf1_vs_threshold.png){width=68%}
+
+::: {.fragment}
+Same data as the P-R curve, **different question:** for the production filter, we need a *specific τ* — this view picks it.
+:::
 
 ---
 
