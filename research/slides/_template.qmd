@@ -1,0 +1,175 @@
+---
+title: "TITLE — short framing question"
+subtitle: "Issue #NNN · YYYY-MM-DD"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: today
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: simple
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# To enable PDF (beamer) output, uncomment the block below. The pilot deck disabled
+# this due to a Quarto/pandoc `\makesavenoteenv{longtable}` LaTeX compile issue —
+# tracked as a follow-up. For an immediate PDF handout, render to HTML and "Print → Save as PDF" in Chrome.
+#  pdf:
+#    documentclass: beamer
+#    classoption: ["aspectratio=169"]
+#    pdf-engine: xelatex
+bibliography: refs.bib
+csl: https://www.zotero.org/styles/nature
+execute:
+  echo: false
+  warning: false
+---
+
+<!--
+Template skeleton for an experiment-tier slide deck. See research/slides/README.md
+for the convention. Replace TITLE/Issue # and edit slides below; delete this comment.
+-->
+
+## The question {.smaller}
+
+::: {.incremental}
+- One-sentence framing of the question this experiment asks
+- One-sentence framing of why it matters now (parent-Issue context, decision rule it feeds)
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+Decision-rule outcome lands on slide N (results) → slide N+1 (decision).
+:::
+
+---
+
+## Method (block diagram) {.smaller}
+
+```
+[ INPUT 1 ]  ─┐
+              ├──▶ [ TRANSFORM ] ──▶ [ EVALUATION ]
+[ INPUT 2 ]  ─┘
+```
+
+- Bullet: what each block produces
+- Bullet: where the gold-standard comparison happens
+- Bullet: what we threshold / sweep
+
+---
+
+## Data scope {.smaller}
+
+| Field | Value |
+|---|---|
+| Patient(s) | patient_001 |
+| Tissue | … |
+| Chromosome scope | chr22 only / full genome |
+| Sample size | … |
+| Reference | GRCh38 (UCSC hg38) |
+
+---
+
+## Universe / metric definitions
+
+Use LaTeX freely. Example AP formula:
+
+$$\mathrm{AP} = \sum_n (R_n - R_{n-1}) \cdot P_n$$
+
+- Define universe explicitly (positives, negatives, total)
+- Reject alternative framings with one-line rationale
+
+---
+
+## Headline result
+
+| Metric | Value | Caveat |
+|---|---|---|
+| AP / AUC-PR | **0.XXX** | …  |
+| Best F1 | **0.XXX** at τ = X.XX | … |
+| Precision @ best F1 | 0.XXX | … |
+| Recall @ best F1 | 0.XXX | … |
+| 95% CI on F1 | [0.XXX, 0.XXX] | … |
+
+---
+
+## Figure: Precision-Recall
+
+![Precision–Recall curve (AP = X.XXX)](figures/pr_curve.png){width=80%}
+
+---
+
+## Figure: P / R / F1 vs threshold
+
+![P/R/F1 across τ; best F1 at τ = X.XX](figures/prf1_vs_threshold.png){width=80%}
+
+---
+
+## Figure: Bootstrap F1 distribution {.smaller}
+
+![Bootstrap F1 (n=1000, F1-at-fixed-τ, positives-only)](figures/bootstrap_f1.png){width=70%}
+
+::: {.fragment}
+**CI semantics:** F1-at-fixed-τ, not CI of max-F1 over τ. See deck's methods slide.
+:::
+
+---
+
+## The honest headline {.smaller}
+
+::: {.incremental}
+- *Which* metric is the honest one (and why; e.g. depth-confounded precision)
+- *Which* metric is misleading and why
+:::
+
+---
+
+## Decision rule
+
+::: {.r-fit-text}
+🟢 / 🟡 / 🔴
+:::
+
+::: {.fragment}
+- One-sentence decision: GREEN / YELLOW / RED with caveats
+- What this feeds next (next-experiment Issue # + carve-outs)
+:::
+
+---
+
+## Caveats {.smaller}
+
+::: {.incremental}
+1. Scope (e.g. chr22 PoC, not whole genome)
+2. Depth confounder
+3. Single-track / single-tissue
+4. Ground-truth definition limit
+5. Sample size on positives bag
+6. Bootstrap semantics
+:::
+
+---
+
+## Next steps {.smaller}
+
+- **Next experiment:** Issue #XXX (one-sentence summary)
+- **Pairs with:** Issue #YYY (filter integration / scale-up)
+- **Scale-up gotcha to address:** … (e.g. streaming-parquet for full-genome)
+
+---
+
+## References
+
+::: {#refs}
+:::
+
+<!-- bibliography renders here, auto-populated by Pandoc from refs.bib via [@cite-keys] in the text above -->
