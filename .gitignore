@@ -237,4 +237,6 @@ CLAUDE.local.md
 .claude/scheduled_tasks.json
 
 # Cross-repo symlink to claude-personas-splice/<role>/ (cwd access to role + shared memory)
-/memory
+
+# claude-personas role-memory symlink
+/.claude/memory/
