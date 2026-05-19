@@ -278,8 +278,8 @@ elif config.get("alignment", {}).get("aligner") == "star":
             set -euo pipefail
             GTF_FILE="{input.gtf}"
             if [[ "$GTF_FILE" == *.gz ]]; then
-                gunzip -c "$GTF_FILE" > resources/temp_annotation.gtf
                 trap 'rm -f resources/temp_annotation.gtf' EXIT
+                gunzip -c "$GTF_FILE" > resources/temp_annotation.gtf
                 GTF_FILE="resources/temp_annotation.gtf"
             fi
 
