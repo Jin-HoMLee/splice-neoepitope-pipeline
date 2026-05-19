@@ -75,3 +75,10 @@ jobs:
 
       - name: Run CI-tooling tests
         run: pytest tools/ci/ -v
+        env:
+          # PAT with `read:project` scope; integration tests that resolve
+          # project items via GraphQL need this scope (the default
+          # GITHUB_TOKEN is repo-scoped only and cannot read Projects v2).
+          # Secret may be absent on fork PRs — tests probe for scope at
+          # collection time and skip gracefully if unavailable.
+          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}

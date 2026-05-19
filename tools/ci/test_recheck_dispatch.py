@@ -5,13 +5,14 @@ the additionalContext includes the expected `[<recheck-name> — ...]` blocks.
 
 The "silent" tests are pure pattern-matching and run in any environment.
 The Status-field-trigger test additionally SHELLS OUT TO `gh` for item-ID
-resolution + parent-chain walk, and is skipped in CI (CI=true) because the
-CI runner's GITHUB_TOKEN lacks project read scope. Run it locally to verify
-the live-API path.
+resolution + parent-chain walk. It probes for `gh auth` with project read
+scope at collection time and skips gracefully if unavailable (e.g., fork
+PRs where the GH_PROJECT_TOKEN secret isn't exposed, or local environments
+without `gh auth login`).
 """
 
 import json
-import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -20,9 +21,25 @@ import pytest
 
 HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "recheck_dispatch.py"
 
+
+def _gh_has_project_read_scope() -> bool:
+    """Probe whether the current gh auth can read Projects v2 (one GraphQL call)."""
+    if not shutil.which("gh"):
+        return False
+    try:
+        result = subprocess.run(
+            ["gh", "api", "graphql", "-f",
+             "query=query { viewer { projectsV2(first: 1) { totalCount } } }"],
+            capture_output=True, timeout=10, check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
 REQUIRES_LIVE_GH = pytest.mark.skipif(
-    os.environ.get("CI", "").lower() == "true",
-    reason="requires live gh auth with project read scope; CI's GITHUB_TOKEN lacks this",
+    not _gh_has_project_read_scope(),
+    reason="requires gh auth with project read scope (set GH_TOKEN to a PAT with `read:project`)",
 )
 
 
