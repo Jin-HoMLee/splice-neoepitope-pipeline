@@ -85,3 +85,31 @@ class TestDriftClassification:
         # Edge case: no open children but parent claims progress → COMPLETION not FORWARD
         result = rps.classify_drift(parent_status="In progress", open_children=[])
         assert result == "COMPLETION DRIFT"  # not FORWARD DRIFT
+
+
+from unittest.mock import patch, MagicMock
+
+
+class TestGhHelpers:
+    @patch("recheck_parent_status.gh")
+    def test_parent_issue_number_extracts_from_url(self, mock_gh):
+        mock_gh.return_value = {
+            "number": 204,
+            "parent_issue_url": "https://api.github.com/repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/86",
+        }
+        assert rps.parent_issue_number(204) == 86
+
+    @patch("recheck_parent_status.gh")
+    def test_parent_issue_number_returns_none_when_no_parent(self, mock_gh):
+        mock_gh.return_value = {"number": 24, "parent_issue_url": None}
+        assert rps.parent_issue_number(24) is None
+
+    @patch("recheck_parent_status.gh")
+    def test_open_sub_issues_filters_closed(self, mock_gh):
+        mock_gh.return_value = [
+            {"number": 204, "state": "open"},
+            {"number": 205, "state": "closed"},
+            {"number": 206, "state": "open"},
+        ]
+        result = rps.open_sub_issues(86)
+        assert [c["number"] for c in result] == [204, 206]

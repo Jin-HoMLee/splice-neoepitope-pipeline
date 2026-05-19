@@ -52,3 +52,31 @@ def classify_drift(parent_status: str | None, open_children: list[dict]) -> str 
     if p_rank < c_rank:
         return "BACKWARD DRIFT"
     return None
+
+
+import json
+import subprocess
+
+REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
+PROJECT_NUMBER = 9
+
+
+def gh(*args: str, parse_json: bool = True):
+    """Invoke `gh` and parse JSON output (or return raw text)."""
+    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
+    return json.loads(result.stdout) if parse_json else result.stdout
+
+
+def parent_issue_number(issue_number: int) -> int | None:
+    """Return parent issue number via REST parent_issue_url, or None."""
+    data = gh("api", f"repos/{REPO}/issues/{issue_number}")
+    url = data.get("parent_issue_url")
+    if not url:
+        return None
+    return int(url.rstrip("/").rsplit("/", 1)[-1])
+
+
+def open_sub_issues(issue_number: int) -> list[dict]:
+    """Return list of open sub-issues (each a dict with 'number' at minimum)."""
+    data = gh("api", f"repos/{REPO}/issues/{issue_number}/sub_issues")
+    return [c for c in data if c.get("state") == "open"]
