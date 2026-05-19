@@ -35,3 +35,20 @@ def collective_state(open_children: list[dict]) -> str:
         return "Done"
     max_rank = max(rank(c.get("status")) for c in open_children)
     return LADDER_INVERSE[max_rank]
+
+
+def classify_drift(parent_status: str | None, open_children: list[dict]) -> str | None:
+    """Classify drift for a parent vs its open children.
+
+    Returns one of: 'FORWARD DRIFT', 'BACKWARD DRIFT', 'COMPLETION DRIFT', or None.
+    """
+    p_rank = rank(parent_status)
+    if not open_children:
+        # All children closed; parent should be Done
+        return None if p_rank == STATUS_LADDER["Done"] else "COMPLETION DRIFT"
+    c_rank = rank(collective_state(open_children))
+    if p_rank > c_rank:
+        return "FORWARD DRIFT"
+    if p_rank < c_rank:
+        return "BACKWARD DRIFT"
+    return None
