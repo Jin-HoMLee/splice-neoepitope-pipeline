@@ -23,12 +23,17 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.fixture
-def star_dry_run_output(tmp_path):
-    """Render the star_align shell command and return captured stdout."""
+@pytest.fixture(scope="module")
+def star_dry_run_output(tmp_path_factory):
+    """Render the star_align shell command and return captured stdout.
+
+    Module-scoped: the dry-run is idempotent, so we run snakemake once and
+    amortise across all assertions in this file (5 tests → 1 subprocess).
+    """
     if shutil.which("snakemake") is None:
         pytest.skip("snakemake not on PATH — activate the snakemake conda env")
 
+    tmp_path = tmp_path_factory.mktemp("star_stub")
     # Stub FASTQs (must exist for `ancient(_get_fastq*)` to skip producer-rule lookup)
     fq1 = tmp_path / "test_R1.fq.gz"
     fq2 = tmp_path / "test_R2.fq.gz"
