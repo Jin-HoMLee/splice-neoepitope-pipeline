@@ -24,3 +24,14 @@ STATUS_LADDER = {
 def rank(status: str | None) -> int:
     """Map a Status name to its precedence rank. None/unknown → 0 (Backlog)."""
     return STATUS_LADDER.get(status or "", 0)
+
+
+LADDER_INVERSE = {v: k for k, v in STATUS_LADDER.items()}
+
+
+def collective_state(open_children: list[dict]) -> str:
+    """Max-rank status across open children. Empty list → 'Done'."""
+    if not open_children:
+        return "Done"
+    max_rank = max(rank(c.get("status")) for c in open_children)
+    return LADDER_INVERSE[max_rank]
