@@ -30,6 +30,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CHTC** — Center for High Throughput Computing (UW-Madison). Develops and maintains HTCondor; took over maintenance of Snakemake's HTCondor executor plugin at the 2026 Snakemake Hackathon. *Domain: cloud.*
 
+**CoREST** — Corepressor of REST (RE1-Silencing Transcription factor). Chromatin co-repressor complex (LSD1–HDAC1–CoREST core scaffold); originally characterised as a neuronal-gene silencer, recently shown to also regulate RNA-processing genes. Pharmacological inhibition by **corin** in melanoma cell lines disrupts spliceosome activity → induces immunogenic splice-derived neoantigens, reactivates anti-PD-1 in cold tumors ([Fisher et al. 2025](https://insight.jci.org/articles/view/190287)). *Domain: bio.*
+
 **CR** — Complete Remission (a.k.a. Complete Response). Oncologic response criterion: full disappearance of detectable disease following therapy; distinguished from PR (partial response), SD (stable disease), PD (progressive disease) in RECIST 1.1 solid-tumor criteria. The weakest TNBC vaccine responder in Sahin et al. 2026 achieved CR on subsequent anti-PD-1 rescue. *Domain: bio.*
 
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
@@ -88,11 +90,15 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **IC50** — half-maximal Inhibitory Concentration. Concentration (in nM) at which a peptide displaces 50% of a reference ligand from MHC; classic affinity metric, retained as informational column alongside the percentile-based presentation score. *Domain: bio.*
 
+**ICI** — Immune Checkpoint Inhibitor. Class of monoclonal antibodies blocking inhibitory T-cell receptors (anti-CTLA-4, anti-PD-1, anti-PD-L1) to release brakes on anti-tumor immunity; standard-of-care across many solid tumors. "Immune cold" tumors (low T-cell infiltrate) often fail to respond — motivating combination strategies including neoantigen vaccines and pharmacologic mis-splicing inducers (corin; [Fisher et al. 2025](https://insight.jci.org/articles/view/190287)). *Domain: bio.*
+
 **IV** — Intravenous. Drug delivery route via direct venous injection; chosen for personalized mRNA cancer vaccines to deliver LNP-mRNA payloads systemically (Sahin et al. 2026; Rojas et al. 2023). *Domain: bio.*
 
 ## L
 
 **LNP-mRNA** — Lipid Nanoparticle-formulated mRNA. Delivery format: ionizable-lipid encapsulation protects mRNA from RNases and mediates dendritic-cell uptake. Foundation of COVID-19 mRNA vaccines (BioNTech/Moderna) and current personalized cancer-vaccine trials (autogene cevumeran; Sahin et al. 2026). *Domain: bio.*
+
+**LSD1–HDAC1–CoREST** — Core chromatin co-repressor complex: lysine-specific demethylase 1 (LSD1, KDM1A) + histone deacetylase 1 (HDAC1) + CoREST scaffold. Coordinates H3K4 demethylation with H3 deacetylation for transcriptional repression; the molecular target of the small-molecule inhibitor **corin** ([Fisher et al. 2025](https://insight.jci.org/articles/view/190287)). Disruption reroutes the complex away from RNA-processing genes → mis-splicing → immunogenic neopeptides. *Domain: bio.*
 
 **LSF** — Load Sharing Facility (IBM Spectrum). Commercial HPC batch scheduler; used at DKFZ Heidelberg among others. Snakemake has a dedicated LSF executor plugin. *Domain: cloud.*
 
