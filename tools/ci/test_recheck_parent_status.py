@@ -176,7 +176,10 @@ class TestAuditChain:
         # We expect 2 audit records: #86 and #24
         assert [r["issue"] for r in chain] == [86, 24]
         assert chain[0]["drift"] == "FORWARD DRIFT"
-        assert chain[1]["drift"] == "FORWARD DRIFT"
+        # #24's immediate drift is None: its only open child #86 has status
+        # "In progress" matching #24's "In progress". #86's drift is transitive
+        # (caught at chain[0]) — classify_drift only flags per-level drift.
+        assert chain[1]["drift"] is None
 
     @patch("recheck_parent_status.status_for_issue")
     @patch("recheck_parent_status.open_sub_issues")
