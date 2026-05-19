@@ -220,3 +220,38 @@ class TestFormatter:
         assert "#86" in out
         assert "[FORWARD DRIFT]" in out
         assert "#204 (Backlog)" in out
+
+
+class TestCli:
+    @patch("recheck_parent_status.audit_parent_chain")
+    def test_issue_mode_exit_0_when_no_drift(self, mock_audit, capsys):
+        mock_audit.return_value = [{
+            "issue": 24, "status": "Ready",
+            "open_children": [{"number": 86, "status": "Ready"}],
+            "collective": "Ready", "drift": None,
+        }]
+        rc = rps.main(["--issue", "204"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "#24" in captured.out
+        assert "[No change]" in captured.out
+
+    @patch("recheck_parent_status.audit_parent_chain")
+    def test_issue_mode_exit_2_when_drift(self, mock_audit, capsys):
+        mock_audit.return_value = [{
+            "issue": 86, "status": "In progress",
+            "open_children": [{"number": 204, "status": "Backlog"}],
+            "collective": "Backlog", "drift": "FORWARD DRIFT",
+        }]
+        rc = rps.main(["--issue", "204"])
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "[FORWARD DRIFT]" in captured.out
+
+    @patch("recheck_parent_status.audit_parent_chain")
+    def test_issue_with_no_parent_emits_message(self, mock_audit, capsys):
+        mock_audit.return_value = []
+        rc = rps.main(["--issue", "100"])
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "no parent" in captured.out.lower()

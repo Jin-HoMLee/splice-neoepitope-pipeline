@@ -155,3 +155,44 @@ def format_record(record: dict) -> str:
     else:
         lines.append(f"  Status: [{drift}]")
     return "\n".join(lines)
+
+
+import argparse
+import sys
+
+
+def run_issue_mode(issue_number: int) -> int:
+    chain = audit_parent_chain(issue_number)
+    if not chain:
+        print(f"Issue #{issue_number} has no parent — nothing to audit.")
+        return 0
+    print(f"Parent chain for #{issue_number} (walked {len(chain)} levels):\n")
+    drifted = False
+    for record in chain:
+        print(format_record(record))
+        print()
+        if record["drift"] is not None:
+            drifted = True
+    return 2 if drifted else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--issue", type=int, help="Issue number; walk its parent chain")
+    group.add_argument("--all", action="store_true", help="Audit all parent issues on project #9")
+    args = parser.parse_args(argv)
+
+    if args.issue:
+        return run_issue_mode(args.issue)
+    return run_all_mode()
+
+
+def run_all_mode() -> int:
+    # Implemented in Task 9
+    print("--all not yet implemented", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
