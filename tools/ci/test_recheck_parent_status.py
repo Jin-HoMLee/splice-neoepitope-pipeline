@@ -153,3 +153,36 @@ class TestStatusLookup:
             }}}
         }
         assert rps.status_for_issue(86) is None
+
+
+class TestAuditChain:
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.parent_issue_number")
+    def test_walks_two_level_chain(self, mock_parent, mock_subs, mock_status):
+        # Simulate today's case: #204 is sub of #86 is sub of #24
+        mock_parent.side_effect = lambda n: {204: 86, 86: 24, 24: None}[n]
+        mock_subs.side_effect = lambda n: {
+            86: [{"number": 204}, {"number": 205}, {"number": 206}],
+            24: [{"number": 86}],
+        }[n]
+        # All sub-issues stale; both parents show In progress (drift)
+        def status_side_effect(n):
+            return {86: "In progress", 24: "In progress",
+                    204: "Backlog", 205: "Backlog", 206: "Backlog"}.get(n)
+        mock_status.side_effect = status_side_effect
+
+        chain = rps.audit_parent_chain(204)
+        # We expect 2 audit records: #86 and #24
+        assert [r["issue"] for r in chain] == [86, 24]
+        assert chain[0]["drift"] == "FORWARD DRIFT"
+        assert chain[1]["drift"] == "FORWARD DRIFT"
+
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.parent_issue_number")
+    def test_stops_at_root(self, mock_parent, mock_subs, mock_status):
+        mock_parent.side_effect = lambda n: {100: None}[n]
+        # Issue 100 has no parent → empty chain
+        chain = rps.audit_parent_chain(100)
+        assert chain == []

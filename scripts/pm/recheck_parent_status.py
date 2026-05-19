@@ -111,3 +111,30 @@ def status_for_issue(issue_number: int) -> str | None:
             if (fv.get("field") or {}).get("name") == "Status":
                 return fv.get("name")
     return None
+
+
+def audit_parent_chain(issue_number: int) -> list[dict]:
+    """Walk up the parent chain from issue_number; audit drift at each level.
+
+    Returns list of records: {issue, status, open_children, collective, drift}.
+    Empty list if issue has no parent.
+    """
+    chain: list[dict] = []
+    cursor = parent_issue_number(issue_number)
+    seen = {issue_number}
+    while cursor is not None and cursor not in seen:
+        seen.add(cursor)
+        parent_status = status_for_issue(cursor)
+        children = open_sub_issues(cursor)
+        # Enrich children with their Status
+        enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
+                    for c in children]
+        chain.append({
+            "issue": cursor,
+            "status": parent_status,
+            "open_children": enriched,
+            "collective": collective_state(enriched),
+            "drift": classify_drift(parent_status, enriched),
+        })
+        cursor = parent_issue_number(cursor)
+    return chain
