@@ -7,8 +7,11 @@ Unit + snapshot tests for the pipeline's Python helpers and Snakemake rule shell
 The test runner is a pyenv-managed Python venv separate from the workflow's `snakemake` conda env. The two envs cooperate at run time: the venv provides `pytest` + test deps, and the activated conda env puts the `snakemake` binary on PATH for tests that invoke it via subprocess (e.g. [test_alignment_star_command.py](test_alignment_star_command.py)).
 
 ```bash
-# 1. Pin the Python version used by this clone (writes .python-version, gitignored)
-pyenv local 3.14.4
+# 1. Pin the Python version used by this clone (writes .python-version, gitignored).
+#    Any stable Python >=3.10 works; 3.13.5 is recommended (recent, widely
+#    available via pyenv on fresh clones). Test deps in requirements-test.txt
+#    have no upper Python bound.
+pyenv local 3.13.5
 
 # 2. Create the test venv inside workflow/tests/ (also gitignored)
 python -m venv workflow/tests/.venv
