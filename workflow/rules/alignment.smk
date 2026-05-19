@@ -343,9 +343,8 @@ elif config.get("alignment", {}).get("aligner") == "star":
                 $READCMD \\
                 --outFileNamePrefix {params.output_prefix} \\
                 --outSAMtype None \\
-                --outSJfilterReads Unique \\
-                --outSJfilterCountUniqueMin 1 1 1 1 \\
-                --outSJfilterCountTotalMin 1 1 1 1 \\
+                --twopassMode Basic \\
+                --limitSjdbInsertNsj 2000000 \\
                 2>&1 | tee {log}
 
             # SJ.out.tab col 4=0 means STAR couldn't infer strand; rescue from
