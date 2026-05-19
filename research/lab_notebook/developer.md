@@ -6,6 +6,62 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-19
+
+### 13:56 UTC — Editor: Developer
+
+**Headline:** [PR #410](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410) (production aligner default flipped HISAT2 → STAR, closes [Issue #17](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/17)) shipped. Minimum-viable scope: the two STAR flags that materially affect novel-junction sensitivity (`--twopassMode Basic`, `--limitSjdbInsertNsj 2000000`) plus removal of three silent-throttle filters (`--outSJfilterReads Unique`, `--outSJfilterCountUniqueMin`, `--outSJfilterCountTotalMin`). Paper-fidelity sensitivity tuning explicitly deferred to [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) with per-flag benchmarks — avoids cargo-culting the Nature paper command wholesale without measured deltas on our data.
+
+#### Scope decision — middle ground vs full paper-fidelity
+
+Issue body's plan was a one-line config flip; a 2026-04-21 implementation comment from Jin-Ho added ~14 STAR parameter changes from the Nature paper recipe. Three-option analysis (full migration / middle ground / config-flip-only) → went middle. Rationale: the count-filter removals + `--twopassMode Basic` are **correctness** changes (multi-mappers should count; 2-pass is what gives STAR its novel-junction edge over HISAT2), but the sensitivity flags (`--outFilterMatchNminOverLread 0.33`, `--alignIntronMax 500000`, etc.) are **tunables** that should be justified per-flag with a benchmark, not copy-pasted. Cargo-culting a recipe across pipelines without measured deltas is exactly the failure mode the portfolio-lens memory warns against.
+
+#### Implementation — 4 files
+
+- [workflow/rules/alignment.smk](workflow/rules/alignment.smk) — 5-line diff in the `star_align` shell block (2 added, 3 removed)
+- [config/config.yaml](config/config.yaml) — `aligner: hisat2` → `star`
+- [config/test_config.yaml](config/test_config.yaml) — explicit `aligner: hisat2` pin added. Missing this would have inherited the new `star` default and broken local M1 chr22 dev (32 GB STAR index won't fit on 8 GB RAM). Caught during spec self-review, promoted from out-of-scope to in-scope mid-design.
+- [workflow/tests/test_alignment_star_command.py](workflow/tests/test_alignment_star_command.py) — new pytest snapshot test, **first shell-level rule snapshot test in the codebase**. Renders the `star_align` command via `snakemake --dry-run --printshellcmds` with an `aligner=star` config override + stub inputs in `tmp_path`, asserts substring presence/absence of the 5 target flags. 5 tests run in 0.83s (module-scoped fixture; see review iteration below).
+
+#### Scope creep — pytest venv setup documented
+
+The developer memory's `feedback_test_before_pr.md` references `.venv/bin/python -m pytest` but post-2026-05-14 separate-clones migration meant this clone had no `.venv` set up. Added a [workflow/tests/README.md](workflow/tests/README.md) documenting the canonical pattern: `pyenv local 3.13.5` + `python -m venv workflow/tests/.venv` + install from [workflow/tests/requirements-test.txt](workflow/tests/requirements-test.txt). Tests that invoke `snakemake` via subprocess need the `snakemake` conda env activated for the binary on PATH — README documents both run modes. Test runner (`.venv`) and workflow runner (`snakemake` conda env) deliberately split: keeps the workhorse env pristine.
+
+#### dag.pdf cleanup — in-PR
+
+`scripts/visualize_dag.sh` outputs `dag.svg` (gitignored), not `dag.pdf`. The tracked `dag.pdf` was vestigial from `f4f3858` (months ago, before the SVG script existed); `.gitignore` already listed it at line 238 but the rule only takes effect once untracked. Removed in-PR rather than as a follow-up — kept this scope but saved the follow-up overhead.
+
+#### Review iteration — bot review at [comment-4488238391](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410#issuecomment-4488238391)
+
+Bot finished in 3m 29s. 2 actionable items + 1 semantic note + 1 out-of-scope pre-existing issue:
+
+- `81e858a` — fixture scope-bump from `function` → `module` + swap `tmp_path` for `tmp_path_factory`. 5 tests now share 1 `snakemake -n` subprocess; wall time 2.53s → 0.83s. Bot's perf nit, accepted as a clean win.
+- `f25d2c4` — README pyenv version `3.14.4` → `3.13.5`. Bot flagged that 3.14.4 may not be installable on a fresh clone (despite being a stable release since 2025-10) — 3.13.5 is in every pyenv install list since 2024-10. Comment now also notes any stable Python ≥3.10 works; the pin is illustrative, not mandatory.
+- **Semantic note:** bot caught that the commit/spec wording "throttles output below paper baseline" was imprecise for the count-filter removals. The removed `--outSJfilterCountUniqueMin 1 1 1 1` flags were *more permissive* than STAR's `3 1 1 1` defaults for non-canonical junctions (position 1); removing them reverts to **stricter** non-canonical thresholds. Combined effect on non-canonical bucket is a mix (stricter unique threshold vs newly-contributing multi-mappers vs more 2-pass discoveries). Net direction on canonical junctions is still more output; non-canonical is non-trivial and queued for [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) benchmark. Logged in [comment-4488440732](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410#issuecomment-4488440732) so future-grep doesn't get misled by the imprecise commit wording.
+- **Pre-existing out-of-scope:** `star_index` rule's `resources/temp_annotation.gtf` lacks a trap-based cleanup — `set -euo pipefail` skips the manual cleanup on STAR abort. Filed as [Issue #412](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/412) (P3 refactor).
+
+#### Cloud verification — deferred to Issue #378 via 3 new ACs
+
+End-to-end STAR verification requires production VM RAM that doesn't exist locally. Appended 3 ACs to [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) (already-queued patient_002 re-run for the [PR #402](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/402) strand fix) — single cloud run now verifies both PR #402's strand rescue AND PR #410's new STAR defaults. Saves duplicate cloud cost vs running a separate single-sample smoke test as part of this PR. ACs verify: (1) `SJ.out.tab` contains multi-mapper-only rows (`multi_reads > 0 ∧ unique_reads == 0`); (2) 2-pass log line present; (3) no `limitSjdbInsertNsj exceeded` fatal.
+
+### 11:42 UTC — Editor: Developer
+
+**Headline:** Dropped the `workspace/<role>` camping-branch convention from shared memory. Rule's stated justification ("`main` is a shared ref; one worktree's checkout blocks the others") is dead since the 2026-05-14 migration from git worktrees → three independent clones. Each clone has its own `.git`; cross-clone HEAD contention is impossible by construction.
+
+**Why now:** User noted at session start that workspace branches were a workaround for a constraint that no longer exists. Analysis confirmed: no remaining technical reason; the weaker "identify which role parked here" argument was already covered by the clone path itself.
+
+**Changes — 5 memory files:**
+
+- `memory/shared/MEMORY.md` — removed Always-in-effect rule + Reference link
+- `memory/shared/feedback_workspace_branch.md` — deleted entirely
+- `memory/shared/feedback_team_structure.md` — "Git worktree layout" section rewrote as "Clone layout", drops `git worktree add ... -b workspace/<role>` setup commands, notes the 2026-05-14 migration
+- `memory/shared/feedback_lab_notebook.md` — dropped "rather than from `workspace/<role>`" sub-clause in the multi-session-parent guidance (now just "cut from latest `main`")
+- `memory/shared/feedback_no_cd.md` — tightened "worktree" → "clone" wording; cwd-persistence rule itself unchanged
+
+**Broadcast decision:** user declined the cross-role broadcast — removals don't require explicit attention; other roles will absorb the cleanup at next `/memory` re-read since the rule simply no longer appears. The broadcast convention is most valuable when rules are *added* (action required) rather than *removed* (action stops).
+
+---
+
 ## 2026-05-18
 
 ### 21:59 UTC — Editor: Developer

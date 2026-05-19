@@ -30,6 +30,7 @@ reference:
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
 alignment:
+  aligner: "hisat2"                                  # explicit pin: M1 8 GB can't fit STAR's 32 GB index
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
   hisat2_prebuilt_url: ""                            # build from chr22 FASTA (no pre-built available)
   star_index_dir: "resources/test/star_index"        # separate from production index
