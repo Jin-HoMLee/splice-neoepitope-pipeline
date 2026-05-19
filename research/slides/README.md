@@ -52,7 +52,7 @@ brew install --cask quarto
 **Alternative (conda, no sudo, fits project's conda-everywhere pattern):**
 
 ```bash
-conda create -n splice-slides -c conda-forge quarto=1.9 -y
+conda create -n splice-slides -c conda-forge quarto -y
 conda activate splice-slides
 ```
 
@@ -96,6 +96,8 @@ This pattern keeps notebook and slides reproducible from the same cached predict
 **Upgrade path (future):** `research/scripts/zotero_export_bib.py` (mirroring the existing `zotero_add.py` pattern) that pulls Zotero collection [Z38GTJNW](../scripts/zotero_add.py) → `refs.bib`. Optional further upgrade: [Better BibTeX](https://retorque.re/zotero-better-bibtex/) Zotero plugin auto-sync.
 
 Cite in the `.qmd` with standard Pandoc syntax: `[@avsec2024alphagenome]` → renders inline with reference list slide at the end.
+
+**Citation style:** Nature CSL is cached locally at [`nature.csl`](nature.csl) and referenced as `csl: ../nature.csl` from each deck's YAML. Committing it avoids the `zotero.org/styles/nature` round-trip on every render (offline-render friendly; no flaky-CDN dependency).
 
 ## Template usage
 

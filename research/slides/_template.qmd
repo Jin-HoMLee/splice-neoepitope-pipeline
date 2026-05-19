@@ -27,7 +27,7 @@ format:
 #    classoption: ["aspectratio=169"]
 #    pdf-engine: xelatex
 bibliography: refs.bib
-csl: https://www.zotero.org/styles/nature
+csl: ../nature.csl
 execute:
   echo: false
   warning: false

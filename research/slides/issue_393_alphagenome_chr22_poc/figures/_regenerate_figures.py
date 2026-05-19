@@ -73,7 +73,7 @@ def parse_exons(gtf_path: Path, target_chrom: str = TARGET_CHROM) -> pd.DataFram
 
 def exons_to_introns(exons: pd.DataFrame) -> pd.DataFrame:
     introns = []
-    for (_, chrom, strand), grp in exons.groupby(["transcript_id", "chrom", "strand"]):
+    for (tx_id, chrom, strand), grp in exons.groupby(["transcript_id", "chrom", "strand"]):
         sorted_exons = grp.sort_values("start_0").reset_index(drop=True)
         for i in range(len(sorted_exons) - 1):
             donor = int(sorted_exons.loc[i, "end_0"])

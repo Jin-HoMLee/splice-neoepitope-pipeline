@@ -8,6 +8,7 @@ date-format: "YYYY-MM-DD"
 format:
   revealjs:
     theme: simple
+    incremental: false
     slide-number: c/t
     progress: true
     fig-align: center
@@ -21,7 +22,7 @@ format:
 # Tracked as a follow-up; HTML reveal.js is the primary delivery for lab seminar.
 # For a PDF handout right now, open slides.html in Chrome and "Print → Save as PDF".
 bibliography: refs.bib
-csl: https://www.zotero.org/styles/nature
+csl: ../nature.csl
 execute:
   echo: false
   warning: false
@@ -120,7 +121,7 @@ flowchart LR
 
 ## Universe construction — Framing 1 {.smaller}
 
-We chose **annotated-chr22-introns as the evaluable universe** [@frankish2021gencode]:
+We chose **annotated-chr22-introns as the evaluable universe** [@mudge2025gencode]:
 
 - **Universe:** 7,731 GENCODE-annotated chr22 introns
 - **Positives:** 259 (matched-normal ∩ annotated) — *the confirmed tissue-expressed set*
@@ -228,13 +229,13 @@ It measures AG's hit rate on the **confirmed** tissue-expressed set. The matched
 ## Decision
 
 ::: {.r-fit-text}
-🟡 GREEN-with-caveats
+🟡 AMBER — real signal, not standalone
 :::
 
 ::: {.fragment}
 **Not** standalone-filter strength on chr22 (recall ~40% means missing ~60% of true positives at the F1 optimum).
 
-**But** real signal: 6.3× over chance baseline, and a viable secondary evidence stream stacked with GTEx [@frankish2021gencode] + matched-normal-where-available.
+**But** real signal: 6.3× over chance baseline, and a viable secondary evidence stream stacked with GTEx [@mudge2025gencode] + matched-normal-where-available.
 :::
 
 . . .
