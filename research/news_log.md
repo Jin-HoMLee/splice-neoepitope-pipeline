@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-19
+
+### 08:20 UTC — Editor: PM
+
+- **Claude Code 2.1.143** ([2026-05-15 changelog](https://code.claude.com/docs/en/changelog)) — `PostToolUse` hooks now break after 8 consecutive blocks (safety against runaway deny loops); new `worktree.bgIsolation: "none"` setting lets background sessions edit working copy directly. → No action; loop-break is free safety for our [PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397) capacity-recheck hook + `check_at_claude.py` PreToolUse guard. *PM. tooling-relevant.*
+- **Copilot cloud agent — REST API for repo config audit** ([GitHub changelog 2026-05-18](https://github.blog/changelog/)) — agent configuration on a repo (allowed actions, model defaults, secrets exposure) now queryable via REST without UI scraping. → Concrete hook for [Issue #295](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/295) (Copilot eval for PM micro-chores) — adds an auditable surface before any delegation trial. *PM. tooling-relevant.*
+
 ## 2026-05-18
 
 ### 08:15 UTC — Editor: Scientist
