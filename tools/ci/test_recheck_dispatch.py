@@ -3,16 +3,27 @@
 Pipes a synthetic PostToolUse JSON payload to the hook and asserts that
 the additionalContext includes the expected `[<recheck-name> — ...]` blocks.
 
-These tests SHELL OUT TO `gh` via the scripts they dispatch — they will hit
-the live GitHub API. Use only against benign queries that won't mutate state.
+The "silent" tests are pure pattern-matching and run in any environment.
+The Status-field-trigger test additionally SHELLS OUT TO `gh` for item-ID
+resolution + parent-chain walk, and is skipped in CI (CI=true) because the
+CI runner's GITHUB_TOKEN lacks project read scope. Run it locally to verify
+the live-API path.
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "recheck_dispatch.py"
+
+REQUIRES_LIVE_GH = pytest.mark.skipif(
+    os.environ.get("CI", "").lower() == "true",
+    reason="requires live gh auth with project read scope; CI's GITHUB_TOKEN lacks this",
+)
 
 
 def _run(cmd: str) -> tuple[int, str, str]:
@@ -46,6 +57,7 @@ class TestDispatcherSilent:
 
 
 class TestStatusFieldTrigger:
+    @REQUIRES_LIVE_GH
     def test_status_mutation_emits_parent_status_block(self):
         # Use a synthetic command that contains both the Status field ID and an item ID.
         # Item ID is for issue #24 (known, audited 2026-05-19, currently Ready).
