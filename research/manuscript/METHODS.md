@@ -66,13 +66,18 @@ When no matched normal sample is available, all unannotated junctions are labele
 Two recently published resources are relevant to this pipeline's junction classification approach:
 
 - **splice2neo** (Lang et al., 2024, *Bioinform Adv*) is **variant-driven**: it starts from
-  somatic SNVs/indels, predicts altered splicing as a downstream consequence, and derives
-  candidate neoantigens from the predicted altered transcripts. The pipeline described
-  here is **junction-driven**: it starts from observed RNA-seq junctions and classifies
-  them by origin (annotated, normal-shared, tumor-exclusive). The variant-driven approach
-  captures splicing changes attributable to specific somatic variants; the junction-driven
-  approach captures any tumor-exclusive junction regardless of underlying cause (somatic
-  variant, intronic mis-splicing, intron retention, or splicing-factor dysregulation).
+  somatic SNVs/indels, predicts altered splicing via the deep-learning models SpliceAI
+  (Jaganathan et al., 2019) and MMSplice (Cheng et al., 2019), and derives candidate
+  neoantigens from the predicted altered transcripts. The pipeline described here is
+  **junction-driven**: it starts from observed RNA-seq junctions and classifies them by
+  origin (annotated, normal-shared, tumor-exclusive). The two approaches are complementary
+  in coverage: the variant-driven approach captures splicing changes attributable to
+  specific somatic variants and can detect low-expression events missed by RNA-seq read
+  pile-up; the junction-driven approach captures any tumor-exclusive junction regardless
+  of underlying cause (somatic variant, intronic mis-splicing, intron retention, or
+  splicing-factor dysregulation), but requires sufficient read support at the junction.
+  An evaluation of porting the variant-driven prong as a parallel evidence stream is
+  in progress; the outcome is reported in the Discussion.
 - **AlphaGenome** (Avsec et al., 2026, *Nature*) is a deep-learning model that predicts
   regulatory and splicing outcomes from sequence context, with a dedicated splice-junction
   output that returns donor–acceptor pair probabilities. We are evaluating AlphaGenome as
