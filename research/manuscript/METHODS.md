@@ -76,8 +76,8 @@ Two recently published resources are relevant to this pipeline's junction classi
   pile-up; the junction-driven approach captures any tumor-exclusive junction regardless
   of underlying cause (somatic variant, intronic mis-splicing, intron retention, or
   splicing-factor dysregulation), but requires sufficient read support at the junction.
-  An evaluation of porting the variant-driven prong as a parallel evidence stream is
-  in progress; the outcome is reported in the Discussion.
+  We are evaluating whether to add a parallel variant-driven evidence stream; the
+  outcome is reported in the Discussion.
 - **AlphaGenome** (Avsec et al., 2026, *Nature*) is a deep-learning model that predicts
   regulatory and splicing outcomes from sequence context, with a dedicated splice-junction
   output that returns donor–acceptor pair probabilities. We are evaluating AlphaGenome as
