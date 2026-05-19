@@ -49,6 +49,12 @@ TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather tha
 ### PDB chain relabelling
 AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
 
+## Slide decks for experiment Issues
+
+Every experiment-tier Issue ships a Quarto slide deck alongside the per-patient notebook + manuscript work. Decks live at `research/slides/issue_NNN_<short-content-desc>/slides.qmd`. See [`research/slides/README.md`](research/slides/README.md) for the full convention (Quarto rationale, render commands, figure-source pattern, Zotero linkage, install). Scope: **one deck per experiment Issue**, not per sub-issue; no decks for closure tasks, doc updates, or single-fix PRs. Audience: lab seminar / external talk. Figures regenerate from `research/notebooks/<exp>_outputs/*.parquet` so the **notebook stays canonical**.
+
+**Render tooling:** Quarto via `brew install --cask quarto` (macOS dev). PDF render (beamer) is currently disabled in decks — Quarto/pandoc's auto-emitted preamble hits a `\makesavenoteenv{longtable}` interaction with `footnotehyper.sty` that fails LaTeX compile. HTML reveal.js is the primary delivery; for a PDF handout, "Print → Save as PDF" from Chrome works on `slides.html`. A proper LaTeX fix is tracked as a follow-up.
+
 ## MHC Presentation Vocabulary
 
 This pipeline uses **`Class1PresentationPredictor`** (MHCflurry 2.x), which scores *presentation likelihood* — a combined estimate of binding affinity + antigen processing. It is distinct from the older `Class1AffinityPredictor` (affinity-only).
