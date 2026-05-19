@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-19
 
+### 09:25 UTC — Editor: Scientist
+
+- **Fisher et al.** ([JCI Insight 2025](https://insight.jci.org/articles/view/190287)) — Corin/CoREST inhibitor → drug-induced splice-NA + ICI synergy in melanoma; preclinical. → DISCUSSION ref; glossary + Zotero (`BIAEVMQ9`) same PR. *Scientist. methodology-signal.*
+- **Shapiro & Bassani-Sternberg** ([Trends in Cancer 2026](https://doi.org/10.1016/j.trecan.2026.02.003)) — Immunopeptidomics-for-NA-discovery review. → Backfill; already in Zotero `Q6GIXN8N`. *Scientist. methodology-signal.*
+
 ### 08:20 UTC — Editor: PM
 
 - **Claude Code 2.1.143** ([2026-05-15 changelog](https://code.claude.com/docs/en/changelog)) — `PostToolUse` hooks now break after 8 consecutive blocks (safety against runaway deny loops); new `worktree.bgIsolation: "none"` setting lets background sessions edit working copy directly. → No action; loop-break is free safety for our [PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397) capacity-recheck hook + `check_at_claude.py` PreToolUse guard. *PM. tooling-relevant.*
