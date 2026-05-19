@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-19
 
+### 18:00 UTC — Editor: Developer
+
+**Headline:** [PR #418](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/418) (trap-based cleanup for `star_index` temp_annotation.gtf, closes [Issue #412](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/412)) shipped. Surgical 5-line diff in [workflow/rules/alignment.smk](workflow/rules/alignment.smk): replaces an end-of-shell-block manual cleanup conditional with a `trap 'rm -f resources/temp_annotation.gtf' EXIT` registered immediately at the top of the `if .gz` branch. Under `set -euo pipefail`, the previous form skipped cleanup whenever STAR aborted mid-run (e.g. OOM during index build on the hardware-constrained spot VM); the trap fires on any exit path.
+
+#### Scope decision — 10-min triage pass, picked smallest concrete win
+
+User had 10 minutes; offered four options (#412 trap, #345 raw_junctions.tsv rename, #352 PyTorch spike notes, backlog triage). User chose triage. Triage surfaced nothing genuinely obsolete across 33 open dev issues, but flagged 3 today-filed `no-ms` issues (#409, #411, #412) and ranked the next-up XS wins. User then picked #412 — surgical, zero blockers, single rule, AC list verbatim from the issue body.
+
+#### Review iteration — bot review at [comment-4490492192](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/418#issuecomment-4490492192)
+
+Bot finished in 1m 45s with LGTM and one minor observation: the original draft placed the trap *after* `gunzip`, which leaves a gap where a `gunzip` failure (corrupted GTF archive) trips `set -e` before the trap registers → partial temp file leaks. The trailing `if [[ -f ... ]]; then rm` form had the same gap, so it was pre-existing rather than a regression, and bot called it "worth considering as a follow-up — not a blocker."
+
+User asked for my recommendation. Picked **apply now**: the move is 1 line, the deviation from the issue's literal AC text ("after the gunzip line") was easy to fix by editing the issue body, and a follow-up issue + PR + review cycle for the same shell line would cost more than the fix itself. Commit `5c2c316`. Issue #412 AC text revised in-flight to specify "**before** the `gunzip` line" with a 2026-05-19 dated note pointing back to the bot review. Reply at [comment-4490566600](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/418#issuecomment-4490566600).
+
+#### Cloud verification — deferred to Issue #378 again
+
+Same pattern as [PR #410](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410): the third AC ("verify on successful STAR index build that temp file is cleaned up") needs production VM RAM (>8 GB for STAR index build, exceeds M1 limit per CLAUDE.md). [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) (patient_002 re-run) already exercises the STAR path end-to-end; trap behavior on the success path is equivalent to the prior manual-cleanup behavior by construction, so this is verification-of-equivalence rather than functional change.
+
+#### Milestone gap flagged
+
+Issue #412 (along with #409, #411) was filed today with no milestone. PR body flagged `i5 - S3 - STAR Polish & Aligner Verification` as the likely home (siblings: #345/#375/#377/#378), but milestone assignment left to PM.
+
 ### 13:56 UTC — Editor: Developer
 
 **Headline:** [PR #410](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410) (production aligner default flipped HISAT2 → STAR, closes [Issue #17](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/17)) shipped. Minimum-viable scope: the two STAR flags that materially affect novel-junction sensitivity (`--twopassMode Basic`, `--limitSjdbInsertNsj 2000000`) plus removal of three silent-throttle filters (`--outSJfilterReads Unique`, `--outSJfilterCountUniqueMin`, `--outSJfilterCountTotalMin`). Paper-fidelity sensitivity tuning explicitly deferred to [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) with per-flag benchmarks — avoids cargo-culting the Nature paper command wholesale without measured deltas on our data.
