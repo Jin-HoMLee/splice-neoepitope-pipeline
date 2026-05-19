@@ -255,3 +255,31 @@ class TestCli:
         assert rc == 0
         captured = capsys.readouterr()
         assert "no parent" in captured.out.lower()
+
+
+class TestAllMode:
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_iterates_only_parents_skips_clean(self, mock_parents, mock_subs, mock_status):
+        # Two parents: one drifted, one clean
+        mock_parents.return_value = [86, 24]
+        mock_subs.side_effect = lambda n: {
+            86: [{"number": 204}],
+            24: [{"number": 86}],
+        }[n]
+        status_map = {86: "In progress", 24: "Ready", 204: "Backlog"}
+        mock_status.side_effect = lambda n: status_map.get(n)
+
+        rc = rps.run_all_mode()
+        assert rc == 2  # at least one drift
+
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_returns_0_when_no_drift(self, mock_parents, mock_subs, mock_status):
+        mock_parents.return_value = [24]
+        mock_subs.return_value = [{"number": 86}]
+        mock_status.side_effect = lambda n: "Ready"  # parent + sub both Ready
+        rc = rps.run_all_mode()
+        assert rc == 0

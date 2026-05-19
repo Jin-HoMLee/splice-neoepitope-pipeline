@@ -188,10 +188,46 @@ def main(argv: list[str] | None = None) -> int:
     return run_all_mode()
 
 
+def all_parent_issues() -> list[int]:
+    """Return numbers of all open issues in the repo that have ≥1 sub-issue."""
+    # GitHub REST search: filter open issues, then check sub_issues_summary.total > 0
+    # via a per-issue follow-up. Use gh issue list + per-issue REST fetch.
+    data = gh("issue", "list", "--repo", REPO, "--state", "open", "--limit", "200",
+              "--json", "number")
+    parents: list[int] = []
+    for issue in data:
+        n = issue["number"]
+        meta = gh("api", f"repos/{REPO}/issues/{n}")
+        if (meta.get("sub_issues_summary") or {}).get("total", 0) > 0:
+            parents.append(n)
+    return parents
+
+
 def run_all_mode() -> int:
-    # Implemented in Task 9
-    print("--all not yet implemented", file=sys.stderr)
-    return 1
+    parents = all_parent_issues()
+    drifted_count = 0
+    drift_blocks: list[str] = []
+    for p in parents:
+        parent_status = status_for_issue(p)
+        children = open_sub_issues(p)
+        enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
+                    for c in children]
+        record = {
+            "issue": p,
+            "status": parent_status,
+            "open_children": enriched,
+            "collective": collective_state(enriched),
+            "drift": classify_drift(parent_status, enriched),
+        }
+        if record["drift"] is not None:
+            drifted_count += 1
+            drift_blocks.append(format_record(record))
+
+    print(f"Audited {len(parents)} parent issues; {drifted_count} drifted.\n")
+    for block in drift_blocks:
+        print(block)
+        print()
+    return 2 if drifted_count > 0 else 0
 
 
 if __name__ == "__main__":
