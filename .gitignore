@@ -247,6 +247,9 @@ CLAUDE.local.md
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
 
+# Claude Code — per-user local settings (permissions allow-list, absolute paths)
+.claude/settings.local.json
+
 # Cross-repo symlink to claude-personas-splice/<role>/ (cwd access to role + shared memory)
 
 # claude-personas role-memory symlink

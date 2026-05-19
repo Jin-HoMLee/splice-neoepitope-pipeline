@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""PostToolUse hook: trigger milestone recheck on capacity-change events.
+"""PostToolUse hook: trigger milestone-capacity AND parent-status rechecks on capacity-change events.
 
-Watches Bash commands for 4 trigger shapes from feedback_milestones.md:
-  1. gh issue close N                              -> recheck issue's milestone
+Watches Bash commands for trigger shapes:
+  1. gh issue close N                              -> recheck issue's milestone + parent-status chain
   2. gh issue edit N ... --milestone X             -> recheck old + new milestones (via /events history)
   3. project board Size mutation (Size field ID)   -> recheck affected issue's milestone
   4. gh api .../milestones/N PATCH (due_on edit)   -> recheck milestone N
+  5. project board Status mutation (Status field ID) -> recheck affected issue's parent-status chain
 
-For each match, invokes scripts/pm/recheck_milestone.py and emits its output as
+For each match, invokes the relevant script and emits its output as
 `additionalContext` so it appears in the next prompt.
 """
 from __future__ import annotations
@@ -20,7 +21,9 @@ from pathlib import Path
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 SIZE_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHGiA"
+STATUS_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHFf8"
 SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_milestone.py")
+PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_parent_status.py")
 
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
 PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")
@@ -40,6 +43,22 @@ def run_recheck(*args: str) -> str:
         )
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         return f"(recheck error: {exc})"
+    out = result.stdout
+    if result.stderr:
+        out += result.stderr
+    return out
+
+
+def run_parent_status_recheck(*args: str) -> str:
+    if not Path(PARENT_STATUS_SCRIPT).is_file():
+        return f"(parent-status recheck error: script not found at {PARENT_STATUS_SCRIPT})"
+    try:
+        result = subprocess.run(
+            ["python3", PARENT_STATUS_SCRIPT, *args],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        return f"(parent-status recheck error: {exc})"
     out = result.stdout
     if result.stderr:
         out += result.stderr
@@ -102,6 +121,10 @@ def dispatch(cmd: str) -> list[str]:
         outputs.append(
             f"[milestone recheck — close #{m.group(1)}]\n{run_recheck('--issue', m.group(1))}"
         )
+        outputs.append(
+            f"[parent-status recheck — close #{m.group(1)}]\n"
+            f"{run_parent_status_recheck('--issue', m.group(1))}"
+        )
 
     m = PATTERN_MOVE.search(cmd)
     if m:
@@ -128,6 +151,16 @@ def dispatch(cmd: str) -> list[str]:
                 outputs.append(
                     f"[milestone recheck — size change on #{issue}]\n"
                     f"{run_recheck('--issue', str(issue))}"
+                )
+
+    if STATUS_FIELD_ID in cmd:
+        item_match = PATTERN_ITEMID.search(cmd)
+        if item_match:
+            issue = lookup_issue_for_item(item_match.group(1))
+            if issue:
+                outputs.append(
+                    f"[parent-status recheck — Status change on #{issue}]\n"
+                    f"{run_parent_status_recheck('--issue', str(issue))}"
                 )
 
     if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd):
