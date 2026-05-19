@@ -279,6 +279,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             GTF_FILE="{input.gtf}"
             if [[ "$GTF_FILE" == *.gz ]]; then
                 gunzip -c "$GTF_FILE" > resources/temp_annotation.gtf
+                trap 'rm -f resources/temp_annotation.gtf' EXIT
                 GTF_FILE="resources/temp_annotation.gtf"
             fi
 
@@ -290,10 +291,6 @@ elif config.get("alignment", {}).get("aligner") == "star":
                 --sjdbGTFfile "$GTF_FILE" \\
                 --sjdbOverhang 100 \\
                 2>&1 | tee {log}
-
-            if [[ -f "resources/temp_annotation.gtf" ]]; then
-                rm resources/temp_annotation.gtf
-            fi
             """
 
 
