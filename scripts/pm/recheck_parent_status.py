@@ -80,3 +80,34 @@ def open_sub_issues(issue_number: int) -> list[dict]:
     """Return list of open sub-issues (each a dict with 'number' at minimum)."""
     data = gh("api", f"repos/{REPO}/issues/{issue_number}/sub_issues")
     return [c for c in data if c.get("state") == "open"]
+
+
+def status_for_issue(issue_number: int) -> str | None:
+    """Return the project #9 Status name for issue, or None if not on the project."""
+    owner, name = REPO.split("/")
+    query = (
+        f'query {{ repository(owner: "{owner}", name: "{name}") {{ '
+        f'issue(number: {issue_number}) {{ '
+        f'projectItems(first: 5) {{ nodes {{ '
+        f'project {{ number }} '
+        f'fieldValues(first: 20) {{ nodes {{ '
+        f'... on ProjectV2ItemFieldSingleSelectValue {{ '
+        f'name field {{ ... on ProjectV2SingleSelectField {{ name }} }} '
+        f'}} }} }} '
+        f'}} }} }} }} }}'
+    )
+    data = gh("api", "graphql", "-f", f"query={query}")
+    nodes = (
+        data.get("data", {})
+        .get("repository", {})
+        .get("issue", {})
+        .get("projectItems", {})
+        .get("nodes", [])
+    ) or []
+    for pi in nodes:
+        if (pi.get("project") or {}).get("number") != PROJECT_NUMBER:
+            continue
+        for fv in pi.get("fieldValues", {}).get("nodes", []):
+            if (fv.get("field") or {}).get("name") == "Status":
+                return fv.get("name")
+    return None

@@ -113,3 +113,43 @@ class TestGhHelpers:
         ]
         result = rps.open_sub_issues(86)
         assert [c["number"] for c in result] == [204, 206]
+
+
+class TestStatusLookup:
+    @patch("recheck_parent_status.gh")
+    def test_returns_status_name_when_present(self, mock_gh):
+        mock_gh.return_value = {
+            "data": {"repository": {"issue": {
+                "projectItems": {"nodes": [{
+                    "project": {"number": 9},
+                    "fieldValues": {"nodes": [
+                        {"field": {"name": "Status"}, "name": "In progress"},
+                        {"field": {"name": "Size"}, "name": "M"},
+                    ]},
+                }]},
+            }}}
+        }
+        assert rps.status_for_issue(86) == "In progress"
+
+    @patch("recheck_parent_status.gh")
+    def test_returns_none_when_not_on_project(self, mock_gh):
+        mock_gh.return_value = {
+            "data": {"repository": {"issue": {
+                "projectItems": {"nodes": []},
+            }}}
+        }
+        assert rps.status_for_issue(86) is None
+
+    @patch("recheck_parent_status.gh")
+    def test_skips_other_projects(self, mock_gh):
+        mock_gh.return_value = {
+            "data": {"repository": {"issue": {
+                "projectItems": {"nodes": [{
+                    "project": {"number": 99},
+                    "fieldValues": {"nodes": [
+                        {"field": {"name": "Status"}, "name": "In progress"},
+                    ]},
+                }]},
+            }}}
+        }
+        assert rps.status_for_issue(86) is None
