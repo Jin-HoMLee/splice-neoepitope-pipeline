@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-19
+
+### 14:24 UTC — Editor: PM
+
+#### Parent-status drift audit mechanism shipped (#407) — sibling to PR #397 recheck hook
+
+Built the parent-vs-children Status drift audit mechanism, triggered by today's mid-day board sweep finding 3 epics drifted In progress with all open sub-issues in Backlog ([Issue #24](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/24) TRUST4+ProTCR, [Issue #86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) HLA-matched TCR panel, [Issue #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126) GTEx). All 3 flipped to Ready in-session. The pattern (decomposition done → parent's Status never flipped back) is structural — every epic carved is exposed to it — so it warranted a mechanism, not just memory.
+
+**Shipped on branch `feat/pm/issue-407-parent-status-drift-audit`:**
+
+- **[`scripts/pm/recheck_parent_status.py`](scripts/pm/recheck_parent_status.py)** (~150 lines, 29 unit tests). CLI: `--issue N` (walk parent chain, audit each level) or `--all` (iterate all parent issues on project #9). Implements: Status precedence ladder (Backlog→Done = 0→5), `collective_state()` (max-rank across open children; empty children → "Done"), `classify_drift()` (3 classes: FORWARD / BACKWARD / COMPLETION), `audit_parent_chain()` (walks via REST `parent_issue_url` with cycle guard), `format_record()`, CLI `main()`. gh helpers: `parent_issue_number`, `open_sub_issues`, `status_for_issue` (GraphQL with project-number filter).
+
+- **[`.claude/hooks/recheck_dispatch.py`](.claude/hooks/recheck_dispatch.py)** — renamed from `recheck_milestone_dispatch.py`; now a multiplexer for milestone-capacity AND parent-status rechecks. Added `STATUS_FIELD_ID` watch + extended `gh issue close` trigger to also fire parent-status recheck. Five trigger shapes total. Local hook config in `.claude/settings.local.json` updated to match (file gitignored — per-user state shouldn't track absolute paths + allow-lists; `.gitignore` updated to enforce going forward).
+
+- **[`tools/ci/test_recheck_dispatch.py`](tools/ci/test_recheck_dispatch.py)** — integration smoke tests (3 cases): silent on non-gh / non-matching commands, fires `[parent-status recheck — Status change on #N]` block on synthetic Status field mutations.
+
+**Algorithm refinement caught by live smoke (Task 10).** The initial strict drift rule (`rank(parent) > rank(children) = drift`) flagged `Ready` parent + `Backlog` children as FORWARD DRIFT — but this is the **normal post-grooming state** of an epic (parent triaged + scoped, sub-issues awaiting their own grooming pass). Earlier today's flips of #24/#86/#126 → Ready were CORRECT moves; the mechanism shouldn't fight them. Fix: gate FORWARD DRIFT on `rank(parent) >= 2` (In progress or beyond) — parent must be claiming active work to be drifting forward. Backward/completion drift unchanged. New regression test. After fix, `--all` smoke against the live board drops from 4 spurious drifts → **2 real drifts**: [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (manuscript, In progress + sub [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) Backlog) and [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) (patient_001 notebook, In progress + 0 open subs = COMPLETION). Both are real PM drift to surface to Sci separately — not part of this PR.
+
+**Mechanism dividend during construction.** While filing [Issue #407](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/407), the existing [PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397) milestone-capacity recheck hook caught the `pm-i2` capacity drift introduced by adding #407 (10.0d → 11.0d), prompted the `due_on` PATCH to 2026-07-09 (+15d), and re-verified clean on the second fire. The new sibling hook will catch the parent-status equivalent automatically going forward. Two complementary mechanism arcs now live — milestone-capacity (PR #397) and parent-status drift (PR ↑) — both following the dispatcher-pattern-match → recheck-script-invoke → `additionalContext`-emit shape.
+
+**Build telemetry.** TDD via subagent-driven-development (superpowers): 14 commits across 16 plan tasks (some bundled), 29 unit + 3 integration tests, two plan-bug fixes caught mid-flow (Task 6 assertion + Task 10 algorithm gate). Plan and spec docs committed to the branch under `docs/superpowers/`. Closure-ritual gate (`scripts/audit_and_merge.sh`) will guard the merge.
+
+---
+
 ## 2026-05-18
 
 ### 10:36 UTC — Editor: PM
