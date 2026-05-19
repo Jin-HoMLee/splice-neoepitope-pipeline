@@ -189,3 +189,34 @@ class TestAuditChain:
         # Issue 100 has no parent → empty chain
         chain = rps.audit_parent_chain(100)
         assert chain == []
+
+
+class TestFormatter:
+    def test_no_drift_record_renders_no_change(self):
+        record = {
+            "issue": 24,
+            "status": "Ready",
+            "open_children": [{"number": 86, "status": "Ready"}],
+            "collective": "Ready",
+            "drift": None,
+        }
+        out = rps.format_record(record)
+        assert "#24" in out
+        assert "Ready" in out
+        assert "[No change]" in out
+
+    def test_forward_drift_record_renders_label(self):
+        record = {
+            "issue": 86,
+            "status": "In progress",
+            "open_children": [
+                {"number": 204, "status": "Backlog"},
+                {"number": 205, "status": "Backlog"},
+            ],
+            "collective": "Backlog",
+            "drift": "FORWARD DRIFT",
+        }
+        out = rps.format_record(record)
+        assert "#86" in out
+        assert "[FORWARD DRIFT]" in out
+        assert "#204 (Backlog)" in out

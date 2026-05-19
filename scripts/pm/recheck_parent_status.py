@@ -138,3 +138,20 @@ def audit_parent_chain(issue_number: int) -> list[dict]:
         })
         cursor = parent_issue_number(cursor)
     return chain
+
+
+def format_record(record: dict) -> str:
+    """Render one audit record as a multi-line block matching the spec format."""
+    lines: list[str] = []
+    lines.append(f"#{record['issue']} — Status: {record['status'] or 'NO STATUS'}")
+    children = record["open_children"]
+    lines.append(f"  Open sub-issues ({len(children)}):")
+    for c in children:
+        lines.append(f"    - #{c['number']} ({c['status'] or 'NO STATUS'})")
+    lines.append(f"  Collective children state: {record['collective']}")
+    drift = record["drift"]
+    if drift is None:
+        lines.append(f"  Status: [No change]")
+    else:
+        lines.append(f"  Status: [{drift}]")
+    return "\n".join(lines)
