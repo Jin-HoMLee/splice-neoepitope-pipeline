@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-19
+
+### 13:00 UTC — Editor: Scientist
+
+#### [PR #403](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/403) closes [Issue #401](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/401) (Quarto slide convention + AlphaGenome chr22 PoC pilot deck) — `@claude review` round-2 fixes, merged
+
+Reviewer's second pass flagged that three issues from review 1 were still unresolved on the branch (commit `0933df8` had only addressed slide-layout/content, not the technical items), plus one new issue. Followed up with commit `5a7cde0`:
+
+**Blockers:**
+1. Decision slide emoji vs label — 🟡 + "GREEN-with-caveats" contradicted; resolved to "🟡 AMBER — real signal, not standalone" (matches the honest-headline conclusion of 40% recall = viable secondary stream, not standalone).
+2. Remote CSL fetch — `csl: https://www.zotero.org/styles/nature` replaced with locally-cached `research/slides/nature.csl`, referenced as `../nature.csl` from each deck. Offline-render safe; no CDN round-trip per render. This becomes the convention default — README documents the rationale.
+3. `quarto=1.9` conda pin in README — dropped; let conda-forge resolve current stable.
+4. **GENCODE citation mismatch (new)** — `frankish2021gencode` (NAR 2021, describes v38) was cited but the experiment used v47. Replaced with `mudge2025gencode` (NAR 2025, 53:D966–D975, DOI `10.1093/nar/gkae1078`), which is the canonical citation describing the v47 release. Two in-prose cite keys swapped accordingly.
+
+**Reviewer-correction worth flagging:** Reviewer recommended Cell Reports Methods for the RegTools published version, but PubMed lookup (36949070) verified the actual journal is **Nature Communications** (14:1589, DOI `10.1038/s41467-023-37266-6`). Used the verified citation, not the reviewer's suggestion. Reminder to always verify reviewer-suggested citations rather than blindly applying — even careful reviewers can misremember a journal.
+
+**Nits also addressed:** RegTools entry → published Nat Comm version (vs preprint); `incremental: false` added to pilot deck YAML to match template; `_` → `tx_id` in `_regenerate_figures.py` groupby unpacking for readability.
+
+**Verification:** `quarto render slides.qmd --to revealjs` runs clean; bibliography auto-populates with all 6 entries correctly resolved (Mudge 2025 + Cotto 2023 Nat Comm + Avsec 2026 + Kim 2019 + Pedregosa 2011 + O'Donnell 2020); decision slide reads "🟡 AMBER — real signal, not standalone"; no pandoc warnings. Re-ran the figure regen script post-merge — produces byte-identical PNGs from the cached parquet (AP=0.2136, F1=0.3000 at τ=3.1633, CI=[0.2577, 0.3333]), confirming Test plan #2 reproducibility.
+
+**Closure-ritual reminder.** The `audit_and_merge.sh` gate counts ticked boxes but does not verify them. I relied on the script's clean pass without re-running each Test-plan claim against the current branch tip — items #2 (regen reproducibility), #3 (slide overflow), #4 (Mermaid SVG render) were verified at PR-open time but I didn't re-check after the round-2 fix commit. The closure-audit bot then flagged the missing priority rationale on the Issue + the missing lab notebook entry (this entry). Lesson: closure audit = visually verify each box against current tip, not just rely on the gate's tick-counting.
+
+---
+
 ## 2026-05-18
 
 ### 11:33 UTC — Editor: Scientist
