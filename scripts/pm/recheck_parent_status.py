@@ -47,7 +47,10 @@ def classify_drift(parent_status: str | None, open_children: list[dict]) -> str 
         # All children closed; parent should be Done
         return None if p_rank == STATUS_LADDER["Done"] else "COMPLETION DRIFT"
     c_rank = rank(collective_state(open_children))
-    if p_rank > c_rank:
+    if p_rank > c_rank and p_rank >= STATUS_LADDER["In progress"]:
+        # Only flag when the parent is making a falsifiable progress claim (In progress
+        # or beyond). A Ready parent with Backlog children is the normal post-grooming
+        # state and should not be treated as drift.
         return "FORWARD DRIFT"
     if p_rank < c_rank:
         return "BACKWARD DRIFT"

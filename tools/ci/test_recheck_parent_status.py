@@ -86,6 +86,13 @@ class TestDriftClassification:
         result = rps.classify_drift(parent_status="In progress", open_children=[])
         assert result == "COMPLETION DRIFT"  # not FORWARD DRIFT
 
+    def test_ready_parent_backlog_children_is_not_drift(self):
+        # Normal state: epic groomed (Ready), sub-issues not yet groomed (Backlog).
+        # Parent is not claiming active work, so not flagged as drift.
+        children = [{"number": 100, "status": "Backlog"}]
+        result = rps.classify_drift(parent_status="Ready", open_children=children)
+        assert result is None
+
 
 from unittest.mock import patch, MagicMock
 
