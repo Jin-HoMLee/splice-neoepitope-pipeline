@@ -94,7 +94,7 @@ class TestDriftClassification:
         assert result is None
 
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestGhHelpers:

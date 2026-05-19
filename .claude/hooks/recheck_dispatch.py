@@ -33,36 +33,28 @@ PATTERN_PATCH_METHOD = re.compile(r"-X\s+PATCH|--method\s+PATCH|method=PATCH")
 PATTERN_ITEMID = re.compile(r'itemId:\s*"(PVTI_[A-Za-z0-9_-]+)"')
 
 
-def run_recheck(*args: str) -> str:
-    if not Path(SCRIPT).is_file():
-        return f"(recheck error: script not found at {SCRIPT})"
+def _run_script(script: str, label: str, *args: str) -> str:
+    if not Path(script).is_file():
+        return f"({label} error: script not found at {script})"
     try:
         result = subprocess.run(
-            ["python3", SCRIPT, *args],
+            ["python3", script, *args],
             capture_output=True, text=True, timeout=30, check=False,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        return f"(recheck error: {exc})"
+        return f"({label} error: {exc})"
     out = result.stdout
     if result.stderr:
         out += result.stderr
     return out
+
+
+def run_recheck(*args: str) -> str:
+    return _run_script(SCRIPT, "recheck", *args)
 
 
 def run_parent_status_recheck(*args: str) -> str:
-    if not Path(PARENT_STATUS_SCRIPT).is_file():
-        return f"(parent-status recheck error: script not found at {PARENT_STATUS_SCRIPT})"
-    try:
-        result = subprocess.run(
-            ["python3", PARENT_STATUS_SCRIPT, *args],
-            capture_output=True, text=True, timeout=30, check=False,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        return f"(parent-status recheck error: {exc})"
-    out = result.stdout
-    if result.stderr:
-        out += result.stderr
-    return out
+    return _run_script(PARENT_STATUS_SCRIPT, "parent-status recheck", *args)
 
 
 def lookup_milestone_number_by_title(title: str) -> int | None:

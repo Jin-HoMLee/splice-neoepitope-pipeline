@@ -11,6 +11,14 @@ Exits 0 if no drift, 2 if drift detected, 1 on error.
 """
 from __future__ import annotations
 
+import argparse
+import json
+import subprocess
+import sys
+
+REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
+PROJECT_NUMBER = 9
+
 STATUS_LADDER = {
     "Backlog": 0,
     "Ready": 1,
@@ -55,13 +63,6 @@ def classify_drift(parent_status: str | None, open_children: list[dict]) -> str 
     if p_rank < c_rank:
         return "BACKWARD DRIFT"
     return None
-
-
-import json
-import subprocess
-
-REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
-PROJECT_NUMBER = 9
 
 
 def gh(*args: str, parse_json: bool = True):
@@ -160,10 +161,6 @@ def format_record(record: dict) -> str:
     return "\n".join(lines)
 
 
-import argparse
-import sys
-
-
 def run_issue_mode(issue_number: int) -> int:
     chain = audit_parent_chain(issue_number)
     if not chain:
@@ -186,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--all", action="store_true", help="Audit all parent issues on project #9")
     args = parser.parse_args(argv)
 
-    if args.issue:
+    if args.issue is not None:
         return run_issue_mode(args.issue)
     return run_all_mode()
 
