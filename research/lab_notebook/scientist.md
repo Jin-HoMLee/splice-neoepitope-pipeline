@@ -8,6 +8,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-20
 
+### 12:42 UTC — Editor: Scientist
+
+#### [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) (research(tcr): NetTCR-struc hybrid structural-QC eval) — classified mode (c), recommended **post-TCRdock structural-QC filter**; first eval session on the freshly-carved issue
+
+NetTCR-struc ([Deleuran & Nielsen, *Frontiers in Immunology* 2025](https://www.frontiersin.org/journals/immunology/articles/10.3389/fimmu.2025.1616328/full), DOI [10.3389/fimmu.2025.1616328](https://doi.org/10.3389/fimmu.2025.1616328)) — the **fifth category** in the TCR-pMHC scoring landscape (hybrid structural-QC), orthogonal to the four prior eval issues ([Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET, [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2, [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES, [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) t2pmhc + TCRLens).
+
+**AC verification on [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422)** (all 5 met):
+
+| AC | State | Evidence |
+|---|---|---|
+| 1. Methods read + inference-mode classification | ✅ Done | Mode **(c)** — *"Structures of TCR-pMHC complexes were modeled using an AF-Multimer version 2.3 based pipeline"* (Methods §2.1). Input is the AF-Multimer-predicted PDB; not sequence-only. |
+| 2. Pipeline-fit recommendation | ✅ Done | **Post-TCRdock structural-QC filter.** Pre-TCRdock ruled out by construction (input is the structure itself); no-fit ruled out (the predicted-DockQ signal closes a real gap). |
+| 3. Zotero entry with 3-section note | ✅ Done | Key `FQ58DCAE`; tags `Issue-422 NetTCR-struc tcr-pmhc structural-validation alphafold` |
+| 4. Glossary entries for missing terms | ✅ Met | All 9 relevant terms already in [research/glossary.md](research/glossary.md) (GVP-GNN, ESM-IF1, DockQ, AF-Multimer, AF_confidence, CAPRI, CDR3, pLDDT, RMSD); GVP-GNN + ESM-IF1 definitions both already reference NetTCR-struc inline. No edits needed. |
+| 5. Lab notebook entry before close | ✅ Met by this entry |
+
+**Classification rationale.** NetTCR-struc fits mode (c) of the [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) scheme — full AF2/TCRdock structure upstream, then scoring. The paper's own framing: *quality-assessment tool for AF-Multimer output*, not an end-to-end binding predictor. Per-residue node features (φ/ψ/ω dihedrals, Cβ direction vectors, edge Cα distances) all derive from the input 3D coordinates — no inference path bypasses the upstream structure requirement.
+
+**Pipeline-fit verdict: post-TCRdock structural-QC filter.** Three reasons:
+
+1. **Mechanical.** Mode (c) input requirement (PDB from AF-Multimer) leaves no "pre-TCRdock" position available — the structure must already exist for NetTCR-struc to run.
+2. **Information role.** Current TCRdock-fronted pipeline relies on `AF_confidence` alone for structural quality (Spearman ~0.68 with DockQ per the paper). NetTCR-struc closes that gap: a post-TCRdock gate on `GNN-AF score ≥ τ` filters geometrically-bad predictions before binding analysis sees them.
+3. **Stacking with HERMES ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)).** HERMES asks *"does this TCR bind this pMHC well?"* (biology). NetTCR-struc asks *"is this AF-Multimer prediction geometrically accurate?"* (structural QC). Orthogonal questions on the same input — clean stack is NetTCR-struc filtering structural failures → HERMES scoring binding on survivors. Neither replaces the other.
+
+**Headline numbers.** Spearman 0.681 → 0.855 on DockQ prediction (+25% over `AF_confidence` baseline); GNN-AF top-1 selection *"completely avoids selection of 'Incorrect' candidates"* per CAPRI classification on the 25-target post-AF-M-training-cutoff benchmark. Per-target mean DockQ for top-1 selections rises 0.615 → 0.673 (+9.4%). Training set: 80 PDB TCR-pMHC class I crystal structures → 12k–16.5k AF-M-perturbed decoys via 5-seed perturbation × 30 candidates × 5 model passes (paper §2.3).
+
+**Trial blocker (intentional defer).** No follow-up trial sub-issue scoped from this eval. The natural trial pairs NetTCR-struc with HERMES under a shared post-TCRdock benchmarking harness, and HERMES itself hasn't been trial-scoped yet ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) still pre-trial). The empirical questions worth answering (does NetTCR-struc + HERMES reject different bad predictions? what's the false-positive rate of an `AF_confidence`-only gate?) also need an evaluation dataset that's gated on the AlphaGenome track outputs ([Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) / [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)). Trial sub-issue filed when [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) reaches the same eval-completion state and the AlphaGenome track lands.
+
+**Structural finding worth keeping.** This eval session took ~30 min from issue read to lab notebook — distinctly faster than the original [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) cycle. The acceleration comes from the carve-pattern: [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) was filed *with* classification-scheme link, the 5-niche landscape table, and the stack-with-HERMES hypothesis pre-loaded in the body — so the eval pass was verifying claims rather than discovering them. Lesson for future carves: front-load the eval scaffolding into the issue body (not just the AC list); it converts a multi-session research drift into a single-session check.
+
+---
+
 ### 10:22 UTC — Editor: Scientist
 
 #### [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (research(tcr): t2pmhc + TCRLens hybrid TCR-pMHC scoring eval) — closing as Done; [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) carved for NetTCR-struc structural-QC niche
