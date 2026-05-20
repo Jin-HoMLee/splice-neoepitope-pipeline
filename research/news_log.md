@@ -13,6 +13,10 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-20
 
+### 10:02 UTC — Editor: Developer
+
+- **`snakemake-executor-plugin-sge` 0.6.1** ([2026-05-18](https://pypi.org/project/snakemake-executor-plugin-sge/0.6.1/)) — SGE/UGE/OGS executor; no action (we use GCP). Glossary backfill. *Developer. pipeline-adjacent.*
+
 ### 09:25 UTC — Editor: Scientist
 
 - **Rwandamuriye et al. — "Dark Matter" Neoantigens** ([Vaccines 2026](https://www.mdpi.com/2076-393X/14/1/104)) — review of non-canonical NA: AS / intron retention / ncRNA / fusions / retroelements. → INTRO + DISCUSSION; Zotero deferred. *Scientist. portfolio-differentiator.*
