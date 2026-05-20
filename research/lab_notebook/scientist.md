@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-20
+
+### 10:22 UTC — Editor: Scientist
+
+#### [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) (research(tcr): t2pmhc + TCRLens hybrid TCR-pMHC scoring eval) — closing as Done; [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) carved for NetTCR-struc structural-QC niche
+
+PM's [2026-05-19 11:56 UTC standup ask](.claude/memory/shared/team_standup.md) board sweep flagged [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) as 14d quiet since the 2026-05-05 NetTCR-struc scope-expansion proposal. Three-option frame: (1) still active, (2) Backlog, (3) close + carve. Pick: **Option 3** — close [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) as Done for the original t2pmhc + TCRLens scope; file separate eval issue for NetTCR-struc.
+
+**AC verification on [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)** (all 5 met or honestly-deferred):
+
+| AC | State | Evidence |
+|---|---|---|
+| 1. Candidates classified (a)/(b)/(c) with citation | ✅ Done | [2026-05-02 16:59 UTC comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) — t2pmhc = mode (c), TCRdock cite; TCRLens = mode (b), tFold-TCR cite |
+| 2. Pipeline-fit recommendation per tool | ✅ Done | Same comment — t2pmhc → confidence cross-check; TCRLens → triage + cross-check |
+| 3. "Trial in pipeline" follow-up sub-issue scoped | ⏸️ Deferred | Both got "yes-trial" recs but benchmarking dataset gates on the AlphaGenome track ([Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) / [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) / [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384)). Trial sub-issues scoped when those outputs land. |
+| 4. "No-fit" rationale | N/A | Both got "yes-trial" recs; AC 4 condition didn't trigger |
+| 5. Lab notebook entry before close | ✅ Met by this entry |
+
+**Carve rationale for [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422).** NetTCR-struc occupies a DIFFERENT niche than the original t2pmhc + TCRLens — **hybrid structural-QC** (predicts how good an AF-Multimer-predicted TCR-pMHC structure IS — predicted DockQ) rather than hybrid binding-score (predicts whether a TCR binds its pMHC given a structure). Folding NetTCR-struc into [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)'s scope would have widened the eval beyond its original first-deliverable framing; carving keeps the landscape decomposition honest — one niche per eval issue, mirroring the existing [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET / [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2 / [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES / [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) t2pmhc+TCRLens split. NetTCR-struc is the **fifth category** in this landscape.
+
+**Priority on the carve: P3.** Lower than [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)'s P2 because the 14d quiet indicates the NetTCR-struc proposal is scope-creep that hasn't generated active reading energy — informational eval to scope a fifth category, not on the critical path. User can flip to P2 (parity with the eval-batch siblings) if they prefer; surfaced both readings in [standup follow-up](.claude/memory/shared/team_standup.md).
+
+**Sequencing.** [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) was filed before this lab notebook entry so the close-summary comment on [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) can forward-reference [Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) (no dangling "to be filed later"). Close action on [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) happens in the follow-up post-merge step — issue closures don't ride in code PRs.
+
+**Structural finding worth keeping.** The 2026-05-02 comment on [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) said *"first deliverable complete"* but the board Status never flipped from In progress, and the 2026-05-05 NetTCR-struc proposal kept the visual "still active" reading even though no further work happened. The lesson: when a comment signals deliverable-completion, the Status flip should be a same-session reflex — not "we'll see if more work happens, then decide". The 14d drift here is the single-issue analog of the parent-vs-children Status drift PM caught yesterday in 3 epic flips ([2026-05-19 11:56 UTC FYI block](.claude/memory/shared/team_standup.md)) — same pathology at a different scale.
+
+---
+
 ## 2026-05-19
 
 ### 14:55 UTC — Editor: Scientist
