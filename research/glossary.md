@@ -118,6 +118,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## O
 
+**OGS** — Open Grid Scheduler. Open-source community fork of SGE; `qsub`-compatible. *Domain: cloud.*
+
 **OKR** — Objectives and Key Results. Goal-setting framework popularised by Intel/Google: one qualitative *Objective* + 3–5 quantitative *Key Results*, usually quarterly. Common in software shops; we use S1–S7 lifecycle stages + iteration capacity instead. *Domain: project.*
 
 **OOD** — Out-of-distribution. Inputs whose features fall in low-density regions of the model's training distribution; predictions on OOD inputs are typically over-confident yet unreliable since the model never learned to constrain them. Detected operationally via density estimators, embedding-space distance to training samples, or ensemble disagreement. Relevant for splice-junction-spanning peptides — systematically under-represented in canonical-proteome MHC training data. *Domain: ml.*
@@ -146,6 +148,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## S
 
+**SGE** — Sun Grid Engine. Classic HPC job scheduler from Sun Microsystems (now Oracle); ancestor of UGE and OGS. Snakemake covers the SGE/UGE/OGS family via `snakemake-executor-plugin-sge`. *Domain: cloud.*
+
 **SLURM** — Simple Linux Utility for Resource Management. The dominant HPC job scheduler in academia. *Domain: cloud.*
 
 ## T
@@ -161,6 +165,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **TNBC** — Triple-Negative Breast Cancer. Breast cancer subtype lacking ER, PR, and HER2 expression; lacks targeted hormonal / HER2 therapy options. ~10–15% of breast cancers; relatively higher tumor mutation burden makes it a recurrent personalized-vaccine trial target (Sahin et al., *Nature* 2026). *Domain: bio.*
 
 **TPM** — Transcripts Per Million. Normalised RNA expression unit; reads per kb of transcript scaled so per-sample values sum to 10⁶, making cross-sample comparisons direct (unlike RPKM/FPKM). Conventional thresholds: ~1 TPM = expressed, <0.5 TPM = below detection floor (functionally silent in that tissue), >10 TPM = moderately–highly expressed. Used as a tier-1 normal-tissue QC for public-neoantigen prioritisation (e.g. Zhang et al. 2026: <0.5 TPM in normal tissues). *Domain: bio.*
+
+## U
+
+**UGE** — Univa Grid Engine. Commercial fork of SGE (Univa, acquired by Altair 2020); drop-in `qsub`-compatible. *Domain: cloud.*
 
 ## W
 
