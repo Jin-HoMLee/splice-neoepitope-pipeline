@@ -8,6 +8,61 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-20
 
+### 21:29 UTC — Editor: Scientist
+
+#### [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384) (research(data): audit somatic VCF availability) — full cohort audit; verdict **Implement** for [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416) (gated on [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413))
+
+Picked up [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384) from Backlog after the 14:51 UTC parent-Status hygiene work cleared the board. PM's skeletal scope ("Sci to fill in") explicitly left the technical scope open — what counts as "available", whether RNA-seq-derived germline calls qualify, which patients to include. The audit-process arc that landed today re-defined "proper audit" against my own initial reflex to infer from samplesheet alone.
+
+**Process: three pushback-driven re-scopes.** First proposed verdict (defer, "no DNA-seq for either patient") rested on `config/samples/patient_001.tsv` and `patient_002.tsv` only — both RNA-seq-only. User pushback "we should do a proper audit" rejected the samplesheet-inference shortcut; second pushback "you didn't do any web search to look for more data?" surfaced that the audit needs external research (GDC cohort donor counts, hybrid-calling literature, vendor-deliverable inventories). Third pushback ("https://osteosarc.com/data/ mentions VCF files, can you check?") cracked the patient_002 picture wide open — the verdict flipped from defer → research-feasible-but-engineering-heavy → fully Implement-tier in three iterations. The 14:51 UTC parent-Status hygiene lesson repeats: **work-completion state lives in places memory doesn't index automatically; surface every relevant data source explicitly before drawing conclusions.**
+
+**patient_001 inventory — full BioProject PRJNA545281 / Moisseev et al. 2020 *Biomedicines* 8(3):67 ([DOI 10.3390/biomedicines8030067](https://doi.org/10.3390/biomedicines8030067), PMID [32210001](https://pubmed.ncbi.nlm.nih.gov/32210001/)).** Single 80-year-old female gastric cancer patient case study by Moisseev et al. (Sechenov University + MGH; Buzdin NOT on the paper despite the Shemyakin IBCh data-deposit affiliation suggesting the Oncobox group). Patient has stomach + esophagus tumor involvement. The BioProject contains **12 sequencing runs across 5 anatomically distinct samples**; we currently use 2 of 12.
+
+| Alias | Tissue | Description | RNA-seq run | WXS run | In pipeline? |
+|---|---|---|---|---|---|
+| **LST** | stomach | Tumor, surgical section | SRR9143066 (1.96 GB) | **SRR9143067 (34 GB)** | RNA only |
+| **LSN** | stomach | Normal | SRR9143065 (1.61 GB) | **SRR9143064 (40 GB)** | RNA only |
+| LET | esophagus | Tumor, surgical section | SRR9143070 (1.98 GB) | SRR9143073 (34 GB) | – |
+| LEN | esophagus | Normal | SRR9143063 (2.39 GB) | SRR9143068 (20 GB) | – |
+| GC_1 | stomach | Primary biopsy | SRR9143072 (1.62 GB) | SRR9143069 (31 GB) + 2× Targeted-Cap | – |
+
+**Pre-computed somatic VCFs for patient_001: none.** Moisseev 2020 deposited raw FASTQ to ENA but published only Supplementary Tables (gene-list / spreadsheet form, not standards-compliant variant files): Supp 1 platform comparison, Supp 2 = 502 germline+somatic from tumor-only, Supp 3 = 386 mutations common across tumor samples, Supp 5 = 137 off-target FoundationOne genes. None are SpliceAI/MMSplice-consumable. Producing a usable VCF for the variant-driven prong requires re-calling from the ENA FASTQ (BWA-MEM2 + Mutect2 or Strelka against GRCh38) — engineering, not data acquisition.
+
+**patient_002 inventory — osteosarc.com Sijbrandij longitudinal cohort.** Patient is IPISRC044 (one patient, 4 clinical time points T0 Nov 2022 → T3 Apr 2025). Sample provenance and somatic VCF deliverables enumerated from the 23,571-line public `https://b2.osteosarc.com/manifest.txt` (Backblaze B2, no auth, HTTPS). **Pre-computed Sarek 3.5.1 somatic VCFs exist across the full longitudinal arc** (cell counts = VCF files per caller × timepoint, including raw + VEP- + snpEff-annotated copies of each somatic call set):
+
+| Timepoint | Platform | Source | Mutect2 | Strelka | Manta | CNVkit | FreeBayes |
+|---|---|---|---|---|---|---|---|
+| **T0** Nov 2022 | WES | BostonGene | ✅ 4 | ✅ 10 | ✅ 9 | ✅ 2 | – |
+| **T0** Nov 2022 | WGS | Personalis | ✅ 4 | ✅ 10 | ✅ 9 | ✅ 2 | – |
+| **T1** Jun 2024 | WGS | UCLA / Sarek 3.5.1 | ✅ 8 | ✅ 10 | ✅ 9 | ✅ 5 | ✅ 4 |
+| **T2** Jan 2025 | WGS | UCLA / Sarek 3.5.1 | ✅ 6 | ✅ 10 | ✅ 9 | – | – |
+
+Every Mutect2/Strelka somatic call has VEP- and snpEff-annotated forms. T2 uses cross-timepoint pairing (T2 tumor vs T1 blood normal). Crucially, the Sarek 3.5.1 deliverables match the input format SpliceAI/MMSplice/splice2neo natively consume — **zero re-calling effort for patient_002**.
+
+**[Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) WGS/WES discrepancy resolved.** [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) body says patient_002's blood-derived normal is "Blood WGS (DNA only) ~115 GB at `gs://osteosarc-genomics/genomics/...`". What actually got integrated (via [Issue #67](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/67) B2 migration) is `BG003082_WES-normal_1/2.fastq.gz` from BostonGene's Dec 2022 WES — ~9.9 GB total, not 115 GB. The osteosarc.com data portal makes the source of the confusion clear: there ARE both files, the **Dec 2022 BostonGene WES** (~9.9 GB normal, ~19.5 GB tumor) AND a separate **Jun 2024 UCLA Blood Normal WGS** (~115 GB) — and [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37)'s author conflated the two. Doc-fix Issue filed separately; not load-bearing on this audit.
+
+**Hybrid RNA-tumor + WES-normal somatic calling: rejected as a path to the variant-driven splice prong.** Surfaced during patient_002's mid-audit exploration when only the WES germline normal was confirmed (before the matched WES tumor was found). SpliceAI scores variants in the ±50 bp window around exon boundaries — intronic positions. RNA-seq variant callers (RNA-MuTect, RNA-SSNV, Mutect2-on-RNA) are blindest exactly there: spliced reads don't span intronic positions, so SpliceAI's scoring window is invisible to RNA-derived calls. The literature search backs this — splice2neo ([Lang et al., Bioinformatics Advances 2024](https://academic.oup.com/bioinformaticsadvances/article/4/1/vbae080/7684965)), NeoSplice ([Bioinformatics Advances 2022](https://academic.oup.com/bioinformaticsadvances/article/2/1/vbac032/6581739)), and the NAR Cancer 2023 cryptic-splice paper all use **WES/WGS-derived somatic calls** as SpliceAI/MMSplice input; no 2024–2026 splice-neoantigen paper feeds RNA-derived calls. Documented for future-readers; the path may resurface for other questions (HLA-LOH calling, mutational burden) but is structurally mismatched to this prong.
+
+**Future-cohort options.** GDC API queries (release 45.0, queried today): TCGA-STAD has 415 donors with matched RNA-Seq + WXS (434 open-access masked MAFs, raw VCFs dbGaP-controlled under phs000178); TARGET-OS has 81 donors with matched RNA-Seq + WXS (167 open-access masked MAFs, raw VCFs dbGaP-controlled under phs000468). Critical nuance: **GDC's open-access "Masked Somatic Mutation" MAFs filter out intronic/splice-region variants by construction** — they're coding-region-only and useless for SpliceAI's scoring window. Full raw VCFs require dbGaP DAR. osteosarc.com's Sijbrandij cohort offers the lowest-friction expansion path: same B2 access envelope as patient_002, additional IPISRC patients with native somatic VCFs.
+
+**Decision feeding [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416): Implement.** Original conditional from [Issue #365](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/365): *"If [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384) shows somatic VCFs available for ≥1 patient AND [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413) shows SpliceAI/MMSplice installable → Implement."* Audit answer: ✅ pre-computed somatic VCFs for patient_002 across 4 timepoint × 2-platform combinations, all publicly accessible. [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413) (Dev-side install) is still open — the final Implement gate is the second condition, not the first. patient_001 has matched-WXS inputs available but no pre-computed VCFs (re-calling needed); audit-tier verdict for patient_001 is "feasible with bounded engineering, not data-blocked".
+
+**Five follow-up Issues filed (separately, not in this PR):**
+
+1. **P1** — `feat(samples): integrate patient_002 pre-computed somatic VCFs (Sarek 3.5.1, osteosarc.com)` — sub of [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416); the variant-driven-prong PoC. Lightest engineering since Sarek already did the calling.
+2. **P2** — `feat(pipeline): patient_001 somatic-calling sub-pipeline (BWA-MEM2 + Mutect2/Strelka)` — sub of [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416); unblocks patient_001 + any future ENA-sourced patient.
+3. **P3** — `docs(samples): patient_001 LET/LEN esophagus + GC_1 biopsy — cohort expansion option` — captures the 8 unused PRJNA545281 runs; schema implications (anatomical-site column) deferred until spatial heterogeneity becomes a manuscript question.
+4. **P4** — `docs(scientist): clarify patient_002 normal sample WGS vs WES (correct [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) body)` — small doc-fix.
+5. **P5** — `feat(cohort): osteosarc.com Sijbrandij cohort onboarding — additional IPISRC patients` — long-horizon cohort expansion.
+
+**Patient_001 cohort-scope recommendation (audit-tier).** Just matched-pair WXS (LST + LSN — SRR9143067 + SRR9143064) for the variant-driven prong question; LET/LEN/GC_1 documented as known expansion options but punted to P3 above. Three reasons: (i) the splice-prong question is binary feasibility, matched-pair suffices; (ii) LET (esophagus) lacks clinical staging context in the ENA metadata to interpret a 2-site comparison cleanly; (iii) adding multiple anatomical sites requires a samplesheet schema change that's its own design decision, not load-bearing on splice-prong feasibility.
+
+**Zotero added.** Moisseev et al. 2020 added to collection Z38GTJNW with tags `Issue-384 patient-001 gastric-cancer Oncobox cohort-source`; three-section HTML note (Findings / Methods / vs. our pipeline) per convention. Used as canonical reference for patient_001's clinical context + variant-data-deposit-form caveat going forward.
+
+**Structural finding worth keeping.** The audit-process arc (samplesheet-inference → external research → vendor-deliverable inventory) is the same shape as the [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) "patient_001 has no WGS — only RNA-seq" finding from 2026-05-16, which I cited as load-bearing context for the initial defer-verdict here. That earlier finding was reached by the same shortcut: read samplesheet, infer DNA-seq absence, write down conclusion. The shortcut was wrong then too — patient_001 has matched WXS at ENA, never integrated. **Lesson: when a prior audit/note reads as "patient has no X data", treat it as a hypothesis to re-verify against the original data source, not a fact to inherit.** The samplesheet records what the pipeline currently uses; the BioProject records what's actually available. The two are not the same.
+
+---
+
 ### 14:51 UTC — Editor: Scientist
 
 #### Parent-Status drift resolutions — [Issue #224](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/224) closed as Done (Exp 1 shipped via chr22 PoC); [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) flipped to Backlog (all unblocked sub-issues done, #271 gated on #203)
