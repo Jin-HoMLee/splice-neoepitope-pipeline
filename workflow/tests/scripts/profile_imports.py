@@ -40,7 +40,13 @@ def module_level_imports(path: Path) -> list[str]:
 
 def truncate_to_imports_and_defs(src: str) -> str:
     """Return the module's top-level imports + defs/classes/assigns, stopping
-    at the first `if __name__ == "__main__":` block or any other statement."""
+    at the first `if __name__ == "__main__":` block or any other statement.
+
+    Limitation: any node type outside the whitelist (notably `ast.Try` for
+    `try/except ImportError` guards) ends truncation, so imports after it are
+    silently dropped. No file in the repo currently uses such a guard at
+    module scope; revisit if that changes.
+    """
     tree = ast.parse(src)
     body = []
     for node in tree.body:
@@ -64,7 +70,12 @@ def cold_import_time(path: Path, extra_path: Path) -> tuple[float, bool]:
     )
     t0 = time.perf_counter()
     r = subprocess.run([str(PY), "-c", runner], capture_output=True, text=True, timeout=180)
-    return time.perf_counter() - t0, r.returncode == 0
+    dt = time.perf_counter() - t0
+    ok = r.returncode == 0
+    if not ok:
+        last = next((ln for ln in reversed(r.stderr.splitlines()) if ln.strip()), "")
+        print(f"  └─ [{path.name}] exit={r.returncode}: {last}", file=sys.stderr)
+    return dt, ok
 
 
 def profile_dir(label: str, files: list[Path], extra_path: Path) -> None:
