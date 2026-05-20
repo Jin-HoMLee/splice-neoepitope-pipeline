@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-20
+
+### 09:15 UTC — Editor: PM
+
+- **Claude Agent SDK dual-bucket billing — effective 2026-06-15** ([Apiyi 2026-05](https://help.apiyi.com/en/anthropic-claude-subscription-agent-sdk-billing-split-june-2026-en.html)) — Agent SDK + `claude -p` + `Claude Code` GitHub Actions split into a separate dollar credit pool. → `@claude review` cost-forecast input; [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) gains billing constraint. *PM. ops-signal.*
+- **Claude Code 2.1.144** ([2026-05-19 changelog](https://code.claude.com/docs/en/changelog)) — Fast mode default Opus 4.6 → 4.7; rewind menu adds "Summarize up to here" (compress earlier context, keep recent turns). → Finer-grained alternative to `/compact`; flag for [`feedback_compact_trigger.md`](.claude/memory/shared/feedback_compact_trigger.md) once tested. *PM. tooling-relevant.*
+
 ## 2026-05-19
 
 ### 09:25 UTC — Editor: Scientist
