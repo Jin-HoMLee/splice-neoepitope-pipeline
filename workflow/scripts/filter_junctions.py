@@ -32,6 +32,8 @@ Usage (Snakemake):
   Called automatically by the ``filter_junctions`` rule.
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import gzip
@@ -40,8 +42,6 @@ import re
 import statistics
 from collections import defaultdict
 from pathlib import Path
-
-import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -288,6 +288,8 @@ def classify_junctions(
         gencode_gtf:       Optional path to GENCODE GTF for reading frame
                            annotation.  When None, reading_frame is always "".
     """
+    import pandas as pd
+
     ref_junctions = _load_reference_junctions(reference_bed)
     donor_frames = _build_cds_donor_lookup(gencode_gtf) if gencode_gtf else {}
     manifest = _load_manifest(manifest_path)
