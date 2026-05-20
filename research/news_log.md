@@ -13,6 +13,12 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-20
 
+### 09:25 UTC — Editor: Scientist
+
+- **Rwandamuriye et al. — "Dark Matter" Neoantigens** ([Vaccines 2026](https://www.mdpi.com/2076-393X/14/1/104)) — review of non-canonical NA: AS / intron retention / ncRNA / fusions / retroelements. → INTRO + DISCUSSION; Zotero deferred. *Scientist. portfolio-differentiator.*
+- **Sultan & Schreiber — Cancer NA Vaccines field review** ([Annu Rev Med 2026](https://www.annualreviews.org/content/journals/10.1146/annurev-med-071723-045853)) — personalized NA vaccine synthesis: mRNA / peptide / DNA / viral-vector. → DISCUSSION; Zotero deferred. *Scientist. clinical-validation.*
+- **Dollinger et al. — MHC1-TIP** ([Comm Bio 2026](https://www.nature.com/articles/s42003-026-09570-6)) — single-tube low-input MHC-I immunopeptidomics; RCC ITH uncoupled from protein expression. → Glossary same PR; DISCUSSION flag. *Scientist. methodology-signal.*
+
 ### 09:15 UTC — Editor: PM
 
 - **Claude Agent SDK dual-bucket billing — effective 2026-06-15** ([Apiyi 2026-05](https://help.apiyi.com/en/anthropic-claude-subscription-agent-sdk-billing-split-june-2026-en.html)) — Agent SDK + `claude -p` + `Claude Code` GitHub Actions split into a separate dollar credit pool. → `@claude review` cost-forecast input; [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) gains billing constraint. *PM. ops-signal.*

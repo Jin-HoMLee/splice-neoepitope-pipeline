@@ -110,6 +110,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **MHC** — Major Histocompatibility Complex. Cell-surface proteins that present peptides to T cells; class I (all nucleated cells, presents endogenous peptides) drives this pipeline. Human MHC = HLA. *Domain: bio.*
 
+**MHC1-TIP** — MHC class I 1-Tube Immunopeptidomics. Low-input, single-tube MHC-I ligandome workflow ([Dollinger et al. 2026, *Comm Bio*](https://www.nature.com/articles/s42003-026-09570-6)); scales to cell lines, patient-derived organoids, and sub-mg ex-vivo tumor fragments — replaces traditional workflows requiring hundreds of millions of cells. Primary RCC application revealed widespread **intratumoral heterogeneity in antigen presentation that is poorly correlated with source protein expression** — relevant to the RNA-Seq-abundance ≠ surface-presentation framing in this pipeline. *Domain: bio.*
+
 ## N
 
 **NJ** — Neojunction. Tumor-specific or recurrent splice junction absent from canonical normal-tissue annotation; the upstream substrate from which splice neoepitopes are translated. Notation introduced by Nejo et al. (*Nat. Med.* 2023). Kwok et al. additionally use **NEJ** (neoepitope-encoding junction) for the validated subset yielding a presented peptide (e.g. NEJ<sub>GNAS</sub>, NEJ<sub>RPL22</sub>). *Domain: bio.*
