@@ -29,8 +29,8 @@ THRESHOLD="${MILESTONE_HEALTH_THRESHOLD_DAYS:-7}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --threshold) THRESHOLD="$2"; shift 2 ;;
-        --repo) REPO="$2"; shift 2 ;;
+        --threshold) [[ -n "${2:-}" ]] || { echo "--threshold requires a value" >&2; exit 1; }; THRESHOLD="$2"; shift 2 ;;
+        --repo) [[ -n "${2:-}" ]] || { echo "--repo requires a value" >&2; exit 1; }; REPO="$2"; shift 2 ;;
         -h|--help)
             sed -n '2,22p' "$0" | sed 's|^# \{0,1\}||'
             exit 0
@@ -41,6 +41,9 @@ done
 
 [[ "$THRESHOLD" =~ ^[0-9]+$ ]] || { echo "threshold must be a non-negative integer, got: $THRESHOLD" >&2; exit 1; }
 
+# NOTE: fetches first 100 open milestones only; GitHub's milestones endpoint
+# paginates silently past per_page=100. If this repo ever exceeds 100 open
+# milestones, swap to `gh api --paginate ... | jq --slurp 'add | ...'`.
 FILTERED=$(gh api "repos/${REPO}/milestones?state=open&per_page=100" | jq --argjson threshold "$THRESHOLD" '
     [
         .[]
@@ -72,7 +75,7 @@ echo "$FILTERED" | jq -r '
     ] | @tsv
 ' | while IFS=$'\t' read -r title due days open closed url; do
     if [[ "$days" -lt 0 ]]; then
-        days_display="${days}d overdue"
+        days_display="${days#-}d overdue"
     elif [[ "$days" -eq 0 ]]; then
         days_display="due today"
     else

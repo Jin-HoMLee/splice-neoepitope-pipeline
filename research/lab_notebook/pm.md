@@ -8,6 +8,21 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-20
 
+### 15:55 UTC — Editor: PM
+
+#### Bot review on [PR #431](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/431) — 3 of 4 findings addressed, none blocking
+
+Bot returned in 1m 46s with 4 findings (1 cosmetic, 3 nits). Addressed 1+2+3, skipped 4. Verified each before applying:
+
+- **Cosmetic (fix 1):** overdue display rendered `-5d overdue` due to passing `${days}` directly. Swapped to `${days#-}d overdue` (bash param expansion strips a single leading `-`). Matters because this is the first thing the morning-routine surfaces on a real overdue case.
+- **Nit (fix 2):** added a `# NOTE:` comment about the `per_page=100` soft cap on milestones. Bot suggested `gh api --paginate | jq --slurp 'add | ...'` — declined the heavier change, the comment documents the limit without adding pipeline complexity at this repo scale.
+- **Nit (fix 3):** added `[[ -n "${2:-}" ]] || { echo "..." >&2; exit 1; }` missing-value guards for `--threshold` and `--repo`. Under `set -euo pipefail`, calling `--threshold` as the last argument would have given a cryptic `$2: unbound variable`; now it gives an actionable error.
+- **Skipped (issue 4):** bot suggested replacing `sed -n '2,22p'` for help text extraction with an `awk` sentinel-anchored pipeline. Declined — current sed range works for the comment header's stable size, awk swap trades simplicity for a hypothetical (header growing past line 22).
+
+Smoke-tested all three fixes locally before commit (`bash scripts/check_milestone_health.sh --threshold` triggers guard with `exit 1`; normal run still produces the same table; minus-strip path is conceptually verified, can't be exercised today since no live milestone is overdue post-i1-S4-close).
+
+---
+
 ### 15:00 UTC — Editor: PM
 
 #### Milestone-health mechanism — script + morning-routine phase, triggered by `i1 - S4` going 5d overdue
