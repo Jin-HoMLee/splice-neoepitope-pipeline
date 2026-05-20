@@ -6,6 +6,41 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-20
+
+### 15:30 UTC — Editor: Developer
+
+**Headline:** [PR #424](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/424) shipped, closing [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) (local pytest collection hangs under memory pressure). Two deliverables: a committed per-file cold-import profiler at [workflow/tests/scripts/profile_imports.py](workflow/tests/scripts/profile_imports.py) (AC 1) + a "Running on memory-tight machines" section added to [workflow/tests/README.md](workflow/tests/README.md) (AC 2). Remaining AC 3 (verify suite < 60s on M1 8 GB under deliberate paging) carved out as [Issue #425](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/425) and absorbed alongside the lazy-pandas refactor work.
+
+#### 10-min quick-win triage → diagnostic-only investigation
+
+User opened with "any quick wins for the next 10 min?" — I scanned my open dev queue, no PRs blocked on review, and offered three options ([Issue #345](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/345) naming refactor, [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) import profile, memory hygiene). Picked #364 as diagnostic-only — concrete signal output, no merge pressure, directly unblocks future local pytest work. The "diagnostic-only" framing kept the budget bounded: the goal was a comment with findings, not a PR.
+
+#### Hypothesis refinement — the original Issue was overstated
+
+Issue body hypothesised that test files import heavy ML libraries (`mhcflurry`, `torch`, `tensorflow`) at module scope. Profiler showed that's **not the case** — none of those are at module scope anywhere. The dominant module-level import is `pandas` (0.26s cold), pulled in by 6 test files + 6 project scripts. Under memory pressure the OS page cache thrashes, amplifying every fresh `pandas` import into a multi-minute event (matches the original `import pandas` hung > 2.5 min observation). Pytest's assertion rewriter compounds it. So the failure mode is **paging-amplified, not import-count-amplified** — refactor target should be lazy-importing pandas in the heavy scripts, which I carved into [Issue #425](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/425).
+
+#### Scope escalation diagnostic → PR
+
+After posting findings as a comment, user asked "are we closing without changes?" — caught me leaving 3 ACs unticked. Two paths offered: fan out to sub-issues, OR ship a small PR covering ACs 1+2 now. User picked the PR route. Profiler script promoted from `/tmp/` to `workflow/tests/scripts/profile_imports.py`, README updated with the two known workarounds (single-file runs, `-p no:assertion`).
+
+#### Workflow correction — close Issues with PR, carve follow-up
+
+Initially left #364 open with "stays open until #425 ships" for the M1-verify AC. User flagged: prefer carving the remaining work into a new Issue and closing the original with the PR. Saved as a new shared memory ([feedback_close_issue_with_pr.md](.claude/memory/shared/feedback_close_issue_with_pr.md)) and applied retroactively — #425 absorbed AC 3, PR body changed from `Refs Issue #364` to `Closes Issue #364`, the three ACs on #364 ticked with deferred-to links. The closure-ritual gate (`scripts/audit_and_merge.sh`) will see all boxes ticked at merge time.
+
+#### Bot review — two nice-to-haves applied, two nits skipped per bot's own non-blocker calls
+
+Bot finished in 2m 4s with "Good to merge as-is" + three observations (commit `79282cb` covers two):
+- **Applied:** docstring note in `truncate_to_imports_and_defs` flagging that `ast.Try` ends truncation early (no module-scope try-blocks today, but future-fragile).
+- **Applied:** surface last non-empty stderr line on subprocess failure as `  └─ [file] exit=N: <error>`. Naive `print(r.stderr)` dumped Python's full traceback including the synthetic exec'd source — truncating to the last line gives the actionable signal.
+- **Skipped:** reversed `'__main__' == __name__` form (no file uses it) + README "while" phrasing nit (bot self-identified as non-blocker).
+
+#### Methodology note — profiler design choice
+
+Tried `python -X importtime -m pytest --collect-only` first; cumulative self-time summed to 0.21s but wall was 20.66s. The 100× gap is pytest's assertion rewriter (bytecode rewriting per test file via a path that bypasses `-X importtime`). So importtime alone is misleading for diagnosing pytest collection cost — needed the cold-subprocess per-file approach (`profile_imports.py`) to isolate the actual import-time-amplifiable cost surface. Documented in the script's docstring so future-me doesn't fall into the same trap.
+
+---
+
 ## 2026-05-19
 
 ### 18:00 UTC — Editor: Developer

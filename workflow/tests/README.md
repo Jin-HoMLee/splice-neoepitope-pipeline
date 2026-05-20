@@ -35,6 +35,26 @@ workflow/tests/.venv/bin/python -m pytest workflow/tests/ -v
 
 The fixture in [test_alignment_star_command.py](test_alignment_star_command.py) calls `pytest.skip` if `snakemake` is not on PATH, so the test suite still runs cleanly without the conda env — those specific tests just skip.
 
+## Running on memory-tight machines (e.g. M1 8 GB)
+
+When the OS page cache is under pressure, `pytest --collect-only` can stall for minutes — fresh `import pandas` and pytest's assertion-rewriter pass both turn into disk-bound page faults. Two workarounds while the suite stays pandas-heavy at module scope (see [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364)):
+
+```bash
+# 1. Run only the touched test file(s); let CI cover the full suite.
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_filter_junctions.py -q
+
+# 2. Disable assertion rewriting (faster collection, less helpful assert errors).
+workflow/tests/.venv/bin/python -m pytest workflow/tests/ -p no:assertion -q
+```
+
+To re-measure the static import cost surface (per-test-file and per-script cold module-load):
+
+```bash
+workflow/tests/.venv/bin/python workflow/tests/scripts/profile_imports.py
+```
+
+Last measurement (non-RAM-pressured run): full collection of 287 tests in ~20s; per-test cold module-load 0.03–0.62s, dominated by `pandas` (0.26s cold) imported at module scope in 6 test files and 6 project scripts.
+
 ## Why this split
 
 - **`snakemake` conda env = workflow runner.** Snakemake + solver. Keep pristine; adding test deps risks dep drift in the workhorse env.
