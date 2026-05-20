@@ -6,7 +6,7 @@
 
 ## Background
 
-Parent-epic Issues on project board #9 can drift to `Status: In progress` during decomposition (when sub-issues are being added/triaged) and never flip back even after sub-issues settle to Backlog. Per the parent-vs-sub-issues rule (`memory/shared/feedback_parent_sub_issues.md`), parents should carry a **mirrored Status** reflecting their children's collective state — but no mechanism enforces this, so drift accumulates silently.
+Parent-epic Issues on project board #9 can drift to `Status: In progress` during decomposition (when sub-issues are being added/triaged) and never flip back even after sub-issues settle to Backlog. Per the parent-vs-sub-issues rule (`.claude/memory/shared/feedback_parent_sub_issues.md`), parents should carry a **mirrored Status** reflecting their children's collective state — but no mechanism enforces this, so drift accumulates silently.
 
 Today's PM mid-day board sweep (2026-05-19) found 3 epics drifted In progress with all open sub-issues in Backlog ([#24](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/24), [#86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86), [#126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126)). All 3 were manually corrected to `Ready`, but the drift was only caught by happening to look.
 
@@ -148,8 +148,8 @@ Three test surfaces:
 
 ## Related
 
-- Parent-vs-sub-issue rule: `memory/shared/feedback_parent_sub_issues.md` ("mirrored Status")
+- Parent-vs-sub-issue rule: `.claude/memory/shared/feedback_parent_sub_issues.md` ("mirrored Status")
 - Sibling mechanism: [PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397) (milestone-capacity recheck hook) closing [#247](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/247)
 - Eventual-consistency companion: [#406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406)
-- Today's standup post surfacing the pattern: `memory/shared/team_standup.md` (2026-05-19 11:56 UTC PM → Sci)
+- Today's standup post surfacing the pattern: `.claude/memory/shared/team_standup.md` (2026-05-19 11:56 UTC PM → Sci)
 - Original drift-discovery board sweep that motivated this issue: same session 2026-05-19 11:30–12:00 UTC
