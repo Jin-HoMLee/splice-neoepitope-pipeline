@@ -28,7 +28,7 @@ Picked up [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/
 
 **Pre-computed somatic VCFs for patient_001: none.** Moisseev 2020 deposited raw FASTQ to ENA but published only Supplementary Tables (gene-list / spreadsheet form, not standards-compliant variant files): Supp 1 platform comparison, Supp 2 = 502 germline+somatic from tumor-only, Supp 3 = 386 mutations common across tumor samples, Supp 5 = 137 off-target FoundationOne genes. None are SpliceAI/MMSplice-consumable. Producing a usable VCF for the variant-driven prong requires re-calling from the ENA FASTQ (BWA-MEM2 + Mutect2 or Strelka against GRCh38) — engineering, not data acquisition.
 
-**patient_002 inventory — osteosarc.com Sijbrandij longitudinal cohort.** Patient is IPISRC044 (one patient, 4 clinical time points T0 Nov 2022 → T3 Apr 2025). Sample provenance and somatic VCF deliverables enumerated from the 23,571-line public `https://b2.osteosarc.com/manifest.txt` (Backblaze B2, no auth, HTTPS). **Pre-computed Sarek 3.5.1 somatic VCFs exist across the full longitudinal arc:**
+**patient_002 inventory — osteosarc.com Sijbrandij longitudinal cohort.** Patient is IPISRC044 (one patient, 4 clinical time points T0 Nov 2022 → T3 Apr 2025). Sample provenance and somatic VCF deliverables enumerated from the 23,571-line public `https://b2.osteosarc.com/manifest.txt` (Backblaze B2, no auth, HTTPS). **Pre-computed Sarek 3.5.1 somatic VCFs exist across the full longitudinal arc** (cell counts = VCF files per caller × timepoint, including raw + VEP- + snpEff-annotated copies of each somatic call set):
 
 | Timepoint | Platform | Source | Mutect2 | Strelka | Manta | CNVkit | FreeBayes |
 |---|---|---|---|---|---|---|---|
