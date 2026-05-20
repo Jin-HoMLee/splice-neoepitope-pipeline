@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-20
 
+### 16:01 UTC — Editor: Developer
+
+**Headline:** [PR #428](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/428) shipped, closing [Issue #425](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/425) (lazy-import pandas in 6 pandas-heavy scripts). Module-scope `import pandas as pd` (and `from Bio import SeqIO` in [generate_report.py](workflow/scripts/generate_report.py)) moved into the function bodies that actually call `pd.*`, across [generate_report.py](workflow/scripts/generate_report.py), [filter_junctions.py](workflow/scripts/filter_junctions.py), [assemble_contigs.py](workflow/scripts/assemble_contigs.py), [aggregate_filtering_stats.py](workflow/scripts/aggregate_filtering_stats.py), [run_mhcflurry.py](workflow/scripts/run_mhcflurry.py), [run_tcrdock.py](workflow/scripts/run_tcrdock.py). Cold-import per script dropped from ~0.28–0.39s to ~0.03–0.04s (86–90% reduction); full suite + integration runs in 1.42s wall on the M1 8 GB box. One commit per script (6 commits) for surgical review.
+
+#### Key trick — `from __future__ import annotations` defers type hints to strings
+
+The blocker for naive lazy-import was that every script had `def foo(df: pd.DataFrame) -> pd.DataFrame:` signatures, so `pd` had to exist at function-definition time. Adding `from __future__ import annotations` (PEP 563) at the top of each script defers ALL annotations to strings, so `pd.DataFrame` becomes a literal string never evaluated unless something explicitly inspects `__annotations__`. With that in place, the only places that genuinely need `import pandas as pd` are the function bodies that make direct `pd.*` calls (`pd.read_csv`, `pd.DataFrame(...)`, `pd.notna`, etc.). Functions that only *consume* DataFrames as parameters don't need the import — that distinction halved the number of in-function imports in most scripts.
+
+#### Per-script cost varied wildly — generate_report.py needed 11 imports, others 1–4
+
+The 6 scripts had similar cold-import times (~0.28–0.39s, all pandas-dominated) but very different surface areas for the refactor: `generate_report.py` makes pandas calls in 11 distinct functions (report assembly is pandas-heavy by design), while the alignment-pipeline scripts (`run_mhcflurry`, `run_tcrdock`, `aggregate_filtering_stats`) each needed only 1–4. No clean way to centralise — a `_get_pandas()` helper would just move the cost back to the first call site. Kept it as explicit `import pandas as pd` lines at the top of each pandas-using function so future readers see the pattern uniformly.
+
+#### Tests caught a real bug — 5 missed `pd.` call-sites in generate_report.py
+
+Initial pass on [generate_report.py](workflow/scripts/generate_report.py) added in-function imports for the 6 most obvious functions; pytest immediately surfaced `NameError: name 'pd' is not defined` from 5 other call-sites I hadn't seen on the grep sweep (small one-liner uses of `pd.notna` and `pd.DataFrame(...)`). Patched in the same commit before pushing — the test suite acting as a completeness oracle is exactly the reason to gate each commit on `pytest -q` before moving on. Not a methodology failure; the workflow worked as designed (commit-after-green per [feedback_multi_file_workflow.md](memory/feedback_multi_file_workflow.md)).
+
+#### Scope decision — script-side only, test-side deferred
+
+[Issue #425](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/425) explicitly carved test-file refactor out of scope. Rationale: the dominant cost was the script-side transitive load (the script imports pandas → test imports the script → pytest pays pandas cost during collection). With scripts now lazy-loading, the test files' own module-scope pandas imports pay only their direct 0.28–0.62s once-per-file, which is fine when memory isn't tight. Refactoring test files into pytest fixtures would be churn for marginal benefit. The original [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) symptom (5-minute hangs under deliberate memory pressure) is now structurally impossible because no script holds pandas at module scope — the page-cache-thrash amplification surface is gone.
+
+---
+
 ### 15:30 UTC — Editor: Developer
 
 **Headline:** [PR #424](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/424) shipped, closing [Issue #364](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/364) (local pytest collection hangs under memory pressure). Two deliverables: a committed per-file cold-import profiler at [workflow/tests/scripts/profile_imports.py](workflow/tests/scripts/profile_imports.py) (AC 1) + a "Running on memory-tight machines" section added to [workflow/tests/README.md](workflow/tests/README.md) (AC 2). Remaining AC 3 (verify suite < 60s on M1 8 GB under deliberate paging) carved out as [Issue #425](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/425) and absorbed alongside the lazy-pandas refactor work.

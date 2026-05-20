@@ -17,15 +17,14 @@ Usage (Snakemake):
   Called automatically by the ``generate_report`` rule.
 """
 
+from __future__ import annotations
+
 import argparse
 import html as html_mod
 import json
 import logging
 from pathlib import Path
 from typing import Any
-
-import pandas as pd
-from Bio import SeqIO
 
 logging.basicConfig(
     level=logging.INFO,
@@ -258,6 +257,8 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
     when serology columns are present — a validation column comparing
     OptiType against the known clinical alleles.
     """
+    import pandas as pd
+
     try:
         df = pd.read_csv(hla_qc_tsv, sep="\t")
     except Exception as exc:
@@ -373,6 +374,8 @@ def _load_contigs(contigs_fasta: str | Path) -> dict[str, str]:
 
     The contig key matches the contig_key column in the predictions TSV.
     """
+    from Bio import SeqIO
+
     contigs: dict[str, str] = {}
     for record in SeqIO.parse(contigs_fasta, "fasta"):
         contigs[record.description] = str(record.seq).upper()
@@ -529,6 +532,8 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     """
     if not filtering_stats_tsv or not Path(filtering_stats_tsv).exists():
         return ""
+    import pandas as pd
+
     try:
         df = pd.read_csv(filtering_stats_tsv, sep="\t").fillna("")
     except Exception as exc:
@@ -616,6 +621,8 @@ def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame
     if top_candidates_df is None or top_candidates_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
 
+    import pandas as pd
+
     has_gps = "genotype_presentation_score" in top_candidates_df.columns
 
     rows = []
@@ -681,6 +688,8 @@ def _presenter_counts_html(
     rows = [(cls, cnt) for cls, cnt in mp.items() if cls != "total_predictions"]
     if not rows:
         return "<p><em>No predictions available.</em></p>"
+
+    import pandas as pd
 
     df = pd.DataFrame(rows, columns=["presentation_class", "count"])
     return _df_to_html(df)
@@ -800,6 +809,8 @@ def _build_report_tsv(
     the funnel. The four rows reconcile arithmetically:
     ``extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total``.
     """
+    import pandas as pd
+
     rows: list[dict] = []
 
     # --- junction_filtering ---
@@ -980,6 +991,8 @@ def _build_contig_peek(seq: str, start_nt: int, end_nt_incl: int, upstream_nt: i
 
 def _round_or_blank(value, ndigits: int) -> str | float:
     """Round numeric values; return empty string for missing/non-numeric."""
+    import pandas as pd
+
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
     try:
@@ -1015,6 +1028,8 @@ def _build_report_top_candidates_tsv(
     Limited to ``TOP_CANDIDATES_LIMIT`` rows after the same quality gate the
     HTML render uses (``best_presentation_percentile <= presentation_percentile_weak``).
     """
+    import pandas as pd
+
     output_path = Path(output_tsv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1119,6 +1134,8 @@ def _build_report_3d_structure_tsv(
     (n_candidates=1). If TCRdock starts emitting multiple PDBs per run, the
     rank column is the natural extension point.
     """
+    import pandas as pd
+
     output_path = Path(output_tsv)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1191,6 +1208,8 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
           'tcrdock':                   {metric: bool}     # pdb_available cast to bool
         }
     """
+    import pandas as pd
+
     df = pd.read_csv(path, sep="\t")
 
     out: dict[str, Any] = {
@@ -1272,6 +1291,8 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
 
 def _empty_origin_df() -> pd.DataFrame:
     """Empty origin DataFrame with the canonical column set."""
+    import pandas as pd
+
     return pd.DataFrame(columns=[
         "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
     ])
@@ -1313,6 +1334,8 @@ def generate_report(
                                        (optional; only written when TCRdock is enabled).
         patient_id:                    Patient identifier written into every report.tsv row.
     """
+    import pandas as pd
+
     output_html = Path(output_html)
     output_html.parent.mkdir(parents=True, exist_ok=True)
 

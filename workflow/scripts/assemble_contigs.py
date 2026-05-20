@@ -25,6 +25,8 @@ Usage (Snakemake):
   Called automatically by the ``assemble_contigs`` rule.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -32,8 +34,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,6 +52,8 @@ def _build_upstream_bed(
     upstream_nt: int,
 ) -> pd.DataFrame:
     """Return a BED DataFrame for the upstream arm of each junction."""
+    import pandas as pd
+
     bed = pd.DataFrame(
         {
             "chrom": junctions["chrom"],
@@ -70,6 +72,8 @@ def _build_downstream_bed(
     downstream_nt: int,
 ) -> pd.DataFrame:
     """Return a BED DataFrame for the downstream arm of each junction."""
+    import pandas as pd
+
     bed = pd.DataFrame(
         {
             "chrom": junctions["chrom"],
@@ -155,6 +159,8 @@ def _write_zero_stats(stats_output_path: str | Path | None) -> None:
     """
     if stats_output_path is None:
         return
+    import pandas as pd
+
     stats_output_path = Path(stats_output_path)
     stats_output_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(
@@ -192,6 +198,8 @@ def assemble_contigs(
                              aggregator. Categories: ``contigs_written``,
                              ``skipped_softclip``, ``skipped_length``.
     """
+    import pandas as pd
+
     novel_junctions_tsv = Path(novel_junctions_tsv)
     output_fasta = Path(output_fasta)
     output_fasta.parent.mkdir(parents=True, exist_ok=True)
