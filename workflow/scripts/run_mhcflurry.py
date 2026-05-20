@@ -46,12 +46,12 @@ Usage (Snakemake):
   Called automatically by the ``run_mhcflurry`` rule.
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import logging
 from pathlib import Path
-
-import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -202,6 +202,8 @@ def _compute_per_allele_features(
 
     HLA-C alleles are weighted by hla_c_weight; HLA-A/B alleles by 1.0.
     """
+    import pandas as pd
+
     per_allele: dict[str, dict[str, float]] = {p: {} for p in peptides}
 
     for allele in alleles:
@@ -379,6 +381,8 @@ def run_prediction(
         ValueError: If neither alleles nor alleles_tsv is provided, or if
                     hla_c_weight is outside [0, 1].
     """
+    import pandas as pd
+
     if not 0.0 <= hla_c_weight <= 1.0:
         raise ValueError(
             f"hla_c_weight must be in [0, 1]; got {hla_c_weight}. "
