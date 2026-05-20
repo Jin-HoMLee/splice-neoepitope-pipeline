@@ -50,14 +50,14 @@ Usage (Snakemake):
   Called automatically by the run_tcrdock rule when tcrdock.enabled is true.
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import logging
 import shutil
 import subprocess
 from pathlib import Path
-
-import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,6 +98,8 @@ def select_top_candidates(
     Returns:
         DataFrame of top candidates.
     """
+    import pandas as pd
+
     df = pd.read_csv(predictions_tsv, sep="\t")
     candidates = df[df["presentation_class"].isin(("strong", "weak"))].copy()
 
@@ -370,6 +372,8 @@ def collect_outputs(
         output_scores:      Destination docking scores TSV.
         fallback_tcr:       TCR config dict (unused here, kept for signature compat).
     """
+    import pandas as pd
+
     final_tsv = tcrdock_output_dir / "tcrdock_out_final.tsv"
     if not final_tsv.exists():
         raise FileNotFoundError(
