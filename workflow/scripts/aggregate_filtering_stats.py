@@ -23,11 +23,11 @@ Usage (Snakemake):
   Called automatically by the ``aggregate_filtering_stats`` rule.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 from pathlib import Path
-
-import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +47,8 @@ _PER_PATIENT_REQUIRED = {"category", "count"}
 
 def _read_per_sample_stats(path: Path, step: str) -> pd.DataFrame:
     """Load a stats file that already has sample_id / sample_type columns."""
+    import pandas as pd
+
     df = pd.read_csv(path, sep="\t")
     missing = _PER_SAMPLE_REQUIRED - set(df.columns)
     if missing:
@@ -60,6 +62,8 @@ def _read_per_sample_stats(path: Path, step: str) -> pd.DataFrame:
 
 def _read_per_patient_stats(path: Path, step: str) -> pd.DataFrame:
     """Load a stats file with just (category, count). Sample columns left blank."""
+    import pandas as pd
+
     df = pd.read_csv(path, sep="\t")
     missing = _PER_PATIENT_REQUIRED - set(df.columns)
     if missing:
@@ -89,6 +93,8 @@ def aggregate(
     produced, and the proteome-filter rows are simply omitted from the audit
     trail.
     """
+    import pandas as pd
+
     frames: list[pd.DataFrame] = [
         _read_per_sample_stats(Path(junction_filter_tsv), "junction-filter"),
         _read_per_patient_stats(Path(contig_assemble_tsv), "contig-assemble"),
