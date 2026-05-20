@@ -6,6 +6,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-20
+
+### 15:00 UTC — Editor: PM
+
+#### Milestone-health mechanism — script + morning-routine phase, triggered by `i1 - S4` going 5d overdue
+
+User flagged that milestone `i1 - S4 - EDA - Junction Filtering Observability` (due 2026-05-15) was 5 days overdue and no session had surfaced it. PM morning routine has 4 PM-only phases (Board recap, Closure audit, Triage, Friday cleanup); none watched milestone-level due-date drift. Per-Issue AC audits catch unticked boxes; the milestone deadline is a separate axis with no automated watch.
+
+**Act on the existing overdue milestone.** Carved + closed `i1 - S4`:
+
+- 5 of 6 Issues closed; original observability scope shipped via [Issue #103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/103), [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104), [Issue #161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/161), [Issue #214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/214), [Issue #215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/215)
+- One open straggler [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304) (sensitivity analysis utility) was forward-looking — triggered by Prélot et al. 2025, not original observability scope. Stripped milestone field, left a carve-forward comment on the Issue
+- Closed milestone 4 via `gh api -X PATCH state=closed`; precedent for not holding milestones open with "stays open until [Issue #X] ships" is [feedback_close_issue_with_pr.md](.claude/memory/shared/feedback_close_issue_with_pr.md) generalized one rung up
+
+**Durable mechanism so this doesn't repeat — [Issue #429](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/429):**
+
+- **[`scripts/check_milestone_health.sh`](scripts/check_milestone_health.sh)** — gh API + jq script that lists open milestones with `due_on` past OR within `THRESHOLD_DAYS` (default 7). Columns: `TITLE | DUE_ON | DAYS | OPEN | CLOSED | URL`. Sorted by `due_on` ascending. Exit 0 (clean/imminent) or 2 (any overdue). All-clear path prints a single-line summary instead of a table.
+- **PM morning-routine wire-up** — new `Phase 2.6 — Milestone health` between Closure audit (2.5) and Triage (3). Calls the script; surfaces overdue + imminent milestones with proposed move (push-to-ship / carve-forward / extend-due_on). Visual formatting section updated with `## 📅 Milestone health` emoji marker. Phase order in `MEMORY.md` index also updated (4 → 5 PM-only phases).
+
+**Hook interaction (interesting).** The PostToolUse recheck hook (`PR #397` milestone-capacity mechanism, sibling to PR #407 parent-status drift) fired twice during this work — once on the `gh issue edit 304 --milestone ""` stripping (briefly read stale state showing #304 still attached, proposed extending `due_on` +17d), then again post-close (correctly reported "no remaining capacity"). The first fire was a stale-read race, not a real recommendation; verifying via `gh api .../milestones/4` confirmed the strip had landed and the hook caught up by its second fire. Surfaced to user explicitly rather than silently following the hook — important precedent for hook discrepancies.
+
+**Why mechanism, not just memory.** First miss of this shape (one prior incident, today's). Per [feedback_mechanism_over_memory.md](.claude/memory/shared/feedback_mechanism_over_memory.md), memory alone would have been defensible — but the script is cheap (~80 lines), reusable for ad-hoc audits, and pre-empts the ≥2× repeat threshold. Memory ladder: this lands on rung 2 (inline Always-in-effect via Phase 2.6) AND rung 3 (mechanism via script invocation), both reinforcing each other.
+
+---
+
 ## 2026-05-19
 
 ### 14:24 UTC — Editor: PM
