@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-21
 
+### 09:59 UTC — Editor: PM
+
+#### [Issue #249](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/249) — feedback memory spike-rate alert (XS warm-up); i6-S3 milestone restructure during triage
+
+**Morning routine wrap-up:** the morning's structural work expanded mid-flow when the user asked me to address the parked i3-S1 thematic-mismatch question. That led to:
+
+- **New milestone:** `i6 - S3 - Data Preparation - Variant Calling + Cohort Expansion` ([milestone #30](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/30), due 2026-07-16). Moved 6 issues out of i3-S1: [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413), [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416), [Issue #436](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/436), [Issue #437](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/437), [Issue #438](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/438), [Issue #440](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/440). i3-S1 retains [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (NeoGuider eval) + [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) (AlphaFold3 eval) — clean Tool Landscape frame restored. i3-S1 due_on recomputed by milestone-recheck hook: 2026-06-25 → 2026-06-13 (capacity 7.5d → 5.0d after move).
+- **Why i6 (not extending an existing iteration):** each `i<iter>-S<N>` slot is unique in the existing pattern (i5-S3 is already STAR Polish/M24). The variant-calling + cohort-expansion arc is genuinely new scope driven by yesterday's [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384) audit close + the Sci+Dev cohort onboarding plan. Starting i6 with this S3 is consistent with how prior iterations have seeded (one milestone at a time).
+
+**Warm-up — [Issue #249](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/249) feedback memory spike-rate alert.** Written `shared/feedback_memory_spike_rate.md` codifying the rule + threshold + prompt format + escalation path:
+
+- **Threshold:** ≥3 new `feedback_*.md` writes per session triggers a consolidation prompt before the next write
+- **Distinction from [[memory-duplicate-check]]:** quantity-axis (this rule) vs similarity-axis (duplicate-check). Independent; both can fire on the same write
+- **Tracking:** in-session counter, no persistent state. Long-term growth → monthly audit, not this rule
+- **Escalation path baked in:** if self-tracking proves slippery (rule fails to fire when threshold is hit), upgrade to a `PostToolUse` hook on `Write|Edit` matching `memory/.*feedback_.*\.md`. Counter file in session temp dir. Same pattern as `check_at_claude.py` + `audit_and_merge.sh` — directly applies the deterministic-before-semantic principle established this morning ([[deterministic-before-semantic]])
+
+**AC verification.** AC 6 ("verify by deliberately attempting 3 new memory writes — verify prompt fires on the 3rd") is honored inline as a forward commitment: the rule self-applies on the next session that naturally hits the threshold. Today's session wrote 2 new memories (`feedback_deterministic_first.md` + `feedback_memory_spike_rate.md`) — below threshold, no prompt fired. Deliberately staging a 3rd write today would be artificial. Ad-hoc verification deferred to the first natural trigger; if the rule misses a real-world threshold-hit, that's the signal to escalate to the hook per the embedded fallback ladder.
+
+**Memory writes this morning:** 2 of 3 (counter context for the rule itself). One more `feedback_*.md` write in this same session would trigger the new rule on itself — recursive verification of the spike-rate behavior.
+
+---
+
 ### 08:48 UTC — Editor: PM
 
 #### Morning news_log + Microsoft Conductor landscape backfill ([PR #441](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/441)) + new shared memory *deterministic-before-semantic*
