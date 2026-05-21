@@ -89,3 +89,18 @@ def select_top_n_for_allele(df, allele: str, n: int):
         kind="mergesort",  # stable
     )
     return matched.head(n).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Panel status classification
+# ---------------------------------------------------------------------------
+
+def classify_panel_status(n_in_panel: int, target_size: int) -> str:
+    """Return 'ok' if panel reached target_size, 'low_coverage' if 1..target_size-1,
+    'empty' if 0.
+    """
+    if n_in_panel <= 0:
+        return "empty"
+    if n_in_panel < target_size:
+        return "low_coverage"
+    return "ok"

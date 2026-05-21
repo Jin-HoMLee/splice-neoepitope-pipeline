@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from fetch_vdjdb_panel import (
+    classify_panel_status,
     load_and_filter_vdjdb,
     normalize_allele_to_4digit,
     select_top_n_for_allele,
@@ -105,3 +106,15 @@ class TestSelectTopNForAllele:
         donor_order = result["meta.subject.id"].tolist()
         # Top 4 (score=3) sorted ascending: 001, 002, 009, 010. Last is score=2 (donor 003).
         assert donor_order == ["donor-001", "donor-002", "donor-009", "donor-010", "donor-003"]
+
+
+class TestClassifyPanelStatus:
+    @pytest.mark.parametrize("n_in_panel,target,expected", [
+        (10, 10, "ok"),
+        (15, 10, "ok"),   # clipped to top-N before reaching here; defensive case
+        (9, 10, "low_coverage"),
+        (1, 10, "low_coverage"),
+        (0, 10, "empty"),
+    ])
+    def test_classification(self, n_in_panel, target, expected):
+        assert classify_panel_status(n_in_panel, target_size=target) == expected
