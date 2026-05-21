@@ -638,14 +638,19 @@ If your local venv doesn't have stitchr (the conda env in Task 3 has it, but the
 Append:
 
 ```python
+import shutil
+
 from fetch_vdjdb_panel import stitch_chain
 
 
 @pytest.mark.network
+@pytest.mark.skipif(shutil.which("stitchr") is None, reason="stitchr CLI not on PATH")
 class TestStitchChain:
-    """Smoke test against the real stitchr API + cached IMGT data.
+    """Smoke test against the real stitchr CLI + cached IMGT data.
 
-    Skipped automatically if stitchr is not importable.
+    Skipped automatically when the `stitchr` CLI is not on PATH (e.g. CI runners
+    without the vdjdb conda env activated). The `network` marker is informational
+    — actual skip is driven by the `skipif` so CI works regardless of `-m` flag.
     """
     def test_dmf5_alpha_chain(self):
         # DMF5 (the existing single-fallback TCR in config/gpu_config.yaml)
@@ -1501,12 +1506,12 @@ The Snakemake rule changes require regenerating the DAG diagram:
 ```bash
 bash scripts/visualize_dag.sh 2>&1 | tail -10
 ```
-Expected: `dag.pdf` regenerated; new `download_vdjdb_release`, `download_imgt_germlines`, `fetch_vdjdb_panel` nodes appear.
+Expected: `dag.svg` regenerated (the script's default output filename — see [scripts/visualize_dag.sh:43](../../../scripts/visualize_dag.sh#L43)); new `download_vdjdb_release`, `download_imgt_germlines`, `fetch_vdjdb_panel` nodes appear.
 
 - [ ] **Step 4: Commit the regenerated DAG**
 
 ```bash
-git add dag.pdf
+git add dag.svg
 git commit -m "chore(dag): regenerate after Issue #204 rule additions"
 ```
 
