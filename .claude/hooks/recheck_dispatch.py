@@ -22,6 +22,10 @@ from pathlib import Path
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 SIZE_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHGiA"
 STATUS_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHFf8"
+PROJECT_ID = "PVT_kwHOB17eGc4BSomP"
+PROJECT_NUMBER = 9
+TARGET_DATE_FIELD_ID = "PVTF_lAHOB17eGc4BSomPzhAHGiM"
+TARGET_DATE_FIELD_NAME = "Target date"
 SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_milestone.py")
 PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_parent_status.py")
 
@@ -87,6 +91,100 @@ def lookup_issue_for_item(item_id: str) -> int | None:
     return int(out) if out.isdigit() else None
 
 
+def get_issue_milestone(issue: int) -> tuple[str | None, str | None]:
+    """Return (milestone_title, due_on YYYY-MM-DD) for the issue's current milestone."""
+    result = subprocess.run(
+        ["gh", "api", f"repos/{REPO}/issues/{issue}",
+         "--jq", "{title: .milestone.title, due_on: .milestone.due_on}"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        return (None, None)
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return (None, None)
+    title = data.get("title")
+    due_on = data.get("due_on")
+    if due_on:
+        due_on = due_on[:10]
+    return (title, due_on)
+
+
+def get_issue_target_date(issue: int) -> tuple[str | None, str | None]:
+    """Return (target_date YYYY-MM-DD, project_item_id) for the issue's entry on project #9.
+
+    Returns (None, None) if the issue is not on the project board. Returns
+    (None, item_id) if the issue is on the board but Target date is unset.
+    """
+    query = (
+        'query { repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") '
+        '{ issue(number: ' + str(issue) + ') { projectItems(first: 10) { nodes { '
+        'id project { number } fieldValues(first: 20) { nodes { '
+        '... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2FieldCommon { name } } } '
+        '} } } } } } }'
+    )
+    result = subprocess.run(
+        ["gh", "api", "graphql", "-f", f"query={query}"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        return (None, None)
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return (None, None)
+    issue_node = ((data.get("data") or {}).get("repository") or {}).get("issue") or {}
+    items = (issue_node.get("projectItems") or {}).get("nodes") or []
+    for item in items:
+        if ((item.get("project") or {}).get("number")) != PROJECT_NUMBER:
+            continue
+        item_id = item.get("id")
+        for fv in (item.get("fieldValues") or {}).get("nodes") or []:
+            if not fv:
+                continue
+            field_name = (fv.get("field") or {}).get("name")
+            if field_name == TARGET_DATE_FIELD_NAME:
+                return (fv.get("date"), item_id)
+        return (None, item_id)
+    return (None, None)
+
+
+def target_sync_check(issue: int) -> str | None:
+    """Compare issue's Target date against current milestone due_on. Returns warning or None."""
+    ms_title, ms_due_on = get_issue_milestone(issue)
+    target_date, item_id = get_issue_target_date(issue)
+
+    if item_id is None:
+        return None
+
+    if ms_title:
+        if target_date == ms_due_on:
+            return None
+        return (
+            f"[target re-sync needed — move on #{issue}, new milestone \"{ms_title}\"]\n"
+            f"Project board Target date: {target_date or '(unset)'}\n"
+            f"New milestone due_on:      {ms_due_on or '(unset)'}\n"
+            f"Re-sync via GraphQL `updateProjectV2ItemFieldValue`:\n"
+            f"  projectId: {PROJECT_ID}\n"
+            f"  itemId:    {item_id}\n"
+            f"  fieldId:   {TARGET_DATE_FIELD_ID}  ({TARGET_DATE_FIELD_NAME})\n"
+            f"  date:      {ms_due_on}"
+        )
+
+    if target_date is not None:
+        return (
+            f"[target re-sync needed — demilestone on #{issue}]\n"
+            f"Issue is un-milestoned but Target date is still: {target_date}\n"
+            f"Clear via GraphQL `clearProjectV2ItemFieldValue`:\n"
+            f"  projectId: {PROJECT_ID}\n"
+            f"  itemId:    {item_id}\n"
+            f"  fieldId:   {TARGET_DATE_FIELD_ID}  ({TARGET_DATE_FIELD_NAME})"
+        )
+
+    return None
+
+
 def prior_milestones_for_issue(issue: int) -> list[int]:
     """Return milestone numbers from the 2 most recent milestoned/demilestoned events."""
     result = subprocess.run(
@@ -134,6 +232,9 @@ def dispatch(cmd: str) -> list[str]:
                     f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
                     f"{run_recheck('--milestone', str(ms))}"
                 )
+        sync_warn = target_sync_check(issue)
+        if sync_warn:
+            outputs.append(sync_warn)
 
     if SIZE_FIELD_ID in cmd:
         item_match = PATTERN_ITEMID.search(cmd)

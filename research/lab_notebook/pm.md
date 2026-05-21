@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-21
 
+### 14:40 UTC — Editor: PM
+
+#### [Issue #448](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/448) — target-date re-sync hook ([PR #450](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/450))
+
+**Trigger.** This morning's Roadmap-overdue sweep surfaced 3 Issues; 2 of them ([Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) per-role model routing, [Issue #304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/304) sensitivity analysis) had stale project board Target dates from mid-week `gh issue edit --milestone X` moves that never re-synced the date. Rung 2 (inline Always-in-effect rule + `feedback_milestones.md` body update) landed earlier in the same morning; this PR is rung 3 (point-of-action mechanism), completing the layered defense per [[mechanism-over-memory]].
+
+**Mechanism shape.** Extended [`.claude/hooks/recheck_dispatch.py`](.claude/hooks/recheck_dispatch.py) — sibling addition to the milestone-capacity recheck ([PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397) precedent) and parent-status drift recheck ([PR #407](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/407) precedent). 4 constants (`PROJECT_ID`, `PROJECT_NUMBER`, `TARGET_DATE_FIELD_ID`, `TARGET_DATE_FIELD_NAME`), 2 helpers (`get_issue_milestone` via REST, `get_issue_target_date` via GraphQL), 1 check (`target_sync_check`) wired into the existing `PATTERN_MOVE` branch alongside milestone-recheck. Report-only via `additionalContext` — same shape as siblings, no auto-mutation; operator runs the fix mutation when surfaced.
+
+**Verified before push.** Clean [Issue #324](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/324) (Target=2026-07-09, milestone due=2026-07-09 post-morning-sync) → no warning. Stale [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (Target=2026-05-15, milestone due=2026-06-13 post-i3-S1 recompute earlier today) → warning emitted with correct projectId, itemId, fieldId, date — all 4 fields suitable for a copy-paste GraphQL mutation. Pre-existing milestone-recheck path fires correctly alongside the new check.
+
+**Review.** `@claude review` returned in 2m1s, verdict approve, 2 cosmetic non-blocking nits: (a) `get_issue_milestone` returns `(None, None)` on both no-milestone AND REST API error — distinct sentinel would tighten signal; (b) `return (None, item_id)` inside the outer fieldValues loop is correct early-exit but implicit. Declined both for this PR: (a) is YAGNI on a report-only hook until a real false warning shows up in session usage; (b) suggested comment is WHAT-not-WHY, against the terseness rule. If false warnings surface later, address (a) at that point.
+
+**Follow-up tracked in PR body.** Promote hook config from `.claude/settings.local.json` (gitignored) to `.claude/settings.json` once it proves out in session usage; extend the check to the milestone-`due_on`-PATCH path so when a milestone's date itself moves, all member Issues' Target dates get flagged at once.
+
+---
+
 ### 09:59 UTC — Editor: PM
 
 #### [Issue #249](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/249) — feedback memory spike-rate alert (XS warm-up); i6-S3 milestone restructure during triage
