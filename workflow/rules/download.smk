@@ -45,3 +45,50 @@ if _REMOTE_FASTQ_MAP:
                 gsutil cp {params.source_path} {output.fastq} 2>&1 | tee {log}
             fi
             """
+
+
+# =============================================================================
+# VDJdb release download — Issue #204
+# =============================================================================
+
+rule download_vdjdb_release:
+    """Download a pinned VDJdb release, verify SHA256, extract vdjdb_full.txt.
+
+    Sentinel-gated for idempotency. Re-runs are no-ops once the sentinel exists.
+    """
+    output:
+        vdjdb_tsv = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
+        sentinel = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
+    log:
+        f"logs/download/vdjdb_{config['tcrdock']['vdjdb_release']}.log",
+    params:
+        release = config["tcrdock"]["vdjdb_release"],
+        sha256 = config["tcrdock"]["vdjdb_sha256"],
+    conda:
+        "../envs/vdjdb.yaml"
+    shell:
+        """
+        set -euo pipefail
+        DIR=$(dirname {output.sentinel})
+        mkdir -p "$DIR"
+        ZIP="$DIR/vdjdb-{params.release}.zip"
+        URL="https://github.com/antigenomics/vdjdb-db/releases/download/{params.release}/vdjdb-{params.release}.zip"
+
+        echo "Downloading VDJdb {params.release} from $URL" >> {log} 2>&1
+        curl -fsSL "$URL" -o "$ZIP" >> {log} 2>&1
+
+        echo "Verifying SHA256..." >> {log} 2>&1
+        ACTUAL=$(shasum -a 256 "$ZIP" | awk '{{print $1}}')
+        if [ "$ACTUAL" != "{params.sha256}" ]; then
+            echo "SHA256 mismatch! expected={params.sha256} actual=$ACTUAL" >> {log} 2>&1
+            exit 1
+        fi
+        echo "SHA256 OK" >> {log} 2>&1
+
+        echo "Extracting..." >> {log} 2>&1
+        unzip -o "$ZIP" -d "$DIR/extracted" >> {log} 2>&1
+        cp "$DIR/extracted/vdjdb-{params.release}/vdjdb_full.txt" {output.vdjdb_tsv}
+
+        touch {output.sentinel}
+        echo "Done." >> {log} 2>&1
+        """
