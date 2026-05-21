@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-21
+
+### 17:50 UTC — Editor: Developer
+
+**Headline:** [PR #449](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/449) shipped, closing [Issue #447](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/447) (document Python execution contexts; fix stale `.venv/bin/python` plan-file refs). In-tree: [CLAUDE.md](CLAUDE.md) gains a `## Python environments` section (4-env matrix + no-root-`.venv` invariant) and 4 stale refs in [docs/superpowers/plans/2026-05-19-issue-17-star-aligner.md](docs/superpowers/plans/2026-05-19-issue-17-star-aligner.md) corrected. Out-of-tree (in `.claude/memory/`): new `shared/feedback_python_environments.md` Always-in-effect rule, `shared/MEMORY.md` index entry, Developer `MEMORY.md` inline pointer + line 30 stale-ref fix, `feedback_test_before_pr.md` body fix. Bot review (`@claude review`) = **Approve** with two non-blocking observations folded into follow-ups, not this PR.
+
+#### "5 envs" collapsed to "4 envs" under critical review — `python -c` is not a separate env
+
+Initial surfacing brief framed this as 5 functional Python envs in the project (per-rule conda, snakemake conda, `workflow/tests/.venv`, `research/.venv`, ad-hoc `python -c`). On critical re-read before drafting CLAUDE.md, the 5th case wasn't actually distinct — a bare `python -c "..."` invocation just uses whatever interpreter the active env exposes, which in practice means the `snakemake` conda env after `conda activate snakemake`. Calling it a separate env was a count-inflation artifact of the original "I keep getting confused about which Python" symptom (every interpreter touch felt like its own decision). Collapsing to 4 envs in the docs was both honest and more useful: the matrix gets a cleaner "use case → canonical path" mapping, and the `python -c` row in the quick-lookup table folds into the `conda activate snakemake` row. The recursion-on-pitch happened **before** any commits — worth recording because the impulse to ship the original framing was strong; the rewrite was 3 minutes of work that prevented stale doc debt.
+
+#### Out-of-tree memory changes don't show in `git diff`, but ARE the bulk of the work
+
+The PR's `git diff main --stat` shows 2 files changed (24 insertions, 4 deletions). The actual session output was 6 files modified: 4 of them inside `.claude/memory/` (gitignored). For future-me looking at the merged commit and wondering "where did the shared rule go?" — it's out-of-tree by design (each role's memory is a per-clone artifact, not source-tree state). The PR + the Issue body + this lab notebook entry are the durable record that ties in-tree to out-of-tree. The shape worked here because Issue #447's AC list explicitly enumerated both halves, so the closure-ritual gate would catch any miss.
+
+#### Vdjdb plan fix (24 hits) deferred via Issue #204 carrier — the file lives on that branch
+
+AC #6 said "Two plan files corrected." Only the star-aligner one is reachable from main (4 hits → 0). The vdjdb plan file ([docs/superpowers/plans/2026-05-20-vdjdb-panel-plan.md](docs/superpowers/plans/2026-05-20-vdjdb-panel-plan.md), 24 hits) lives exclusively on the `204-...` branch — fixing it here would need a cross-branch merge or a rebase dance, and the file will land on main when [Issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) work merges anyway. Solution: defer-tick AC #6 with a link to a heads-up comment filed on Issue #204 ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204#issuecomment-4509276737)) that explicitly enumerates the canonical replacements (pytest invocations → `workflow/tests/.venv/bin/python`; `python -c` quick checks → bare `python` post `conda activate snakemake`). This is the closure-ritual deferral pattern in action — tick `- [x]` with link to carrier Issue, mechanism passes, work doesn't get forgotten. The grep AC (`grep -rn '\.venv/bin/python' docs/ scripts/ workflow/ .github/ | grep -v 'workflow/tests/\.venv'`) returns empty on the 447 branch because the vdjdb file isn't on main yet — so the AC is honestly green at merge-time even with the deferral.
+
+#### Memory broadcast skipped — shared/MEMORY.md absorption is enough
+
+[team_memory_broadcasts.md](.claude/memory/shared/team_memory_broadcasts.md) is the channel for cross-role rule changes that need explicit attention before next session start. For this Python-envs rule, the change is already indexed in `shared/MEMORY.md` as an Always-in-effect entry — Scientist + PM will absorb it automatically at next `/memory` without a broadcast nudge. Broadcasting would have been noise. AC #4 ticked with the rationale inline rather than removed entirely, so the closed Issue carries an audit trail of the deliberate skip (vs. an oversight). [Issue #451](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/451) filed as the open follow-up — would consolidate `workflow/tests/.venv` + `research/.venv` into a single repo-root `.venv`, making `.venv/bin/python` actually correct and dissolving the whole 4-env distinction; gated on Sci sign-off because it crosses notebook-deps ownership.
+
+---
+
 ## 2026-05-20
 
 ### 16:01 UTC — Editor: Developer
