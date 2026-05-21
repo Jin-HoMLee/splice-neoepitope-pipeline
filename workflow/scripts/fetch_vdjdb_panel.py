@@ -146,3 +146,100 @@ def stitch_chain(v_gene: str, j_gene: str, cdr3: str, chain: str) -> Optional[st
         log.error("stitchr crashed (chain=%s, V=%s, J=%s, CDR3=%s): %s",
                   chain, v_gene, j_gene, cdr3, exc)
         return None
+
+
+# ---------------------------------------------------------------------------
+# Build panel — orchestrate + write outputs
+# ---------------------------------------------------------------------------
+
+PANEL_COLUMNS = [
+    "allele", "va_gene", "ja_gene", "cdr3a",
+    "vb_gene", "jb_gene", "cdr3b",
+    "alpha_seq", "beta_seq",
+    "vdjdb_score", "vdjdb_donor_id",
+]
+
+QC_COLUMNS = ["allele", "n_exact_matches", "n_in_panel", "panel_status"]
+
+
+def build_panel(
+    vdjdb_full_tsv,
+    alleles: list,
+    output_panel,
+    output_qc,
+    min_score: int,
+    panel_size: int,
+) -> None:
+    """Build a per-patient VDJdb panel and write panel.tsv + panel_qc.tsv.
+
+    For each allele in `alleles`:
+      - exact-match filter (4-digit normalized)
+      - sort by score DESC + donor_id ASC
+      - iterate top-down: call stitchr per row, accumulate successes,
+        skip+log on stitch failures, stop at panel_size or exhaustion
+      - record n_exact_matches + n_in_panel + panel_status in QC
+    """
+    import pandas as pd  # lazy import
+    from pathlib import Path
+
+    output_panel = Path(output_panel)
+    output_qc = Path(output_qc)
+    output_panel.parent.mkdir(parents=True, exist_ok=True)
+    output_qc.parent.mkdir(parents=True, exist_ok=True)
+
+    df = load_and_filter_vdjdb(vdjdb_full_tsv, min_score=min_score)
+
+    panel_rows = []
+    qc_rows = []
+    for allele in alleles:
+        candidates = select_top_n_for_allele(df, allele=allele, n=len(df))
+        n_exact = len(candidates)
+        n_in_panel = 0
+        for _, row in candidates.iterrows():
+            if n_in_panel >= panel_size:
+                break
+            alpha = stitch_chain(
+                v_gene=row["v.alpha"], j_gene=row["j.alpha"],
+                cdr3=row["cdr3.alpha"], chain="A",
+            )
+            beta = stitch_chain(
+                v_gene=row["v.beta"], j_gene=row["j.beta"],
+                cdr3=row["cdr3.beta"], chain="B",
+            )
+            if alpha is None or beta is None:
+                log.error("Skipping VDJdb row for allele %s (donor %s) — stitch failed",
+                          allele, row["meta.subject.id"])
+                continue
+            panel_rows.append({
+                "allele": allele,
+                "va_gene": row["v.alpha"], "ja_gene": row["j.alpha"], "cdr3a": row["cdr3.alpha"],
+                "vb_gene": row["v.beta"],  "jb_gene": row["j.beta"],  "cdr3b": row["cdr3.beta"],
+                "alpha_seq": alpha, "beta_seq": beta,
+                "vdjdb_score": int(row["vdjdb.score"]),
+                "vdjdb_donor_id": row["meta.subject.id"],
+            })
+            n_in_panel += 1
+
+        status = classify_panel_status(n_in_panel, target_size=panel_size)
+        qc_rows.append({
+            "allele": allele,
+            "n_exact_matches": n_exact,
+            "n_in_panel": n_in_panel,
+            "panel_status": status,
+        })
+        if status == "empty":
+            log.warning("Allele %s: zero VDJdb entries (panel_status=empty)", allele)
+        elif status == "low_coverage":
+            log.warning("Allele %s: only %d entries available (panel_status=low_coverage)",
+                        allele, n_in_panel)
+
+    pd.DataFrame(panel_rows, columns=PANEL_COLUMNS).to_csv(output_panel, sep="\t", index=False)
+    pd.DataFrame(qc_rows, columns=QC_COLUMNS).to_csv(output_qc, sep="\t", index=False)
+
+    n_ok = sum(1 for r in qc_rows if r["panel_status"] == "ok")
+    n_low = sum(1 for r in qc_rows if r["panel_status"] == "low_coverage")
+    n_empty = sum(1 for r in qc_rows if r["panel_status"] == "empty")
+    log.info(
+        "VDJdb panel built — %d alleles: %d ok, %d low_coverage, %d empty. Wrote %s and %s.",
+        len(alleles), n_ok, n_low, n_empty, output_panel, output_qc,
+    )

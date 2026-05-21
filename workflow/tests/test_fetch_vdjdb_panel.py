@@ -1,11 +1,13 @@
 """Tests for fetch_vdjdb_panel.py — VDJdb panel construction."""
 
+import logging
 import shutil
 from pathlib import Path
 
 import pytest
 
 from fetch_vdjdb_panel import (
+    build_panel,
     classify_panel_status,
     load_and_filter_vdjdb,
     normalize_allele_to_4digit,
@@ -145,3 +147,117 @@ class TestStitchChain:
         # TRAV12-2 framework begins with a known leader; check for FW1 motif "QSV"
         # (allowing some flexibility — sanity check, not equality)
         assert len(alpha) > 100  # full Vα is ~100-110 aa
+
+
+class TestBuildPanel:
+    def test_writes_panel_and_qc_with_correct_schema(self, tmp_path, monkeypatch):
+        # Monkeypatch stitch_chain so we don't depend on real stitchr in this test
+        import fetch_vdjdb_panel as mod
+        monkeypatch.setattr(mod, "stitch_chain",
+                            lambda v_gene, j_gene, cdr3, chain: f"MOCK_{chain}_{cdr3}")
+
+        panel_tsv = tmp_path / "panel.tsv"
+        qc_tsv = tmp_path / "panel_qc.tsv"
+
+        build_panel(
+            vdjdb_full_tsv=FIXTURE_PATH,
+            alleles=["HLA-A*02:01", "HLA-A*31:01", "HLA-B*08:01"],
+            output_panel=panel_tsv,
+            output_qc=qc_tsv,
+            min_score=2,
+            panel_size=10,
+        )
+
+        import pandas as pd
+        panel = pd.read_csv(panel_tsv, sep="\t")
+        qc = pd.read_csv(qc_tsv, sep="\t")
+
+        # Panel schema
+        assert list(panel.columns) == [
+            "allele", "va_gene", "ja_gene", "cdr3a",
+            "vb_gene", "jb_gene", "cdr3b",
+            "alpha_seq", "beta_seq",
+            "vdjdb_score", "vdjdb_donor_id",
+        ]
+        # QC schema
+        assert list(qc.columns) == [
+            "allele", "n_exact_matches", "n_in_panel", "panel_status"
+        ]
+
+    def test_qc_status_classification(self, tmp_path, monkeypatch):
+        import fetch_vdjdb_panel as mod
+        monkeypatch.setattr(mod, "stitch_chain",
+                            lambda v_gene, j_gene, cdr3, chain: f"MOCK_{chain}")
+
+        panel_tsv = tmp_path / "panel.tsv"
+        qc_tsv = tmp_path / "panel_qc.tsv"
+
+        build_panel(
+            vdjdb_full_tsv=FIXTURE_PATH,
+            alleles=["HLA-A*02:01", "HLA-A*31:01", "HLA-B*08:01"],
+            output_panel=panel_tsv,
+            output_qc=qc_tsv,
+            min_score=2,
+            panel_size=10,
+        )
+
+        import pandas as pd
+        qc = pd.read_csv(qc_tsv, sep="\t").set_index("allele")
+        # HLA-A*02:01: 5 matches, panel_size=10 → low_coverage
+        assert qc.loc["HLA-A*02:01", "n_in_panel"] == 5
+        assert qc.loc["HLA-A*02:01", "panel_status"] == "low_coverage"
+        # HLA-A*31:01: 0 matches in fixture → empty
+        assert qc.loc["HLA-A*31:01", "n_in_panel"] == 0
+        assert qc.loc["HLA-A*31:01", "panel_status"] == "empty"
+        # HLA-B*08:01: 1 match → low_coverage
+        assert qc.loc["HLA-B*08:01", "n_in_panel"] == 1
+        assert qc.loc["HLA-B*08:01", "panel_status"] == "low_coverage"
+
+    def test_empty_allele_emits_warning(self, tmp_path, monkeypatch, caplog):
+        import fetch_vdjdb_panel as mod
+        monkeypatch.setattr(mod, "stitch_chain",
+                            lambda v_gene, j_gene, cdr3, chain: f"MOCK_{chain}")
+
+        panel_tsv = tmp_path / "panel.tsv"
+        qc_tsv = tmp_path / "panel_qc.tsv"
+
+        with caplog.at_level(logging.WARNING):
+            build_panel(
+                vdjdb_full_tsv=FIXTURE_PATH,
+                alleles=["HLA-A*31:01"],
+                output_panel=panel_tsv,
+                output_qc=qc_tsv,
+                min_score=2,
+                panel_size=10,
+            )
+
+        warning_msgs = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("HLA-A*31:01" in m and "empty" in m.lower() for m in warning_msgs)
+
+    def test_stitch_failure_skips_row_continues(self, tmp_path, monkeypatch, caplog):
+        # stitch_chain returns None for the second call only — simulates one-row stitch failure
+        import fetch_vdjdb_panel as mod
+        call_count = {"n": 0}
+        def flaky_stitch(v_gene, j_gene, cdr3, chain):
+            call_count["n"] += 1
+            return None if call_count["n"] == 2 else f"MOCK_{chain}_{cdr3}"
+        monkeypatch.setattr(mod, "stitch_chain", flaky_stitch)
+
+        panel_tsv = tmp_path / "panel.tsv"
+        qc_tsv = tmp_path / "panel_qc.tsv"
+        with caplog.at_level(logging.ERROR):
+            build_panel(
+                vdjdb_full_tsv=FIXTURE_PATH,
+                alleles=["HLA-A*02:01"],
+                output_panel=panel_tsv,
+                output_qc=qc_tsv,
+                min_score=2,
+                panel_size=3,  # need 3, will fall back when one fails
+            )
+        import pandas as pd
+        panel = pd.read_csv(panel_tsv, sep="\t")
+        # Should still get 3 rows because we keep iterating after a stitch failure
+        assert len(panel) == 3
+        # ERROR was logged for the failed row
+        assert any("stitchr" in r.message.lower() or "stitch" in r.message.lower()
+                   for r in caplog.records if r.levelno == logging.ERROR)
