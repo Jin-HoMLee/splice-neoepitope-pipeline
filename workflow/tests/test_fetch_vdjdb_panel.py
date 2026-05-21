@@ -9,6 +9,7 @@ import pytest
 from fetch_vdjdb_panel import (
     build_panel,
     classify_panel_status,
+    load_alleles_tsv,
     load_and_filter_vdjdb,
     normalize_allele_to_4digit,
     select_top_n_for_allele,
@@ -261,3 +262,20 @@ class TestBuildPanel:
         # ERROR was logged for the failed row
         assert any("stitchr" in r.message.lower() or "stitch" in r.message.lower()
                    for r in caplog.records if r.levelno == logging.ERROR)
+
+
+class TestLoadAllelesTsv:
+    def test_extracts_unique_4digit_alleles(self, tmp_path):
+        tsv = tmp_path / "alleles.tsv"
+        tsv.write_text(
+            "locus\tallele1\tallele2\n"
+            "A\tHLA-A*02:01\tHLA-A*31:01\n"
+            "B\tHLA-B*08:01\tHLA-B*08:01\n"  # homozygous → dedupe
+            "C\tHLA-C*07:01\tHLA-C*03:03\n"
+        )
+        alleles = load_alleles_tsv(tsv)
+        assert sorted(alleles) == [
+            "HLA-A*02:01", "HLA-A*31:01",
+            "HLA-B*08:01",
+            "HLA-C*03:03", "HLA-C*07:01",
+        ]

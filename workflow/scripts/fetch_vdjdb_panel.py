@@ -243,3 +243,80 @@ def build_panel(
         "VDJdb panel built — %d alleles: %d ok, %d low_coverage, %d empty. Wrote %s and %s.",
         len(alleles), n_ok, n_low, n_empty, output_panel, output_qc,
     )
+
+
+# ---------------------------------------------------------------------------
+# Allele loading from alleles.tsv (HLA typing output)
+# ---------------------------------------------------------------------------
+
+def load_alleles_tsv(alleles_tsv) -> list:
+    """Load unique 4-digit alleles from alleles.tsv produced by aggregate_hla_alleles.
+
+    alleles.tsv schema (existing): rows per locus (A/B/C) with allele1, allele2 columns.
+    Returns a deduplicated list of allele strings, all 4-digit.
+    """
+    import pandas as pd  # lazy import
+    df = pd.read_csv(alleles_tsv, sep="\t", dtype=str)
+    alleles: set = set()
+    for col in ("allele1", "allele2"):
+        if col not in df.columns:
+            continue
+        for a in df[col].dropna().unique():
+            normalized = normalize_allele_to_4digit(a)
+            if normalized:
+                alleles.add(normalized)
+    return sorted(alleles)
+
+
+# ---------------------------------------------------------------------------
+# Snakemake / CLI entry point
+# ---------------------------------------------------------------------------
+
+def _snakemake_main() -> None:
+    """Entry point when called via Snakemake `script:` directive."""
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s — %(message)s")
+    log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
+    logging.getLogger().addHandler(logging.FileHandler(log_file))
+
+    alleles = load_alleles_tsv(snakemake.input.alleles_tsv)  # type: ignore[name-defined]  # noqa: F821
+    build_panel(
+        vdjdb_full_tsv=snakemake.input.vdjdb_tsv,  # type: ignore[name-defined]  # noqa: F821
+        alleles=alleles,
+        output_panel=snakemake.output.panel,  # type: ignore[name-defined]  # noqa: F821
+        output_qc=snakemake.output.qc,  # type: ignore[name-defined]  # noqa: F821
+        min_score=snakemake.params.min_score,  # type: ignore[name-defined]  # noqa: F821
+        panel_size=snakemake.params.panel_size,  # type: ignore[name-defined]  # noqa: F821
+    )
+
+
+def _cli_main() -> None:
+    """Entry point when called from the command line (for development/debug)."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Build a VDJdb TCR panel for one patient.")
+    parser.add_argument("--vdjdb-tsv", required=True, help="Path to vdjdb_full.txt")
+    parser.add_argument("--alleles-tsv", required=True, help="Path to alleles.tsv")
+    parser.add_argument("--output-panel", required=True, help="Output panel.tsv path")
+    parser.add_argument("--output-qc", required=True, help="Output panel_qc.tsv path")
+    parser.add_argument("--min-score", type=int, default=2)
+    parser.add_argument("--panel-size", type=int, default=10)
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s — %(message)s")
+    alleles = load_alleles_tsv(args.alleles_tsv)
+    build_panel(
+        vdjdb_full_tsv=args.vdjdb_tsv, alleles=alleles,
+        output_panel=args.output_panel, output_qc=args.output_qc,
+        min_score=args.min_score, panel_size=args.panel_size,
+    )
+
+
+if __name__ == "__main__":
+    try:
+        snakemake  # type: ignore[name-defined]  # noqa: F821
+    except NameError:
+        _cli_main()
+    else:
+        _snakemake_main()
