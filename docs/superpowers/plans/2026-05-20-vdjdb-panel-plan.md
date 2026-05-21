@@ -259,7 +259,7 @@ class TestNormalizeAlleleTo4Digit:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
 ```
 Expected: collection failure — `ImportError: cannot import name 'normalize_allele_to_4digit' from 'fetch_vdjdb_panel'` (or module not found).
 
@@ -318,7 +318,7 @@ def normalize_allele_to_4digit(allele: str) -> Optional[str]:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestNormalizeAlleleTo4Digit -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestNormalizeAlleleTo4Digit -v
 ```
 Expected: 7 passed.
 
@@ -390,7 +390,7 @@ class TestLoadAndFilterVdjdb:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestLoadAndFilterVdjdb -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestLoadAndFilterVdjdb -v
 ```
 Expected: `ImportError` on `load_and_filter_vdjdb`.
 
@@ -432,7 +432,7 @@ def load_and_filter_vdjdb(vdjdb_full_tsv, min_score: int):
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
 ```
 Expected: all green (the 7 normalize tests + 4 new load_and_filter tests).
 
@@ -503,7 +503,7 @@ class TestSelectTopNForAllele:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestSelectTopNForAllele -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestSelectTopNForAllele -v
 ```
 Expected: `ImportError` on `select_top_n_for_allele`.
 
@@ -534,7 +534,7 @@ def select_top_n_for_allele(df, allele: str, n: int):
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
 ```
 Expected: all green.
 
@@ -577,7 +577,7 @@ class TestClassifyPanelStatus:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestClassifyPanelStatus -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestClassifyPanelStatus -v
 ```
 Expected: `ImportError` on `classify_panel_status`.
 
@@ -605,7 +605,7 @@ def classify_panel_status(n_in_panel: int, target_size: int) -> str:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v
 ```
 Expected: all green.
 
@@ -672,7 +672,7 @@ class TestStitchChain:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network
 ```
 Expected: `ImportError` on `stitch_chain`.
 
@@ -742,7 +742,7 @@ markers =
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network
 ```
 Expected: green if stitchr + IMGT data installed; skipped otherwise.
 
@@ -891,7 +891,7 @@ class TestBuildPanel:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestBuildPanel -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestBuildPanel -v
 ```
 Expected: `ImportError` on `build_panel`.
 
@@ -1001,7 +1001,7 @@ def build_panel(
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v -m "not network"
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v -m "not network"
 ```
 Expected: all green (network-marked stitchr test skipped).
 
@@ -1130,7 +1130,7 @@ class TestLoadAllelesTsv:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v -m "not network"
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py -v -m "not network"
 ```
 Expected: all green.
 
@@ -1140,7 +1140,7 @@ Run a fixture-based CLI smoke test (no real stitchr — just verify args plumbin
 
 ```bash
 echo -e "locus\tallele1\tallele2\nA\tHLA-A*02:01\tHLA-A*31:01" > /tmp/test_alleles.tsv
-.venv/bin/python workflow/scripts/fetch_vdjdb_panel.py \
+python workflow/scripts/fetch_vdjdb_panel.py \
   --vdjdb-tsv workflow/tests/fixtures/vdjdb_mini.tsv \
   --alleles-tsv /tmp/test_alleles.tsv \
   --output-panel /tmp/panel.tsv \
@@ -1239,12 +1239,12 @@ Open `Snakefile`. Find the existing include block (currently 10 lines from `comm
 The download rules don't exist yet (Task 13 + 14 add them), so a full dry-run will fail. Run a parse-only check:
 
 ```bash
-.venv/bin/python -c "
+python -c "
 import snakemake
 # Snakemake 8 parses .smk on workflow construction; just check syntax.
 print('parsing Snakefile...')
 " 2>&1
-.venv/bin/python -c "
+python -c "
 from snakemake.api import SnakemakeApi
 print('OK if no SyntaxError below')
 " 2>&1
@@ -1253,7 +1253,7 @@ print('OK if no SyntaxError below')
 A safer parse check is just to ensure the rule module syntax is valid Python+Snakemake DSL:
 
 ```bash
-.venv/bin/python -c "
+python -c "
 # Faux-parse: just ensure the file is syntactically importable as text Python
 src = open('workflow/rules/tcr_panel.smk').read()
 compile(src, 'tcr_panel.smk', 'exec')
@@ -1341,7 +1341,7 @@ rule download_vdjdb_release:
 - [ ] **Step 3: Snakemake parse check**
 
 ```bash
-.venv/bin/python -c "
+python -c "
 src = open('workflow/rules/download.smk').read()
 compile(src, 'download.smk', 'exec')
 print('OK')
@@ -1416,7 +1416,7 @@ rule download_imgt_germlines:
 - [ ] **Step 2: Snakemake parse check**
 
 ```bash
-.venv/bin/python -c "
+python -c "
 src = open('workflow/rules/download.smk').read()
 compile(src, 'download.smk', 'exec')
 print('OK')
@@ -1487,7 +1487,7 @@ If the dry-run revealed issues that required code edits, those edits should have
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/ -v --tb=short -m "not network" 2>&1 | tail -30
+workflow/tests/.venv/bin/python -m pytest workflow/tests/ -v --tb=short -m "not network" 2>&1 | tail -30
 ```
 Expected: all green. Ensure no regressions in pre-existing tests (e.g., `test_run_tcrdock.py`, `test_run_mhcflurry.py`).
 
@@ -1495,7 +1495,7 @@ Expected: all green. Ensure no regressions in pre-existing tests (e.g., `test_ru
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network 2>&1 | tail -10
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_fetch_vdjdb_panel.py::TestStitchChain -v -m network 2>&1 | tail -10
 ```
 Expected: green if stitchr + IMGT data are installed locally. If skipped, that's acceptable for CI but verify locally before opening PR.
 
