@@ -102,6 +102,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **LSF** — Load Sharing Facility (IBM Spectrum). Commercial HPC batch scheduler; used at DKFZ Heidelberg among others. Snakemake has a dedicated LSF executor plugin. *Domain: cloud.*
 
+**LSP** — Language Server Protocol. Microsoft spec (2016) decoupling code-intelligence backends (completion, hover, go-to-definition, diagnostics) from editor frontends — one server, many editors. Claude Code plugins can register LSP servers alongside MCP servers; `/plugin Discover` previews these before install (Claude Code 2.1.145). *Domain: cloud.*
+
 ## M
 
 **MCP** — Model Context Protocol. Anthropic's open spec (late 2024) for AI agents to discover and invoke external tools / data sources via per-purpose MCP servers; the standardized way to expose resources to LLMs without bespoke per-tool integration. *"USB-C for AI agents."* Used by Claude Code, the GitHub MCP server, filesystem servers, etc. *Domain: ml.*
@@ -123,6 +125,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **OKR** — Objectives and Key Results. Goal-setting framework popularised by Intel/Google: one qualitative *Objective* + 3–5 quantitative *Key Results*, usually quarterly. Common in software shops; we use S1–S7 lifecycle stages + iteration capacity instead. *Domain: project.*
 
 **OOD** — Out-of-distribution. Inputs whose features fall in low-density regions of the model's training distribution; predictions on OOD inputs are typically over-confident yet unreliable since the model never learned to constrain them. Detected operationally via density estimators, embedding-space distance to training samples, or ensemble disagreement. Relevant for splice-junction-spanning peptides — systematically under-represented in canonical-proteome MHC training data. *Domain: ml.*
+
+**OTEL** — OpenTelemetry. Vendor-neutral CNCF observability framework: specs + SDKs for distributed traces, metrics, and logs, exportable to backends like Honeycomb, Jaeger, Tempo. Claude Code 2.1.145 added `agent_id` and `parent_agent_id` to `claude_code.tool` spans so nested agent calls show correct trace parenting (relevant if we ever wire trace export from PM/Sci/Dev sessions). *Domain: cloud.*
 
 ## P
 
