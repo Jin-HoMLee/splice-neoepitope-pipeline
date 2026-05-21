@@ -71,3 +71,21 @@ def load_and_filter_vdjdb(vdjdb_full_tsv, min_score: int):
         vdjdb_full_tsv, len(df), min_score,
     )
     return df
+
+
+# ---------------------------------------------------------------------------
+# Per-allele top-N selection
+# ---------------------------------------------------------------------------
+
+def select_top_n_for_allele(df, allele: str, n: int):
+    """Filter `df` to exact 4-digit matches for `allele`, sort by
+    (vdjdb.score DESC, meta.subject.id ASC) for deterministic tiebreak,
+    return top `n` rows.
+    """
+    matched = df[df["mhc.a_4digit"] == allele].copy()
+    matched = matched.sort_values(
+        ["vdjdb.score", "meta.subject.id"],
+        ascending=[False, True],
+        kind="mergesort",  # stable
+    )
+    return matched.head(n).reset_index(drop=True)

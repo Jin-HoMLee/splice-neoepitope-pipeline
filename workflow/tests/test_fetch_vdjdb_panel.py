@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from fetch_vdjdb_panel import load_and_filter_vdjdb, normalize_allele_to_4digit
+from fetch_vdjdb_panel import (
+    load_and_filter_vdjdb,
+    normalize_allele_to_4digit,
+    select_top_n_for_allele,
+)
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "vdjdb_mini.tsv"
@@ -61,3 +65,43 @@ class TestLoadAndFilterVdjdb:
         tsv.write_text(header + bad_row)
         df = load_and_filter_vdjdb(tsv, min_score=2)
         assert len(df) == 0
+
+
+class TestSelectTopNForAllele:
+    def test_exact_match_filter(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-A*02:01", n=10)
+        # rows 1, 2, 3, 9, 10 — 5 total (includes the 6-digit row 2 after normalization)
+        assert len(result) == 5
+        assert (result["mhc.a_4digit"] == "HLA-A*02:01").all()
+
+    def test_does_not_match_different_allele(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-A*02:02", n=10)
+        assert len(result) == 1  # only row 5 in fixture
+
+    def test_returns_top_n_when_more_available(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-A*02:01", n=2)
+        assert len(result) == 2
+
+    def test_returns_fewer_when_fewer_available(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-B*08:01", n=10)
+        assert len(result) == 1  # only row 6 matches B*08:01
+
+    def test_returns_empty_when_no_matches(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-A*31:01", n=10)
+        assert len(result) == 0
+
+    def test_sorted_by_score_then_donor_id(self):
+        df = load_and_filter_vdjdb(FIXTURE_PATH, min_score=2)
+        result = select_top_n_for_allele(df, allele="HLA-A*02:01", n=10)
+        # Of the 5 matching rows: 4 with score=3 (donors 001, 002, 009, 010), 1 with score=2 (donor 003).
+        # Score 3 rows come first; among them, donor IDs sorted ascending lexicographically.
+        scores = result["vdjdb.score"].tolist()
+        assert scores == [3, 3, 3, 3, 2]
+        donor_order = result["meta.subject.id"].tolist()
+        # Top 4 (score=3) sorted ascending: 001, 002, 009, 010. Last is score=2 (donor 003).
+        assert donor_order == ["donor-001", "donor-002", "donor-009", "donor-010", "donor-003"]
