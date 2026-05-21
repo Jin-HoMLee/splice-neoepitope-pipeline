@@ -6,6 +6,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-21
+
+### 18:14 UTC — Editor: Scientist
+
+#### [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (research: normal-junction filter strength on patient_001 chr22) — Exp 3 ran end-to-end; verdict **NO-GO** for AG-as-3rd-filter
+
+Picked up [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (sub-issue of parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) Experiment 3) and ran the three-way filter-strength comparison on patient_001's chr22 tumor junctions. New notebook at `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb`, established under a new `research/experiments/issue_NNN_<short>/` convention documented into CLAUDE.md as part of the PR.
+
+**Headline numbers.** On chr22 (test-config harness; tumor = SRR9143066, matched-normal = SRR9143065, AG predictions = #224's cached parquet @ F1-max τ, GTEx = Snaptron hg38 GTEx v2 endpoint ≥1 sample):
+
+- **Exp 1 F1 (universe-restricted, MN ∩ GENCODE positives = 259 / universe = 7,731 GENCODE introns):** 0.3000 at τ = 3.16 (P=0.238, R=0.405). Matches the universe shape #224 §5 reported exactly (positives=259, negatives=7,472, AG-scored=5,728 / 74.1%).
+- **Tumor (n=1,872) caught by each filter:** MN 91 (4.9%), GTEx 483 (25.8%), AG 124 (6.6%). Caught-by-any (union) = 503 (26.9%).
+- **% AG-unique vs GTEx: 0.0%.** Every chr22 tumor junction AG catches is also caught by GTEx — AG is fully subsumed at the F1-max threshold.
+
+**Decision-rule outcome for [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) Exp 3 row: NO-GO — treat as tissue prior.** F1=0.30 trips the <0.5 NO-GO clause directly; even at a higher F1, the 0% AG-unique-vs-GTEx number would block the "fallback" tier (which requires ≥5% unique). Exp 2 (germline-aware AG) deferred to [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381) pending WGS — but Exp 1's signal alone is conclusive for the no-go branch.
+
+**Process: plan deviation in §2(b).** The implementation plan called for a per-unique-threshold set-op loop. On 770K unique scores across 2.6M predictions that's intractable (hours of O(N²) work). Switched to `sklearn.metrics.precision_recall_curve` over universe-restricted (universe = GENCODE chr22 introns) score/label vectors — same math (TP / FP / FN computed against the same universe), O(N log N), few seconds. Documented inline in the cell + in the §7 caveats. The universe choice (rather than the plan's unrestricted ground_truth) is what makes the F1 number comparable to #224's reported F1 and to the τ-thresholds in the #203 decision rule (which were calibrated against universe-restricted F1).
+
+**Snaptron coord-convention validation.** Snaptron GTEx v2 `start` is 1-based inclusive intron donor; `end` is 1-based inclusive acceptor (= 0-based exclusive). Validated empirically: 259/259 (100%) of ground_truth (MN ∩ GENCODE) introns appear in the Snaptron panel under the `start-1, end` normalisation; both off-by-one alternatives give 0% overlap. Cached as `outputs/chr22_gtex_panel.parquet` (880,769 rows, 6.3 MB — fits the <10 MB checked-in band per the new size-guidance rule in CLAUDE.md).
+
+**Convention established.** Per the design spec, this PR introduces `research/experiments/issue_NNN_<short>/` (with `README.md`, `notebook.ipynb`, `outputs/`) as the per-Issue notebook convention — mirrors the `research/slides/issue_NNN/` deck convention. Cross-experiment data sharing rules (default-own / `_shared/` lazy-promotion at 2nd consumer / explicit path reference for single consumer / production `resources/` promotion) and size bands (<10 MB / 10–100 MB + regenerator / >100 MB GCS manifest) all documented into CLAUDE.md. Migration of existing per-Issue work (`issue_224_*` / `issue_299_*`) from `research/notebooks/` punted to a follow-up Issue filed post-merge.
+
+**Follow-ups:**
+- Update parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body Exp 3 row with these numbers after this PR merges (Task 20 of the implementation plan).
+- File a migration Issue: move `research/notebooks/issue_224_*` and `issue_299_*` under the new `research/experiments/` convention.
+- Re-run §2(c) against the production GTEx panel once [Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) lands — the Snaptron proxy is good enough for the no-go decision but the production panel will tighten the % AG-unique number.
+- Optional: persist `best_threshold` from #224's notebook so #225 doesn't have to recompute it. Small QoL refactor; not blocking.
+
+**Outputs:** `outputs/chr22_gtex_panel.parquet` (6.3 MB), `outputs/filter_overlap_table.tsv` (248 B), `outputs/filter_venn_chr22.png` (60 KB).
+
+---
+
 ## 2026-05-20
 
 ### 21:29 UTC — Editor: Scientist
