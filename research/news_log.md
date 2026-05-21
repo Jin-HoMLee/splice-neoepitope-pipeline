@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-21
+
+### 08:12 UTC — Editor: PM
+
+- **Microsoft Conductor — deterministic multi-agent orchestrator** ([Microsoft Open Source 2026-05-14](https://opensource.microsoft.com/blog/2026/05/14/conductor-deterministic-orchestration-for-multi-agent-ai-workflows/), [microsoft/conductor](https://github.com/microsoft/conductor)) — YAML workflows with zero-token deterministic routing (Jinja2 conditions, parallel groups); Copilot SDK + Anthropic Agents SDK. → Frameworks backfill same PR. *PM. methodology-signal.*
+- **Claude Code 2.1.145** ([2026-05-19 changelog](https://code.claude.com/docs/en/changelog)) — `claude agents --json` for scripting; `agent_id`/`parent_agent_id` on OTEL spans; `/resume` for background sessions. → No action; OTEL + LSP glossary entries same PR. *PM. tooling-relevant.*
+
 ## 2026-05-20
 
 ### 10:02 UTC — Editor: Developer

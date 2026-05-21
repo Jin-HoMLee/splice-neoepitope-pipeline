@@ -36,6 +36,12 @@ Concrete products / tooling that could plausibly displace, augment, or be borrow
 - **Summary:** GitHub-native desktop client to start agentic dev sessions from an issue/PR/prompt; isolates work in-flight, supports mid-session steering, lands via PR review.
 - **Our rationale:** **Pattern-confirmation, no action.** Same parallel-session UI shape as Claude Code Agent View (news_log 2026-05-13) and convergent with our PM/Sci/Dev orchestration — but GitHub-anchored rather than terminal/IDE-anchored. Fits the "boards-as-control-plane" framing (cf. [OpenAI Symphony](#openai-symphony)). Tech preview only; too early for adoption decision but worth watching for GA + agent-callable surface (per [UI features ≠ agent capabilities](#our-position)). No action.
 
+### Microsoft Conductor
+
+- **Source:** [Microsoft Open Source blog, 2026-05-14](https://opensource.microsoft.com/blog/2026/05/14/conductor-deterministic-orchestration-for-multi-agent-ai-workflows/); [microsoft/conductor](https://github.com/microsoft/conductor) (MIT, Python 3.12+)
+- **Summary:** YAML-first CLI for multi-agent workflows. Routing between agents is **deterministic** — Jinja2 templates + expression evaluation handle conditions and branching; the orchestration layer itself spends zero LLM tokens. Static parallel groups (`fail_fast` / `continue_on_error` / `all_or_nothing`); dynamic for-each over variable-length arrays with batched concurrency. Backends: GitHub Copilot SDK or Anthropic Claude.
+- **Our rationale:** **Explicit counter-position to LLM-as-orchestrator, partial echo of our shape.** Most multi-agent frameworks make the orchestrator itself an LLM that plans which agents to call — that pays token cost, latency, and unpredictability on every routing decision. Conductor argues: when workflow structure is *known*, declarative YAML + deterministic routing wins (diffable like CI/CD, zero token spend on routing). Our equivalent of "the routing layer" is the human + the GitHub Projects board + standup file — also zero LLM tokens spent on routing (the routing artifacts live in non-LLM substrates), also declarative-ish (Status / Priority / Size / Target Date fields are the YAML-analog). Difference: ours stays human-discretionary at every hop (PM judges triage, doesn't follow a fixed graph), Conductor's is fixed-at-definition-time. Useful as a thought-experiment: *which subset of PM's morning routine is workflow-known-enough to encode in a Conductor-style YAML?* Likely candidates: closure audit (mechanical), milestone health check (already script-driven). Unlikely candidates: triage scoping, news interpretation. No adoption action — too early, and Python-3.12+ pin doesn't fit our 3.11 baseline — but the deterministic-vs-LLM-orchestrator axis is now a first-class evaluation criterion when surveying future frameworks (per the user's *deterministic-before-semantic* preference, established 2026-05-21).
+
 ---
 
 ## Methodology / framing
@@ -100,6 +106,7 @@ PM-owned. Update triggers:
 - New Issue concretely borrows from or extends a framework listed here → backfill the framework's rationale block with the Issue link.
 - Framework deprecated or pivoted → don't delete the entry; update the rationale with the deprecation note (the doc is a journal of *which* options we considered, not just current options).
 
-Last sweep: 2026-05-15 (GitHub Copilot desktop app backfilled to Frameworks as pattern-confirmation).
+Last sweep: 2026-05-21 (Microsoft Conductor backfilled to Frameworks as counter-position to LLM-as-orchestrator).
+Prior: 2026-05-15 (GitHub Copilot desktop app backfilled to Frameworks as pattern-confirmation).
 Prior: 2026-05-14 (Gartner cancellation forecast backfilled to `our_position` #2 as external validation).
 Prior: 2026-05-12 (initial scaffold; 6 backfilled items: Symphony, Trends Report, Managed Agents, Mason, Fugu, Code Agent Orchestra).

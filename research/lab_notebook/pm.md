@@ -6,6 +6,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-21
+
+### 08:48 UTC — Editor: PM
+
+#### Morning news_log + Microsoft Conductor landscape backfill ([PR #441](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/441)) + new shared memory *deterministic-before-semantic*
+
+Two PM news items today:
+
+- **Microsoft Conductor** (Microsoft Open Source 2026-05-14, [microsoft/conductor](https://github.com/microsoft/conductor)) — YAML-first CLI for multi-agent workflows with **deterministic routing**: Jinja2 conditions + expression evaluation handle branching; orchestration layer itself spends zero LLM tokens. Counter-position to LLM-as-orchestrator frameworks. Backfilled to Frameworks in `research/multi_agent_landscape.md`; sweep bumped to 2026-05-21.
+- **Claude Code 2.1.145** — `claude agents --json` (scripting), `agent_id`/`parent_agent_id` on OTEL spans, `/resume` for background sessions. No-action. OTEL + LSP glossary entries bundled in the same PR per `feedback_bundle_news_derived_docs.md`.
+
+**New shared memory: [[deterministic-before-semantic]].** User articulated the underlying preference while reading the Conductor framing: *"whenever possible, deterministic, zero token solutions should be exhausted before the use of semantic mechanisms."* Saved as `shared/feedback_deterministic_first.md` with explicit cross-link to [[mechanism-over-memory]]. The two together form a clean hierarchy: mechanism-over-memory says *that* mechanism beats memory for repeat-break rules; deterministic-before-semantic says *what kind* of mechanism — regex/schema/hook/YAML over prompted self-check. Applies across mechanism design, workflow encoding, tooling evaluation, and pipeline architecture.
+
+**News_log length slip.** Initial Conductor + 2.1.145 drafts came in at ~29 and ~47 words after the source link — violating `feedback_news_log_length.md` (~20-30 cap). User flagged before commit ("did you show me the news before writing the news log?") — two issues compressed into one: (a) didn't surface item *content* before writing (the AskUserQuestion only asked which items), (b) didn't consult the length memory. Tightened to ~22 and ~24 words; landed in [PR #441](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/441). Asked the user about the systemic fix (link→inline escalation or PreToolUse hook); user chose "just tighten today's draft" — leaving the systemic gap open for now. If it slips again, escalating to rung-3 mechanism (hook that counts words on Write/Edit of `research/news_log.md`) becomes the move.
+
+---
+
 ## 2026-05-20
 
 ### 15:55 UTC — Editor: PM
