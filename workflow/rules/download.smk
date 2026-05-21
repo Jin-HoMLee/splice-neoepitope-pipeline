@@ -92,3 +92,39 @@ rule download_vdjdb_release:
         touch {output.sentinel}
         echo "Done." >> {log} 2>&1
         """
+
+
+# =============================================================================
+# IMGT germline download via stitchrdl — Issue #204
+# =============================================================================
+
+rule download_imgt_germlines:
+    """Download IMGT germline reference data via stitchrdl.
+
+    Sentinel-gated for idempotency. stitchrdl pulls latest IMGT release; the
+    rule pins by sentinel only (IMGT itself doesn't expose tagged releases —
+    see Known limitations in the design spec).
+    """
+    output:
+        sentinel = "resources/imgt_germlines/.download.done",
+    log:
+        "logs/download/imgt_germlines.log",
+    conda:
+        "../envs/vdjdb.yaml"
+    shell:
+        """
+        set -euo pipefail
+        DIR=$(dirname {output.sentinel})
+        mkdir -p "$DIR"
+        echo "Downloading IMGT germline data via stitchrdl..." >> {log} 2>&1
+        # stitchrdl writes to its default cache; we copy into resources/ for reproducibility
+        stitchrdl --species HUMAN >> {log} 2>&1
+        # Discover stitchr's cache dir from python (preferred over hard-coding)
+        STITCHR_CACHE=$(python -c "import IMGTgeneDL; from pathlib import Path; print(Path(IMGTgeneDL.__file__).parent / 'data' / 'HUMAN')")
+        if [ -d "$STITCHR_CACHE" ]; then
+            cp -r "$STITCHR_CACHE" "$DIR/HUMAN"
+            echo "Copied IMGT HUMAN data to $DIR/HUMAN" >> {log} 2>&1
+        fi
+        touch {output.sentinel}
+        echo "Done." >> {log} 2>&1
+        """

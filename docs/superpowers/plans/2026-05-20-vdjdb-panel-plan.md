@@ -1363,10 +1363,10 @@ git commit -m "feat(vdjdb): add download_vdjdb_release rule (SHA256-verified) (I
 **Files:**
 - Modify: `workflow/rules/download.smk`
 
-**Note before writing:** Confirm where `stitchrdl` writes IMGT data by default. Run:
+**Note before writing:** Confirm where `stitchrdl` writes IMGT data by default. Run (with the vdjdb conda env active, since stitchr lives there per Task 3):
 
 ```bash
-.venv/bin/stitchrdl --help 2>&1 | head -30
+conda activate vdjdb && stitchrdl --help 2>&1 | head -30
 ```
 If `stitchrdl` has a `--output-dir` (or similar) flag, use it to redirect output into `resources/imgt_germlines/`. If it writes to a fixed cache location (e.g. `~/.local/share/stitchr/`), the rule can `cp -r` or `ln -s` after the fact. Adjust the rule accordingly.
 
