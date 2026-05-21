@@ -81,6 +81,26 @@ snakemake --cores $(nproc) --use-conda ...
 
 **Conda env cleanup after `workflow/envs/*.yaml` changes:** Automatic cleanup was removed from `run_cloud_gpu.sh`. When any `workflow/envs/*.yaml` file changes, manually delete the affected old environment on the VM before running — old envs will not be rebuilt automatically and stale cached packages will be used instead.
 
+## Python environments
+
+The project has **4 functional Python environments**, each with a different use case. **No root-level `.venv` exists or should exist** — any reference to `.venv/bin/python` at the project root is wrong.
+
+| Use case | Canonical path | Setup recipe | Documented at |
+|---|---|---|---|
+| Pytest test suite | `workflow/tests/.venv` | `pyenv local 3.13.5 && python -m venv workflow/tests/.venv && workflow/tests/.venv/bin/pip install -r workflow/tests/requirements-test.txt` | [workflow/tests/README.md](workflow/tests/README.md) |
+| Research / Jupyter notebooks | `research/.venv` | `cd research/ && pyenv local 3.14.4 && python -m venv .venv && .venv/bin/pip install -r requirements.txt` | [research/README.md](research/README.md) |
+| Snakemake orchestration (and ad-hoc `python -c` quick checks) | `conda activate snakemake` | `bash scripts/setup_local.sh` | "Snakemake Conda Activation" above |
+| Per-rule Python (`workflow/scripts/*.py` invoked by Snakemake rules) | rule's own `--use-conda` env | auto-created from `workflow/envs/*.yaml` on first `snakemake --use-conda` run | implicit; each rule declares `conda: "envs/<env>.yaml"` |
+
+**Per-clone setup.** The two pyenv venvs (`workflow/tests/.venv` and `research/.venv`) are per-clone and gitignored. After the 2026-05-14 separate-clone migration, each clone needs its own one-time setup — neither is auto-created by `scripts/setup_local.sh`. The `.python-version` files are also gitignored so clones stay independent.
+
+**Picking an interpreter:**
+- Pytest invocations: `workflow/tests/.venv/bin/python -m pytest workflow/tests/...` (never `.venv/bin/python -m pytest`).
+- Ad-hoc `python -c "..."` quick checks (yaml parse, file compile-check, one-off imports): `conda activate snakemake` first, then call bare `python -c "..."` — no separate path.
+- Running `workflow/scripts/*.py` directly outside Snakemake is rarely needed; if you must, activate the rule's conda env explicitly (e.g. `conda activate .snakemake/conda/<hash>` after Snakemake has built it).
+
+The `snakemake` conda env stays pristine on purpose — adding test or notebook deps risks dep drift in the workhorse env ([workflow/tests/README.md "Why this split"](workflow/tests/README.md)).
+
 ## Snakemake 8 Gotchas
 
 ### `--configfile` flag collapsing

@@ -217,7 +217,7 @@ def test_star_align_does_not_throttle_min_total_count(star_dry_run_output):
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_alignment_star_command.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_alignment_star_command.py -v
 ```
 Expected: tests collected. The fixture should produce captured stdout successfully. Then the 5 test functions split as follows on current `main`:
 - `test_star_align_uses_twopass_mode` → **FAIL** (current rule lacks `--twopassMode Basic`)
@@ -301,7 +301,7 @@ Net diff:
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/test_alignment_star_command.py -v
+workflow/tests/.venv/bin/python -m pytest workflow/tests/test_alignment_star_command.py -v
 ```
 Expected: 5 passed, 0 failed.
 
@@ -519,7 +519,7 @@ Expected: commit lands; `git status` clean.
 
 Run:
 ```bash
-.venv/bin/python -m pytest workflow/tests/ -v 2>&1 | tail -30
+workflow/tests/.venv/bin/python -m pytest workflow/tests/ -v 2>&1 | tail -30
 ```
 Expected: all tests pass. The new `test_alignment_star_command.py` reports 5 passed. No regression in existing tests (`test_strandness`, `test_star_sj_to_junctions`, `test_bed12_to_junctions`, etc.).
 
@@ -580,7 +580,7 @@ Design spec: [docs/superpowers/specs/2026-05-19-issue-17-star-aligner-design.md]
 ## Test plan
 
 - [x] New pytest `workflow/tests/test_alignment_star_command.py` (5 assertions) passes locally
-- [x] Full pytest suite (`.venv/bin/python -m pytest workflow/tests/`) green — no regressions
+- [x] Full pytest suite (`workflow/tests/.venv/bin/python -m pytest workflow/tests/`) green — no regressions
 - [x] `snakemake -n` with `aligner: star` config parses cleanly
 - [x] `snakemake -n` with `config/test_config.yaml` confirms hisat2 path still resolves (M1 8 GB stays on hisat2)
 - [x] `dag.pdf` regenerated via `bash scripts/visualize_dag.sh`

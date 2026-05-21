@@ -15,7 +15,7 @@ Per-patient result interpretation notebooks. Each patient run gets its own noteb
 **Setup (one-time):**
 ```bash
 cd research/
-pyenv local 3.14.4            # sets .python-version (already committed)
+pyenv local 3.14.4            # sets .python-version (gitignored, per-clone)
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
