@@ -120,3 +120,9 @@ mhcflurry:
 # See scripts/setup_vm.sh for GPU VM setup instructions.
 tcrdock:
   enabled: false
+  # VDJdb panel fetch (Issue #204) — runs whenever hla.enabled is true,
+  # independent of the tcrdock.enabled GPU gate.
+  vdjdb_release: "2026-05-16"
+  vdjdb_sha256: "0dce79ec55c109000da10b7bc72300e352ffb7df92d5de30682de20bab35a366"
+  vdjdb_min_score: 2
+  vdjdb_panel_size: 10
