@@ -104,3 +104,45 @@ def classify_panel_status(n_in_panel: int, target_size: int) -> str:
     if n_in_panel < target_size:
         return "low_coverage"
     return "ok"
+
+
+# ---------------------------------------------------------------------------
+# stitchr wrapper
+# ---------------------------------------------------------------------------
+
+def stitch_chain(v_gene: str, j_gene: str, cdr3: str, chain: str) -> Optional[str]:
+    """Reconstruct a full TCR chain (V + CDR3 + J + framework) via stitchr.
+
+    Returns the AA sequence string, or None if stitchr fails for any reason
+    (caller is expected to log and skip).
+
+    `chain` is 'A' for alpha (TRA) or 'B' for beta (TRB).
+    """
+    try:
+        from Stitchr import stitchrfunctions, stitchr  # noqa: F401  presence-check
+    except ImportError:
+        log.error("stitchr not installed in this environment")
+        return None
+
+    import subprocess
+
+    try:
+        cmd = [
+            "stitchr",
+            "-v", v_gene,
+            "-j", j_gene,
+            "-cdr3", cdr3,
+            "-species", "HUMAN",
+            "-m", "AA",
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if proc.returncode != 0:
+            log.error("stitchr failed (chain=%s, V=%s, J=%s, CDR3=%s): %s",
+                      chain, v_gene, j_gene, cdr3, proc.stderr.strip())
+            return None
+        seq_lines = [ln.strip() for ln in proc.stdout.splitlines() if ln and not ln.startswith(">")]
+        return "".join(seq_lines) if seq_lines else None
+    except Exception as exc:
+        log.error("stitchr crashed (chain=%s, V=%s, J=%s, CDR3=%s): %s",
+                  chain, v_gene, j_gene, cdr3, exc)
+        return None

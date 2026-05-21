@@ -627,11 +627,11 @@ git commit -m "feat(vdjdb): add classify_panel_status (ok/low_coverage/empty) (I
 **Note:** This task requires `stitchr` + IMGT germline data installed locally. Set up before running tests:
 
 ```bash
-.venv/bin/pip install stitchr IMGTgeneDL
-.venv/bin/stitchrdl --species HUMAN  # one-time IMGT download
+workflow/tests/.venv/bin/pip install stitchr IMGTgeneDL
+workflow/tests/.venv/bin/stitchrdl --species HUMAN  # one-time IMGT download
 ```
 
-If your local venv doesn't have stitchr (the conda env in Task 3 has it, but the test venv may not), install with the commands above. The test is marked `@pytest.mark.network` so CI can skip it if IMGT is unavailable.
+If `workflow/tests/.venv` doesn't have stitchr (the conda env in Task 3 has it, but the test venv may not), install with the commands above. The test is marked `@pytest.mark.network` so CI can skip it if IMGT is unavailable, and a `skipif shutil.which("stitchr") is None` gate ensures local runs without stitchr silently skip.
 
 - [ ] **Step 1: Add failing test**
 

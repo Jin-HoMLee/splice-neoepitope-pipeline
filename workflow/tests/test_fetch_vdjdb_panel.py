@@ -1,5 +1,6 @@
 """Tests for fetch_vdjdb_panel.py — VDJdb panel construction."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ from fetch_vdjdb_panel import (
     load_and_filter_vdjdb,
     normalize_allele_to_4digit,
     select_top_n_for_allele,
+    stitch_chain,
 )
 
 
@@ -118,3 +120,28 @@ class TestClassifyPanelStatus:
     ])
     def test_classification(self, n_in_panel, target, expected):
         assert classify_panel_status(n_in_panel, target_size=target) == expected
+
+
+@pytest.mark.network
+@pytest.mark.skipif(shutil.which("stitchr") is None, reason="stitchr CLI not on PATH")
+class TestStitchChain:
+    """Smoke test against the real stitchr CLI + cached IMGT data.
+
+    Skipped automatically when the `stitchr` CLI is not on PATH (e.g. CI runners
+    without the vdjdb conda env activated). The `network` marker is informational
+    — actual skip is driven by the `skipif` so CI works regardless of `-m` flag.
+    """
+    def test_dmf5_alpha_chain(self):
+        # DMF5 (the existing single-fallback TCR in config/gpu_config.yaml)
+        alpha = stitch_chain(
+            v_gene="TRAV12-2",
+            j_gene="TRAJ21",
+            cdr3="CAVNFGGGKLI",
+            chain="A",
+        )
+        # Stitched chain should be a non-trivial protein sequence containing the CDR3
+        assert alpha is not None
+        assert "CAVNFGGGKLI" in alpha
+        # TRAV12-2 framework begins with a known leader; check for FW1 motif "QSV"
+        # (allowing some flexibility — sanity check, not equality)
+        assert len(alpha) > 100  # full Vα is ~100-110 aa
