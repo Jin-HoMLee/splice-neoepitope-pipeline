@@ -94,6 +94,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **IV** — Intravenous. Drug delivery route via direct venous injection; chosen for personalized mRNA cancer vaccines to deliver LNP-mRNA payloads systemically (Sahin et al. 2026; Rojas et al. 2023). *Domain: bio.*
 
+## K
+
+**KIR** — Killer-cell Immunoglobulin-like Receptor. Family of NK-cell receptors whose dominant ligands are HLA-C alleles; HLA-C–KIR engagement inhibits NK cytotoxicity under "missing-self" surveillance. Relevant here because HLA-C is studied primarily through this NK biology rather than T-cell presentation, which explains why TCR repertoire databases (VDJdb, McPAS-TCR) have thin paired α/β coverage for C-locus alleles. See [Issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) empirical coverage check. *Domain: bio.*
+
 ## L
 
 **LNP-mRNA** — Lipid Nanoparticle-formulated mRNA. Delivery format: ionizable-lipid encapsulation protects mRNA from RNases and mediates dendritic-cell uptake. Foundation of COVID-19 mRNA vaccines (BioNTech/Moderna) and current personalized cancer-vaccine trials (autogene cevumeran; Sahin et al. 2026). *Domain: bio.*
