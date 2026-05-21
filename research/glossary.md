@@ -126,7 +126,7 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **OOD** — Out-of-distribution. Inputs whose features fall in low-density regions of the model's training distribution; predictions on OOD inputs are typically over-confident yet unreliable since the model never learned to constrain them. Detected operationally via density estimators, embedding-space distance to training samples, or ensemble disagreement. Relevant for splice-junction-spanning peptides — systematically under-represented in canonical-proteome MHC training data. *Domain: ml.*
 
-**OTEL** — OpenTelemetry. Vendor-neutral CNCF observability framework: specs + SDKs for distributed traces, metrics, and logs, exportable to backends like Honeycomb, Jaeger, Tempo. Claude Code 2.1.145 added `agent_id` and `parent_agent_id` to `claude_code.tool` spans so nested agent calls show correct trace parenting (relevant if we ever wire trace export from PM/Sci/Dev sessions). *Domain: cloud.*
+**OTEL** — OpenTelemetry. Vendor-neutral observability framework under the Cloud Native Computing Foundation (CNCF): specs + libraries for distributed traces, metrics, and logs, exportable to backends like Honeycomb, Jaeger, Tempo. Claude Code 2.1.145 added `agent_id` and `parent_agent_id` to `claude_code.tool` spans so nested agent calls show correct trace parenting (relevant if we ever wire trace export from PM/Sci/Dev sessions). *Domain: cloud.*
 
 ## P
 
