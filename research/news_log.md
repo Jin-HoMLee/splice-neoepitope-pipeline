@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-21
 
+### 10:19 UTC — Editor: Scientist
+
+- **Qu & Zhu — NeoMHCI** ([Cell Systems 2025](https://pubmed.ncbi.nlm.nih.gov/41056952/)) — attention-MIL + multi-task MHC-I presenter; AUROC 0.948, top-5 42.3% on multi-allele ligand prediction. → Head-to-head bench vs. MHCflurry on chr22 PoC; Zotero candidate. *Scientist. methodology-signal.*
+- **Lv et al. — AS-NA immunotherapy review** ([Biomarker Research 2025-11](https://link.springer.com/article/10.1186/s40364-025-00877-w)) — synthesises AS-NA pipeline tools (SNAF, SINE) + splice-modulating drugs (SSOs, NMD-i, small molecules) as immune adjuvants. → INTRODUCTION citation candidate; complements Rwandamuriye dark-matter (2026-05-20). *Scientist. portfolio-differentiator.*
+
 ### 08:12 UTC — Editor: PM
 
 - **Microsoft Conductor — deterministic multi-agent orchestrator** ([Microsoft Open Source 2026-05-14](https://opensource.microsoft.com/blog/2026/05/14/conductor-deterministic-orchestration-for-multi-agent-ai-workflows/), [microsoft/conductor](https://github.com/microsoft/conductor)) — YAML workflows with zero-token deterministic routing (Jinja2 conditions, parallel groups); Copilot SDK + Anthropic Agents SDK. → Frameworks backfill same PR. *PM. methodology-signal.*
