@@ -49,6 +49,36 @@ TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather tha
 ### PDB chain relabelling
 AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
 
+## Experiment notebooks live under `research/experiments/`
+
+Per-Issue experimental work (analysis notebooks + their cached outputs + a one-page README) lives at `research/experiments/issue_NNN_<short-content-desc>/`. Mirrors the slide-deck convention (`research/slides/issue_NNN_<short-desc>/slides.qmd`) — same shape applied to notebooks.
+
+Layout per experiment:
+
+```
+research/experiments/issue_NNN_<short>/
+├── README.md          # one-page: goal, parent issue link, status, outputs index, cross-experiment deps
+├── notebook.ipynb     # the analysis
+└── outputs/           # cached artifacts (parquet, tsv, png)
+```
+
+**Distinguish from `research/notebooks/`:** that folder holds stable per-patient analyses (`patient_001_results.ipynb`, `patient_002_results.ipynb`) — long-lived, manuscript-supporting. The experiments/ folder holds scoped per-Issue work that lands once and then becomes a frozen reference. A separate migration Issue will move existing per-Issue work (`issue_224_*`, `issue_299_*`) from `research/notebooks/` into `research/experiments/`; the convention is established by #225.
+
+### Cross-experiment data sharing
+
+1. **Default:** each experiment owns its outputs in `<experiment>/outputs/`.
+2. **Shared between ≥2 experiments → `research/experiments/_shared/`.** Promote an artifact here only when a 2nd consumer materializes (YAGNI; don't pre-share). Filenames carry provenance (`gtex_panel_chr22_snaptron_v1.parquet`, not `gtex_panel.parquet`).
+3. **Cross-experiment read, single consumer → explicit path reference.** Document in the consumer's README under "Cross-experiment deps".
+4. **Promoted to production → `resources/`.** When an artifact becomes a stable pipeline input.
+
+**Bad practices (any size):** symlinks across experiments, copying artifacts, one experiment writing into another's `outputs/`.
+
+### Size guidance
+
+- **< 10 MB:** check into git.
+- **10–100 MB:** check into git, commit a regenerator script alongside.
+- **> 100 MB:** keep out of git; store in `gs://splice-neoepitope-project/experiments/<issue>/`; commit a `data_manifest.yaml` in the experiment folder listing artifact paths + checksums + fetch commands. Pin the manifest schema when the first artifact crosses 100 MB.
+
 ## Slide decks for experiment Issues
 
 Every experiment-tier Issue ships a Quarto slide deck alongside the per-patient notebook + manuscript work. Decks live at `research/slides/issue_NNN_<short-content-desc>/slides.qmd`. See [`research/slides/README.md`](research/slides/README.md) for the full convention (Quarto rationale, render commands, figure-source pattern, Zotero linkage, install). Scope: **one deck per experiment Issue**, not per sub-issue; no decks for closure tasks, doc updates, or single-fix PRs. Audience: lab seminar / external talk. Figures regenerate from `research/notebooks/<exp>_outputs/*.parquet` so the **notebook stays canonical**.
