@@ -8,6 +8,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-21
 
+### 19:38 UTC — Editor: Scientist
+
+#### [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) — @claude review iteration; slides-co-location convention agreed; migration carrier [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) filed
+
+@claude review on [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) returned 6 items; all addressed in this turn before the merge gate. None blocking, two recommended ("README status" + "inline GTEx coord assertion"), four polish/defensive. Listed below verbatim by reviewer ordering so future readers can cross-reference:
+
+1. **README status field** — flipped from `in progress` to `complete — NO-GO verdict (2026-05-21)`. Reviewer's point: first thing a future reader checks when this becomes a frozen reference.
+2. **Inline GTEx coord-convention assertion** — added a notebook-internal `259/259 ground_truth introns present ✓` guard at the end of §2(c). The lab notebook (18:14 UTC entry) documented this empirically but the notebook itself only had non-empty + chr22-only asserts. Now self-contained.
+3. **`snaptron_to_key_set` simplification** — collapsed the row-loop to a set comprehension, dropping the redundant `int()` casts inside the 880K-row hot loop. Functional behaviour unchanged.
+4. **`gencode_introns_chr22` inverted-intron guard** — added `if donor >= acceptor: continue`. GENCODE v47 doesn't have this pathology in practice (intron count unchanged at 7,731 after the guard) but the function is now self-documenting + robust to non-GENCODE annotation swaps.
+5. **Cross-experiment path coupling** — already explicitly listed under #455's "Cross-experiment dependency fix-ups" section before the review arrived. No additional action; tracked.
+6. **CLAUDE.md slide deck section — stale figure-source path** — pre-existing reference to `research/notebooks/<exp>_outputs/*.parquet` updated to `research/experiments/issue_NNN_<short>/outputs/*.parquet` matching the new convention introduced in this PR.
+
+All numbers unchanged after re-execution: F1=0.300, % AG-unique vs GTEx = 0.0%, decision = NO-GO. New `259/259 ✓` coord-validation message added to §2(c) output; intron count + ground-truth count both stable.
+
+**Slides-co-location convention agreed mid-session.** Original CLAUDE.md draft kept `research/slides/issue_NNN_<short>/slides.qmd` as a parallel top-level folder. Discussion concluded co-located form (`research/experiments/issue_NNN_<short>/slides.qmd`) is preferable: notebook + outputs + deck rename / archive / migrate as a unit, deck figure paths shorten from `../../experiments/issue_NNN/outputs/...` to `outputs/...`, fewer broken-link footguns. Shared scaffolding (`_template.qmd`, `nature.csl`) stays centralized at `research/slides/`. Convention documentation deferred to #455 (so the same migration PR can move both notebooks AND slides + update CLAUDE.md in one shape).
+
+**Migration carrier filed: [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).** Bundled scope: notebook migrations (`issue_224_*` from `research/notebooks/`, `issue_299_*` from same) + slide migrations (`issue_393_*` from `research/slides/`) + cross-experiment path fix-ups in [#225's notebook](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb) once #224 moves + CLAUDE.md update to document the slides-co-location rule. Per-patient stable notebooks (`patient_001_results.ipynb`, `patient_002_results.ipynb`) explicitly out of scope — they're long-lived manuscript-supporting, not per-Issue experiment work.
+
+**Process lesson.** Reviewer caught item 2 (inline coord assertion missing) precisely because I had documented the validation in the **lab notebook** but not in the **notebook itself**. The lab notebook is for narrative + rationale; the notebook is the canonical artifact that must be self-verifying when re-executed. Reverse-direction rule: whenever a coord-convention or schema-shape gets validated empirically during writing, the validation belongs as an `assert` in the notebook, not as prose in the lab notebook. Future-applicable when adding any external-data-source loader.
+
+**Ready to merge after this commit lands.** Closure ritual re-check pending; will confirm before invoking `bash scripts/audit_and_merge.sh 452`.
+
+---
+
 ### 18:14 UTC — Editor: Scientist
 
 #### [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (research: normal-junction filter strength on patient_001 chr22) — Exp 3 ran end-to-end; verdict **NO-GO** for AG-as-3rd-filter

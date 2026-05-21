@@ -2,7 +2,7 @@
 
 **Issue:** [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)
 **Parent:** [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (Experiment 3)
-**Status:** in progress
+**Status:** complete — NO-GO verdict (2026-05-21)
 **Design spec:** [docs/superpowers/specs/2026-05-21-issue-225-normal-junction-filter-strength-design.md](../../../docs/superpowers/specs/2026-05-21-issue-225-normal-junction-filter-strength-design.md)
 
 ## Goal
