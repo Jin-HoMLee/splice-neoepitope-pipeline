@@ -33,19 +33,17 @@ explicit panel.tsv target is required:
 The `--` terminator is required: argparse `nargs="+"` on `--configfile` will
 otherwise swallow the target as a (non-existent) configfile (CLAUDE.md gotcha).
 
-After regenerating, manually highlight the `fetch_vdjdb_panel` node — find:
+After regenerating, manually highlight every rule introduced by PR #457
+(orange ring + bold orange label). The three node ids are:
 
-    <circle cx="225.0" cy="315.0" fill="#8cd9d9" id="Nfetch_vdjdb_panel"
-            r="10" stroke="white" stroke-width="2.0" />
-    <text ... x="285.0" y="315.0">fetch_vdjdb_panel</text>
+    Nfetch_vdjdb_panel        — central rule, suffix label with "← new (PR #457)"
+    Ndownload_vdjdb_release   — SHA256-verified VDJdb release fetch
+    Ndownload_imgt_germlines  — stitchrdl IMGT germlines wrapper
 
-and replace with:
-
-    <circle cx="225.0" cy="315.0" fill="#8cd9d9" id="Nfetch_vdjdb_panel"
-            r="14" stroke="#ff6b35" stroke-width="4" />
-    <text ... fill="#ff6b35" font-weight="bold" x="285.0" y="315.0">fetch_vdjdb_panel  ← new (PR #457)</text>
-
-(Coordinates may shift if the DAG structure changes — re-locate by `id=`.)
+For each, swap circle attrs `r="10" stroke="white" stroke-width="2.0"` →
+`r="14" stroke="#ff6b35" stroke-width="4"`, and label attrs
+`fill="currentColor"` → `fill="#ff6b35" font-weight="bold"`. Re-locate
+nodes by `id=` (coordinates may shift if the DAG structure changes).
 """
 
 from pathlib import Path

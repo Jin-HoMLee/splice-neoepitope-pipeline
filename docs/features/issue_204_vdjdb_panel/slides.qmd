@@ -44,7 +44,7 @@ A per-patient **reference TCR panel** from VDJdb
 ::: {.columns}
 
 ::: {.column width="45%"}
-![Real rule-graph (chr22 test config) via `scripts/visualize_dag.sh`. Vertical "rails" are inter-rule data dependencies (snakevision metro style).](figures/dag.svg){width=100%}
+![Real rule-graph (chr22 test config) via `scripts/visualize_dag.sh`. Vertical "rails" are inter-rule data dependencies (snakevision metro style). **Orange nodes** = new in [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457).](figures/dag.svg){width=100%}
 :::
 
 ::: {.column style="width:55%; font-size: 0.72em;"}
