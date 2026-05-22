@@ -202,12 +202,16 @@ def build_panel(
                 v_gene=row["v.alpha"], j_gene=row["j.alpha"],
                 cdr3=row["cdr3.alpha"], chain="A",
             )
+            if alpha is None:
+                log.error("Skipping VDJdb row for allele %s (donor %s) — alpha stitch failed",
+                          allele, row["meta.subject.id"])
+                continue
             beta = stitch_chain(
                 v_gene=row["v.beta"], j_gene=row["j.beta"],
                 cdr3=row["cdr3.beta"], chain="B",
             )
-            if alpha is None or beta is None:
-                log.error("Skipping VDJdb row for allele %s (donor %s) — stitch failed",
+            if beta is None:
+                log.error("Skipping VDJdb row for allele %s (donor %s) — beta stitch failed",
                           allele, row["meta.subject.id"])
                 continue
             panel_rows.append({

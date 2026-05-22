@@ -24,8 +24,8 @@ if _HLA_ENABLED:
     rule fetch_vdjdb_panel:
         """Build the per-patient VDJdb TCR panel."""
         input:
-            vdjdb_tsv = lambda wc: f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
-            vdjdb_sentinel = lambda wc: f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
+            vdjdb_tsv = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
+            vdjdb_sentinel = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
             imgt_sentinel = "resources/imgt_germlines/.download.done",
             alleles_tsv = os.path.join(_RES, "{patient_id}", "hla_typing", "alleles.tsv"),
         output:

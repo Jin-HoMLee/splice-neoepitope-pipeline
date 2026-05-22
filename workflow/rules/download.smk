@@ -123,7 +123,11 @@ rule download_imgt_germlines:
         STITCHR_CACHE=$(python -c "import IMGTgeneDL; from pathlib import Path; print(Path(IMGTgeneDL.__file__).parent / 'data' / 'HUMAN')")
         if [ -d "$STITCHR_CACHE" ]; then
             cp -r "$STITCHR_CACHE" "$DIR/HUMAN"
-            echo "Copied IMGT HUMAN data to $DIR/HUMAN" >> {log} 2>&1
+            echo "Copied IMGT HUMAN data from $STITCHR_CACHE to $DIR/HUMAN" >> {log} 2>&1
+        else
+            echo "WARNING: stitchr cache not found at $STITCHR_CACHE — reproducibility copy skipped." >> {log} 2>&1
+            echo "WARNING: pipeline still works via stitchr's own cache (fetch_vdjdb_panel reads from there);" >> {log} 2>&1
+            echo "WARNING: but $DIR/HUMAN will be EMPTY. Investigate IMGTgeneDL package layout if you need the local copy for audit." >> {log} 2>&1
         fi
         touch {output.sentinel}
         echo "Done." >> {log} 2>&1

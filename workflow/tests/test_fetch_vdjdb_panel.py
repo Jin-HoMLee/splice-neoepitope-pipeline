@@ -64,7 +64,8 @@ class TestLoadAndFilterVdjdb:
     def test_drops_rows_with_unnormalizable_allele(self, tmp_path):
         # Synthetic fixture with a 2-digit-only allele — should be dropped
         tsv = tmp_path / "vdjdb_partial.tsv"
-        header = open(FIXTURE_PATH).readline()
+        with open(FIXTURE_PATH) as f:
+            header = f.readline()
         # 35 cols total: 7 empty (1-7) + 4 set (8-11: species, mhc.a, mhc.b, mhc.class)
         # + 22 empty (12-33) + vdjdb.score (34) + TCR_hash (35).
         bad_row = "\t".join([""] * 7 + ["HomoSapiens", "HLA-A*02", "B2M", "MHCI"] + [""] * 22 + ["3", ""]) + "\n"
