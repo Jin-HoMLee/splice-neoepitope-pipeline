@@ -38,6 +38,26 @@ def parse_milestone_title(title: str) -> tuple[int, int] | None:
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 
+def find_prior_same_stage(
+    iteration: int,
+    stage: int,
+    all_milestones: list[dict],
+) -> dict | None:
+    """Highest-iteration prior in the same S-stage chain. Includes closed."""
+    candidates = []
+    for ms in all_milestones:
+        parsed = parse_milestone_title(ms["title"])
+        if parsed is None:
+            continue
+        n, s = parsed
+        if s == stage and n < iteration:
+            candidates.append((n, ms))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0])
+    return candidates[-1][1]
+
+
 def gh(*args: str, parse_json: bool = True) -> object:
     result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return json.loads(result.stdout) if parse_json else result.stdout
