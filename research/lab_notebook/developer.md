@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-22
+
+### 09:20 UTC — Editor: Developer
+
+**Headline:** [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457) shipped closing [Issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) — `fetch_vdjdb_panel` Snakemake rule producing per-allele top-10 paired α/β TCR panel with full chain sequences via stitchr. Bot review (`@-claude review` round 1) flagged 4 issues + 3 minor obs; addressed 3 as-is + 1 with reshaped fix ([commit `1941b48`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457/commits/1941b48), [reply](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457#issuecomment-4517153084)). Then the local chr22 end-to-end run on sample SRR9143066 surfaced **4 substantive bugs that unit tests + dry-runs + bot review had all missed** ([commit `cfe1bc4`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457/commits/cfe1bc4)) — closed in one cluster. Final panel: 20 TCRs across 2 alleles (HLA-A\*02:01, HLA-B\*07:02 both `ok`), HLA-C\*07:02 → `empty` (biological zero, 0 VDJdb entries).
+
+#### Local end-to-end runs catch what dry-runs structurally cannot
+
+The 4 bugs surfaced by the chr22 run — `IMGTgeneDL>=0.7.0` pin (PyPI max 0.6.1), missing `from __future__` shebang, missing paired α/β `.notna()` filter, stitchr `-species HUMAN` CLI typo (should be `-s` or omitted) — share a shape: each requires **actually executing the rule body**. CI's `pipeline-snakemake-dry-run` walks the DAG without building conda envs or running scripts; `pipeline-pytest` exercises unit logic with curated fixtures (paired α/β rows only, no stitchr subprocess). Both stayed green throughout. The bot reviewed source code but didn't execute it either. None of these layers would have caught any of the 4. The pattern is general: **anywhere a pipeline rule shells out to a subprocess with CLI args, or depends on the actual conda-env solver result, the integration path is the only honest gate**. Filing this as a memory rule for next time — "before merging a new rule that invokes subprocesses or external CLI tools, run it on the chr22 test config and inspect the output, not just the dry-run".
+
+#### `from __future__ import annotations` is a Snakemake `script:` foot-gun
+
+The 3rd bug — `SyntaxError: from __future__ imports must occur at the beginning of the file` — traces to Snakemake's `PythonScript.write_script` (`snakemake/script/__init__.py:807`), which unconditionally prepends its `snakemake = pickle.loads(...)` preamble before the source. There's a TODO at line 44 (`PY_PREAMBLE_RE = re.compile(...)` with a comment "use this to find the right place for inserting the preamble") but the regex was added without ever being wired up. So **any** workflow script using `from __future__` will SyntaxError under the `script:` directive. 6 other scripts in [workflow/scripts/](workflow/scripts/) (`aggregate_filtering_stats.py`, `assemble_contigs.py`, `filter_junctions.py`, `generate_report.py`, `run_mhcflurry.py`, `run_tcrdock.py`) all share this layout — they're either latently broken or there's a Snakemake-version subtlety I missed. Filed [Issue #461](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/461) to audit + reproduce. The fix for the one script in PR #457 was dropping the future import (the file used `Optional[str]` from `typing`, never PEP 604 `X | None` or generic builtins, so the import was cosmetic).
+
+#### Bot review #1 spent its budget on style; the real bugs needed execution
+
+Comparing the bot review's 4 substantive issues against the 4 bugs the local run actually caught: zero overlap. The bot flagged `lambda wc:` unused wrappers, an unclosed file handle in a test, a wasteful subprocess pattern (alpha + beta stitched before checking alpha's None), and IMGT cache discovery silent-skip. None of those would prevent the panel from being produced. Meanwhile the panel WAS empty in the first 4 runs because of the bugs the bot missed. This isn't a knock on the bot — static review is fundamentally code-shape review, and the bugs the chr22 run caught are dynamic (conda solver, CLI args, NaN values flowing through pandas). Next time: **don't treat bot-review-clean as merge-ready for a new rule**. The Anthropic Agent SDK billing split that lands 2026-06-15 raises the cost of speculative review rounds; better to spend the bot budget on already-executed code, not source-code-shape passes.
+
+#### Process note — exit code 0 from `... 2>&1 | tee log` masked the first failure
+
+The first chr22 run reported `exit code 0` via the background-task notification, but Snakemake itself had errored. `tee`'s exit code shadowed snakemake's non-zero exit. Lesson: when piping snakemake output for capture, either drop `tee` or `set -o pipefail` before the pipeline. Not worth a memory rule; just a sharp mental tag.
+
+---
+
 ## 2026-05-21
 
 ### 17:50 UTC — Editor: Developer
