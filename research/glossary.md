@@ -34,6 +34,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **CR** — Complete Remission (a.k.a. Complete Response). Oncologic response criterion: full disappearance of detectable disease following therapy; distinguished from PR (partial response), SD (stable disease), PD (progressive disease) in RECIST 1.1 solid-tumor criteria. The weakest TNBC vaccine responder in Sahin et al. 2026 achieved CR on subsequent anti-PD-1 rescue. *Domain: bio.*
 
+**CRC** — Colorectal Cancer. Common GI adenocarcinoma; clinically subtyped by microsatellite status (MSI vs MSS) which drives ICI responsiveness — MSI-high tumors respond, MSS broadly does not. Recurrent test bed for splice-derived TSA discovery via proteogenomics (e.g. [Hayer et al. 2026, *Mol Cell Proteomics*](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
+
 **CVE** — Common Vulnerabilities and Exposures. Standardised identifier system for publicly disclosed security flaws (CVE-YYYY-NNNN format); maintained by MITRE, used industry-wide for tracking known vulns. *Domain: security.*
 
 ## D
@@ -55,6 +57,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **EP** — Execution Point. In HTCondor topology, the machine where a job actually runs. In no-shared-FS topologies the conda env built on the AP must be transported to (or rebuilt on) the EP — the same constraint cloud workers face. *Domain: cloud.*
 
 **ESM-IF1** — Evolutionary Scale Modeling Inverse Folding (v1). Meta AI model (Hsu et al. 2022) trained on 12M protein structures; given a backbone, infers compatible sequences. Used as a structure-aware embedding source by structure-informed TCR-pMHC scorers (e.g. NetTCR-struc). *Domain: ml.*
+
+## F
+
+**FDR** — False Discovery Rate. Expected proportion of false positives among reported discoveries; standard control in MS peptide identification (typically 1% peptide-spectrum match FDR + 1% peptide FDR via target-decoy estimation) and in genomics multiple-testing corrections (Benjamini-Hochberg). *Domain: stats.*
 
 ## G
 
@@ -92,6 +98,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **ICI** — Immune Checkpoint Inhibitor. Class of monoclonal antibodies blocking inhibitory T-cell receptors (anti-CTLA-4, anti-PD-1, anti-PD-L1) to release brakes on anti-tumor immunity; standard-of-care across many solid tumors. "Immune cold" tumors (low T-cell infiltrate) often fail to respond — motivating combination strategies including neoantigen vaccines and pharmacologic mis-splicing inducers (corin; [Fisher et al. 2025](https://insight.jci.org/articles/view/190287)). *Domain: bio.*
 
+**IP-MS** — Immunoprecipitation Mass Spectrometry. Core workflow of immunopeptidomics: pan-MHC or allele-specific antibodies affinity-purify HLA-peptide complexes from cell or tissue lysate, peptides are acid-eluted and identified by LC-MS/MS (DDA or DIA-MS). The empirical complement to in-silico binding prediction; ground truth for "is this peptide actually presented?" ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext); MHC1-TIP, Pepyrus). *Domain: bio.*
+
 **IV** — Intravenous. Drug delivery route via direct venous injection; chosen for personalized mRNA cancer vaccines to deliver LNP-mRNA payloads systemically (Sahin et al. 2026; Rojas et al. 2023). *Domain: bio.*
 
 ## L
@@ -114,6 +122,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **MHC1-TIP** — MHC class I 1-Tube Immunopeptidomics. Low-input, single-tube MHC-I ligandome workflow ([Dollinger et al. 2026, *Comm Bio*](https://www.nature.com/articles/s42003-026-09570-6)); scales to cell lines, patient-derived organoids, and sub-mg ex-vivo tumor fragments — replaces traditional workflows requiring hundreds of millions of cells. Primary RCC application revealed widespread **intratumoral heterogeneity in antigen presentation that is poorly correlated with source protein expression** — relevant to the RNA-Seq-abundance ≠ surface-presentation framing in this pipeline. *Domain: bio.*
 
+**MSI** — Microsatellite Instability. Tumor phenotype caused by defective DNA mismatch repair (MMR); hypermutated, high TMB, characteristically responsive to ICI. MSI-high is a tissue-agnostic FDA-approved indication for anti-PD-1 (pembrolizumab). Non-canonical splicing contributes substantively to the CRC immunopeptidome in this class ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
+
+**MSS** — Microsatellite Stable. The MMR-proficient majority of solid tumors; lower TMB, broadly ICI-resistant. The challenge case for neoantigen vaccines — fewer canonical somatic mutations motivates non-canonical (splice, RNA-edit, retroelement) TSA discovery; splice-derived antigens are detectable in MSS CRC at rates comparable to MSI ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
+
 ## N
 
 **NJ** — Neojunction. Tumor-specific or recurrent splice junction absent from canonical normal-tissue annotation; the upstream substrate from which splice neoepitopes are translated. Notation introduced by Nejo et al. (*Nat. Med.* 2023). Kwok et al. additionally use **NEJ** (neoepitope-encoding junction) for the validated subset yielding a presented peptide (e.g. NEJ<sub>GNAS</sub>, NEJ<sub>RPL22</sub>). *Domain: bio.*
@@ -131,6 +143,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## P
 
 **PAE** — Predicted Aligned Error. AlphaFold/TCRdock per-residue-pair error estimate (in Å); summarised globally to gauge inter-domain confidence (e.g. relative MHC↔TCR docking confidence). *Domain: bio.*
+
+**PD-1** — Programmed cell Death protein 1 (CD279). Inhibitory T-cell coreceptor; engages PD-L1/PD-L2 on tumor or APCs to dampen T-cell activity. Anti-PD-1 antibodies (pembrolizumab, nivolumab) are the workhorse ICI class; recurrent combination partner in neoantigen-vaccine and splice-modulator trials (e.g. TN2008 + anti-PD-1 in resistant models, [Lin et al. 2025](https://www.nature.com/articles/s41392-024-02118-2)). *Domain: bio.*
 
 **PDB** — Protein Data Bank ([rcsb.org](https://www.rcsb.org)). Public archive of experimentally determined 3D structures (~220k entries); training source for AlphaFold / Boltz / HERMES; reference ground truth for DockQ scoring. *Domain: bio.*
 
@@ -156,6 +170,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **SLURM** — Simple Linux Utility for Resource Management. The dominant HPC job scheduler in academia. *Domain: cloud.*
 
+**SRSF1** — Serine/arginine-Rich Splicing Factor 1. Canonical SR-protein family member; binds exonic splicing enhancers, regulates alternative 5′ splice-site selection. Oncogenic across multiple cancers; small-molecule inhibitor **TN2008** boosts anti-PD-1 response in resistant models via a dual hit — restoring CD8+ T-cell glycolysis + reprogramming tumor c-Jun/c-myc/JunB transcription ([Lin et al. 2025, *Sig Transduct Target Ther*](https://www.nature.com/articles/s41392-024-02118-2)). *Domain: bio.*
+
 ## T
 
 **TCR** — T-Cell Receptor. Heterodimeric (α/β) receptor on T cells that recognises peptide-MHC complexes; modelled here via TCRdock for the top neoepitope candidate. *Domain: bio.*
@@ -169,6 +185,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **TNBC** — Triple-Negative Breast Cancer. Breast cancer subtype lacking ER, PR, and HER2 expression; lacks targeted hormonal / HER2 therapy options. ~10–15% of breast cancers; relatively higher tumor mutation burden makes it a recurrent personalized-vaccine trial target (Sahin et al., *Nature* 2026). *Domain: bio.*
 
 **TPM** — Transcripts Per Million. Normalised RNA expression unit; reads per kb of transcript scaled so per-sample values sum to 10⁶, making cross-sample comparisons direct (unlike RPKM/FPKM). Conventional thresholds: ~1 TPM = expressed, <0.5 TPM = below detection floor (functionally silent in that tissue), >10 TPM = moderately–highly expressed. Used as a tier-1 normal-tissue QC for public-neoantigen prioritisation (e.g. Zhang et al. 2026: <0.5 TPM in normal tissues). *Domain: bio.*
+
+**TSA** — Tumor-Specific Antigen. Peptide present on tumor cells but absent from normal tissue; the strict subset of tumor antigens whose immunogenic recognition is unlikely to drive autoimmunity. Distinct from **TAA** (tumor-associated antigen, also expressed in some normal lineages). Splice neoepitopes our pipeline targets are the splice-junction TSA class; junction-spanning TSAs are MS-detectable in MSI and MSS CRC ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
 
 ## U
 
