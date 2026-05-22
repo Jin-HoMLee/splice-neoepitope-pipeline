@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-22
 
+### 08:46 UTC — Editor: Scientist
+
+- **Hayer et al. — CRC immunopeptidome with non-canonical splicing** ([Mol Cell Proteomics 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)) — proteogenomics on MSI + MSS CRC; 266 tumor antigens, 70 TSAs validated by MHC IP-MS. → Zotero add; DISCUSSION MS-validation hook; glossary bundle same PR. *Scientist. methodology-signal.*
+- **Lin et al. — SRSF1 inhibitor TN2008** ([Sig Transduct Target Ther 2025](https://www.nature.com/articles/s41392-024-02118-2)) — small-molecule SRSF1 inhibitor synergizes with anti-PD-1 in resistant tumor models. → Zotero add; DISCUSSION companion to corin/CoREST ([Zotero BIAEVMQ9](https://www.zotero.org)). *Scientist. portfolio-differentiator.*
+
 ### 08:20 UTC — Editor: Developer
 
 - **uv 0.11.16** ([2026-05-21](https://github.com/astral-sh/uv/releases/tag/0.11.16)) — TAR parser security fix + entry-points-escape guard; follow-up to 0.11.14 logged 2026-05-17. → No action; portfolio-tracking only. *Developer. industry-standard.*
