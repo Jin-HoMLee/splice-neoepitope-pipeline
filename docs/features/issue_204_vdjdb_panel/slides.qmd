@@ -44,33 +44,18 @@ A per-patient **reference TCR panel** from VDJdb
 ::: {.columns}
 
 ::: {.column width="45%"}
-![Real rule-graph (chr22 test config) via `scripts/visualize_dag.sh`. Vertical "rails" are inter-rule data dependencies (snakevision metro style). **Orange nodes** = new in [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457).](figures/dag.svg){width=100%}
+![Real rule-graph (chr22 test, snakevision metro style). **Orange** = new in [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457).](figures/dag.svg){width=90%}
 :::
 
-::: {.column style="width:55%; font-size: 0.72em;"}
+::: {.column style="width:55%; font-size: 0.7em;"}
 
-**New from this PR ([PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457)):**
+**New from [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457):** `fetch_vdjdb_panel` (the rule) + `download_vdjdb_release` (SHA256-verified) + `download_imgt_germlines` (stitchrdl wrapper) + `workflow/envs/vdjdb.yaml` (conda env).
 
-- `fetch_vdjdb_panel` — the rule itself
-- `download_vdjdb_release` — SHA256-verified VDJdb release
-- `download_imgt_germlines` — stitchrdl wrapper
-- `workflow/envs/vdjdb.yaml` — new conda env
+**Inputs:** `alleles.tsv` ← `aggregate_hla_alleles` (OptiType); `vdjdb_full.txt` ← `download_vdjdb_release`; IMGT germlines sidecar ← `download_imgt_germlines`.
 
-**Inputs** (rails feeding `fetch_vdjdb_panel`):
+**Outputs:** `panel.tsv` (top-N TCRs per allele) + `panel_qc.tsv` (per-allele coverage).
 
-- `alleles.tsv` ← `aggregate_hla_alleles` (OptiType chain)
-- `vdjdb_full.txt` ← `download_vdjdb_release`
-- IMGT germlines (sidecar) ← `download_imgt_germlines`
-
-**Outputs:**
-
-- `panel.tsv` — top-N TCRs per allele
-- `panel_qc.tsv` — per-allele coverage
-
-**Not wired yet** (deferred):
-
-- [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) — TCR selection for TCRdock
-- [Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) — report wiring (`generate_report` ← `panel.tsv`)
+**Not wired yet:** [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) (TCR selection for TCRdock) · [Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) (report wiring: `generate_report` ← `panel.tsv`).
 :::
 
 :::
@@ -79,17 +64,21 @@ A per-patient **reference TCR panel** from VDJdb
 
 ## Filter pipeline {.smaller}
 
+::: {style="font-size: 0.78em;"}
+
 | Step | Filter | Why |
 |---|---|---|
 | 1 | `species == "HomoSapiens"` | drop mouse/etc. |
-| 2 | `mhc.class == "MHCI"` | scope to class-I presentation |
-| 3 | `vdjdb.score >= 2` | discard low-confidence entries |
-| 4 | **paired α/β required** (no NaN in any of 6 V/J/CDR3 cols) | single-chain rows would crash stitchr |
-| 5 | normalize `mhc.a` to 4-digit (e.g. `HLA-A*02:01:110` → `HLA-A*02:01`) | match patient allele resolution |
+| 2 | `mhc.class == "MHCI"` | scope to class-I |
+| 3 | `vdjdb.score >= 2` | drop low-confidence |
+| 4 | **paired α/β required** (no NaN in any V/J/CDR3 col) | single-chain crashes stitchr |
+| 5 | normalize `mhc.a` to 4-digit (`HLA-A*02:01:110` → `HLA-A*02:01`) | match patient resolution |
 | 6 | exact 4-digit match against patient alleles | strict HLA matching |
-| 7 | sort by `(vdjdb.score DESC, donor_id ASC)` | deterministic top-N tiebreak |
+| 7 | sort `(vdjdb.score DESC, donor_id ASC)` | deterministic top-N tiebreak |
 | 8 | take top 10 per allele | bounded panel size |
 | 9 | reconstruct full α + β chains via `stitchr` | input to TCRdock |
+
+:::
 
 ---
 
