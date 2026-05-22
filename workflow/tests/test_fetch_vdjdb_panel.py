@@ -73,6 +73,24 @@ class TestLoadAndFilterVdjdb:
         df = load_and_filter_vdjdb(tsv, min_score=2)
         assert len(df) == 0
 
+    def test_drops_single_chain_rows_missing_alpha(self, tmp_path):
+        # Regression for chr22 run on 2026-05-22: VDJdb's full TSV mixes single-chain
+        # entries (NaN in opposite-chain V/J/CDR3 cols) with paired ones. Without the
+        # paired-α/β filter these rows reached stitchr and crashed it.
+        tsv = tmp_path / "vdjdb_single_chain.tsv"
+        with open(FIXTURE_PATH) as f:
+            header = f.readline()
+        # Beta chain populated, alpha cols (1-3) empty — should be dropped.
+        single_chain_row = "\t".join(
+            [""] * 3                                                            # cdr3.alpha, v.alpha, j.alpha
+            + ["CASSLSGNTGELFF", "TRBV5-1*01", "", "TRBJ2-2*01"]                 # cdr3.beta, v.beta, d.beta, j.beta
+            + ["HomoSapiens", "HLA-A*02:01", "B2M", "MHCI"]                      # species, mhc.a, mhc.b, mhc.class
+            + [""] * 22 + ["3", ""]                                              # cols 12-33, vdjdb.score, TCR_hash
+        ) + "\n"
+        tsv.write_text(header + single_chain_row)
+        df = load_and_filter_vdjdb(tsv, min_score=2)
+        assert len(df) == 0
+
 
 class TestSelectTopNForAllele:
     def test_exact_match_filter(self):

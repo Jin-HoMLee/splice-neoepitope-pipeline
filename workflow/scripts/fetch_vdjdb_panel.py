@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Fetch a per-patient VDJdb TCR panel (Issue #204).
 
 Reads a pinned VDJdb release, filters to HomoSapiens + MHCI + paired α/β +
@@ -11,8 +12,6 @@ tiebreak by donor ID), reconstructs full α/β chains via stitchr, and writes:
 Lazy-imports pandas + stitchr at first use (per PR #428 pattern) so pytest
 collection stays fast.
 """
-
-from __future__ import annotations
 
 import logging
 from typing import Optional
@@ -64,6 +63,11 @@ def load_and_filter_vdjdb(vdjdb_full_tsv, min_score: int):
         & (df["mhc.class"] == "MHCI")
         & (df["vdjdb.score"] >= min_score)
     ].copy()
+    # Paired α/β requirement: drop single-chain rows where any of the 6 V/J/CDR3
+    # columns is NaN. VDJdb stores single-chain TCRs with NaN in the opposite-chain
+    # columns; passing NaN through to stitchr crashes the subprocess.
+    paired_cols = ["v.alpha", "j.alpha", "cdr3.alpha", "v.beta", "j.beta", "cdr3.beta"]
+    df = df[df[paired_cols].notna().all(axis=1)].copy()
     df["mhc.a_4digit"] = df["mhc.a"].apply(normalize_allele_to_4digit)
     df = df[df["mhc.a_4digit"].notna()].copy()
     log.info(
@@ -132,7 +136,6 @@ def stitch_chain(v_gene: str, j_gene: str, cdr3: str, chain: str) -> Optional[st
             "-v", v_gene,
             "-j", j_gene,
             "-cdr3", cdr3,
-            "-species", "HUMAN",
             "-m", "AA",
         ]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

@@ -9,4 +9,4 @@ dependencies:
   - pip
   - pip:
     - stitchr>=1.1.0
-    - IMGTgeneDL>=0.7.0
+    - IMGTgeneDL>=0.6.1
