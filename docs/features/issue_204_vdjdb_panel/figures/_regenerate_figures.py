@@ -32,6 +32,20 @@ explicit panel.tsv target is required:
 
 The `--` terminator is required: argparse `nargs="+"` on `--configfile` will
 otherwise swallow the target as a (non-existent) configfile (CLAUDE.md gotcha).
+
+After regenerating, manually highlight the `fetch_vdjdb_panel` node — find:
+
+    <circle cx="225.0" cy="315.0" fill="#8cd9d9" id="Nfetch_vdjdb_panel"
+            r="10" stroke="white" stroke-width="2.0" />
+    <text ... x="285.0" y="315.0">fetch_vdjdb_panel</text>
+
+and replace with:
+
+    <circle cx="225.0" cy="315.0" fill="#8cd9d9" id="Nfetch_vdjdb_panel"
+            r="14" stroke="#ff6b35" stroke-width="4" />
+    <text ... fill="#ff6b35" font-weight="bold" x="285.0" y="315.0">fetch_vdjdb_panel  ← new (PR #457)</text>
+
+(Coordinates may shift if the DAG structure changes — re-locate by `id=`.)
 """
 
 from pathlib import Path
