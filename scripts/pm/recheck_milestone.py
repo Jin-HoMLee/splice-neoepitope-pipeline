@@ -29,13 +29,13 @@ SIZE_WEIGHTS = {"XS": 0.5, "S": 1.0, "M": 2.5, "L": 3.5, "XL": 5.0}
 
 
 def parse_milestone_title(title: str) -> tuple[int, int] | None:
-	"""Parse 'i<N> - S<M> - ...' titles. Returns (iteration, stage) or None.
+    """Parse 'i<N> - S<M> - ...' titles. Returns (iteration, stage) or None.
 
-	Role-meta (pm-i*, dev-i*) and legacy (M1, M2) titles return None and fall
-	through to pure-capacity behavior.
-	"""
-	m = re.match(r"^i(\d+)\s*-\s*S(\d+)\s*-\s*", title)
-	return (int(m.group(1)), int(m.group(2))) if m else None
+    Role-meta (pm-i*, dev-i*) and legacy (M1, M2) titles return None and fall
+    through to pure-capacity behavior.
+    """
+    m = re.match(r"^i(\d+)\s*-\s*S(\d+)\s*-\s*", title)
+    return (int(m.group(1)), int(m.group(2))) if m else None
 
 
 def gh(*args: str, parse_json: bool = True) -> object:
