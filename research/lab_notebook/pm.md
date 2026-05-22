@@ -8,6 +8,41 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-22
 
+### 13:04 UTC — Editor: PM
+
+#### Pace rate change 1.5 → 5.0 d/wk + 14-milestone re-baseline cascade + 49 Target date backfills + sequencing-hook gap surfaced ([Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465))
+
+**Trigger.** Mid-session ask during Friday cleanup follow-up: *"can we change my typical pace to 5 d/wk now?"* Prior assumption (~1–2 focused days/week given other commitments, codified in `feedback_milestones.md` and `scripts/pm/recheck_milestone.py:24`) was stale; user signalling full-time availability now.
+
+**Action.**
+
+1. **Rate constant updated.** `scripts/pm/recheck_milestone.py:24` `AVAILABILITY_RATE = 1.5 → 5.0`; docstring formula updated. `feedback_milestones.md:120` prose updated (5d capacity ≈ 1 calendar week now, was 2–3 weeks) with provenance note ("updated 2026-05-22 from prior ~1–2 d/wk"); `feedback_milestones.md:147` formula updated to `÷ 5.0`.
+
+2. **Full-board recheck sweep.** 22 open milestones recheck'd at new rate. **14 of 22 hit `[UPDATE NEEDED]`** (delta beyond ±7d threshold). Surfaced impact diff to user with categorization:
+   - **9 capacity-bound** — pure formula correct
+   - **5 sequence-bound** — pure formula too early; need layered (same-S-stage stack-after-prior) computation
+   - **5 within threshold** — no change needed
+   - **3 intentionally undated** — leave alone ([M#27](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/27) WGS-keyed, [M#29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29) TCRdock-gated, [M#31](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/31) scope-stabilization-gated)
+
+3. **14 milestones PATCHed** with layered dates (capacity-bound got pure formula; sequence-bound got `prior.proposed_close + capacity/rate*7`). Bulk-script attempted first and **correctly denied** by Claude Code auto-mode classifier as too-broad without explicit per-date confirmation — surfaced the final dates table and obtained explicit go-ahead via AskUserQuestion before executing 14 single-target PATCHes. The classifier's behavior was the right call; per-action visibility is the appropriate guardrail for cross-author mass-mutation actions.
+
+4. **49 Target date backfills.** [Issue #448](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/448) re-sync hook fires on `gh issue edit --milestone` moves but NOT on milestone-level `due_on` PATCHes (known gap, noted in 2026-05-21 14:40 UTC entry). Wrote `/tmp/target_backfill.py` to walk 14 patched milestones × member open issues, resolve project item IDs, PATCH Target date field. 49 mutations clean, zero failures.
+
+**Impact.**
+
+- **Roadmap view is honest** at the new pace. ~30-day average compression across mid-future milestones (largest: [M#13](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/13) i4-S5 Google Batch -72d via layered chain; [M#10](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/10) i3-S5 TRUST4 -52d via layered).
+- **Recurring noise introduced** for the 7 sequence-bound milestones — recheck hook flags them `[UPDATE NEEDED]` on every fire because it doesn't model sequencing. Filed [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) (pm-i4, P2) to extend `recheck_milestone.py` with same-S-stage stack-after-prior computation + paired-S7 sub-rule. Mechanism-led fix per [[mechanism-over-memory]] — sequencing rule already lives in memory, moving it to the script eliminates the false-flag tax.
+
+**Follow-ups.**
+
+- **[Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465)** — sequencing-aware recheck (filed today, pm-i4)
+- **[Issue #448](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/448) extension** — milestone-`due_on`-PATCH should fan out to member Issues' Target dates automatically (would have saved today's `/tmp/target_backfill.py` step). Already noted as a follow-up in 2026-05-21 14:40 UTC entry; today's manual backfill increases the value-vs-effort case.
+- **Verify the new rate empirically.** "5 d/wk" is what the user said, but actual cadence will tell. If milestones systematically close late under the new dates, rate is too high; if they close >2× early, too low. Worth a check-in in 2-3 weeks once a few iterations close at the new rate.
+
+**Coherence note.** Today's session has been a clean illustration of [[mechanism-over-memory]] at three layers: the rate constant (code, was already mechanism-led) caught up to reality with one edit; the auto-mode classifier (mechanism, sanctioned) blocked a too-broad bulk action that the operator would have regretted; the sequencing rule (memory-only currently) is the next promotion candidate via [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465). The fewer load-bearing memory rules, the fewer ways for things to silently drift.
+
+---
+
 ### 09:58 UTC — Editor: PM
 
 #### [Issue #243](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/243) — GitHub Rulesets investigation + decline-with-rationale close

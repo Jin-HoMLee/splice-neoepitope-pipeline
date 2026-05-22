@@ -2,7 +2,7 @@
 """Recheck a milestone's due_on against its remaining size-weighted capacity.
 
 Implements the recheck rule from memory/feedback_milestones.md:
-  new_due_on = today + remaining-days / 1.5 * 7 days
+  new_due_on = today + remaining-days / 5.0 * 7 days
 
 Usage:
   scripts/pm/recheck_milestone.py --issue N
@@ -21,7 +21,7 @@ from datetime import date, datetime, timedelta
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
 THRESHOLD_DAYS = 7
-AVAILABILITY_RATE = 1.5  # capacity-days per calendar-week
+AVAILABILITY_RATE = 5.0  # capacity-days per calendar-week
 
 # Size weight in capacity-days (midpoints of feedback_milestones.md ranges)
 SIZE_WEIGHTS = {"XS": 0.5, "S": 1.0, "M": 2.5, "L": 3.5, "XL": 5.0}
