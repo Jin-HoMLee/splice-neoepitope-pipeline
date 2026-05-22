@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-22
+
+### 08:11 UTC — Editor: PM
+
+- **GitHub Issues — Fields public preview** ([changelog 2026-05-21](https://github.blog/changelog/2026-05-21-issue-fields-are-now-in-public-preview-for-all-organizations/)) — org-level typed fields (single-select / text / number / date), pinnable per issue type, REST + GraphQL exposed. **Blocked for us:** private projects only AND org-level only; our repo is public + user-owned. → No action now; revisit if GitHub extends to public projects or user accounts. *PM. tooling-signal.*
+- **Multi-agent token economics** ([niteagent 2026 survey](https://niteagent.com/blog/multi-agent-production-2026/)) — multi-agent systems use 15× more tokens than chat; **token usage explains 80% of perf variance**. Three surviving patterns: agent-flow / hub-and-spoke / bounded peer mesh. → Candidate Methodology backfill in [`multi_agent_landscape.md`](research/multi_agent_landscape.md) — cost framing for our PM/Sci/Dev split. *PM. methodology-signal.*
+
 ## 2026-05-21
 
 ### 10:19 UTC — Editor: Scientist
