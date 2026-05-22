@@ -181,18 +181,9 @@ Jin-Ho Lee
 <div class="r-fit-text">
 <p>normal-junction filter?</p>
 </div>
-<div class="fragment">
-<div class="callout callout-note callout-style-simple">
-<div class="callout-body">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-content">
-<p><strong>Why now:</strong> parent <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203">Issue #203</a> — rethink normal-junction filtering with population panel + AlphaGenome as candidate fallback. This deck is the Experiment 3 outcome (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225">Issue #225</a>), feeding back into the #203 decision rule.</p>
-</div>
-</div>
-</div>
-</div>
+<!-- "Why now" callout removed — three r-fit-text lines fill the 720px slide height
+already; the callout was cut off in the rendered HTML. The framing is restated
+on the next slide ("Why this matters"). -->
 </section>
 <section id="why-this-matters" class="slide level2 smaller">
 <h2>Why this matters</h2>
@@ -210,21 +201,21 @@ Jin-Ho Lee
 </section>
 <section id="method-block-diagram" class="slide level2 smaller">
 <h2>Method — block diagram</h2>
-<div class="cell" data-reveal="true" data-fig-width="11" data-layout-align="center">
+<div class="cell" data-reveal="true" data-fig-width="9.5" data-layout-align="center">
 <div class="cell-output-display">
 <div>
 <p></p><figure class=""><p></p>
 <div>
 <pre class="mermaid mermaid-js">flowchart LR
-    T["Tumor RNA-seq&lt;br/&gt;(SRR9143066)"] --&gt;|"HISAT2 + regtools"| TJ["Tumor junctions&lt;br/&gt;n = 1,872"]
-    MN["Matched-normal&lt;br/&gt;RNA-seq (SRR9143065)"] --&gt;|"HISAT2 + regtools"| MS["MN junctions&lt;br/&gt;n = 1,714"]
-    GT["Snaptron GTEx v2&lt;br/&gt;(hg38)"] --&gt;|"≥1 sample,&lt;br/&gt;chr22"| GS["GTEx panel&lt;br/&gt;n = 880,769"]
-    AG["AlphaGenome&lt;br/&gt;chr22 predictions"] --&gt;|"τ = F1-max&lt;br/&gt;vs MN ∩ GENCODE"| AS["AG predicted-normal&lt;br/&gt;n = 448"]
-    TJ --&gt; R{{"Set intersections&lt;br/&gt;tumor ∩ each filter"}}
+    T["Tumor RNA-seq&lt;br/&gt;(SRR9143066)"] --&gt;|"HISAT2 +&lt;br/&gt;regtools"| TJ["Tumor&lt;br/&gt;n = 1,872"]
+    MN["Matched-normal&lt;br/&gt;(SRR9143065)"] --&gt;|"HISAT2 +&lt;br/&gt;regtools"| MS["MN&lt;br/&gt;n = 1,714"]
+    GT["Snaptron&lt;br/&gt;GTEx v2"] --&gt;|"≥1 sample,&lt;br/&gt;chr22"| GS["GTEx&lt;br/&gt;n = 880,769"]
+    AG["AlphaGenome&lt;br/&gt;predictions"] --&gt;|"τ = F1-max"| AS["AG-normal&lt;br/&gt;n = 448"]
+    TJ --&gt; R{{"tumor ∩&lt;br/&gt;each filter"}}
     MS --&gt; R
     GS --&gt; R
     AS --&gt; R
-    R --&gt; V[["Venn + decision rule"]]
+    R --&gt; V[["Venn +&lt;br/&gt;decision"]]
 
     style R fill:#ffe6a3,stroke:#b8860b,stroke-width:2px
     style V fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
@@ -403,12 +394,10 @@ Jin-Ho Lee
 <div class="r-fit-text">
 <p>treat as tissue prior</p>
 </div>
-<div class="fragment">
-<ul>
-<li>AlphaGenome predicted-normal does <strong>not</strong> add filtering value over GTEx on chr22 patient_001.</li>
-<li>Filter stack stays at <strong>MN + GTEx</strong> (with AG dropped as a candidate third source).</li>
-</ul>
-</div>
+<!-- Detail bullets ("AG does not add filtering value" + "filter stack stays MN+GTEx")
+removed — two r-fit-text lines fill the 720px slide height; bullets overflowed
+the bottom. The bullets restate the Decision rule slide (slide 8) findings,
+so dropping them here is information-safe. -->
 </section>
 <section id="caveats-read-before-citing-the-headline" class="slide level2 smaller">
 <h2>Caveats — read before citing the headline</h2>
