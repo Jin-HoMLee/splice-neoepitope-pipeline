@@ -211,6 +211,10 @@ resources/
 data/
 logs/
 
+# Exempt: frozen-output TSV snippets alongside feature-doc decks (tiny, intentional)
+!docs/features/**/data/
+!docs/features/**/data/*.tsv
+
 # Snakemake
 .snakemake/
 # Pipeline outputs (Snakemake-rule outputs)
@@ -229,6 +233,14 @@ research/slides/**/.quarto/
 research/slides/**/slides.tex
 research/slides/**/slides.log
 
+# Feature-doc slide-deck build artefacts — same convention, docs/ location
+docs/features/**/*.html
+docs/features/**/*.pdf
+docs/features/**/*_files/
+docs/features/**/.quarto/
+docs/features/**/slides.tex
+docs/features/**/slides.log
+
 # Logs
 pipeline.log
 
@@ -236,6 +248,9 @@ pipeline.log
 dag.svg
 dag.png
 dag.pdf
+
+# Exempt: frozen DAG snapshots in feature-doc figures dirs (small, intentional)
+!docs/features/**/figures/dag.svg
 
 # macOS metadata
 .DS_Store
