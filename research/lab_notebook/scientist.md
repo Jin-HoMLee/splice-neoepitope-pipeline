@@ -6,6 +6,33 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-22
+
+### 13:08 UTC — Editor: Scientist
+
+#### [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (filter strength deck) — slide deck added to [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) + slides-co-location convention documented
+
+User asked for the [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) slide deck to ship in [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) (vs deferring to [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455)) on the grounds that notebook + deck "belong together and are necessary for human review". Agreed; the slides-co-location convention agreed informally in the 2026-05-21 19:38 UTC entry (below) is now formalised in CLAUDE.md as part of this PR.
+
+**Scope shipped here:**
+
+- `research/experiments/issue_225_*/slides.qmd` (12 slides, lab-seminar-quality, reveal.js HTML render)
+- `figures/_regenerate_figures.py` + `figures/pr_curve.png` + `figures/caught_bar.png`
+- `outputs/filter_venn_chr22.png` re-used from the notebook (notebook stays canonical per CLAUDE.md)
+- `refs.bib` — 7 entries (5 reused from issue_393 deck, 2 new: Wilks-Snaptron + GTEx v8)
+- `slides.html` committed for [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452)-review ergonomics (divergence from `research/slides/README.md`'s gitignore rule — tracked as a follow-up under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455))
+- CLAUDE.md "Slide decks for experiment Issues" section updated with the co-location rule + rationale; also fixed a stale inverted cross-reference in the "Experiment notebooks" section
+- [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) body descoped: removed the CLAUDE.md convention-docs item and the "[Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) deck follow-up" Out-of-scope line (both shipped here)
+- [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) Test plan amended with 6 deck-related items
+
+**Process note.** Followed the brainstorming → writing-plans → subagent-driven-development superpowers flow. Spec at `docs/superpowers/specs/2026-05-22-issue-225-slide-deck-design.md`; plan at `docs/superpowers/plans/2026-05-22-issue-225-slide-deck.md`. The plan structure paid off — small bite-sized tasks gave clean per-task commits, and the spec's "Divergence from prior art" section flagged the committed-`slides.html` decision up front instead of discovering it mid-render. One in-flight plan correction: the Snaptron DOI initially provided (`10.1093/bioinformatics/bty025`) was wrong — caught at Task 1, corrected to `10.1093/bioinformatics/btx547` (PMID 28968689); plan + refs.bib updated accordingly.
+
+**Headline numbers unchanged from notebook re-run on 2026-05-21:** F1 = 0.300, % AG-unique vs GTEx = 0.0%, decision = NO-GO. The deck just re-renders the same story in lab-seminar form.
+
+**Ready to merge after this commit lands.** Closure-ritual gate (test plan + [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) ACs + [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) carrier step) will re-check before invoking `bash scripts/audit_and_merge.sh 452`.
+
+---
+
 ## 2026-05-21
 
 ### 19:38 UTC — Editor: Scientist
