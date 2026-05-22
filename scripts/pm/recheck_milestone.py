@@ -78,6 +78,57 @@ def find_open_same_iteration_S5(
     return None
 
 
+def compute_layered_due_date(
+    iteration: int | None,
+    stage: int | None,
+    capacity_days: float,
+    all_milestones: list[dict],
+) -> tuple[date, str]:
+    """Return (proposed_due, reasoning_note).
+
+    Handles 4 main branches:
+      1. No title parse (role-meta etc.) -> pure capacity
+      2. S7 paired with open S5 in same iteration -> stack on S5 close
+      3. S7 standalone (no paired S5) -> pure capacity
+      4. Same-S-stage stacking (closed/undated/normal/overdue prior cases)
+    """
+    today = date.today()
+
+    if iteration is None or stage is None:
+        # Non-S-stage milestone (pm-i*, dev-i*, M1, etc.) — pure capacity
+        base = today
+        note = ""
+    elif stage == 7:
+        paired = find_open_same_iteration_S5(iteration, all_milestones)
+        if paired and paired.get("due_on"):
+            paired_date = date.fromisoformat(paired["due_on"][:10])
+            base = max(paired_date, today)
+            note = f"(paired-S7: unblocks at M#{paired['number']} close {paired['due_on'][:10]})"
+        else:
+            # Standalone S7 (e.g. Lit Review i3-S7) — pure capacity
+            base = today
+            note = "(standalone S7 — no paired open S5)"
+    else:
+        prior = find_prior_same_stage(iteration, stage, all_milestones)
+        if prior is None:
+            base = today
+            note = "(no prior same-S milestone)"
+        elif prior["state"] == "closed":
+            base = today
+            note = f"(prior M#{prior['number']} closed)"
+        elif prior.get("due_on") is None:
+            base = today
+            note = f"(prior M#{prior['number']} undated — sequencing skipped)"
+        else:
+            prior_date = date.fromisoformat(prior["due_on"][:10])
+            base = max(prior_date, today)
+            note = f"(stack after M#{prior['number']} close {prior['due_on'][:10]})"
+
+    calendar_days = int(round(capacity_days / AVAILABILITY_RATE * 7))
+    proposed = base + timedelta(days=calendar_days)
+    return (proposed, note)
+
+
 def gh(*args: str, parse_json: bool = True) -> object:
     result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return json.loads(result.stdout) if parse_json else result.stdout
