@@ -17,8 +17,6 @@ Usage (Snakemake):
   Called automatically by the ``generate_report`` rule.
 """
 
-from __future__ import annotations
-
 import argparse
 import html as html_mod
 import json
@@ -435,7 +433,7 @@ def _render_contig(seq: str, start_nt: int, end_nt_incl: int,
 
 
 def _build_strong_table_html(
-    pred_df: pd.DataFrame,
+    pred_df: "pd.DataFrame",
     contigs: dict[str, str],
     upstream_nt: int = 26,
     max_rows: int = 50,
@@ -509,7 +507,7 @@ def _build_strong_table_html(
     return table
 
 
-def _df_to_html(df: pd.DataFrame, max_rows: int = 100) -> str:
+def _df_to_html(df: "pd.DataFrame", max_rows: int = 100) -> str:
     if df.empty:
         return "<p><em>No data.</em></p>"
     out = df.head(max_rows).to_html(index=False, border=0, escape=True)
@@ -605,7 +603,7 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     )
 
 
-def _build_strong_table_html_from_top_candidates(top_candidates_df: pd.DataFrame) -> str:
+def _build_strong_table_html_from_top_candidates(top_candidates_df: "pd.DataFrame") -> str:
     """Build the top presenters table from the wide ``report_top_candidates.tsv``.
 
     The artefact is already quality-gated, sorted, capped, and carries a
@@ -695,7 +693,7 @@ def _presenter_counts_html(
     return _df_to_html(df)
 
 
-def _rank_presenters(df: pd.DataFrame) -> pd.DataFrame:
+def _rank_presenters(df: "pd.DataFrame") -> "pd.DataFrame":
     """Sort presenters by genotype_presentation_score desc, then percentile asc."""
     if "genotype_presentation_score" in df.columns:
         return df.sort_values(
@@ -710,7 +708,7 @@ def _rank_presenters(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def _resolve_top_candidate_for_structure(
-    pred_df: pd.DataFrame,
+    pred_df: "pd.DataFrame",
     presentation_percentile_weak: float = 2.0,
 ) -> tuple[str, str]:
     """Resolve top candidate peptide + allele from raw predictions.
@@ -730,7 +728,7 @@ def _resolve_top_candidate_for_structure(
 
 
 def _resolve_top_candidate_from_manifest(
-    structure_manifest: pd.DataFrame,
+    structure_manifest: "pd.DataFrame",
 ) -> tuple[str, str]:
     """Read top candidate peptide + allele from the 3D structure manifest."""
     if structure_manifest is None or structure_manifest.empty:
@@ -787,8 +785,8 @@ def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
 
 def _build_report_tsv(
     patient_id: str,
-    origin_df: pd.DataFrame,
-    pred_df: pd.DataFrame,
+    origin_df: "pd.DataFrame",
+    pred_df: "pd.DataFrame",
     hla_qc_tsv: str | None,
     output_tsv: str | Path,
     presentation_percentile_strong: float,
@@ -1003,7 +1001,7 @@ def _round_or_blank(value, ndigits: int) -> str | float:
 
 def _build_report_top_candidates_tsv(
     patient_id: str,
-    pred_df: pd.DataFrame,
+    pred_df: "pd.DataFrame",
     contigs: dict[str, str],
     output_tsv: str | Path,
     presentation_percentile_weak: float = 2.0,
@@ -1289,7 +1287,7 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
     return out
 
 
-def _empty_origin_df() -> pd.DataFrame:
+def _empty_origin_df() -> "pd.DataFrame":
     """Empty origin DataFrame with the canonical column set."""
     import pandas as pd
 

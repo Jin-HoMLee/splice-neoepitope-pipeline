@@ -50,8 +50,6 @@ Usage (Snakemake):
   Called automatically by the run_tcrdock rule when tcrdock.enabled is true.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
 import logging
@@ -75,7 +73,7 @@ def select_top_candidates(
     predictions_tsv: str | Path,
     n_candidates: int = 1,
     presentation_percentile_weak: float = 2.0,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Select top N candidates ranked by genotype_presentation_score from MHCflurry predictions.
 
     Applies quality gate (best_presentation_percentile ≤ presentation_percentile_weak) then ranks by:
@@ -135,7 +133,7 @@ def select_top_candidates(
 # ---------------------------------------------------------------------------
 
 def build_tcrdock_input(
-    candidates: pd.DataFrame,
+    candidates: "pd.DataFrame",
     fallback_hla: dict,
     fallback_tcr: dict,
     output_dir: Path,
@@ -354,7 +352,7 @@ def relabel_pdb_chains(pdb_text: str, target_chainseq: str) -> str:
 
 def collect_outputs(
     tcrdock_output_dir: Path,
-    candidates: pd.DataFrame,
+    candidates: "pd.DataFrame",
     output_pdb: Path,
     output_scores: Path,
     fallback_tcr: dict,
