@@ -218,11 +218,16 @@ def compute_recheck(milestone_number: int) -> int:
         print("Status: [No change] — milestone has no remaining capacity")
         return 0
 
-    calendar_days = int(round(remaining / AVAILABILITY_RATE * 7))
-    proposed_due = date.today() + timedelta(days=calendar_days)
+    # Sequencing-aware: fetch all milestones once, derive (iteration, stage), apply layered logic
+    all_milestones_raw = gh("api", f"repos/{REPO}/milestones?state=all&per_page=100")
+    parsed = parse_milestone_title(title)
+    iteration, stage = parsed if parsed else (None, None)
+    proposed_due, note = compute_layered_due_date(iteration, stage, remaining, all_milestones_raw)
+
     delta = (proposed_due - current_due_date).days if current_due_date else None
     delta_str = f"{delta:+d}" if delta is not None else "n/a"
-    print(f"Proposed due_on: {proposed_due} (delta {delta_str} days)")
+    note_suffix = f" {note}" if note else ""
+    print(f"Proposed due_on: {proposed_due} (delta {delta_str} days){note_suffix}")
 
     if delta is None or abs(delta) <= THRESHOLD_DAYS:
         print("Status: [No change]")
