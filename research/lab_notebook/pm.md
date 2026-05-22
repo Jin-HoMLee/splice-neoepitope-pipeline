@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-22
 
+### 14:19 UTC — Editor: PM
+
+#### [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) — sequencing-aware milestone recheck ship
+
+**Trigger.** Today's 13:04 UTC rate-change cascade created 7 false-flag `[UPDATE NEEDED]` milestones (sequence-bound, capacity-formula too early). [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) filed same session as the rung-3 mechanism fix per [[mechanism-over-memory]] — the sequencing rule lived in `feedback_milestones.md` prose only; moving it to the script silences the noise deterministically.
+
+**Implementation.** Single-PR ship: spec → 3 helpers + 1 layered-compute function + integration → pytest unit tests + live integration smoke → this entry. ~80 LOC added to `scripts/pm/recheck_milestone.py`; ~150 LOC test file at `tools/ci/test_recheck_milestone.py`.
+
+**Design choices** (from spec):
+- **Single-level prior lookup** over recursive proposed-close — trusts GitHub's stored `due_on` as source of truth; hook's cascade-on-activity property converges naturally
+- **Loose paired-S7 match** (same iteration, any arc) — arc-mismatch is a separate data-hygiene concern (e.g. [M#28](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/28) i4-S7 'TCR-pMHC Landscape' vs [M#13](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/13) i4-S5 'Google Batch')
+- **Role-meta-axis explicitly skipped** — pm-i*/dev-i* run partly in parallel; strict stacking would create its own false flags
+- **Report-only preserved** — operator runs PATCH manually per the existing script's design
+
+**Verification.** Live integration smoke: all 7 sequence-bound milestones from morning's cascade now `[No change]`; 8 capacity-bound milestones unchanged (regression check). Unit tests cover 8 logic branches + edge cases (closed prior, undated prior, no prior, normal stack, overdue prior with today guard, S7-paired, S7-standalone, non-S-stage parse).
+
+**Follow-ups.**
+- **Memory update** (out-of-repo): point `feedback_milestones.md` at `scripts/pm/recheck_milestone.py` for the sequencing math instead of prose-only description
+- **Arc-mismatch data hygiene**: i4-S7 ↔ i4-S5 arc mismatch is real; worth a future review to either rename milestones for arc-consistency or formalize the cross-iteration pairing exception ([M#28](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/28) probably should pair with i5-S5)
+
+---
+
 ### 13:04 UTC — Editor: PM
 
 #### Pace rate change 1.5 → 5.0 d/wk + 14-milestone re-baseline cascade + 49 Target date backfills + sequencing-hook gap surfaced ([Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465))
