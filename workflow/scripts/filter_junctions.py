@@ -32,8 +32,6 @@ Usage (Snakemake):
   Called automatically by the ``filter_junctions`` rule.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
 import gzip

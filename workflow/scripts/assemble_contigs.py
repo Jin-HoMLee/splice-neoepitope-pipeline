@@ -25,8 +25,6 @@ Usage (Snakemake):
   Called automatically by the ``assemble_contigs`` rule.
 """
 
-from __future__ import annotations
-
 import argparse
 import logging
 import os
@@ -48,9 +46,9 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _build_upstream_bed(
-    junctions: pd.DataFrame,
+    junctions: "pd.DataFrame",
     upstream_nt: int,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Return a BED DataFrame for the upstream arm of each junction."""
     import pandas as pd
 
@@ -68,9 +66,9 @@ def _build_upstream_bed(
 
 
 def _build_downstream_bed(
-    junctions: pd.DataFrame,
+    junctions: "pd.DataFrame",
     downstream_nt: int,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Return a BED DataFrame for the downstream arm of each junction."""
     import pandas as pd
 
@@ -87,7 +85,7 @@ def _build_downstream_bed(
     return bed
 
 
-def _write_bed(df: pd.DataFrame, path: str | Path) -> None:
+def _write_bed(df: "pd.DataFrame", path: str | Path) -> None:
     """Write a BED DataFrame to a file (no header)."""
     df.to_csv(path, sep="\t", header=False, index=False)
 

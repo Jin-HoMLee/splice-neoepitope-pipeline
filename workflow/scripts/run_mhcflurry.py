@@ -46,8 +46,6 @@ Usage (Snakemake):
   Called automatically by the ``run_mhcflurry`` rule.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
 import logging
@@ -146,7 +144,7 @@ def _run_mhcflurry_predictions(
     peptides: list[str],
     alleles: list[str],
     predictor=None,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Run MHCflurry predictions on a list of peptides for a patient HLA genotype.
 
     Class1PresentationPredictor.predict() takes the full genotype (≤6 alleles)
@@ -189,7 +187,7 @@ def _compute_per_allele_features(
     alleles: list[str],
     hla_c_weight: float,
     strong_threshold: float,
-) -> pd.DataFrame:
+) -> "pd.DataFrame":
     """Compute per-allele presentation scores and genotype-level features for each peptide.
 
     Makes one predict([allele]) call per allele using the module-level predictor
