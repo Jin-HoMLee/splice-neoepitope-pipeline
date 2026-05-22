@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-22
 
+### 08:20 UTC — Editor: Developer
+
+- **uv 0.11.16** ([2026-05-21](https://github.com/astral-sh/uv/releases/tag/0.11.16)) — TAR parser security fix + entry-points-escape guard; follow-up to 0.11.14 logged 2026-05-17. → No action; portfolio-tracking only. *Developer. industry-standard.*
+- **JAX 0.10.1** ([2026-05-20](https://github.com/jax-ml/jax/releases)) — GPU eigh/SVD perf nudges. TCRdock pins JAX 0.3.25 (frozen in Docker), so this is informational; relevant if/when [Issue #285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/285) (P100 contingency / TCRdock rebuild) lands. *Developer. pipeline-adjacent.*
+
 ### 08:11 UTC — Editor: PM
 
 - **GitHub Issues — Fields public preview** ([changelog 2026-05-21](https://github.blog/changelog/2026-05-21-issue-fields-are-now-in-public-preview-for-all-organizations/)) — org-level typed fields (single-select / text / number / date), pinnable per issue type, REST + GraphQL exposed. **Blocked for us:** private projects only AND org-level only; our repo is public + user-owned. → No action now; revisit if GitHub extends to public projects or user accounts. *PM. tooling-signal.*
