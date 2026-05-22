@@ -13,6 +13,25 @@ Data sources (frozen at PR #464 merge — chr22 test config, sample SRR9143066):
 
 Re-run after editing if the chr22 outputs change (re-copy from
 `results/SRR9143066/tcr_panel/vdjdb/` into `../data/` first).
+
+dag.svg
+-------
+The accompanying `dag.svg` is the real Snakemake rule-graph for the chr22 test
+config, regenerated via `snakevision` (NOT this script — it requires the
+`snakemake` conda env, not the research venv). Default `rule all` does not pull
+`fetch_vdjdb_panel` into the DAG yet (report wiring is Issue #206), so an
+explicit panel.tsv target is required:
+
+    conda activate snakemake
+    snakemake --configfile config/test_config.yaml --rulegraph --forceall -- \\
+        results/patient_001_test/reports/report.html \\
+        results/patient_001_test/tcr_panel/vdjdb/panel.tsv \\
+        > /tmp/dag.dot
+    snakevision --style scale=15 --style node_radius=10 --style edge_stroke_width=3 \\
+        -o docs/features/issue_204_vdjdb_panel/figures/dag.svg /tmp/dag.dot
+
+The `--` terminator is required: argparse `nargs="+"` on `--configfile` will
+otherwise swallow the target as a (non-existent) configfile (CLAUDE.md gotcha).
 """
 
 from pathlib import Path

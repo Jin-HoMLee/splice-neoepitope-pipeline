@@ -249,6 +249,9 @@ dag.svg
 dag.png
 dag.pdf
 
+# Exempt: frozen DAG snapshots in feature-doc figures dirs (small, intentional)
+!docs/features/**/figures/dag.svg
+
 # macOS metadata
 .DS_Store
 

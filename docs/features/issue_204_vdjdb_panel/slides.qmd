@@ -41,20 +41,38 @@ A per-patient **reference TCR panel** from VDJdb
 
 ## Where it fits {.smaller}
 
-```{mermaid}
-%%| fig-width: 9
-flowchart LR
-    A["OptiType<br/>HLA typing"] -->|"alleles.tsv"| F
-    B["VDJdb release<br/>(SHA256-pinned)"] -->|"vdjdb_full.txt"| F
-    C["stitchrdl<br/>IMGT germlines"] -.->|"sidecar"| F
-    F["fetch_vdjdb_panel<br/>(new)"] -->|"panel.tsv +<br/>panel_qc.tsv"| G["TCR selection<br/>([Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205))"]
-    F -->|"panel preview"| H["report wiring<br/>([Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206))"]
+::: {.columns}
 
-    style F fill:#2a9d8f,color:#fff
-```
+::: {.column width="45%"}
+![Real rule-graph (chr22 test config) via `scripts/visualize_dag.sh`. Vertical "rails" are inter-rule data dependencies (snakevision metro style).](figures/dag.svg){width=100%}
+:::
 
-::: {style="font-size: 0.7em;"}
-New rule `fetch_vdjdb_panel` + supporting infra (`download_vdjdb_release` SHA256-verified, `download_imgt_germlines` stitchrdl wrapper) + new conda env (`workflow/envs/vdjdb.yaml`).
+::: {.column style="width:55%; font-size: 0.72em;"}
+
+**New from this PR ([PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457)):**
+
+- `fetch_vdjdb_panel` — the rule itself
+- `download_vdjdb_release` — SHA256-verified VDJdb release
+- `download_imgt_germlines` — stitchrdl wrapper
+- `workflow/envs/vdjdb.yaml` — new conda env
+
+**Inputs** (rails feeding `fetch_vdjdb_panel`):
+
+- `alleles.tsv` ← `aggregate_hla_alleles` (OptiType chain)
+- `vdjdb_full.txt` ← `download_vdjdb_release`
+- IMGT germlines (sidecar) ← `download_imgt_germlines`
+
+**Outputs:**
+
+- `panel.tsv` — top-N TCRs per allele
+- `panel_qc.tsv` — per-allele coverage
+
+**Not wired yet** (deferred):
+
+- [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) — TCR selection for TCRdock
+- [Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) — report wiring (`generate_report` ← `panel.tsv`)
+:::
+
 :::
 
 ---
