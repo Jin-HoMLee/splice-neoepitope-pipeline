@@ -162,7 +162,8 @@ Create `research/experiments/issue_225_normal_junction_filter_strength/refs.bib`
   number    = {1},
   pages     = {114--116},
   year      = {2018},
-  doi       = {10.1093/bioinformatics/bty025},
+  doi       = {10.1093/bioinformatics/btx547},
+  note      = {Zotero key 5MIKCMRQ},
 }
 
 @article{gtex2020v8,
@@ -174,6 +175,7 @@ Create `research/experiments/issue_225_normal_junction_filter_strength/refs.bib`
   pages     = {1318--1330},
   year      = {2020},
   doi       = {10.1126/science.aaz1776},
+  note      = {Zotero key HGHF7Q8R},
 }
 ```
 
