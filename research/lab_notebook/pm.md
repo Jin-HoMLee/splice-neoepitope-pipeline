@@ -6,6 +6,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-22
+
+### 09:58 UTC — Editor: PM
+
+#### [Issue #243](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/243) — GitHub Rulesets investigation + decline-with-rationale close
+
+**Trigger.** Friday warm-up pick from PM XS/S queue. Issue filed 2026-05-02 after two same-day journal-doc merge conflicts ([PR #238](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/238) / [PR #239](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/239) news_log, [PR #241](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/241) / [PR #242](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/242) lab_notebook). AC 1 (investigation) is the first deliverable; remaining ACs (implementation + convention doc updates) hinge on AC 1's findings.
+
+**Investigation outcome — Rulesets path-exemption infeasible.** GitHub Rulesets (the modern replacement for branch protection) support file-path *restriction* (block changes to specific paths) and actor *bypass* (whitelist users to skip rules), but **not** the "require PR except for these paths" semantic this Issue assumed. Community confirmation: [Discussion #154899](https://github.com/orgs/community/discussions/154899) ("can you exclude file paths for GitHub Ruleset?" — explicit "no, only actor bypass"); [GitHub Docs — available rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) confirms no path-conditional pull_request rule. Approach 1 in the Issue body is structurally unavailable.
+
+**Fallback approach 3 (auto-merge workflow) — value-vs-maintenance flipped since filing.** The remaining path is a `.github/workflows/auto-merge-journal.yml` that detects journal-only diffs and enables `gh pr merge --auto --squash`. Two factors deflate its value:
+
+1. **Merge-ASAP rule landed after filing.** `reference_news_log.md` now has an Always-in-effect "Write inline + ship + merge ASAP" rule (per shared/MEMORY.md line 35 cited 2026-05-13 from same-shape PR #355 vs #354 collision). With merge-ASAP, current PR ceremony per journal entry ≈ ~30s CI + ~10s `audit_and_merge.sh` = ~40s. Auto-merge saves ~10-15s/PR (the script call), not the 5min/PR the original Issue framing assumed.
+2. **Across-role savings: ~3min/week.** 3 roles × ~1 journal PR/day × ~3-5 weekdays × ~12s savings = 1.8-3min/week. Maintenance burden: new workflow file + new repo setting (`allow_auto_merge: true` currently `false`) + cross-role doc updates in `feedback_lab_notebook.md` + `reference_news_log.md`.
+
+The original trigger (2026-05-02 conflicts) was structurally addressed by the merge-ASAP rule. Auto-merge would shave further but the value floor is now too small to justify the maintenance footprint.
+
+**Decision: decline-with-rationale close.** Per [[outcome-routing]] (every issue at close declares (a) follow-up Issue, (b) durable deliverable, or (c) no-follow-up rationale), this is option **(c)** — investigation completed, implementation declined with concrete reasoning.
+
+**Body edit.** Tick AC 1 (`- [x] Investigate GitHub Rulesets path-bypass capabilities; document what's actually possible`) since investigation is the durable artifact. ACs 2-6 marked deferred-with-rationale via a footer comment block; closure-ritual gate (`scripts/audit_and_merge.sh`) accepts ticked OR explicitly-deferred boxes.
+
+**Revisit triggers.** Two concrete signals that would warrant re-opening:
+
+1. **GitHub adds path-conditional PR exemption to Rulesets** — would make approach 1 structurally available; revisit AC 2 + AC 3
+2. **Journal-doc conflicts reappear despite merge-ASAP** — would mean merge-ASAP is leaking and auto-merge becomes the structural fix
+
+Neither is on the horizon; nothing to track. Issue body's "revisit if conflicts reappear" framing already captures signal 2.
+
+**Coherence with today's broader theme.** Today's session has been about "mechanism quality over mechanism count" — Sci's standup curiosity about i3-S1 due_on traced back to a missing hook fire-log infrastructure ([Issue #453](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/453)) that we'll build *because the slip happened*. Declining #243 follows the same heuristic in reverse: the slip didn't happen (merge-ASAP held); mechanism would be premature.
+
+---
+
 ## 2026-05-21
 
 ### 14:40 UTC — Editor: PM
