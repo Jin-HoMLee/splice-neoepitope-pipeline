@@ -7,7 +7,7 @@ Reads the frozen chr22 panel outputs from `../data/` and renders:
 Run from repo root with a Python env that has pandas + matplotlib:
     research/.venv/bin/python docs/features/issue_204_vdjdb_panel/figures/_regenerate_figures.py
 
-Data sources (frozen at PR #457 merge — chr22 test config, sample SRR9143066):
+Data sources (frozen at PR #464 merge — chr22 test config, sample SRR9143066):
     docs/features/issue_204_vdjdb_panel/data/panel.tsv
     docs/features/issue_204_vdjdb_panel/data/panel_qc.tsv
 

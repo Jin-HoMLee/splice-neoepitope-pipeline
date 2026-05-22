@@ -80,7 +80,7 @@ New rule `fetch_vdjdb_panel` + supporting infra (`download_vdjdb_release` SHA256
 ![Per-allele VDJdb coverage on chr22 test sample (SRR9143066). Filled bars = total exact-match hits; hatched overlay = TCRs placed in the panel (capped at 10).](figures/allele_coverage.png){width=82%}
 
 ::: {.fragment}
-**Read:** HLA-A\*02:01 (4734 hits) and HLA-B\*07:02 (128 hits) both fill the panel cleanly. HLA-C\*07:02 has zero VDJdb entries — a **real biological gap**, not a code bug; downstream falls back to DMF5 for this allele's neoepitopes.
+**Read:** HLA-A\*02:01 (4734 hits) and HLA-B\*07:02 (128 hits) both fill the panel cleanly. HLA-C\*07:02 has zero VDJdb entries — a **real biological gap**, not a code bug. Today's pipeline still uses the legacy DMF5 fallback (HLA-A\*02:01-restricted MART-1 TCR) for *all* alleles — structurally mismatched, being replaced by [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205).
 :::
 
 ---
