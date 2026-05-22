@@ -4,6 +4,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import pytest
+
 # Make the script importable as a module
 SCRIPT_DIR = Path(__file__).parent.parent.parent / "scripts" / "pm"
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -206,3 +208,42 @@ class TestComputeLayeredDueDate:
         # Pure capacity: 2.0 / 5.0 * 7 = 2.8 → 3 days
         assert proposed == date(2026, 5, 25)
         assert "standalone S7" in note
+
+
+class TestLiveIntegrationSmoke:
+    """Live API smoke tests. Skipped by default; opt-in via pytest -m live."""
+
+    @pytest.mark.live
+    def test_seven_known_sequence_bound_milestones_show_no_change(self):
+        """The 7 sequence-bound milestones from 2026-05-22 rate cascade should
+        no longer flag UPDATE NEEDED after the sequencing-aware fix.
+        """
+        import subprocess
+        expected_no_change = [10, 11, 13, 15, 18, 24, 30]
+        failures = []
+        for ms in expected_no_change:
+            result = subprocess.run(
+                ["python3", "scripts/pm/recheck_milestone.py", "--milestone", str(ms)],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                failures.append(f"M#{ms} exit={result.returncode}:\n{result.stdout}")
+        assert not failures, "Sequence-bound milestones still flagging:\n" + "\n---\n".join(failures)
+
+    @pytest.mark.live
+    def test_nine_capacity_bound_milestones_still_no_change(self):
+        """Regression check: the 9 capacity-bound milestones from the same
+        cascade should still show [No change] after the fix.
+        """
+        import subprocess
+        expected_no_change = [3, 5, 17, 18, 20, 21, 22, 26]
+        # Note: #18 appears in both sets (capacity-bound AND prior in chain)
+        failures = []
+        for ms in expected_no_change:
+            result = subprocess.run(
+                ["python3", "scripts/pm/recheck_milestone.py", "--milestone", str(ms)],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                failures.append(f"M#{ms} exit={result.returncode}:\n{result.stdout}")
+        assert not failures, "Capacity-bound milestones regressed:\n" + "\n---\n".join(failures)
