@@ -51,7 +51,7 @@ AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in 
 
 ## Experiment notebooks live under `research/experiments/`
 
-Per-Issue experimental work (analysis notebooks + their cached outputs + a one-page README) lives at `research/experiments/issue_NNN_<short-content-desc>/`. Mirrors the slide-deck convention (`research/slides/issue_NNN_<short-desc>/slides.qmd`) — same shape applied to notebooks.
+Per-Issue experimental work (analysis notebooks + their cached outputs + a slide deck + a one-page README) lives at `research/experiments/issue_NNN_<short-content-desc>/`. The slide deck (`slides.qmd`) is co-located here rather than under `research/slides/` — see "Slide decks for experiment Issues" below.
 
 Layout per experiment:
 
@@ -81,7 +81,7 @@ research/experiments/issue_NNN_<short>/
 
 ## Slide decks for experiment Issues
 
-Every experiment-tier Issue ships a Quarto slide deck alongside the per-patient notebook + manuscript work. Decks live at `research/slides/issue_NNN_<short-content-desc>/slides.qmd`. See [`research/slides/README.md`](research/slides/README.md) for the full convention (Quarto rationale, render commands, figure-source pattern, Zotero linkage, install). Scope: **one deck per experiment Issue**, not per sub-issue; no decks for closure tasks, doc updates, or single-fix PRs. Audience: lab seminar / external talk. Figures regenerate from `research/experiments/issue_NNN_<short>/outputs/*.parquet` (per the experiments-folder convention above) so the **notebook stays canonical**.
+Every experiment-tier Issue ships a Quarto slide deck alongside the per-patient notebook + manuscript work. Decks live **co-located with the notebook** at `research/experiments/issue_NNN_<short-content-desc>/slides.qmd`. Shared scaffolding (`_template.qmd`, `nature.csl`) stays centralized at `research/slides/` and is referenced via `csl: ../../slides/nature.csl` from each deck. See [`research/slides/README.md`](research/slides/README.md) for the full convention (Quarto rationale, render commands, figure-source pattern, Zotero linkage, install). Scope: **one deck per experiment Issue**, not per sub-issue; no decks for closure tasks, doc updates, or single-fix PRs. Audience: lab seminar / external talk. Figures regenerate from `research/experiments/issue_NNN_<short>/outputs/*.parquet` (notebook outputs) and from a local `figures/_regenerate_figures.py` (deck-only figures) so the **notebook stays canonical**. Rationale for co-location: notebook + outputs + deck rename / archive / migrate as a unit; figure paths shorten from `../../experiments/issue_NNN/outputs/...` to `outputs/...`. (`research/slides/issue_393_alphagenome_chr22_poc/` predates this rule and is migrated under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).)
 
 **Render tooling:** Quarto via `brew install --cask quarto` (macOS dev). PDF render (beamer) is currently disabled in decks — Quarto/pandoc's auto-emitted preamble hits a `\makesavenoteenv{longtable}` interaction with `footnotehyper.sty` that fails LaTeX compile. HTML reveal.js is the primary delivery; for a PDF handout, "Print → Save as PDF" from Chrome works on `slides.html`. A proper LaTeX fix is tracked as a follow-up.
 
