@@ -47,15 +47,30 @@ A per-patient **reference TCR panel** from VDJdb
 ![Real rule-graph (chr22 test, snakevision metro style). **Orange** = new in [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457).](figures/dag.svg){width=90%}
 :::
 
-::: {.column style="width:55%; font-size: 0.7em;"}
+::: {.column style="width:55%; font-size: 0.62em; line-height: 1.25;"}
 
-**New from [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457):** `fetch_vdjdb_panel` (the rule) + `download_vdjdb_release` (SHA256-verified) + `download_imgt_germlines` (stitchrdl wrapper) + `workflow/envs/vdjdb.yaml` (conda env).
+**New from [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457):**
 
-**Inputs:** `alleles.tsv` ← `aggregate_hla_alleles` (OptiType); `vdjdb_full.txt` ← `download_vdjdb_release`; IMGT germlines sidecar ← `download_imgt_germlines`.
+- `fetch_vdjdb_panel` — the rule itself
+- `download_vdjdb_release` — SHA256-verified
+- `download_imgt_germlines` — stitchrdl wrapper
+- `workflow/envs/vdjdb.yaml` — conda env
 
-**Outputs:** `panel.tsv` (top-N TCRs per allele) + `panel_qc.tsv` (per-allele coverage).
+**Inputs:**
 
-**Not wired yet:** [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) (TCR selection for TCRdock) · [Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) (report wiring: `generate_report` ← `panel.tsv`).
+- `alleles.tsv` ← `aggregate_hla_alleles` (OptiType)
+- `vdjdb_full.txt` ← `download_vdjdb_release`
+- IMGT germlines sidecar ← `download_imgt_germlines`
+
+**Outputs:**
+
+- `panel.tsv` — top-N TCRs per allele
+- `panel_qc.tsv` — per-allele coverage
+
+**Not wired yet:**
+
+- [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) — TCR selection
+- [Issue #206](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/206) — report wiring
 :::
 
 :::
@@ -84,9 +99,9 @@ A per-patient **reference TCR panel** from VDJdb
 
 ## chr22 integration run — per-allele coverage
 
-![Per-allele VDJdb coverage on chr22 test sample (SRR9143066). Filled bars = total exact-match hits; hatched overlay = TCRs placed in the panel (capped at 10).](figures/allele_coverage.png){width=82%}
+![Per-allele VDJdb coverage on chr22 test sample (SRR9143066). Filled bars = total exact-match hits; hatched overlay = TCRs placed in the panel (capped at 10).](figures/allele_coverage.png){width=95%}
 
-::: {.fragment}
+::: {.fragment style="font-size: 0.68em;"}
 **Read:** HLA-A\*02:01 (4734 hits) and HLA-B\*07:02 (128 hits) both fill the panel cleanly. HLA-C\*07:02 has zero VDJdb entries — a **real biological gap**, not a code bug. Today's pipeline still uses the legacy DMF5 fallback (HLA-A\*02:01-restricted MART-1 TCR) for *all* alleles — structurally mismatched, being replaced by [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205).
 :::
 
