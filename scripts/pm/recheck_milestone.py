@@ -58,6 +58,26 @@ def find_prior_same_stage(
     return candidates[-1][1]
 
 
+def find_open_same_iteration_S5(
+    iteration: int,
+    all_milestones: list[dict],
+) -> dict | None:
+    """Find an OPEN i<N> - S5 - ... milestone. Used for paired-S7 gating.
+
+    Loose match: same iteration number is enough. Arc-mismatch (e.g. i4-S7
+    'TCR-pMHC Landscape' vs i4-S5 'Google Batch') is a separate data-hygiene
+    concern not solvable here.
+    """
+    for ms in all_milestones:
+        parsed = parse_milestone_title(ms["title"])
+        if parsed is None:
+            continue
+        n, s = parsed
+        if n == iteration and s == 5 and ms["state"] == "open":
+            return ms
+    return None
+
+
 def gh(*args: str, parse_json: bool = True) -> object:
     result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return json.loads(result.stdout) if parse_json else result.stdout

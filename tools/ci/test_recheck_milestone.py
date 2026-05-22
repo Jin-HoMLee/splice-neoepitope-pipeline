@@ -75,3 +75,37 @@ class TestFindPriorSameStage:
         ]
         prior = rm.find_prior_same_stage(2, 3, fixture)
         assert prior["number"] == 100
+
+
+class TestFindOpenSameIterationS5:
+    """Used for paired-S7 gating: an S7 milestone unblocks at its paired S5 close."""
+
+    def test_finds_open_s5_in_same_iteration(self):
+        fixture = [
+            {"number": 200, "title": "i2 - S5 - Modeling - TCR Panel", "state": "open", "due_on": "2026-05-31T00:00:00Z"},
+            {"number": 201, "title": "i2 - S7 - Publication - TCR Panel", "state": "open", "due_on": "2026-06-04T00:00:00Z"},
+        ]
+        paired = rm.find_open_same_iteration_S5(2, fixture)
+        assert paired["number"] == 200
+
+    def test_returns_none_when_paired_s5_closed(self):
+        fixture = [
+            {"number": 200, "title": "i2 - S5 - Modeling - TCR Panel", "state": "closed", "due_on": "2026-05-31T00:00:00Z"},
+        ]
+        assert rm.find_open_same_iteration_S5(2, fixture) is None
+
+    def test_returns_none_when_no_s5_in_iteration(self):
+        fixture = [
+            {"number": 100, "title": "i3 - S3 - Data Prep", "state": "open", "due_on": "2026-06-05T00:00:00Z"},
+        ]
+        assert rm.find_open_same_iteration_S5(3, fixture) is None
+
+    def test_loose_arc_match(self):
+        # i4-S7 'TCR-pMHC Landscape' paired with i4-S5 'Google Batch' — arc mismatch
+        # but iteration matches, so it pairs (data hygiene concern is separate).
+        fixture = [
+            {"number": 200, "title": "i4 - S5 - Modeling - Google Batch", "state": "open", "due_on": "2026-06-20T00:00:00Z"},
+            {"number": 201, "title": "i4 - S7 - Publication - TCR-pMHC Landscape", "state": "open", "due_on": "2026-07-31T00:00:00Z"},
+        ]
+        paired = rm.find_open_same_iteration_S5(4, fixture)
+        assert paired["number"] == 200
