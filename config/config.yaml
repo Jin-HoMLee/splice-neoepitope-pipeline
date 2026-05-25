@@ -106,9 +106,11 @@ mhcflurry:
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
   threads: 8                  # cores reserved for TF/BLAS within the single genotype predict() call
-  # nf-core layout (Issue #63): MHCflurry model cache lives outside the repo by default
-  # so the sentinel survives a fresh clone. Override to a project-local path (e.g.
-  # "indices/mhcflurry") to share across clones on the same machine.
+  # nf-core layout (Issue #63): location of the MHCflurry "downloads done" sentinel.
+  # Default lives outside the repo so it survives a fresh clone. NOTE: only the
+  # sentinel is controlled by this key — the actual model cache stays in MHCflurry's
+  # platformdirs default (~/.local/share/mhcflurry/) until MHCFLURRY_DATA_DIR wiring
+  # lands (PR follow-up).
   models_cache_dir: "~/.mhcflurry"
   # Percentile thresholds for presentation_class (lower = better, per allele).
   presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong

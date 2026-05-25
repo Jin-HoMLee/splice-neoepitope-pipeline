@@ -213,7 +213,15 @@ __marimo__/
 #   resources/    small committed test fixtures only (resources/test/)
 references/
 indices/
-resources/
+# Use resources/* (not resources/) so git descends into resources/test/ and the
+# negation below takes effect. Blanket resources/ prevents directory traversal,
+# making the !resources/test/ exception unreachable.
+resources/*
+!resources/test/
+# Within resources/test/, still ignore the chr22 local-dev data cache.
+resources/test/chr22*
+resources/test/hisat2_index/
+resources/test/star_index/
 data/
 logs/
 
