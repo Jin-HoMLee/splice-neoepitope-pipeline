@@ -23,12 +23,12 @@ jobs:
 
       - name: Create placeholder input files
         run: |
-          mkdir -p data/test resources
+          mkdir -p data/test references
           touch data/test/SRR9143066_test.fastq.gz
           touch data/test/SRR9143065_test.fastq.gz
-          touch resources/gencode.v47.annotation.gtf.gz
-          touch resources/GRCh38.primary_assembly.genome.fa
-          touch resources/human_proteome.fasta
+          touch references/gencode.v47.annotation.gtf.gz
+          touch references/GRCh38.primary_assembly.genome.fa
+          touch references/human_proteome.fasta
 
       - name: Dry-run with GPU config overlay
         run: |

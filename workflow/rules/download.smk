@@ -57,8 +57,8 @@ rule download_vdjdb_release:
     Sentinel-gated for idempotency. Re-runs are no-ops once the sentinel exists.
     """
     output:
-        vdjdb_tsv = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
-        sentinel = f"resources/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
+        vdjdb_tsv = f"references/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
+        sentinel = f"references/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
     log:
         f"logs/download/vdjdb_{config['tcrdock']['vdjdb_release']}.log",
     params:
@@ -106,7 +106,7 @@ rule download_imgt_germlines:
     see Known limitations in the design spec).
     """
     output:
-        sentinel = "resources/imgt_germlines/.download.done",
+        sentinel = "references/imgt_germlines/.download.done",
     log:
         "logs/download/imgt_germlines.log",
     conda:
@@ -117,7 +117,7 @@ rule download_imgt_germlines:
         DIR=$(dirname {output.sentinel})
         mkdir -p "$DIR"
         echo "Downloading IMGT germline data via stitchrdl..." >> {log} 2>&1
-        # stitchrdl writes to its default cache; we copy into resources/ for reproducibility
+        # stitchrdl writes to its default cache; we copy into references/ for reproducibility
         stitchrdl --species HUMAN >> {log} 2>&1
         # Discover stitchr's cache dir from python (preferred over hard-coding)
         STITCHR_CACHE=$(python -c "import IMGTgeneDL; from pathlib import Path; print(Path(IMGTgeneDL.__file__).parent / 'data' / 'HUMAN')")

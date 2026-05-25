@@ -5,6 +5,15 @@
 _HLA_TYPING_ENABLED  = config.get("hla", {}).get("enabled", False)
 _PROTEOME_FILTER_ENABLED = config.get("proteome_filter", {}).get("enabled", True)
 
+# nf-core layout (Issue #63): sentinel for "mhcflurry-downloads fetch ran" lives
+# outside the repo (default ~/.mhcflurry/.download_done). The actual model cache
+# remains in MHCflurry's own platformdirs location — wiring MHCFLURRY_DATA_DIR to
+# fully co-locate the cache is a follow-up (touches run_mhcflurry.py too).
+_MHCFLURRY_MODELS_DIR = os.path.expanduser(
+    config.get("mhcflurry", {}).get("models_cache_dir", "~/.mhcflurry")
+)
+_MHCFLURRY_SENTINEL = os.path.join(_MHCFLURRY_MODELS_DIR, ".download_done")
+
 # When proteome_filter is enabled, use the filtered novel peptides TSV.
 # When disabled, fall back to the raw translated peptides TSV.
 def _run_mhcflurry_input(wildcards):
@@ -29,10 +38,12 @@ def _run_mhcflurry_input(wildcards):
 
 rule download_mhcflurry_models:
     """Download MHCflurry trained models (~1 GB) on first run.
-    Models are cached in ~/.local/share/mhcflurry/ and reused across runs.
-    A sentinel file is written to resources/ to prevent re-downloading."""
+    Models are cached in MHCflurry's default platformdirs location
+    (~/.local/share/mhcflurry/) and reused across runs. The sentinel marker
+    lives in mhcflurry.models_cache_dir (default ~/.mhcflurry/) — out of the
+    repo per nf-core convention (Issue #63)."""
     output:
-        sentinel=touch("resources/mhcflurry_models.done"),
+        sentinel=touch(_MHCFLURRY_SENTINEL),
     log:
         os.path.join(_LOGS, "mhc_affinity", "mhcflurry_downloads.log"),
     conda:

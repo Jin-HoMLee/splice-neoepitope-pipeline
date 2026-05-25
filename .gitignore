@@ -207,7 +207,21 @@ marimo/_lsp/
 __marimo__/
 
 # Ignore large data files and pipeline outputs
-resources/
+# nf-core layout (Issue #63):
+#   references/   user-provided + downloaded reference data (FASTA, GTF, BED, VDJdb, IMGT)
+#   indices/      pipeline-built alignment indices (HISAT2, STAR)
+#   resources/    small committed test fixtures only (resources/test/)
+references/
+indices/
+# Use resources/* (not resources/) so git descends into resources/test/ and the
+# negation below takes effect. Blanket resources/ prevents directory traversal,
+# making the !resources/test/ exception unreachable.
+resources/*
+!resources/test/
+# Within resources/test/, still ignore the chr22 local-dev data cache.
+resources/test/chr22*
+resources/test/hisat2_index/
+resources/test/star_index/
 data/
 logs/
 
@@ -219,7 +233,6 @@ logs/
 .snakemake/
 # Pipeline outputs (Snakemake-rule outputs)
 results/
-resources/mhcflurry_models.done
 
 # Research-notebook outputs — exploratory artefacts, re-derivable from notebooks
 # (e.g. research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet)

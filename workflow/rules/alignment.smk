@@ -94,7 +94,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     # Configurable index directory — allows test (chr22) and production
     # (full genome) to maintain separate indices without overwriting.
     _HISAT2_INDEX_DIR = config.get("alignment", {}).get(
-        "hisat2_index_dir", "resources/hisat2_index"
+        "hisat2_index_dir", "indices/hisat2"
     )
     _HISAT2_PREBUILT_URL = config.get("alignment", {}).get("hisat2_prebuilt_url", "")
 
@@ -252,7 +252,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
 elif config.get("alignment", {}).get("aligner") == "star":
 
     _STAR_INDEX_DIR = config.get("alignment", {}).get(
-        "star_index_dir", "resources/star_index"
+        "star_index_dir", "indices/star"
     )
 
     rule star_index:
@@ -278,9 +278,10 @@ elif config.get("alignment", {}).get("aligner") == "star":
             set -euo pipefail
             GTF_FILE="{input.gtf}"
             if [[ "$GTF_FILE" == *.gz ]]; then
-                trap 'rm -f resources/temp_annotation.gtf' EXIT
-                gunzip -c "$GTF_FILE" > resources/temp_annotation.gtf
-                GTF_FILE="resources/temp_annotation.gtf"
+                TEMP_GTF=$(mktemp)
+                trap 'rm -f "$TEMP_GTF"' EXIT
+                gunzip -c "$GTF_FILE" > "$TEMP_GTF"
+                GTF_FILE="$TEMP_GTF"
             fi
 
             STAR \\

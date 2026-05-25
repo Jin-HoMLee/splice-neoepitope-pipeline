@@ -183,11 +183,42 @@ fi
 log ""
 log "[8/8] Downloading reference data (20–60 min)..."
 
-RESOURCES="$REPO_DIR/resources"
-mkdir -p "$RESOURCES"
+# nf-core layout (Issue #63): references/ holds user-provided + downloaded reference
+# data; indices/ holds pipeline-built alignment indices. Both are gitignored.
+REFERENCES="$REPO_DIR/references"
+mkdir -p "$REFERENCES"
 
-FASTA_GZ="$RESOURCES/GRCh38.primary_assembly.genome.fa.gz"
-FASTA="$RESOURCES/GRCh38.primary_assembly.genome.fa"
+# One-shot migration from the pre-Issue-63 resources/ layout. Idempotent — only
+# moves files that exist in the old location AND don't yet exist in the new one.
+OLD_RESOURCES="$REPO_DIR/resources"
+if [[ -d "$OLD_RESOURCES" ]]; then
+    for f in GRCh38.primary_assembly.genome.fa GRCh38.primary_assembly.genome.fa.fai \
+             gencode.v47.annotation.gtf.gz human_proteome.fasta reference_junctions.bed; do
+        if [[ -f "$OLD_RESOURCES/$f" && ! -f "$REFERENCES/$f" ]]; then
+            log "  Migrating $f → references/ (Issue #63 layout)"
+            mv "$OLD_RESOURCES/$f" "$REFERENCES/$f"
+        fi
+    done
+    for d in vdjdb imgt_germlines; do
+        if [[ -d "$OLD_RESOURCES/$d" && ! -d "$REFERENCES/$d" ]]; then
+            log "  Migrating $d/ → references/ (Issue #63 layout)"
+            mv "$OLD_RESOURCES/$d" "$REFERENCES/$d"
+        fi
+    done
+    OLD_INDICES="$OLD_RESOURCES"
+    NEW_INDICES="$REPO_DIR/indices"
+    mkdir -p "$NEW_INDICES"
+    for d in hisat2_index:hisat2 star_index:star; do
+        OLD_NAME="${d%%:*}"; NEW_NAME="${d##*:}"
+        if [[ -d "$OLD_INDICES/$OLD_NAME" && ! -d "$NEW_INDICES/$NEW_NAME" ]]; then
+            log "  Migrating $OLD_NAME/ → indices/$NEW_NAME/ (Issue #63 layout)"
+            mv "$OLD_INDICES/$OLD_NAME" "$NEW_INDICES/$NEW_NAME"
+        fi
+    done
+fi
+
+FASTA_GZ="$REFERENCES/GRCh38.primary_assembly.genome.fa.gz"
+FASTA="$REFERENCES/GRCh38.primary_assembly.genome.fa"
 
 if [[ -f "$FASTA" ]]; then
     log "  GRCh38 FASTA already exists — skipping."
@@ -211,7 +242,7 @@ else
     log "  Saved: $FAI"
 fi
 
-GTF="$RESOURCES/gencode.v47.annotation.gtf.gz"
+GTF="$REFERENCES/gencode.v47.annotation.gtf.gz"
 if [[ -f "$GTF" ]]; then
     log "  GENCODE GTF already exists — skipping."
 else

@@ -24,9 +24,9 @@ Usage (standalone):
   python filter_junctions.py \\
       --junction-files results/{patient_id}/alignment/{sample_id}/junctions.tsv ... \\
       --manifest results/{patient_id}/alignment/manifest.tsv \\
-      --reference-junctions resources/reference_junctions.bed \\
+      --reference-junctions references/reference_junctions.bed \\
       --output results/{patient_id}/junctions/novel_junctions.tsv \\
-      [--gencode-gtf resources/gencode.v47.annotation.gtf.gz]
+      [--gencode-gtf references/gencode.v47.annotation.gtf.gz]
 
 Usage (Snakemake):
   Called automatically by the ``filter_junctions`` rule.

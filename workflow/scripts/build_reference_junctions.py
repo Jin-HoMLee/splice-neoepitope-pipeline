@@ -13,8 +13,8 @@ where ``name`` is ``<chrom>:<start>-<end>:<strand>``.
 
 Usage (standalone):
   python build_reference_junctions.py \\
-      --gtf resources/gencode.v47.annotation.gtf.gz \\
-      --output resources/reference_junctions.bed
+      --gtf references/gencode.v47.annotation.gtf.gz \\
+      --output references/reference_junctions.bed
 
 Usage (Snakemake):
   Called automatically by the ``build_reference_junctions`` rule.
