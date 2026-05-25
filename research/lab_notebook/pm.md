@@ -8,6 +8,68 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 19:55 UTC — Editor: PM
+
+#### Session wrap-up — workflow ceremony audit, [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) retroactive review, [pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) epic + sub-1 ship
+
+Catch-up entry covering three streams that earlier 14:25 + 17:55 entries didn't fully capture. Each had its own substantive PM-meta decision-making; bundling here as one wrap-up rather than 3 short entries. Triggered by user noting the lab notebook gap: *"you did omit the lab notebook entry on purpose right?"*
+
+##### Stream 1 — [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) retroactive review + closure-ritual sharpening (~16:00–17:00 UTC)
+
+**Trigger.** User flagged that [Issue #264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/264) shipped via direct `gh issue close` without a PR — bypassed the review gate. Honest read of memory rules confirmed three layered gaps: (1) `shared/feedback_github_workflow.md` line 9 ("All changes go through a PR"), (2) lab notebook entry uncommitted, (3) proactive `@claude review` assumes PR exists.
+
+**Recovery loop.**
+- Opened [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) retroactively with the lab notebook entry to create the review surface that should have existed pre-close.
+- Bot review (1m 38s) approved with 1 immutability-bound cosmetic + 1 recommendation: set 5 more native dep edges from [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) to its open evals. Addressed 4 of 5 (skipping [Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236) which is CLOSED per the new `feedback_dependency_tracking.md` "don't backfill closed-blocker edges" rule). Total dep edges on board: 11 (2 original + 5 sweep + 4 bot-rec).
+- **Memory sharpening** to close the loophole: deleted `feedback_closure_ritual.md` "pure issue-close (no PR)" escape hatch + "Solo issue close: ~30s" line (noise); collapsed `shared/MEMORY.md` "or closing without a PR" lab-notebook clause; added Always-in-effect "Every Issue close routes through a PR"; added `feedback_github_workflow.md` "Issue-closing PRs never skip-eligible" + trimmed conflicting "docs-only" skip-list entry.
+- Broadcast posted (15:05 UTC) for Sci+Dev. [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) merged via `audit_and_merge.sh`.
+
+##### Stream 2 — [pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) epic creation: 4-piece workflow ceremony audit (~17:30 UTC)
+
+**Trigger.** User question: *"Do we need the broadcast actually? ... Do we need lab notebook? ... Can we migrate news log? ... Do we need priority rationale?"*
+
+**Analysis decisions.**
+- **Broadcasts → retire.** /memory already re-reads `shared/MEMORY.md` + linked feedback files; broadcasts duplicate `git log shared/MEMORY.md`. The hand-written narrative duplicates what's already in the memory file's *Caught YYYY-MM-DD* annotation.
+- **Lab notebook → tighten to non-routine.** Today's 14:25 + 17:55 entries had ~100% overlap with Issue body + PR comments + commit messages. Keep for cross-Issue, exploratory, slip-postmortem, meta-decision sessions only.
+- **News log → drop entirely.** Papers → Zotero (DOI dedup). Actionable → Issues. Everything else not worth tracking. Removes highest-contention file + 3-source dedup layer. More radical than the jsonl-migration option but cleaner.
+- **Priority rationale → keep + gate.** Recovery story (label-loss → rationale rebuilds priority) is concrete. Gate via `audit_and_merge.sh` (mechanism rung-3).
+
+**Structure decisions.**
+- **New milestone `pm-i5 - PM Workflow Simplification`** over carve-to-pm-i4 — pm-i4 already 6-open/9d-til-due; would overload. pm-i5 capacity-aligned (5d = 1 week).
+- **Parent epic + 4 sub-issues** over 4 standalone — coherent "ceremony reduction" arc, future-self benefits from grouping. Parent [Issue #480](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/480), subs [#481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481)/[#482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482)/[#483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483)/[#484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) linked via REST API.
+- **P1 on parent + sub-1** (live drift hole), **P2 on others** (real simplification, not blocking).
+- **No native blocker edges** between subs — independently shippable.
+
+Recheck hook confirmed pm-i5 healthy (5.5d capacity, +1d slip within ±7d threshold).
+
+##### Stream 3 — [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481) priority-rationale gate ship: bot review cycle + nit fixes + self-tested merge (~19:00–19:45 UTC)
+
+The 17:55 entry covered the implementation. This adds the review-cycle aftermath.
+
+**Bot review.** 1m 38s. Verdict: ready to merge pending 2 nits + 1 informational. Triaged via 4-column table per `feedback_github_workflow.md`.
+- Nit 1: exit-code docstring stale (didn't mention rationale exit path). Addressed in [`174c88f`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/485/commits/174c88f).
+- Nit 2: success message redundant ("across N linked issues" after "N/N rationales present"). Addressed in same commit.
+- Info 3: zero-linked-issues PRs silently skip — intentional (mirrors AC gate), no action needed.
+
+**Self-test.** The new gate exercised itself on its own merge. Final output: *"✓ PR #485 merged (5 test-plan boxes ticked, 6 AC boxes ticked + 1/1 priority rationales present)."* The `1/1 priority rationales present` text is the load-bearing signal that the check actually ran. Sub-1 closed, pm-i5 advances to 3-open/1-closed.
+
+**Monitor design flaws caught (twice today).** First Monitor missed the bot reply because baseline was snapshotted AFTER `@claude review` posted (13s race). Second Monitor missed it because the bot **edits its existing comment** rather than posting a new one — my ID-based new-comment detection never fires. Follow-up worth filing: a better Monitor watches `updated_at` timestamps too, OR adds a hash check on existing comment bodies.
+
+##### Net session state
+
+- **11 native dep edges** live on the board (2 from [Issue #264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/264) close + 5 from [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) sweep + 4 from sub-1 bot-rec).
+- **4 shared-memory edits** (dep-tracking memory created; closure-ritual sharpened + noise removed; lab-notebook rule collapsed; github-workflow tightened).
+- **pm-i5 milestone** + parent epic + 4 sub-issues filed, triaged, with [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481) shipped.
+- **Priority-rationale gate** now load-bearing — every future PR exercises it.
+- **2 broadcasts** posted (though sub-2 [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) queued to retire that ceremony).
+- **Remaining queued**: [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) (retire broadcasts), [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) (tighten lab notebook — once landed, future routine-ship entries like this one would be optional), [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (drop news_log), plus [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265) (multi-agent SOTA survey, lone pm-i3 remainder).
+
+**Follow-ups.**
+- File an Issue for the Monitor design flaw (comment edits + race condition) — recurs across every `@claude review` cycle.
+- The pre-2026-05-26 lab notebook entries (today's 11:50 + 14:25 + 17:55) were already written under the universal rule; sub-3 [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) (tighten to non-routine) doesn't retro-apply.
+
+---
+
 ### 17:55 UTC — Editor: PM
 
 #### [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481) — priority-rationale gate in `scripts/audit_and_merge.sh` (pm-i5 sub-1)
