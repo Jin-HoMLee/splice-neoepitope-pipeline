@@ -1,0 +1,13 @@
+region	n	pct_of_tumor
+MN	91	4.86
+GTEx	483	25.8
+AG	124	6.62
+MN ∩ GTEx	71	3.79
+MN ∩ AG	43	2.3
+GTEx ∩ AG	124	6.62
+MN ∩ GTEx ∩ AG	43	2.3
+Only MN	20	1.07
+Only GTEx	331	17.68
+Only AG	0	0.0
+Caught by any (union)	503	26.87
+Tumor total	1872	100.0

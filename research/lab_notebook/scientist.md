@@ -6,6 +6,110 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-25
+
+### 11:43 UTC — Editor: Scientist
+
+#### [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) — second @-claude review pass; 3 minor items addressed in `bf87d96`; pre-merge audit clean
+
+Re-requested @-claude review on [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) because 5 commits had landed after the first review pass (2026-05-21 18:31 UTC): the entire slide-deck scope shipped 2026-05-22 wasn't yet reviewed. Second pass returned 3 minor items, all addressed in commit [`bf87d96`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/bf87d96):
+
+1. **`workflow/envs/alphagenome.yaml` — `scikit-learn` undeclared as direct dep.** Both `notebook.ipynb` §2(b) and `figures/_regenerate_figures.py` line 27 import `sklearn.metrics`; the package was only available transitively via the `alphagenome` pip closure. Added `scikit-learn >=1.3` to the conda-forge deps so a future `alphagenome` version drop won't silently break either consumer.
+2. **`figures/_regenerate_figures.py:155` — print label mismatch.** `f"Outputs dir: {FIGURES_DIR.relative_to(REPO_ROOT)}"` printed the `figures/` path under the wrong label (FIGURES_DIR is not OUTPUTS_DIR). Relabelled to "Figures dir:".
+3. **README Outputs section — slide deck + deck-only figures missing.** The 3 notebook artifacts (chr22_gtex_panel.parquet, filter_overlap_table.tsv, filter_venn_chr22.png) were listed but `slides.qmd`/`slides.html` and `figures/pr_curve.png`/`caught_bar.png` were not — discoverability gap for a future reader using the README as a deliverables map. Added 2 lines.
+
+All 3 items were independently verified against the actual code before applying (reviewer claim → grep/Read check → apply); no items pushed back. CI re-ran green on `bf87d96` at 11:39:11 UTC (3/3 checks: pipeline-snakemake-dry-run, pipeline-pytest, ci-tools-pytest). Pre-merge audit clean: [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) Test plan + [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) AC both 0 unticked. Mergeable: MERGEABLE / CLEAN. Closure-ritual gate predicted to pass.
+
+**Process lesson — declare transitive deps explicitly.** Item 1 (scikit-learn) is a generalisable pattern: when a notebook or analysis script imports from a package that's only present transitively via another env-yaml entry, the dep is invisible to `conda list` and silently breaks on upstream version drops. Rule: every package directly imported by a notebook or script in the experiment dir should appear as an explicit entry in `workflow/envs/*.yaml`. Future-applicable when adding any new analysis dep.
+
+**Pending user OK to merge** via `bash scripts/audit_and_merge.sh 452 --squash --delete-branch`. Post-merge: update [parent Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body Exp 3 row with the decision-rule outcome (NO-GO; F1=0.300; % AG-unique vs GTEx = 0.0%) — explicit post-merge step flagged in the [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) body.
+
+---
+
+## 2026-05-22
+
+### 13:08 UTC — Editor: Scientist
+
+#### [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (filter strength deck) — slide deck added to [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) + slides-co-location convention documented
+
+User asked for the [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) slide deck to ship in [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) (vs deferring to [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455)) on the grounds that notebook + deck "belong together and are necessary for human review". Agreed; the slides-co-location convention agreed informally in the 2026-05-21 19:38 UTC entry (below) is now formalised in CLAUDE.md as part of this PR.
+
+**Scope shipped here:**
+
+- `research/experiments/issue_225_*/slides.qmd` (12 slides, lab-seminar-quality, reveal.js HTML render)
+- `figures/_regenerate_figures.py` + `figures/pr_curve.png` + `figures/caught_bar.png`
+- `outputs/filter_venn_chr22.png` re-used from the notebook (notebook stays canonical per CLAUDE.md)
+- `refs.bib` — 7 entries (5 reused from issue_393 deck, 2 new: Wilks-Snaptron + GTEx v8)
+- `slides.html` committed for [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452)-review ergonomics (divergence from `research/slides/README.md`'s gitignore rule — tracked as a follow-up under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455))
+- CLAUDE.md "Slide decks for experiment Issues" section updated with the co-location rule + rationale; also fixed a stale inverted cross-reference in the "Experiment notebooks" section
+- [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) body descoped: removed the CLAUDE.md convention-docs item and the "[Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) deck follow-up" Out-of-scope line (both shipped here)
+- [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) Test plan amended with 6 deck-related items
+
+**Process note.** Followed the brainstorming → writing-plans → subagent-driven-development superpowers flow. Spec at `docs/superpowers/specs/2026-05-22-issue-225-slide-deck-design.md`; plan at `docs/superpowers/plans/2026-05-22-issue-225-slide-deck.md`. The plan structure paid off — small bite-sized tasks gave clean per-task commits, and the spec's "Divergence from prior art" section flagged the committed-`slides.html` decision up front instead of discovering it mid-render. One in-flight plan correction: the Snaptron DOI initially provided (`10.1093/bioinformatics/bty025`) was wrong — caught at Task 1, corrected to `10.1093/bioinformatics/btx547` (PMID 28968689); plan + refs.bib updated accordingly.
+
+**Headline numbers unchanged from notebook re-run on 2026-05-21:** F1 = 0.300, % AG-unique vs GTEx = 0.0%, decision = NO-GO. The deck just re-renders the same story in lab-seminar form.
+
+**Ready to merge after this commit lands.** Closure-ritual gate (test plan + [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) ACs + [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) carrier step) will re-check before invoking `bash scripts/audit_and_merge.sh 452`.
+
+---
+
+## 2026-05-21
+
+### 19:38 UTC — Editor: Scientist
+
+#### [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) — @claude review iteration; slides-co-location convention agreed; migration carrier [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) filed
+
+@claude review on [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) returned 6 items; all addressed in this turn before the merge gate. None blocking, two recommended ("README status" + "inline GTEx coord assertion"), four polish/defensive. Listed below verbatim by reviewer ordering so future readers can cross-reference:
+
+1. **README status field** — flipped from `in progress` to `complete — NO-GO verdict (2026-05-21)`. Reviewer's point: first thing a future reader checks when this becomes a frozen reference.
+2. **Inline GTEx coord-convention assertion** — added a notebook-internal `259/259 ground_truth introns present ✓` guard at the end of §2(c). The lab notebook (18:14 UTC entry) documented this empirically but the notebook itself only had non-empty + chr22-only asserts. Now self-contained.
+3. **`snaptron_to_key_set` simplification** — collapsed the row-loop to a set comprehension, dropping the redundant `int()` casts inside the 880K-row hot loop. Functional behaviour unchanged.
+4. **`gencode_introns_chr22` inverted-intron guard** — added `if donor >= acceptor: continue`. GENCODE v47 doesn't have this pathology in practice (intron count unchanged at 7,731 after the guard) but the function is now self-documenting + robust to non-GENCODE annotation swaps.
+5. **Cross-experiment path coupling** — already explicitly listed under #455's "Cross-experiment dependency fix-ups" section before the review arrived. No additional action; tracked.
+6. **CLAUDE.md slide deck section — stale figure-source path** — pre-existing reference to `research/notebooks/<exp>_outputs/*.parquet` updated to `research/experiments/issue_NNN_<short>/outputs/*.parquet` matching the new convention introduced in this PR.
+
+All numbers unchanged after re-execution: F1=0.300, % AG-unique vs GTEx = 0.0%, decision = NO-GO. New `259/259 ✓` coord-validation message added to §2(c) output; intron count + ground-truth count both stable.
+
+**Slides-co-location convention agreed mid-session.** Original CLAUDE.md draft kept `research/slides/issue_NNN_<short>/slides.qmd` as a parallel top-level folder. Discussion concluded co-located form (`research/experiments/issue_NNN_<short>/slides.qmd`) is preferable: notebook + outputs + deck rename / archive / migrate as a unit, deck figure paths shorten from `../../experiments/issue_NNN/outputs/...` to `outputs/...`, fewer broken-link footguns. Shared scaffolding (`_template.qmd`, `nature.csl`) stays centralized at `research/slides/`. Convention documentation deferred to #455 (so the same migration PR can move both notebooks AND slides + update CLAUDE.md in one shape).
+
+**Migration carrier filed: [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).** Bundled scope: notebook migrations (`issue_224_*` from `research/notebooks/`, `issue_299_*` from same) + slide migrations (`issue_393_*` from `research/slides/`) + cross-experiment path fix-ups in [#225's notebook](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb) once #224 moves + CLAUDE.md update to document the slides-co-location rule. Per-patient stable notebooks (`patient_001_results.ipynb`, `patient_002_results.ipynb`) explicitly out of scope — they're long-lived manuscript-supporting, not per-Issue experiment work.
+
+**Process lesson.** Reviewer caught item 2 (inline coord assertion missing) precisely because I had documented the validation in the **lab notebook** but not in the **notebook itself**. The lab notebook is for narrative + rationale; the notebook is the canonical artifact that must be self-verifying when re-executed. Reverse-direction rule: whenever a coord-convention or schema-shape gets validated empirically during writing, the validation belongs as an `assert` in the notebook, not as prose in the lab notebook. Future-applicable when adding any external-data-source loader.
+
+**Ready to merge after this commit lands.** Closure ritual re-check pending; will confirm before invoking `bash scripts/audit_and_merge.sh 452`.
+
+---
+
+### 18:14 UTC — Editor: Scientist
+
+#### [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (research: normal-junction filter strength on patient_001 chr22) — Exp 3 ran end-to-end; verdict **NO-GO** for AG-as-3rd-filter
+
+Picked up [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) (sub-issue of parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) Experiment 3) and ran the three-way filter-strength comparison on patient_001's chr22 tumor junctions. New notebook at `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb`, established under a new `research/experiments/issue_NNN_<short>/` convention documented into CLAUDE.md as part of the PR.
+
+**Headline numbers.** On chr22 (test-config harness; tumor = SRR9143066, matched-normal = SRR9143065, AG predictions = #224's cached parquet @ F1-max τ, GTEx = Snaptron hg38 GTEx v2 endpoint ≥1 sample):
+
+- **Exp 1 F1 (universe-restricted, MN ∩ GENCODE positives = 259 / universe = 7,731 GENCODE introns):** 0.3000 at τ = 3.16 (P=0.238, R=0.405). Matches the universe shape #224 §5 reported exactly (positives=259, negatives=7,472, AG-scored=5,728 / 74.1%).
+- **Tumor (n=1,872) caught by each filter:** MN 91 (4.9%), GTEx 483 (25.8%), AG 124 (6.6%). Caught-by-any (union) = 503 (26.9%).
+- **% AG-unique vs GTEx: 0.0%.** Every chr22 tumor junction AG catches is also caught by GTEx — AG is fully subsumed at the F1-max threshold.
+
+**Decision-rule outcome for [#203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) Exp 3 row: NO-GO — treat as tissue prior.** F1=0.30 trips the <0.5 NO-GO clause directly; even at a higher F1, the 0% AG-unique-vs-GTEx number would block the "fallback" tier (which requires ≥5% unique). Exp 2 (germline-aware AG) deferred to [Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381) pending WGS — but Exp 1's signal alone is conclusive for the no-go branch.
+
+**Process: plan deviation in §2(b).** The implementation plan called for a per-unique-threshold set-op loop. On 770K unique scores across 2.6M predictions that's intractable (hours of O(N²) work). Switched to `sklearn.metrics.precision_recall_curve` over universe-restricted (universe = GENCODE chr22 introns) score/label vectors — same math (TP / FP / FN computed against the same universe), O(N log N), few seconds. Documented inline in the cell + in the §7 caveats. The universe choice (rather than the plan's unrestricted ground_truth) is what makes the F1 number comparable to #224's reported F1 and to the τ-thresholds in the #203 decision rule (which were calibrated against universe-restricted F1).
+
+**Snaptron coord-convention validation.** Snaptron GTEx v2 `start` is 1-based inclusive intron donor; `end` is 1-based inclusive acceptor (= 0-based exclusive). Validated empirically: 259/259 (100%) of ground_truth (MN ∩ GENCODE) introns appear in the Snaptron panel under the `start-1, end` normalisation; both off-by-one alternatives give 0% overlap. Cached as `outputs/chr22_gtex_panel.parquet` (880,769 rows, 6.3 MB — fits the <10 MB checked-in band per the new size-guidance rule in CLAUDE.md).
+
+**Convention established.** Per the design spec, this PR introduces `research/experiments/issue_NNN_<short>/` (with `README.md`, `notebook.ipynb`, `outputs/`) as the per-Issue notebook convention — mirrors the `research/slides/issue_NNN/` deck convention. Cross-experiment data sharing rules (default-own / `_shared/` lazy-promotion at 2nd consumer / explicit path reference for single consumer / production `resources/` promotion) and size bands (<10 MB / 10–100 MB + regenerator / >100 MB GCS manifest) all documented into CLAUDE.md. Migration of existing per-Issue work (`issue_224_*` / `issue_299_*`) from `research/notebooks/` punted to a follow-up Issue filed post-merge.
+
+**Follow-ups:**
+- Update parent [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body Exp 3 row with these numbers after this PR merges (Task 20 of the implementation plan).
+- File a migration Issue: move `research/notebooks/issue_224_*` and `issue_299_*` under the new `research/experiments/` convention.
+- Re-run §2(c) against the production GTEx panel once [Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211) lands — the Snaptron proxy is good enough for the no-go decision but the production panel will tighten the % AG-unique number.
+- Optional: persist `best_threshold` from #224's notebook so #225 doesn't have to recompute it. Small QoL refactor; not blocking.
+
+**Outputs:** `outputs/chr22_gtex_panel.parquet` (6.3 MB), `outputs/filter_overlap_table.tsv` (248 B), `outputs/filter_venn_chr22.png` (60 KB).
+
+---
+
 ## 2026-05-20
 
 ### 21:29 UTC — Editor: Scientist
