@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""star_sj_to_junctions.py — Convert STAR ``SJ.out.tab`` to junctions.tsv.
+"""star_sj_to_junctions.py — Convert STAR ``SJ.out.tab`` to raw_junctions.tsv.
 
 STAR emits 9 tab-separated columns in ``SJ.out.tab``:
 

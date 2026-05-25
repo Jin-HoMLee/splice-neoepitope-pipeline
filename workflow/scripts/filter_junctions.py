@@ -22,7 +22,7 @@ annotation is informational only; all three frames are still translated downstre
 
 Usage (standalone):
   python filter_junctions.py \\
-      --junction-files results/{patient_id}/alignment/{sample_id}/junctions.tsv ... \\
+      --junction-files results/{patient_id}/alignment/{sample_id}/raw_junctions.tsv ... \\
       --manifest results/{patient_id}/alignment/manifest.tsv \\
       --reference-junctions references/reference_junctions.bed \\
       --output results/{patient_id}/junctions/novel_junctions.tsv \\

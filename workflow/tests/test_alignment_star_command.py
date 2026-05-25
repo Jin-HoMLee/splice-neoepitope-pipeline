@@ -61,7 +61,7 @@ def star_dry_run_output(tmp_path_factory):
           star_index_dir: "{star_index_dir}"
     """))
 
-    target = "results/testpatient/alignment/testsample/junctions.tsv"
+    target = "results/testpatient/alignment/testsample/raw_junctions.tsv"
 
     result = subprocess.run(
         [
