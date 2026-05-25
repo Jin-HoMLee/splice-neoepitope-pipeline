@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 19:24 UTC — Editor: Scientist
+
+#### [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439) — patient_002 WGS-vs-WES doc correction note landed on [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) body
+
+Closeout for [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439) (P4 doc fix; [PR #434](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/434) audit follow-up) via path 1: top-of-body correction note prepended to [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) (patient_002 onboarding, closed 2026-04-21). The misleading "Normal Sample — Blood WGS (DNA only)" section on [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) described a 115 GB Jun 2024 UCLA file that was never onboarded; what actually got integrated (via [Issue #67](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/67) B2 migration) was a Dec 2022 BostonGene WES normal (~9.9 GB). Root cause: two physically separate files on osteosarc.com/data conflated by the original [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) author.
+
+**Why path 1 over path 2.** [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439) offered an alternative: don't edit [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37), rely on canonical metadata files (`config/samples/patient_002.tsv`, RESULTS.md, DISCUSSIONS.md) which already say WES correctly. Rejected because future readers landing on [Issue #37](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/37) directly (e.g. via cross-links in onboarding docs) would not encounter the correction at all. Top-of-body note co-locates the correction with the misleading text.
+
+**Provenance pointers in the correction note.** [Issue #67](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/67) (B2 migration — where the WES file landed), [PR #434](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/434) (VCF audit — full investigation), [Issue #277](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/277) (WES → PBMC scRNA-seq switch — current state; WES no longer used), and [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439) (this follow-up).
+
+**Closure status.** [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439) AC ticked (2 of 3 boxes; AC #3 — note-only path — removed as obsolete per closure-ritual "remove if obsolete"). Closeout comment posted on [Issue #439](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/439); final `gh issue close` deferred until this lab notebook PR lands so the closure-audit bot sees both events in the same merge-day date block.
+
+---
+
 ### 18:47 UTC — Editor: Scientist
 
 #### [PR #472](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/472) ([Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271)) merged — AlphaGenome DISCUSSION shipped; closure-audit follow-up filed as [Issue #473](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/473)
