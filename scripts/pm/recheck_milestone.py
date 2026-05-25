@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from datetime import date, datetime, timedelta
@@ -25,6 +26,107 @@ AVAILABILITY_RATE = 5.0  # capacity-days per calendar-week
 
 # Size weight in capacity-days (midpoints of feedback_milestones.md ranges)
 SIZE_WEIGHTS = {"XS": 0.5, "S": 1.0, "M": 2.5, "L": 3.5, "XL": 5.0}
+
+
+def parse_milestone_title(title: str) -> tuple[int, int] | None:
+    """Parse 'i<N> - S<M> - ...' titles. Returns (iteration, stage) or None.
+
+    Role-meta (pm-i*, dev-i*) and legacy (M1, M2) titles return None and fall
+    through to pure-capacity behavior.
+    """
+    m = re.match(r"^i(\d+)\s*-\s*S(\d+)\s*-\s*", title)
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def find_prior_same_stage(
+    iteration: int,
+    stage: int,
+    all_milestones: list[dict],
+) -> dict | None:
+    """Highest-iteration prior in the same S-stage chain. Includes closed."""
+    candidates = []
+    for ms in all_milestones:
+        parsed = parse_milestone_title(ms["title"])
+        if parsed is None:
+            continue
+        n, s = parsed
+        if s == stage and n < iteration:
+            candidates.append((n, ms))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0])
+    return candidates[-1][1]
+
+
+def find_open_same_iteration_S5(
+    iteration: int,
+    all_milestones: list[dict],
+) -> dict | None:
+    """Find an OPEN i<N> - S5 - ... milestone. Used for paired-S7 gating.
+
+    Loose match: same iteration number is enough. Arc-mismatch (e.g. i4-S7
+    'TCR-pMHC Landscape' vs i4-S5 'Google Batch') is a separate data-hygiene
+    concern not solvable here.
+    """
+    for ms in all_milestones:
+        parsed = parse_milestone_title(ms["title"])
+        if parsed is None:
+            continue
+        n, s = parsed
+        if n == iteration and s == 5 and ms["state"] == "open":
+            return ms
+    return None
+
+
+def compute_layered_due_date(
+    iteration: int | None,
+    stage: int | None,
+    capacity_days: float,
+    all_milestones: list[dict],
+) -> tuple[date, str]:
+    """Return (proposed_due, reasoning_note).
+
+    Handles 4 main branches:
+      1. No title parse (role-meta etc.) -> pure capacity
+      2. S7 paired with open S5 in same iteration -> stack on S5 close
+      3. S7 standalone (no paired S5) -> pure capacity
+      4. Same-S-stage stacking (closed/undated/normal/overdue prior cases)
+    """
+    today = date.today()
+
+    if iteration is None or stage is None:
+        # Non-S-stage milestone (pm-i*, dev-i*, M1, etc.) — pure capacity
+        base = today
+        note = ""
+    elif stage == 7:
+        paired = find_open_same_iteration_S5(iteration, all_milestones)
+        if paired and paired.get("due_on"):
+            paired_date = date.fromisoformat(paired["due_on"][:10])
+            base = max(paired_date, today)
+            note = f"(paired-S7: unblocks at M#{paired['number']} close {paired['due_on'][:10]})"
+        else:
+            # Standalone S7 (e.g. Lit Review i3-S7) — pure capacity
+            base = today
+            note = "(standalone S7 — no paired open S5)"
+    else:
+        prior = find_prior_same_stage(iteration, stage, all_milestones)
+        if prior is None:
+            base = today
+            note = "(no prior same-S milestone)"
+        elif prior["state"] == "closed":
+            base = today
+            note = f"(prior M#{prior['number']} closed)"
+        elif prior.get("due_on") is None:
+            base = today
+            note = f"(prior M#{prior['number']} undated — sequencing skipped)"
+        else:
+            prior_date = date.fromisoformat(prior["due_on"][:10])
+            base = max(prior_date, today)
+            note = f"(stack after M#{prior['number']} close {prior['due_on'][:10]})"
+
+    calendar_days = int(round(capacity_days / AVAILABILITY_RATE * 7))
+    proposed = base + timedelta(days=calendar_days)
+    return (proposed, note)
 
 
 def gh(*args: str, parse_json: bool = True) -> object:
@@ -116,11 +218,16 @@ def compute_recheck(milestone_number: int) -> int:
         print("Status: [No change] — milestone has no remaining capacity")
         return 0
 
-    calendar_days = int(round(remaining / AVAILABILITY_RATE * 7))
-    proposed_due = date.today() + timedelta(days=calendar_days)
+    # Sequencing-aware: fetch all milestones once, derive (iteration, stage), apply layered logic
+    all_milestones_raw = gh("api", "--paginate", f"repos/{REPO}/milestones?state=all&per_page=100")
+    parsed = parse_milestone_title(title)
+    iteration, stage = parsed if parsed else (None, None)
+    proposed_due, note = compute_layered_due_date(iteration, stage, remaining, all_milestones_raw)
+
     delta = (proposed_due - current_due_date).days if current_due_date else None
     delta_str = f"{delta:+d}" if delta is not None else "n/a"
-    print(f"Proposed due_on: {proposed_due} (delta {delta_str} days)")
+    note_suffix = f" {note}" if note else ""
+    print(f"Proposed due_on: {proposed_due} (delta {delta_str} days){note_suffix}")
 
     if delta is None or abs(delta) <= THRESHOLD_DAYS:
         print("Status: [No change]")

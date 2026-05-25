@@ -6,7 +6,53 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-25
+
+### 11:50 UTC — Editor: PM
+
+#### [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) — [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) sequencing-aware recheck PR opened + bot review fixes
+
+**Trigger.** Warm-up: branch `feat/pm/issue-465-sequencing-aware-recheck` had landed locally Friday but never pushed/PR'd. Pushed, opened [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) with full Summary + Test plan mirroring [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) ACs, flipped PR Status `Ready for review`, requested `@claude review`.
+
+**Bot review** (`claude[bot]`, 3m 42s): one **significant** issue + two minor doc nits, plus design observations affirming the architecture.
+
+- **Significant — pagination silent truncation** ([`recheck_milestone.py:222`](scripts/pm/recheck_milestone.py#L222)). `gh api repos/.../milestones?per_page=100` is NOT paginated; milestones 101+ would silently drop. At 30 milestones today this is fine, but `find_prior_same_stage` would silently fail once a chain stretched past page 1. **Fix:** added `--paginate` to the `gh()` call. The wrapper already does `json.loads(stdout)`, which handles `gh api --paginate`'s concatenated array directly.
+- **Minor — docstring count mismatch** ([`test_recheck_milestone.py:234`](tools/ci/test_recheck_milestone.py#L234)). Docstring said "9 capacity-bound" but list had 8 entries. Renamed test + fixed docstring to 8.
+- **Minor — redundant `rm_inner` re-import** ([`test_recheck_milestone.py:120`](tools/ci/test_recheck_milestone.py#L120)). Local re-import of the already-module-scoped `rm` was confusing for no semantic gain. Dropped the local import; `monkeypatch.setattr(rm, "date", _FakeDate)` works identically (same module-cache object).
+
+**Memory rule clarification, side-effect of this session** — caught a conflict between [`shared/feedback_project_board.md`](.claude/memory/shared/feedback_project_board.md) line 20 ("never set `In review` as PR author") vs line 48 (lifecycle table says review-request triggers `In review`). User clarified: **author-driven flip in same step as posting review request**. Edited memory + shared/MEMORY.md Always-in-effect line, broadcast to Sci/Dev via [`team_memory_broadcasts.md`](.claude/memory/shared/team_memory_broadcasts.md), retro-flipped [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) + [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) Status to `In review`.
+
+**Task 7 cleared** — pointed [`feedback_milestones.md`](.claude/memory/feedback_milestones.md) "Setting milestone due dates" section at `scripts/pm/recheck_milestone.py` as the operational source-of-truth for the sequencing math. Closes the last open Test plan box.
+
+**Verification.** 24 unit tests PASS (`workflow/tests/.venv/bin/python -m pytest tools/ci/test_recheck_milestone.py -m "not live"`); 2 live smoke tests PASS (`-m "live"`, 2:41) — pagination fix doesn't regress; all 7 sequence-bound milestones + 8 capacity-bound milestones behave correctly.
+
+**Follow-ups.** None — bot's design observations were all "no action needed" affirmations of the approach.
+
+---
+
 ## 2026-05-22
+
+### 14:19 UTC — Editor: PM
+
+#### [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) — sequencing-aware milestone recheck ship
+
+**Trigger.** Today's 13:04 UTC rate-change cascade created 7 false-flag `[UPDATE NEEDED]` milestones (sequence-bound, capacity-formula too early). [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) filed same session as the rung-3 mechanism fix per [[mechanism-over-memory]] — the sequencing rule lived in `feedback_milestones.md` prose only; moving it to the script silences the noise deterministically.
+
+**Implementation.** Single-PR ship: spec → 3 helpers + 1 layered-compute function + integration → pytest unit tests + live integration smoke → this entry. ~80 LOC added to `scripts/pm/recheck_milestone.py`; ~150 LOC test file at `tools/ci/test_recheck_milestone.py`.
+
+**Design choices** (from spec):
+- **Single-level prior lookup** over recursive proposed-close — trusts GitHub's stored `due_on` as source of truth; hook's cascade-on-activity property converges naturally
+- **Loose paired-S7 match** (same iteration, any arc) — arc-mismatch is a separate data-hygiene concern (e.g. [M#28](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/28) i4-S7 'TCR-pMHC Landscape' vs [M#13](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/13) i4-S5 'Google Batch')
+- **Role-meta-axis explicitly skipped** — pm-i*/dev-i* run partly in parallel; strict stacking would create its own false flags
+- **Report-only preserved** — operator runs PATCH manually per the existing script's design
+
+**Verification.** Live integration smoke: all 7 sequence-bound milestones from morning's cascade now `[No change]`; 8 capacity-bound milestones unchanged (regression check). Unit tests cover 8 logic branches + edge cases (closed prior, undated prior, no prior, normal stack, overdue prior with today guard, S7-paired, S7-standalone, non-S-stage parse).
+
+**Follow-ups.**
+- **Memory update** (out-of-repo): point `feedback_milestones.md` at `scripts/pm/recheck_milestone.py` for the sequencing math instead of prose-only description
+- **Arc-mismatch data hygiene**: i4-S7 ↔ i4-S5 arc mismatch is real; worth a future review to either rename milestones for arc-consistency or formalize the cross-iteration pairing exception ([M#28](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/28) probably should pair with i5-S5)
+
+---
 
 ### 13:04 UTC — Editor: PM
 
