@@ -74,9 +74,9 @@ cd splice-neoepitope-pipeline
 
 ## 4. Download Reference Data
 
-Follow the instructions in [`resources/README.md`](../resources/README.md) to
-download the GRCh38 FASTA and GENCODE v47 GTF. These are required for the
-full pipeline; the chr22 test subset is handled automatically by
+Follow the instructions in [`docs/resources.md`](resources.md) to download
+the GRCh38 FASTA and GENCODE v47 GTF into `references/`. These are required
+for the full pipeline; the chr22 test subset is handled automatically by
 `scripts/prepare_test_data.sh`.
 
 ---

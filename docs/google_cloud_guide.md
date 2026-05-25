@@ -203,11 +203,14 @@ snakemake --version
 
 ### Step 5: Download Reference Files
 
-Download the GRCh38 genome and GENCODE annotation into the `resources/` directory.
-These files are required before running the pipeline (~3.1 GB uncompressed + 57 MB).
+Download the GRCh38 genome and GENCODE annotation into the `references/` directory
+(nf-core layout; Issue #63). These files are required before running the pipeline
+(~3.1 GB uncompressed + 57 MB).
 
 ```bash
-cd ~/splice-neoepitope-pipeline/resources
+cd ~/splice-neoepitope-pipeline
+mkdir -p references
+cd references
 
 # Download GENCODE v47 GTF annotation (~57 MB)
 wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz
@@ -651,7 +654,7 @@ git clone https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git
 cd splice-neoepitope-pipeline
 
 # 5. Download reference files
-cd resources
+mkdir -p references && cd references
 wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.annotation.gtf.gz
 wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz
 gunzip GRCh38.primary_assembly.genome.fa.gz

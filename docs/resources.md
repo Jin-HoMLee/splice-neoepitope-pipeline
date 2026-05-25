@@ -1,9 +1,15 @@
-# Resources Directory
+# Reference Data Directory
 
-This directory stores large reference files that are **not tracked in git** due
-to their size.  Before running the pipeline you must download or generate the
-following files and place them here (or update the paths in
-`config/config.yaml`).
+The pipeline follows the nf-core layout convention (Issue #63):
+
+| Directory | Contents | Gitignored |
+|-----------|----------|------------|
+| `references/` | User-provided + downloaded reference data (FASTA, GTF, BED, proteome, VDJdb, IMGT) | yes |
+| `indices/` | Pipeline-built alignment indices (HISAT2, STAR) | yes |
+| `resources/test/` | Small committed test fixtures (chr22 local-dev workflow) | partial |
+
+All reference files listed below go in `references/` by default. Override the
+paths in `config/config.yaml` if you cache references at a different location.
 
 ---
 
@@ -57,9 +63,9 @@ locations:
 
 ```yaml
 reference:
-  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
-  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
-  junction_bed: "resources/reference_junctions.bed"
+  genome_fasta: "references/GRCh38.primary_assembly.genome.fa"
+  gencode_gtf:  "references/gencode.v47.annotation.gtf.gz"
+  junction_bed: "references/reference_junctions.bed"
 ```
 
 ---

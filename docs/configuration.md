@@ -9,12 +9,12 @@ an overlay file `config/gpu_config.yaml` is merged at runtime.
 
 ```yaml
 reference:
-  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
-  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
-  junction_bed: "resources/reference_junctions.bed"   # auto-generated
+  genome_fasta: "references/GRCh38.primary_assembly.genome.fa"
+  gencode_gtf:  "references/gencode.v47.annotation.gtf.gz"
+  junction_bed: "references/reference_junctions.bed"   # auto-generated
 ```
 
-See [`resources/README.md`](../resources/README.md) for download commands.
+See [`docs/resources.md`](resources.md) for download commands. The pipeline follows the nf-core layout convention (Issue #63): user-provided + downloaded references live in `references/`; pipeline-built alignment indices live in `indices/`. Both directories are gitignored.
 
 ---
 
@@ -23,13 +23,13 @@ See [`resources/README.md`](../resources/README.md) for download commands.
 ```yaml
 alignment:
   aligner: "hisat2"                           # "hisat2" (8 GB) or "star" (32 GB)
-  hisat2_index_dir: "resources/hisat2_index"
+  hisat2_index_dir: "indices/hisat2"
   hisat2_prebuilt_url: "https://genome-idx.s3.amazonaws.com/hisat/hg38_tran.tar.gz"
-  star_index_dir:   "resources/star_index"
+  star_index_dir:   "indices/star"
   threads: 8
 ```
 
-`hisat2_prebuilt_url` — URL to a prebuilt HISAT2 splice-aware index. Must use **UCSC naming** (`hg38_*`, `chr` prefix) to match the genome FASTA. Leave empty to build the index locally from `genome_fasta`. Delete `resources/hisat2_index/` on the VM to force re-download when the URL changes.
+`hisat2_prebuilt_url` — URL to a prebuilt HISAT2 splice-aware index. Must use **UCSC naming** (`hg38_*`, `chr` prefix) to match the genome FASTA. Leave empty to build the index locally from `genome_fasta`. Delete `indices/hisat2/` on the VM to force re-download when the URL changes.
 
 See [`docs/data_preparation.md`](data_preparation.md) for aligner comparison.
 
