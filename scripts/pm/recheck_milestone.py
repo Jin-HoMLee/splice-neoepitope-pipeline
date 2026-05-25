@@ -219,7 +219,7 @@ def compute_recheck(milestone_number: int) -> int:
         return 0
 
     # Sequencing-aware: fetch all milestones once, derive (iteration, stage), apply layered logic
-    all_milestones_raw = gh("api", f"repos/{REPO}/milestones?state=all&per_page=100")
+    all_milestones_raw = gh("api", "--paginate", f"repos/{REPO}/milestones?state=all&per_page=100")
     parsed = parse_milestone_title(title)
     iteration, stage = parsed if parsed else (None, None)
     proposed_due, note = compute_layered_due_date(iteration, stage, remaining, all_milestones_raw)

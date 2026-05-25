@@ -117,12 +117,11 @@ class TestComputeLayeredDueDate:
     """Covers all 7 logic branches of compute_layered_due_date."""
 
     def _today(self, monkeypatch, fake_today: date):
-        import recheck_milestone as rm_inner
         class _FakeDate(date):
             @classmethod
             def today(cls):
                 return fake_today
-        monkeypatch.setattr(rm_inner, "date", _FakeDate)
+        monkeypatch.setattr(rm, "date", _FakeDate)
 
     def test_no_parse_pure_capacity(self, monkeypatch):
         # pm-i4 title gives (None, None) — falls to pure capacity
@@ -231,8 +230,8 @@ class TestLiveIntegrationSmoke:
         assert not failures, "Sequence-bound milestones still flagging:\n" + "\n---\n".join(failures)
 
     @pytest.mark.live
-    def test_nine_capacity_bound_milestones_still_no_change(self):
-        """Regression check: the 9 capacity-bound milestones from the same
+    def test_eight_capacity_bound_milestones_still_no_change(self):
+        """Regression check: the 8 capacity-bound milestones from the same
         cascade should still show [No change] after the fix.
         """
         import subprocess
