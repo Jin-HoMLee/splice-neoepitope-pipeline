@@ -147,18 +147,30 @@ Snakemake's `PythonScript.write_script` (`snakemake/script/__init__.py:807`) unc
 
 For new rules, run the chr22 integration locally before merge (see `feedback_integration_run_for_new_rules.md` in role memory). All 5 classes above hit [PR #457](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/457) and were caught only by the first integration run, after the PR had been bot-reviewed + CI-green + reviewer-comments-addressed.
 
+## Reference + Index Layout (nf-core convention)
+
+Post-Issue #63, the pipeline keeps three distinct top-level directories:
+
+| Dir | Contents | Gitignored | Examples |
+|-----|----------|------------|----------|
+| `references/` | User-provided + downloaded reference data | yes | `GRCh38.primary_assembly.genome.fa`, `gencode.v47.annotation.gtf.gz`, `vdjdb/<release>/`, `imgt_germlines/` |
+| `indices/` | Pipeline-built alignment indices | yes | `indices/hisat2/`, `indices/star/` |
+| `resources/test/` | Small committed test fixtures + chr22 local-dev cache | partial (test fixtures may be committed; chr22 data is gitignored) | `chr22.fa`, `chr22.gtf.gz`, `hisat2_index/` |
+
+The production `resources/` directory is no longer used. `setup_vm.sh` performs a one-shot idempotent migration on existing VMs (moves old `resources/*` → `references/` and `resources/{hisat2,star}_index/` → `indices/{hisat2,star}/`). MHCflurry sentinel moved from `resources/mhcflurry_models.done` to `<mhcflurry.models_cache_dir>/.download_done` (default `~/.mhcflurry/`); the actual model cache still lives in MHCflurry's platformdirs default.
+
 ## HISAT2 Index Cache Invalidation
 
-Snakemake skips the index download if `resources/hisat2_index/` already exists (it checks for an `index.done` sentinel file). Changing `hisat2_prebuilt_url` in `config/config.yaml` does **not** invalidate this cache — the old index silently persists and will be used on the next run.
+Snakemake skips the index download if `indices/hisat2/` already exists (it checks for an `index.done` sentinel file). Changing `hisat2_prebuilt_url` in `config/config.yaml` does **not** invalidate this cache — the old index silently persists and will be used on the next run.
 
 **When changing `hisat2_prebuilt_url`:** delete the index directory on the VM before running:
 
 ```bash
 gcloud compute ssh neoepitope-pipeline --zone=europe-west1-b --tunnel-through-iap \
-  --command="rm -rf ~/splice-neoepitope-pipeline/resources/hisat2_index/"
+  --command="rm -rf ~/splice-neoepitope-pipeline/indices/hisat2/"
 ```
 
-(The chromosome naming mismatch in Issue #148 was caused by this exact scenario.)
+(The chromosome naming mismatch in Issue #148 was caused by this exact scenario, when the index lived at `resources/hisat2_index/` pre-#63.)
 
 ## Config Migration Notes
 
