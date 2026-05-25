@@ -8,6 +8,36 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 14:25 UTC — Editor: PM
+
+#### [Issue #264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/264) — cross-tree dependency-graph tracking shipped (GitHub native `blockedBy` / `blocking`)
+
+**Trigger.** Post-resume "what's next?" → recheck on [M#22](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/22) confirmed pm-i3 is fine as-is (S+M total = 3.5d, +3d slip within ±7d no-action threshold). The next-task call landed on the 2 open Issues in M#22; picked [Issue #264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/264) (S-sized, single-session bounded) over [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265) (M-sized, multi-session).
+
+**Phase 1 investigation.** Three mechanisms posted as a comment for user OK:
+- **Option 1 — GitHub native `blockedBy` / `blocking`** ✅ Recommended. GA since 2025-08-21 ([changelog](https://github.blog/changelog/2025-08-21-dependencies-on-issues/)). Probed live via GraphQL introspection: `Issue.blockedBy(first: N): IssueConnection` + `Issue.blocking`, `addBlockedBy(issueId, blockingIssueId)` + `removeBlockedBy` mutations, 4 search operators (`is:blocked`, `is:blocking`, `blocked-by:N`, `blocking:N`), plus `issue_dependencies` webhooks. Up to 50 blockers per direction. Test query on [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) succeeded — feature works on this repo.
+- **Option 2 — in-body `Blocks: #N` convention.** Strictly dominated post-2025-08: no UI affordance, parse brittleness, no auto-cascade on blocker close, no native search operators, no webhook signal.
+- **Option 3 — custom Dependencies single-select field on project #9.** The Korey-style pre-native hack. Single-select holds ONE blocker (real Issues like [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416) have multi-blocker shape). No native search operators, no webhook signal.
+
+**Phase 2 implementation.** User OK'd Option 1; ran 4-step plan in one session.
+
+1. **Backfill landed (2 native edges):** `addBlockedBy` mutations set [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) ← [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) (HERMES informs TCRdock) and [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416) ← [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413) ([Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416) consumes [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413)'s output). Closed-blocker edges ([Issue #365](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/365), [Issue #384](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/384) → [Issue #416](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/416) historic) deliberately skipped — noise without value since the native graph reflects already-closed state.
+2. **New shared memory** `shared/feedback_dependency_tracking.md` — convention + GraphQL snippets + sibling-relationship notes vs `feedback_parent_sub_issues.md`.
+3. **Always-in-effect rule** added to `shared/MEMORY.md` + Reference link to the new memory file.
+4. **PM morning routine Phase 2.5** mechanical-compliance section gained a "Blocked-by graph hygiene" check — flags any open Issue at Status `In progress` / `Ready for review` with open blockers. Skip when no hits.
+5. **Team broadcast** posted to `shared/team_memory_broadcasts.md` (14:15 UTC) — Sci+Dev absorb at next `/memory`.
+
+**Design choices.**
+- **In-prose cross-refs stay** — they carry the *why* (narrative context, design reasoning, historical thread). The native graph carries the *what* (queryable, GitHub-rendered, webhook-emitting structure). Both layers serve different jobs; conflating them is the trap.
+- **Don't backfill closed-blocker edges.** Native graph already shows them as resolved; manually creating edges for historical deps adds noise. Only set edges for currently-open blockers.
+- **Shared memory over PM-only.** The convention applies to all 3 roles (any Issue author can/should set blockers). Lifting to `shared/` from the AC's suggested `pm/feedback_milestones.md` is a deliberate scope-expansion — flagged in the close comment.
+
+**Verification.** GraphQL probe confirmed both fields + both mutations exist (`Issue.blockedBy`, `Issue.blocking`, `addBlockedBy`, `removeBlockedBy`). Backfill mutations returned success payloads with both Issue numbers populated. Live query on [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) now shows it BLOCKING [Issue #205](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/205) (verified via `Issue.blocking` field).
+
+**Follow-ups.** None expected — the rule is now in shared memory, the morning routine check fires automatically on the next PM session, and the native graph maintains itself (closed-blocker auto-resolution + UI sidebar makes new edges trivial to add). If the `is:open is:blocked` audit surfaces a scheduling-drift pattern repeatedly, escalate to mechanism (PreToolUse hook on Status flip → check blockers first) per [[mechanism-over-memory]].
+
+---
+
 ### 11:50 UTC — Editor: PM
 
 #### [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) — [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) sequencing-aware recheck PR opened + bot review fixes
