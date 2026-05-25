@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-25
+
+### 11:50 UTC — Editor: PM
+
+#### [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) — [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) sequencing-aware recheck PR opened + bot review fixes
+
+**Trigger.** Warm-up: branch `feat/pm/issue-465-sequencing-aware-recheck` had landed locally Friday but never pushed/PR'd. Pushed, opened [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) with full Summary + Test plan mirroring [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) ACs, flipped PR Status `Ready for review`, requested `@claude review`.
+
+**Bot review** (`claude[bot]`, 3m 42s): one **significant** issue + two minor doc nits, plus design observations affirming the architecture.
+
+- **Significant — pagination silent truncation** ([`recheck_milestone.py:222`](scripts/pm/recheck_milestone.py#L222)). `gh api repos/.../milestones?per_page=100` is NOT paginated; milestones 101+ would silently drop. At 30 milestones today this is fine, but `find_prior_same_stage` would silently fail once a chain stretched past page 1. **Fix:** added `--paginate` to the `gh()` call. The wrapper already does `json.loads(stdout)`, which handles `gh api --paginate`'s concatenated array directly.
+- **Minor — docstring count mismatch** ([`test_recheck_milestone.py:234`](tools/ci/test_recheck_milestone.py#L234)). Docstring said "9 capacity-bound" but list had 8 entries. Renamed test + fixed docstring to 8.
+- **Minor — redundant `rm_inner` re-import** ([`test_recheck_milestone.py:120`](tools/ci/test_recheck_milestone.py#L120)). Local re-import of the already-module-scoped `rm` was confusing for no semantic gain. Dropped the local import; `monkeypatch.setattr(rm, "date", _FakeDate)` works identically (same module-cache object).
+
+**Memory rule clarification, side-effect of this session** — caught a conflict between [`shared/feedback_project_board.md`](.claude/memory/shared/feedback_project_board.md) line 20 ("never set `In review` as PR author") vs line 48 (lifecycle table says review-request triggers `In review`). User clarified: **author-driven flip in same step as posting review request**. Edited memory + shared/MEMORY.md Always-in-effect line, broadcast to Sci/Dev via [`team_memory_broadcasts.md`](.claude/memory/shared/team_memory_broadcasts.md), retro-flipped [PR #468](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/468) + [Issue #465](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/465) Status to `In review`.
+
+**Task 7 cleared** — pointed [`feedback_milestones.md`](.claude/memory/feedback_milestones.md) "Setting milestone due dates" section at `scripts/pm/recheck_milestone.py` as the operational source-of-truth for the sequencing math. Closes the last open Test plan box.
+
+**Verification.** 24 unit tests PASS (`workflow/tests/.venv/bin/python -m pytest tools/ci/test_recheck_milestone.py -m "not live"`); 2 live smoke tests PASS (`-m "live"`, 2:41) — pagination fix doesn't regress; all 7 sequence-bound milestones + 8 capacity-bound milestones behave correctly.
+
+**Follow-ups.** None — bot's design observations were all "no action needed" affirmations of the approach.
+
+---
+
 ## 2026-05-22
 
 ### 14:19 UTC — Editor: PM
