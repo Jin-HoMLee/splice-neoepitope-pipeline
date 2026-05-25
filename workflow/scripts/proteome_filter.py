@@ -27,7 +27,7 @@ Usage (Snakemake):
 Usage (standalone):
   python proteome_filter.py \\
       --peptides-tsv results/.../peptides/peptides.tsv \\
-      --proteome-fasta resources/human_proteome.fasta \\
+      --proteome-fasta references/human_proteome.fasta \\
       --novel-tsv results/.../peptides/peptides_novel.tsv \\
       --excluded-tsv results/.../peptides/peptides_excluded.tsv \\
       --peptide-lengths 8 9 10

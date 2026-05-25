@@ -24,7 +24,7 @@ Usage (standalone):
   python run_star_alignment.py \\
       --fastq1 sample_R1.fastq.gz \\
       --fastq2 sample_R2.fastq.gz \\
-      --genome-dir resources/star_index \\
+      --genome-dir indices/star \\
       --output-dir results/raw_data/local/files \\
       --sample-id sample1 \\
       --threads 8
