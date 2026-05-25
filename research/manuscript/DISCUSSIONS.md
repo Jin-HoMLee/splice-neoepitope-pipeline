@@ -266,9 +266,9 @@ current roadmap:
   benchmark). Matched-normal is already smaller (91) and patient-specific, so this niche
   reduces to unmatched-normal scenarios without a germline-aware advantage — narrow
   enough that GTEx remains the appropriate default.
-- **Full-genome scale-up as a robustness check.** The strict-subset relationship is
-  unlikely to invert at full-genome scale but the chr22 result does not formally rule
-  it out; a one-time re-evaluation against the production GTEx panel
+- **Full-genome scale-up as a robustness check.** AlphaGenome-unique junctions are
+  unlikely to emerge at full-genome scale, but the chr22 result does not formally rule
+  them out; a one-time re-evaluation against the production GTEx panel
   ([Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211))
   would close the loop.
 
