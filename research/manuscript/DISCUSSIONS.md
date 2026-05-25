@@ -204,6 +204,81 @@ address cross-reactivity between a tumor-exclusive peptide and a structurally si
 normal peptide. The proteome-level BLAST check (see above) addresses that orthogonal
 concern.
 
+### AlphaGenome as a predicted-normal filter: foundation-model evaluation (NO-GO)
+
+Beyond the matched-normal and GTEx pan-tissue axes, a third candidate filter was
+evaluated: sequence-based prediction of normal splicing from the GRCh38 reference using
+AlphaGenome (Avsec et al., *Nature* 2026), a deep-learning foundation model with a
+dedicated splice-junction output. The motivating hypothesis was that AlphaGenome could
+approximate a per-patient normal junction call directly from sequence, providing a
+safety axis independent of RNA-seq availability or population coverage gaps in GTEx. A
+three-experiment design quantified its filtering value on the patient_001 chr22
+test-config harness: (i) predictive validity against the matched-normal junction set
+restricted to GENCODE-annotated introns (Exp 1); (ii) patient-specific delta from a
+germline-aware AlphaGenome call ([Sub-Issue #381](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/381),
+Exp 2, deferred pending WGS acquisition); and (iii) comparative filter strength against
+matched-normal and a Snaptron-derived chr22 GTEx pan-tissue proxy (Exp 3). The headline
+numbers were Exp 1 F1 = 0.300 at τ = 3.16 (P = 0.238, R = 0.405); Exp 3 tumor-junction
+catch (n = 1,872) of matched-normal 91 (4.9%), GTEx 483 (25.8%), and AlphaGenome 124
+(6.6%), with the three-way union recovering 503 (26.9%); and AlphaGenome-unique-vs-GTEx
+of 0.0%. The pre-registered decision rule yields **NO-GO**: F1 < 0.5 fires the no-go
+clause directly, and the 0% unique-vs-GTEx rate over-determines the verdict by failing
+the fallback tier's ≥ 5% requirement independently. Exp 2 is not load-bearing — Exp 1's
+signal alone is conclusive.
+
+The empirical pattern explains the verdict. AlphaGenome's chr22 tumor catch is a strict
+subset of the GTEx pan-tissue catch — every AlphaGenome-flagged junction is also flagged
+by GTEx, so the model adds no junction information beyond what population-scale tissue
+panels already capture from observed splicing. This is consistent with the prior
+expectation that a foundation model trained on healthy reference transcriptomes,
+without per-individual conditioning information, will behave as a **tissue prior** —
+a smoothed expectation of which junctions are constitutively used across normal cell
+states — rather than as a patient-specific normal predictor. The deferred Exp 2 was
+designed to test the alternative hypothesis (that conditioning on patient germline
+variants would shift predictions in a patient-private direction), but the Exp 1/Exp 3
+signal makes that test moot for the filter-design question: even before germline
+conditioning, the model's output is not orthogonal to GTEx. The generalizable
+interpretation, applicable beyond this pipeline, is that genomic foundation models
+should be benchmarked task-specifically against the resource they are proposed to
+replace; redundancy with an existing population reference is a plausible failure mode
+whenever the model is trained on reference-tissue data without per-individual signal
+in the input.
+
+AlphaGenome is therefore dropped from the production filter stack. The filter axes
+reduce to two — patient-specific matched-normal RNA-seq when available, and
+population-level GTEx pan-tissue otherwise — already specified in the per-patient run
+profiles. There is no third axis to add: the two existing axes span the patient-specific
+and population-reference dimensions, and a sequence-only predictor trained on reference
+tissue does not occupy a third independent dimension.
+
+The NO-GO is scoped to AlphaGenome as an *additional safety filter* — its proposed
+role here. Three niche-use angles remain open in principle, though none are on the
+current roadmap:
+
+- **As a confidence proxy for GTEx hits.** Since AlphaGenome ⊂ GTEx on this benchmark,
+  AlphaGenome-membership flags a GTEx-filtered junction as also sequence-predicted from
+  the reference — a doubly-endorsed normal call. Useful if GTEx hits prove noisier than
+  desired (e.g. low-sample Snaptron artifacts), but the mechanism is intersection-based
+  scoring rather than additive filtering and would not change which candidates are
+  excluded.
+- **As a sensitivity-tuned filter alternative.** Substituting AlphaGenome for GTEx would
+  yield a less restrictive operating point (124 vs. 483 chr22 junctions filtered on this
+  benchmark). Matched-normal is already smaller (91) and patient-specific, so this niche
+  reduces to unmatched-normal scenarios without a germline-aware advantage — narrow
+  enough that GTEx remains the appropriate default.
+- **Full-genome scale-up as a robustness check.** AlphaGenome-unique junctions are
+  unlikely to emerge at full-genome scale, but the chr22 result does not formally rule
+  them out; a one-time re-evaluation against the production GTEx panel
+  ([Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211))
+  would close the loop.
+
+The finding is convergent with the design choice made by splice2neo (Lang et al.,
+*Bioinform Adv* 2024), an upstream junction-calling tool that pairs sequence-based
+splice prediction (SpliceAI, MMSplice) with built-in GENCODE / GTEx exclusion-list
+filtering rather than treating the sequence prediction as standalone tumor-exclusivity
+evidence — independent tool, same conclusion: sequence-based output requires anchoring
+against observed healthy tissue, not the reverse.
+
 ---
 
 ## HISAT2 vs. STAR for novel junction detection
