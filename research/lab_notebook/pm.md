@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 20:22 UTC — Editor: PM
+
+#### [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) — lab notebook rule tightened to non-routine sessions only ([pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) sub-2)
+
+**Trigger.** User pick after #485 (priority-rationale gate) merge. Implements the decision captured in today's 19:55 entry (Stream 2 analysis): journal-vs-Issue-body overlap on routine ships is ~100% with ~10 min of writing cost; the value lives in non-routine sessions.
+
+**Implementation.**
+- `shared/MEMORY.md` Always-in-effect "Lab notebook before merge" — rewrote with the non-routine criteria inline (keeps the no-file-read promise). Required cases: cross-Issue, exploratory/no-PR, slip postmortems, meta-decisions, milestone closure routing, PM-meta/memory-only/GitHub-state-only (preserves line-18 closure-ritual universality). Skip case: routine single-PR-single-Issue with full venue capture.
+- `shared/feedback_lab_notebook.md` — new section "When required vs optional" with the 7-case required list + 1-line heuristic ("can you paste the entry into the Issue body without anything new appearing? skip"). Updated "Update reminders" case 1 to flip from REQUIRED→SKIP for routine ships.
+
+**Decision on audit_and_merge.sh enforcement (AC bullet 3).** No change needed — verified at [audit_and_merge.sh:1-122](scripts/audit_and_merge.sh) that the script never enforced lab notebook presence (only Test plan + AC + Priority rationale). Issue body's "default proposal: drop enforcement entirely" is moot. Documented the no-gate rationale in the new memory section: trigger detection ("is this routine?") is too brittle for a deterministic gate; misclassification cost is low. Enforcement = author judgment + closure-audit Phase 2.5 post-hoc check.
+
+**This entry qualifies under the new rule** as a meta-decision (workflow rule change). Future routine ships should skip; this one stays per its own criteria.
+
+**Follow-ups.** None new. Sibling pm-i5 subs [#482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) (retire team_memory_broadcasts.md) and [#484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (drop research/news_log.md) stay independently shippable.
+
 ### 19:55 UTC — Editor: PM
 
 #### Session wrap-up — workflow ceremony audit, [PR #474](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/474) retroactive review, [pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) epic + sub-1 ship
