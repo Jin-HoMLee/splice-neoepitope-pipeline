@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-25
+
+### 18:49 UTC — Editor: Developer
+
+**Headline:** [PR #469](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/469) shipped, closing [Issue #63](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/63) — strict nf-core separation of `references/` (user-provided + downloaded data) vs `indices/` (pipeline-built alignment indices) vs `resources/test/` (small committed test fixtures + chr22 local-dev cache). 19 files across config, rules, setup_vm.sh, .gitignore, docs, and CI placeholder paths; idempotent migration block in [scripts/setup_vm.sh](scripts/setup_vm.sh) moves pre-#63 layout into place on existing VMs. Local chr22 end-to-end verified (11/11 rules, exit 0) BEFORE PR opened — the verification table covered the new `references/{human_proteome.fasta,vdjdb/<release>,imgt_germlines}` + `~/.mhcflurry/.download_done` sentinel paths, but the production `indices/{hisat2,star}/` path is exercised post-merge (test config keeps `resources/test/hisat2_index/` per the Issue spec). Bot review surfaced 3 items; applied 2 with [a21df77](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/469/commits/a21df77), deferred 1 with reasoning.
+
+#### `resources/` blanket-ignore prevents the `!resources/test/` exception from ever firing
+
+The CLAUDE.md table I wrote claimed `resources/test/` is "partial (test fixtures may be committed)" and the `.gitignore` comment block said "small committed test fixtures only (resources/test/)" — but the actual rule below was `resources/` (blanket, trailing-slash). Bot caught the inconsistency on first review pass. The non-obvious bit was the fix: my first attempt was `resources/` + `!resources/test/` + chr22 re-ignores below, and `git check-ignore -v` reported the blanket `resources/` still winning even for hypothetical new fixture paths. Verified the gitignore quirk in a scratch repo (`/tmp/test_gi/`): per git's docs, *"any matching file excluded by a previous pattern will become included again. It is not possible to re-include a file if a parent directory of that file is excluded. Git doesn't list excluded directories for performance reasons."* The trailing-slash form excludes the **directory** wholesale, and git short-circuits descent — the negation on a later line can't reach anything inside. Switch to `resources/*` (excludes only contents, leaves directory traversable) + `!resources/test/` (re-includes the dir), then chr22 re-ignores work. Documented in the .gitignore comment inline. **General rule: when a `!subdir/` negation isn't taking effect, check whether the parent rule is `parent/` (blanket, blocks descent) vs `parent/*` (contents-only, descends).** The two look almost identical and behave very differently.
+
+#### `models_cache_dir` config key oversells — chose comment-tighten over rename
+
+Bot's 3rd review item: `config/config.yaml` introduces `mhcflurry.models_cache_dir` and the comment suggests "Override to a project-local path (e.g. `indices/mhcflurry`) to share across clones," implying the actual model cache will move there. In current code ([mhc_affinity.smk:12-15](workflow/rules/mhc_affinity.smk)) the key only controls where the **sentinel** (`.download_done`) lives — the model cache itself stays in MHCflurry's platformdirs default (`~/.local/share/mhcflurry/`) until `MHCFLURRY_DATA_DIR` env-var wiring lands (listed as a follow-up in the PR body). Bot's two options: (a) rename to `sentinel_dir`, (b) tighten the comment. Chose (b) — renaming would force a **second rename** once the follow-up wires up the actual cache co-location, at which point `models_cache_dir` becomes accurate. Two renames for an interim state is worse than one honest comment. Comment now explicitly says "only the sentinel is controlled by this key" with the platformdirs default path called out.
+
+#### Skipped the sentinel-naming-consistency nit on a VM-state cost argument
+
+Bot's 2nd item (non-blocker per bot): VDJdb/IMGT sentinels use `.download.done`; MHCflurry uses `.download_done` (period vs underscore in the middle). Pure style nit. Skipping wasn't a default-deference move — renaming would force VMs with existing `~/.mhcflurry/.download_done` to re-run `mhcflurry-downloads fetch` (the sentinel becomes orphaned; the rule's sentinel target wouldn't match). For VDJdb/IMGT the sentinels are under `references/<release>/` which is gitignored and per-VM, so renaming there is cheap, but unifying just one direction still leaves the inconsistency. The cost/benefit favored skip; if anyone cares enough later, file a follow-up Issue. **General rule worth tagging: cosmetic-naming changes to sentinels with persistent on-disk state have a hidden cost — they invalidate the existing state on every machine that has it. Audit that before agreeing.**
+
+#### Closure-ritual gate caught the "First post-merge VM run" aspirational checkbox
+
+The PR Test plan included `- [ ] First post-merge VM run smoke-tests the migration path (will be tracked in a lab notebook entry on the next pipeline run)`. Closure-ritual gate refuses any `- [ ]`. The line was honest about the deferral but the gate doesn't parse inline "(will be tracked...)" deferral text — convention is tick-with-link or remove. No carrier Issue exists for this, so removed the line + added a blockquote below the Test plan noting "the migration path on the production VMs is verified by the first post-merge pipeline run; result will be captured in the next lab notebook entry." The blockquote captures the intent without leaving an unticked box that floats forever. **Pattern: post-merge verification items don't belong on the merging PR's Test plan — they belong as a follow-up Issue OR as a documented expectation outside the checklist.**
+
+---
+
 ## 2026-05-22
 
 ### 14:15 UTC — Editor: Developer
