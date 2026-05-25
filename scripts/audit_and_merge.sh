@@ -24,7 +24,7 @@
 #
 # Exit codes:
 #   0 — merged successfully
-#   1 — audit failed (unticked boxes); the unticked lines are printed
+#   1 — audit failed (unticked boxes or missing priority rationale); the gaps are printed
 #   2 — usage error
 
 set -euo pipefail
@@ -119,4 +119,4 @@ MERGE_ARGS=("$MERGE_TYPE")
 [[ -n "$DELETE_FLAG" ]] && MERGE_ARGS+=("$DELETE_FLAG")
 gh pr merge "$PR" --repo "$REPO" "${MERGE_ARGS[@]}"
 
-echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present across ${LINKED_COUNT} linked issues)."
+echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present)."
