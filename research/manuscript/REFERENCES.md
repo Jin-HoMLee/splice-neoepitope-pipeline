@@ -14,7 +14,7 @@
 → Cited in DISCUSSIONS.md (TCR–pMHC docking, future directions)
 
 **★ Avsec et al., *Nature* 2026** — Advancing regulatory variant effect prediction with AlphaGenome. *Nature* 2026. doi:10.1038/s41586-025-10014-0
-→ Cited in METHODS.md §3 (aligner comparison; AlphaGenome as candidate splice-junction predictor for predicted-normal validation)
+→ Cited in METHODS.md §3 (aligner comparison; AlphaGenome as candidate splice-junction predictor for predicted-normal validation); DISCUSSIONS.md (AlphaGenome predicted-normal filter NO-GO verdict per [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203))
 
 ---
 
@@ -171,7 +171,7 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 |---|---|---|---|
 | CNNeoPP (`6RWWUDPC`) | ✅ | ✅ | INTRODUCTION.md |
 | splice2neo (`Z4FAE6QM`) | ✅ | ✅ | METHODS.md §2-3 |
-| AlphaGenome (`UZWZ5QEB`) | ✅ | ✅ | METHODS.md §3 |
+| AlphaGenome (`UZWZ5QEB`) | ✅ | ✅ | METHODS.md §3; DISCUSSIONS.md |
 | ENEO (`9T3C58HQ`) | ✅ | ✅ | DISCUSSIONS.md |
 | SpliceMutr (`VQMU6JWH`) | ✅ | ✅ | DISCUSSIONS.md |
 | Rojas et al. 2023 (`UIN9DIUP`) | ✅ | ✅ | INTRODUCTION.md + DISCUSSIONS.md |
@@ -221,4 +221,4 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 1. **Add titles** for entries with title TBD: Trolle et al. 2016, Zemmour & Parham 1992, van Bergen et al. 2004, Bagaev et al., Chen & McCluskey, Coelho et al., Peacock et al., Sade-Feldman et al. Non-blocking placeholders; titles to be filled before journal submission.
 2. **Journal-name style normalization** — abbreviated form is the stated house style here, but several recent in-text citations use full forms (`Frontiers in Immunology`, `Nature Methods`, `NAR Genomics and Bioinformatics`, `Cancer Research Communications`). Decide one style and sweep all of `INTRODUCTION.md`, `METHODS.md`, `DISCUSSIONS.md` to match. Non-blocking until pre-submission proofread.
 3. **Citation ordering inconsistency in METHODS.md** — METHODS.md uses year-before-journal format (e.g. `Lang et al., 2024, *Bioinform Adv*` at line 68, `Avsec et al., 2026, *Nature*` at line 76, `Szolek et al., 2014` at line 89, `van Bergen et al., 2004` at line 213) while INTRODUCTION.md and DISCUSSIONS.md use the house-style year-after-journal form (`*Journal* YEAR`). Sweep METHODS.md to match house style during pre-submission proofread. Distinct from the abbreviated-vs-full journal-name issue (item #2).
-4. **AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure (deferred until [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) closes; may add new in-text citations for predicted-normal validation evidence).
+4. ~~**AlphaGenome validation strategy entry** — pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) closure.~~ ✅ Added to DISCUSSIONS.md under "Normal sample filtering" as "AlphaGenome as a predicted-normal filter: foundation-model evaluation (NO-GO)" — no new in-text citations beyond the existing Avsec et al., *Nature* 2026 and Lang et al., *Bioinform Adv* 2024 (cross-link to splice2neo precedent).

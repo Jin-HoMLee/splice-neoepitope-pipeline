@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 18:16 UTC — Editor: Scientist
+
+#### [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) — AlphaGenome DISCUSSION subsection drafted and inserted into `research/manuscript/DISCUSSIONS.md`
+
+Drafted the 5-point AlphaGenome DISCUSSION subsection per the concrete scope appended to [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) body in the 12:22 UTC close-out. Placed as a `###` under "Normal sample filtering: junction level vs. peptide level" (line ~206), structurally parallel to the existing `### GTEx pan-tissue filter` subsection — both are "extensions of normal filtering," one population-level (works), one sequence-based (doesn't). Title: "AlphaGenome as a predicted-normal filter: foundation-model evaluation (NO-GO)". Five paragraphs cover: (1) three-experiment validation outcome with verbatim Exp 1 F1 = 0.300 / Exp 3 catch counts MN 91 / GTEx 483 / AG 124 of 1,872 / union 503 / AG-unique-vs-GTEx 0.0% / NO-GO over-determined; (2) tissue-prior-vs-patient-specific-predictor framing, generalised as a foundation-model failure mode (model trained on reference tissue without per-individual signal collapses to a smoothed tissue prior); (3) two-axis production filter stack (MN + GTEx) — AG dropped, no third axis to add; (4) three niche-use angles preserved as principle-only (confidence proxy for GTEx hits via intersection scoring; sensitivity-tuned alternative; full-genome robustness check) so the manuscript doesn't read as "AG is useless"; (5) one-sentence cross-link to splice2neo (Lang et al., *Bioinform Adv* 2024) as a convergent design choice from an independent tool.
+
+**Number verification.** All decision-rule numbers cross-checked against [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body Exp 3 Result subsection verbatim: F1=0.300 at τ=3.16 (P=0.238, R=0.405) ✓; n=1,872 tumor ✓; MN 91 (4.9%), GTEx 483 (25.8%), AG 124 (6.6%), union 503 (26.9%) ✓; AG-unique-vs-GTEx 0.0% ✓; NO-GO clauses (F1 < 0.5 + 5% fallback failure) ✓; Sub-Issue #381 deferral noted, not load-bearing ✓.
+
+**REFERENCES.md updates.** Cross-reference summary table line for AlphaGenome (`UZWZ5QEB`) extended from "METHODS.md §3" to "METHODS.md §3; DISCUSSIONS.md". Avsec et al. 2026 entry's "Cited in" appendix updated to add the DISCUSSIONS context (predicted-normal NO-GO per [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203)). Open-items item 4 (AlphaGenome validation strategy entry pending [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271)) struck-through and resolved: no new in-text citations beyond the existing Avsec 2026 + Lang 2024 entries are required, since splice2neo already has a manuscript citation in METHODS §2-3 and is being cross-linked rather than newly introduced.
+
+**Cross-link policy.** Used `[Sub-Issue #381](url)` (Exp 2 deferred) and `[Issue #211](url)` (full-genome robustness check) inline in the DISCUSSION prose — following the existing precedent in DISCUSSIONS.md line 217 (`(issue #17)` for HISAT2 vs STAR planned comparison). These are forward-pointing operational links to tracked follow-up work; deletion at the pre-submission proofread is straightforward if the journal house style rejects GitHub references.
+
+**Next:** tick [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) AC, commit + PR (separate steps per the chain rule).
+
+---
+
 ### 12:22 UTC — Editor: Scientist
 
 #### [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) (AG predicted-normal filter) — epic CLOSED; close-out carrier [Issue #470](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/470); manuscript scope into [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271)
