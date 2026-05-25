@@ -152,7 +152,7 @@ def make_caught_bar() -> None:
 def main() -> None:
     print(f"Repo root:      {REPO_ROOT}")
     print(f"Experiment dir: {EXPERIMENT_DIR.relative_to(REPO_ROOT)}")
-    print(f"Outputs dir:    {FIGURES_DIR.relative_to(REPO_ROOT)}")
+    print(f"Figures dir:    {FIGURES_DIR.relative_to(REPO_ROOT)}")
     make_pr_curve()
     make_caught_bar()
     print("Done.")
