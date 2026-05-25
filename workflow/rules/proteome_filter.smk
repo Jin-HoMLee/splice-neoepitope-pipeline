@@ -15,7 +15,7 @@
 
 _PROTEOME_FILTER_ENABLED = config.get("proteome_filter", {}).get("enabled", True)
 _PROTEOME_FASTA = config.get("proteome_filter", {}).get(
-    "proteome_fasta", "resources/human_proteome.fasta"
+    "proteome_fasta", "references/human_proteome.fasta"
 )
 
 if _PROTEOME_FILTER_ENABLED:
@@ -24,7 +24,7 @@ if _PROTEOME_FILTER_ENABLED:
         """Download UniProt Swiss-Prot human proteome FASTA.
 
         Source: UniProt REST API — reviewed human entries only (~20k canonical
-        proteins). Downloaded once to resources/ and reused across all patients.
+        proteins). Downloaded once to references/ and reused across all patients.
         """
         output:
             fasta=_PROTEOME_FASTA,
