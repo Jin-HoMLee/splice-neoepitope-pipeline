@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 18:47 UTC — Editor: Scientist
+
+#### [PR #472](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/472) ([Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271)) merged — AlphaGenome DISCUSSION shipped; closure-audit follow-up filed as [Issue #473](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/473)
+
+[PR #472](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/472) (AlphaGenome predicted-normal filter NO-GO DISCUSSION subsection) merged at 18:46:59 UTC, squashed as [`70a2b9a`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/70a2b9a) on `main`; [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) auto-closed at 18:47:00 UTC. @-claude review pass returned an approve verdict with 4 pre-submission style notes; 1 applied in-cycle ([`4a8c71d`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/4a8c71d), "invert" → "AlphaGenome-unique junctions … emerge" precision fix), 3 deferred to the pre-submission proofread window alongside REFERENCES.md Open-items #2 and #3.
+
+**Closure-audit follow-up.** The closure-audit bot flagged that the 18:16 UTC entry below doesn't reference [PR #472](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/472) — root cause: the 18:16 entry was written before the PR was opened, and lab notebook entries are immutable once committed. This 18:47 entry closes the gap forward (not by edit). Filed [Issue #473](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/473) as the tracking carrier so the follow-up branch could use `gh issue develop` per the ALWAYS-use rule, rather than `git checkout -b`.
+
+**Generalisable lesson.** When a lab notebook entry is committed *before* the corresponding PR opens, the closure-audit bot (which scans the merge-day date block for the PR number) will flag a gap even though the audit-trail intent is preserved across the entry + commit history. Two patterns avoid this: (i) defer the lab notebook entry until *after* the PR is opened so the PR number is in scope from the first commit (preferred when the work is small enough that the PR is imminent), or (ii) write the entry first and add a post-merge supplementary entry referencing the PR (this PR's path). Not codifying as a feedback memory until a second incident calibrates the preference.
+
+---
+
 ### 18:16 UTC — Editor: Scientist
 
 #### [Issue #271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/271) — AlphaGenome DISCUSSION subsection drafted and inserted into `research/manuscript/DISCUSSIONS.md`
