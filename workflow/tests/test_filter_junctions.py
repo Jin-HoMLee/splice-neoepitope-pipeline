@@ -135,9 +135,9 @@ class TestClassifyJunctions:
         path.write_text("".join(lines))
 
     def test_tumor_exclusive_labeled_correctly(self, tmp_path):
-        # Files must live at {sample_id}/junctions.tsv so fp.parent.name == sample_id
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        # Files must live at {sample_id}/raw_junctions.tsv so fp.parent.name == sample_id
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -172,8 +172,8 @@ class TestClassifyJunctions:
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
 
     def test_normal_shared_labeled_correctly(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -206,8 +206,8 @@ class TestClassifyJunctions:
         assert df.iloc[0]["junction_origin"] == "normal_shared"
 
     def test_annotated_junctions_discarded(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -239,7 +239,7 @@ class TestClassifyJunctions:
         assert len(df) == 0
 
     def test_no_normal_sample_all_labeled_tumor_exclusive(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
 
         self._write_junction_file(tumor_f, [
@@ -291,8 +291,8 @@ class TestClassifyJunctionsStats:
         # Tumor sample with one annotated, one unannotated tumor_exclusive,
         # one unannotated normal_shared. Plus a noise junction below the mean
         # filter so the high-read ones survive.
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -344,8 +344,8 @@ class TestClassifyJunctionsStats:
 
     def test_funnel_reconciles_arithmetically(self, tmp_path):
         """junctions_raw must equal the sum of the 4 downstream categories."""
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -389,8 +389,8 @@ class TestClassifyJunctionsStats:
         )
 
     def test_stats_tsv_omits_normal_samples(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
-        normal_f = tmp_path / "normal" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
@@ -427,8 +427,8 @@ class TestClassifyJunctionsStats:
         assert "normal" not in set(stats["sample_id"])
 
     def test_multi_tumor_samples_each_get_their_own_rows(self, tmp_path):
-        tumor1 = tmp_path / "tumor1" / "junctions.tsv"
-        tumor2 = tmp_path / "tumor2" / "junctions.tsv"
+        tumor1 = tmp_path / "tumor1" / "raw_junctions.tsv"
+        tumor2 = tmp_path / "tumor2" / "raw_junctions.tsv"
         tumor1.parent.mkdir()
         tumor2.parent.mkdir()
 
@@ -467,7 +467,7 @@ class TestClassifyJunctionsStats:
 
     def test_stats_tsv_optional(self, tmp_path):
         """Existing callers that don't pass stats_output_path still work."""
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),
@@ -494,7 +494,7 @@ class TestClassifyJunctionsStats:
         These rows let the Scientist sanity-check the silent per-file mean
         threshold against the sample's actual read-count distribution.
         """
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         # Read counts: 1, 5, 10, 100. min=1, median=7.5, mean=29.0, max=100.
         self._write_junction_file(tumor_f, [
@@ -653,7 +653,7 @@ class TestClassifyJunctionsReadingFrame:
         # Junction chr1:201:300:+ → donor (0-based start) = 200
         # GTF CDS: start=198 (1-based) → start0=197, end0=200, len=3, frame=0
         # phase=0, frame_offset=0
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
         manifest = tmp_path / "manifest.tsv"
@@ -672,7 +672,7 @@ class TestClassifyJunctionsReadingFrame:
         assert df.iloc[0]["reading_frame"] == "0"
 
     def test_reading_frame_empty_when_no_cds_match(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
         manifest = tmp_path / "manifest.tsv"
@@ -690,7 +690,7 @@ class TestClassifyJunctionsReadingFrame:
         assert df.iloc[0]["reading_frame"] == ""
 
     def test_reading_frame_empty_when_no_gtf(self, tmp_path):
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
         manifest = tmp_path / "manifest.tsv"
@@ -709,7 +709,7 @@ class TestClassifyJunctionsReadingFrame:
         # Two genes share donor coord 200 (end0); different frame offsets → union
         # G1: start=99 (1-based) → start0=98, end0=200, len=102, phase=0, offset=0
         # G2: start=100 (1-based) → start0=99, end0=200, len=101, phase=2, offset=1
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [("chr1:201:300:+", 100), ("chr1:401:500:+", 1)])
         manifest = tmp_path / "manifest.tsv"
@@ -736,7 +736,7 @@ class TestClassifyJunctionsReadingFrame:
         # Junction chr1:100:201:- → end=201, donor_coord=201
         # CDS: start=202 (1-based) → start0=201, end0=300, len=99, frame=0
         # phase=(99-0)%3=0, offset=(-0)%3=0 → reading_frame "0"
-        tumor_f = tmp_path / "tumor" / "junctions.tsv"
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
         self._write_junction_file(tumor_f, [("chr1:100:201:-", 100), ("chr1:400:500:-", 1)])
         manifest = tmp_path / "manifest.tsv"

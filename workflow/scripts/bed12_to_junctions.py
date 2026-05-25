@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""bed12_to_junctions.py — Convert a regtools BED12 file to junctions.tsv.
+"""bed12_to_junctions.py — Convert a regtools BED12 file to raw_junctions.tsv.
 
 regtools' ``junctions extract`` output is BED12 where columns 2–3 are the
 **anchor outer boundaries** (chromStart, chromEnd), NOT the intron donor/

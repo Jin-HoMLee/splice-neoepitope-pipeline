@@ -8,6 +8,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 19:37 UTC — Editor: Developer
+
+**Headline:** [PR #477](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/477) shipped, closing [Issue #345](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/345) — per-sample raw regtools/STAR quantification renamed `alignment/<sample>/junctions.tsv` → `alignment/<sample>/raw_junctions.tsv` to disambiguate from patient-level `junctions/novel_junctions.tsv`. 10 files (9 in the rename commit + 1 README fix from bot review), pure rename, no behavior change. Local chr22 integration verified end-to-end (HISAT2 path, 4/4 steps, 155 records in `novel_junctions.tsv` = 151 tumor_exclusive + 4 normal_shared, matching the post-#370 baseline). Bot review caught one real miss + flagged two correctly-classified frozen-script references; one follow-up [Issue #478](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/478) filed for the stale `RESULTS.md:54` Scientist-territory reference.
+
+#### Scope discipline: extending beyond the AC for a rename is correct if the goal is grep-cleanliness
+
+[Issue #345](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/345)'s AC listed only `alignment.smk`, `filter_junctions.smk`, and `test_filter_junctions.py`. I extended to the two converter scripts (`bed12_to_junctions.py`, `star_sj_to_junctions.py`) + their unit tests because the Issue's stated motivation is **grep-cleanliness** (`find . -name junctions.tsv` returning mixed-meaning hits). Leaving 24 `junctions.tsv` strings in converter tests + docstrings would defeat that. The PR body called this out explicitly so reviewers could push back if they disagreed — bot didn't. **Pattern: when an Issue's AC is narrower than its stated motivation, extend to satisfy the motivation, and document the extension upfront in the PR body so reviewers can challenge it.**
+
+#### Bot review missed in my own pre-PR grep: live README output-tree diagram
+
+My pre-PR grep used `--include="*.py" --include="*.smk" --include="*.yaml" --include="*.yml" --include="*.sh" --include="Snakefile"` to find live references. README.md was excluded from the file-type filter — I only added `*.md` to the *exclusion* sweep (which filtered OUT frozen plans/specs/notebooks). Net effect: README.md:223 never appeared in any grep. Bot review caught it. **Lesson: when greping for rename impact, the include-filter must cover every file class where the renamed string is meaningful — for path-shape renames that's `*.md` (READMEs, docs), not just code.** No memory rule warranted yet (1st instance of this shape; bot caught it free); user and I agreed to wait for a 2nd instance before escalating.
+
+#### Frozen `_regenerate_figures.py` scripts: pushed back on bot's soft "add a note" suggestion
+
+Bot flagged two frozen-experiment scripts (`research/experiments/issue_225_*/figures/_regenerate_figures.py`, `research/slides/issue_393_*/figures/_regenerate_figures.py`) that hardcode the old path, marked informational-not-blocking, and suggested README notes. Skipped both: per the [CLAUDE.md frozen-experiment convention](CLAUDE.md), `research/experiments/issue_NNN_*` and `research/slides/issue_NNN_*` are point-in-time records. Retroactively rewriting frozen scripts weakens "frozen reference" semantics; accreting "this filename used to be X" stickers in experiment READMEs for every future rename creates a maintenance burden. A regeneration attempt fails loudly with `FileNotFoundError` — clear, recoverable failure mode. Bot agreed in framing (informational). **Pattern: when a "useful but not blocking" suggestion conflicts with an established codebase convention, default to the convention and document the reasoning in the reply — don't accrete stickers.**
+
+#### CLAUDE.md:146-153 left as-is — generic placeholder, not a content reference
+
+Bot's own analysis: CLAUDE.md:146-153 uses `results/.../junctions.tsv` as a generic illustrative path in the `--configfile` argparse gotcha example. The filename is incidental to the pitfall being demonstrated. Updating would be scope creep without payoff (the rename's grep-cleanliness goal targets `find -name`, not markdown content search). Left untouched per bot's recommendation.
+
+#### Local integration run targeted only `filter_junctions` to keep verification scoped
+
+For the chr22 belt-and-suspenders run, I targeted `results/patient_001_test/junctions/novel_junctions.tsv` rather than the full `report.html` to skip mhcflurry/tcrdock (heavy models / Docker — out of scope for a rename validation). The rename only touches the alignment → filter chain; CI dry-run + pytest already cover downstream rule-graph wiring. The full DAG is verified weekly via cloud runs anyway. **Pattern: for pure-rename PRs, scope the local integration run to the directly-affected rule's output, not the terminal `all` target.**
+
+---
+
 ### 18:49 UTC — Editor: Developer
 
 **Headline:** [PR #469](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/469) shipped, closing [Issue #63](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/63) — strict nf-core separation of `references/` (user-provided + downloaded data) vs `indices/` (pipeline-built alignment indices) vs `resources/test/` (small committed test fixtures + chr22 local-dev cache). 19 files across config, rules, setup_vm.sh, .gitignore, docs, and CI placeholder paths; idempotent migration block in [scripts/setup_vm.sh](scripts/setup_vm.sh) moves pre-#63 layout into place on existing VMs. Local chr22 end-to-end verified (11/11 rules, exit 0) BEFORE PR opened — the verification table covered the new `references/{human_proteome.fasta,vdjdb/<release>,imgt_germlines}` + `~/.mhcflurry/.download_done` sentinel paths, but the production `indices/{hisat2,star}/` path is exercised post-merge (test config keeps `resources/test/hisat2_index/` per the Issue spec). Bot review surfaced 3 items; applied 2 with [a21df77](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/469/commits/a21df77), deferred 1 with reasoning.

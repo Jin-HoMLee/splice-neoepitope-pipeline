@@ -220,7 +220,7 @@ results/
     ├── alignment/
     │   ├── manifest.tsv              # Sample manifest (file_id → sample_type)
     │   └── {sample}/
-    │       └── junctions.tsv         # Junction read counts from aligner
+    │       └── raw_junctions.tsv     # Junction read counts from aligner
     ├── hla_typing/                   # (when hla.enabled: true)
     │   ├── {sample}/
     │   │   └── {sample}_result.tsv   # Per-sample OptiType output

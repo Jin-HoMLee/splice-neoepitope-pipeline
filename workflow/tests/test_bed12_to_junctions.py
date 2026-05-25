@@ -1,4 +1,4 @@
-"""Tests for bed12_to_junctions.py — regtools BED12 → junctions.tsv conversion.
+"""Tests for bed12_to_junctions.py — regtools BED12 → raw_junctions.tsv conversion.
 
 Regression test for [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370):
 The HISAT2/regtools path previously emitted BED12 chromStart/chromEnd (anchor
@@ -25,7 +25,7 @@ from bed12_to_junctions import convert_bed12_to_junctions
 #   blockSizes  = "50,50"
 #   blockStarts = "0,150"  (offset of right anchor from chromStart)
 #
-# Expected junctions.tsv line:
+# Expected raw_junctions.tsv line:
 #   chr22:101:200:+\t10
 #         ^^^  ^^^
 #       1-based  0-based
@@ -45,7 +45,7 @@ class TestConvertBed12ToJunctions:
     def test_emits_intron_coords_not_anchor_outers(self, tmp_path):
         bed = tmp_path / "regtools.bed"
         bed.write_text(_BED12_LINE + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
 
@@ -56,7 +56,7 @@ class TestConvertBed12ToJunctions:
         zero_reads = _BED12_LINE.replace("\t10\t+\t", "\t0\t+\t")
         bed = tmp_path / "regtools.bed"
         bed.write_text(zero_reads + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         assert out.read_text() == ""
@@ -65,7 +65,7 @@ class TestConvertBed12ToJunctions:
         minus = _BED12_LINE.replace("\t+\t", "\t-\t")
         bed = tmp_path / "regtools.bed"
         bed.write_text(minus + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         assert out.read_text().strip() == "chr22:101:200:-\t10"
@@ -77,7 +77,7 @@ class TestConvertBed12ToJunctions:
         )
         bed = tmp_path / "regtools.bed"
         bed.write_text(_BED12_LINE + "\n" + second + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         lines = out.read_text().strip().splitlines()
@@ -92,7 +92,7 @@ class TestConvertBed12ToJunctions:
         unstranded = _BED12_LINE.replace("\t+\t", "\t.\t")
         bed = tmp_path / "regtools.bed"
         bed.write_text(unstranded + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         assert out.read_text().strip() == "chr22:101:200:.\t10"
@@ -104,7 +104,7 @@ class TestConvertBed12ToJunctions:
             "chr22\t50\t250\tjunc_short\t10\t+\n"  # only 6 fields
             + _BED12_LINE + "\n"
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         # Only the well-formed line emits a junction
@@ -118,7 +118,7 @@ class TestConvertBed12ToJunctions:
             + _BED12_LINE + "\n"
             "   \n"  # whitespace-only
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_bed12_to_junctions(bed, out)
         assert out.read_text().strip() == "chr22:101:200:+\t10"
@@ -136,13 +136,13 @@ class TestConvertBed12ToJunctions:
 
         bed = tmp_path / "regtools.bed"
         bed.write_text(_BED12_LINE + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
         convert_bed12_to_junctions(bed, out)
 
         junction_id = out.read_text().strip().split("\t")[0]
         parsed = _parse_junction_id(junction_id)
         assert parsed in ref, (
             f"Parsed junction {parsed} not in reference {ref}. "
-            "If this fails, the BED12 → junctions.tsv conversion is "
+            "If this fails, the BED12 → raw_junctions.tsv conversion is "
             "emitting anchor outer boundaries instead of intron coords."
         )

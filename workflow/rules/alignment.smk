@@ -62,7 +62,7 @@ def _get_fastq2(wildcards):
 
 
 # Shared output paths for both align rules — defined once to avoid drift.
-_JUNCTION_OUTPUT = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "junctions.tsv")
+_JUNCTION_OUTPUT = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "raw_junctions.tsv")
 _JUNCTION_DONE   = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "done")
 
 # ── HISAT2 ───────────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             # SJ.out.tab col 4=0 means STAR couldn't infer strand; rescue from
             # col 5 (intron motif) where possible, drop truly non-canonical —
             # see Issue #374. The helper also handles the col 7 > 0 filter
-            # and emits the same junctions.tsv format as the HISAT2 path.
+            # and emits the same raw_junctions.tsv format as the HISAT2 path.
             python workflow/scripts/star_sj_to_junctions.py \\
                 --input {params.output_prefix}SJ.out.tab \\
                 --output {output.junctions} \\

@@ -42,7 +42,7 @@ def _get_junction_files_input(wildcards):
             if pid == wildcards.patient_id and sid and not sid.startswith("#"):
                 sample_ids.append(sid)
     return expand(
-        os.path.join(_RES, wildcards.patient_id, "alignment", "{sample_id}", "junctions.tsv"),
+        os.path.join(_RES, wildcards.patient_id, "alignment", "{sample_id}", "raw_junctions.tsv"),
         sample_id=sample_ids,
     )
 

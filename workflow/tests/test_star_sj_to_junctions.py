@@ -1,4 +1,4 @@
-"""Tests for star_sj_to_junctions.py — STAR SJ.out.tab → junctions.tsv conversion.
+"""Tests for star_sj_to_junctions.py — STAR SJ.out.tab → raw_junctions.tsv conversion.
 
 Regression test for [Issue #374](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/374):
 STAR emits strand=0 (col 4 = 0) when it cannot infer strand from intron motif —
@@ -50,7 +50,7 @@ class TestDirectStrand:
     def test_strand_plus_direct(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=1, motif=1) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:+\t10"
@@ -58,7 +58,7 @@ class TestDirectStrand:
     def test_strand_minus_direct(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=2, motif=2) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:-\t10"
@@ -75,7 +75,7 @@ class TestDirectStrand:
         """Core invariant: when STAR sets col 4 (1 or 2), motif is ignored."""
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=strand, motif=motif) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == f"chr22:101:200:{expected}\t10"
@@ -92,7 +92,7 @@ class TestMotifRescue:
     def test_plus_motifs_rescue_to_plus(self, tmp_path, motif, expected_strand):
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=0, motif=motif) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10"
@@ -105,7 +105,7 @@ class TestMotifRescue:
     def test_minus_motifs_rescue_to_minus(self, tmp_path, motif, expected_strand):
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=0, motif=motif) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10"
@@ -118,7 +118,7 @@ class TestMotifRescue:
         """
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=0, motif=0) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text() == ""
@@ -127,7 +127,7 @@ class TestMotifRescue:
         """Defensive: unknown motif code (>6) is treated as motif=0 (drop)."""
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(strand=0, motif=7) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text() == ""
@@ -139,7 +139,7 @@ class TestFiltering:
     def test_zero_unique_reads_skipped(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(unique=0) + "\n")
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text() == ""
@@ -150,7 +150,7 @@ class TestFiltering:
             "chr22\t101\t200\t1\n"  # only 4 fields — malformed
             + _sj_line() + "\n"
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:+\t10"
@@ -162,7 +162,7 @@ class TestFiltering:
             + _sj_line() + "\n"
             "   \n"
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:+\t10"
@@ -173,7 +173,7 @@ class TestFiltering:
             "chr22\t101\t200\t1\t1\t0\tnotanum\t0\t50\n"
             + _sj_line() + "\n"
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         assert out.read_text().strip() == "chr22:101:200:+\t10"
@@ -190,7 +190,7 @@ class TestMultipleRecords:
             + _sj_line(start=500, end=600, strand=0, motif=0, unique=7) + "\n"  # dropped
             + _sj_line(start=700, end=800, strand=2, motif=2, unique=2) + "\n"  # direct -
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
         lines = out.read_text().strip().splitlines()
@@ -211,6 +211,6 @@ class TestReturnValue:
             + _sj_line(start=300, end=400, strand=0, motif=2, unique=3) + "\n"
             + _sj_line(start=500, end=600, strand=0, motif=0, unique=7) + "\n"  # dropped
         )
-        out = tmp_path / "junctions.tsv"
+        out = tmp_path / "raw_junctions.tsv"
 
         assert convert_sj_to_junctions(sj, out) == 2
