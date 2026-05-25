@@ -30,10 +30,13 @@ output:
 reference:
   genome: "GRCh38"
   # Local paths (populated after download / placed by the user)
-  genome_fasta: "resources/GRCh38.primary_assembly.genome.fa"
-  gencode_gtf:  "resources/gencode.v47.annotation.gtf.gz"
+  # nf-core layout (Issue #63): user-provided + downloaded references live in
+  # references/ (gitignored, outside the repo source tree). Override with absolute
+  # paths to use a shared/cached download location across clones.
+  genome_fasta: "references/GRCh38.primary_assembly.genome.fa"
+  gencode_gtf:  "references/gencode.v47.annotation.gtf.gz"
   # Output: reference junction list derived from GENCODE GTF
-  junction_bed: "resources/reference_junctions.bed"
+  junction_bed: "references/reference_junctions.bed"
 
 # -----------------------------------------------------------------
 # Alignment
@@ -42,10 +45,11 @@ reference:
 #   "star"   — Full accuracy, requires ~32 GB RAM
 #   "hisat2" — Lower memory (~8 GB), good for laptops/small servers
 alignment:
-  aligner: "star"                             # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
-  hisat2_index_dir: "resources/hisat2_index"  # where the HISAT2 index lives
-  hisat2_prebuilt_url: "https://genome-idx.s3.amazonaws.com/hisat/hg38_tran.tar.gz"  # leave empty to build from genome_fasta; delete resources/hisat2_index/ to force re-download
-  star_index_dir: "resources/star_index"      # where the prebuilt STAR index lives
+  aligner: "star"                            # "star" (32 GB RAM) or "hisat2" (8 GB RAM)
+  # nf-core layout (Issue #63): pipeline-built indices live in indices/ (gitignored).
+  hisat2_index_dir: "indices/hisat2"         # where the HISAT2 index lives
+  hisat2_prebuilt_url: "https://genome-idx.s3.amazonaws.com/hisat/hg38_tran.tar.gz"  # leave empty to build from genome_fasta; delete indices/hisat2/ to force re-download
+  star_index_dir: "indices/star"             # where the prebuilt STAR index lives
   threads: 8          # threads for index build + alignment
 
 # -----------------------------------------------------------------
@@ -73,7 +77,7 @@ translation:
 # Disable for speed on test runs: set enabled: false.
 proteome_filter:
   enabled: true
-  proteome_fasta: "resources/human_proteome.fasta"
+  proteome_fasta: "references/human_proteome.fasta"
 
 # -----------------------------------------------------------------
 # HLA typing (OptiType)
@@ -102,6 +106,10 @@ mhcflurry:
     B: "HLA-B*07:02"
     C: "HLA-C*07:02"
   threads: 8                  # cores reserved for TF/BLAS within the single genotype predict() call
+  # nf-core layout (Issue #63): MHCflurry model cache lives outside the repo by default
+  # so the sentinel survives a fresh clone. Override to a project-local path (e.g.
+  # "indices/mhcflurry") to share across clones on the same machine.
+  models_cache_dir: "~/.mhcflurry"
   # Percentile thresholds for presentation_class (lower = better, per allele).
   presentation_percentile_strong:  0.5   # top 0.5% by presentation score → strong
   presentation_percentile_weak:    2.0   # top 2.0% by presentation score → weak
