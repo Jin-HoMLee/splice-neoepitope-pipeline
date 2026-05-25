@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-25
+
+### 11:43 UTC — Editor: Scientist
+
+#### [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) — second @-claude review pass; 3 minor items addressed in `bf87d96`; pre-merge audit clean
+
+Re-requested @-claude review on [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) because 5 commits had landed after the first review pass (2026-05-21 18:31 UTC): the entire slide-deck scope shipped 2026-05-22 wasn't yet reviewed. Second pass returned 3 minor items, all addressed in commit [`bf87d96`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/bf87d96):
+
+1. **`workflow/envs/alphagenome.yaml` — `scikit-learn` undeclared as direct dep.** Both `notebook.ipynb` §2(b) and `figures/_regenerate_figures.py` line 27 import `sklearn.metrics`; the package was only available transitively via the `alphagenome` pip closure. Added `scikit-learn >=1.3` to the conda-forge deps so a future `alphagenome` version drop won't silently break either consumer.
+2. **`figures/_regenerate_figures.py:155` — print label mismatch.** `f"Outputs dir: {FIGURES_DIR.relative_to(REPO_ROOT)}"` printed the `figures/` path under the wrong label (FIGURES_DIR is not OUTPUTS_DIR). Relabelled to "Figures dir:".
+3. **README Outputs section — slide deck + deck-only figures missing.** The 3 notebook artifacts (chr22_gtex_panel.parquet, filter_overlap_table.tsv, filter_venn_chr22.png) were listed but `slides.qmd`/`slides.html` and `figures/pr_curve.png`/`caught_bar.png` were not — discoverability gap for a future reader using the README as a deliverables map. Added 2 lines.
+
+All 3 items were independently verified against the actual code before applying (reviewer claim → grep/Read check → apply); no items pushed back. CI re-ran green on `bf87d96` at 11:39:11 UTC (3/3 checks: pipeline-snakemake-dry-run, pipeline-pytest, ci-tools-pytest). Pre-merge audit clean: [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) Test plan + [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) AC both 0 unticked. Mergeable: MERGEABLE / CLEAN. Closure-ritual gate predicted to pass.
+
+**Process lesson — declare transitive deps explicitly.** Item 1 (scikit-learn) is a generalisable pattern: when a notebook or analysis script imports from a package that's only present transitively via another env-yaml entry, the dep is invisible to `conda list` and silently breaks on upstream version drops. Rule: every package directly imported by a notebook or script in the experiment dir should appear as an explicit entry in `workflow/envs/*.yaml`. Future-applicable when adding any new analysis dep.
+
+**Pending user OK to merge** via `bash scripts/audit_and_merge.sh 452 --squash --delete-branch`. Post-merge: update [parent Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203) body Exp 3 row with the decision-rule outcome (NO-GO; F1=0.300; % AG-unique vs GTEx = 0.0%) — explicit post-merge step flagged in the [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) body.
+
+---
+
 ## 2026-05-22
 
 ### 13:08 UTC — Editor: Scientist
