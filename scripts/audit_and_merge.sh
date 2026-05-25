@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # scripts/audit_and_merge.sh
 #
-# Closure-ritual gate before `gh pr merge`. Refuses to merge if any `- [ ]`
-# remains on the PR body Test plan OR on any Issue in closingIssuesReferences
-# (under that Issue's Acceptance criteria heading).
+# Closure-ritual gate before `gh pr merge`. Refuses to merge if any of:
+#   1. `- [ ]` remains on the PR body Test plan, OR
+#   2. `- [ ]` remains under any linked Issue's Acceptance criteria, OR
+#   3. Any linked Issue is missing a `**Priority rationale:**` line.
 #
-# Why: the closure-ritual rule has broken 4× in 10 days despite being inlined
-# into shared MEMORY.md. Memory of a declarative rule cannot reliably survive
-# the action-distance from session start to merge. This script enforces at
-# the exact moment of action.
+# Why: declarative rules of the form "always include X" reliably drift across
+# session boundaries even when inlined into shared MEMORY.md. The gate enforces
+# at the moment of action (`gh pr merge`), so the rule cannot be forgotten
+# regardless of how much context has accumulated since session start.
+#
+# Closure-ritual gate (1+2) shipped via Issue #357 after 4× drift in 10 days.
+# Priority-rationale gate (3) added via Issue #481 after live drift in the
+# Issue #264 closure flow.
 #
 # Usage:
 #   bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
@@ -19,7 +24,7 @@
 #
 # Exit codes:
 #   0 — merged successfully
-#   1 — audit failed (unticked boxes); the unticked lines are printed
+#   1 — audit failed (unticked boxes or missing priority rationale); the gaps are printed
 #   2 — usage error
 
 set -euo pipefail
@@ -84,6 +89,7 @@ fi
 LINKED_ISSUES=$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences --jq '.closingIssuesReferences[].number')
 LINKED_COUNT=0
 AC_TOTAL=0
+PR_RATIONALE_OK=0
 for ISSUE in $LINKED_ISSUES; do
     LINKED_COUNT=$((LINKED_COUNT + 1))
     ISSUE_BODY=$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq .body)
@@ -94,6 +100,17 @@ for ISSUE in $LINKED_ISSUES; do
         printf '%s\n' "$AC_GAPS" | sed 's/^/    /' >&2
         FAILED=1
     fi
+    # Priority-rationale gate: case-insensitive substring grep. A line like
+    # "**Priority rationale:** (deferred to #X)" passes — the deferral phrasing
+    # still contains the keyword, no special-case needed.
+    if ! printf '%s\n' "$ISSUE_BODY" | grep -qi "priority rationale"; then
+        echo "✗ Issue #${ISSUE} is missing a '**Priority rationale:**' line." >&2
+        echo "    Add a one-sentence rationale near the bottom of the body explaining the P0/P1/P2/P3 choice." >&2
+        echo "    To intentionally defer, write e.g. '**Priority rationale:** (deferred to #X)' — the keyword alone passes." >&2
+        FAILED=1
+    else
+        PR_RATIONALE_OK=$((PR_RATIONALE_OK + 1))
+    fi
 done
 
 [[ "$FAILED" -eq 1 ]] && exit 1
@@ -102,4 +119,4 @@ MERGE_ARGS=("$MERGE_TYPE")
 [[ -n "$DELETE_FLAG" ]] && MERGE_ARGS+=("$DELETE_FLAG")
 gh pr merge "$PR" --repo "$REPO" "${MERGE_ARGS[@]}"
 
-echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes across ${LINKED_COUNT} linked issues ticked)."
+echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present)."

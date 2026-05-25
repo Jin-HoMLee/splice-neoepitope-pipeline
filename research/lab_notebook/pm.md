@@ -8,6 +8,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 17:55 UTC — Editor: PM
+
+#### [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481) — priority-rationale gate in `scripts/audit_and_merge.sh` (pm-i5 sub-1)
+
+**Trigger.** Post-Issue #264 retrospective surfaced 4 pieces of workflow ceremony that don't earn their keep ([Issue #480](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/480) parent epic). This sub-1 plugs the only one with a live drift hole: priority-rationale convention has slipped repeatedly despite Always-in-effect status, including the 2026-05-10 false-positive nudges to Dev that triggered `feedback_closure_audit_method.md` itself. Mechanism-over-memory rung-3 per `shared/feedback_mechanism_over_memory.md`.
+
+**Implementation.** ~10 LOC added to `scripts/audit_and_merge.sh`:
+- Inside the existing `for ISSUE in $LINKED_ISSUES` loop, added a case-insensitive substring grep for `priority rationale`. Fails the gate if absent, with a helpful error pointing to the deferral form.
+- Deferral form (`**Priority rationale:** (deferred to #X)`) passes implicitly — the keyword still matches; no special case needed.
+- Updated the success message to include `N/N priority rationales present`.
+- Docstring updated to enumerate all three gate checks (test plan, ACs, priority rationale).
+
+**Memory update.** Added "enforced via `scripts/audit_and_merge.sh`" annotation to PM `feedback_milestones.md` priority-rationale rule with link to [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481).
+
+**Verification.** `bash -n` syntax check passes. Manual grep probe on 3 input shapes: empty body (correctly fails), real body with rationale (passes), deferral phrasing (passes via implicit escape). Live integration test: this PR itself will exercise the gate at merge time — [Issue #481](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/481) body has a proper rationale line, so the gate should pass.
+
+**Design choices.**
+- **Substring grep over regex anchor.** Tolerates formatting variations (bold/italic/case/trailing-space). Same loose-match approach as the AC closure-audit grep, per `shared/feedback_closure_audit_method.md` lesson learned.
+- **Implicit deferral escape over explicit allow-list.** Deferral text still contains the keyword — no allow-list maintenance burden. Author intent stays in the text, not the script.
+- **One grep per linked Issue (not per PR).** Mirrors the AC-tick gate's per-Issue iteration. Multi-Issue PRs get every linked Issue audited independently.
+
+**Follow-ups.** None — the gate is now load-bearing and self-testing (every future PR exercises it). Companion subs in pm-i5: [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) (retire broadcasts), [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) (tighten lab notebook — once landed, future routine-ship entries like this one would be optional), [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (drop news_log).
+
+---
+
 ### 14:25 UTC — Editor: PM
 
 #### [Issue #264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/264) — cross-tree dependency-graph tracking shipped (GitHub native `blockedBy` / `blocking`)
