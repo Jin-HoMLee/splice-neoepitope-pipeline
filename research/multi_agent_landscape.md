@@ -1,8 +1,8 @@
 # Multi-agent / agentic-coding orchestration — landscape
 
-Curated reference of the multi-agent / agentic-coding field with one-line summaries, our rationale per item, and links to internal Issues and framing memories. Doubles as a portfolio artifact (we surveyed the field; we're not cargo-culting) and a project memory aid (where prior reasoning on Symphony, Fugu, Managed Agents, etc. lives without re-grepping `news_log.md`).
+Curated reference of the multi-agent / agentic-coding field with one-line summaries, our rationale per item, and links to internal Issues and framing memories. Doubles as a portfolio artifact (we surveyed the field; we're not cargo-culting) and a project memory aid (where prior reasoning on Symphony, Fugu, Managed Agents, etc. lives without re-grepping conversation history).
 
-Maintained by PM. Updated when `news_log.md` entries get tagged `methodology-signal` — see [Maintenance](#maintenance) at the bottom.
+Maintained by PM. Updated when a morning briefing surfaces a `methodology-signal` item — see [Maintenance](#maintenance) at the bottom.
 
 For our position relative to this landscape — why PM/Sci/Dev, why "multi-role" instead of "multi-agent" — see [Our position](#our-position).
 
@@ -101,7 +101,7 @@ The standup file (`pm/shared/team_standup.md`), the GitHub Projects v2 board, an
 
 PM-owned. Update triggers:
 
-- News_log entry tagged `methodology-signal` lands → PM scans during morning routine, decides whether to add an entry here (or whether the item belongs only in news_log).
+- Morning-briefing item tagged `methodology-signal` surfaces → PM decides whether to add an entry here (or whether the item is chat-only and not landscape-doc-worthy).
 - New framing memory in `pm/shared/` cross-references this doc → update [Our position](#our-position) to mention it.
 - New Issue concretely borrows from or extends a framework listed here → backfill the framework's rationale block with the Issue link.
 - Framework deprecated or pivoted → don't delete the entry; update the rationale with the deprecation note (the doc is a journal of *which* options we considered, not just current options).

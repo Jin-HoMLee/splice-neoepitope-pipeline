@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-26
 
+### 11:55 UTC — Editor: Scientist
+
+#### [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) — HERMES evaluation closed as (a) integrate; sub-issue [#492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492) filed under milestone 29
+
+[HERMES — Visani et al., *PNAS* 2025-10-21 (DOI 10.1073/pnas.2504783122)](https://doi.org/10.1073/pnas.2504783122). 3D-equivariant ML model pre-trained on the protein universe (~10k CASP12 chains); predicts amino-acid propensities at sites from local 3D structural environments. **Zero-shot on TCR-pMHC** (no domain-specific training data) yet achieves 0.72 correlation with experimental binding affinities + up to 50% T cell activation rate for de novo peptide designs across 3 TCR-MHC systems. Feb 2026 follow-up ([bioRxiv 707744](https://www.biorxiv.org/content/10.64898/2026.02.24.707744v1.full)) applies HERMES to AF-predicted TCR-pMHC structures and discriminates interacting from non-interacting complexes — exactly our use case (TCRdock outputs AF-Multimer PDBs).
+
+**Decision: (a) integrate as post-TCRdock structure-based confidence cross-check.** Three reasons:
+
+1. **No integration blockers.** Open-source ([StatPhysBio/hermes](https://github.com/StatPhysBio/hermes), MIT-licensed), pretrained weights bundled + on Zenodo, Python 3.9 + PyTorch + e3nn==0.5.0 — drops into our `workflow/envs/` pattern cleanly. CLI: `python run_hermes_on_pdbfiles.py -pd pdbs -m hermes_bp_000 -o results.csv`.
+2. **Orthogonal signal to AF confidence.** TCRdock outputs AF-Multimer ipTM + pLDDT + PAE; HERMES outputs per-site amino-acid propensities from the 3D environment. The Feb 2026 follow-up demonstrates HERMES discriminates interacting from non-interacting predicted TCR-pMHC complexes — concrete evidence the signal complements AF's own confidence on the same input.
+3. **Niche complementarity with NetTCR-struc** ([Issue #422](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/422) / [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433)). NetTCR-struc predicts DockQ (docking quality); HERMES predicts amino-acid propensity at the interface (binding affinity proxy). Together they cover the two structural-QC dimensions for TCR-pMHC.
+
+**Modeling sub-issue filed: [Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492)** under [`milestone 29 (i5 - S5 - Modeling - TCR-pMHC Scorer Integration)`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29). Title: `feat(scoring): integrate HERMES as post-TCRdock structure-based confidence cross-check`. `role:developer`, P2. Gated by TCRdock end-to-end pipeline functional (same prerequisite as [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433) NetTCR-struc sibling).
+
+**Manuscript carry-forward to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432):** HERMES + NetTCR-struc as a complementary structural-QC pair (binding-affinity + docking-quality dimensions). Concrete (a)-integrate verdict to pair with today's ImmSET (b)-decline ([Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201)) — balanced manuscript example.
+
+**Verdict progress on [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) per-scorer AC:** 2 of 5 scorers resolved today (ImmSET → b, HERMES → a). Remaining: Boltz-2 ([Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)), t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+
+---
+
 ### 11:48 UTC — Editor: Scientist
 
 #### [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) — ImmSET evaluation closed as (c) not-relevant — (b) decline comment posted; manuscript-citation kept

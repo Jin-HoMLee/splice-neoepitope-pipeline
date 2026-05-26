@@ -27,7 +27,7 @@ COMMENT_MARKER = "<!-- closure-audit -->"
 # styles show up.
 _UNTICKED = re.compile(r"^\s*-\s*\[\s\]\s", re.MULTILINE)
 _TICKED = re.compile(r"^\s*-\s*\[[xX]\]\s", re.MULTILINE)
-_EXEMPT_FILES = {"research/news_log.md", "research/glossary.md"}
+_EXEMPT_FILES = {"research/glossary.md"}
 _EXEMPT_PREFIX = ("research/lab_notebook/",)
 
 

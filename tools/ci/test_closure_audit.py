@@ -63,12 +63,12 @@ def test_priority_rationale_missing_is_gap():
 
 
 def test_exempt_paths_all_or_nothing():
-    assert ca.is_exempt(["research/news_log.md"]) is True
+    assert ca.is_exempt(["research/glossary.md"]) is True
     assert ca.is_exempt([
         "research/glossary.md", "research/lab_notebook/pm.md",
     ]) is True
     assert ca.is_exempt([
-        "research/news_log.md", "workflow/scripts/foo.py",
+        "research/glossary.md", "workflow/scripts/foo.py",
     ]) is False
     assert ca.is_exempt([]) is False
 
