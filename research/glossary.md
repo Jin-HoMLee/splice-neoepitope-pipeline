@@ -62,6 +62,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **FDR** — False Discovery Rate. Expected proportion of false positives among reported discoveries; standard control in MS peptide identification (typically 1% peptide-spectrum match FDR + 1% peptide FDR via target-decoy estimation) and in genomics multiple-testing corrections (Benjamini-Hochberg). *Domain: stats.*
 
+**FOXA2** — Forkhead Box A2. Pioneer transcription factor that binds nucleosomal DNA at enhancer / promoter elements; canonical regulator of endoderm specification (gut, liver, pancreas) and adult hepatocyte / β-cell identity. In PDAC, dysregulated FOXA2 binding drives alternative promoter usage that generates neoantigen-encoding tumor-specific transcripts (neoTSTs) — flagged as a major non-mutation NA source ([Zhao et al. 2026 NeoAPP](https://www.biorxiv.org/content/10.64898/2026.02.10.705024v1.full)). *Domain: bio.*
+
 ## G
 
 **GATK** — Genome Analysis Toolkit (Broad Institute). Canonical somatic/germline variant calling suite; reference for the Panel of Normals (PoN) concept reused by neoepitope filtering. *Domain: bio.*
@@ -100,6 +102,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **IP-MS** — Immunoprecipitation Mass Spectrometry. Core workflow of immunopeptidomics: pan-MHC or allele-specific antibodies affinity-purify HLA-peptide complexes from cell or tissue lysate, peptides are acid-eluted and identified by LC-MS/MS (DDA or DIA-MS). The empirical complement to in-silico binding prediction; ground truth for "is this peptide actually presented?" ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext); MHC1-TIP, Pepyrus). *Domain: bio.*
 
+**IR** — Intron Retention. Failure of the spliceosome to excise an intron from pre-mRNA, producing a mature transcript that retains intronic sequence. Elevated in many tumors vs matched normals; IR-derived peptides span exon/intron junctions and act as a non-mutation neoantigen class — ~30% of IR-predicted CRC epitopes elicit measurable CD8+ T cell responses in functional assays ([Manoharan et al. 2026](https://www.nature.com/articles/s41598-026-43687-2)). Distinct from canonical AS-NAs (exon skipping, cryptic splice sites) tracked by SNAF / SpliceMutr. *Domain: bio.*
+
 **IV** — Intravenous. Drug delivery route via direct venous injection; chosen for personalized mRNA cancer vaccines to deliver LNP-mRNA payloads systemically (Sahin et al. 2026; Rojas et al. 2023). *Domain: bio.*
 
 ## K
@@ -133,6 +137,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## N
 
 **NJ** — Neojunction. Tumor-specific or recurrent splice junction absent from canonical normal-tissue annotation; the upstream substrate from which splice neoepitopes are translated. Notation introduced by Nejo et al. (*Nat. Med.* 2023). Kwok et al. additionally use **NEJ** (neoepitope-encoding junction) for the validated subset yielding a presented peptide (e.g. NEJ<sub>GNAS</sub>, NEJ<sub>RPL22</sub>). *Domain: bio.*
+
+**neoTSTs** — Neoantigen-encoding Tumor-Specific Transcripts. Aberrant tumor mRNAs that, when translated, yield peptides absent from normal-tissue proteomes — a broad parent class spanning splice variants, intron retention, TE-fusion transcripts, and alternative-promoter isoforms. PDAC reference scale: median ~351 neoantigens / 56 neoTSTs per sample, vastly exceeding SNV-derived NAs in cold tumors ([Zhao et al. 2026 NeoAPP](https://www.biorxiv.org/content/10.64898/2026.02.10.705024v1.full)). *Domain: bio.*
 
 ## O
 
@@ -181,6 +187,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **TCR** — T-Cell Receptor. Heterodimeric (α/β) receptor on T cells that recognises peptide-MHC complexes; modelled here via TCRdock for the top neoepitope candidate. *Domain: bio.*
 
 **TCR-T** — TCR-engineered T-cell therapy. Adoptive cell therapy where autologous patient T cells are transduced with a tumor-reactive TCR (typically discovered in HLA-matched healthy donors to bypass tumor-induced tolerance). MHC-restricted; distinct from CAR-T (synthetic chimeric receptor) and TIL therapy (non-engineered expanded patient T cells). *Domain: bio.*
+
+**TE** — Transposable Element. Repetitive mobile DNA (LINE, SINE, LTR / HERV families) comprising ~45% of the human genome; mostly silenced by methylation in normal tissue. Cancer-associated demethylation reactivates TEs, producing chimeric TE-gene transcripts that encode tumor-specific peptides — an emerging non-mutation neoantigen source alongside splice variants and IR ([Zhao et al. 2026 NeoAPP](https://www.biorxiv.org/content/10.64898/2026.02.10.705024v1.full)). *Domain: bio.*
 
 **TF** — Transcription Factor. DNA-binding regulatory protein controlling gene expression; binding sites are one of the modalities ENCODE-style assays (ChIP-seq) and predictors like AlphaGenome map. *Domain: bio.*
 
