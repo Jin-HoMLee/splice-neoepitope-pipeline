@@ -1,0 +1,180 @@
+---
+title: "HERMES as a post-TCRdock structural confidence cross-check"
+subtitle: "Tool evaluation · Issue #218 · 2026-05-26"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-26
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: simple
+    incremental: false
+    slide-number: c/t
+    progress: true
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {.r-fit-text}
+Should HERMES
+:::
+
+::: {.r-fit-text}
+join the post-TCRdock
+:::
+
+::: {.r-fit-text}
+structural-QC stack?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** parent [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) AC requires a per-scorer integration verdict — **(a)** Modeling sub-issue under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29) **or (b)** decline-with-rationale — for each of HERMES, Boltz-2 ([Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)), ImmSET ([Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201)), t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), and the [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## The tool — HERMES at a glance {.smaller}
+
+**HERMES** — *Holographic Equivariant neuRal network model for Mutational Effect and Stability prediction* — Visani et al., **PNAS** 2025-10-21 [@visani2025hermes].
+
+::: {.incremental}
+- **Architecture:** 3D rotationally equivariant neural network; predicts amino-acid propensity at a site from its local 3D structural environment.
+- **Training:** pre-trained on the **full protein universe** (~10k CASP12 chains) — *zero TCR-pMHC-specific training data*.
+- **Input/output:** consumes PDB structures; emits per-site amino-acid logits (CSV) + optional embeddings (.npy).
+- **Code + weights:** [`StatPhysBio/hermes`](https://github.com/StatPhysBio/hermes) — **MIT-licensed**, pretrained weights bundled + on Zenodo. Python 3.9, PyTorch, `e3nn==0.5.0`.
+:::
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**One-line CLI:** `python run_hermes_on_pdbfiles.py -pd pdbs -m hermes_bp_000 -o results.csv`
+:::
+
+---
+
+## Why it works on TCR-pMHC (despite zero TCR-pMHC training) {.smaller}
+
+::: {.columns}
+
+::: {.column width="55%"}
+
+**Implicit physical reasoning** from protein-universe pre-training generalises to TCR-pMHC interfaces:
+
+::: {.incremental}
+- 0.72 correlation with experimental TCR-pMHC binding affinities [@visani2025hermes]
+- Up to 50% T cell activation rate for de novo–designed peptides (≤ 5 substitutions, 3 TCR–MHC systems)
+- Feb 2026 follow-up [@aipredictedtcr2026]: applies HERMES to **AF-predicted** TCR-pMHC structures, discriminates interacting from non-interacting complexes (1000 randomised TCR/pMHC pairs as negative set)
+:::
+
+:::
+
+::: {.column width="45%"}
+
+::: {.callout-important appearance="simple"}
+**Key methodological claim:** HERMES doesn't model TCR-pMHC *binding* directly. It models **how plausible the local 3D environment is** under the protein-universe prior. A correct TCR-pMHC interface scores well because it looks like a real interface; a wrong one doesn't.
+:::
+
+:::
+
+:::
+
+---
+
+## Where it would plug in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Top neoepitope<br/>candidate<br/>(MHCflurry rank 1)"] --> B["TCRdock<br/>(AF-Multimer)"]
+    F["VDJdb TCR panel<br/>or fallback DMF5"] --> B
+    B --> C["PDB structure<br/>+ ipTM, pLDDT, PAE"]
+    C --> D["NetTCR-struc<br/>(Issue #422 / #433)"]
+    C --> E["HERMES<br/>(Issue #218 → #492)"]
+    D --> G["docking-quality<br/>score"]
+    E --> H["interface AA<br/>propensity score"]
+    G --> I["candidate retained<br/>/ dropped"]
+    H --> I
+
+    style E fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style I fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
+```
+
+**Two structural-QC dimensions on the same TCRdock output PDB:**
+
+| Scorer | Dimension | Output |
+|---|---|---|
+| AF-Multimer (inside TCRdock) | structural prediction confidence | ipTM, pLDDT, PAE |
+| **NetTCR-struc** ([Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433)) | **docking quality** | predicted DockQ |
+| **HERMES** (this Issue → [Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492)) | **interface AA propensity** (binding-affinity proxy) | per-site log-probs |
+
+---
+
+## Three reasons to integrate {.smaller}
+
+::: {.incremental}
+1. **No integration blockers** *(contrast: ImmSET [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) blocked on all three)*
+    - Code released ✅ — MIT license at [`StatPhysBio/hermes`](https://github.com/StatPhysBio/hermes)
+    - Pretrained weights released ✅ — bundled + on Zenodo
+    - Training data public ✅ — protein universe, no proprietary dataset dependency
+2. **Orthogonal signal to AF confidence.** AF measures *prediction certainty*; HERMES measures *structural plausibility under the protein-universe prior*. The Feb 2026 follow-up [@aipredictedtcr2026] is concrete evidence the signals don't collapse — HERMES discriminates interacting vs. non-interacting AF predictions.
+3. **Niche complementarity with NetTCR-struc.** Docking quality + binding-affinity proxy = the two structural-QC dimensions of a TCR-pMHC complex, both consuming the same TCRdock PDB. Single new env, single new Snakemake rule.
+:::
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 3em; font-weight: bold; margin-top: 0.5em;"}
+\(a\) Integrate
+:::
+
+::: {style="text-align: center; font-size: 1.4em; margin-top: 0.5em;"}
+as post-TCRdock structural confidence cross-check
+:::
+
+. . .
+
+**Modeling sub-issue filed:** [Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492) under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29).
+
+Title: `feat(scoring): integrate HERMES as post-TCRdock structure-based confidence cross-check`. `role:developer`, P2. Gated by TCRdock end-to-end pipeline functional.
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**[Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) verdict progress:** 2 of 5 scorers resolved today — ImmSET → (b), HERMES → (a). Remaining: Boltz-2, t2pmhc/TCRLens, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## Open scientific questions for the integration sub-issue {.smaller}
+
+When [Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492) lands on Dev's plate, Sci consult points:
+
+::: {.incremental}
+1. **Interface-residue aggregation strategy** — HERMES emits per-site logits. How to summarise across peptide residues? Mean log-prob, sum, softmax-weighted, or per-site retained?
+2. **Reference set for normalising scores** — what's the unbiased baseline? ESM-IF1 on the same residues? AF-confidence-only as a sanity-check stratifier?
+3. **Calibration on chr22 PoC patient_001** — single-pair calibration before declaring a keep/drop threshold; same shape as the AlphaGenome chr22 PoC ([Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393)).
+4. **OOD on novel splice-junction peptides** — HERMES's protein-universe prior doesn't see splice neoantigens specifically. Plausible failure mode: high score on canonical-looking peptides regardless of true binding. To be tested empirically.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
