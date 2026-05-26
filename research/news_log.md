@@ -11,6 +11,13 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ---
 
+## 2026-05-26
+
+### 10:57 UTC — Editor: PM
+
+- **Claude Code 2.1.149** ([2026-05-22 changelog](https://code.claude.com/docs/en/changelog)) — `/usage` per-category breakdown (skills / subagents / plugins / MCP-server costs); GFM task-list checkboxes render. → Cost-forecast input for [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) (Agent SDK dual-bucket billing, effective 2026-06-15); pairs with 2026-05-20 billing-split entry. *PM. ops-signal.*
+- **Code coverage on PRs — public preview** ([changelog 2026-05-26](https://github.blog/changelog/2026-05-26-code-coverage-in-pull-requests-is-now-in-public-preview)) — visual coverage diff inline in PR review surface (was Codecov-only territory). → No action yet; `pipeline-pytest` already emits coverage but doesn't surface on PR; revisit when [Issue #461](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/461) (script-wrapper test hardening) lands. *PM. tooling-signal.*
+
 ## 2026-05-22
 
 ### 08:46 UTC — Editor: Scientist
