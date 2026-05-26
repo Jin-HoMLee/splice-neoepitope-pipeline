@@ -10,7 +10,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### 11:48 UTC — Editor: Scientist
 
-#### [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) — ImmSET evaluation closed as (c) decline; manuscript-citation kept
+#### [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) — ImmSET evaluation closed as (c) not-relevant — (b) decline comment posted; manuscript-citation kept
 
 [ImmSET — Garcia Noceda et al., arXiv 2603.26994 (2026-03-27)](https://arxiv.org/abs/2603.26994), Adaptive Biotechnologies. Transformer-based "Immune Synapse Encoding" predictor for TCR-pMHC specificity; outperforms AF2/AF3-based pipelines on A\*02:01 with sufficient training data.
 
