@@ -28,6 +28,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+### 11:48 UTC — Editor: Scientist
+
+#### [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) — ImmSET evaluation closed as (c) not-relevant — (b) decline comment posted; manuscript-citation kept
+
+[ImmSET — Garcia Noceda et al., arXiv 2603.26994 (2026-03-27)](https://arxiv.org/abs/2603.26994), Adaptive Biotechnologies. Transformer-based "Immune Synapse Encoding" predictor for TCR-pMHC specificity; outperforms AF2/AF3-based pipelines on A\*02:01 with sufficient training data.
+
+**Decision: (c) not relevant** for our pipeline integration → posted (b) decline-with-rationale comment on [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) per [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s per-scorer verdict AC. Three hard blockers:
+
+1. **Code + model weights not released** — paper explicitly states *"The code from this study will not be made available."* No inference path exists.
+2. **Training data is proprietary** — Adaptive Biotechnologies' MIRA + pairSEQ. No VDJdb / IEDB / McPAS path; reproduction requires Adaptive's data.
+3. **OOD weakness on novel peptides + non-A\*02:01 alleles** — IMMREP25 B\*40:01 per-peptide AUROC range 0.336–0.832; scaling exponents α=0.078 (peptides) / β=0.036 (TCRs/peptide) sublinear. Splice-junction neoepitopes are by construction OOD for any sequence-based model trained on public TCR-pMHC pairs.
+
+**Carry-forward to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) manuscript subsection:**
+
+- **Shortcut-learning critique.** ImmSET authors identify TCR-motif memorization as a failure mode that inflated prior sequence-based methods' reported performance; mitigated by enforcing Levenshtein-4+ peptide separation between train and test. Citable quality-bar consideration for any future sequence-based TCR-pMHC scorer.
+- **Sequence-vs-structure data point.** Sequence wins on well-trained alleles + sufficient data; structural maintains advantage on undertrained alleles + when interpretability matters. Concrete head-to-head reference for the DISCUSSION subsection.
+
+**Zotero:** D6P6JXSH in collection Z38GTJNW (preprint type, manuscript-citation-candidate tag, three-section note attached).
+
+**Verdict progress on [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) per-scorer AC:** 1 of 5 scorers resolved (ImmSET → b). Remaining: HERMES ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)), Boltz-2 ([Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)), t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+
+---
+
 ## 2026-05-25
 
 ### 19:24 UTC — Editor: Scientist

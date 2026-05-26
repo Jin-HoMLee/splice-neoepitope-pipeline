@@ -1,0 +1,176 @@
+---
+title: "ImmSET as a candidate TCR-pMHC scorer"
+subtitle: "Tool evaluation · Issue #201 · 2026-05-26"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-26
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should ImmSET join\
+our TCR-pMHC\
+scorer stack?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** parent [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) AC requires a per-scorer integration verdict — **(a)** Modeling sub-issue under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29) **or (b)** decline-with-rationale — for each of HERMES ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)), Boltz-2 ([Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)), ImmSET, t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), and the [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## The tool — ImmSET at a glance {.smaller}
+
+**ImmSET** — *Immune Synapse Encoding Transformer* — Garcia Noceda et al., **arXiv 2603.26994** (2026-03-27), Adaptive Biotechnologies [@garcianoceda2026immset].
+
+::: {.incremental}
+- **Architecture:** transformer encoder over (TCR-α, TCR-β, peptide, MHC) sequences; outputs a binding-specificity score.
+- **Training data:** Adaptive Biotechnologies' proprietary **MIRA** + **pairSEQ** — paired single-cell TCR/pMHC datasets at scale.
+- **Headline result:** outperforms AF2/AF3-based structural pipelines on **HLA-A\*02:01** *with sufficient training data*.
+- **Code + weights:** **NOT released.** Paper explicitly states *"The code from this study will not be made available."*
+- **Benchmark transparency:** authors flag **shortcut learning** as a failure mode in prior sequence-based scorers — mitigated by enforcing **Levenshtein-4+** peptide separation between train and test.
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**Methodological strength:** the Levenshtein-4+ split is a serious quality bar. It is the strongest published critique of how earlier sequence-based scorers overestimated their generalisation.
+:::
+
+---
+
+## Why it would work — where ImmSET shines {.smaller}
+
+::: {.columns}
+
+::: {.column width="55%"}
+
+**Sequence-based scaling on a dominant allele.**
+
+::: {.incremental}
+- A\*02:01 has the deepest public + proprietary TCR-pMHC coverage. With Adaptive's MIRA + pairSEQ at scale, transformer pre-training captures statistical regularities of binding sequence patterns.
+- **Reported scaling:** within distribution, sequence wins on well-trained alleles + sufficient data.
+- **For comparable structural pipelines** (TCRdock + AF-Multimer), per-PDB inference cost is ~10–30 min on a P100. Sequence inference is ~ms/sample.
+:::
+
+:::
+
+::: {.column width="45%"}
+
+::: {.callout-tip appearance="simple"}
+**Where structural still wins (per ImmSET's own data):** undertrained alleles, novel peptides, when interpretability matters. The paper concedes the trade-off explicitly — a manuscript-quality reference.
+:::
+
+:::
+
+:::
+
+---
+
+## Where it would (counterfactually) plug in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Top neoepitope<br/>candidate<br/>(MHCflurry rank 1)"] --> B["TCR/MHC<br/>sequences"]
+    F["VDJdb TCR panel<br/>or fallback DMF5"] --> B
+    B --> X["<b>ImmSET</b><br/>(sequence pre-filter)<br/><i>declined — Issue #201</i>"]
+    X -.->|"passes filter<br/>(score ≥ τ)"| C["TCRdock<br/>(AF-Multimer)"]
+    X -.->|"fails filter"| J["candidate dropped<br/>(sequence-level)"]
+    F --> C
+    C --> D["PDB structure<br/>+ ipTM, pLDDT, PAE"]
+    D --> E["HERMES<br/>(Issue #218 → #492)"]
+    D --> G["NetTCR-struc<br/>(Issue #422 / #433)"]
+    E --> I["candidate retained<br/>/ dropped"]
+    G --> I
+
+    style X fill:#ffe6a3,stroke:#c05621,stroke-width:3px,stroke-dasharray: 5 5
+    style J fill:#fef5ef,stroke:#c05621,stroke-width:1px,stroke-dasharray: 3 3
+    style I fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
+```
+
+**Counterfactual integration:** ImmSET would have been a fast sequence-level pre-filter — candidates that fail are dropped before paying TCRdock's ~10–30 min AF-Multimer cost; only sequence-plausible candidates proceed to structural validation. **Three hard blockers prevent this path** — both dotted edges stay hypothetical.
+
+---
+
+## Three hard blockers — why (b) decline {.smaller}
+
+::: {.incremental}
+1. **Code + model weights NOT released.** Paper text: *"The code from this study will not be made available."* No inference path exists for an external lab — no API, no weights, no executable. Reproduction would require re-training from scratch (blocker 2 prevents this).
+2. **Training data is proprietary.** Adaptive Biotechnologies' MIRA + pairSEQ are not on VDJdb / IEDB / McPAS. The reported A\*02:01 performance depends on the scale of these private datasets — public-data reproduction is not viable.
+3. **OOD weakness on novel peptides + non-A\*02:01 alleles.** IMMREP25 **B\*40:01 per-peptide AUROC 0.336–0.832** (huge variance). Scaling exponents **α=0.078 (peptides) / β=0.036 (TCRs/peptide)** — sublinear. **Splice-junction neoepitopes are by construction OOD** for any sequence-based model trained on public TCR-pMHC pairs.
+:::
+
+. . .
+
+::: {.callout-warning appearance="simple"}
+**Each blocker alone would warrant deferral. Together they preclude any integration path.**
+:::
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+\(b\) Decline-with-rationale
+:::
+
+. . .
+
+**Posted on:** [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) per [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s per-scorer verdict AC. **No Modeling sub-issue filed** under milestone 29 — declines do not generate integration work.
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**[Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) verdict progress:** 2 of 5 scorers resolved today — **ImmSET → (b)**, HERMES → (a) ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218)). Remaining: Boltz-2, t2pmhc/TCRLens, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## What we keep — manuscript carry-forward {.smaller}
+
+ImmSET is **declined for integration but retained for citation** in [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s DISCUSSION subsection:
+
+::: {.incremental}
+- **Shortcut-learning critique** — ImmSET's authors identify **TCR-motif memorisation** as the failure mode that inflated prior sequence-based methods' reported numbers. Their **Levenshtein-4+ peptide separation** between train and test is the cleanest published quality-bar for any future sequence-based TCR-pMHC scorer. A citable methodology-quality reference, independent of ImmSET's own (unreleased) implementation.
+- **Sequence-vs-structure data point** — ImmSET's own A\*02:01 vs. B\*40:01 contrast is a concrete head-to-head: sequence wins on well-trained alleles + sufficient data; structural maintains advantage on undertrained alleles + when interpretability matters. The paper's own framing makes this *not* an adversarial citation.
+:::
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**Both points are stronger for being cited from a (b)-decline tool than from an integrated one** — the manuscript can credit ImmSET's methodology without endorsing its black-box reproducibility profile.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
