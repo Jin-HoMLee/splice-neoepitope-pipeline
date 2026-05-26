@@ -43,6 +43,10 @@ $presentation-heading-line-height: 1.15;
 
 // Link colors
 $link-color: $primary-color;
+// Keep legacy `lighten()`: `@use "sass:color"` must precede all rules, but Quarto
+// composes its preamble before this file's scss:defaults block, so the modern
+// `color.adjust(...)` form cannot be wired in here. Dart Sass still supports
+// lighten() with a deprecation warning; revisit if Quarto stops accepting it.
 $link-color-hover: lighten($primary-color, 12%);
 
 /*-- scss:rules --*/

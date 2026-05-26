@@ -12,6 +12,8 @@ format:
     incremental: false
     slide-number: c/t
     progress: true
+    chalkboard: false
+    code-line-numbers: false
     fig-align: center
     fig-cap-location: bottom
     transition: fade
@@ -73,7 +75,7 @@ structural-QC stack?
 ::: {.incremental}
 - 0.72 correlation with experimental TCR-pMHC binding affinities [@visani2025hermes]
 - Up to 50% T cell activation rate for de novo–designed peptides (≤ 5 substitutions, 3 TCR–MHC systems)
-- Feb 2026 follow-up [@aipredictedtcr2026]: applies HERMES to **AF-predicted** TCR-pMHC structures, discriminates interacting from non-interacting complexes (1000 randomised TCR/pMHC pairs as negative set)
+- Feb 2026 follow-up [@robben2026aipredictedtcr]: applies HERMES to **AF-predicted** TCR-pMHC structures, discriminates interacting from non-interacting complexes (1000 randomised TCR/pMHC pairs as negative set)
 :::
 
 :::
@@ -126,7 +128,7 @@ flowchart LR
     - Code released ✅ — MIT license at [`StatPhysBio/hermes`](https://github.com/StatPhysBio/hermes)
     - Pretrained weights released ✅ — bundled + on Zenodo
     - Training data public ✅ — protein universe, no proprietary dataset dependency
-2. **Orthogonal signal to AF confidence.** AF measures *prediction certainty*; HERMES measures *structural plausibility under the protein-universe prior*. The Feb 2026 follow-up [@aipredictedtcr2026] is concrete evidence the signals don't collapse — HERMES discriminates interacting vs. non-interacting AF predictions.
+2. **Orthogonal signal to AF confidence.** AF measures *prediction certainty*; HERMES measures *structural plausibility under the protein-universe prior*. The Feb 2026 follow-up [@robben2026aipredictedtcr] is concrete evidence the signals don't collapse — HERMES discriminates interacting vs. non-interacting AF predictions.
 3. **Niche complementarity with NetTCR-struc.** Docking quality + binding-affinity proxy = the two structural-QC dimensions of a TCR-pMHC complex, both consuming the same TCRdock PDB. Single new env, single new Snakemake rule.
 :::
 

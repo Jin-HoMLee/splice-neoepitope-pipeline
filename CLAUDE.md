@@ -91,7 +91,7 @@ Every tool-evaluation Issue (e.g. [Issue #218](https://github.com/Jin-HoMLee/spl
 
 **Why required even though evals are XS/S-sized:** visual condensation per tool is a different artifact from the consolidating decision deck (e.g. [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) TCR-pMHC scorer landscape). The per-tool deck answers *"what is this tool, and how does it work?"* — a comprehension precondition that lab notebook prose alone doesn't satisfy. The consolidating deck answers *"why this (a/b/c) decision across all 5 evals?"*. Both have value.
 
-**Format (~6-8 slides):** (i) the question (should we integrate?), (ii) tool primer (architecture, citation, code/weights status), (iii) why-it-works mechanism, (iv) integration map (block diagram showing where it'd plug in), (v) reasons-to-(a)/decline-(b)/skip-(c), (vi) decision + sub-issue ref, (vii) open scientific questions for the integration (if (a)). [`research/evals/issue_218_hermes/`](research/evals/issue_218_hermes/) is the reference example.
+**Format (~8-10 slides; title + 7-9 content):** (i) the question (should we integrate?), (ii) tool primer (architecture, citation, code/weights status), (iii) why-it-works mechanism, (iv) integration map (block diagram showing where it'd plug in), (v) reasons-to-(a)/decline-(b)/skip-(c), (vi) decision + sub-issue ref, (vii) open scientific questions for the integration (if (a)), (viii) references. [`research/evals/issue_218_hermes/`](research/evals/issue_218_hermes/) is the reference example (9 slides total).
 
 **Scope:** one deck per eval Issue. Established 2026-05-26 alongside the HERMES + ImmSET evals. Audience: lab seminar / external talk + manuscript-figure rehearsal for the consolidating publication Issue.
 

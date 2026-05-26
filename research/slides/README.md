@@ -31,6 +31,13 @@ research/slides/
 
 **File naming:** `slides.qmd` (generic; doesn't repeat folder name).
 
+**Decks live in two sibling trees, not under `research/slides/`:**
+
+- `research/experiments/issue_NNN_<short>/slides.qmd` — co-located with the experiment notebook + outputs. See [`CLAUDE.md` "Slide decks for experiment Issues"](../../CLAUDE.md).
+- `research/evals/issue_NNN_<tool>/slides.qmd` — per-tool primer for a tool-evaluation Issue. See [`CLAUDE.md` "Slide decks for eval Issues"](../../CLAUDE.md). Example: [`research/evals/issue_218_hermes/`](../evals/issue_218_hermes/).
+
+`research/slides/` itself holds **only the shared scaffolding** (`_template.qmd`, `custom.scss`, `nature.csl`, this README). Decks reference the scaffolding via `theme: [simple, ../../slides/custom.scss]` and `csl: ../../slides/nature.csl`. (`research/slides/issue_393_alphagenome_chr22_poc/` predates the co-location rule and migrates under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).)
+
 ## Shared theme (`custom.scss`)
 
 All decks share a single SCSS theme at [`custom.scss`](custom.scss) — palette (deep blue primary `#1e5ba8` + muted gold accent `#b8860b`, derived from existing mermaid-diagram colors), typography (Inter / Source Sans 3 with system fallbacks; JetBrains Mono for code), heading underline accents, callout styling, table styling, footer + slide-number layout. Reference from a deck YAML via:
