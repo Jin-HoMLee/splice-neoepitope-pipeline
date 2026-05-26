@@ -13,6 +13,11 @@ Historical entries (before 2026-05-02) pre-date the time/editor sub-heading conv
 
 ## 2026-05-26
 
+### 11:15 UTC — Editor: Scientist
+
+- **Zhao et al. — NeoAPP** ([bioRxiv 2026-02-12](https://www.biorxiv.org/content/10.64898/2026.02.10.705024v1.full)) — PDAC tumor-specific transcript NA reservoir; n=413, median 351 NAs/sample from 56 neoTSTs; non-canonical splice + TE-driven; FOXA2-regulated promoter usage. → Zotero add; pipeline-scale benchmark + DISCUSSION quantitative comparison; glossary bundle same PR. *Scientist. methodology-signal.*
+- **Manoharan et al. — IR-derived NAs in CRC** ([Sci Rep 2026](https://www.nature.com/articles/s41598-026-43687-2)) — intron-retention neoantigens; ~30% predicted epitopes elicit measurable CD8+ T cell responses. → Zotero add; DISCUSSION non-mutation-NA evidence; complements Lv 2026-05-21 + Hayer 2026-05-22 CRC arc. *Scientist. portfolio-differentiator.*
+
 ### 10:57 UTC — Editor: PM
 
 - **Claude Code 2.1.149** ([2026-05-22 changelog](https://code.claude.com/docs/en/changelog)) — `/usage` per-category breakdown (skills / subagents / plugins / MCP-server costs); GFM task-list checkboxes render. → Cost-forecast input for [Issue #305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/305) (Agent SDK dual-bucket billing, effective 2026-06-15); pairs with 2026-05-20 billing-split entry. *PM. ops-signal.*
