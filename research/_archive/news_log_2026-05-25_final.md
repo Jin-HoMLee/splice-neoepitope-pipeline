@@ -1,4 +1,19 @@
-# News Log
+# News Log — RETIRED 2026-05-26
+
+> **This file is frozen.** `research/news_log.md` was retired via [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (parent: [Issue #480](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/480) workflow ceremony reduction sweep).
+>
+> **Why retired:** highest-contention file in the repo (3 roles × daily appends → repeated same-day rebase conflicts: [PR #355](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/355) vs [PR #354](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/354), [PR #338](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/338) vs [PR #336](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/336)); 7-day dedup window proved brittle (NetTCR-struc slipped through 2026-05-21 despite being in Zotero `FQ58DCAE` + [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) + [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433)).
+>
+> **What replaced it:**
+> - **Papers** → Zotero collection [`Z38GTJNW`](https://www.zotero.org/groups/) (DOI-keyed dedup is bulletproof).
+> - **Actionable items** → GitHub Issues directly.
+> - **Anything else** → not tracked (most "news" that doesn't fit the above is noise).
+>
+> **Do not append to this file.** Historical entries remain as journal evidence; the morning-routine News phase is now a Zotero feed scan + Issue triage with no shared standalone log.
+
+---
+
+# News Log (frozen content below)
 
 Shared log of news surfaced in morning briefings. Prevents repeating the same item across sessions and roles (PM, Scientist, Developer all log here).
 
