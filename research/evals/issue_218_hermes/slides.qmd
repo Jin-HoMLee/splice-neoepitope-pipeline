@@ -28,15 +28,9 @@ execute:
 
 ## The question
 
-::: {.r-fit-text}
-Should HERMES
-:::
-
-::: {.r-fit-text}
-join the post-TCRdock
-:::
-
-::: {.r-fit-text}
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should HERMES join\
+the post-TCRdock\
 structural-QC stack?
 :::
 
