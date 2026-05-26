@@ -100,21 +100,22 @@ scorer stack?
 flowchart LR
     A["Top neoepitope<br/>candidate<br/>(MHCflurry rank 1)"] --> B["TCR/MHC<br/>sequences"]
     F["VDJdb TCR panel<br/>or fallback DMF5"] --> B
-    B --> X["<b>ImmSET</b><br/>(sequence scorer)<br/><i>declined — Issue #201</i>"]
-    A --> C["TCRdock<br/>(AF-Multimer)"]
+    B --> X["<b>ImmSET</b><br/>(sequence pre-filter)<br/><i>declined — Issue #201</i>"]
+    X -.->|"passes filter<br/>(score ≥ τ)"| C["TCRdock<br/>(AF-Multimer)"]
+    X -.->|"fails filter"| J["candidate dropped<br/>(sequence-level)"]
     F --> C
     C --> D["PDB structure<br/>+ ipTM, pLDDT, PAE"]
     D --> E["HERMES<br/>(Issue #218 → #492)"]
     D --> G["NetTCR-struc<br/>(Issue #422 / #433)"]
-    X -.-> I["candidate retained<br/>/ dropped"]
-    E --> I
+    E --> I["candidate retained<br/>/ dropped"]
     G --> I
 
     style X fill:#ffe6a3,stroke:#c05621,stroke-width:3px,stroke-dasharray: 5 5
+    style J fill:#fef5ef,stroke:#c05621,stroke-width:1px,stroke-dasharray: 3 3
     style I fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
 ```
 
-**Counterfactual integration:** ImmSET would have been a fast pre-filter *before* TCRdock — drop candidates that score poorly at the sequence level. **Three hard blockers prevent this path.**
+**Counterfactual integration:** ImmSET would have been a fast sequence-level pre-filter — candidates that fail are dropped before paying TCRdock's ~10–30 min AF-Multimer cost; only sequence-plausible candidates proceed to structural validation. **Three hard blockers prevent this path** — both dotted edges stay hypothetical.
 
 ---
 
