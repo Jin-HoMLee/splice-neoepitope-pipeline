@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-26
+
+### 12:43 UTC — Editor: PM
+
+#### [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) — news_log.md retired ([pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) sub-4, closes the milestone)
+
+**Trigger.** User asked "what's next best?" — applied best-next algorithm; [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) surfaced as sole open leaf under [pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) (due 2026-06-01, 6 days out), making it a milestone-closer. User confirmed "ok gogo".
+
+**Scope shipped.** Retire `research/news_log.md` end-to-end: archive the file + retire all behavioural rules referencing it across both repos (project + personas).
+
+- **Project repo:**
+  - `research/news_log.md` → `research/_archive/news_log_2026-05-25_final.md` (via `git mv`, history preserved) with a top-of-file tombstone block explaining retirement + linking to [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) / [Issue #480](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/480) (epic) and the contention + dedup-brittleness evidence (PR #355 vs #354 collision, PR #338 vs #336, NetTCR-struc 2026-05-21 dedup miss).
+  - `research/multi_agent_landscape.md`: header + maintenance section reframed — "morning briefing surfaces `methodology-signal`" instead of "news_log entry tagged methodology-signal". Historical citation on line 37 (Claude Code Agent View, news_log 2026-05-13) left as immutable.
+  - `tools/ci/closure_audit.py`: dropped `research/news_log.md` from `_EXEMPT_FILES` (now `{"research/glossary.md"}` only). Test updated; full suite passes (12/12 in 0.02s).
+
+- **Personas repo (memory):**
+  - `shared/reference_news_log.md` deleted entirely (was load-bearing reference; now obsolete).
+  - `shared/MEMORY.md` Always-in-effect "Write news_log entry inline + merge ASAP" rule removed; "Always read before morning routine" entry for news_log removed; inline @claude-mention example list updated to drop `news_log`; batch-trivial-docs index entry rephrased to drop news_log mention.
+  - `shared/feedback_morning_routine.md` Phase 1 rewritten — "No standalone news log" prelude + per-item routing decision (paper → Zotero `Z38GTJNW`; actionable + concrete hook → Issue; else → noise, drop) + 2-source dedup (Zotero + open Issues). Branch-naming line scoped to `lab-notebook` only with retirement note for `news-log` type.
+  - PM/Sci/Dev `feedback_morning_routine.md` — header preambles updated to reference retirement; PM-specific landscape-doc-maintenance hook rephrased (was: "same PR as news_log entry"; now: "via `docs/pm/landscape-update-…` branch"). PM Phase 2.5 closure-audit `Branch naming` + `Journal entry format` mechanical-compliance checks scoped to `lab-notebook` only. Sci Phase 1 trailing news_log-branch line removed. Dev Phase 1 "News_log PR ships before Phase 2" pacing rule removed (no more news_log PRs to gate on).
+  - `developer/MEMORY.md` Always-in-effect — sync-main caught-incident citation slimmed to glossary PR #266 only; news_log-PR-exemption rule reframed as standup-archive-only with retirement parenthetical; news-log-PR-before-Phase-2 rule deleted.
+  - `scientist/MEMORY.md` — `news_log` removed from `@claude review` skip list.
+  - `shared/feedback_branch_creation.md` Rule 1 — caught-incident citation reframed to glossary PR #266 as the live example; news_log PR #262 vs Sci #261 noted parenthetically with retirement.
+  - Indirect refs triaged (one Edit pass each, batch-style): `feedback_batch_trivial_docs.md` (description + EXCLUSIONS section now lab-notebook-only), `feedback_github_workflow.md:63` (skip-list drops news_log; line 78 PR #283 historical kept), `feedback_no_at_claude_mention.md` (skip list drops news_log), `feedback_multi_role_not_multi_agent.md` (venue list + cross-ref both updated), `feedback_ui_vs_agent.md` (1-Issue/day cap framing now chat-only-mention), `feedback_read_before_claiming.md` (example claim list + applies-to file list both updated), `feedback_project_file_paths.md` (example now `cat research/glossary.md`), `feedback_project_vs_meta.md` (project-scoped workflow list drops "news-log format"), `feedback_deterministic_first.md` (script-encodable workflow example list drops news_log word-count), `feedback_american_spelling.md` (immutable-journal list now lab-notebook-only), `pm/feedback_ask_for_help.md` (don't-flag-for routine pattern list updated).
+  - Final grep across both repos: 14 surviving matches, all retirement-explainer notes or immutable historical incident citations. AC #9 satisfied.
+
+**Issue scope discipline.** AC said "grep `news_log` across `shared/` and role memory dirs returns only the tombstone + this Issue's body + historical immutable entries" — the explicit grep-clean criterion drove the indirect-ref sweep (12+ files beyond the named AC targets). Without that AC line I'd have shipped only the named targets and left a long tail of broken references. Lesson worth keeping: "grep-clean" ACs on workflow-retirement issues force completeness in a way a pure file-list AC can't.
+
+**Notable detour: shell cwd drift.** Early in the session, a `cd ~/.claude/projects/.../memory && ls shared/` Bash call followed the role's `memory` symlink into the personas repo and the shell stayed there — `git status` reported the personas repo's main-branch state instead of the project repo. Confused me until I ran `pwd` and saw `claude-personas-splice-neoepitope-pipeline/pm`. The CLAUDE.md "No `cd` into other repos: cwd persists across Bash calls" rule applies even when the destination is reached transitively via a symlink. Mitigated by `cd /Users/.../splice-neoepitope-pipeline-pm` to return; finished cleanly. Worth noting in [[feedback-no-cd]] if it slips again — symlink-followed cd's are a stealth variant of the rule's named risk.
+
+**Notable detour: classifier denials.** The Cache-warmer cron created at session start ("Respond only with: pong") tripped the auto-mode classifier, which then flagged subsequent unrelated Bash calls (a `for`-loop fetching priorities; a `ls personas-repo/` call) as prompt-injection. Deleted the cron via `CronDelete 3202a4b9` and the denials stopped. Worth knowing: short prompts inside a session-start CronCreate can globally bias the classifier's read of downstream Bash even when the bash is benign.
+
+**Closure ritual.** All 11 acceptance criteria boxes ticked in [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) before merge via `scripts/audit_and_merge.sh`. Closes [pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) milestone (last open leaf); milestone-closure routing decision (per `feedback_milestone_closure_routing.md`) deferred to a follow-up session.
+
+---
+
 ## 2026-05-25
 
 ### 20:37 UTC — Editor: PM
