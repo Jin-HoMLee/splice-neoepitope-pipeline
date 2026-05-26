@@ -1,0 +1,280 @@
+/*-- scss:defaults --*/
+
+// =============================================================================
+// Splice Neoepitope Pipeline — shared slide theme
+// =============================================================================
+//
+// Reused by every deck under research/evals/ + research/experiments/.
+// Reference via `theme: [simple, ../../slides/custom.scss]` from the deck YAML
+// (or `[simple, custom.scss]` from a deck inside research/slides/ itself).
+//
+// Design intent: restrained scientific seminar aesthetic, no flashy gradients.
+// Lab-seminar / external-talk audience; lives next to manuscript figures.
+//
+// Palette derives from the existing mermaid-diagram conventions in the
+// AlphaGenome PoC deck — blue primary accent + muted-gold secondary.
+// =============================================================================
+
+// Palette
+$primary-color:    #1e5ba8;   // deep blue — main accent (headings, links, dividers)
+$primary-tint:     #a3d8ff;   // light blue — backgrounds, mermaid result nodes
+$accent-color:     #b8860b;   // muted gold — highlight strokes
+$accent-tint:      #ffe6a3;   // pale gold — callout-important fill, mermaid highlight
+$ok-color:         #2f855a;   // green — callout-tip
+$warn-color:       #c05621;   // burnt orange — callout-warning
+$text-color:       #2d3748;   // body text — dark grey, not pure black (easier on eyes)
+$heading-color:    #1a202c;   // headings — near-black
+$muted-color:      #718096;   // captions, footer, slide number
+$border-color:     #e2e8f0;   // dividers
+$bg-tint:          #f7fafc;   // callout backgrounds, subtle panels
+
+// Typography
+$font-family-sans-serif: "Inter", "Source Sans 3", "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+$font-family-monospace:  "JetBrains Mono", "Fira Code", "SF Mono", Menlo, Consolas, monospace;
+$mainFont: $font-family-sans-serif;
+$headingFont: $font-family-sans-serif;
+$presentation-font-size-root: 32px;
+$presentation-h1-font-size: 2em;
+$presentation-h2-font-size: 1.45em;
+$presentation-h3-font-size: 1.15em;
+$presentation-heading-font: $font-family-sans-serif;
+$presentation-heading-color: $heading-color;
+$presentation-heading-line-height: 1.15;
+
+// Link colors
+$link-color: $primary-color;
+// Keep legacy `lighten()`: `@use "sass:color"` must precede all rules, but Quarto
+// composes its preamble before this file's scss:defaults block, so the modern
+// `color.adjust(...)` form cannot be wired in here. Dart Sass still supports
+// lighten() with a deprecation warning; revisit if Quarto stops accepting it.
+$link-color-hover: lighten($primary-color, 12%);
+
+/*-- scss:rules --*/
+
+// Optional web-font import (commented by default — uncomment if you want
+// pixel-identical typography offline + online; needs network at first render).
+// @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+// Force sans-serif body text — override any upstream theme's serif default.
+.reveal,
+.reveal p,
+.reveal li,
+.reveal td,
+.reveal th,
+.reveal .slides {
+  font-family: $font-family-sans-serif;
+}
+
+.reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6,
+.reveal .title, .reveal .subtitle {
+  font-family: $font-family-sans-serif;
+}
+
+// ---- Headings ----
+
+.reveal h2 {
+  border-bottom: 3px solid $primary-color;
+  padding-bottom: 0.12em;
+  margin-bottom: 0.45em;
+  font-weight: 600;
+  color: $heading-color;
+  letter-spacing: -0.005em;
+}
+
+.reveal h3 {
+  color: $primary-color;
+  font-weight: 600;
+}
+
+// ---- Title slide ----
+
+.reveal .slide.title-slide {
+  text-align: left;
+}
+
+.reveal .slide.title-slide .title {
+  color: $primary-color;
+  font-weight: 700;
+  border-bottom: 4px solid $primary-color;
+  padding-bottom: 0.15em;
+  margin-bottom: 0.3em;
+  letter-spacing: -0.01em;
+}
+
+.reveal .slide.title-slide .subtitle {
+  color: $muted-color;
+  font-size: 0.55em;
+  font-weight: 400;
+  margin-top: 0.4em;
+}
+
+.reveal .slide.title-slide .author,
+.reveal .slide.title-slide .institute {
+  color: $text-color;
+  font-size: 0.45em;
+  margin-top: 0.5em;
+}
+
+.reveal .slide.title-slide .date {
+  color: $muted-color;
+  font-size: 0.4em;
+  margin-top: 0.3em;
+}
+
+// ---- Body text ----
+
+.reveal {
+  color: $text-color;
+}
+
+.reveal strong {
+  color: $heading-color;
+  font-weight: 600;
+}
+
+// ---- Links ----
+
+.reveal a {
+  color: $link-color;
+  text-decoration: none;
+  border-bottom: 1px dotted $link-color;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.reveal a:hover {
+  color: $link-color-hover;
+  border-bottom-style: solid;
+}
+
+// ---- Tables ----
+
+.reveal table {
+  margin: 0.4em auto;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.reveal table th {
+  border-bottom: 2px solid $primary-color;
+  color: $heading-color;
+  font-weight: 600;
+  padding: 0.35em 0.7em;
+  text-align: left;
+}
+
+.reveal table td {
+  border-bottom: 1px solid $border-color;
+  padding: 0.3em 0.7em;
+}
+
+.reveal table tr:last-child td {
+  border-bottom: none;
+}
+
+// ---- Callouts ----
+
+.reveal .callout {
+  border-radius: 4px;
+  background-color: $bg-tint;
+  margin: 0.6em 0;
+  border-left-width: 4px;
+}
+
+.reveal .callout-note { border-left-color: $primary-color; }
+.reveal .callout-tip { border-left-color: $ok-color; }
+.reveal .callout-important { border-left-color: $accent-color; }
+.reveal .callout-warning { border-left-color: $warn-color; }
+
+.reveal .callout-title {
+  font-weight: 600;
+  color: $heading-color;
+}
+
+// ---- Code ----
+
+.reveal pre code,
+.reveal code {
+  font-family: $font-family-monospace;
+}
+
+.reveal pre code {
+  font-size: 0.7em;
+  border-radius: 4px;
+  background-color: $bg-tint;
+  border: 1px solid $border-color;
+  padding: 0.6em 0.8em;
+}
+
+.reveal :not(pre) > code {
+  color: $accent-color;
+  background-color: rgba($accent-color, 0.08);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+// ---- Slide number + progress ----
+
+.reveal .progress {
+  color: $primary-color;
+  height: 4px;
+}
+
+.reveal .slide-number {
+  color: $muted-color;
+  font-size: 0.4em;
+  background: transparent;
+  right: 1em;
+  bottom: 0.6em;
+}
+
+// ---- Section divider slides (h2-only, no body) ----
+
+.reveal section.has-dark-background h2 {
+  color: white;
+  border-bottom-color: $accent-color;
+}
+
+// ---- Lists ----
+
+.reveal ul {
+  list-style: none;
+  padding-left: 1.4em;
+}
+
+.reveal ul li {
+  position: relative;
+}
+
+.reveal ul li::before {
+  content: "▸";
+  position: absolute;
+  left: -1.2em;
+  color: $primary-color;
+  font-weight: 600;
+}
+
+.reveal ol {
+  padding-left: 1.6em;
+}
+
+// ---- Blockquote ----
+
+.reveal blockquote {
+  border-left: 4px solid $primary-color;
+  background-color: $bg-tint;
+  padding: 0.5em 1em;
+  margin: 0.5em 0;
+  font-style: italic;
+  color: $muted-color;
+}
+
+// ---- Footer (when defined in YAML `footer:`) ----
+
+.reveal .footer {
+  color: $muted-color;
+  font-size: 0.4em;
+  bottom: 0.6em;
+  left: 1em;
+  position: absolute;
+}

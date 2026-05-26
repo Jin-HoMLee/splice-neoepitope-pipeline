@@ -7,7 +7,8 @@ date: today
 date-format: "YYYY-MM-DD"
 format:
   revealjs:
-    theme: simple
+    theme: [simple, custom.scss]   # ↳ shared project theme (research/slides/custom.scss); for decks outside research/slides/, use `[simple, ../../slides/custom.scss]`
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
     incremental: false
     slide-number: c/t
     progress: true
@@ -50,6 +51,31 @@ for the convention. Replace TITLE/Issue # and edit slides below; delete this com
 ::: {.callout-note appearance="simple"}
 Decision-rule outcome lands on slide N (results) → slide N+1 (decision).
 :::
+
+<!--
+ALTERNATIVE "big-question" pattern (for tool-eval decks or when a punchier
+opening reads better):
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+First line of the question\
+second line\
+third line?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** parent-Issue context.
+:::
+
+AVOID `r-fit-text` for multi-line big-question slides. The reveal.js
+`.r-fit-text` class scales each block to canvas WIDTH regardless of
+content height — stacking 3 r-fit-text lines silently consumes the
+entire vertical canvas and pushes any follow-up callout off the bottom
+(caught in HERMES eval deck, Issue #218, 2026-05-26). Use a controlled
+`font-size` in `em` units instead — it's predictable across multi-line
+content and leaves explicit room for the callout-note underneath.
+-->
 
 ---
 
