@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-26
+
+### 12:20 UTC — Editor: Developer
+
+**Headline:** [Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) eval (Snakemake 8.x → 9.21.0 upgrade path) closed with verdict **defer-with-trigger** — bundle the bump into [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (Google Batch executor migration) when that lands. Three breaking changes between v8.0 and v9.21 (LoggerPlugin v9.0.0, `--cores` explicit v9.2.0, runtime-minutes-not-seconds v9.20.0); none hit our codebase. Migration guide's "only 1 breaking change" framing is technically understated but the net impact for us matches their "hardly any user affected" claim. CLAUDE.md `--configfile` foot-gun persists in 9.x (argparse `nargs="+"` unchanged on `main`); the existing workaround stays valid post-upgrade. `snakemake-executor-plugin-googlebatch` v0.5.1 declares interface compat with 9.x via `snakemake-interface-executor-plugins ^9.0.0` but its dev-test pin is `snakemake = "^8.30.0"` — that gap is the strongest argument for bundling the bump with [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) (validation work happens once, not twice). Full findings: [closing eval comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200#issuecomment-4543995431).
+
+#### Why defer-with-trigger over upgrade-now or skip
+
+Three legs: (1) zero current pain — none of the 3 breaks touch this codebase (no custom logger, `--cores` always explicit, zero `runtime=N` resource specs anywhere in `workflow/`); (2) zero current benefit — none of the 9.x feature additions (`--replace-workflow-config`, `--report-after-run`, Pixi integration, scheduler plugin interface, storage-plugin checksums, named multi-output caching) address a present pain point; (3) strong natural trigger — [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) needs to validate the googlebatch plugin against 9.x as part of its scope anyway, so the validation overhead is already budgeted there. **Upgrade-now** would be pure churn (low-risk but benefit-free); **skip-with-rationale** over-strong given the natural trigger is already on the board.
+
+#### No sub-issue carve — trigger lives on existing [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66)
+
+Heads-up comment posted ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66#issuecomment-4543996909)) capturing the bundle-with-upgrade recommendation. **Pattern: when a deferred task has a natural fire-trigger on an existing Issue, prefer dropping a heads-up there over filing a fresh tracking Issue** — keeps the dependency graph local to where it'll execute, avoids an Issue that mostly just points to another Issue.
+
+#### Drift from the 2026-05-12 news_log claim — refined here, not corrected there
+
+The 2026-05-12 news_log entry said "8→9 migration is small — only 1 breaking change (custom logger API)". Actual changelog count is **3** breaks, but the upstream migration guide also uses the "1 breaking change" framing, so the news_log tracked the guide rather than the source-of-truth `CHANGELOG.md`. Refining the count here (in this lab notebook entry + the closing eval comment) rather than amending the 2026-05-12 news_log entry — entries are immutable.
+
+#### Closure-ritual sequencing on tick-with-deferral
+
+[Issue #200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/200) body had 5 Tasks; 3 actioned directly, 2 deferred to the [Issue #66](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/66) migration (chr22 integration test + `environment.yaml` pin bump — both belong in the actual upgrade PR, not the eval). Ticked all 5 with inline annotation on the deferred ones per the closure-ritual workaround (`- [x]` with a link to the carrier Issue). Audit-and-merge script parses by literal `- [ ]` count, not by deferral semantics, so explicit ticks + annotation is the correct pattern.
+
+---
+
 ## 2026-05-25
 
 ### 19:37 UTC — Editor: Developer
