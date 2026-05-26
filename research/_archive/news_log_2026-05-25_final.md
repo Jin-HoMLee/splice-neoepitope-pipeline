@@ -5,7 +5,7 @@
 > **Why retired:** highest-contention file in the repo (3 roles × daily appends → repeated same-day rebase conflicts: [PR #355](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/355) vs [PR #354](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/354), [PR #338](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/338) vs [PR #336](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/336)); 7-day dedup window proved brittle (NetTCR-struc slipped through 2026-05-21 despite being in Zotero `FQ58DCAE` + [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) + [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433)).
 >
 > **What replaced it:**
-> - **Papers** → Zotero collection [`Z38GTJNW`](https://www.zotero.org/groups/) (DOI-keyed dedup is bulletproof).
+> - **Papers** → Zotero collection `Z38GTJNW` ("Splice Neoepitope Pipeline"; DOI-keyed dedup is bulletproof; queryable via the Zotero API per `shared/feedback_zotero_dedup_check.md`).
 > - **Actionable items** → GitHub Issues directly.
 > - **Anything else** → not tracked (most "news" that doesn't fit the above is noise).
 >
