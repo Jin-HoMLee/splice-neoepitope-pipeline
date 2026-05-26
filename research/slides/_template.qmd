@@ -7,7 +7,8 @@ date: today
 date-format: "YYYY-MM-DD"
 format:
   revealjs:
-    theme: simple
+    theme: [simple, custom.scss]   # ↳ shared project theme (research/slides/custom.scss); for decks outside research/slides/, use `[simple, ../../slides/custom.scss]`
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
     incremental: false
     slide-number: c/t
     progress: true

@@ -17,6 +17,8 @@ Audience target: **lab seminar / external talk** (~20-25 min, conference-quality
 research/slides/
 ├── README.md                                       # this file
 ├── _template.qmd                                   # reusable template
+├── custom.scss                                     # shared project theme (palette, fonts, footers)
+├── nature.csl                                      # citation style
 └── issue_NNN_<short-content-desc>/                 # one folder per deck
     ├── slides.qmd                                  # the deck
     ├── refs.bib                                    # bibliography (BibTeX)
@@ -28,6 +30,20 @@ research/slides/
 **Folder naming:** `issue_NNN_<short-content-desc>` — ties to Issue # AND describes content. Example: `issue_393_alphagenome_chr22_poc/`.
 
 **File naming:** `slides.qmd` (generic; doesn't repeat folder name).
+
+## Shared theme (`custom.scss`)
+
+All decks share a single SCSS theme at [`custom.scss`](custom.scss) — palette (deep blue primary `#1e5ba8` + muted gold accent `#b8860b`, derived from existing mermaid-diagram colors), typography (Inter / Source Sans 3 with system fallbacks; JetBrains Mono for code), heading underline accents, callout styling, table styling, footer + slide-number layout. Reference from a deck YAML via:
+
+```yaml
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]    # for decks under research/evals/ or research/experiments/
+    # theme: [simple, custom.scss]               # for decks inside research/slides/ itself
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+```
+
+The theme overrides the `simple` reveal.js base — `simple` provides the structural CSS, `custom.scss` layers the project identity on top. **Don't fork the SCSS per deck** — edit `custom.scss` in place to evolve the shared look, and every deck picks up the change on next render.
 
 ## Why Quarto (not Marp / PowerPoint / Keynote)
 

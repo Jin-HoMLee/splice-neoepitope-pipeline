@@ -7,7 +7,8 @@ date: 2026-05-26
 date-format: "YYYY-MM-DD"
 format:
   revealjs:
-    theme: simple
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
     incremental: false
     slide-number: c/t
     progress: true
