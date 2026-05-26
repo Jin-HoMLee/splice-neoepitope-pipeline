@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-25
 
+### 20:37 UTC — Editor: PM
+
+#### [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) — team_memory_broadcasts.md retired ([pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) sub-3)
+
+**Trigger.** User said "continue with what's best for you" after [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) ship. Picked [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) over [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (news_log drop) for narrower scope + a meta-loop: shipping #482 retires the very rule that would have demanded a broadcast for #482's own ship.
+
+**Implementation.**
+- Moved `shared/team_memory_broadcasts.md` + `shared/team_memory_broadcasts_archive/` into `shared/_retired/`. Tombstone README at `shared/_retired/README.md` carries rationale + links to [Issue #482](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/482) + [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483).
+- `shared/MEMORY.md` — dropped the "Memory broadcasts have a dedicated file" Always-in-effect bullet entirely; replaced with a "Memory rule changes are self-documenting — no broadcast needed" bullet pointing at `/memory` + `git log` + the *Caught / Tightened* annotation pattern + lab notebook for wider narratives. Trimmed broadcast sibling references from the "Never amend" and "Archive standup messages" bullets and the "Memory file paths" rule.
+- `shared/feedback_team_standup.md` — collapsed the multi-paragraph "Memory broadcasts moved out of standup (2026-05-08)" section + format spec + cleanup convention into a 4-line retirement note pointing at `_retired/README.md`. Bulk-edit exclusion list updated to cover the `_retired/` paths (frozen history still needs sed/find-replace immunity).
+- `shared/feedback_morning_routine.md` — dropped Phase 2 "broadcasts addressed to your role" read step + the "Own broadcasts >7 days → archive" hygiene step. Phase 2 now reads only `team_standup.md`.
+- `shared/feedback_standup_two_halves.md` — dropped the "If broadcasts >7 days exist, fold them into the same sweep" line from the archive half.
+- Verified post-sweep: `grep team_memory_broadcasts .claude/memory/` returns only `_retired/`, `drafts/` (immutable historical drafts), and `team_standup_archive/` (immutable historical archive). No live references remain.
+
+**Meta-loop closed.** Per the still-current-at-session-start rule, shipping a behavior-changing shared-memory rule change would have required posting a broadcast to `team_memory_broadcasts.md`. The change itself was *retiring* that very file — so writing a final broadcast then archiving it would be ceremony on top of ceremony. Skipped intentionally; lab notebook entry + Issue body + git diff carry the full narrative.
+
+**Out-of-scope (deliberately not touched).** `drafts/handoff_memory_path_cleanup_2026-05-15.md` and `drafts/audit_draft_2026-05-18.md` reference broadcasts in body content — historical artifacts, frozen. `team_standup_archive/2026-05.md` contains 2026-05-08 broadcast migration narrative — immutable per the standup-immutability rule. All three are correctly NOT updated.
+
+**Follow-ups.** None new. Remaining pm-i5 sub: [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) (drop research/news_log.md).
+
 ### 20:22 UTC — Editor: PM
 
 #### [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) — lab notebook rule tightened to non-routine sessions only ([pm-i5](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/32) sub-2)
