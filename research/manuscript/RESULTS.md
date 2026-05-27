@@ -51,7 +51,7 @@ median 425, mean 953).
 
 The unannotated, normal-shared, and tumor-exclusive counts are read from `report.tsv`.
 The total-extracted and annotated-discarded rows are derived from the line count of
-`alignment/SRR9143066/junctions.tsv` (post-#148 run); these will be added directly to
+`alignment/SRR9143066/raw_junctions.tsv` (post-#148 run); these will be added directly to
 `report.tsv` once [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104) lands.
 
 ### Peptide Translation
