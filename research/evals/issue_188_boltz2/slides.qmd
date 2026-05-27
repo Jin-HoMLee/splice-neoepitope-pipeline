@@ -71,7 +71,7 @@ backend?
 ::: {.incremental}
 - **What carries from AlphaFold lineage:** the PDB-scale pretraining (~200k structures) teaches the model general protein-protein geometry — interface contacts, side-chain packing, backbone topology.
 - **What the TCR-pMHC training adds:** a few thousand explicit complexes [@passaro2025boltz2] anchor the geometry class — the model "knows what a TCR-pMHC interface looks like" for sequences near the training set.
-- **Why OOD fails:** TCR-peptide interfaces are dominated by **CDR3-peptide contacts**, the most diverse and least-conserved component. Novel CDR3 × novel peptide pairings (= splice-junction neoepitopes) sit far from any training example; the model extrapolates from interface motifs it never saw.
+- **Why TCR-pMHC is structurally hard:** per [@lu2025tcrpmhcbench], *"accurate modeling of TCRs, especially in their docked conformations, is an immensely challenging task due to their highly variable and long CDR3 loops"*. The germline-encoded CDR1/CDR2 loops contact MHC; CDR3 — the V(D)J-recombined hypervariable loop — contacts the peptide and drives specificity (textbook structural immunology; see glossary). Novel CDR3 × novel peptide pairings (= splice-junction neoepitopes) sit far from any training example.
 :::
 
 . . .
@@ -111,35 +111,44 @@ flowchart LR
 
 ## The OOD generalization gap {.smaller}
 
-[@lu2025tcrpmhcbench] benchmark 6 tools (AF2, AF3, Boltz-2, Chai-1, TCRmodel2, tFold-TCR) on 20 experimentally resolved Class I TCR-pMHC complexes.
+Two converging benchmarks. Both say Boltz-2 doesn't generalize to OOD TCR-pMHC complexes; the independent one says it more strongly.
 
 ::: {.columns}
 
 ::: {.column width="50%"}
 
-**Boltz-2 DockQ split:**
+**Self-report — [@passaro2025boltz2]:**
 
 | Cohort | DockQ | CAPRI band |
 |---|---|---|
 | Seen in training | **~0.91** | high |
-| Unseen complexes | **~0.70** | medium |
+| Unseen | **~0.70** | medium |
 
-**Splice neoepitope peptides are OOD by construction** — junction-spanning peptide sequences don't appear in any TCR-pMHC training set. Our actual workload sits in the **0.70 regime**.
+Authors' chosen held-out test. Already shows a ~0.21 generalization drop.
 
 :::
 
 ::: {.column width="50%"}
 
-::: {.callout-important appearance="simple"}
-**Headline:** explicit TCR-pMHC training in Boltz-2 gives the seen-complex DockQ; it does *not* transfer cleanly to novel complexes. The 0.91 number is not the number that describes our workload.
+**Independent — [@lu2025tcrpmhcbench]:**
+
+10 models (MSA-, PLM-, docking-based) benchmarked on **70 previously unseen complexes** (class I + class II).
+
+| Model | DockQ (class I / class II median) |
+|---|---|
+| AlphaFold3 | **0.636 / 0.679** (best) |
+| Boltz-2 | **AQ-only** (no MQ/HQ models) |
+
+AQ = CAPRI acceptable quality, DockQ 0.23–0.49.
+
+:::
+
 :::
 
 . . .
 
-[@lu2025tcrpmhcbench] also report **AF3 best-overall** on the unseen-complex split — the better candidate for a TCRdock-backend modernization track (covered by [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)).
-
-:::
-
+::: {.callout-important appearance="simple"}
+**Splice neoepitope peptides are OOD by construction** — junction-spanning peptide sequences don't appear in any TCR-pMHC training set. The independent benchmark (Lu) is the one that describes our workload. **AF3 wins on the unseen split** — the better candidate for a TCRdock-backend modernization track, covered by [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316).
 :::
 
 ---
@@ -147,9 +156,9 @@ flowchart LR
 ## Three reasons to decline {.smaller}
 
 ::: {.incremental}
-1. **OOD by construction is the deal-breaker.** Splice-junction peptides don't appear in Boltz-2's training data; we'd be in the 0.70 (medium-CAPRI) regime, not the 0.91 headline. The training-set inclusion of MHC-peptide-TCR complexes doesn't help when our peptides are OOD.
-2. **Parity-at-best with TCRdock, not a clear quality win.** TCRdock (AF-Multimer-backed) typically scores 0.5–0.7 DockQ on TCR-pMHC benchmarks. Boltz-2 at 0.70 OOD is comparable, not clearly better. The "1000× faster" claim in [@passaro2025boltz2] is vs **FEP for small-molecule affinity**, not vs TCRdock for structure inference.
-3. **AF3 is the higher-value next experiment.** [@lu2025tcrpmhcbench] benchmark: AF3 best-overall on the unseen-complex split. If we want a TCRdock-backend modernization track, AF3 is the right target — and [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) already covers it.
+1. **OOD by construction is the deal-breaker.** Splice-junction peptides don't appear in Boltz-2's training data. The self-report already shows a ~0.21 drop seen→unseen [@passaro2025boltz2]; the independent [@lu2025tcrpmhcbench] benchmark on 70 unseen complexes puts Boltz-2 at **AQ-only (no MQ/HQ models)** — substantially worse than the self-report's 0.70 figure.
+2. **Below-parity with TCRdock, not a quality win.** TCRdock (AF-Multimer-backed) typically scores **0.5–0.7 DockQ** on TCR-pMHC benchmarks (medium-CAPRI). Boltz-2 at AQ-only on truly unseen complexes is **below** that range, not at it. The "1000× faster" claim in [@passaro2025boltz2] is vs **FEP for small-molecule affinity**, not vs TCRdock for structure inference.
+3. **AF3 is the higher-value next experiment.** [@lu2025tcrpmhcbench] benchmark: AF3 wins the unseen split (median DockQ 0.636 class I / 0.679 class II). If we want a TCRdock-backend modernization track, AF3 is the right target — and [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) already covers it.
 :::
 
 . . .

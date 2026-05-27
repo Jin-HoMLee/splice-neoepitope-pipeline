@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-27
 
+### 17:39 UTC — Editor: Scientist
+
+#### [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) — correction to today's 14:47 UTC entry: DockQ "0.91 / 0.70" numbers misattributed to Lu et al.; addressing [PR #518](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/518) reviewer feedback
+
+**What I got wrong.** The 14:47 UTC entry attributes the *"Boltz-2 DockQ ~0.91 seen / ~0.70 unseen"* figures to [Lu et al. 2025-12-02](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full). Triangulating via web search (bioRxiv direct fetch was 403; 3 distinct WebSearch queries used) shows the correct attribution:
+
+- **The 0.91 / 0.70 figures originate in the Boltz-2 paper itself** [@passaro2025boltz2] as a self-reported benchmark on the authors' chosen held-out test set. They are quoted in a separate follow-up paper ([arXiv 2512.06592, "On fine-tuning Boltz-2 for protein-protein affinity prediction"](https://arxiv.org/html/2512.06592v1)) which cites them with key `(wohlwend2025boltz)` = the Boltz-2 paper.
+- **[Lu et al.]'s independent benchmark reports worse numbers:** 10 models (MSA-based + PLM-based + docking-based, not 6 as the 14:47 UTC entry implied) on **70 previously unseen complexes** (class I + class II, not 20 Class I as the deck originally claimed). Boltz-2 reaches only **AQ levels** (CAPRI acceptable quality, DockQ 0.23–0.49) with no MQ or HQ models. AF3 best — median DockQ 0.636 (class I) / 0.679 (class II).
+- **The CDR3 mechanism claim** in my [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) eval deck slide 3 (*"the model extrapolates from interface motifs it never saw"*) was an inference, not a citation. Lu et al. do connect CDR3 to predictor difficulty but with a more conservative framing: *"accurate modeling of TCRs, especially in their docked conformations, is an immensely challenging task due to their highly variable and long CDR3 loops"*. Rewrote the bullet to cite this directly.
+
+**How this surfaced.** [@claude review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/518#issuecomment-4555693350) on [PR #518](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/518) flagged three minor issues (missing mechanism slide per CLAUDE.md eval-deck spec, two preprint entries typed as `@article`, an orphan `visani2025hermes` bib entry). While adding the mechanism slide, the user pushed back on the *"Why OOD fails"* bullet asking whether the CDR3 attribution was tested or just speculation. Verifying that triggered the search that uncovered the deeper misattribution.
+
+**Decision unchanged: (b) decline, more strongly justified.** Both benchmarks agree Boltz-2 doesn't generalize to OOD TCR-pMHC. The independent Lu benchmark is worse than the Boltz-2 self-report, so the decline is more solid than the 14:47 UTC framing implied. Manuscript carry-forward to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) updated: the "0.91 → 0.70" *single-paper* generalization gap is replaced with the *self-report vs independent benchmark* contrast — a more honest framing of where co-folding model quality sits for the OOD splice-neoepitope use case.
+
+**Artifacts corrected.** [Slides](research/evals/issue_188_boltz2/slides.qmd) (slides 3, 5, 6 rewritten with correct attribution + Lu's actual independent numbers + hedged mechanism bullet); [PR #518 body](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/518) (Summary will be updated alongside the push). The 14:47 UTC notebook entry stays as-is per the immutability rule; this entry is the canonical correction record.
+
+**Process note.** This is exactly the failure mode the [feedback_zotero_defer_inaccessible.md](.claude/memory/feedback_zotero_defer_inaccessible.md) deferral rule guards against — I wrote the 14:47 UTC entry without having read the Lu paper directly (bioRxiv 403'd) and conflated what I had skimmed about it from chat context. The mechanism-slide pushback is the only reason this got caught before merge. Adding a memory entry to require: when citing specific numerical findings from a paper that WebFetch can't reach, either pull from an alternative mirror (arXiv / Semantic Scholar / Google Scholar cache) or defer the numeric claim to the user — never quote numbers from an unreachable source.
+
+---
+
 ### 14:47 UTC — Editor: Scientist
 
 #### [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) — Boltz-2 evaluation closed as (b) decline; AF3 ([Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)) flagged as the better TCRdock-backend modernization target
