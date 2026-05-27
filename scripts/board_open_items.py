@@ -86,8 +86,14 @@ def fetch_all_items() -> list[dict[str, Any]]:
         ]
         if cursor is not None:
             cmd.extend(["-F", f"after={cursor}"])
-        r = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            print(r.stderr, file=sys.stderr)
+            sys.exit(r.returncode)
         data = json.loads(r.stdout)
+        if errs := data.get("errors"):
+            print(f"GraphQL errors: {errs}", file=sys.stderr)
+            sys.exit(1)
         proj = data["data"]["user"]["projectV2"]["items"]
         items.extend(proj["nodes"])
         pi = proj["pageInfo"]
@@ -183,9 +189,9 @@ def format_table(items: list[dict[str, Any]]) -> str:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--role", help='Filter by role label (e.g. "developer", "scientist", "pm")')
-    p.add_argument("--status", help='Filter by board Status (e.g. "Ready", "In progress", "Backlog")')
-    p.add_argument("--priority", help='Filter by Priority (P0/P1/P2/P3)')
-    p.add_argument("--size", help='Filter by Size (XS/S/M/L/XL)')
+    p.add_argument("--status", choices=list(STATUS_ORDER), help="Filter by board Status")
+    p.add_argument("--priority", choices=list(PRIORITY_ORDER), help="Filter by Priority")
+    p.add_argument("--size", choices=list(SIZE_ORDER), help="Filter by Size")
     p.add_argument("--json", dest="as_json", action="store_true", help="Emit JSON array instead of a table")
     args = p.parse_args()
 
