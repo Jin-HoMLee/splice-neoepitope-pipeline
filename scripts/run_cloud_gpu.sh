@@ -38,7 +38,7 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 PIPELINE_VM="neoepitope-pipeline"
-ZONE="europe-west1-b"
+ZONE="europe-west4-a"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
 ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data

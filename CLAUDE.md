@@ -204,7 +204,7 @@ Snakemake skips the index download if `indices/hisat2/` already exists (it check
 **When changing `hisat2_prebuilt_url`:** delete the index directory on the VM before running:
 
 ```bash
-gcloud compute ssh neoepitope-pipeline --zone=europe-west1-b --tunnel-through-iap \
+gcloud compute ssh neoepitope-pipeline --zone=europe-west4-a --tunnel-through-iap \
   --command="rm -rf ~/splice-neoepitope-pipeline/indices/hisat2/"
 ```
 
