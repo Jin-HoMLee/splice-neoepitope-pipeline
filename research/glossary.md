@@ -16,13 +16,15 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **AF_confidence** — AlphaFold confidence score. Combines pTM (predicted Template Modeling) and ipTM (interface predicted TM); typically `0.8·ipTM + 0.2·pTM`. Standard global-quality metric for AF-Multimer model selection. *Domain: bio.*
 
+**AF3** — AlphaFold 3 (DeepMind, Abramson et al. *Nature* 2024). Successor to AlphaFold 2 / AF-Multimer; co-folding architecture predicting protein + ligand + nucleic acid + ion complexes in one pass via diffusion-based atom placement. Best-overall TCR-pMHC structure predictor in [Lu et al. 2025](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full) (median DockQ 0.636 class I / 0.679 class II on 70 unseen complexes), motivating [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) as the TCRdock-backend modernization track. *Domain: bio.*
+
 **AFDB** — AlphaFold Database (alphafold.ebi.ac.uk). DeepMind/EBI's public repo of ~200M predicted protein structures. *Domain: bio.*
 
 **AP** — Access Point. In HTCondor topology, the machine where jobs are submitted, files staged, and conda envs built. Distinct from the EP (execution point) when there is no shared FS; the AP→EP env-deployment gap is the same problem cloud executors (Google Batch) face. *Domain: cloud.*
 
 ## C
 
-**CAPRI** — Critical Assessment of PRedicted Interactions. Community blind-prediction challenge for protein-protein / peptide-MHC docking (since 2001); CAPRI quality bands (high / medium / acceptable / incorrect) are the standard yardstick for docking models — DockQ is the continuous reformulation of these bands. *Domain: bio.*
+**CAPRI** — Critical Assessment of PRedicted Interactions. Community blind-prediction challenge for protein-protein / peptide-MHC docking (since 2001); CAPRI quality bands are the standard yardstick for docking models — DockQ is the continuous reformulation of these bands. Bands map to DockQ ranges: **HQ** (high quality, DockQ ≥ 0.80), **MQ** (medium quality, 0.49 ≤ DockQ < 0.80), **AQ** (acceptable quality, 0.23 ≤ DockQ < 0.49), **incorrect** (DockQ < 0.23). *Domain: bio.*
 
 **CAR-T** — Chimeric Antigen Receptor T-cell therapy. Adoptive cell therapy where patient T cells are transduced with a synthetic chimeric receptor (scFv + CD3ζ + costim domains); recognizes surface antigen directly, MHC-independent. FDA-approved CD19/BCMA-targeting products for B-cell malignancies and myeloma. Distinct from TCR-T (native MHC-restricted TCR). *Domain: bio.*
 
@@ -61,6 +63,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## F
 
 **FDR** — False Discovery Rate. Expected proportion of false positives among reported discoveries; standard control in MS peptide identification (typically 1% peptide-spectrum match FDR + 1% peptide FDR via target-decoy estimation) and in genomics multiple-testing corrections (Benjamini-Hochberg). *Domain: stats.*
+
+**FEP** — Free Energy Perturbation. Physics-based binding-affinity prediction via alchemical molecular-dynamics simulations: gradually morph one ligand into another (or into nothing) while tracking the free-energy change with thermodynamic integration. Accuracy gold-standard for small-molecule lead-optimization in pharma, but computationally expensive (CPU-hours to GPU-days per ligand-pair). The "1000× faster than FEP" speed claim in the Boltz-2 paper ([Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)) refers to this small-molecule benchmark — not a TCRdock-style structure-prediction speedup. *Domain: bio.*
 
 **FOXA2** — Forkhead Box A2. Pioneer transcription factor that binds nucleosomal DNA at enhancer / promoter elements; canonical regulator of endoderm specification (gut, liver, pancreas) and adult hepatocyte / β-cell identity. In PDAC, dysregulated FOXA2 binding drives alternative promoter usage that generates neoantigen-encoding tumor-specific transcripts (neoTSTs) — flagged as a major non-mutation NA source ([Zhao et al. 2026 NeoAPP](https://www.biorxiv.org/content/10.64898/2026.02.10.705024v1.full)). *Domain: bio.*
 
@@ -132,6 +136,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **mRNA prime + peptide-target boost** — Specific heterologous prime-boost format inside the Prime-Target regimen: an mRNA-encoded antigen primes the T cell response, a synthetic peptide of the same antigen amplifies it. Heterologous formats consistently outperform same-format boosts in vaccinology — each modality engages distinct APC subsets and avoids anti-vector immunity that dampens homologous boosters. *Domain: bio.*
 
+**MSA** — Multiple Sequence Alignment. Stack of homologous protein (or DNA) sequences aligned by position; columns reveal residue-level evolutionary conservation and covariation, the signal that drove AlphaFold's accuracy breakthrough (coevolving residues = likely 3D contacts). The standard upstream input to co-folding / structure-prediction models (AlphaFold, AF-Multimer, Boltz, Chai-1, RosettaFold-AllAtom) — built per-query via jackhmmer / HHblits against UniRef + BFD / MGnify. *Domain: bio.*
+
 **MSI** — Microsatellite Instability. Tumor phenotype caused by defective DNA mismatch repair (MMR); hypermutated, high TMB, characteristically responsive to ICI. MSI-high is a tissue-agnostic FDA-approved indication for anti-PD-1 (pembrolizumab). Non-canonical splicing contributes substantively to the CRC immunopeptidome in this class ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
 
 **MSS** — Microsatellite Stable. The MMR-proficient majority of solid tumors; lower TMB, broadly ICI-resistant. The challenge case for neoantigen vaccines — fewer canonical somatic mutations motivates non-canonical (splice, RNA-edit, retroelement) TSA discovery; splice-derived antigens are detectable in MSS CRC at rates comparable to MSI ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
@@ -161,6 +167,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **PDB** — Protein Data Bank ([rcsb.org](https://www.rcsb.org)). Public archive of experimentally determined 3D structures (~220k entries); training source for AlphaFold / Boltz / HERMES; reference ground truth for DockQ scoring. *Domain: bio.*
 
 **pLDDT** — predicted Local Distance Difference Test. AlphaFold/TCRdock per-residue confidence score (0–100); per-residue version of the global `AF_confidence`. >90 = high, >70 = confident, <50 = low confidence. CDR3-region average used as a TCR-pMHC docking quality flag (Lu et al. 2025, [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)). *Domain: bio.*
+
+**PLM** — Protein Language Model. Transformer trained on raw protein sequences (e.g. ESM-2/3, ProtT5, ProGen) to learn residue-level embeddings that capture structural and functional context — analogous to NLP language models but on amino-acid alphabets. PLM-based structure predictors (e.g. ESMFold, OmegaFold) skip the MSA step and embed single sequences directly; faster than MSA-based methods (AlphaFold, Boltz) but typically less accurate on complexes — Lu et al. 2025 benchmark classifies TCR-pMHC predictors as MSA-based / PLM-based / docking-based. *Domain: ml.*
 
 **pMHC** — peptide-MHC. The complex of a peptide bound in the MHC groove; the molecular target a TCR recognises. "TCR-pMHC interaction" = the central event in adaptive immune recognition. *Domain: bio.*
 
@@ -209,6 +217,10 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## U
 
 **UGE** — Univa Grid Engine. Commercial fork of SGE (Univa, acquired by Altair 2020); drop-in `qsub`-compatible. *Domain: cloud.*
+
+## V
+
+**V(D)J** — Variable / Diversity / Joining segment recombination. Somatic DNA rearrangement at TCR and immunoglobulin loci during lymphocyte development: one V gene segment, optionally one D segment (β/δ chains and IgH only), and one J segment are spliced together to form the variable domain. Junctional diversity is amplified by exonuclease trimming and TdT-mediated N-nucleotide additions at the V-D and D-J joints — the source of CDR3 hypervariability and the reason CDR3 (V-D-J joint) is orders of magnitude more diverse than germline-encoded CDR1/CDR2 (within a single V segment). Theoretical TCR diversity ~10¹⁵–10²⁰; functional repertoire per individual ~10⁷–10⁸. *Domain: bio.*
 
 ## W
 
