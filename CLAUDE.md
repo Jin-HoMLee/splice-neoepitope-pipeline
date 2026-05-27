@@ -8,7 +8,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 
 ## Infrastructure
 - Running on GCP Compute Engine VMs — see `docs/google_cloud_guide.md` for full setup
-- Current production VMs: `neoepitope-pipeline` (n1-highmem-8 + P100, Phase 1), `pipeline-spot-gpu` (n1-standard-4 + P100, Phase 3); zone `europe-west1-b` (us-central1 has been exhausted in the past)
+- Current production VM: `neoepitope-pipeline` (n1-highmem-8 + P100); zone `europe-west4-a` (migrated from `europe-west1-b` after the May 2026 sustained outage — see "Historical P100 unavailability" below; `us-central1` has been exhausted in the past too)
 - `neoepitope-orchestrator` (e2-micro) — lightweight companion VM that starts and manages the pipeline VM in detached mode; stays running cheaply between pipeline runs
 - GCS bucket: `gs://splice-neoepitope-project` — results at `.../results/<patient_id>/`, logs at `.../logs/`
 - `run_cloud_gpu.sh` defaults to the current local branch; the VM git-pulls it automatically — no `--branch` flag needed unless deliberately running a different branch on the VM
@@ -17,16 +17,14 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 - GitHub project board: user project #9 ("JH M Lee Lab") under user `Jin-HoMLee` — query via `gh api graphql` with `user(login: "Jin-HoMLee") { projectV2(number: 9) { ... } }` (it's a user project, not org)
 - `main` branch protection: required CI checks (`pipeline-pytest`, `pipeline-snakemake-dry-run`) + squash-merge default. The "Require branches to be up to date before merging" rule was **removed 2026-05-09** — it fired on every PR cut from a worktree branch lagging `main`, even without real conflicts. Don't suggest `gh pr update-branch` or `--admin` workarounds for "branch is behind main" anymore (the rule is gone). Real file-level conflicts still need manual resolution.
 
-### Expected unavailability — P100 in `europe-west1-b`
+### Historical P100 unavailability — `europe-west1-b` (pre-migration)
 
-P100 capacity in `europe-west1-b` has gone sustained-exhausted multiple times — not a transient blip:
+P100 capacity in the original zone `europe-west1-b` went sustained-exhausted multiple times before the VM was migrated to `europe-west4-a`:
 
 - 2026-05-06: 11 launch attempts over ~7h16m, all `ZONE_RESOURCE_POOL_EXHAUSTED` on `n1-highmem-8 + nvidia-tesla-p100` (10:32 → 17:48 BST)
 - 2026-05-08: capacity probe still exhausted at ~16:00 UTC; the rolling outage spanned ~46h across 05-06 → 05-08
 
-**Mitigation:** retry overnight or next morning — capacity has typically recovered after a sustained gap. Longer-term fix tracked in [Issue #285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/285) (P100 contingency epic) and [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) (T4/L4 hybrid fallback in `run_cloud_gpu.sh`, blocked on a Google T4 quota grant).
-
-**Last verified:** 2026-05-08.
+The migration to `europe-west4-a` resolved the immediate pain (closing [Issue #285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/285) — the contingency Issue for the May 2026 exhaustion). No west4-a exhaustion data recorded yet; the same pattern is possible in any zone. The longer-term hardware-diversity strategy is tracked in [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) (T4/L4 hybrid fallback in `run_cloud_gpu.sh`, blocked on a Google T4 quota grant). If west4-a starts exhausting, the historic mitigation pattern is retry overnight — capacity has typically recovered after a sustained gap.
 
 ## Pipeline Design Decisions
 
