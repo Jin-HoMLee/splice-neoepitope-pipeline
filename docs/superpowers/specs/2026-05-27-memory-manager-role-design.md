@@ -2,7 +2,7 @@
 
 **Status:** Draft for review · 2026-05-27 · Author: PM (this session)
 
-**Context:** Brainstormed in response to the asymmetry surfaced during [PR #520](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/520) (closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496)) — memory file edits live in the personas repo with no clear owner of the git lifecycle, and 5-7 open `role:pm` Issues are actually memory-curation work that dilutes PM's focus. Community research ([DevelopersIO global-memory pattern](https://dev.classmethod.jp/en/articles/claude-code-global-memory-with-git/), [Letta Context Repositories](https://www.letta.com/blog/context-repositories), [Anthropic subagent docs](https://code.claude.com/docs/en/sub-agents), [Anthropic Issues #42844 / #19903 / #1628 / #60151](https://github.com/anthropics/claude-code/issues/42844)) confirmed: cwd is locked at session start, so "skill invoked from PM session" is structurally non-viable; the right shape is a session whose cwd IS the personas repo.
+**Context:** Brainstormed in response to the asymmetry surfaced during [PR #520](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/520) (the rule-lift ship for [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496)) — memory file edits live in the personas repo with no clear owner of the git lifecycle, and 5-7 open `role:pm` Issues are actually memory-curation work that dilutes PM's focus. Community research ([DevelopersIO global-memory pattern](https://dev.classmethod.jp/en/articles/claude-code-global-memory-with-git/), [Letta Context Repositories](https://www.letta.com/blog/context-repositories), [Anthropic subagent docs](https://code.claude.com/docs/en/sub-agents), [Anthropic Issues #42844 / #19903 / #1628 / #60151](https://github.com/anthropics/claude-code/issues/42844)) confirmed: cwd is locked at session start, so "skill invoked from PM session" is structurally non-viable; the right shape is a session whose cwd IS the personas repo.
 
 ---
 
@@ -52,11 +52,11 @@ The personas repo IS the working directory. Decisive constraint: Claude Code's c
 - `.claude/settings.json` — permissions for `git` + `gh` CLI; hooks (e.g. closing-keyword foot-gun detection like we hit on PR #520).
 - `.claude/agents/` (optional) — sub-agents for parallel work (cross-rule-consistency-scan, etc.).
 
-**Personas-repo git workflow:** Direct-to-main, no PR. MM stages + commits + surfaces diff for user confirmation + pushes. The shared "commit, push, merge — three separate steps" rule applies. PR overhead skipped because (a) single-author post-transition, (b) cross-repo bot blind-spot makes PR review value-additive only via priming, (c) direct commits keep cadence appropriate for bursty workload.
+**Personas-repo git workflow:** Direct-to-main, no PR. MM stages + commits + surfaces diff for user confirmation + pushes. The shared "commit, push, merge — three separate steps" rule applies. PR overhead skipped because (a) single-author post-transition, (b) the GitHub Action bot isn't configured to subscribe to personas-repo events, so automated review triggers don't fire on personas-repo PRs — PR overhead is unrewarded, (c) direct commits keep cadence appropriate for bursty workload.
 
 **Standup + lab notebook:** Skipped. Coordination is GitHub-Issue-mediated. Journaling is via commit messages.
 
-**Session attribution:** `**Created by:** Memory Manager` on Issues / PR comments / commit trailers. Personas-repo commits use `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>` per project convention.
+**Session attribution:** `**Created by:** Memory Manager` on Issues / PR comments / commit trailers. Personas-repo commits use `Co-Authored-By: <session-model-id> <noreply@anthropic.com>` matching the session's actual model per project convention (e.g. `claude-opus-4-7`, `claude-sonnet-4-6` — whichever the running MM session is on).
 
 **Cross-role visibility:** PM/Sci/Dev sessions read personas-repo memory files via their existing `<role>/shared` symlinks (no change). They also **write/edit** personas-repo files mid-session as naturally as today (the memory dir is symlinked into their session's filesystem). The boundary under MM is *git lifecycle*, not authoring — only MM commits + pushes.
 
@@ -78,6 +78,8 @@ Active role hits a slip, edits personas-repo files inline (lift a rule to shared
 
 - Records edit briefly in lab notebook entry under a "Memory edits — for MM to commit" bullet, OR
 - Tags via project-repo Issue comment / quick note (low-ceremony — single sentence).
+
+**Migration-window note:** Until Phase 3 lands the "Memory edits — for MM to commit" bullet convention in `shared/feedback_lab_notebook.md`, this Flavor A pattern is informal — sessions during migration use ad hoc handoff notes (any sentence in the lab notebook entry calling out uncommitted personas edits works).
 
 Next MM session:
 
@@ -129,7 +131,7 @@ PM session (this one or follow-up) files:
   - Sub 6: Enable Issues + create `role:memory_manager` label on personas repo
   - Sub 7: Relabel existing curation Issues
   - Sub 8: Bootstrap first MM session + 4-week validation
-  - Sub 9: Cross-repo bot blind-spot follow-up (re-scoped: "should `scripts/audit_and_merge.sh` gate on personas-repo commit existence?")
+  - Sub 9: Cross-repo bot blind-spot follow-up — "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?"
 - Create label `role:memory_manager` on project repo (one command, no Issue).
 - Parent closes after all subs Done, via summary comment per pm-i5 parent-close precedent.
 - Decision: keep pm-i6 milestone name as-is for now. Defer rename to pm-i7 if validation passes.
@@ -144,7 +146,7 @@ Chicken-and-egg: MM can't bootstrap its own dir from within an MM session — pe
 - Personas-repo root `CLAUDE.md` (new).
 - Personas-repo `.claude/settings.json` (minimum permissions).
 
-User runs one-time `~/.claude/projects/<personas-hash>/memory/` symlink wiring (same per-clone setup as PM/Sci/Dev needed).
+User runs one-time `~/.claude/projects/<personas-hash>/memory/` symlink wiring (same per-clone setup as PM/Sci/Dev needed). To obtain `<personas-hash>`: run `claude` once in the personas-repo cwd — the auto-created `~/.claude/projects/<hash>/` path will contain exactly one new hash directory; that's the personas-repo hash. Symlink that dir's `memory/` to the personas-repo's `memory_manager/`.
 
 ### Phase 3 — Shared memory updates (PM session, one PR)
 
@@ -157,6 +159,7 @@ User runs one-time `~/.claude/projects/<personas-hash>/memory/` symlink wiring (
 ### Phase 4 — Role MEMORY.md + Issue relabels (PM session, second PR)
 
 - `pm/MEMORY.md`, `scientist/MEMORY.md`, `developer/MEMORY.md` — minor updates: replace personas-repo no-touch reflex with "file `role:memory_manager` Issue for curation work."
+- **Update each role's morning routine** (in `<role>/feedback_morning_routine.md`) to include a `git status` scan on the personas repo at session start — surfaces uncommitted personas-repo state for chat acknowledgment + flagging for MM. This is the structural mitigation for the "active roles edit memory mid-session, forget to flag for MM" risk in Section 5.
 - Relabel [Issue #248](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/248), [Issue #326](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/326), [Issue #346](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/346), [Issue #353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353) + the to-be-filed MEMORY.md slimming audit Issue from `role:pm` → `role:memory_manager`.
 
 ### Phase 5 — First MM session bootstrap
@@ -181,7 +184,7 @@ PM morning routine at +4 weeks measures:
 
 **If validation fails:** rollback — relabel Issues back to `role:pm`, retire MM session pattern, keep personas-repo structure as inert dead code. Lab notebook entry captures the trial + outcome.
 
-**Estimated effort:** 4 PRs (Phases 3-4 are 2 PRs; Phase 5 is a session, no PR until MM does substantive curation work; Phase 6 is observation).
+**Estimated effort:** ~5-7 project-repo PRs over the rollout — Sub 1 (this design doc), Subs 2-3 (personas-repo structural setup, each carrying a lab notebook entry as the project-repo deliverable), Sub 4 (shared memory updates journal), Sub 5 (role MEMORY.md updates journal), Sub 7 (Issue relabels journal), Sub 9 (cross-repo bot blind-spot follow-up — Dev tier). The personas-repo file changes themselves land via direct commits from PM during Phases 2-4 (the chicken-and-egg structural prep before MM exists), then via direct commits from MM in Phase 5+. Sub 8 (bootstrap MM session) has no project-repo PR (MM is exempt from lab notebook entries per the new shared rule). Phase 6 is observation.
 
 ---
 
@@ -191,8 +194,8 @@ PM morning routine at +4 weeks measures:
 
 1. **Project board membership for personas-repo Issues — resolved.** Personas repo's Issues join project board #9 directly. Requires (a) Issues enabled on `claude-personas-splice-neoepitope-pipeline` (one-time setting), (b) MM files Issues in personas repo for substantive curation work + adds to board #9 at creation. All cross-repo references use full URLs (already the convention per link+prefix+keyword rule) to disambiguate `#N` namespace collisions. Routine commits (single-rule edits flagged by an active role's lab notebook bullet) stay un-Issued.
 2. **MM session morning routine.** Sketch in `memory_manager/feedback_morning_routine.md` during Phase 5 bootstrap. Likely shape: read role memory, check `gh issue list --label role:memory_manager --state open` (both repos), bare `git status` for uncommitted state.
-3. **Concurrent MM + active-role edits to same shared/* file.** Mostly theoretical (MM is async). Mitigation: MM session begins with `git pull` before any edits. Active roles' edits are uncommitted local state — no git-level conflict until MM commits. Edge case: concurrent MM + PM sessions both editing same file → last-write-wins on disk. Defer to bootstrap session for practical test.
-4. **Cross-repo bot blind-spot follow-up.** Re-scoped: not "make the bot see personas changes" (by-design boundary) but "should `scripts/audit_and_merge.sh` gate project-repo merges on a corresponding personas-repo commit?" Folded into Phase 1 sub-issues.
+3. **Concurrent MM + active-role edits to same shared/* file.** Mostly theoretical (MM is async). Mitigation: MM session begins with `git pull` before any edits. Active roles' edits are uncommitted local state — no git-level conflict until MM commits. Edge case: concurrent MM + PM sessions both editing same file → last-write-wins on disk. **Defer to bootstrap session for practical test.** Test outcomes: (a) **acceptable risk** — across N MM sessions (≥10) where active-role edits also occurred, no observed conflict → no further mitigation needed; (b) **mitigation required** — ≥1 conflict observed → propose a lock-file convention (touch `.mm_session_active` on session start, error on overlap) or a hard-rule "no MM session while another role session is active" added to MM Always-in-effect.
+4. **Cross-repo bot blind-spot follow-up.** Re-scoped: not "make the bot see personas changes" (by-design boundary) but "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?" Folded into Phase 1 sub-issues (Sub 9).
 5. **Directory naming `memory_manager/` vs `mm/`.** Default `memory_manager/` for consistency with `pm/`, `scientist/`, `developer/` long-form naming.
 
 ### Risks
