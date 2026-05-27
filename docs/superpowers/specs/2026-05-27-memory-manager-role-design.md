@@ -124,14 +124,15 @@ PM session (this one or follow-up) files:
 - **Parent Issue** "feat(roles): introduce Memory Manager as 4th role" — pm-i6 milestone, P2, `role:pm` + `role:memory_manager`. **Skeletal body** — no AC of its own; just links to this design doc and lists the sub-issues once they exist (linked via REST API per `reference_github_sub_issues.md`).
 - **Native sub-issues** (each carries own branch + PR + Size + AC; linked to parent via REST API):
   - Sub 1: **Design — write + commit Memory Manager design doc** (this current work; lands the spec to `docs/superpowers/specs/`)
-  - Sub 2: Personas-repo CLAUDE.md + `.claude/` setup
-  - Sub 3: `memory_manager/MEMORY.md` initial content
-  - Sub 4: Shared memory updates (single PR; rules are interrelated)
-  - Sub 5: Role MEMORY.md updates (PM/Sci/Dev acknowledgments + escalation rule rewrite)
-  - Sub 6: Enable Issues + create `role:memory_manager` label on personas repo
-  - Sub 7: Relabel existing curation Issues
-  - Sub 8: Bootstrap first MM session + 4-week validation
-  - Sub 9: Cross-repo bot blind-spot follow-up — "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?"
+  - Sub 2: **Implementation plan — write + commit MM rollout implementation plan to `docs/superpowers/plans/`** (translates the 6-phase migration into discrete tasks; lands before any build sub starts)
+  - Sub 3: Personas-repo CLAUDE.md + `.claude/` setup
+  - Sub 4: `memory_manager/MEMORY.md` initial content
+  - Sub 5: Shared memory updates (single PR; rules are interrelated)
+  - Sub 6: Role MEMORY.md updates (PM/Sci/Dev acknowledgments + escalation rule rewrite)
+  - Sub 7: Enable Issues + create `role:memory_manager` label on personas repo
+  - Sub 8: Relabel existing curation Issues
+  - Sub 9: Bootstrap first MM session + 4-week validation
+  - Sub 10: Cross-repo bot blind-spot follow-up — "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?"
 - Create label `role:memory_manager` on project repo (one command, no Issue).
 - Parent closes after all subs Done, via summary comment per pm-i5 parent-close precedent.
 - Decision: keep pm-i6 milestone name as-is for now. Defer rename to pm-i7 if validation passes.
@@ -184,7 +185,7 @@ PM morning routine at +4 weeks measures:
 
 **If validation fails:** rollback — relabel Issues back to `role:pm`, retire MM session pattern, keep personas-repo structure as inert dead code. Lab notebook entry captures the trial + outcome.
 
-**Estimated effort:** ~5-7 project-repo PRs over the rollout — Sub 1 (this design doc), Subs 2-3 (personas-repo structural setup, each carrying a lab notebook entry as the project-repo deliverable), Sub 4 (shared memory updates journal), Sub 5 (role MEMORY.md updates journal), Sub 7 (Issue relabels journal), Sub 9 (cross-repo bot blind-spot follow-up — Dev tier). The personas-repo file changes themselves land via direct commits from PM during Phases 2-4 (the chicken-and-egg structural prep before MM exists), then via direct commits from MM in Phase 5+. Sub 8 (bootstrap MM session) has no project-repo PR (MM is exempt from lab notebook entries per the new shared rule). Phase 6 is observation.
+**Estimated effort:** ~5-7 project-repo PRs over the rollout — Sub 1 (this design doc), Subs 2-3 (personas-repo structural setup, each carrying a lab notebook entry as the project-repo deliverable), Sub 5 (shared memory updates journal), Sub 6 (role MEMORY.md updates journal), Sub 8 (Issue relabels journal), Sub 10 (cross-repo bot blind-spot follow-up — Dev tier). The personas-repo file changes themselves land via direct commits from PM during Phases 2-4 (the chicken-and-egg structural prep before MM exists), then via direct commits from MM in Phase 5+. Sub 9 (bootstrap MM session) has no project-repo PR (MM is exempt from lab notebook entries per the new shared rule). Phase 6 is observation.
 
 ---
 
@@ -195,7 +196,7 @@ PM morning routine at +4 weeks measures:
 1. **Project board membership for personas-repo Issues — resolved.** Personas repo's Issues join project board #9 directly. Requires (a) Issues enabled on `claude-personas-splice-neoepitope-pipeline` (one-time setting), (b) MM files Issues in personas repo for substantive curation work + adds to board #9 at creation. All cross-repo references use full URLs (already the convention per link+prefix+keyword rule) to disambiguate `#N` namespace collisions. Routine commits (single-rule edits flagged by an active role's lab notebook bullet) stay un-Issued.
 2. **MM session morning routine.** Sketch in `memory_manager/feedback_morning_routine.md` during Phase 5 bootstrap. Likely shape: read role memory, check `gh issue list --label role:memory_manager --state open` (both repos), bare `git status` for uncommitted state.
 3. **Concurrent MM + active-role edits to same shared/* file.** Mostly theoretical (MM is async). Mitigation: MM session begins with `git pull` before any edits. Active roles' edits are uncommitted local state — no git-level conflict until MM commits. Edge case: concurrent MM + PM sessions both editing same file → last-write-wins on disk. **Defer to bootstrap session for practical test.** Test outcomes: (a) **acceptable risk** — across N MM sessions (≥10) where active-role edits also occurred, no observed conflict → no further mitigation needed; (b) **mitigation required** — ≥1 conflict observed → propose a lock-file convention (touch `.mm_session_active` on session start, error on overlap) or a hard-rule "no MM session while another role session is active" added to MM Always-in-effect.
-4. **Cross-repo bot blind-spot follow-up.** Re-scoped: not "make the bot see personas changes" (by-design boundary) but "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?" Folded into Phase 1 sub-issues (Sub 9).
+4. **Cross-repo bot blind-spot follow-up.** Re-scoped: not "make the bot see personas changes" (by-design boundary) but "should `scripts/audit_and_merge.sh` gate project-repo merges on the existence of a corresponding personas-repo commit (MM-side completion check)?" Folded into Phase 1 sub-issues (Sub 10).
 5. **Directory naming `memory_manager/` vs `mm/`.** Default `memory_manager/` for consistency with `pm/`, `scientist/`, `developer/` long-form naming.
 
 ### Risks
