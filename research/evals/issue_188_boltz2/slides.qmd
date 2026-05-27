@@ -1,0 +1,188 @@
+---
+title: "Boltz-2 as a TCRdock backend replacement"
+subtitle: "Tool evaluation · Issue #188 · 2026-05-27"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-27
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should Boltz-2 replace\
+TCRdock's AF-Multimer\
+backend?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** parent [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) AC requires a per-scorer integration verdict — **(a)** Modeling sub-issue under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29) **or (b)** decline-with-rationale — for each of Boltz-2 (this Issue), HERMES ([Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218), → a), ImmSET ([Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201), → b), t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), and the [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## The tool — Boltz-2 at a glance {.smaller}
+
+**Boltz-2** — Passaro et al., **bioRxiv** 2025-06-18 [@passaro2025boltz2].
+
+::: {.incremental}
+- **Architecture:** co-folding biomolecular interaction model; predicts structure + binding affinity in one pass. Same family as AlphaFold-3 / Chai-1 / RosettaFold-AllAtom.
+- **Training:** explicitly includes **MHC-peptide and MHC-peptide-TCR complexes** — Class I sequences cropped 180 residues, ≤100 sequences/allele.
+- **Speed claim:** ~**1000× faster than FEP** for small-molecule-protein affinity prediction — *not* a structure-prediction speedup vs TCRdock.
+- **Code + weights:** [`jwohlwend/boltz`](https://github.com/jwohlwend/boltz) — **MIT-licensed**, no Dropbox-hosted parameter URLs (vs TCRdock's AlphaFold params).
+:::
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**The optimistic case (entering this eval):** modern co-folding successor to TCRdock's aging AF-Multimer wrapper; explicit TCR-pMHC training data; open license; sidesteps the P100/Pascal compatibility risk on TCRdock's pinned CUDA stack.
+:::
+
+---
+
+## Where it would have plugged in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Top neoepitope<br/>candidate<br/>(MHCflurry rank 1)"] --> B1["TCRdock<br/>(AF-Multimer v2)"]
+    A --> B2["Boltz-2<br/>(co-folding)"]
+    F["VDJdb TCR panel<br/>or fallback DMF5"] --> B1
+    F --> B2
+    B1 --> C1["PDB structure<br/>+ ipTM, pLDDT, PAE"]
+    B2 --> C2["PDB structure<br/>+ affinity, pLDDT"]
+    C1 --> D["HERMES + NetTCR-struc<br/>structural-QC stack"]
+    C2 -.alternative.-> D
+
+    style B2 fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style B1 fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
+```
+
+**Two integration shapes considered:**
+
+| Shape | Description |
+|---|---|
+| Replacement | Boltz-2 replaces TCRdock outright (single PDB output, single confidence) |
+| Parallel cross-check | Run both, use TCRdock↔Boltz-2 structural agreement as a QC signal |
+
+---
+
+## The OOD generalization gap {.smaller}
+
+[@lu2025tcrpmhcbench] benchmark 6 tools (AF2, AF3, Boltz-2, Chai-1, TCRmodel2, tFold-TCR) on 20 experimentally resolved Class I TCR-pMHC complexes.
+
+::: {.columns}
+
+::: {.column width="50%"}
+
+**Boltz-2 DockQ split:**
+
+| Cohort | DockQ | CAPRI band |
+|---|---|---|
+| Seen in training | **~0.91** | high |
+| Unseen complexes | **~0.70** | medium |
+
+**Splice neoepitope peptides are OOD by construction** — junction-spanning peptide sequences don't appear in any TCR-pMHC training set. Our actual workload sits in the **0.70 regime**.
+
+:::
+
+::: {.column width="50%"}
+
+::: {.callout-important appearance="simple"}
+**Headline:** explicit TCR-pMHC training in Boltz-2 gives the seen-complex DockQ; it does *not* transfer cleanly to novel complexes. The 0.91 number is not the number that describes our workload.
+:::
+
+. . .
+
+[@lu2025tcrpmhcbench] also report **AF3 best-overall** on the unseen-complex split — the better candidate for a TCRdock-backend modernization track (covered by [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)).
+
+:::
+
+:::
+
+---
+
+## Three reasons to decline {.smaller}
+
+::: {.incremental}
+1. **OOD by construction is the deal-breaker.** Splice-junction peptides don't appear in Boltz-2's training data; we'd be in the 0.70 (medium-CAPRI) regime, not the 0.91 headline. The training-set inclusion of MHC-peptide-TCR complexes doesn't help when our peptides are OOD.
+2. **Parity-at-best with TCRdock, not a clear quality win.** TCRdock (AF-Multimer-backed) typically scores 0.5–0.7 DockQ on TCR-pMHC benchmarks. Boltz-2 at 0.70 OOD is comparable, not clearly better. The "1000× faster" claim in [@passaro2025boltz2] is vs **FEP for small-molecule affinity**, not vs TCRdock for structure inference.
+3. **AF3 is the higher-value next experiment.** [@lu2025tcrpmhcbench] benchmark: AF3 best-overall on the unseen-complex split. If we want a TCRdock-backend modernization track, AF3 is the right target — and [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) already covers it.
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Integration cost not justified:** new Docker container (different ML stack), new chain-relabel logic, new confidence-score plumbing — for parity-at-best on our actual use case.
+:::
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 3em; font-weight: bold; margin-top: 0.5em;"}
+\(b\) Decline
+:::
+
+::: {style="text-align: center; font-size: 1.4em; margin-top: 0.5em;"}
+not a TCRdock-backend replacement for our use case
+:::
+
+. . .
+
+**(b) decline rationale posted as a comment on [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188)**. No Modeling sub-issue filed under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29).
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**[Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) verdict progress:** 3 of 5 scorers resolved — HERMES → (a), ImmSET → (b), **Boltz-2 → (b)**. Remaining: t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+:::
+
+---
+
+## What would change the decision {.smaller}
+
+The (b) decline is **not permanent**. Three concrete triggers would reopen the evaluation:
+
+::: {.incremental}
+1. **A future Boltz release narrows the seen-vs-unseen gap.** If Boltz-3 or comparable model reports DockQ ≥0.85 on held-out TCR-pMHC with no peptide identity to training, the OOD argument weakens.
+2. **The AF3 eval ([Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)) declines.** If AF3 turns out to have its own integration blockers (licensing, weights, throughput), Boltz-2's MIT license + open weights become more attractive even at parity DockQ.
+3. **Cohort-scale structure prediction becomes a hard requirement.** Currently we structure-predict only the top-1 candidate per patient. If scientific framing shifts to top-N or cohort-wide, Boltz-2's throughput advantage (regardless of FEP-vs-TCRdock framing) could justify the integration cost.
+:::
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**Manuscript carry-forward to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432):** Boltz-2's seen↔unseen gap sharpens the prediction-vs-QC distinction. Co-folding models trained on TCR-pMHC complexes (Boltz-2) hit a 0.91 → 0.70 generalization gap; **structural-QC scorers** (HERMES + NetTCR-struc, both (a)-integrated) are the better complement to TCRdock for our OOD splice-neoepitope workload than a second structure-prediction model.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::

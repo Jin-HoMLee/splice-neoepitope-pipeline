@@ -8,6 +8,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-27
 
+### 14:47 UTC — Editor: Scientist
+
+#### [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) — Boltz-2 evaluation closed as (b) decline; AF3 ([Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)) flagged as the better TCRdock-backend modernization target
+
+[Boltz-2 — Passaro et al., bioRxiv 2025.06.14.659707](https://www.biorxiv.org/content/10.1101/2025.06.14.659707v1). Co-folding biomolecular interaction model (same family as AF3 / Chai-1) predicting structure + binding affinity in one pass; trained on **MHC-peptide and MHC-peptide-TCR complexes explicitly** (Class I sequences cropped 180 residues, ≤100 sequences/allele); MIT-licensed weights + inference + training code at [`jwohlwend/boltz`](https://github.com/jwohlwend/boltz).
+
+**Decision: (b) decline** for TCRdock-backend replacement → posted decline-with-rationale comment on [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) per [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s per-scorer verdict AC. Three reasons:
+
+1. **OOD generalization gap is the deal-breaker.** [Lu et al. 2025-12-02 benchmark, Zotero 3GS2FXXZ](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full) reports Boltz-2 DockQ ~0.91 on **seen** TCR-pMHC complexes vs ~0.70 on **unseen** complexes. Splice-junction neoepitope peptides are OOD by construction (no junction-spanning peptide sequences in any TCR-pMHC training set), placing our actual workload in the 0.70 medium-CAPRI-band regime, not the 0.91 headline. The training-set inclusion of MHC-peptide-TCR complexes doesn't help when our peptides are OOD.
+2. **Parity-at-best with TCRdock, not a clear quality win.** TCRdock (AF-Multimer v2 backend) typically scores 0.5–0.7 DockQ on TCR-pMHC benchmarks. Boltz-2 at 0.70 OOD is comparable, not clearly better. The "1000× faster" claim in the Boltz-2 paper is vs **FEP for small-molecule-protein affinity prediction**, not vs TCRdock for structure inference — easy claim to misread.
+3. **AF3 is the higher-value next experiment.** [Lu et al. 2025](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full) report AF3 best-overall on the unseen-complex split. If we want a TCRdock-backend modernization track, AF3 is the right target — and [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) already scopes it.
+
+**Integration cost not justified for parity-at-best.** New Docker container (different ML stack from the Pascal-pinned TCRdock CUDA 11.8 setup), new chain-relabel logic (Boltz-2 emits different chain conventions than TCRdock's A/B/C/D MHC/peptide/TCR-α/TCR-β scheme), new confidence-score plumbing. Effort better directed to [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3 eval and to the post-TCRdock structural-QC stack ([Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492) HERMES + [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433) NetTCR-struc, both already (a)-integrated).
+
+**What would change the decision (decline is not permanent):** (i) a future Boltz release narrows the seen↔unseen gap to DockQ ≥0.85 on held-out complexes with no peptide identity to training; (ii) the AF3 eval ([Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)) hits its own integration blockers (licensing, weights, throughput), making Boltz-2's MIT license + open weights more attractive at parity; (iii) cohort-scale structure prediction (top-N or pan-cohort instead of top-1) becomes a hard requirement, where Boltz-2's throughput advantage could justify integration cost regardless of FEP-vs-TCRdock framing.
+
+**Carry-forward to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) manuscript subsection.** Boltz-2's seen↔unseen gap sharpens the **prediction-vs-QC distinction**: co-folding models trained on TCR-pMHC complexes (Boltz-2) still hit a 0.91 → 0.70 generalization gap, motivating **structural-QC scorers** (HERMES + NetTCR-struc) as the better complement to TCRdock for our OOD splice-neoepitope workload rather than a second structure-prediction model. Concrete head-to-head data point for the DISCUSSION subsection alongside ImmSET's sequence-vs-structure framing.
+
+**Zotero adds.** [QF4WXFGC](https://www.biorxiv.org/content/10.1101/2025.06.14.659707v1) — Boltz-2 paper (newly added today). [3GS2FXXZ](https://www.biorxiv.org/content/10.64898/2025.11.30.691400v1.full) — Lu et al. Dec 2025 benchmark (already in collection from the [2026-05-27 morning briefing](research/lab_notebook/scientist.md)). Both will be referenced in [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) DISCUSSION subsection.
+
+**Eval deck.** [`research/evals/issue_188_boltz2/slides.qmd`](research/evals/issue_188_boltz2/slides.qmd) — 9-slide Quarto deck (Question / Tool primer / Integration map / OOD gap / 3 reasons to decline / Decision / What would change the decision / References). Mirrors the [HERMES eval deck](research/evals/issue_218_hermes/slides.qmd) structure with the (b)-decline pivot on slide 9 (concrete triggers that would reopen the eval). HTML render verified structurally (9 sections, mermaid embedded, no overflow risk); full Chrome visual page-through deferred to manuscript-revision time per the [feedback_slide_visual_check.md](.claude/memory/feedback_slide_visual_check.md) cost-benefit.
+
+**Verdict progress on [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) per-scorer AC:** 3 of 5 scorers resolved (HERMES → a via [Issue #492](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/492), ImmSET → b, Boltz-2 → b). Remaining: t2pmhc/TCRLens ([Issue #236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/236)), [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) outcome.
+
+---
+
 ### 13:55 UTC — Editor: Scientist
 
 #### Phase 1 — Morning briefing → 2 Zotero adds (HCC AS off-the-shelf mRNA vaccine + Prime-Target neoantigen vaccination)
