@@ -8,6 +8,12 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-27
 
+### 13:55 UTC — Editor: PM
+
+#### [Issue #509](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/509) — Zotero dedup rule: add `DA3EWEJ9` (methodology corpus)
+
+Followup from 13:10 UTC entry "Followups carried forward" list — pulled forward to same session. Memory edit (personas-repo `shared/feedback_morning_routine.md` Phase 1 dedup line) now references both Zotero collections with scope: `Z38GTJNW` for domain/bio, `DA3EWEJ9` for methodology / multi-agent / agentic-workflow corpus. Cross-domain routing rule added: file under primary-contribution collection, not secondary methodology. Closes the dedup false-positive risk for methodology papers added going forward. Personas-repo git lifecycle is user-managed per the Always-in-effect rule; this PR carries only the project-repo lab notebook entry + Issue closure.
+
 ### 13:10 UTC — Editor: PM
 
 #### Morning routine multi-thread — [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) closed via side-effect-of-carve; [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) filed for durable fix; pm-i4 carve to new [pm-i6](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/33)
