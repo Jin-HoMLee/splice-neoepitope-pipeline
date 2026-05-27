@@ -116,7 +116,7 @@ would on any local machine.
 
 > **Zone availability:** `us-central1-a` is used as the example zone below, but
 > capacity for specific machine types varies. If you get a quota or availability
-> error, try another zone (e.g. `us-central1-c`, `europe-west1-b`, `us-east1-b`).
+> error, try another zone (e.g. `us-central1-c`, `europe-west4-b`, `us-east1-b`).
 > Run `gcloud compute zones list` to see all available zones.
 
 ```bash
@@ -458,7 +458,7 @@ bash scripts/run_cloud_gpu.sh --mode prod
 bash scripts/run_cloud_gpu.sh --mode test --detach
 
 # Specify branch and zone
-bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west1-b
+bash scripts/run_cloud_gpu.sh --mode prod --branch main --zone europe-west4-b
 
 # Keep VMs running after exit (useful for debugging — stop manually when done)
 bash scripts/run_cloud_gpu.sh --mode test --keep-vm
