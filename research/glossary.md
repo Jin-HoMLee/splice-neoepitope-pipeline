@@ -130,6 +130,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **MHC1-TIP** — MHC class I 1-Tube Immunopeptidomics. Low-input, single-tube MHC-I ligandome workflow ([Dollinger et al. 2026, *Comm Bio*](https://www.nature.com/articles/s42003-026-09570-6)); scales to cell lines, patient-derived organoids, and sub-mg ex-vivo tumor fragments — replaces traditional workflows requiring hundreds of millions of cells. Primary RCC application revealed widespread **intratumoral heterogeneity in antigen presentation that is poorly correlated with source protein expression** — relevant to the RNA-Seq-abundance ≠ surface-presentation framing in this pipeline. *Domain: bio.*
 
+**mRNA prime + peptide-target boost** — Specific heterologous prime-boost format inside the Prime-Target regimen: an mRNA-encoded antigen primes the T cell response, a synthetic peptide of the same antigen amplifies it. Heterologous formats consistently outperform same-format boosts in vaccinology — each modality engages distinct APC subsets and avoids anti-vector immunity that dampens homologous boosters. *Domain: bio.*
+
 **MSI** — Microsatellite Instability. Tumor phenotype caused by defective DNA mismatch repair (MMR); hypermutated, high TMB, characteristically responsive to ICI. MSI-high is a tissue-agnostic FDA-approved indication for anti-PD-1 (pembrolizumab). Non-canonical splicing contributes substantively to the CRC immunopeptidome in this class ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
 
 **MSS** — Microsatellite Stable. The MMR-proficient majority of solid tumors; lower TMB, broadly ICI-resistant. The challenge case for neoantigen vaccines — fewer canonical somatic mutations motivates non-canonical (splice, RNA-edit, retroelement) TSA discovery; splice-derived antigens are detectable in MSS CRC at rates comparable to MSI ([Hayer et al. 2026](https://www.mcponline.org/article/S1535-9476(26)00077-0/fulltext)). *Domain: bio.*
@@ -164,6 +166,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **PoN** — Panel of Normals. Aggregated reference set of normal samples (originally GATK's somatic variant calling concept); used to filter recurrent germline variation / artefacts that single matched normals miss. *Domain: bio.*
 
+**Prime-Target** — Neoantigen-vaccine regimen pairing an mRNA *prime* with a synthetic peptide *target* boost of the same antigen. The combined heterologous format produces stronger systemic T cell immunity inside immunologically "cold" tumors than either modality alone in mouse models ([Prime-Target preprint, bioRxiv 2026](https://www.biorxiv.org/content/10.64898/2026.01.13.699214v1)). Manuscript DISCUSSION hook on downstream use of our predicted AS-neoepitopes; contrasted against single-modality regimens. *Domain: bio.*
+
 **PSI** — Percent Spliced In. Fraction of transcripts that include a given alternative exon/junction (vs skip); the standard quantitative readout of splicing in RNA-seq analyses. *Domain: bio.*
 
 **PSR** — Positive Sample Rate. Percentage of samples in a cohort expressing a splice junction at a read frequency ≥1% relative to the canonical junction (Kwok et al., *Nature* 2025); thresholded as `PSR_TCGA ≥ 10%` (tumor-recurrence) and `PSR_GTEx < 1%` (normal-exclusion). Distinct from **PSI** (within-sample inclusion fraction): PSR is a binary cross-sample detection rate at a fixed relative-frequency threshold; PSI is a continuous within-sample metric. *Domain: bio.*
@@ -177,6 +181,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 ## S
 
 **SGE** — Sun Grid Engine. Classic HPC job scheduler from Sun Microsystems (now Oracle); ancestor of UGE and OGS. Snakemake covers the SGE/UGE/OGS family via `snakemake-executor-plugin-sge`. *Domain: cloud.*
+
+**single-modality regimen** — Neoantigen vaccine using one delivery format throughout (mRNA-only, peptide-only, or DNA-only). The default in Phase 1 trials so far (autogene cevumeran / Sahin et al. 2026 TNBC, GNOS-PV01 GBM); contrasted against heterologous prime-boost approaches like Prime-Target where format diversity within a single regimen broadens the T cell response. *Domain: bio.*
 
 **SLURM** — Simple Linux Utility for Resource Management. The dominant HPC job scheduler in academia. *Domain: cloud.*
 
