@@ -8,6 +8,36 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-27
 
+### 17:22 UTC — Editor: PM
+
+#### [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) — lift Dev's "lab notebook entry comes AFTER review, before merge" rule to shared + inline in PM/Sci MEMORY.md
+
+**Trigger.** Issue carved 2026-05-26 ([21:40 UTC entry](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494) Thread 1) after the [closure-audit gap comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494#issuecomment-4544188091) fired on [PR #494](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494) (entry referenced [Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) but not the PR #). The slip shape is structural: any role writing the entry pre-PR-create can't reference a PR # that doesn't yet exist. Rule had lived inline in Dev's MEMORY.md line 18 since 2026-05-15 (Dev's own slip on [Issue #360](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360) hook entry). With PM as the 2nd role slipping, the mechanism-over-memory ladder rung 2 (`shared/feedback_memory_escalation.md`) calls for promotion + inline-in-all-3.
+
+**Why this is a non-routine entry.** Meta-decision (memory rule lift, workflow rule change) per `shared/feedback_lab_notebook.md` "When required vs optional". The Issue body + AC + PR description don't capture the design choice (inline-in-all-3 vs link-only; how the two rationales factor; verbatim-Dev decision). This entry carries that reasoning.
+
+**Session shape (pre-this-entry).** Triage-first morning: [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) (carved this morning, CI smoke property-based refactor) + [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) (GitHub Issue fields eval) → P2 / Size S on both (priority and size were stated in Issue bodies' rationale but board fields were unset). Then this Issue.
+
+**Design call: inline in all 3 role MEMORY.md, not link-only.**
+
+- Pro inline: rule has now slipped on 2 distinct roles → ladder rung 2 trigger fires per `shared/feedback_memory_escalation.md` ("On 'you forgot X'"). Memory of a declarative rule survives session-start → action-distance better when inline in Always-in-effect than when behind a shared-file link the agent may or may not load.
+- Pro link-only: shared file IS auto-loaded for all roles via `shared/MEMORY.md` reference. Could in principle suffice without per-role inline.
+- Decision: inline wins because the slip on PR #494 happened despite shared/feedback_lab_notebook.md being a known-loadable file. The action-distance problem (rule named at session start, action far downstream) is the failure mode rung-2 escalation addresses.
+
+**Two rationales captured in the shared section, not one.** Dev's original inline rule only carried rationale (a) "post-review final state, not pre-review draft". PR #494's slip surfaced rationale (b) "entry CAN reference the PR # (closure-audit checks for it)" — a stricter operational consequence. The new `shared/feedback_lab_notebook.md` "Entry timing" section captures both, plus the special case for memory-edit PRs where the lab notebook entry IS the only PR content (open with minimal-shell, finalize body post-PR-create with PR # ref).
+
+**Companion read-side fix lives separately.** [Issue #495](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/495) (Dev — closure_audit accept Issue # OR PR #) is the bot-side relaxation. Today's [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) (this) is the write-side fix. Both ship: the bot becomes less strict, AND the entries become more disciplined. Belt-and-suspenders.
+
+**Dev's existing line — kept verbatim.** Dev's MEMORY.md line 18 already has `<!-- src: shared/feedback_lab_notebook.md -->` annotation pointing at the canonical shared section. Per the Issue AC's "(or kept verbatim — depends on inline-vs-link decision at design time)", I kept the battle-tested 10-day-old Dev wording rather than rewriting to mirror PM/Sci's "two rationales" framing. Drift risk > completeness benefit.
+
+**Memory file edits (personas-repo, user-managed git lifecycle).** This PR ships only the lab notebook entry in `research/lab_notebook/pm.md`. The four memory file edits — `shared/feedback_lab_notebook.md` (new "Entry timing" section), `pm/MEMORY.md` (new inline bullet), `scientist/MEMORY.md` (new inline bullet, defensive), `developer/MEMORY.md` (no change, kept verbatim) — live in the personas repo and are committed externally per the Always-in-effect rule on personas-repo git scope.
+
+**This entry follows the rule it lifts.** Written AFTER the PR opens (PR # referenced inline). Initial commit on this branch had a `[PR #TBD]` placeholder; this entry's final form ships with the actual PR # link, demonstrating the workflow the new rule formalizes for memory-edit-PRs. Closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) via [PR #520](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/520).
+
+**Followups.**
+- Personas-repo commit of the 4 memory file edits (user-managed; surfaces in next `/memory` load after commit).
+- Watch for the rule's third-role slip: if Sci's defensive inline doesn't hold and Sci slips, the ladder calls for mechanism (rung 3) — e.g. a `.claude/hooks/` PreToolUse gate on `gh pr merge` that greps the PR's recent lab-notebook commits for the PR # ref. Not filing today.
+
 ### 13:55 UTC — Editor: PM
 
 #### [Issue #509](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/509) — Zotero dedup rule: add `DA3EWEJ9` (methodology corpus)
