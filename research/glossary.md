@@ -70,7 +70,7 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **GBM** — Glioblastoma (Multiforme). WHO grade 4 astrocytoma; most aggressive primary adult brain tumor (~15-mo median OS post standard-of-care surgery + radiation + temozolomide). MGMT-unmethylated subset has the worst prognosis (resistant to temozolomide); subject of the GNOS-PV01 personalized DNA vaccine Phase 1 ([Garfinkle et al. 2026](https://www.nature.com/articles/s43018-026-01163-w)). *Domain: bio.*
 
-**GCP** — Google Cloud Platform. The cloud provider hosting this pipeline's VMs and storage bucket (zone `europe-west1-b`). *Domain: cloud.*
+**GCP** — Google Cloud Platform. The cloud provider hosting this pipeline's VMs and storage bucket (zone `europe-west4-a`). *Domain: cloud.*
 
 **GCS** — Google Cloud Storage. GCP's object store; pipeline results, logs, and reference data live in `gs://splice-neoepitope-project`. *Domain: cloud.*
 
