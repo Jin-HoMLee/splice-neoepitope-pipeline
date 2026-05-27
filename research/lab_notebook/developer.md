@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-27
+
+### 14:30 UTC — Editor: Developer
+
+**Headline:** [PR #510](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/510) shipped, closing [Issue #508](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/508) — added `scripts/board_open_items.py` (paginated open-board listing with role/Status/Priority/Size filters) and promoted the long-existing board-pagination rule from `shared/feedback_board_queries.md` Reference tier into `shared/MEMORY.md` Always-in-effect. Two-layer fix following the established memory ladder (rung 2 inline + rung 3 mechanism). Bot review caught 3 valid robustness issues (GraphQL error envelope unhandled, `subprocess check=True` swallows `gh` stderr, argparse `choices=` missing on enumerated flags) — all applied as one-liners.
+
+#### Slip postmortem: a documented rule sitting at Reference tier behaves the same as no rule
+
+User asked me to "check the board for next best tasks". I ran `gh api graphql` with `first: 100`, returned 2 open Dev items, recommended next picks. User pushed back. Re-query with `pageInfo.hasNextPage` cursor loop → 24 open Dev items (out of 64 total open, 472 board items). Two compounding pitfalls: `first: N` is a cap (not a filter), and the board sorts Done items first — so an unpaginated query returned 97 Done items on the first page, leaving 3 open-state candidates after client-side filtering. The rule was documented at `shared/feedback_board_queries.md` since 2026-05-20, but indexed under "Reference (read when relevant)" — never loaded at session start. Effective rule presence was zero.
+
+#### Memory ladder applied as designed
+
+Per `shared/feedback_memory_escalation.md` ("on 'you forgot X': inline into Always in effect") + `shared/feedback_mechanism_over_memory.md` (repeat-failure shape → mechanism), the fix split cleanly: (1) **rung 2** — promoted the rule into `shared/MEMORY.md` Always-in-effect with telegraphic body + back-link to `feedback_board_queries.md`; (2) **rung 3** — shipped `scripts/board_open_items.py` so future sessions don't redo the cursor loop. Memory teaches the principle (covers cases the script doesn't fit — mutations, unusual fields), script is the canonical implementation for the most common case. **Complementary, not interim/permanent.**
+
+#### Bot review findings — all 3 valid, all 3 robustness gaps
+
+(1) `data["data"]` indexing into the GraphQL response would `KeyError` on `{"errors": [...], "data": null}` envelopes (auth failure, rate limit, partial failure). Bot suggested `if errs := data.get("errors"): print + exit`. (2) `subprocess.run(..., check=True, capture_output=True)` prints a Python traceback instead of the actual `gh` stderr ("Not Found", "requires authentication") — UX-hostile under failure. Fix: drop `check=True`, branch on `r.returncode`, print `r.stderr` to stderr. (3) `--status`/`--priority`/`--size` filters did silent exact-match; passing `--status "in progress"` (lowercase) silently returned 0 results. Free fix: argparse `choices=list(STATUS_ORDER)` etc. since the enumerations already exist for sort ordering. `--role` intentionally kept free-form (extensible label).
+
+#### Pattern: separate-step author flow for review-trigger lifecycle worked clean
+
+Shared Always-in-effect rule: when posting `@claude review`, author flips BOTH PR Status and linked Issue Status to `In review` in the same step as the comment. Done in parallel — three independent calls (gh pr comment + 2× updateProjectV2ItemFieldValue) — clean. After review fixes land, Status stays `In review` (covers both active review and awaiting-iteration), no flip-back to `Ready for review`. Merged → Done auto-set on both PR and Issue by the project workflow.
+
+---
+
 ## 2026-05-26
 
 ### 12:20 UTC — Editor: Developer
