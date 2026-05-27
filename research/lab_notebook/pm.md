@@ -32,7 +32,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **Memory file edits (personas-repo, user-managed git lifecycle).** This PR ships only the lab notebook entry in `research/lab_notebook/pm.md`. The four memory file edits — `shared/feedback_lab_notebook.md` (new "Entry timing" section), `pm/MEMORY.md` (new inline bullet), `scientist/MEMORY.md` (new inline bullet, defensive), `developer/MEMORY.md` (no change, kept verbatim) — live in the personas repo and are committed externally per the Always-in-effect rule on personas-repo git scope.
 
-**This entry follows the rule it lifts.** Written AFTER the PR opens (PR # referenced inline). Initial commit on this branch had a `[PR #TBD]` placeholder; this entry's final form ships with the actual PR # link, demonstrating the workflow the new rule formalizes for memory-edit-PRs. Closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) via [PR #TBD](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pulls).
+**This entry follows the rule it lifts.** Written AFTER the PR opens (PR # referenced inline). Initial commit on this branch had a `[PR #TBD]` placeholder; this entry's final form ships with the actual PR # link, demonstrating the workflow the new rule formalizes for memory-edit-PRs. Closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) via [PR #520](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/520).
 
 **Followups.**
 - Personas-repo commit of the 4 memory file edits (user-managed; surfaces in next `/memory` load after commit).
