@@ -296,27 +296,27 @@ fi
 wait_for_ssh "${PIPELINE_VM}"
 
 # ---------------------------------------------------------------------------
-# Downgrade NVIDIA driver to 570-server for P100 (Pascal SM 6.0) compatibility
-# Driver 580+ requires GSP firmware which P100 lacks. Idempotent — skipped if
-# 570-server is already installed (e.g. VM reused from a previous run).
-# Use headless DKMS variant: nvidia-headless-no-dkms-570-server pre-compiled
-# modules don't match the GCP kernel (6.8.0-*-gcp) on common-cu129 images.
-# DKMS recompiles against the running kernel at install time.
+# Verify the image's pre-installed NVIDIA driver works. The image family
+# `common-cu129-ubuntu-2204-nvidia-580` ships 535.288.01 (matched
+# userspace + kernel module) — Pascal-compatible (535 < 575). Do NOT
+# attempt to install nvidia-headless-570-server: as of 2026-05-27,
+# Ubuntu has reduced 570-server to a hard-Depends wrapper for 580-server,
+# which drops SM 6.0 support and breaks P100. Do NOT run `apt-get update
+# && apt-get install nvidia-utils-535-server` either — the archive churns
+# the userspace 535 past the image's kernel-module version (535.288 →
+# 535.309 observed), and the source package doesn't ship a usable
+# dkms.conf so DKMS can't rebuild to align. Leave the image alone.
+# See CLAUDE.md "Infrastructure" + Issue #522.
 # ---------------------------------------------------------------------------
-if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-headless-570-server &>/dev/null; then
-    log "Downgrading NVIDIA driver to 570-server (DKMS) for P100 compatibility..."
-    # Refresh apt cache: the GCE deep-learning image bakes in apt metadata that
-    # ages out — without this, the install resolves to 580.126.20 (404'd from
-    # Ubuntu's archive once 580.130+ supersedes it). Issue #522.
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get update -qq
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 'nvidia-headless-no-dkms-580*' 'nvidia-utils-580*' 2>/dev/null || true
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --no-install-recommends nvidia-headless-570-server nvidia-utils-570-server
-    log "Rebooting VM to load driver 570..."
-    ssh_cmd "${PIPELINE_VM}" -- sudo reboot || true
-    sleep 60
-    wait_for_ssh "${PIPELINE_VM}"
-    log "VM rebooted — NVIDIA driver 570 active."
+log "Verifying NVIDIA driver on ${PIPELINE_VM}..."
+if ! ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader &>/dev/null; then
+    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} — image's driver not loading."
+    log "  Likely a new image-family regression. Investigate before retrying:"
+    log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- nvidia-smi"
+    exit 1
 fi
+DRIVER_INFO=$(ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 | head -1)
+log "  Driver OK: ${DRIVER_INFO}"
 
 # ---------------------------------------------------------------------------
 # Setup VM (idempotent — skips steps already done)
