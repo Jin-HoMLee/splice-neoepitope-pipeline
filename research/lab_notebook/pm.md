@@ -6,6 +6,39 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-27
+
+### 13:10 UTC — Editor: PM
+
+#### Morning routine multi-thread — [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) closed via side-effect-of-carve; [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) filed for durable fix; pm-i4 carve to new [pm-i6](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/33)
+
+**Session shape.** Multi-thread morning routine: news + Zotero collection split, closure audit + 2 triage-completeness fixes, 8-message standup archive, pm-i4 carve (10 → 3 open), [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) close-out. Non-routine per `shared/feedback_lab_notebook.md` (cross-Issue + meta-decision + milestone routing).
+
+**Thread 1: News briefing → Zotero collection split + [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) filing.**
+GitHub Issue fields now in public preview for orgs (2026-05-21 changelog). Concrete pipeline hook: could collapse the two-step Issue + board-field creation flow. Filed [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) under pm-i4 with caveat that our repo is user-owned (not org), applicability needs verification. Separately on the news routing: methodology / multi-agent / agentic-workflow papers no longer fit the domain-bespoke `Z38GTJNW` ("Splice Neoepitope Pipeline") collection. User picked split — created new Zotero collection **`DA3EWEJ9`** ("Research Methodology & Multi-Agent Workflows"). Memory follow-up: dedup rule needs to point at both collections going forward.
+
+**Thread 2: Closure audit — 6 closures clean, 2 triage-completeness failures on new Issues.**
+24h closure audit clean on 6 closures ([pm-i5 epic Issue #480](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/480) + 2 subs + 3 i2-S1 evals). Mechanical compliance check surfaced 2 daily-triage failures: [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) missing both `**Priority rationale:**` AND `**Created by:**` lines; [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) (self-authored this morning) used `## Priority rationale` heading instead of the canonical `**Priority rationale:** <sentence>` bold-tag form (Always-in-effect rule I wrote — embarrassing self-flag). Fixed both inline via `gh issue edit --body-file`. [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) attribution inferred PM-authored from evening-pm-i5-session timing + `tools/ci/` PM-tooling file path.
+
+**Thread 3: Standup archive — 8 PM Done messages chronologically inserted.**
+Half 2 hygiene: 8 PM-authored Done messages ≥7d old moved to `shared/team_standup_archive/2026-05.md`. Range: 2026-05-18 08:52 (dev-i1 closed) → 2026-05-20 19:44 (Pub+Modeling pair execution). 4 archive inserts bottom-up, then live standup truncated to 3 KEEP messages. Detail worth carrying forward: my initial `for pair in $ITEMS; do` loop failed silently because zsh doesn't word-split unquoted variables by default — switched to `printf '%s\n' ... | while read` pattern. Worth a memory entry on the zsh/bash split discipline for future bulk-ops.
+
+**Thread 4: pm-i4 carve to new [pm-i6](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/33) + recheck-hook calibration concern.**
+pm-i4 was 10 open / 6d left → over-capacity (the exact drift [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) was flagging via its smoke test). User picked Option A (single carve, all 7 evergreen Issues). Created [milestone 33 — pm-i6 "PM Tooling, Memory & Methodology II"](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/33). Moved 7 Issues ([Issue #234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234), [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265), [Issue #294](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/294), [Issue #295](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/295), [Issue #326](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/326), [Issue #346](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/346), [Issue #353](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/353)). Recheck-hook fired on the post-move `due_on` PATCH and pulled my initial 2026-07-17 back to **2026-06-11** (11.0d capacity × 1.36 calendar-days-per-capacity-day). Honored the hook math per deterministic-first rule; Target dates re-synced on all 7. **Calibration concern (to surface):** the 2026-05-19 precedent had 7.5d → 35 days (ratio 4.67); today's pm-i6 has 11.0d → 15 days (ratio 1.36). 3.4× tighter assumption — possibly a hook formula bug or context-dependent factor. Following up next standup with Dev (hook owner) or filing an Issue if not resolved by then.
+
+**Thread 5: [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) carve-and-close → [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) for durable refactor.**
+After Thread 4 carve, ran `pytest tools/ci/test_recheck_milestone.py::TestLiveIntegrationSmoke::test_eight_capacity_bound_milestones_still_no_change -v` locally — **PASSED** (was failing yesterday). Carve resolved milestone #26's capacity drift, bringing the hardcoded baseline `expected_no_change = [3, 5, 17, 18, 20, 21, 22, 26]` back into compliance. AC 1 met. But the underlying brittleness persists — next milestone capacity drift will re-break the test. Per `shared/feedback_close_issue_with_pr.md`: carve-and-close. Filed [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) (refactor to property-based check, P2/M, pm-i4) carrying the AC 2 long-term-fix scope; this PR closes [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497). Outcome routing on [Issue #497](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/497) = (b) durable deliverable (this lab notebook entry + [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) handoff) per `shared/feedback_outcome_routing.md`.
+
+**Note on [PR #491](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/491) admin-merge precedent.** [PR #491](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/491) (Sci ImmSET eval) merged 2026-05-26 22:59 with `ci-tools-pytest` failing — admin-merge bypassed the required check. Not blocking today but worth flagging: required-check failures should ideally not be admin-merged silently. If this happens often, consider whether `ci-tools-pytest` should drop to optional, or the merge convention needs a "blocked-on-CI" Issue requirement before bypass. No action today, low-priority observation.
+
+**Followups carried forward.**
+- [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) (property-based smoke-test refactor) — durable fix for the brittleness side-stepped today.
+- Memory edit: dedup rule should reference both Zotero collections (`Z38GTJNW` + `DA3EWEJ9`). Small touch to `shared/feedback_zotero_note_format.md` next session.
+- Recheck-hook calibration: surface to Dev next standup, file Issue if not resolved.
+- Standup follow-up: flip [2026-05-22 08:21] + [2026-05-26 12:05] PM posts to Done given Sci's [2026-05-27 12:38] confirm (Status field update, not amend).
+
+---
+
 ## 2026-05-26
 
 ### 21:40 UTC — Editor: PM
