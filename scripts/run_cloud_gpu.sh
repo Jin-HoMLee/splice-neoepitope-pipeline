@@ -305,6 +305,10 @@ wait_for_ssh "${PIPELINE_VM}"
 # ---------------------------------------------------------------------------
 if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-headless-570-server &>/dev/null; then
     log "Downgrading NVIDIA driver to 570-server (DKMS) for P100 compatibility..."
+    # Refresh apt cache: the GCE deep-learning image bakes in apt metadata that
+    # ages out — without this, the install resolves to 580.126.20 (404'd from
+    # Ubuntu's archive once 580.130+ supersedes it). Issue #522.
+    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get update -qq
     ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 'nvidia-headless-no-dkms-580*' 'nvidia-utils-580*' 2>/dev/null || true
     ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --no-install-recommends nvidia-headless-570-server nvidia-utils-570-server
     log "Rebooting VM to load driver 570..."
