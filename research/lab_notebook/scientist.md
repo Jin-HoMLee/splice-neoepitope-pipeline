@@ -6,6 +6,49 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-27
+
+### 13:55 UTC — Editor: Scientist
+
+#### Phase 1 — Morning briefing → 2 Zotero adds (HCC AS off-the-shelf mRNA vaccine + Prime-Target neoantigen vaccination)
+
+Two papers surfaced from current-year search across cancer neoepitope / splice immunology / vaccinology; neither already in Zotero collection `Z38GTJNW`.
+
+**[Zotero B2MJ776X — Zhao et al., *Cell Research* 35:970–986, 2025-11-28](https://www.nature.com/articles/s41422-025-01199-0)** — *Harnessing alternative splicing for off-the-shelf mRNA neoantigen vaccines in hepatocellular carcinoma*. Reframes AS-derived neoantigens as **shared** rather than patient-specific: AS events occur **>59× more frequently** than somatic mutations across the HCC cohort, yielding 50.94% population coverage vs 4.40% for mutation-derived neoantigens. Stringent filter reduces to **34 prioritized AS neoantigens**; mouse-model proof-of-concept mRNA vaccine encoding the panel produces tumor regression + neoantigen-reactive TIL infiltration. **vs. our pipeline:** same source biology (splice-junction-spanning translated peptides), opposite end of the public-vs-personalized axis (cf. Kwok et al. 2025 / [Sub-Issue #280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/280) DISCUSSION subsection). Strong manuscript anchor for the **population-coverage** framing alongside SNAF / SpliceMutr / Tumour-wide RNA splicing aberrations references.
+
+**[Zotero XNH627GQ — Prime-Target preprint, bioRxiv 2026-01-13](https://www.biorxiv.org/content/10.64898/2026.01.13.699214v1)** — *Prime-Target neoantigen vaccination unleashes unprecedented T cell immunity within "cold" immunosuppressive tumors*. Heterologous prime-boost regimen: mRNA prime + peptide target boost of the same antigen produces stronger systemic T cell immunity inside "cold" tumors than either modality alone in mouse models. **vs. our pipeline:** delivery-strategy paper, not a prediction tool — no overlap with junction-calling stack. Manuscript DISCUSSION hook on **downstream use** of predicted AS-neoepitopes; contrast point against single-modality regimens (autogene cevumeran, GNOS-PV01).
+
+#### [Issue #503](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/503) — glossary additions: Prime-Target / heterologous prime-boost terminology closed via [PR #504](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/504)
+
+Three new entries in [research/glossary.md](research/glossary.md) for terms surfaced by the Prime-Target paper that will land in the manuscript DISCUSSION on downstream use of predicted AS-neoepitopes:
+
+- **Prime-Target** (P section, between PoN and PSI) — the regimen itself
+- **mRNA prime + peptide-target boost** (M section, between MHC1-TIP and MSI) — the delivery sequence inside it
+- **single-modality regimen** (S section, between SGE and SLURM) — the contrast term covering mRNA-only / peptide-only / DNA-only
+
+Cross-references between entries follow existing glossary convention (plain-prose term references, not bracketed shorthand — the original AC mentioning `[Prime-Target]` was reworded to match the file's actual style). +6 lines total (3 entries × 2 lines each including blank separator). Bot review via `@claude review` returned **LGTM, no issues found**; CI all green. `bash scripts/audit_and_merge.sh 504` shipped after Issue #503 backfilled with a **Priority rationale** line (script gate caught its absence on first invocation).
+
+#### [Issue #478](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/478) — RESULTS.md stale `junctions.tsv` path reference closed via [PR #505](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/505)
+
+Single-line catch-up to [PR #477](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/477)'s rename (`alignment/<sample>/junctions.tsv` → `alignment/<sample>/raw_junctions.tsv`) at [research/manuscript/RESULTS.md:54](research/manuscript/RESULTS.md#L54). PR #477 deliberately carved this out as Scientist territory and filed Issue #478 as the follow-up.
+
+**Scope verification before merge** (in response to user pushback "shouldn't we check the other manuscript files too?"): `grep -rEn "junctions\.tsv|junctions\.bed" research/manuscript/` across all 6 manuscript files (CONCLUSIONS / DISCUSSIONS / INTRODUCTION / METHODS / REFERENCES / RESULTS) returned exactly 4 hits — the 1 fixed in this PR plus 3 surviving `novel_junctions.tsv` references in METHODS.md:154/261 and DISCUSSIONS.md:138, all on patient-level paths (`results/junctions/{patient_id}/...`). `novel_junctions.tsv` is a **different file** (the downstream-labeled tumor-exclusive output, not the raw per-sample HISAT2/regtools extraction) and was intentionally untouched by [PR #477](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/477). `\bjunctions.tsv` (word-boundary) returned zero hits — confirming no bare stale references remain. INTRODUCTION.md, CONCLUSIONS.md, REFERENCES.md have zero references of any kind.
+
+Bot review via `@claude review` returned **LGTM, no issues found** (landed 2 minutes before my Monitor armed — `since=$last` filter missed it; the post-mortem on Monitor cold-start is a minor follow-up). `bash scripts/audit_and_merge.sh 505` shipped after Issue #478 ACs were ticked.
+
+#### Phase 2 — Standup hygiene: replied to PM [2026-05-26 12:05 UTC] re-raise + archived own [2026-05-21 10:24 UTC] Sci post
+
+Two halves of the standup hygiene run from the morning routine:
+
+- **Reply posted** to PM's [2026-05-26 12:05 UTC] re-raise at [2026-05-27 12:38 UTC] — confirmed all 5 items from PM's [2026-05-22 08:21 UTC] substantive reply caught up (ImmSET added to [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) verdict list, sizing nudge ack'd, due_on curiosity investigated, [Issue #433](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/433) Dev-handoff flag taken, parent-Status mechanism staying in PM court). Invited PM to flip both [2026-05-22] and [2026-05-26] posts to Done.
+- **Own [2026-05-21 10:24 UTC] post archived** to `team_standup_archive/2026-05.md` (chronological append, sender-owned); `_index.md` count bumped 94 → 95. Post had been Done since 2026-05-22 (≥3 days) per the standup hygiene rule.
+
+#### Reflection — closure-audit bot caught the lab-notebook gap this session
+
+Both [Issue #503](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/503) and [Issue #478](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/478) closures triggered `closure-audit bot` comments flagging the missing `## 2026-05-27` block in this file. Individually each Issue close is borderline routine (single-PR-closes-single-Issue), but the session as a whole crosses both Issues plus Phase 1 Zotero adds plus Phase 2 standup hygiene — that bundle of cross-Issue work is **the non-routine criterion** in [shared/feedback_lab_notebook.md](.claude/memory/shared/feedback_lab_notebook.md). The closure-audit bot's heuristic is a fair backstop; this entry backfills via [Issue #511](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/511). Next time, the entry should ride the *first* closing PR of a non-routine session rather than chase a backfill PR after the fact.
+
+---
+
 ## 2026-05-26
 
 ### 11:55 UTC — Editor: Scientist
