@@ -8,6 +8,45 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-27
 
+### 22:00 UTC — Editor: Developer
+
+**Headline:** [Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522) (P100 cloud-run blocker) deepened into a three-regression compound failure — Ubuntu repo collapsed `nvidia-headless-570-server` into a 580 wrapper; Ubuntu archive's userspace 535 churned past the image's matched kernel-module version; Google pushed a new image build TODAY (`v20260527`) that ships only 580-open which doesn't support Pascal. [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) lands two partial fixes (`apt-get update` for the original cache 404 + drop the broken 570 install + add a `nvidia-smi` smoke test as a permanent fail-fast gate) but the full fix is blocked on an image-family decision deferred to tomorrow. Detailed investigation log in the [Issue #522 thread comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522#issuecomment-4558114563).
+
+#### Three regressions, not one
+
+What I filed as a 1-line apt-cache 404 fix this morning turned into a multi-hour investigation. The compounding:
+
+- **Ubuntu repo level:** `apt-cache depends nvidia-headless-570-server` returns `Depends: nvidia-headless-580-server`. Upstream reduced 570-server to a wrapper for 580. `--no-install-recommends` doesn't bypass hard `Depends:`, so the script's "downgrade to 570" cascades 580 in unavoidably — and 580 drops SM 6.0 (Pascal), killing P100.
+- **Ubuntu archive churn:** the image's `linux-modules-nvidia-535-server-<kernel>` package ships kernel module at version `535.288.01`. The userspace `nvidia-utils-535-server` advanced in the archive to `535.309.01`. `apt-get update` pulls the userspace forward without a matching kernel-module package, producing irrecoverable mismatch. `nvidia-kernel-source-535-server` doesn't ship a usable `dkms.conf`, so DKMS can't rebuild.
+- **Google image-family churn:** the image family `common-cu129-ubuntu-2204-nvidia-580` was pushed today (`-v20260527`) to ship only 580-open variant (`linux-modules-nvidia-580-server-OPEN-...`). On P100 (`10de:15f8`), `nvidia.ko` loads but immediately fails probe — the open driver is Turing+ only per NVIDIA's policy.
+
+#### "Trust the image" was the wrong frame
+
+Mid-session I committed a strategy shift `18baa10`: drop the 570 downgrade entirely, trust the image's pre-installed driver, fail-fast via `nvidia-smi` smoke test on script start. That worked under yesterday's image build (which still shipped 535 baked in) — but Google's `v20260527` push happened during the session, and the new baseline has no Pascal-compat fallback at all. The "trust the image" framing assumed image-family stability that doesn't exist.
+
+The fail-fast smoke test still has standalone value: it correctly turned an opaque downstream `docker run --gpus all` failure (`nvml error: driver not loaded` deep in a TCRdock rule) into a clear actionable script-level error at VM-start time. Keeping that change tomorrow regardless of driver path.
+
+#### Multiple gcloud client crashes during the session
+
+Three separate `gcloud crashed (ConnectionError): Remote end closed connection without response` failures during VM create + describe + ssh during this session. Once during VM create (the script's request landed server-side and went STAGING → TERMINATED via the cleanup trap race). Once during a multi-line ssh investigation command. Not unique to today's investigation — googlecloudsdk 475.0.0 has had intermittent IAP-tunnel websocket disconnects for months. Worth keeping in mind: retry transient gcloud failures rather than treating them as terminal.
+
+#### Branch-name memory paid off
+
+Filed [Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522)'s branch via `gh issue develop 522 --name 522-fix-driver-apt-cache-stale --base main --checkout` — passing `--name` explicitly with an ASCII-only slug per the morning's `feedback_gh_issue_develop_ascii_only.md` memory. The Issue title contains no Unicode this time so the auto-slugifier would've been fine — but applying the rule reflexively keeps the habit warm for next time.
+
+#### Plan for tomorrow's session
+
+1. Image-family investigation: `gcloud compute images list --filter='family ~ "common-cu126|pytorch-2-(1|2|3)-cu12(1|4)"' --project=deeplearning-platform-release` to find a family that ships Pascal-compatible driver (≥470 and <575).
+2. Spin up a probe VM (10 min) and confirm `nvidia-smi` works out-of-the-box on a candidate.
+3. Patch `run_cloud_gpu.sh:45` to use the new family; keep the smoke-test gate from `18baa10`.
+4. Re-rewrite the CLAUDE.md driver bullet to match the new strategy.
+5. Re-run chr22 test as the AC verification.
+6. Once [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) lands → unblock [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) ([Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) torch pin lift) which has been blocked on this all along.
+
+VM stopped at session-end to avoid cost accrual.
+
+---
+
 ### 18:30 UTC — Editor: Developer
 
 **Headline:** Attempted [Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) (lift `torch<2.5` pin via cu126 pip channel) — code changes landed clean as [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) (Draft), but cloud verification surfaced two orthogonal infra blockers — filed as [Issue #521](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/521) (P2, script ZONE default drift; closing via [PR #525](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/525)) and [Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522) (P1, NVIDIA-580 archive 404 blocks all cloud runs). [PR #525](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/525) sweeps 5 stale `west1-b` references missed by [Issue #516](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/516)'s CLAUDE.md-only fix. Replaced rebranched-and-reopened [PR #523](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/523) after the Claude Code Action rejected the auto-generated `→`-containing branch name.
