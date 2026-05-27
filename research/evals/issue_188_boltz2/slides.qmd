@@ -64,6 +64,24 @@ backend?
 
 ---
 
+## Why it works (and where it doesn't) {.smaller}
+
+**Mechanism:** Boltz-2 is a **co-folding diffusion model** — joint MSA + pairwise representation feeds a diffusion backbone that denoises atom coordinates while a separate head predicts binding affinity. End-to-end: amino-acid sequences in, structure + affinity out, no rigid-body docking step.
+
+::: {.incremental}
+- **What carries from AlphaFold lineage:** the PDB-scale pretraining (~200k structures) teaches the model general protein-protein geometry — interface contacts, side-chain packing, backbone topology.
+- **What the TCR-pMHC training adds:** a few thousand explicit complexes [@passaro2025boltz2] anchor the geometry class — the model "knows what a TCR-pMHC interface looks like" for sequences near the training set.
+- **Why OOD fails:** TCR-peptide interfaces are dominated by **CDR3-peptide contacts**, the most diverse and least-conserved component. Novel CDR3 × novel peptide pairings (= splice-junction neoepitopes) sit far from any training example; the model extrapolates from interface motifs it never saw.
+:::
+
+. . .
+
+::: {.callout-warning appearance="simple"}
+**The implication:** explicit TCR-pMHC training boosts the **in-distribution** DockQ ceiling but does not close the OOD gap. This is the mechanism behind the seen-vs-unseen split on the next slide.
+:::
+
+---
+
 ## Where it would have plugged in {.smaller}
 
 ```{mermaid}
