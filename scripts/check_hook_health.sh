@@ -42,12 +42,16 @@ fi
 total=0
 for hook in "${HOOKS[@]}"; do
     # Filter JSONL lines for this hook (one JSON object per line).
-    count=$(jq -c --arg h "${hook}" 'select(.hook == $h)' "${LOG_PATH}" 2>/dev/null | wc -l | tr -d ' ')
+    # jq-safe wrapper: skip parse errors line-by-line, count valid matches.
+    count=$({ jq -R 'fromjson? | select(.hook == $h) | .hook' --arg h "${hook}" "${LOG_PATH}" 2>/dev/null || true; } | wc -l)
+    count=$((count))  # Convert to numeric (removes leading spaces)
     echo "${hook}"
     echo "  Fires:  ${count}"
     if [[ "${count}" -gt 0 ]]; then
-        first=$(jq -r --arg h "${hook}" 'select(.hook == $h) | .ts' "${LOG_PATH}" | head -1)
-        last=$(jq -r --arg h "${hook}" 'select(.hook == $h) | .ts' "${LOG_PATH}" | tail -1)
+        first=$({ jq -rR 'fromjson? | select(.hook == $h) | .ts' --arg h "${hook}" "${LOG_PATH}" 2>/dev/null || true; } | head -1 || echo "")
+        first=${first:-}
+        last=$({ jq -rR 'fromjson? | select(.hook == $h) | .ts' --arg h "${hook}" "${LOG_PATH}" 2>/dev/null || true; } | tail -1 || echo "")
+        last=${last:-}
         echo "  First:  ${first}"
         echo "  Last:   ${last}"
     fi
