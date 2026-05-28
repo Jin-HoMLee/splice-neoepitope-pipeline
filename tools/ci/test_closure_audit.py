@@ -73,14 +73,113 @@ def test_exempt_paths_all_or_nothing():
     assert ca.is_exempt([]) is False
 
 
-def test_resolve_roles_multi_dedupe_alphabetical():
+def test_resolve_roles_returns_per_issue_sets():
+    """Per-Issue role sets — NOT flattened/deduped across Issues (#524 fix).
+
+    Multi-role Issues must keep ALL their roles. Position is preserved so callers
+    can zip with the original issue list.
+    """
     labels = [
         ["role:scientist", "priority:p2"],
+        ["role:developer", "role:scientist"],  # multi-role
         ["role:developer"],
-        ["role:developer"],
-        ["priority:p2"],
+        ["priority:p2"],  # no role
     ]
-    assert ca.resolve_roles(labels) == ["developer", "scientist"]
+    assert ca.resolve_roles(labels) == [
+        {"scientist"},
+        {"developer", "scientist"},
+        {"developer"},
+        set(),
+    ]
+
+
+def test_lab_notebooks_multi_role_any_satisfies():
+    """Multi-role Issue, at least one notebook references → no gap (PR #518 repro)."""
+    dev_text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nUnrelated work.\n"
+    sci_text = "## 2026-05-27\n\n### 17:39 UTC — Editor: Scientist\nBoltz-2 eval. Refs PR #518.\n"
+    notebooks = {"developer": dev_text, "scientist": sci_text}
+    assert ca.check_lab_notebooks_for_issue(
+        {"developer", "scientist"}, "2026-05-27", 518, notebooks
+    ) is None
+
+
+def test_lab_notebooks_multi_role_none_satisfies():
+    """Multi-role Issue, neither notebook references → single combined gap entry."""
+    dev_text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nOther work.\n"
+    sci_text = "## 2026-05-27\n\n### 17:39 UTC — Editor: Scientist\nOther work.\n"
+    notebooks = {"developer": dev_text, "scientist": sci_text}
+    gap = ca.check_lab_notebooks_for_issue(
+        {"developer", "scientist"}, "2026-05-27", 518, notebooks
+    )
+    assert gap is not None
+    role_label, desc = gap
+    assert "developer" in role_label and "scientist" in role_label
+    assert "#518" in desc
+
+
+def test_lab_notebooks_single_role_no_ref_is_gap():
+    """Single-role regression: legacy shape preserved."""
+    text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nOther.\n"
+    gap = ca.check_lab_notebooks_for_issue(
+        {"developer"}, "2026-05-27", 518, {"developer": text}
+    )
+    assert gap is not None
+    assert gap[0] == "developer"
+
+
+def test_lab_notebooks_single_role_with_ref_no_gap():
+    """Single-role regression: ref present → no gap."""
+    text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nRefs PR #518.\n"
+    assert ca.check_lab_notebooks_for_issue(
+        {"developer"}, "2026-05-27", 518, {"developer": text}
+    ) is None
+
+
+def test_lab_notebooks_missing_file_is_gap():
+    """Missing notebook file (None) reports a per-role gap."""
+    gap = ca.check_lab_notebooks_for_issue(
+        {"developer"}, "2026-05-27", 518, {"developer": None}
+    )
+    assert gap is not None
+    assert "missing" in gap[1].lower()
+
+
+def test_lab_notebooks_multi_role_one_missing_other_satisfies():
+    """Missing file for one role, the other satisfies → no gap."""
+    sci_text = "## 2026-05-27\n\n### 17:39 UTC — Editor: Scientist\nRefs PR #518.\n"
+    notebooks = {"developer": None, "scientist": sci_text}
+    assert ca.check_lab_notebooks_for_issue(
+        {"developer", "scientist"}, "2026-05-27", 518, notebooks
+    ) is None
+
+
+def test_collect_notebook_gaps_dedupes_identical_role_sets():
+    """PR closes 2 Issues sharing the same role → one gap entry, not two."""
+    dev_text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nOther work.\n"
+    gaps = ca.collect_notebook_gaps(
+        [{"developer"}, {"developer"}], "2026-05-27", 518, {"developer": dev_text}
+    )
+    assert len(gaps) == 1
+    assert gaps[0][0] == "developer"
+
+
+def test_collect_notebook_gaps_keeps_distinct_role_sets():
+    """Different role sets across Issues → distinct gap entries."""
+    text = "## 2026-05-27\n\n### 14:00 UTC — Editor: X\nOther.\n"
+    gaps = ca.collect_notebook_gaps(
+        [{"developer"}, {"scientist"}],
+        "2026-05-27", 518,
+        {"developer": text, "scientist": text},
+    )
+    roles_in_gaps = {g[0] for g in gaps}
+    assert roles_in_gaps == {"developer", "scientist"}
+
+
+def test_collect_notebook_gaps_skips_empty_role_sets():
+    """Issues with no role: label contribute no gap."""
+    assert ca.collect_notebook_gaps(
+        [set(), set()], "2026-05-27", 518, {}
+    ) == []
 
 
 def test_format_comment_clean_state():
