@@ -288,3 +288,4 @@ CLAUDE.local.md
 
 # claude-personas role-memory symlink
 /.claude/memory
+.claude/hook_fires.jsonl
