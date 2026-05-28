@@ -185,7 +185,7 @@ PM morning routine at +4 weeks measures:
 
 **If validation fails:** rollback — relabel Issues back to `role:pm`, retire MM session pattern, keep personas-repo structure as inert dead code. Lab notebook entry captures the trial + outcome.
 
-**Estimated effort:** ~5-7 project-repo PRs over the rollout — Sub 1 (this design doc), Subs 2-3 (personas-repo structural setup, each carrying a lab notebook entry as the project-repo deliverable), Sub 5 (shared memory updates journal), Sub 6 (role MEMORY.md updates journal), Sub 8 (Issue relabels journal), Sub 10 (cross-repo bot blind-spot follow-up — Dev tier). The personas-repo file changes themselves land via direct commits from PM during Phases 2-4 (the chicken-and-egg structural prep before MM exists), then via direct commits from MM in Phase 5+. Sub 9 (bootstrap MM session) has no project-repo PR (MM is exempt from lab notebook entries per the new shared rule). Phase 6 is observation.
+**Estimated effort:** ~8-9 project-repo PRs over the rollout — Sub 1 (this design doc), Sub 2 (this implementation plan), Subs 3-4 (personas-repo structural setup, each carrying a lab notebook entry as the project-repo deliverable), Sub 5 (shared memory updates journal), Sub 6 (role MEMORY.md updates journal), Sub 8 (Issue relabels journal), Sub 10 (cross-repo bot blind-spot follow-up — Dev tier). The personas-repo file changes themselves land via direct commits from PM during Phases 2-4 (the chicken-and-egg structural prep before MM exists), then via direct commits from MM in Phase 5+. Sub 9 (bootstrap MM session) has no project-repo PR (MM is exempt from lab notebook entries per the new shared rule). Phase 6 is observation.
 
 ---
 

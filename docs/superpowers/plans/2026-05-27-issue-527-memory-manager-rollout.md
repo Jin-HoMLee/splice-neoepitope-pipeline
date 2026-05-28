@@ -1,8 +1,8 @@
-# Memory Manager Rollout — Implementation Plan (Subs 2-8 of Issue #527)
+# Memory Manager Rollout — Implementation Plan (Subs 3-9 of Issue #527)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bootstrap Memory Manager (MM) as a 4th project role per the design doc at `docs/superpowers/specs/2026-05-27-memory-manager-role-design.md`, completing Subs 2-8 of [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527).
+**Goal:** Bootstrap Memory Manager (MM) as a 4th project role per the design doc at `docs/superpowers/specs/2026-05-27-memory-manager-role-design.md`, completing Subs 3-9 of [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527).
 
 **Architecture:** 6-phase migration — Phases 2-3 (personas-repo structural setup) and Phases 3-4 (memory file edits) are done by PM sessions using `git -C` against the personas repo as a migration-window exception. Phase 5 (first MM session bootstrap) is user-initiated. Project-repo PRs land lab notebook entries that journal each phase. Personas-repo gets direct commits (no PR convention there).
 
@@ -422,7 +422,7 @@ Expected: fast-forward to merged commit.
 Run:
 
 ```bash
-SUB3_URL=$(gh issue create \
+SUB4_URL=$(gh issue create \
   --title "feat(roles): Sub 4 of #527 — memory_manager/MEMORY.md initial content" \
   --milestone "pm-i6 - PM Tooling, Memory & Methodology II" \
   --label "role:pm,role:memory_manager,enhancement" \
@@ -458,9 +458,9 @@ Sub 4 of [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pip
 EOF
 )" 2>&1 | tail -1)
 
-SUB4_NUM=$(echo "$SUB3_URL" | grep -oE '[0-9]+$')
-SUB3_DB_ID=$(gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/${SUB4_NUM} --jq .id)
-echo "{\"sub_issue_id\":${SUB3_DB_ID}}" | gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/527/sub_issues --input -
+SUB4_NUM=$(echo "$SUB4_URL" | grep -oE '[0-9]+$')
+SUB4_DB_ID=$(gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/${SUB4_NUM} --jq .id)
+echo "{\"sub_issue_id\":${SUB4_DB_ID}}" | gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/527/sub_issues --input -
 echo "Sub 4 = #${SUB4_NUM}"
 ```
 
@@ -584,7 +584,7 @@ Run `date -u +"%H:%M UTC"` and append to `research/lab_notebook/pm.md` directly 
 
 - [ ] **Step 2.7: Commit + push project-repo, open PR, flip Status, merge**
 
-Run (same shape as Task 1 Steps 1.12-1.15, replacing SUB2 with SUB3 and personas-commit-sha with current value):
+Run (same shape as Task 1 Steps 1.12-1.15, replacing SUB3 with SUB4 and personas-commit-sha with current value):
 
 ```bash
 cd ~/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline-pm
@@ -847,7 +847,7 @@ read -r CONFIRM
 
 - [ ] **Step 3.14: Lab notebook entry + project-repo PR + merge**
 
-Same shape as Task 1 Steps 1.11-1.15 / Task 2 Steps 2.6-2.8, replacing SUB2/SUB3 with SUB4. Lab notebook entry should highlight that this is a 5-file shared-memory bundle and reference the personas commit SHA. PR title: `feat(pm): Sub 5 of #527 — shared memory updates`.
+Same shape as Task 1 Steps 1.11-1.15 / Task 2 Steps 2.6-2.8, replacing SUB3/SUB4 with SUB5. Lab notebook entry should highlight that this is a 5-file shared-memory bundle and reference the personas commit SHA. PR title: `feat(pm): Sub 5 of #527 — shared memory updates`.
 
 ---
 
@@ -950,7 +950,7 @@ read -r CONFIRM
 
 - [ ] **Step 4.8: Lab notebook entry + project-repo PR + merge**
 
-Same shape as previous tasks, replacing SUB4 with SUB5. Lab notebook entry highlights the 6-file role-memory + morning-routine bundle.
+Same shape as previous tasks, replacing SUB5 with SUB6. Lab notebook entry highlights the 6-file role-memory + morning-routine bundle.
 
 ---
 
@@ -1096,7 +1096,7 @@ Execute the audit handed over in `pm/project_memory_md_slimming.md`:
 
 ## Connects to
 
-- [parent Issue #527](https://github.com/Jin-HoMLee/issues/527) — MM rollout this Issue now belongs to.
+- [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) — MM rollout this Issue now belongs to.
 - PM role memory `project_memory_md_slimming.md` — original audit handover.
 
 **Priority rationale:** P2 — non-urgent; MM picks this up in the validation-gate-period as a representative curation task.
@@ -1240,13 +1240,13 @@ Same shape as previous Subs. PR title: `ops(pm): Sub 9 of #527 — first MM sess
 
 ## Wrap-up: Parent Issue #527 stays Open
 
-After all Subs 2-8 merge + auto-close, the parent Issue #527 still has:
+After all Subs 3-9 merge + auto-close, the parent Issue #527 still has:
 - Sub 10 unchecked (deferred to Dev-tier plan)
 - 4-week validation gate pending
 
 Per `feedback_parent_sub_issues.md`, the parent closes via summary comment after ALL subs Done. Since Sub 10 is deferred, parent #527 stays Open until either (a) Sub 10 ships, or (b) validation gate passes and decision is made to close parent without Sub 10 (folding the gate work into a separate pm-i7 Issue).
 
-**Final state at end of this plan:** Subs 2-8 merged; parent Open pending Sub 10 + validation. Memory Manager role operational.
+**Final state at end of this plan:** Subs 3-9 merged; parent Open pending Sub 10 + validation. Memory Manager role operational.
 
 ---
 
