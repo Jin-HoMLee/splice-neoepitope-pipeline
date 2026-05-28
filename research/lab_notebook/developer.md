@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-28
 
+### 20:38 UTC — Editor: Developer
+
+**Headline:** [PR #545](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/545) (closes [Issue #524](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/524) — closure-audit any-role-satisfies check for multi-role Issues) shipped TDD-first with 7 new tests, then a bot-caught dedup regression got fixed in a follow-up commit + 3 more tests. Origin: [PR #518](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/518)'s false-positive (Scientist's notebook satisfied the reference but the bot only audited Developer's because `resolve_roles` returned `role_labels[0]` after `sorted()`).
+
+**Work shipped:**
+
+- `resolve_roles` returns `list[set[str]]` per-Issue (was: flat dedup `list[str]` that dropped all-but-first-alphabetical role per Issue). Positionally aligned with the input list so callers can zip with the original Issue list.
+- New `check_lab_notebooks_for_issue(roles, date, n, notebooks)`: any-role-satisfies semantic — returns `None` if at least one role's notebook references `#N`, otherwise a single combined `(role_label, description)` tuple (`"developer or scientist"` joined for the multi-role case).
+- `audit_pr` / `audit_issue` callers refactored through a small `collect_notebook_gaps` helper that dedupes by `frozenset(roles)` — added after [bot review](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/545#issuecomment-4567982400) caught a duplicate-gap regression (a PR closing 2 Issues sharing a role label would print the same gap line twice).
+- `_load_notebook` gained `encoding="utf-8"` (defensive, applies to all CI runners regardless of process locale).
+- Test count: 18 → 21 (7 new for the fix, 3 for the dedup helper); 11 pre-existing regression tests preserved.
+
+**Process notes:**
+
+- **TDD discipline paid off twice.** Red→green on the initial 7 tests confirmed the helper shape was right before any caller touched it. Then when the bot caught the dedup regression, the same testable-helper pattern made adding `test_collect_notebook_gaps_dedupes_identical_role_sets` trivial — no subprocess mocks needed for `audit_pr`/`audit_issue` orchestration because the loop body is now a pure function.
+- **Bot caught a regression I didn't.** The old flat-dedup `resolve_roles` had silently dropped a second function — preventing duplicate gap lines when multiple closing Issues shared a role. Refactoring to per-Issue restored the original bug **but** broke this latent behavior. Easy to miss in unit tests; bot's "what if N closing Issues all have role:developer?" reasoning was the right adversarial-thinking lens.
+- **Receiving-code-review on the `[roles] = ...` style note:** bot suggested `roles = resolve_roles([labels])[0]` instead of unpacking. I left the unpack as-is initially (it asserts length), but the dedup refactor made the question moot — `audit_issue` now goes through the same `collect_notebook_gaps` path as `audit_pr`, no more single-element unpacking.
+
+---
+
 ### 19:30 UTC — Editor: Developer
 
 **Headline:** [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) (closes [Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) — `torch<2.5` pin lift via cu126 pip channel) finished out: cloud verification on `neoepitope-pipeline` P100 yielded a **bit-identical** MHCflurry chr22 output vs the pre-bump baseline (81 rows, all structural columns identical, numeric drift at FP-noise level), `@-claude review` returned LGTM in 1m 58s with no blocking findings. Merge-ready; unblocked by [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) earlier today (see 18:00 UTC entry).
