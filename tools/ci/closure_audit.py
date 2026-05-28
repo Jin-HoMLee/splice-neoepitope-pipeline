@@ -114,6 +114,32 @@ def check_lab_notebooks_for_issue(
     return (roles_str, descs)
 
 
+def collect_notebook_gaps(
+    role_sets_per_issue: list[set[str]],
+    date: str,
+    number: int,
+    notebooks: dict[str, str | None],
+) -> list[tuple[str, str]]:
+    """Aggregate notebook gaps across closing Issues, deduped by role set.
+
+    Two Issues with the same role set produce identical gap entries (the
+    underlying check is deterministic on role-set/date/number/notebooks), so
+    only the first is emitted.
+    """
+    gaps: list[tuple[str, str]] = []
+    seen: set[frozenset[str]] = set()
+    for roles in role_sets_per_issue:
+        if not roles:
+            continue
+        key = frozenset(roles)
+        if key in seen:
+            continue
+        seen.add(key)
+        if gap := check_lab_notebooks_for_issue(roles, date, number, notebooks):
+            gaps.append(gap)
+    return gaps
+
+
 def format_comment(
     event_label: str,
     ac_gaps: list[tuple[int, str]],
@@ -153,7 +179,7 @@ def format_comment(
 
 def _load_notebook(role: str) -> str | None:
     path = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
-    return path.read_text() if path.exists() else None
+    return path.read_text(encoding="utf-8") if path.exists() else None
 
 
 def _gh(*args: str) -> str:
@@ -209,12 +235,10 @@ def audit_pr(n: int) -> None:
         labels_per_issue = [
             [lbl["name"] for lbl in i.get("labels", [])] for i in issues
         ]
-        for roles in resolve_roles(labels_per_issue):
-            if not roles:
-                continue
-            notebooks = {r: _load_notebook(r) for r in roles}
-            if gap := check_lab_notebooks_for_issue(roles, date, n, notebooks):
-                nb_gaps.append(gap)
+        role_sets = resolve_roles(labels_per_issue)
+        all_roles = {r for rs in role_sets for r in rs}
+        notebooks = {r: _load_notebook(r) for r in all_roles}
+        nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))
@@ -236,11 +260,10 @@ def audit_issue(n: int) -> None:
         pr_gaps.append((n, d))
 
     labels = [lbl["name"] for lbl in issue.get("labels", [])]
-    [roles] = resolve_roles([labels])
-    if roles:
-        notebooks = {r: _load_notebook(r) for r in roles}
-        if gap := check_lab_notebooks_for_issue(roles, date, n, notebooks):
-            nb_gaps.append(gap)
+    role_sets = resolve_roles([labels])
+    all_roles = {r for rs in role_sets for r in rs}
+    notebooks = {r: _load_notebook(r) for r in all_roles}
+    nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))

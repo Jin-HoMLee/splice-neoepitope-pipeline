@@ -153,6 +153,35 @@ def test_lab_notebooks_multi_role_one_missing_other_satisfies():
     ) is None
 
 
+def test_collect_notebook_gaps_dedupes_identical_role_sets():
+    """PR closes 2 Issues sharing the same role → one gap entry, not two."""
+    dev_text = "## 2026-05-27\n\n### 14:00 UTC — Editor: Developer\nOther work.\n"
+    gaps = ca.collect_notebook_gaps(
+        [{"developer"}, {"developer"}], "2026-05-27", 518, {"developer": dev_text}
+    )
+    assert len(gaps) == 1
+    assert gaps[0][0] == "developer"
+
+
+def test_collect_notebook_gaps_keeps_distinct_role_sets():
+    """Different role sets across Issues → distinct gap entries."""
+    text = "## 2026-05-27\n\n### 14:00 UTC — Editor: X\nOther.\n"
+    gaps = ca.collect_notebook_gaps(
+        [{"developer"}, {"scientist"}],
+        "2026-05-27", 518,
+        {"developer": text, "scientist": text},
+    )
+    roles_in_gaps = {g[0] for g in gaps}
+    assert roles_in_gaps == {"developer", "scientist"}
+
+
+def test_collect_notebook_gaps_skips_empty_role_sets():
+    """Issues with no role: label contribute no gap."""
+    assert ca.collect_notebook_gaps(
+        [set(), set()], "2026-05-27", 518, {}
+    ) == []
+
+
 def test_format_comment_clean_state():
     out = ca.format_comment("PR #1", [], [], [])
     assert "all clear" in out.lower()
