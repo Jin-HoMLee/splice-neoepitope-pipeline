@@ -6,6 +6,44 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-28
+
+### 18:00 UTC — Editor: Developer
+
+**Headline:** [Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522) (P100 cloud-run blocker) ready to **close** — three-regression compound failure resolved via image-family pivot, plus a fourth regression discovered + fixed mid-session. [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) ships 7 commits: original apt-cache 404 fix + 535-keep doc flip (both superseded) + dropped-570 install + smoke-test gate + cu124 image pin with `install-nvidia-driver=True` metadata + FRESH_BOOT-conditional 5-min sleep + bot-review hardening (extended retry, version assertion, fallback hint). chr22 ran end-to-end in ~29 min wall (run #3, 17:13–17:42 UTC). [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) ([Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) torch pin lift) was blocked on this all along — now unblocked.
+
+#### Yesterday's plan executed; new regression discovered mid-execution
+
+The pause memo wrote a 6-step plan (image-family probe → VM probe → patch script → flip CLAUDE.md → re-run chr22 → unblock #519). Steps 1–4 went smoothly: `gcloud compute images list` on `deeplearning-platform-release` showed only `common-cu129-*` + `pytorch-2-9-cu129-*` (all nvidia-580) as current families, so I extended the search to deprecated-but-READY images. The probe revealed `pytorch-latest-cu124-v20250327-ubuntu-2204` ships proprietary **550.90.07** via DLVM's `install-driver.sh` on first boot — the script's `machine_type =~ ^n` guard picks the **closed** kernel module variant for n1 machine types, which is exactly what Pascal needs (open variants require GSP firmware Pascal lacks). Probe VM: `Tesla P100-PCIE-16GB, Driver 550.90.07, CUDA 12.4` clean.
+
+But step 5 surfaced a **fourth** regression: chr22 runs #1 and #2 crashed at `setup_vm.sh` step 1/8. Run #1 disconnected during `apt-get update`; run #2 disconnected during a held-SSH `cloud-init status --wait` block I added to "fix" run #1. Root cause: Ubuntu's `unattended-upgrades` runs in the background on first boot, and when it bumps `openssh-server`, sshd restarts — killing any held SSH session (and even racing SSH key handshake on new sessions).
+
+#### "Fix #1 was racy, fix #2 just waited"
+
+The fix progression illustrates the trap with these first-boot races: the held-SSH wait (commit `87961bc`) had the same vulnerability it was meant to mitigate. The actual fix (`9a1c134`) replaced it with a **host-side `sleep 300`**, conditional on `FRESH_BOOT=true` (VM was just created, not warm-restarted). Crude, but reliable: cloud-init + unattended-upgrades only fire on first boot, so warm restarts skip the sleep entirely — zero cost. Run #3 then passed end-to-end; `report.html` + 4 TSVs in `gs://splice-neoepitope-project/results/patient_001_test/reports/`.
+
+Lesson worth keeping: **on Google's DLVM images, never hold a long SSH session during the first ~5 minutes after boot.** Short polls work because each is a fresh connection (the smoke test's 18-attempt loop survived fine even during runs #1/#2). The right gate isn't "wait for cloud-init done" via SSH — it's "wait on the host side for the chaos to settle."
+
+#### Bot review: 3 hardening suggestions, all defensible
+
+claude bot LGTM'd CLAUDE.md and yesterday's pause-entry lab notebook write, no blocking issues on the script. Three optional suggestions:
+
+1. **Extended driver-verify window on fresh boot** (18 → 36 attempts). Run #3 passed with 18; bot is over-cautious. But trivial insurance.
+2. **`DRIVER_MAJOR >= 575` invariant assertion**. Bot's stated rationale was incorrect — the existing smoke test already catches open-driver-on-Pascal (`nvidia-smi` returns empty when the driver fails to initialize the GPU). But the explicit assertion still has value as a self-documenting requirement ("script requires driver < 575"). Applied on those grounds rather than the bot's.
+3. **Inline comment fallback hint** pointing at CLAUDE.md custom-bake instructions if Google ever deletes the deprecated image.
+
+All three applied as one commit (`4864f35`), no re-verification needed (only error paths + a doc comment).
+
+#### Cost + timing
+
+Total session cloud spend: ~$2.50 (probe VM ~$0.50 + three production VM runs at ~$0.50–1.00 each). About 3.5 hours of session work for ~30 min of actual chr22 wall-clock. The decomposition (image probe → strategy → script change → 3 chr22 attempts → bot review → final hardening) was the right shape for this multi-layered regression — a one-shot patch would have left the unattended-upgrades race undiscovered until the next on-call.
+
+#### What this unblocks
+
+[PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) ([Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514)) — torch pin lift via cu126 pip channel — had cloud verification ACs gated on a working P100 pipeline run. With #522 closed, #519 can collect that evidence and merge.
+
+---
+
 ## 2026-05-27
 
 ### 22:00 UTC — Editor: Developer
