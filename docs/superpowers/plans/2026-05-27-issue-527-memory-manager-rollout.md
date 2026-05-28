@@ -4,7 +4,7 @@
 
 **Goal:** Bootstrap Memory Manager (MM) as a 4th project role per the design doc at `docs/superpowers/specs/2026-05-27-memory-manager-role-design.md`, completing Subs 3-9 of [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527).
 
-**Architecture:** 6-phase migration — Phases 2-3 (personas-repo structural setup) and Phases 3-4 (memory file edits) are done by PM sessions using `git -C` against the personas repo as a migration-window exception. Phase 5 (first MM session bootstrap) is user-initiated. Project-repo PRs land lab notebook entries that journal each phase. Personas-repo gets direct commits (no PR convention there).
+**Architecture:** 6-phase migration — Phase 2 (personas-repo structural setup) and Phases 3-4 (memory file edits) are done by PM sessions using `git -C` against the personas repo as a migration-window exception. Phase 5 (first MM session bootstrap) is user-initiated. Project-repo PRs land lab notebook entries that journal each phase. Personas-repo gets direct commits (no PR convention there).
 
 **Tech Stack:** `gh` CLI, `git` (with `-C` flag for personas-repo migration tasks), GitHub Projects v2 (board #9 cross-repo via `gh api graphql`), Claude Code v2.1.20+ (for `--add-dir` in Phase 5).
 
@@ -67,7 +67,7 @@
 Run:
 
 ```bash
-SUB2_URL=$(gh issue create \
+SUB3_URL=$(gh issue create \
   --title "feat(roles): Sub 3 of #527 — personas-repo CLAUDE.md + .claude/ setup" \
   --milestone "pm-i6 - PM Tooling, Memory & Methodology II" \
   --label "role:pm,role:memory_manager,enhancement" \
@@ -100,12 +100,12 @@ Add personas-repo root `CLAUDE.md` (project instructions for personas-repo sessi
 EOF
 )" 2>&1 | tail -1)
 
-SUB3_NUM=$(echo "$SUB2_URL" | grep -oE '[0-9]+$')
+SUB3_NUM=$(echo "$SUB3_URL" | grep -oE '[0-9]+$')
 
 # Link as native sub of parent #527
 PARENT_DB_ID=$(gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/527 --jq .id)
-SUB2_DB_ID=$(gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/${SUB3_NUM} --jq .id)
-echo "{\"sub_issue_id\":${SUB2_DB_ID}}" | gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/527/sub_issues --input -
+SUB3_DB_ID=$(gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/${SUB3_NUM} --jq .id)
+echo "{\"sub_issue_id\":${SUB3_DB_ID}}" | gh api repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/527/sub_issues --input -
 echo "Sub 3 = #${SUB3_NUM}"
 ```
 
@@ -387,9 +387,9 @@ gh pr checks ${PR_NUM}
 # Expected: ci-tools-pytest, pipeline-pytest, pipeline-snakemake-dry-run all pass
 
 # Tick the last AC on the Sub Issue
-gh issue view ${SUB3_NUM} --json body --jq '.body' > /tmp/sub2_body.md
-# Manually edit /tmp/sub2_body.md to tick all [ ] boxes to [x]
-gh issue edit ${SUB3_NUM} --body-file /tmp/sub2_body.md
+gh issue view ${SUB3_NUM} --json body --jq '.body' > /tmp/sub3_body.md
+# Manually edit /tmp/sub3_body.md to tick all [ ] boxes to [x]
+gh issue edit ${SUB3_NUM} --body-file /tmp/sub3_body.md
 
 # Merge
 bash scripts/audit_and_merge.sh ${PR_NUM}
