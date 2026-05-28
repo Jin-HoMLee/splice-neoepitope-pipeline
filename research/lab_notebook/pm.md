@@ -8,6 +8,52 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-28
 
+### 19:38 UTC — Editor: PM
+
+#### Three slips on the same PR-create beat — caught by user, fixed mid-session; mechanism Issues filed
+
+**Trigger.** User pinged after the 19:06 entry shipped: *"Why is PR #6 not linked via 'issue develop'? And why are the statuses of your PRs all Backlog?"* Two questions surfaced three distinct rule slips on this session's PR-create operations. Caught while board state was still recoverable.
+
+**Slips identified.**
+
+1. **[PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) created via `git checkout -b`, not `gh issue develop`.** Rationalized at the time against the Always-in-effect "Branch creation" rule by citing prior personas-repo PRs (#1–3, #5) that lacked Issue linkage — treated personas-repo as a "looser convention" repo. **Wrong:** the rule says "Always" without repo exception, and prior personas-repo PRs were legacy artifacts, not a current convention to inherit.
+2. **[PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) (this entry's vehicle) created via `gh issue develop 538` against the parent epic.** The Reference-tier rule `Parents: no branches/PRs/Size, mirrored Status, sub-issues inherit milestone+priority` (in `feedback_parent_sub_issues.md`) was not loaded when I picked #538 as the gh-develop target. **The damage:** `gh issue develop` creates a `closingIssuesReferences.userLinkedOnly` edge on any PR opened from the branch. On merge of [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543), parent [Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) would auto-close before its 4 sub-issues complete — orphaning the epic.
+3. **Both PRs shipped at Status `Backlog`.** The `feedback_project_board.md` lifecycle rule says PR open → `Ready for review` via `updateProjectV2ItemFieldValue` (option `8bf9192f`). I never ran the Status flip for either PR. Default ProjectV2 status on auto-add is `Backlog`, which is what user saw on the board.
+
+**API recoverability findings (Slip 2 specifically).** Probed the GraphQL schema for an unlink path: `deleteLinkedBranch` exists but operates on `Issue.linkedBranches` which returned empty (gh-develop's branch registration didn't persist there for whatever reason). `UpdatePullRequestInput` has no `closingIssuesReferences` field. No `disconnectIssueFromPullRequest` / `unlinkPRFromIssue` / similar mutation exists. The `userLinkedOnly: true` edge is **UI-unlink-only** — the only fix path is clicking the X next to "Closes [Issue #538]" on PR #543's Development sidebar. User flagged "(A) UI unlink" via AskUserQuestion; will do so before merging this entry.
+
+**Fixes applied mid-session.**
+
+- Status flip on both PRs to `Ready for review` (option `8bf9192f`) via `updateProjectV2ItemFieldValue` — board now shows correctly.
+- Personas-repo backfill: PR #6 added to board #9 via `gh project item-add 9 --owner Jin-HoMLee --url <pr-url>` (verified: 1 personas-repo item on board, type=PullRequest).
+- Personas-repo auto-add workflow: probed via GraphQL — workflow #13 "Auto-add to project" exists and `enabled: true`, but the filter string is **not API-readable nor API-writable** (only `id`/`name`/`enabled` are exposed; no `UpdateProjectV2WorkflowInput` type). UI-only config; user instructed to extend the filter at `https://github.com/users/Jin-HoMLee/projects/9/workflows/13`.
+- Post-hoc tracking Issue for PR #6: filed [Jin-HoMLee/claude-personas-splice-neoepitope-pipeline#7](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/issues/7). PR #6 body edited to add `Closes #7`. Closure ref now registered (`closingIssuesReferences: [{number: 7}]` confirmed via GraphQL after eventual-consistency lag). gh-develop branch tie is unrecoverable retroactively but the PR→Issue closure ref restores tracking intent.
+
+**Memory updates applied (personas-repo edits; git lifecycle is user-managed).** Per user's "Both" Q2 choice:
+
+- Extended `shared/MEMORY.md` Always-in-effect "Branch creation" rule: now explicitly covers all owned repos (splice + personas), names the parents-have-no-branches edge case, names the `closingIssuesReferences.userLinkedOnly` UI-unlink-only consequence, includes caught-date citation.
+- Updated `shared/MEMORY.md` Always-in-effect "Add to project board" rule: notes the auto-add workflow #13 + UI-only filter extension.
+- New Always-in-effect rule: **PR open → run the 4-step checklist** — project add + body attribution + Status flip to Ready for review + Issue Status mirror on review request. Links to new `shared/feedback_pr_open_checklist.md`.
+- New Reference-tier file: `shared/feedback_pr_open_checklist.md` — full per-step API snippets, mechanism-over-memory escalation note (hook candidate on `gh pr create`).
+- Reference-section index in `shared/MEMORY.md` updated with `feedback_pr_open_checklist.md` link + extended Branch creation summary.
+
+**Ironic on-theme note.** This session filed the [memory-slim parent epic #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) targeting 39 → ~12 Always-in-effect rules. The fixes above ADD a new Always-in-effect rule (PR-open checklist), bringing the count slightly UP before the slim epic ships. Tension is real but not a contradiction: the slim epic targets DEMOTE candidates (hook-shaped, skill-shaped, compressible); the new PR-open rule is itself flagged as a future hook escalation candidate (mechanism-over-memory ladder rung 3 explicitly named in its feedback file body). Net direction is still down, with this rule as a transient bridge.
+
+**Mechanism-over-memory candidates filed (or to file next session).** Both Slip 2 and Slip 3 are deterministic-trigger failures — strong hook candidates. Not filed today (user time budget); next session:
+
+- `PreToolUse` hook on `gh issue develop` that refuses to target a parent Issue (queries `subIssuesSummary.total > 0` to detect parents).
+- `PostToolUse` hook on `gh pr create` that runs the 4-step checklist automatically (project add + Status flip; body attribution and Issue mirror are author-judgment).
+
+**Followups carried forward.**
+
+- User to UI-unlink [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) from [Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) (Development sidebar) before merging this PR. Without unlink, merge auto-closes parent epic.
+- User to extend project workflow #13 filter to include personas-repo (UI-only).
+- Personas-repo memory edits await user-managed commit/push (per the "personas-repo git state not your responsibility" rule). Edits live on disk in `claude-personas-splice-neoepitope-pipeline/shared/MEMORY.md` + new `shared/feedback_pr_open_checklist.md`.
+- Two mechanism-over-memory hook Issues to file next session (gh issue develop parent-guard + gh pr create post-hook).
+- pm/ slimming sub [#540](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/540) baseline count to be updated post-merge-of-personas-#7 (deletion lands; pm/ count drops 10 → 9 starting, target ~5 unchanged).
+
+**Entry vehicle:** [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) (same as 19:06 entry; this is the 2nd time-entry for today, appended to same branch).
+
 ### 19:06 UTC — Editor: PM
 
 #### Memory framework slimming — parent epic + 4 per-file subs carved; AskUserQuestion-Recommended deletion shipped as standalone PR
