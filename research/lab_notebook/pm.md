@@ -31,7 +31,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **Closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) rule self-applied.** This entry was written AFTER [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) opened (so PR # is available to reference). The personas-repo PR is the durable easy-win artifact; this entry is the session-arc summary for the project-repo PM journal. Per the lab-notebook timing rule, this entry will go on its own minimal-shell PR in the project repo with `[PR #TBD]` placeholder finalized post-create.
 
-**Entry vehicle:** [PR #TBD] (project repo; will be filled in post-create).
+**Entry vehicle:** [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) (project repo).
 
 **Followups carried forward.**
 
