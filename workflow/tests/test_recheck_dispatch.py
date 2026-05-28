@@ -95,3 +95,34 @@ def test_threshold_prompt_no_dock(tmp_path, monkeypatch):
     prompt = recheck_dispatch._threshold_prompt("dockless_hook")
     assert prompt is not None
     assert "no dock Issue filed yet" in prompt
+
+
+def test_is_fire_target_sync_check():
+    """target_sync_check predicate: empty string / None-like is no-fire; any text is fire."""
+    import recheck_dispatch
+    assert recheck_dispatch._is_fire("target_sync_check", "") is False
+    assert recheck_dispatch._is_fire("target_sync_check", "any warning text") is True
+
+
+def test_is_fire_recheck_milestone_no_change_paths():
+    """recheck_milestone predicate: 'Status: [No change]' and 'has no milestone' are both no-fire."""
+    import recheck_dispatch
+    assert recheck_dispatch._is_fire("recheck_milestone", "Status: [No change]") is False
+    assert recheck_dispatch._is_fire("recheck_milestone", "Status: [No change] — milestone has no remaining capacity") is False
+    assert recheck_dispatch._is_fire("recheck_milestone", "error: issue #999 has no milestone") is False
+    assert recheck_dispatch._is_fire("recheck_milestone", "Status: [UPDATE NEEDED]") is True
+    assert recheck_dispatch._is_fire("recheck_milestone", "Status: [UNSIZED]") is True
+
+
+def test_is_fire_recheck_parent_status_no_change_paths():
+    """recheck_parent_status predicate: 'Status: [No change]' and 'has no parent' are both no-fire."""
+    import recheck_dispatch
+    assert recheck_dispatch._is_fire("recheck_parent_status", "Status: [No change]") is False
+    assert recheck_dispatch._is_fire("recheck_parent_status", "Issue #999 has no parent — nothing to audit.") is False
+    assert recheck_dispatch._is_fire("recheck_parent_status", "Status: [PARENT_AHEAD]") is True
+
+
+def test_is_fire_unknown_hook_returns_false():
+    """Unknown hook names default to no-fire (safe-by-default)."""
+    import recheck_dispatch
+    assert recheck_dispatch._is_fire("unknown_hook", "any text") is False

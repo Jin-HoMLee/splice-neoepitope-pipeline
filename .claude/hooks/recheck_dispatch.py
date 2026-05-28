@@ -98,14 +98,30 @@ def _threshold_prompt(hook_name: str) -> str | None:
     )
 
 
+# Per-hook no-fire sentinels. Each subprocess script may emit one of several
+# strings to signal "nothing actionable here"; if any sentinel is present in
+# output, the predicate returns False (no fire). Sentinels are verified
+# against the live script source in scripts/pm/.
+_NO_FIRE_SENTINELS = {
+    "recheck_milestone": (
+        "Status: [No change]",       # no drift OR no remaining capacity
+        "has no milestone",          # issue lost its milestone (stderr)
+    ),
+    "recheck_parent_status": (
+        "Status: [No change]",       # no drift detected on parent chain
+        "has no parent",             # leaf issue (the common close case)
+    ),
+}
+
+
 def _is_fire(hook_name: str, output: str) -> bool:
-    """Return True if this output represents a real warning (not 'no change')."""
+    """Return True if this output represents a real warning (not 'no change' / not 'no action needed')."""
     if hook_name == "target_sync_check":
-        return bool(output)  # function returns None when no fire
-    if hook_name in ("recheck_milestone", "recheck_parent_status"):
-        # Both scripts emit "Status: [No change]" when no drift is detected.
-        return "Status: [No change]" not in output
-    return False
+        return bool(output)  # function returns None when no fire; bool() is explicit for clarity
+    sentinels = _NO_FIRE_SENTINELS.get(hook_name)
+    if sentinels is None:
+        return False
+    return not any(s in output for s in sentinels)
 
 
 def _wrap_warning(hook_name: str, issue: int | None, warning: str, outputs: list[str]) -> None:
