@@ -328,6 +328,25 @@ fi
 log "  Driver OK: ${DRIVER_INFO}"
 
 # ---------------------------------------------------------------------------
+# Wait for first-boot init (cloud-init + unattended-upgrades) to finish
+# before running setup_vm.sh. The DLVM image runs install-driver.sh in
+# parallel with cloud-init + apt unattended-upgrades on first boot;
+# unattended-upgrades can bump openssh-server, which restarts sshd and
+# kills the SSH session mid-setup (caught 2026-05-28 on first chr22 run
+# from cu124 image). cloud-init returns immediately on subsequent boots,
+# so this is a no-op cost on warm restarts.
+# ---------------------------------------------------------------------------
+log "Waiting for first-boot init (cloud-init + apt locks) on ${PIPELINE_VM}..."
+ssh_cmd "${PIPELINE_VM}" -- bash -s <<'WAIT_EOF'
+sudo cloud-init status --wait >/dev/null 2>&1 || true
+while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+   || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    sleep 5
+done
+WAIT_EOF
+log "  First-boot init complete."
+
+# ---------------------------------------------------------------------------
 # Setup VM (idempotent — skips steps already done)
 # ---------------------------------------------------------------------------
 log "Running setup_vm.sh on ${PIPELINE_VM}..."
