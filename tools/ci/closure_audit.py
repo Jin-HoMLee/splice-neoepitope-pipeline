@@ -72,17 +72,46 @@ def is_exempt(changed_files: list[str]) -> bool:
     )
 
 
-def resolve_roles(labels_per_issue: list[list[str]]) -> list[str]:
-    roles: set[str] = set()
-    for labels in labels_per_issue:
-        role_labels = sorted(
-            lbl[len("role:"):]
-            for lbl in labels
-            if lbl.startswith("role:")
-        )
-        if role_labels:
-            roles.add(role_labels[0])
-    return sorted(roles)
+def resolve_roles(labels_per_issue: list[list[str]]) -> list[set[str]]:
+    """Per-Issue role sets, positionally aligned with the input list.
+
+    Multi-role Issues keep ALL their roles (see #524). Issues with no `role:`
+    label produce an empty set — callers should skip those entries.
+    """
+    return [
+        {lbl[len("role:"):] for lbl in labels if lbl.startswith("role:")}
+        for labels in labels_per_issue
+    ]
+
+
+def check_lab_notebooks_for_issue(
+    roles: set[str],
+    date: str,
+    number: int,
+    notebooks: dict[str, str | None],
+) -> tuple[str, str] | None:
+    """Any-role-satisfies notebook check for one Issue's role set.
+
+    Returns None if at least one role's notebook references `#number` in the
+    `## date` block. Otherwise returns a single (role_label, description) tuple
+    summarizing the gap across all roles.
+
+    `notebooks` maps role → notebook text (None for missing file).
+    """
+    per_role_gaps: list[tuple[str, str]] = []
+    for role in sorted(roles):
+        text = notebooks.get(role)
+        if text is None:
+            per_role_gaps.append((role, "lab notebook file missing"))
+            continue
+        if (gap := check_lab_notebook(text, date, number)) is None:
+            return None
+        per_role_gaps.append((role, gap))
+    if len(per_role_gaps) == 1:
+        return per_role_gaps[0]
+    roles_str = " or ".join(r for r, _ in per_role_gaps)
+    descs = "; ".join(f"{r}: {d}" for r, d in per_role_gaps)
+    return (roles_str, descs)
 
 
 def format_comment(
@@ -120,6 +149,11 @@ def format_comment(
 
 
 # --- gh I/O ---
+
+
+def _load_notebook(role: str) -> str | None:
+    path = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
+    return path.read_text() if path.exists() else None
 
 
 def _gh(*args: str) -> str:
@@ -175,13 +209,12 @@ def audit_pr(n: int) -> None:
         labels_per_issue = [
             [lbl["name"] for lbl in i.get("labels", [])] for i in issues
         ]
-        for role in resolve_roles(labels_per_issue):
-            path = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
-            if not path.exists():
-                nb_gaps.append((role, "lab notebook file missing"))
+        for roles in resolve_roles(labels_per_issue):
+            if not roles:
                 continue
-            if d := check_lab_notebook(path.read_text(), date, n):
-                nb_gaps.append((role, d))
+            notebooks = {r: _load_notebook(r) for r in roles}
+            if gap := check_lab_notebooks_for_issue(roles, date, n, notebooks):
+                nb_gaps.append(gap)
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))
@@ -203,13 +236,11 @@ def audit_issue(n: int) -> None:
         pr_gaps.append((n, d))
 
     labels = [lbl["name"] for lbl in issue.get("labels", [])]
-    for role in resolve_roles([labels]):
-        path = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
-        if not path.exists():
-            nb_gaps.append((role, "lab notebook file missing"))
-            continue
-        if d := check_lab_notebook(path.read_text(), date, n):
-            nb_gaps.append((role, d))
+    [roles] = resolve_roles([labels])
+    if roles:
+        notebooks = {r: _load_notebook(r) for r in roles}
+        if gap := check_lab_notebooks_for_issue(roles, date, n, notebooks):
+            nb_gaps.append(gap)
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))
