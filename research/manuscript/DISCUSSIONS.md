@@ -856,8 +856,8 @@ i2-S1 / i3-S1 sprints to identify which to integrate alongside TCRdock and where
   not directly available from the predictor's own pLDDT / ipTM.
 - **Sequence-based binding / specificity prediction.** Transformer or graph models
   that bypass structure entirely and predict TCR-pMHC binding or T-cell activation
-  from sequence (ImmSET, TCRLens, t2pmhc when used as a TCRdock-confidence
-  cross-check, sequence-only specificity models). Cheap; complementary to but not a
+  from sequence (ImmSET, sequence-only specificity models such as TAPIR or NetTCR
+  variants without the structural module). Cheap; complementary to but not a
   replacement for structural signal.
 
 ### Per-scorer evaluation outcomes
@@ -908,8 +908,9 @@ from the framework region, so TCRLens's structure-aware EGNN inherits a
 backbone constraint that limits its discrimination ceiling for the intended
 integration role.
 
-**NetTCR-struc** (Deleuran et al., 2026) was evaluated as a hybrid
-structural-QC predictor combining sequence and structural features. The
+**NetTCR-struc** (Deleuran et al., *Front Immunol* 2025) was evaluated
+as a hybrid structural-QC predictor combining sequence and structural
+features. The
 decision was integrate as a post-prediction structural-QC filter.
 NetTCR-struc occupies the same structural-QC niche as HERMES but operates on
 the GNN side of the architectural axis; the two integrations are
@@ -932,7 +933,7 @@ Two patterns emerge from the six-scorer evaluation. First, **co-folding
 replacements for TCRdock** (Boltz-2 declined; AF3 pending) face the same
 data-availability constraint that motivated TCRdock's TCR-specific
 fine-tuning — architectural novelty does not substitute for in-distribution
-training data, and the OOD generalization gap remains the binding constraint
+training data, and the OOD generalization gap remains the operative constraint
 on this class. Second, **structure-based cross-checks** (HERMES and
 NetTCR-struc both integrated; t2pmhc redundant; TCRLens backbone-limited)
 are the highest-value integration angle: they slot into the existing pipeline
@@ -941,20 +942,20 @@ small number of orthogonal cross-checks (physics-guided + GNN-learned)
 provides redundancy on the calibration axis that any single confidence score
 lacks. Sequence-based specificity predictors (ImmSET declined) were
 systematically deprioritized given the structural-QC niche's higher immediate
-value for vaccine candidate ranking; a future pass on PLM-based or
-sequence-similarity scorers may revisit this class as the structural-QC
-layer matures.
+value for vaccine candidate ranking; a future pass on protein language
+model (PLM)-based or sequence-similarity scorers may revisit this class
+as the structural-QC layer matures.
 
 ### Per-scorer integration summary
 
 | Scorer | Scoring axis | Verdict | Carrier |
 |--------|--------------|---------|---------|
 | Boltz-2 | End-to-end structural prediction | Decline — OOD generalization gap | Issue #188 close comment |
-| HERMES | Structure-based confidence | Integrate | Sub-Issue #492 (milestone 29) |
+| HERMES | Structure-based confidence | Integrate — post-TCRdock structural QC (physics-guided) | Sub-Issue #492 (milestone 29) |
 | ImmSET | Sequence-based specificity | Decline — proprietary data + single-allele scope | Issue #201 close comment |
 | t2pmhc | Structure-based confidence | Decline — redundant with HERMES | Issue #236 re-decision comment |
 | TCRLens | Structure-based confidence | Decline — tFold-TCR backbone framework-accuracy limit | Issue #236 re-decision comment |
-| NetTCR-struc | Structure-based confidence (GNN) | Integrate | Sub-Issue #433 (milestone 29) |
+| NetTCR-struc | Structure-based confidence (GNN) | Integrate — post-TCRdock structural QC (GNN-learned) | Sub-Issue #433 (milestone 29) |
 | AlphaFold3 | End-to-end structural prediction | Pending — eval in progress | Issue #316 |
 
 The two integrations under the TCR-pMHC scorer integration milestone
