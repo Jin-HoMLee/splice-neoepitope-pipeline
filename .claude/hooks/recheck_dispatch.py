@@ -98,6 +98,27 @@ def _threshold_prompt(hook_name: str) -> str | None:
     )
 
 
+def _is_fire(hook_name: str, output: str) -> bool:
+    """Return True if this output represents a real warning (not 'no change')."""
+    if hook_name == "target_sync_check":
+        return bool(output)  # function returns None when no fire
+    if hook_name in ("recheck_milestone", "recheck_parent_status"):
+        # Both scripts emit "Status: [No change]" when no drift is detected.
+        return "Status: [No change]" not in output
+    return False
+
+
+def _wrap_warning(hook_name: str, issue: int | None, warning: str, outputs: list[str]) -> None:
+    """Append warning to outputs; if it's a real fire, log it + append threshold prompt."""
+    outputs.append(warning)  # always emit so user sees recheck context
+    if not _is_fire(hook_name, warning):
+        return
+    _log_fire(hook_name, issue=issue)
+    prompt = _threshold_prompt(hook_name)
+    if prompt:
+        outputs.append(prompt)
+
+
 # ---------------------------------------------------------------------------
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
 PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")
@@ -278,12 +299,19 @@ def dispatch(cmd: str) -> list[str]:
 
     m = PATTERN_CLOSE.search(cmd)
     if m:
-        outputs.append(
-            f"[milestone recheck — close #{m.group(1)}]\n{run_recheck('--issue', m.group(1))}"
+        issue_n = int(m.group(1))
+        _wrap_warning(
+            "recheck_milestone",
+            issue_n,
+            f"[milestone recheck — close #{issue_n}]\n{run_recheck('--issue', str(issue_n))}",
+            outputs,
         )
-        outputs.append(
-            f"[parent-status recheck — close #{m.group(1)}]\n"
-            f"{run_parent_status_recheck('--issue', m.group(1))}"
+        _wrap_warning(
+            "recheck_parent_status",
+            issue_n,
+            f"[parent-status recheck — close #{issue_n}]\n"
+            f"{run_parent_status_recheck('--issue', str(issue_n))}",
+            outputs,
         )
 
     m = PATTERN_MOVE.search(cmd)
@@ -291,29 +319,38 @@ def dispatch(cmd: str) -> list[str]:
         issue = int(m.group(1))
         ms_numbers = prior_milestones_for_issue(issue)
         if not ms_numbers:
-            outputs.append(
+            _wrap_warning(
+                "recheck_milestone",
+                issue,
                 f"[milestone recheck — move on #{issue} "
                 f"(milestone history empty; rechecking current only)]\n"
-                f"{run_recheck('--issue', str(issue))}"
+                f"{run_recheck('--issue', str(issue))}",
+                outputs,
             )
         else:
             for ms in ms_numbers:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_milestone",
+                    issue,
                     f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
-                    f"{run_recheck('--milestone', str(ms))}"
+                    f"{run_recheck('--milestone', str(ms))}",
+                    outputs,
                 )
         sync_warn = target_sync_check(issue)
         if sync_warn:
-            outputs.append(sync_warn)
+            _wrap_warning("target_sync_check", issue, sync_warn, outputs)
 
     if SIZE_FIELD_ID in cmd:
         item_match = PATTERN_ITEMID.search(cmd)
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
             if issue:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_milestone",
+                    issue,
                     f"[milestone recheck — size change on #{issue}]\n"
-                    f"{run_recheck('--issue', str(issue))}"
+                    f"{run_recheck('--issue', str(issue))}",
+                    outputs,
                 )
 
     if STATUS_FIELD_ID in cmd:
@@ -321,17 +358,23 @@ def dispatch(cmd: str) -> list[str]:
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
             if issue:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_parent_status",
+                    issue,
                     f"[parent-status recheck — Status change on #{issue}]\n"
-                    f"{run_parent_status_recheck('--issue', str(issue))}"
+                    f"{run_parent_status_recheck('--issue', str(issue))}",
+                    outputs,
                 )
 
     if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd):
         m = PATTERN_MILESTONE_PATH.search(cmd)
         if m:
-            outputs.append(
+            _wrap_warning(
+                "recheck_milestone",
+                None,
                 f"[milestone recheck — due_on PATCH on milestone {m.group(1)}]\n"
-                f"{run_recheck('--milestone', m.group(1))}"
+                f"{run_recheck('--milestone', m.group(1))}",
+                outputs,
             )
 
     return outputs
