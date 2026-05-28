@@ -49,6 +49,7 @@ DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + referen
 # predates that shift: CUDA 12.4 toolkit + DLVM install-driver.sh that picks proprietary
 # (closed) 550.90.07 for n1 machine types — Pascal-compatible. DEPRECATED but READY; verified
 # 2026-05-28 on probe VM. See CLAUDE.md "Infrastructure" + Issue #522.
+# If Google deletes this image, fallback is a custom bake — see CLAUDE.md.
 IMAGE_NAME="pytorch-latest-cu124-v20250327-ubuntu-2204"
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
@@ -313,21 +314,38 @@ wait_for_ssh "${PIPELINE_VM}"
 # DKMS (kernel-module rebuild on kernel upgrade). See CLAUDE.md
 # "Infrastructure" + Issue #522.
 # ---------------------------------------------------------------------------
-log "Verifying NVIDIA driver on ${PIPELINE_VM} (allow ~3 min for first-boot install)..."
+# Extend the retry window on fresh boot — driver init can be slowed by
+# concurrent unattended-upgrades holding dpkg locks. 36 × 10s = 6 min on
+# fresh boot, 18 × 10s = 3 min on warm restart.
+MAX_ATTEMPTS=18
+[[ "${FRESH_BOOT}" == true ]] && MAX_ATTEMPTS=36
+log "Verifying NVIDIA driver on ${PIPELINE_VM} (allow ~$((MAX_ATTEMPTS * 10 / 60)) min for first-boot install)..."
 DRIVER_INFO=""
-for attempt in $(seq 1 18); do
+for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
     if DRIVER_INFO=$(ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1); then
         if [[ -n "${DRIVER_INFO}" ]]; then break; fi
     fi
     sleep 10
 done
 if [[ -z "${DRIVER_INFO}" ]]; then
-    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} after 3 min — driver install did not complete."
+    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} after $((MAX_ATTEMPTS * 10 / 60)) min — driver install did not complete."
     log "  Investigate before retrying:"
     log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- 'sudo journalctl -u google-startup-scripts --no-pager | tail -50; nvidia-smi'"
     exit 1
 fi
 log "  Driver OK: ${DRIVER_INFO}"
+
+# Assert Pascal compatibility (script invariant: P100 needs driver < 575).
+# `nvidia-smi` returning empty already catches the open-driver case (P100
+# fails to initialize), but an explicit version check makes the requirement
+# self-documenting and fail-fast if a future DLVM script bypasses the n1
+# machine-type guard and installs a 575+ open driver that somehow reports.
+DRIVER_MAJOR=$(echo "${DRIVER_INFO}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
+if [[ -n "${DRIVER_MAJOR}" && "${DRIVER_MAJOR}" -ge 575 ]]; then
+    log "ERROR: Driver ${DRIVER_MAJOR}.x >= 575 dropped Pascal (SM 6.0) support. P100 will not work."
+    log "  Pin a different IMAGE_NAME (see top of script) or bake a custom image with driver < 575."
+    exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Fresh-boot quiet period. The DLVM image runs install-driver.sh in parallel
