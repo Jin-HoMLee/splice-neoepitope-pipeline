@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
@@ -29,6 +30,112 @@ TARGET_DATE_FIELD_NAME = "Target date"
 SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_milestone.py")
 PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_parent_status.py")
 
+# ---------------------------------------------------------------------------
+# Fire-log infrastructure (Issue #453)
+# ---------------------------------------------------------------------------
+
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+
+
+def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:
+    """Append one JSONL line to LOG_PATH recording a hook fire.
+
+    POSIX guarantees each write() syscall on an O_APPEND regular file is
+    atomic (no concurrent-writer interleave) regardless of length. The 4 KB
+    guard is sanity hygiene — if a future schema change pushes a line above
+    ~4 KB, the write is skipped rather than persisted, so the log structure
+    stays parseable.
+    """
+    payload = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "hook": hook_name,
+        "issue": issue,
+        **metadata,
+    }
+    line = json.dumps(payload, separators=(",", ":")) + "\n"
+    if len(line.encode("utf-8")) >= 4096:
+        print(f"hook_fires: oversized line (>=4KB) for {hook_name}, skipped", file=sys.stderr)
+        return
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
+def _count_fires(hook_name: str) -> int:
+    """Count lines in LOG_PATH where hook_name appears in the JSONL record.
+
+    Substring match against the serialized form (`"hook":"<name>"`); cheap
+    at K=3 scale, no JSON parsing needed.
+    """
+    if not LOG_PATH.exists():
+        return 0
+    needle = f'"hook":"{hook_name}"'
+    return sum(1 for line in LOG_PATH.read_text(encoding="utf-8").splitlines() if needle in line)
+
+
+HOOK_CONFIG: dict[str, dict] = {
+    "target_sync_check":     {"threshold": 3, "dock": 454},
+    "recheck_milestone":     {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
+    "recheck_parent_status": {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
+}
+
+
+def _threshold_prompt(hook_name: str) -> str | None:
+    """Return the 🎯 promotion-review prompt when count == K (exactly); else None.
+
+    Equals-once (not >=) so the prompt fires on exactly the K-th fire and
+    never again. No nagging.
+    """
+    cfg = HOOK_CONFIG.get(hook_name)
+    if cfg is None:
+        return None
+    if _count_fires(hook_name) != cfg["threshold"]:
+        return None
+    dock = f"Issue #{cfg['dock']}" if cfg["dock"] else "(no dock Issue filed yet)"
+    return (
+        f"🎯 {hook_name} has now fired {cfg['threshold']} times — review for promotion: "
+        f"bash scripts/check_hook_health.sh ; {dock}"
+    )
+
+
+# Per-hook no-fire sentinels. Each subprocess script may emit one of several
+# strings to signal "nothing actionable here"; if any sentinel is present in
+# output, the predicate returns False (no fire). Sentinels are verified
+# against the live script source in scripts/pm/.
+_NO_FIRE_SENTINELS = {
+    "recheck_milestone": (
+        "Status: [No change]",       # no drift OR no remaining capacity
+        "has no milestone",          # issue lost its milestone (stderr)
+    ),
+    "recheck_parent_status": (
+        "Status: [No change]",       # no drift detected on parent chain
+        "has no parent",             # leaf issue (the common close case)
+    ),
+}
+
+
+def _is_fire(hook_name: str, output: str) -> bool:
+    """Return True if this output represents a real warning (not 'no change' / not 'no action needed')."""
+    if hook_name == "target_sync_check":
+        return bool(output)  # function returns None when no fire; bool() is explicit for clarity
+    sentinels = _NO_FIRE_SENTINELS.get(hook_name)
+    if sentinels is None:
+        return False
+    return not any(s in output for s in sentinels)
+
+
+def _wrap_warning(hook_name: str, issue: int | None, warning: str, outputs: list[str]) -> None:
+    """Append warning to outputs; if it's a real fire, log it + append threshold prompt."""
+    outputs.append(warning)  # always emit so user sees recheck context
+    if not _is_fire(hook_name, warning):
+        return
+    _log_fire(hook_name, issue=issue)
+    prompt = _threshold_prompt(hook_name)
+    if prompt:
+        outputs.append(prompt)
+
+
+# ---------------------------------------------------------------------------
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
 PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")
 PATTERN_GH_API = re.compile(r"\bgh\s+api\b")
@@ -208,12 +315,19 @@ def dispatch(cmd: str) -> list[str]:
 
     m = PATTERN_CLOSE.search(cmd)
     if m:
-        outputs.append(
-            f"[milestone recheck — close #{m.group(1)}]\n{run_recheck('--issue', m.group(1))}"
+        issue_n = int(m.group(1))
+        _wrap_warning(
+            "recheck_milestone",
+            issue_n,
+            f"[milestone recheck — close #{issue_n}]\n{run_recheck('--issue', str(issue_n))}",
+            outputs,
         )
-        outputs.append(
-            f"[parent-status recheck — close #{m.group(1)}]\n"
-            f"{run_parent_status_recheck('--issue', m.group(1))}"
+        _wrap_warning(
+            "recheck_parent_status",
+            issue_n,
+            f"[parent-status recheck — close #{issue_n}]\n"
+            f"{run_parent_status_recheck('--issue', str(issue_n))}",
+            outputs,
         )
 
     m = PATTERN_MOVE.search(cmd)
@@ -221,29 +335,38 @@ def dispatch(cmd: str) -> list[str]:
         issue = int(m.group(1))
         ms_numbers = prior_milestones_for_issue(issue)
         if not ms_numbers:
-            outputs.append(
+            _wrap_warning(
+                "recheck_milestone",
+                issue,
                 f"[milestone recheck — move on #{issue} "
                 f"(milestone history empty; rechecking current only)]\n"
-                f"{run_recheck('--issue', str(issue))}"
+                f"{run_recheck('--issue', str(issue))}",
+                outputs,
             )
         else:
             for ms in ms_numbers:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_milestone",
+                    issue,
                     f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
-                    f"{run_recheck('--milestone', str(ms))}"
+                    f"{run_recheck('--milestone', str(ms))}",
+                    outputs,
                 )
         sync_warn = target_sync_check(issue)
         if sync_warn:
-            outputs.append(sync_warn)
+            _wrap_warning("target_sync_check", issue, sync_warn, outputs)
 
     if SIZE_FIELD_ID in cmd:
         item_match = PATTERN_ITEMID.search(cmd)
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
             if issue:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_milestone",
+                    issue,
                     f"[milestone recheck — size change on #{issue}]\n"
-                    f"{run_recheck('--issue', str(issue))}"
+                    f"{run_recheck('--issue', str(issue))}",
+                    outputs,
                 )
 
     if STATUS_FIELD_ID in cmd:
@@ -251,17 +374,23 @@ def dispatch(cmd: str) -> list[str]:
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
             if issue:
-                outputs.append(
+                _wrap_warning(
+                    "recheck_parent_status",
+                    issue,
                     f"[parent-status recheck — Status change on #{issue}]\n"
-                    f"{run_parent_status_recheck('--issue', str(issue))}"
+                    f"{run_parent_status_recheck('--issue', str(issue))}",
+                    outputs,
                 )
 
     if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd):
         m = PATTERN_MILESTONE_PATH.search(cmd)
         if m:
-            outputs.append(
+            _wrap_warning(
+                "recheck_milestone",
+                None,
                 f"[milestone recheck — due_on PATCH on milestone {m.group(1)}]\n"
-                f"{run_recheck('--milestone', m.group(1))}"
+                f"{run_recheck('--milestone', m.group(1))}",
+                outputs,
             )
 
     return outputs
