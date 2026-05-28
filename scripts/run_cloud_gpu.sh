@@ -279,6 +279,7 @@ fi
 # Create or start pipeline VM
 # ---------------------------------------------------------------------------
 VM_STATUS="$(vm_status "${PIPELINE_VM}")"
+FRESH_BOOT=false
 if [[ "${VM_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${PIPELINE_VM}..."
     gcloud compute instances start "${PIPELINE_VM}" --zone="${ZONE}"
@@ -296,6 +297,7 @@ elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
         --scopes=cloud-platform \
         --metadata=enable-oslogin=FALSE,install-nvidia-driver=True
     log "  VM created. Driver install runs on first boot (~2 min)."
+    FRESH_BOOT=true
 else
     log "${PIPELINE_VM} already running (status: ${VM_STATUS})."
 fi
@@ -328,23 +330,22 @@ fi
 log "  Driver OK: ${DRIVER_INFO}"
 
 # ---------------------------------------------------------------------------
-# Wait for first-boot init (cloud-init + unattended-upgrades) to finish
-# before running setup_vm.sh. The DLVM image runs install-driver.sh in
-# parallel with cloud-init + apt unattended-upgrades on first boot;
-# unattended-upgrades can bump openssh-server, which restarts sshd and
-# kills the SSH session mid-setup (caught 2026-05-28 on first chr22 run
-# from cu124 image). cloud-init returns immediately on subsequent boots,
-# so this is a no-op cost on warm restarts.
+# Fresh-boot quiet period. The DLVM image runs install-driver.sh in parallel
+# with cloud-init + apt unattended-upgrades on first boot. Holding a long
+# SSH session through this window gets the connection killed (sshd is
+# restarted when unattended-upgrades bumps openssh-server); even short-poll
+# SSH attempts can fail mid-handshake. The simplest reliable mitigation is
+# to wait host-side for the unattended-upgrades window to close, ~5 min.
+# Skipped on warm restarts (VM was TERMINATED then started) — cloud-init +
+# unattended-upgrades only fire on the first boot. Caught 2026-05-28
+# runs #1 + #2 — both crashed during step 1/8 of setup_vm.sh and during
+# the initial cloud-init wait respectively, before this sleep was added.
 # ---------------------------------------------------------------------------
-log "Waiting for first-boot init (cloud-init + apt locks) on ${PIPELINE_VM}..."
-ssh_cmd "${PIPELINE_VM}" -- bash -s <<'WAIT_EOF'
-sudo cloud-init status --wait >/dev/null 2>&1 || true
-while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
-   || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-    sleep 5
-done
-WAIT_EOF
-log "  First-boot init complete."
+if [[ "${FRESH_BOOT}" == true ]]; then
+    log "First-boot quiet period (5 min) — letting cloud-init + unattended-upgrades complete..."
+    sleep 300
+    log "  Quiet period done; sshd should be stable."
+fi
 
 # ---------------------------------------------------------------------------
 # Setup VM (idempotent — skips steps already done)
