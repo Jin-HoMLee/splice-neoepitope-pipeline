@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-28
+
+### 19:06 UTC — Editor: PM
+
+#### Memory framework slimming — parent epic + 4 per-file subs carved; AskUserQuestion-Recommended deletion shipped as standalone PR
+
+**Trigger.** User opened a 1-hour PM session ("what can we do?"). Quick board scan: only [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) (Dev's torch pin lift, draft pending cloud verify — not PM work) open. PM backlog ~16 items in `pm-i6`. The triage-ready `project_memory_md_slimming.md` audit memo (2026-05-27 handoff from cerebrum + PM session) was the right hour-shaped pick — per-rule verdicts already done, just needed carve into Issues. User accepted four "Recommended" defaults (carve shape = parent + 4 per-file subs; milestone = pm-i6; priority = P2; easy-win = ship today as part of the hour).
+
+**Why this is a non-routine entry.** PM-meta + memory-only + GitHub-state-only session (5 Issues filed + 1 cross-repo PR). All three criteria match the lab-notebook trigger in `shared/feedback_lab_notebook.md`. The Issue bodies + PR description carry the technical scope; this entry carries (a) the design choices made during the carve and (b) the session-arc summary for closure-audit continuity.
+
+**Carve filed.** Parent [Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) (no PR — coordinator) + 4 per-file subs ([Issue #539](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/539) shared/, [Issue #540](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/540) pm/, [Issue #541](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/541) scientist/, [Issue #542](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/542) developer/). All 5 on `pm-i6` (due 2026-06-11), all P2, native-linked via REST API (parent has `sub_issues_summary.total=4`). Per-file labels follow implementer ownership: parent + shared + pm carry `role:pm`; sci sub carries `role:scientist`; dev sub carries `role:developer` — the cross-role subs are flagged with "**To Scientist** / **To Developer** (filed by PM)" headers in their bodies, with PM offering to draft hook configs after the role-owner signs off on the per-rule verdicts.
+
+**Design choices captured (not derivable from Issue bodies).**
+
+- **Milestone = pm-i6, not new "Memory hygiene".** pm-i6 ("PM Tooling, Memory & Methodology II") is the active PM-tooling milestone with 9 open / 2 closed and due 2026-06-11. Adding a dedicated memory-hygiene milestone would have created milestone-sprawl for an arc that fits naturally inside the existing PM-tooling theme. Adherence-cliff slimming IS PM-tooling methodology work.
+- **Priority = P2, not P1.** The audit memo's framing of "strategic structural debt; adherence degrades gradually, not blocking" held up. Could argue P1 on visible behavioral drift (4× closure-ritual slips in 10 days that hook-graduation would prevent), but bespoke hooks (closure-ritual gate, `@-claude` mention guard) already address the acute repeat-failure cases — slimming is the structural fix for the framework-level cause, not the only fix for any acute slip. P2 stays correct.
+- **Cross-role subs filed by PM, not deferred to per-role sessions.** Sci and Dev subs were filed in this PM session (with explicit "filed by PM, ship in your session" headers) rather than waiting. Rationale: the carve has a global coherence (consistent verdict tables, paired memory + hook PR pattern, sequencing dependency on shared/) that's easier to enforce when filed together. Role-owners still own per-rule verdict review + hook ergonomics in their own sessions.
+- **Easy-win deletion as standalone, not 5th sub.** AskUserQuestion-Recommended is the only pure-delete verdict in the 64-rule sweep — its scope is 1 line and explicitly does NOT depend on per-file slimming sequencing. Carving it as a 5th sub-issue would have added tracking ceremony for a 30-second fix. Shipped as a standalone PR in personas-repo: [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) (personas-repo, private). Branch `slim/delete-askuserquestion-recommended-2026-05-28`, single-line deletion in `pm/MEMORY.md`.
+
+**Two-repo pattern reaffirmed.** Memory text changes go to `claude-personas-splice-neoepitope-pipeline`; hook configs go to `splice-neoepitope-pipeline/.claude/`. Hook-shaped demotions (27 candidates cross-file) will need paired commits across both repos. Memory-only demotions (8 skill + 7 compress + 1 delete = 16) need 1 PR. The personas-repo `gh issue develop` convention is looser than the project repo — prior personas-repo PRs (#1-3, #5 missing) shipped without issue-linkage on directly-named branches. Standalone easy-win followed that precedent (no personas-repo issue filed).
+
+**Post-promotion irony noted.** The audit memo's own postscript: a role session promoted "Board queries — always paginate" from Reference → Always-in-effect during the same 2026-05-27 audit session, making `shared/MEMORY.md` 30 rules (not 29). Rules grow faster than they're audited — exactly the failure mode the slimming is meant to address. The carve targets remain valid (memo's counts are pre-promotion snapshots; add +1 to shared-loaded counts for post-promotion accuracy). Worth flagging that an audit-of-audit-rate metric might be useful in [Issue #346](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/346) (Always-in-effect audit script — already filed in pm-i6).
+
+**Closes [Issue #496](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/496) rule self-applied.** This entry was written AFTER [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) opened (so PR # is available to reference). The personas-repo PR is the durable easy-win artifact; this entry is the session-arc summary for the project-repo PM journal. Per the lab-notebook timing rule, this entry will go on its own minimal-shell PR in the project repo with `[PR #TBD]` placeholder finalized post-create.
+
+**Entry vehicle:** [PR #TBD] (project repo; will be filled in post-create).
+
+**Followups carried forward.**
+
+- 4 per-file slimming sub-issues ([Issue #539](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/539), [Issue #540](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/540), [Issue #541](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/541), [Issue #542](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/542)) — ship `shared/` first per sequencing. Cross-role subs (541, 542) ideally land in Sci/Dev sessions.
+- [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) (personas-repo easy-win) — awaiting review/merge. No closure-ritual gate applies (personas-repo, no project-board Issue linked).
+- The pm/ slimming sub ([Issue #540](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/540)) Delete row counts "1" — if [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) merges before #540 is picked up, update #540's body to mark Delete = N/A and adjust target count (10 → 9 starting, target ~5 unchanged).
+- Self-audit-of-audit-rate metric idea (post-promotion irony) — fold into [Issue #346](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/346) (Always-in-effect audit script) as an enhancement when that ships.
+
+---
+
 ## 2026-05-27
 
 ### 17:22 UTC — Editor: PM
