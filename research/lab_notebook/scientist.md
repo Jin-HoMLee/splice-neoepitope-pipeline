@@ -8,6 +8,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-28
 
+### 16:29 UTC — Editor: Scientist
+
+#### [Issue #535](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/535) — correction to today's 16:02 UTC entry: [PR #534](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/534) closure framing was Option A at write-time but Option B at merge-time
+
+**What I got wrong.** The 16:02 UTC entry paragraph titled *"1 of 6 pending — closure framing"* states: *"[PR #534](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/534) therefore **advances [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) but does not close it**; a small follow-up PR will add the AF3 verdict + close the issue once [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) completes."* This framing — Option A from the earlier in-session decision tree — was correct at the moment the entry was committed (`0d05617`) but **was overridden minutes later**. Actual outcome: [PR #534](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/534) closed [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) at 16:16 UTC via Option B (tick-with-defer per the closure-ritual convention).
+
+**How the switch happened.** First run of `bash scripts/audit_and_merge.sh 534` failed because the script reads `closingIssuesReferences` on the PR — and that field had been auto-set to `[#432]` by `gh issue develop`'s branch-issue linkage at branch creation, regardless of PR body keywords. The audit script then walked [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s ACs and blocked on the 5 unticked boxes. Two routes out: (A) find a way to break the closingIssuesReferences linkage, or (B) tick #432's ACs (4 cleanly + 1 with comment-defer-link to [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) for the AF3 portion) per the [shared/feedback_closure_ritual.md](.claude/memory/shared/feedback_closure_ritual.md) convention. Option B is the canonical pattern the rule documents for exactly this case (*"Comment-defer ... by ticking `- [x]` with a link to the carrier Issue"*). Switched to B; merge passed on the retry.
+
+**Process lesson.** Consider the comment-defer convention **before** picking Option A as the closure framing. The closure-ritual gate is the structural fix for partial-resolution work; routing around it via *"PR doesn't close the parent Issue"* forfeits the gate's protection without an offsetting benefit. The "advances vs. closes" decision tree from this session was unnecessarily binary — for any work that partially resolves a parent Issue's ACs, the path is: (i) tick fully-satisfied ACs, (ii) tick partially-satisfied ACs with inline defer-link to a carrier Issue, (iii) let the gate verify, (iv) let the merge close the parent. The carrier Issue then tracks the deferred portion.
+
+**Visibility fixes posted.** Because the AF3 → [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) defer-link is buried in [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s per-scorer AC bullet (long single-paragraph string, easy to miss when scanning a closed Issue), two forward-pointing comments now make the dependency visible:
+
+- [Top-level comment on closed Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432#issuecomment-4566132832) — surfaces the AF3 deferral above the AC body.
+- [Comment on open Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316#issuecomment-4566132635) — forward-pointer so the AF3 eval closer sees the deferred manuscript obligation immediately, without having to discover it through the closed [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)'s history.
+
+**Memory.** Considering a small memory addition codifying the comment-defer-vs-advances tradeoff so the heuristic carries to future partial-resolution work — but the closure-ritual rule already documents the comment-defer convention; the gap was in *recognising the case shape*, not in *not knowing the rule*. Will hold on a new memory file unless this pattern recurs.
+
+---
+
 ### 16:02 UTC — Editor: Scientist
 
 #### [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) — TCR-pMHC scoring landscape DISCUSSION subsection advanced via [PR #534](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/534); 5 of 6 per-scorer verdicts resolved ([Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3 pending)
