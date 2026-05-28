@@ -53,7 +53,7 @@ join our scoring stack?
 - **Architecture:** end-to-end Snakemake pipeline; FASTQ → ranked candidates with predicted immunogenicity probability.
 - **Variant classes:** SNV / indel / frameshift / fusion / **splicing** — `detection_alteration_type: 'snv,indel,fsv,fusion,splicing'` (config default).
 - **Benchmark:** **7 cohorts, 113 patients, 635 immunogenic candidates** (TESLA, NCI-train/test, Bjerregaard, Wu, HiTIDE, Borch); outranked 25 TESLA teams on TFA-mean; AUROC > MuPeXI + DeepHLApan.
-- **Code:** [`XuegongLab/neoguider`](https://github.com/XuegongLab/neoguider) — AGPLv3 (non-profit only); paper CC-BY-NC-ND 4.0. Pre-built Docker at `quay.io/cndfeifei0/ng:v01`.
+- **Code:** [`XuegongLab/neoguider`](https://github.com/XuegongLab/neoguider) — AGPLv3 + author commercial restriction (see Caveats); paper CC-BY-NC-ND 4.0. Pre-built Docker at `quay.io/cndfeifei0/ng:v01`.
 :::
 
 . . .
@@ -120,7 +120,7 @@ flowchart LR
 |---|---|---|
 | Variant calling (UVC / Mutect2) | HISAT2 + regtools (own stack) | ❌ |
 | Splice detection (delegated to ASNEO) | HISAT2 + STAR + own junction extraction | ❌ |
-| MHC presentation (netMHCpan + netMHCstabpan) | MHCflurry 2.x `Class1PresentationPredictor` | ❌ |
+| MHC presentation (netMHCpan [@jurtz2017netmhcpan] + netMHCstabpan [@rasmussen2016netmhcstabpan]) | MHCflurry 2.x `Class1PresentationPredictor` [@odonnell2020mhcflurry2] | ❌ |
 | **Rank calibration (KDE + centered isotonic)** | none | **✅** |
 
 ---
