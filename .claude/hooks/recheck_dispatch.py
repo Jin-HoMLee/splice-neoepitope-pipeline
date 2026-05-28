@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
@@ -29,6 +30,37 @@ TARGET_DATE_FIELD_NAME = "Target date"
 SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_milestone.py")
 PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scripts" / "pm" / "recheck_parent_status.py")
 
+# ---------------------------------------------------------------------------
+# Fire-log infrastructure (Issue #453)
+# ---------------------------------------------------------------------------
+
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+
+
+def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:
+    """Append one JSONL line to LOG_PATH recording a hook fire.
+
+    POSIX line-atomic under O_APPEND for lines <= PIPE_BUF (4096 B). Guards
+    against oversized lines by skipping the write rather than risking
+    interleaved-byte corruption.
+    """
+    payload = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "hook": hook_name,
+        "issue": issue,
+        **metadata,
+    }
+    line = json.dumps(payload, separators=(",", ":")) + "\n"
+    if len(line.encode("utf-8")) >= 4096:
+        print(f"hook_fires: oversized line (>=4KB) for {hook_name}, skipped", file=sys.stderr)
+        return
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
+
+# ---------------------------------------------------------------------------
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
 PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")
 PATTERN_GH_API = re.compile(r"\bgh\s+api\b")
