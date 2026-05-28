@@ -42,7 +42,15 @@ ZONE="europe-west4-a"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
 ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data
-IMAGE_FAMILY="common-cu129-ubuntu-2204-nvidia-580"  # only available Ubuntu 22.04 DL image; driver downgraded to 570-server below for P100 (Pascal) compatibility
+# Pin to specific image name (not family): family aliases on deeplearning-platform-release
+# have all moved to nvidia-580/cu129 builds that ship -open driver variants, which require
+# GSP firmware Pascal lacks (P100 PCI ID 10de:15f8 fails with "GPU ... is not supported by
+# open nvidia.ko because it does not include the required GPU System Processor"). This image
+# predates that shift: CUDA 12.4 toolkit + DLVM install-driver.sh that picks proprietary
+# (closed) 550.90.07 for n1 machine types — Pascal-compatible. DEPRECATED but READY; verified
+# 2026-05-28 on probe VM. See CLAUDE.md "Infrastructure" + Issue #522.
+# If Google deletes this image, fallback is a custom bake — see CLAUDE.md.
+IMAGE_NAME="pytorch-latest-cu124-v20250327-ubuntu-2204"
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
@@ -272,6 +280,7 @@ fi
 # Create or start pipeline VM
 # ---------------------------------------------------------------------------
 VM_STATUS="$(vm_status "${PIPELINE_VM}")"
+FRESH_BOOT=false
 if [[ "${VM_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${PIPELINE_VM}..."
     gcloud compute instances start "${PIPELINE_VM}" --zone="${ZONE}"
@@ -282,13 +291,14 @@ elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
         --machine-type="${MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
         --maintenance-policy=TERMINATE \
-        --image-family="${IMAGE_FAMILY}" \
+        --image="${IMAGE_NAME}" \
         --image-project="${IMAGE_PROJECT}" \
         --boot-disk-size="${DISK_SIZE}" \
         --boot-disk-type=pd-ssd \
         --scopes=cloud-platform \
-        --metadata=enable-oslogin=FALSE
-    log "  VM created."
+        --metadata=enable-oslogin=FALSE,install-nvidia-driver=True
+    log "  VM created. Driver install runs on first boot (~2 min)."
+    FRESH_BOOT=true
 else
     log "${PIPELINE_VM} already running (status: ${VM_STATUS})."
 fi
@@ -296,22 +306,63 @@ fi
 wait_for_ssh "${PIPELINE_VM}"
 
 # ---------------------------------------------------------------------------
-# Downgrade NVIDIA driver to 570-server for P100 (Pascal SM 6.0) compatibility
-# Driver 580+ requires GSP firmware which P100 lacks. Idempotent — skipped if
-# 570-server is already installed (e.g. VM reused from a previous run).
-# Use headless DKMS variant: nvidia-headless-no-dkms-570-server pre-compiled
-# modules don't match the GCP kernel (6.8.0-*-gcp) on common-cu129 images.
-# DKMS recompiles against the running kernel at install time.
+# Verify the NVIDIA driver. The DLVM install-driver.sh runs on first boot
+# (triggered by `install-nvidia-driver=True` metadata above) and installs
+# proprietary closed driver 550.90.07 via DKMS — Pascal-compatible. The
+# install takes ~2 min after SSH becomes ready; retry with backoff to
+# cover that window. On subsequent VM starts the driver persists via
+# DKMS (kernel-module rebuild on kernel upgrade). See CLAUDE.md
+# "Infrastructure" + Issue #522.
 # ---------------------------------------------------------------------------
-if ! ssh_cmd "${PIPELINE_VM}" -- dpkg -s nvidia-headless-570-server &>/dev/null; then
-    log "Downgrading NVIDIA driver to 570-server (DKMS) for P100 compatibility..."
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get purge -y -q 'nvidia-driver-580*' 'nvidia-headless-no-dkms-580*' 'nvidia-utils-580*' 2>/dev/null || true
-    ssh_cmd "${PIPELINE_VM}" -- sudo apt-get install -y -q --no-install-recommends nvidia-headless-570-server nvidia-utils-570-server
-    log "Rebooting VM to load driver 570..."
-    ssh_cmd "${PIPELINE_VM}" -- sudo reboot || true
-    sleep 60
-    wait_for_ssh "${PIPELINE_VM}"
-    log "VM rebooted — NVIDIA driver 570 active."
+# Extend the retry window on fresh boot — driver init can be slowed by
+# concurrent unattended-upgrades holding dpkg locks. 36 × 10s = 6 min on
+# fresh boot, 18 × 10s = 3 min on warm restart.
+MAX_ATTEMPTS=18
+[[ "${FRESH_BOOT}" == true ]] && MAX_ATTEMPTS=36
+log "Verifying NVIDIA driver on ${PIPELINE_VM} (allow ~$((MAX_ATTEMPTS * 10 / 60)) min for first-boot install)..."
+DRIVER_INFO=""
+for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+    if DRIVER_INFO=$(ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1); then
+        if [[ -n "${DRIVER_INFO}" ]]; then break; fi
+    fi
+    sleep 10
+done
+if [[ -z "${DRIVER_INFO}" ]]; then
+    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} after $((MAX_ATTEMPTS * 10 / 60)) min — driver install did not complete."
+    log "  Investigate before retrying:"
+    log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- 'sudo journalctl -u google-startup-scripts --no-pager | tail -50; nvidia-smi'"
+    exit 1
+fi
+log "  Driver OK: ${DRIVER_INFO}"
+
+# Assert Pascal compatibility (script invariant: P100 needs driver < 575).
+# `nvidia-smi` returning empty already catches the open-driver case (P100
+# fails to initialize), but an explicit version check makes the requirement
+# self-documenting and fail-fast if a future DLVM script bypasses the n1
+# machine-type guard and installs a 575+ open driver that somehow reports.
+DRIVER_MAJOR=$(echo "${DRIVER_INFO}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
+if [[ -n "${DRIVER_MAJOR}" && "${DRIVER_MAJOR}" -ge 575 ]]; then
+    log "ERROR: Driver ${DRIVER_MAJOR}.x >= 575 dropped Pascal (SM 6.0) support. P100 will not work."
+    log "  Pin a different IMAGE_NAME (see top of script) or bake a custom image with driver < 575."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Fresh-boot quiet period. The DLVM image runs install-driver.sh in parallel
+# with cloud-init + apt unattended-upgrades on first boot. Holding a long
+# SSH session through this window gets the connection killed (sshd is
+# restarted when unattended-upgrades bumps openssh-server); even short-poll
+# SSH attempts can fail mid-handshake. The simplest reliable mitigation is
+# to wait host-side for the unattended-upgrades window to close, ~5 min.
+# Skipped on warm restarts (VM was TERMINATED then started) — cloud-init +
+# unattended-upgrades only fire on the first boot. Caught 2026-05-28
+# runs #1 + #2 — both crashed during step 1/8 of setup_vm.sh and during
+# the initial cloud-init wait respectively, before this sleep was added.
+# ---------------------------------------------------------------------------
+if [[ "${FRESH_BOOT}" == true ]]; then
+    log "First-boot quiet period (5 min) — letting cloud-init + unattended-upgrades complete..."
+    sleep 300
+    log "  Quiet period done; sshd should be stable."
 fi
 
 # ---------------------------------------------------------------------------
