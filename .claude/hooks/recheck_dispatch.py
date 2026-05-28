@@ -61,6 +61,18 @@ def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:
         f.write(line)
 
 
+def _count_fires(hook_name: str) -> int:
+    """Count lines in LOG_PATH where hook_name appears in the JSONL record.
+
+    Substring match against the serialized form (`"hook":"<name>"`); cheap
+    at K=3 scale, no JSON parsing needed.
+    """
+    if not LOG_PATH.exists():
+        return 0
+    needle = f'"hook":"{hook_name}"'
+    return sum(1 for line in LOG_PATH.read_text().splitlines() if needle in line)
+
+
 
 # ---------------------------------------------------------------------------
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")

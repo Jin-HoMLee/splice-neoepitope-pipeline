@@ -31,3 +31,22 @@ def test_log_fire_jsonl_append(tmp_path, monkeypatch):
     rec2 = json.loads(lines[1])
     assert rec2.get("extra") == "meta"
     assert rec2.get("issue") == 2
+
+
+def test_count_fires_filters_by_hook(tmp_path, monkeypatch):
+    """_count_fires returns per-hook counts; unknown hook returns 0; missing log returns 0."""
+    import recheck_dispatch
+
+    log_path = tmp_path / "hook_fires.jsonl"
+    monkeypatch.setattr(recheck_dispatch, "LOG_PATH", log_path)
+
+    # Missing log → 0 for any hook
+    assert recheck_dispatch._count_fires("hook_A") == 0
+
+    recheck_dispatch._log_fire("hook_A", issue=1)
+    recheck_dispatch._log_fire("hook_A", issue=2)
+    recheck_dispatch._log_fire("hook_B", issue=3)
+
+    assert recheck_dispatch._count_fires("hook_A") == 2
+    assert recheck_dispatch._count_fires("hook_B") == 1
+    assert recheck_dispatch._count_fires("hook_C") == 0
