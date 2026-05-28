@@ -1,0 +1,188 @@
+---
+title: "Should NeoGuider's rank-calibration ML join our scoring stack?"
+subtitle: "Tool evaluation · Issue #258 · 2026-05-28"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-28
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.0em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should NeoGuider's\
+rank-calibration ML\
+join our scoring stack?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** NeoGuider surfaced via [2026-05-04 morning news briefing](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/news_log.md) as a peer end-to-end neoepitope pipeline with explicit splice-variant support. Pattern fits the existing Sci-eval family (parallel to [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) HERMES, [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) ImmSET, [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) Boltz-2, [Issue #222](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/222) splice2neo).
+:::
+
+---
+
+## The tool — NeoGuider at a glance {.smaller}
+
+**NeoGuider (NG)** — *neoepitope prediction using advanced feature engineering* — Wei et al., **Genome Medicine** 2025-12-23 [@wei2025neoguider]. Xuegong Lab, Tsinghua.
+
+::: {.incremental}
+- **Architecture:** end-to-end Snakemake pipeline; FASTQ → ranked candidates with predicted immunogenicity probability.
+- **Variant classes:** SNV / indel / frameshift / fusion / **splicing** — `detection_alteration_type: 'snv,indel,fsv,fusion,splicing'` (config default).
+- **Benchmark:** **7 cohorts, 113 patients, 635 immunogenic candidates** (TESLA, NCI-train/test, Bjerregaard, Wu, HiTIDE, Borch); outranked 25 TESLA teams on TFA-mean; AUROC > MuPeXI + DeepHLApan.
+- **Code:** [`XuegongLab/neoguider`](https://github.com/XuegongLab/neoguider) — AGPLv3 (non-profit only); paper CC-BY-NC-ND 4.0. Pre-built Docker at `quay.io/cndfeifei0/ng:v01`.
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**Splice support exists but is delegated to ASNEO** [@zhang2020asneo] — separate package, optional step in NeoGuider's Snakemake. NeoGuider has **no native splice predictor**.
+:::
+
+---
+
+## The novel mechanism — KDE + centered isotonic regression {.smaller}
+
+::: {.columns}
+
+::: {.column width="55%"}
+
+**NeoGuider's contribution is in feature engineering, not architecture:**
+
+::: {.incremental}
+- Each raw feature → **adaptive kernel density estimation (KDE)** of positive vs. negative class densities
+- Density ratio → **isotonic regression** (monotone fit, handles nonlinearity)
+- **Centered isotonic regression** [@oron2017isotonic] — interpolates flat plateaus that pure isotonic produces, restoring smoothness across feature space
+- Output: per-feature **immunogenicity log-odds** — calibrated, comparable, summable
+- *No hyperparameter tuning* — KDE bandwidth adapts to local density
+:::
+
+:::
+
+::: {.column width="45%"}
+
+::: {.callout-tip appearance="simple"}
+**Why this matters for neoepitope ranking:**
+
+Raw MHC-binding affinity (or `presentation_score`) is not linearly related to immunogenicity. KDE+isotonic learns the actual mapping per-cohort, without imposing a parametric form.
+
+Class imbalance (1 immunogenic per ~100 candidates) is handled by the density-ratio framing — no need for resampling or weight tuning.
+:::
+
+:::
+
+:::
+
+---
+
+## Where it would plug in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Tumor-exclusive<br/>junctions<br/>(our pipeline)"] --> B["Peptide assembly<br/>+ flanking"]
+    B --> C["MHCflurry 2.x<br/>presentation"]
+    C --> D["presentation_score<br/>genotype_presentation_score<br/>per peptide"]
+    D --> E["NeoGuider<br/>rank-calibration<br/>(KDE + isotonic)"]
+    E --> F["calibrated<br/>immunogenicity<br/>log-odds"]
+    F --> G["TCRdock<br/>(top candidate)"]
+
+    style E fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style G fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
+```
+
+**Integration shape:** a post-MHCflurry ranker calibration layer. Consumes our existing `presentation_score` / `genotype_presentation_score` columns; emits a calibrated log-odds column for downstream ranking.
+
+| Layer in NeoGuider | Our pipeline equivalent | Adopt? |
+|---|---|---|
+| Variant calling (UVC / Mutect2) | HISAT2 + regtools (own stack) | ❌ |
+| Splice detection (delegated to ASNEO) | HISAT2 + STAR + own junction extraction | ❌ |
+| MHC presentation (netMHCpan + netMHCstabpan) | MHCflurry 2.x `Class1PresentationPredictor` | ❌ |
+| **Rank calibration (KDE + centered isotonic)** | none | **✅** |
+
+---
+
+## Reasons by mode {.smaller}
+
+::: {.incremental}
+1. **(a) Adopt as full pipeline replacement — ❌ decline.** Splice branch is just ASNEO (a separate tool that warrants its own eval); variant calling + MHC predictor are divergent from our stack; netMHCpan/stabpan add commercial-license friction. Full swap is high-cost, low-gain.
+2. **(b) Reject outright — ❌ decline.** The KDE + centered isotonic regression rank-calibration is a genuinely novel ML contribution. Dismissing it would forfeit a free upgrade lane for our ranker.
+3. **(c) Adopt the calibration module as a component — ✅ proceed.** Reimplement the algorithm from the paper (avoids AGPL implications of the repo code), evaluate on patient_001 + cohort backbone. Single new Python module slotting between MHCflurry output and TCRdock input.
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**Asymmetry vs. HERMES / NetTCR-struc:** those evals were *integrate by adopting the tool's pretrained model*. This one is *integrate by reimplementing the algorithm* — license-driven, but cleaner technically.
+:::
+
+---
+
+## Decision {.smaller}
+
+::: {style="text-align: center; font-size: 2.4em; font-weight: bold; margin-top: 0.2em;"}
+\(c\) Component reuse
+:::
+
+::: {style="text-align: center; font-size: 1.2em; margin-top: 0.2em;"}
+KDE + centered isotonic regression as<br/>post-MHCflurry ranker calibration
+:::
+
+. . .
+
+- **Modeling sub-issue** to be filed under [milestone 29](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29) once a calibration target dataset is in scope; gated by training-cohort selection (TESLA-style validated immunogenic set).
+- **Separate follow-up: ASNEO eval Issue** — peer to our HISAT2/regtools + STAR/SJ.out.tab paths. Discovered as the actual splice tool inside NeoGuider; deserves its own (a)/(b)/(c) decision.
+
+---
+
+## Open scientific questions for the integration sub-issue {.smaller}
+
+When the calibration sub-issue lands on Dev's plate, Sci consult points:
+
+::: {.incremental}
+1. **Calibration training set.** TESLA + NCI-train + HiTIDE union? Or restrict to splice-specific neoepitope cohorts (none exist at scale today)? Without splice-positive training examples, the calibration may underweight splice-specific features.
+2. **Feature inventory.** NeoGuider uses many features beyond MHC binding (foreignness, agretopicity, abundance, motif). Mirror the full set, or start with `genotype_presentation_score` alone and add features incrementally?
+3. **Cross-cohort generalisation.** Centered isotonic regression overfits less than parametric models but still cohort-dependent. Hold-out cohort design: TESLA-train + HiTIDE-test, or k-fold within TESLA?
+4. **Patient_001 calibration deferment.** Single-patient calibration is meaningless — defer the patient_001 evaluation to *after* a validated cohort-level calibrator exists. Same shape as the AlphaGenome chr22 PoC ([Issue #393](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/393)).
+:::
+
+---
+
+## Caveats — read before citing the headline {.smaller}
+
+::: {.incremental}
+1. **Benchmark cohorts are SNV-heavy.** TESLA / NCI / HiTIDE / Borch are dominated by missense neoantigens. NeoGuider's headline numbers do not certify performance on splice-specific neoepitopes.
+2. **ASNEO is the actual splice tool** — separate eval Issue forthcoming. NeoGuider's headline splice support is a wrapper claim; the substantive work is in the [Zhang 2020 ASNEO paper](https://doi.org/10.18632/aging.103581) [@zhang2020asneo].
+3. **License layering.** Repo is AGPLv3 (non-profit only); paper is CC-BY-NC-ND 4.0. The algorithm can be reimplemented from the paper; the *repo code* cannot be embedded in commercial use without a paid license from the corresponding author.
+4. **Verdict is upstream of TCR-pMHC scoring** — NeoGuider does NOT enter the [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) (TCR-pMHC landscape) verdict list. It's a neoepitope ranker, not a TCR-pMHC scorer.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::

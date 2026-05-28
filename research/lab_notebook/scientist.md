@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-28
 
+### 19:25 UTC — Editor: Scientist
+
+#### [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider tool-primer deck shipped this session after all — overrides the deferred-deck framing in the 19:05 UTC entry
+
+**What changed.** The 19:05 UTC entry under *"Out of scope this session"* stated the tool-primer deck was deferred to a follow-up. After committing that entry (`dbc0124`), the user asked *"should we also create slides?"* and chose the full-deck option from the time-budget tradeoff. The deck shipped: 9 content slides + title at [`research/evals/issue_258_neoguider/slides.qmd`](research/evals/issue_258_neoguider/slides.qmd) with `refs.bib` (Wei 2025 NeoGuider + Zhang 2020 ASNEO + Oron 2017 centered isotonic + netMHCpan + netMHCstabpan + MHCflurry 2.0 entries).
+
+**Visual verification.** Rendered HTML via `quarto render slides.qmd --to revealjs`; PDF-print snapshot via headless Chrome (`--print-to-pdf` + `?print-pdf` URL to expand `.incremental` fragments). Page 7 (Decision) overflowed on first pass — the "(c) Component reuse" 3em headline + 2-bullet expansion + bottom callout pushed the last callout into the footer band. Fix: dropped from 3em → 2.4em title + 1.4em → 1.2em subtitle; collapsed the callout into a plain bullet; added `{.smaller}` to the slide. Re-rendered + re-verified — clean. All other 9 slides clean on first render.
+
+**Process lesson.** The deferred-deck framing in the 19:05 UTC entry was correct at write-time but stale within minutes — same shape as the 16:02 UTC → 16:29 UTC correction earlier today on [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) / [Issue #535](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/535). This is the *third* lab-notebook-staleness slip in one day. Memory note: lab notebook entries committed mid-session are immutable per shared rule, so the correction path is a new time-block (this one) rather than amending the prior. Working as intended; not a new memory addition.
+
+**[Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) closure status.** Deck shipped + Zotero note + verdict comment — all three substantive eval products delivered. ASNEO follow-up Issue still to file; once filed, [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) can close on PR merge (the PR will list both products in the body).
+
+---
+
 ### 19:05 UTC — Editor: Scientist
 
 #### [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) stale-closed; [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider eval started — verdict *component reuse* (KDE + centered isotonic regression); discovered ASNEO is the actual splice tool inside NeoGuider, deserving a separate eval Issue
