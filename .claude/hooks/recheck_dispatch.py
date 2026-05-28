@@ -40,9 +40,11 @@ LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fir
 def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:
     """Append one JSONL line to LOG_PATH recording a hook fire.
 
-    POSIX line-atomic under O_APPEND for lines <= PIPE_BUF (4096 B). Guards
-    against oversized lines by skipping the write rather than risking
-    interleaved-byte corruption.
+    POSIX guarantees each write() syscall on an O_APPEND regular file is
+    atomic (no concurrent-writer interleave) regardless of length. The 4 KB
+    guard is sanity hygiene — if a future schema change pushes a line above
+    ~4 KB, the write is skipped rather than persisted, so the log structure
+    stays parseable.
     """
     payload = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

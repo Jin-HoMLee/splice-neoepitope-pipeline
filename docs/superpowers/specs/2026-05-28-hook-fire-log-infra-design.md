@@ -89,7 +89,7 @@ def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:
         f.write(line)
 ```
 
-Single `write()` of `<= PIPE_BUF` (4096 bytes on macOS/Linux) under `O_APPEND` is atomic per POSIX — no interleaved bytes from concurrent writers. Our lines are ~150-200 bytes, well under the bound. **No `fcntl.flock` needed.** The oversized-line guard prevents future schema growth from silently corrupting the log.
+POSIX guarantees each `write()` syscall on an `O_APPEND` regular file is atomic — no interleaved bytes from concurrent writers, regardless of length. **No `fcntl.flock` needed.** Our lines are ~150-200 bytes; the 4 KB guard is sanity hygiene to keep the log structure parseable if a future schema change pushes a line above ~4 KB (the write is skipped rather than persisted; stderr warning surfaces the issue).
 
 **Counting — naive substring match:**
 ```python
