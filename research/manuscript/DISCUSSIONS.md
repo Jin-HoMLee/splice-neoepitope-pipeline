@@ -832,3 +832,135 @@ Independently, AlphaFold confidence scores are not calibrated as binding affinit
 Complementary rescoring of the predicted complexes using Rosetta InterfaceAnalyzer or
 FoldX AnalyseComplex could provide interface ΔΔG estimates as a secondary ranking signal,
 consistent with established practice in structure-based drug design.
+
+---
+
+## TCR-pMHC scoring landscape: scoring-target taxonomy and per-scorer integration verdicts
+
+The structural validation step described above (TCRdock + patient-HLA-matched panel)
+produces an ipTM proxy for TCR-pMHC docking quality — one slice of a broader scoring
+problem. Candidate TCR-pMHC pairs can be scored on three orthogonal axes (presentation
+upstream of TCR engagement is handled separately by the MHCflurry composite predictor;
+see *MHC binding prediction* above). Six candidate scorers were evaluated across the
+i2-S1 / i3-S1 sprints to identify which to integrate alongside TCRdock and where.
+
+### Scoring-target taxonomy
+
+- **End-to-end structural prediction.** Co-folding models that predict the full
+  TCR-pMHC complex from sequence (TCRdock, Boltz-2, AlphaFold3). Most expensive;
+  replaces the upstream structural prediction step rather than augmenting it.
+- **Structure-based confidence / quality cross-check.** Physics-guided or
+  structural-discrimination scoring of an existing TCR-pMHC complex
+  (HERMES, NetTCR-struc, t2pmhc). Requires an upstream structural prediction;
+  re-weights interface contacts to derive a per-complex confidence score that is
+  not directly available from the predictor's own pLDDT / ipTM.
+- **Sequence-based binding / specificity prediction.** Transformer or graph models
+  that bypass structure entirely and predict TCR-pMHC binding or T-cell activation
+  from sequence (ImmSET, sequence-only specificity models such as TAPIR or NetTCR
+  variants without the structural module). Cheap; complementary to but not a
+  replacement for structural signal.
+
+### Per-scorer evaluation outcomes
+
+**Boltz-2** (Passaro et al., bioRxiv 2025) was evaluated as an end-to-end
+co-folding replacement for TCRdock. The decision was decline. An independent
+TCR-pMHC benchmark across 70 unseen Class I/II complexes (Lu et al. 2025;
+10 models, both Class I and Class II MHC types) reports Boltz-2 reaches only
+acceptable-quality (AQ-band) predictions — no medium- or high-quality hits —
+while AF3 leads overall (median DockQ 0.636 / 0.679 Class I / II). Boltz-2's
+self-reported DockQ 0.91 / 0.70 on seen / unseen complexes is consistent with
+the OOD generalization gap that motivated TCRdock's TCR-specific fine-tuning
+in the first place; an architectural change to a co-folding base does not
+bypass the data-availability constraint.
+
+**HERMES** (Visani et al., *PNAS* 2025) was evaluated as a structure-based
+confidence cross-check. The decision was integrate as a post-TCRdock
+structural confidence layer. HERMES applies physics-guided equivariant message
+passing on the predicted complex to produce a per-residue likelihood that can
+be aggregated into a complex-level confidence score; the authors report up to
+0.72 correlation with experimental binding/activation across diverse viral
+epitopes and cancer neoantigens.
+
+**ImmSET** (Garcia Noceda et al., arXiv 2026) was evaluated as a
+sequence-based specificity predictor. The decision was decline. Three hard
+blockers: (i) the model is trained on Adaptive Biotechnologies' proprietary
+MIRA + pairSEQ data, not redistributable; (ii) released weights are restricted
+to HLA-A\*02:01, a single-allele scope that does not match this pipeline's
+six-allele genotype-level prediction; (iii) the evaluation framework (IMMREP25)
+is itself dominated by A\*02:01 and does not yet validate the breadth needed
+for personalized vaccine candidate selection across diverse HLA backgrounds.
+
+**t2pmhc** (Polster et al., bioRxiv 2026) and **TCRLens**
+(Siriarchawatana et al., *Bioinformatics Advances* 2026) were evaluated as
+structural cross-checks on the TCRdock and tFold-TCR backbones respectively.
+The decision for both is decline. For t2pmhc, the structural-confidence niche
+it would occupy as a TCRdock-rescoring layer overlaps with HERMES, whose
+integration is already on the TCR-pMHC scorer integration milestone's
+critical path; adding t2pmhc as a second confidence cross-check would
+duplicate the integration surface without contributing an independent signal
+axis. For TCRLens, an independent benchmark of TCR-pMHC complex predictors
+(Shi, Parks, Smith, *J Chem Inf Model* 65:7156–7173, 2025; 6 tools on 27
+complexes) finds that TCR-specific AlphaFold2-derived tools — the category to
+which TCRLens's tFold-TCR backbone belongs — show lower accuracy in the
+framework region than general-purpose structure predictors. A rescoring layer
+on top of the predicted complex cannot recover backbone errors propagated
+from the framework region, so TCRLens's structure-aware EGNN inherits a
+backbone constraint that limits its discrimination ceiling for the intended
+integration role.
+
+**NetTCR-struc** (Deleuran et al., *Front Immunol* 2025) was evaluated
+as a hybrid structural-QC predictor combining sequence and structural
+features. The
+decision was integrate as a post-prediction structural-QC filter.
+NetTCR-struc occupies the same structural-QC niche as HERMES but operates on
+the GNN side of the architectural axis; the two integrations are
+complementary rather than redundant — HERMES contributes physics-guided
+per-residue confidence, NetTCR-struc contributes a graph-learned
+docking-quality discriminator trained on the experimental TCR-pMHC complex
+set. Both will be evaluated as orthogonal post-TCRdock filters.
+
+**AlphaFold3** (Abramson et al., *Nature* 2024) remains under evaluation as a
+TCRdock-backend successor. Lu et al. 2025 ranks AF3 as the best-overall
+TCR-pMHC predictor on their 70-complex benchmark; the open question is
+whether AF3's general-purpose accuracy advantage holds in the specific
+patient-private-neojunction regime that this pipeline operates in, and
+whether CDR3-region pLDDT can serve as a per-prediction quality flag.
+Verdict pending eval close.
+
+### Synthesis
+
+Two patterns emerge from the six-scorer evaluation. First, **co-folding
+replacements for TCRdock** (Boltz-2 declined; AF3 pending) face the same
+data-availability constraint that motivated TCRdock's TCR-specific
+fine-tuning — architectural novelty does not substitute for in-distribution
+training data, and the OOD generalization gap remains the operative constraint
+on this class. Second, **structure-based cross-checks** (HERMES and
+NetTCR-struc both integrated; t2pmhc redundant; TCRLens backbone-limited)
+are the highest-value integration angle: they slot into the existing pipeline
+as post-TCRdock quality filters without replacing the prediction step, and a
+small number of orthogonal cross-checks (physics-guided + GNN-learned)
+provides redundancy on the calibration axis that any single confidence score
+lacks. Sequence-based specificity predictors (ImmSET declined) were
+systematically deprioritized given the structural-QC niche's higher immediate
+value for vaccine candidate ranking; a future pass on protein language
+model (PLM)-based or sequence-similarity scorers may revisit this class
+as the structural-QC layer matures.
+
+### Per-scorer integration summary
+
+| Scorer | Scoring axis | Verdict | Carrier |
+|--------|--------------|---------|---------|
+| Boltz-2 | End-to-end structural prediction | Decline — OOD generalization gap | Issue #188 close comment |
+| HERMES | Structure-based confidence | Integrate — post-TCRdock structural QC (physics-guided) | Sub-Issue #492 (milestone 29) |
+| ImmSET | Sequence-based specificity | Decline — proprietary data + single-allele scope | Issue #201 close comment |
+| t2pmhc | Structure-based confidence | Decline — redundant with HERMES | Issue #236 re-decision comment |
+| TCRLens | Structure-based confidence | Decline — tFold-TCR backbone framework-accuracy limit | Issue #236 re-decision comment |
+| NetTCR-struc | Structure-based confidence (GNN) | Integrate — post-TCRdock structural QC (GNN-learned) | Sub-Issue #433 (milestone 29) |
+| AlphaFold3 | End-to-end structural prediction | Pending — eval in progress | Issue #316 |
+
+The two integrations under the TCR-pMHC scorer integration milestone
+(HERMES, NetTCR-struc) span the physics-guided and GNN-learned axes of
+structural quality scoring respectively, providing the redundancy on the
+calibration axis described above; integration outcomes will inform whether
+further cross-checks from the sequence-based or end-to-end classes are
+warranted in subsequent iterations.
