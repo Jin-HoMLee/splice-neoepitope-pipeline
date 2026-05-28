@@ -42,7 +42,14 @@ ZONE="europe-west4-a"
 MACHINE_TYPE="n1-highmem-8"   # n1 required for P100; 52 GB RAM for OptiType (~36 GB peak)
 ACCELERATOR="type=nvidia-tesla-p100,count=1"  # T4 quota is 0/0 in europe-west1; P100 standard quota (NVIDIA_P100_GPUS >= 1) required
 DISK_SIZE="200GB"              # pipeline data + Docker image (~25 GB) + reference data
-IMAGE_FAMILY="common-cu129-ubuntu-2204-nvidia-580"  # only available Ubuntu 22.04 DL image; driver downgraded to 570-server below for P100 (Pascal) compatibility
+# Pin to specific image name (not family): family aliases on deeplearning-platform-release
+# have all moved to nvidia-580/cu129 builds that ship -open driver variants, which require
+# GSP firmware Pascal lacks (P100 PCI ID 10de:15f8 fails with "GPU ... is not supported by
+# open nvidia.ko because it does not include the required GPU System Processor"). This image
+# predates that shift: CUDA 12.4 toolkit + DLVM install-driver.sh that picks proprietary
+# (closed) 550.90.07 for n1 machine types — Pascal-compatible. DEPRECATED but READY; verified
+# 2026-05-28 on probe VM. See CLAUDE.md "Infrastructure" + Issue #522.
+IMAGE_NAME="pytorch-latest-cu124-v20250327-ubuntu-2204"
 IMAGE_PROJECT="deeplearning-platform-release"
 REPO_URL="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline.git"
 ORCH_VM="neoepitope-orchestrator"
@@ -282,13 +289,13 @@ elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
         --machine-type="${MACHINE_TYPE}" \
         --accelerator="${ACCELERATOR}" \
         --maintenance-policy=TERMINATE \
-        --image-family="${IMAGE_FAMILY}" \
+        --image="${IMAGE_NAME}" \
         --image-project="${IMAGE_PROJECT}" \
         --boot-disk-size="${DISK_SIZE}" \
         --boot-disk-type=pd-ssd \
         --scopes=cloud-platform \
-        --metadata=enable-oslogin=FALSE
-    log "  VM created."
+        --metadata=enable-oslogin=FALSE,install-nvidia-driver=True
+    log "  VM created. Driver install runs on first boot (~2 min)."
 else
     log "${PIPELINE_VM} already running (status: ${VM_STATUS})."
 fi
@@ -296,26 +303,28 @@ fi
 wait_for_ssh "${PIPELINE_VM}"
 
 # ---------------------------------------------------------------------------
-# Verify the image's pre-installed NVIDIA driver works. The image family
-# `common-cu129-ubuntu-2204-nvidia-580` ships 535.288.01 (matched
-# userspace + kernel module) — Pascal-compatible (535 < 575). Do NOT
-# attempt to install nvidia-headless-570-server: as of 2026-05-27,
-# Ubuntu has reduced 570-server to a hard-Depends wrapper for 580-server,
-# which drops SM 6.0 support and breaks P100. Do NOT run `apt-get update
-# && apt-get install nvidia-utils-535-server` either — the archive churns
-# the userspace 535 past the image's kernel-module version (535.288 →
-# 535.309 observed), and the source package doesn't ship a usable
-# dkms.conf so DKMS can't rebuild to align. Leave the image alone.
-# See CLAUDE.md "Infrastructure" + Issue #522.
+# Verify the NVIDIA driver. The DLVM install-driver.sh runs on first boot
+# (triggered by `install-nvidia-driver=True` metadata above) and installs
+# proprietary closed driver 550.90.07 via DKMS — Pascal-compatible. The
+# install takes ~2 min after SSH becomes ready; retry with backoff to
+# cover that window. On subsequent VM starts the driver persists via
+# DKMS (kernel-module rebuild on kernel upgrade). See CLAUDE.md
+# "Infrastructure" + Issue #522.
 # ---------------------------------------------------------------------------
-log "Verifying NVIDIA driver on ${PIPELINE_VM}..."
-if ! ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader &>/dev/null; then
-    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} — image's driver not loading."
-    log "  Likely a new image-family regression. Investigate before retrying:"
-    log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- nvidia-smi"
+log "Verifying NVIDIA driver on ${PIPELINE_VM} (allow ~3 min for first-boot install)..."
+DRIVER_INFO=""
+for attempt in $(seq 1 18); do
+    if DRIVER_INFO=$(ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1); then
+        if [[ -n "${DRIVER_INFO}" ]]; then break; fi
+    fi
+    sleep 10
+done
+if [[ -z "${DRIVER_INFO}" ]]; then
+    log "ERROR: nvidia-smi failed on ${PIPELINE_VM} after 3 min — driver install did not complete."
+    log "  Investigate before retrying:"
+    log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- 'sudo journalctl -u google-startup-scripts --no-pager | tail -50; nvidia-smi'"
     exit 1
 fi
-DRIVER_INFO=$(ssh_cmd "${PIPELINE_VM}" -- nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>&1 | head -1)
 log "  Driver OK: ${DRIVER_INFO}"
 
 # ---------------------------------------------------------------------------
