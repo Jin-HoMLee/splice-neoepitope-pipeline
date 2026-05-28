@@ -8,6 +8,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-28
 
+### 19:30 UTC — Editor: Developer
+
+**Headline:** [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) (closes [Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) — `torch<2.5` pin lift via cu126 pip channel) finished out: cloud verification on `neoepitope-pipeline` P100 yielded a **bit-identical** MHCflurry chr22 output vs the pre-bump baseline (81 rows, all structural columns identical, numeric drift at FP-noise level), `@-claude review` returned LGTM in 1m 58s with no blocking findings. Merge-ready; unblocked by [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) earlier today (see 18:00 UTC entry).
+
+**Work shipped:**
+
+- [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) cloud verification on `neoepitope-pipeline` (19:02–19:06 UTC): new conda env hash `9681b0f6b9e5ce183dd6efeadcefa736_` resolves `torch 2.12.0+cu126` + `mhcflurry 2.2.1` cleanly via snakemake `--use-conda`. `_has_gpu()` smoke test returns `tensor([0., 0.], device='cuda:0')` on Tesla P100-PCIE-16GB (driver 550.90.07). `--forcerun run_mhcflurry` against this morning's cached upstream (54 peptides × 6 alleles) produced **81 rows = 81 baseline rows** with all structural columns (peptide, best_allele, presentation_class, n_strong_alleles) **bit-identical**, class distribution unchanged (78 non / 3 weak / 0 strong), and FP-determinism drift only (`ic50_nM` max abs 5.6e-03 nM / 0.0001% rel; `presentation_score` max abs 1.3e-07; `presentation_percentile` / `genotype_presentation_score` / `best_presentation_percentile` zero drift). Pre-bump baseline at `gs://splice-neoepitope-project/results/patient_001_test/predictions/mhc_presentation.tsv` from the [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) chr22 run earlier today — free baseline, no extra run needed.
+- PR body updated with verification record; flipped to ready-for-review; both [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) + [Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) project board Statuses moved to "Ready for review".
+- `@-claude review` posted 19:10:53 UTC; bot LGTM at 19:11:23 UTC (1m 58s elapsed). Two non-blocking notes — `torch ==2.12.0+cu126` spacing is consistent with sibling `mhcflurry >=2.0`; CLAUDE.md PEP 440 sentence "accurate, if a touch loose" — both flagged no-action per the bot itself.
+
+**Process notes:**
+
+- **`--rerun-triggers mtime` does not treat env-yaml mtime as a rerun trigger when outputs already exist.** First snakemake invocation built the new conda env (correctly detecting the python.yaml content change → new hash dir), then said `Nothing to be done` because output mtimes were newer than input mtimes. `--forcerun run_mhcflurry` was required to actually exercise the new env on existing inputs. Worth knowing for future env-only bumps: rebuilding the conda env is necessary but not sufficient to revalidate downstream output.
+- No full chr22 `--forceall` needed to validate the other 11 `python.yaml`-consuming rules: they consume CPU-only deps (pandas/numpy/biopython) unchanged by this PR and covered by the 350-test pytest suite. Only `run_mhcflurry` exercises torch.
+
+---
+
 ### 18:00 UTC — Editor: Developer
 
 **Headline:** [Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522) (P100 cloud-run blocker) ready to **close** — three-regression compound failure resolved via image-family pivot, plus a fourth regression discovered + fixed mid-session. [PR #526](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/526) ships 7 commits: original apt-cache 404 fix + 535-keep doc flip (both superseded) + dropped-570 install + smoke-test gate + cu124 image pin with `install-nvidia-driver=True` metadata + FRESH_BOOT-conditional 5-min sleep + bot-review hardening (extended retry, version assertion, fallback hint). chr22 ran end-to-end in ~29 min wall (run #3, 17:13–17:42 UTC). [PR #519](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/519) ([Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) torch pin lift) was blocked on this all along — now unblocked.
