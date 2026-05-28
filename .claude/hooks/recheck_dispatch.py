@@ -70,8 +70,7 @@ def _count_fires(hook_name: str) -> int:
     if not LOG_PATH.exists():
         return 0
     needle = f'"hook":"{hook_name}"'
-    return sum(1 for line in LOG_PATH.read_text().splitlines() if needle in line)
-
+    return sum(1 for line in LOG_PATH.read_text(encoding="utf-8").splitlines() if needle in line)
 
 
 # ---------------------------------------------------------------------------
