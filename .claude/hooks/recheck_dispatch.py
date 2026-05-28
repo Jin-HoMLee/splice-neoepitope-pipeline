@@ -73,6 +73,31 @@ def _count_fires(hook_name: str) -> int:
     return sum(1 for line in LOG_PATH.read_text(encoding="utf-8").splitlines() if needle in line)
 
 
+HOOK_CONFIG: dict[str, dict] = {
+    "target_sync_check":     {"threshold": 3, "dock": 454},
+    "recheck_milestone":     {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
+    "recheck_parent_status": {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
+}
+
+
+def _threshold_prompt(hook_name: str) -> str | None:
+    """Return the 🎯 promotion-review prompt when count == K (exactly); else None.
+
+    Equals-once (not >=) so the prompt fires on exactly the K-th fire and
+    never again. No nagging.
+    """
+    cfg = HOOK_CONFIG.get(hook_name)
+    if cfg is None:
+        return None
+    if _count_fires(hook_name) != cfg["threshold"]:
+        return None
+    dock = f"Issue #{cfg['dock']}" if cfg["dock"] else "(no dock Issue filed yet)"
+    return (
+        f"🎯 {hook_name} has now fired {cfg['threshold']} times — review for promotion: "
+        f"bash scripts/check_hook_health.sh ; {dock}"
+    )
+
+
 # ---------------------------------------------------------------------------
 PATTERN_CLOSE = re.compile(r"\bgh\s+issue\s+close\s+(\d+)")
 PATTERN_MOVE = re.compile(r"\bgh\s+issue\s+edit\s+(\d+)\b[^|;&]*--milestone\b")

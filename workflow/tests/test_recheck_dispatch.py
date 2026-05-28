@@ -50,3 +50,48 @@ def test_count_fires_filters_by_hook(tmp_path, monkeypatch):
     assert recheck_dispatch._count_fires("hook_A") == 2
     assert recheck_dispatch._count_fires("hook_B") == 1
     assert recheck_dispatch._count_fires("hook_C") == 0
+
+
+def test_threshold_prompt_equals_once(tmp_path, monkeypatch):
+    """_threshold_prompt fires exactly at count == K, never before or after."""
+    import recheck_dispatch
+
+    log_path = tmp_path / "hook_fires.jsonl"
+    monkeypatch.setattr(recheck_dispatch, "LOG_PATH", log_path)
+    monkeypatch.setattr(recheck_dispatch, "HOOK_CONFIG", {
+        "test_hook": {"threshold": 3, "dock": 999},
+    })
+
+    recheck_dispatch._log_fire("test_hook", issue=1)
+    assert recheck_dispatch._threshold_prompt("test_hook") is None
+
+    recheck_dispatch._log_fire("test_hook", issue=2)
+    assert recheck_dispatch._threshold_prompt("test_hook") is None
+
+    recheck_dispatch._log_fire("test_hook", issue=3)
+    prompt = recheck_dispatch._threshold_prompt("test_hook")
+    assert prompt is not None
+    assert "test_hook" in prompt
+    assert "3 times" in prompt
+    assert "999" in prompt
+    assert "check_hook_health.sh" in prompt
+
+    recheck_dispatch._log_fire("test_hook", issue=4)
+    # == K, not >=; 4 fires no longer matches.
+    assert recheck_dispatch._threshold_prompt("test_hook") is None
+
+
+def test_threshold_prompt_no_dock(tmp_path, monkeypatch):
+    """_threshold_prompt emits '(no dock Issue filed yet)' when dock is None."""
+    import recheck_dispatch
+
+    log_path = tmp_path / "hook_fires.jsonl"
+    monkeypatch.setattr(recheck_dispatch, "LOG_PATH", log_path)
+    monkeypatch.setattr(recheck_dispatch, "HOOK_CONFIG", {
+        "dockless_hook": {"threshold": 1, "dock": None},
+    })
+
+    recheck_dispatch._log_fire("dockless_hook", issue=1)
+    prompt = recheck_dispatch._threshold_prompt("dockless_hook")
+    assert prompt is not None
+    assert "no dock Issue filed yet" in prompt
