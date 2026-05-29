@@ -8,6 +8,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 21:19 UTC — Editor: Scientist
+
+#### [Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546) ASNEO desk eval — ✅ Component reuse verdict; tool-primer deck shipped. [PR #563](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/563) closes [Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546).
+
+**Verdict.** ASNEO (Zhang et al., *Aging* 2020) — our closest published peer (RNA-seq → splice junctions → neoepitopes), surfaced from the [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (NeoGuider eval) as the splice tool NeoGuider delegates to — lands at **Component reuse** on the 5-mode scale (Triage / Replacement / Cross-check / Component reuse / Reject). The one adoptable element is ASNEO's population-level **GTEx normal-junction filter** (`Norm_SJ.tab`; "≥2 reads in ≥1% of GTEx samples" + UCSC hg19 annotation) — direct prior art for our planned GTEx pan-tissue filter ([Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (consume)). Declined Replacement + Triage; parked Cross-check as a possible future manuscript-validation experiment.
+
+**Why not Replacement.** ASNEO is **unmaintained** (last code change 2019, README-only edit 2021), **hg19-only** (we're GRCh38), needs Biopython < 1.80 (imports the removed `Bio.SubsMat`), and wraps license-gated NetMHCpan-4.0 / NetCTLpan — swapping our maintained GRCh38 + MHCflurry stack for it would be regressive, not an upgrade.
+
+**Head-to-head divergences (all adversarially verified vs ≥2 sources).** Four substantive differences from our pipeline: (1) **normal filtering** — ASNEO GTEx-panel + reference annotation (population-level) vs. our matched-normal at junction level (annotated → shared → tumor-exclusive); (2) **frame** — ASNEO one-frame translation (a deliberate low-false-positive choice) vs. our three-frame with GENCODE CDS phase + junction-spanning condition; (3) **MHC** — ASNEO NetMHCpan-4.0 affinity %rank + NetCTLpan/XGBoost/T-cell immune score vs. our MHCflurry `Class1PresentationPredictor` (presentation likelihood); (4) **junction calling** — ASNEO STAR-only + read/psi filters vs. our dual HISAT2/regtools BED12 + STAR `SJ.out.tab` paths.
+
+**Method (approach C, ultracode).** A gather → adversarial-verify Workflow (8 agents): three parallel gather agents (ASNEO paper, ASNEO repo, our backbone read from `workflow/scripts/*.py`) + five refute-by-default verifiers on the load-bearing claims. All five (MHC predictor, validation cohort/N, license, normal filtering, junction backbone) returned **verified** with 3–4 concordant independent sources — zero unverified fields. Validation cohorts confirmed: Schuster ovarian n=14 (2 MS-confirmed peptides: MKANPALTM, IHFLSLLNF), Van Allen melanoma n=39, Hugo melanoma n=25.
+
+**DOI correction.** The [Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546) body cited `10.18632/aging.103581` — incorrect. Verified DOI is **`10.18632/aging.103516`** (PubMed PMID 32697765 / PMC7425491 / Aging / GitHub all concordant). Corrected in the deck + Zotero (`SZIRVGX4`); the design spec carries a correction note (review fix).
+
+**Deliverables.** Tool-primer deck [`research/evals/issue_546_asneo/slides.qmd`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/evals/issue_546_asneo/slides.qmd) (title + 9 content slides, mirrors the HERMES eval-deck spec), all 10 slides headless-PDF overflow-checked clean per [`feedback_slide_visual_check.md`](feedback_slide_visual_check.md). Zotero `SZIRVGX4` (3-section note). Board-backed actionables: [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (consume) carries the design-reference + two open questions (threshold/GTEx-version adoption; one-frame-vs-three-frame FP/sensitivity check on the chr22 PoC); [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (cross-link) notes its calculus is unaffected — the NeoGuider KDE+isotonic take-home ([Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (downstream)) is a downstream ranker-calibration layer, orthogonal to ASNEO's upstream junction filtering.
+
+**Review.** [PR #563](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/563) automated review clean bar two doc-accuracy findings, both valid and fixed in `4aad617`: (a) a stale `…103581` DOI in the design spec (the deliverables were already correct); (b) plan Task 4 Step 4's `git add slides.html slides_files` would silently no-op (`research/evals/**` HTML + `_files/` are gitignored) — also corrected the File Structure table's wrong "committed per HERMES precedent" annotation.
+
+**Hook bug flagged.** The [PR #558](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/558) PostToolUse auto-board hook wrongly flipped the *linked Issue* ([Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546)) to Ready-for-review on PR creation — it should touch only the PR and leave the Issue at In progress. Corrected manually; a hook-fix follow-up is pending a decision.
+
+**Commits.** `6c9ad06` (spec), `18da469` (plan), `837e0d2` (deck source), `4aad617` (review fixes).
+
+---
+
 ### 14:36 UTC — Editor: Scientist
 
 #### [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider deck — added a visual KDE + centered-isotonic backup appendix + two matplotlib diagrams; 2nd automated review pass clean; diagram-tool convention documented. [PR #544](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/544) ready to merge — closes [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258).
