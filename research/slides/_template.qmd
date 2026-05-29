@@ -81,6 +81,14 @@ content and leaves explicit room for the callout-note underneath.
 
 ## Method (block diagram) {.smaller}
 
+<!--
+Diagram options (see research/slides/README.md "## Figures → Diagrams"):
+  - ASCII/monospace (below)  = quick placeholder, zero-dependency
+  - mermaid (```{mermaid})    = evolving topology, auto-layout
+  - matplotlib fig_*() → PNG  = visual polish or plotted data
+For a real deck, replace the ASCII below with mermaid or a regenerated PNG.
+-->
+
 ```
 [ INPUT 1 ]  ─┐
               ├──▶ [ TRANSFORM ] ──▶ [ EVALUATION ]

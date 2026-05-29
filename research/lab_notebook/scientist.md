@@ -6,7 +6,63 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-29
+
+### 14:36 UTC — Editor: Scientist
+
+#### [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider deck — added a visual KDE + centered-isotonic backup appendix + two matplotlib diagrams; 2nd automated review pass clean; diagram-tool convention documented. [PR #544](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/544) ready to merge — closes [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258).
+
+**Why the appendix.** The "novel mechanism" slide compressed the whole KDE + centered-isotonic-regression (CIR) calibration into one dense slide; the user couldn't fully follow it. Added an 8-slide appendix that builds the mechanism visually for a non-specialist: a four-term primer (KDE/aKDE, class-conditional density, odds/log-odds), the "uncalibrated ruler" problem (now *explained*, not just asserted — no fixed zero, nonlinear), Steps 1a/1b (estimate → log-odds), the imbalance-as-additive-prior argument, Step 2 (isotonic → CIR with the plateau→weighted-centroid collapse annotated), the dose-response analogy, and Steps 3a/3b (single-feature lookup + the logistic-regression combine). Deck grew 10 → 20 slides.
+
+**7 regenerable matplotlib figures** at [`research/evals/issue_258_neoguider/figures/_regenerate_figures.py`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/evals/issue_258_neoguider/figures/_regenerate_figures.py): faithful `sklearn.IsotonicRegression` + a from-scratch CIR (Oron & Flournoy 2017); the KDE is drawn fixed-bandwidth for clarity and flagged on-slide as the one simplification vs the real shared *adaptive* aKDE. The Step 1b log-odds plot overlays the two class densities faintly — making "log-odds = log of the two densities' ratio" visible (the curve crosses zero exactly where the densities intersect). Replaced the "Where it would plug in" mermaid flowchart with a house-style matplotlib integration map (process boxes + data on the arrows).
+
+**Grounding + adversarial verification.** Two verification passes against the primary source (Wei et al., *Genome Medicine* 2025) caught and fixed: (a) the original slide's claim that per-feature log-odds are "summable" — they are **combined by a logistic regression that learns weights**, not a naive-Bayes sum (verbatim: *"NeoGuider uses logistic regression"*); (b) a density-ratio plotting artifact (an eps-on-both-terms guard broke monotonicity → replaced with a joint-support mask); (c) the shared-kernel / iterative-refine bandwidth wording.
+
+**Diagram-tool convention documented.** The slide template modelled only an ASCII block diagram with no signpost toward mermaid or matplotlib. Added a 3-tier "Diagrams" ladder to [`research/slides/README.md`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/slides/README.md) (ASCII placeholder / mermaid for evolving topology / matplotlib for polish or plotted data) + a signpost comment in [`_template.qmd`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/slides/_template.qmd).
+
+**2nd automated review pass clean.** The review on the new commits returned 2 valid findings, both fixed in `1f88516`: a Caveats-slide accuracy bug (*"AGPLv3 (non-profit only)"* → *"AGPLv3 + author-imposed commercial restriction"* — AGPLv3 itself permits commercial use; the non-commercial limit is the author's *added* term) and a docstring inventory nit (2 of 7 figures missing). All eval-deck conventions re-confirmed conformant.
+
+**Commits.** `20baa4d` (appendix + 7 figures + faint-density overlay + integration map), `554078d` (diagram-tool convention docs), `1f88516` (review fixes). Visual verification per [`feedback_slide_visual_check.md`](.claude/memory/feedback_slide_visual_check.md): all 20 slides re-rendered + per-slide headless-Chrome PDF check, no overflow.
+
+---
+
 ## 2026-05-28
+
+### 19:25 UTC — Editor: Scientist
+
+#### [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider tool-primer deck shipped this session after all — overrides the deferred-deck framing in the 19:05 UTC entry
+
+**What changed.** The 19:05 UTC entry under *"Out of scope this session"* stated the tool-primer deck was deferred to a follow-up. After committing that entry (`dbc0124`), the user asked *"should we also create slides?"* and chose the full-deck option from the time-budget tradeoff. The deck shipped: 9 content slides + title at [`research/evals/issue_258_neoguider/slides.qmd`](research/evals/issue_258_neoguider/slides.qmd) with `refs.bib` (Wei 2025 NeoGuider + Zhang 2020 ASNEO + Oron 2017 centered isotonic + netMHCpan + netMHCstabpan + MHCflurry 2.0 entries).
+
+**Visual verification.** Rendered HTML via `quarto render slides.qmd --to revealjs`; PDF-print snapshot via headless Chrome (`--print-to-pdf` + `?print-pdf` URL to expand `.incremental` fragments). Page 7 (Decision) overflowed on first pass — the "(c) Component reuse" 3em headline + 2-bullet expansion + bottom callout pushed the last callout into the footer band. Fix: dropped from 3em → 2.4em title + 1.4em → 1.2em subtitle; collapsed the callout into a plain bullet; added `{.smaller}` to the slide. Re-rendered + re-verified — clean. All other 9 slides clean on first render.
+
+**Process lesson.** The deferred-deck framing in the 19:05 UTC entry was correct at write-time but stale within minutes — same shape as the 16:02 UTC → 16:29 UTC correction earlier today on [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) / [Issue #535](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/535). This is the *third* lab-notebook-staleness slip in one day. Memory note: lab notebook entries committed mid-session are immutable per shared rule, so the correction path is a new time-block (this one) rather than amending the prior. Working as intended; not a new memory addition.
+
+**[Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) closure status.** Deck shipped + Zotero note + verdict comment — all three substantive eval products delivered. ASNEO follow-up Issue still to file; once filed, [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) can close on PR merge (the PR will list both products in the body).
+
+---
+
+### 19:05 UTC — Editor: Scientist
+
+#### [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) stale-closed; [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider eval started — verdict *component reuse* (KDE + centered isotonic regression); discovered ASNEO is the actual splice tool inside NeoGuider, deserving a separate eval Issue
+
+**1-hour session, two unrelated workstreams.**
+
+**Workstream A — [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) (deck for [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)) was stale.** Picked Issue #456 from the Sci queue as the right-sized 1h task ([slide deck for chr22 normal-junction filter strength](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/experiments/issue_225_normal_junction_filter_strength/slides.qmd)) — paused before drafting on the verify-before-action reflex (memory `feedback_verify_unmerged_before_followup.md`, codified 2026-05-28 on [Issue #532](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/532)). Reading [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) body + [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) merge log revealed: the deck shipped inline in [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) (2026-05-25), not deferred as planned at Issue-creation time. [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) body already strikes through the original deferral. Closed [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) with [a comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456#issuecomment-4567312453) listing the 12 slides as evidence; no separate PR per the *"already-on-main"* exception to the every-Issue-close-via-PR rule.
+
+**Same-shape slip as [Issue #532](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/532) 5 hours earlier.** That one auto-checked unmerged-commit history without diffing against `main`; this one auto-picked a 1h task from queue-state without checking whether the work was actually outstanding. Pattern: Issue-state lags shipped-work-state. The 2026-05-28 verify-before-followup memory holds — caught this one before any work was wasted.
+
+**Workstream B — [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider eval.** Pivoted to the [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider eval after the [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456) close. Branch `research/scientist/issue-258-neoguider-eval` opened; Status → In progress; Zotero entry added at [Z8FJSDVT](https://www.zotero.org/users/10082130/items/Z8FJSDVT) (Wei et al., *Genome Medicine* 2025, [10.1186/s13073-025-01592-9](https://doi.org/10.1186/s13073-025-01592-9)) with 3-section HTML note per the [`feedback_zotero_note_format.md`](.claude/memory/feedback_zotero_note_format.md) convention.
+
+**Verdict — *component reuse*** posted [as a comment on Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258#issuecomment-4567348782). The pipeline-fit reasoning ladders cleanly: triage ❌ (no pre-filter advantage), replacement ❌ (splice == ASNEO, MHC predictor divergent), cross-check ⚠️ (netMHCpan licensing overhead), **component reuse ✅** (KDE + centered isotonic regression for rank calibration is the genuinely novel ML contribution, adoptable as a post-MHCflurry `presentation_score` → calibrated immunogenicity-log-odds transformer without pulling in the rest of the pipeline). License caveat: AGPLv3 repo + CC-BY-NC-ND 4.0 paper — reimplementing the algorithm from the paper avoids the AGPL implications.
+
+**ASNEO discovered as the actual splice tool inside NeoGuider.** [`Snakefile`](https://github.com/XuegongLab/neoguider/blob/main/Snakefile) defaults `detection_alteration_type: 'snv,indel,fsv,fusion,splicing'` but the splicing branch is a STAR alignment → `SJ.out.tab` → ASNEO subprocess chain. NeoGuider has no native splice predictor. Deserves its own eval Issue — peer to our HISAT2/regtools + STAR/`SJ.out.tab` paths, parallel to the [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) / [Issue #201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) / [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) eval family. Filing the follow-up Issue is on the todo list; suggested title in the [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) verdict comment.
+
+**Out of scope this session — [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) stays OPEN.** Tool-primer Quarto deck (8–10 slides per the eval-Issue convention in CLAUDE.md) deferred to a follow-up. The substantive eval product (Zotero note + verdict + ASNEO discovery) shipped, but the lab-seminar artifact is still owed for full closure. Carry the deck draft into a future session.
+
+**Issue #432 NOT updated.** Considered carrying the NeoGuider verdict into [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) (TCR-pMHC scorer landscape) alongside ImmSET / HERMES / Boltz-2 / t2pmhc / TCRLens / [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) — declined. NeoGuider is an upstream neoepitope ranker, not a TCR-pMHC scorer; the verdict-list overlap would muddle the [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) manuscript subsection that was just closed via [PR #534](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/534) at 16:16 UTC.
+
+---
 
 ### 16:29 UTC — Editor: Scientist
 
