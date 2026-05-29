@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-29
+
+### 14:39 UTC — Editor: PM
+
+PM morning routine (Friday, run post-lunch). No code/data PR — this entry is the durable artifact for a board-hygiene + methodology session. Issues touched are not closed by this entry; the closure-audit pass and triage/milestone edits below carry their own audit trail on GitHub.
+
+#### Closure-audit flags re-read through the [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) lens — "substantive" ≠ "entry-required"
+
+The close-time bot flagged [Issue #453](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/453) (fire-log infra, [PR #537](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/537)) and [Issue #530](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/530) (MM rollout plan, [PR #531](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/531)) as missing lab-notebook entries. Rather than mechanically satisfy the bot, applied the #483 reframe (lab notebook = *non-duplicate reasoning*, not a per-session changelog): both are routine **single-PR-closes-single-Issue** ships whose trigger/scope/verification already live in the Issue body + AC + PR → **skip is correct**; the flags are old-framing false-positives. Same class as [Issue #456](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/456), whose slide-deck deliverable is journaled under the [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225) / [PR #452](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/452) entries (it was a preemptive *tracking* Issue; the deliverable shipped under #225's PR) — posted a false-positive-clearing comment there. **The test is overlap, not importance:** if the planned entry pastes into the Issue body with nothing new appearing, skip it.
+
+Durable fix is Dev-side: [Issue #555](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/555) / [PR #556](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/556) teaches the closure-audit bot to honor the #483 routine-ship skip (**axis 1**, routine-overlap). It leaves **axis 2** — the role-label→notebook-file mapping (#530 tripped because `role:memory_manager` demands a `memory_manager.md` that does not exist) — for the [Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) onboarding.
+
+#### MM-caretaker journaling convention (role-boundary meta-decision)
+
+Decided how PM-as-caretaker journals Memory-Manager work while the MM role is still **un-onboarded** (prior agreement: block *strategic* MM work on #527, keep MM-enabling/correctness moving):
+
+- MM-flavored work PM does as caretaker → journaled in **`pm.md`** tagged `(MM caretaker)` — honest provenance (a PM session did it).
+- **Do not create `research/lab_notebook/memory_manager.md` yet.** A role notebook is a role-identity artifact; creating it as a closure-audit side-effect would manufacture the MM role before onboarding. Defer its creation to a deliberate step *inside* the #527 rollout so the MM identity is born coherently.
+- Until that file exists the bot's axis-2 will keep flagging `role:memory_manager` Issues — treat as known-benign (manual clear), and fold the "create `memory_manager.md` + drop the caretaker-redirect" step into #527 (mechanism lands *with* the role, not prematurely).
+
+Net: **no backfill entry for #453/#530** — the only non-duplicate reasoning today is this meta-decision + the #483-lens application, which is what this entry exists to capture.
+
+#### Board hygiene (logged for the audit trail, not re-derived)
+
+- **Milestones:** [Issue #524](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/524) → `pm-i2`, [Issue #514](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/514) → `dev-i2`; closed `i2 - S1` (8/8, superseded by `i3 - S1`).
+- **Roadmap-overdue: 0**, verified against 52 targeted open items. (First pass falsely returned 0: `gh project item-list` silently caps at 500 and omits the date field — real total 528, field name `target date`. Re-ran at limit 2000.) Batch-synced **16** Backlog Targets to milestone `due_on`; **4 correctly skipped** — `i5 - S5` and `dev-i3` are undated "someday" milestones, so there is no date to derive (an absent Target is harmless; only a stale *past* Target surfaces as overdue).
+- **Triage:** 17 board field updates across 13 recent issues. **Synced board Priority to each issue's body-stated rationale, not my guess** — checking bodies caught two wrong guesses ([Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551) body = P2 not my P3; [Issue #555](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/555) body = P3 not my P2).
+
+#### verify-before-claiming correction worth keeping
+
+The milestone/Target **recheck hook *prompts*, it does not auto-apply** — [`recheck_dispatch.py`](.claude/hooks/recheck_dispatch.py) emits a ready-to-run GraphQL block on a milestone-touch and the agent must execute it (as done for #524/#514). So a dormant Backlog item does **not** "self-heal on touch" — I overstated that mid-session and corrected it. The honest reason unset Backlog Targets are fine is the overdue-semantics point above, not auto-healing.
+
+#### i2 milestone slip — surfaced to owners, not unilaterally re-planned
+
+3 `i2-*` milestones go overdue Sunday 2026-05-31 with 7 open issues untouched 2–4 weeks → **deprioritized, not at-risk**. 6 of 7 are Sci/Dev lane → posted a standup ask (re-milestone vs confirm-priority) rather than bumping due dates across other roles' work.
+
 ## 2026-05-28
 
 ### 19:38 UTC — Editor: PM
