@@ -35,10 +35,13 @@ import sys
 
 # GitHub closing keywords, case-insensitive, anchored on word boundaries so
 # "disclose"/"prefix"/"closing"/"fixing"/"closer" do NOT match but "auto-close"
-# (hyphen = boundary) does. Separator between keyword and ref is whitespace and/or
-# an optional colon — matching GitHub's accepted `Closes: #N` / `Closes #N` forms.
+# (hyphen = boundary) does. Separator is HORIZONTAL whitespace + optional colon
+# ([ \t], not \s) — matching GitHub's `Closes: #N` / `Closes #N` forms while NOT
+# bridging a newline: assemble_squash_text joins fields with "\n", and \s would
+# let a field ending in a bare keyword cross-match a #N opening the next field
+# (a false positive GitHub itself would not act on). Per PR #562 review.
 _CLOSER_RE = re.compile(
-    r"\b(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\b\s*:?\s*#(\d+)",
+    r"\b(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\b[ \t]*:?[ \t]*#(\d+)",
     re.IGNORECASE,
 )
 

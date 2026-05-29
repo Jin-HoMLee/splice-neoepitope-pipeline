@@ -65,6 +65,17 @@ class TestWordBoundaries:
     def test_hyphen_prefix_is_a_boundary(self):
         assert nums(sc.find_stray_closers("auto-fixes #9", set())) == [9]
 
+    def test_prose_between_keyword_and_ref_not_matched(self):
+        # "word between keyword and #N" invariant, e.g. "closed epic Issue #538"
+        # — made a first-class assertion per PR #562 review (was only exercised
+        # implicitly through main()).
+        assert sc.find_stray_closers("closed epic Issue #538", set()) == []
+
+    def test_newline_does_not_bridge_keyword_and_ref(self):
+        # assemble_squash_text joins fields with "\n"; a field ending in a bare
+        # keyword must NOT cross-match a #N opening the next field (PR #562 review).
+        assert sc.find_stray_closers("title ends with fixes\n#538 opens body", set()) == []
+
 
 class TestKeywordVariants:
     def test_all_variants(self):
