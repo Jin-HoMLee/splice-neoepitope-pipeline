@@ -71,6 +71,43 @@ def test_collect_notebook_gaps_threads_also_accept_for_pr_path():
     assert gaps == []
 
 
+# --- #555: routine-ship opt-out marker skips the lab-notebook check ---
+
+
+def test_skip_lab_notebook_marker_present_with_value():
+    """Canonical marker with a rationale value → skip honored."""
+    body = "Routine ship.\n\n<!-- skip-lab-notebook: routine -->\n"
+    assert ca.skip_lab_notebook(body) is True
+
+
+def test_skip_lab_notebook_marker_present_bare():
+    """Marker with no `: value` suffix → still honored (presence is what matters)."""
+    body = "Routine ship.\n\n<!-- skip-lab-notebook -->\n"
+    assert ca.skip_lab_notebook(body) is True
+
+
+def test_skip_lab_notebook_marker_tolerates_whitespace_and_case():
+    """Comment spacing/case shouldn't matter — authors hand-type this."""
+    assert ca.skip_lab_notebook("<!--   SKIP-LAB-NOTEBOOK : routine  -->") is True
+
+
+def test_skip_lab_notebook_marker_absent():
+    """No marker → not skipped (check runs normally)."""
+    body = "Real feature work that needs a journal entry.\n"
+    assert ca.skip_lab_notebook(body) is False
+
+
+def test_skip_lab_notebook_empty_body():
+    """Empty/None body → not skipped."""
+    assert ca.skip_lab_notebook("") is False
+    assert ca.skip_lab_notebook(None) is False
+
+
+def test_skip_lab_notebook_does_not_match_unrelated_html_comment():
+    """A different HTML comment must not trip the skip."""
+    assert ca.skip_lab_notebook("<!-- closure-audit -->\nsome text") is False
+
+
 def test_ac_deferral_comment_unblocks_unticked():
     body = "- [x] one\n- [ ] two\n"
     assert ca.check_ac(body, comments=[]) is not None
