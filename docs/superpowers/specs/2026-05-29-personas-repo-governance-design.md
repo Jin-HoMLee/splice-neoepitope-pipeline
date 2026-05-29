@@ -1,6 +1,8 @@
 # Personas-Repo Governance — Edit Boundaries + MM-Owned Commit Lifecycle
 
-> **Status:** approved design (2026-05-29) · **Issue:** [#567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) · **Extends:** [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) (Memory Manager rollout)
+> **Status:** approved design (2026-05-29) · **Issue:** [#567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) — **sub-issue of [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527)** (Memory Manager rollout)
+>
+> **Source-of-truth split:** the [#527 design doc](2026-05-27-memory-manager-role-design.md) owns the MM *role* (rationale, rollout phases); this doc owns the personas-repo *access/lifecycle policy + enforcement mechanisms* and **refines** that doc's ownership model where they overlap. Deliverables already tracked under #527 are referenced here, not re-tracked (see §4).
 
 ## Problem
 
@@ -51,10 +53,12 @@ So neither model is actually operating, and any role session edits anything with
 ## §2 — Phase 1: interim (now — MM not yet onboarded)
 
 1. **Land the policy as rules.** Rewrite the live `shared/MEMORY.md` rule *"Personas-repo git state is not your responsibility"* into the §1 model. Because this is itself a `shared/` edit and MM does not yet exist, **PM-as-caretaker makes this edit under a documented bootstrap exception** (this design authorizes it).
-2. **Anti-stranding mechanism that works today.** A mandatory **session-start `git -C <personas> status` scan** in each role's morning routine — surfaces uncommitted / stranded state on the first message instead of letting it accumulate. This *is* [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) **Sub 6**; it needs no MM and directly prevents the 2026-05-29 incident class.
+2. **Anti-stranding mechanism = [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) Sub 6 (referenced, not re-delivered here).** A mandatory **session-start `git -C <personas> status` scan** in each role's morning routine surfaces uncommitted / stranded state on message 1 instead of letting it accumulate. It needs no MM and directly prevents the 2026-05-29 incident class — so this design's contribution is to **pull Sub 6 forward** (already recommended in the [#527 incident comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527#issuecomment-4579516000)). The scan ships under Sub 6, **not** as a #567 deliverable.
 3. **Interim committer = PM-as-caretaker**, committing/pushing in-session **with the user's push gate**, replacing the failed "user commits outside the session" assumption. Caretaker work is journaled in `pm.md` tagged `(MM caretaker)` per the existing convention.
 
 ## §3 — Phase 2: enforcement (after [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) Subs 3–9 onboard MM)
+
+Both mechanisms below are **filed as new subs of [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527)** when the rollout reaches its onboarding phase — they are *not* #567 deliverables (they're meaningless until MM exists to enforce *for*). This design specifies them; #527 tracks and ships them.
 
 1. **Per-role `.claude/settings.json` on the personas repo** — `git commit` / `git push` (and personas-write `git -C`) **denied** in PM / Sci / Dev sessions, **allowed** only in the MM session. Mechanically enforces "MM commits."
 2. **PreToolUse hook** — blocks `Write` / `Edit` whose target path is under `shared/**` or another role's `<role>/**` **unless the session is MM**. Each role keeps free write to its own dir; MM may write anywhere. Mechanically enforces the §1 edit boundaries.
@@ -62,14 +66,14 @@ So neither model is actually operating, and any role session edits anything with
 
 ## §4 — Relationship to [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527)
 
-This design **refines and extends** the MM rollout:
+This Issue (#567) is a **native sub of #527**. It refines and extends the rollout, and is explicitly de-duplicated against it:
 
-- §2.2's git-status scan **is** #527 Sub 6 — landing it here satisfies that sub.
-- §3 **adds two mechanisms #527 never had.** The original #527 design relied on memory rules alone for "MM commits" + edit boundaries — exactly the adherence model that just proved fragile. Phase 2 makes them deterministic.
-- §1 **tightens** #527's edit model: the original was "active roles may edit personas memory (MM commits)"; this restricts `shared/` to MM-only.
-- Phase 2 is **gated on MM onboarding** (#527 Subs 3–9), so this Issue and #527 are explicitly coupled.
+- **No double-tracking of the scan.** §2.2's git-status scan ships under #527 **Sub 6** (this doc references it and pulls it forward; it is not re-tracked as a #567 deliverable).
+- **Phase 2 mechanisms → new #527 subs.** §3's per-role permission split + edit-boundary hook are *new* (the original #527 design relied on memory rules alone for "MM commits" + edit boundaries — the adherence model that just proved fragile). This doc *specifies* them; they're *filed and shipped* as #527 subs, not #567 deliverables.
+- **Refines, not competes with, the #527 design doc.** §1 tightens #527's edit model (original: "active roles may edit personas memory"; new: `shared/` is MM-only). The [#527 design doc](2026-05-27-memory-manager-role-design.md) remains source-of-truth for the MM role; this doc is source-of-truth for the access/lifecycle policy + mechanisms.
+- **#567's own deliverables** are therefore narrow: this design doc, the Phase-1 `shared/MEMORY.md` rule rewrite, and the PM-caretaker interim convention. Everything mechanism-shaped lives in #527's orbit.
 
-## Rule changes (Phase 1 deliverables)
+## Rule / file changes
 
 | File | Change |
 |---|---|
@@ -85,5 +89,5 @@ This design **refines and extends** the MM rollout:
 
 ## Sequencing
 
-1. **Phase 1** (this Issue): rule rewrite + git-status scan + PM-caretaker commit convention. Independent; lands now.
-2. **Phase 2** (folded into #527 Subs 3–9 + new mechanism sub-tasks): permission split + edit-boundary hook. Gated on MM onboarding.
+1. **Phase 1** (#567's own deliverables): `shared/MEMORY.md` rule rewrite + PM-caretaker interim commit convention, **plus** pulling #527 **Sub 6** (git-status scan) forward. Independent of MM; lands now.
+2. **Phase 2** (filed as new #527 subs): per-role permission split + edit-boundary hook. Gated on MM onboarding (#527 Subs 3–9).
