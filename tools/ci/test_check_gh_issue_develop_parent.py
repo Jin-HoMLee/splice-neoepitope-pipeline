@@ -114,6 +114,11 @@ class TestRepoFromArgs:
     def test_equals_form(self):
         assert h.repo_from_args(["--repo=owner/repo"]) == ("owner", "repo")
 
+    def test_equals_form_with_host_prefix(self):
+        assert h.repo_from_args(
+            ["--repo=github.com/owner/repo"]
+        ) == ("owner", "repo")
+
     def test_absent_returns_none(self):
         assert h.repo_from_args(["549"]) is None
 

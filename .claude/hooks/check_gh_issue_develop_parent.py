@@ -133,8 +133,9 @@ def deny_payload(number: int, total: int) -> dict:
                 f"Refusing `gh issue develop` on Issue #{number} — it has "
                 f"{total} sub-issue(s), so it is a parent/epic. Parents don't get "
                 "branches or PRs: the PR↔parent link auto-closes the epic on "
-                "merge and orphans its sub-issues (bit PR #543 → Issue #538, "
-                "2026-05-28). Branch off a leaf sub-issue instead, or file a "
+                "merge and orphans its sub-issues (incident: PR #543 "
+                "accidentally closed epic Issue #538 on merge, 2026-05-28). "
+                "Branch off a leaf sub-issue instead, or file a "
                 "closure sub-issue (cf. Issue #548) and develop off that. Rule: "
                 "memory/shared/feedback_parent_sub_issues.md."
             ),
