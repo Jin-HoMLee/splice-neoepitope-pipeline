@@ -20,7 +20,7 @@
 |---|---|---|
 | `research/evals/issue_546_asneo/slides.qmd` | Tool-primer deck source (title + 9 content slides) | Create |
 | `research/evals/issue_546_asneo/refs.bib` | Deck bibliography (ASNEO + any cited comparators) | Create |
-| `research/evals/issue_546_asneo/slides.html` + `slides_files/` | Rendered deck (kept in tree, gitignored from *commit*? no — committed per HERMES precedent) | Create (rendered) |
+| `research/evals/issue_546_asneo/slides.html` + `slides_files/` | Rendered deck — **gitignored** (`research/evals/**/*.html`, `**/*_files/`); kept on disk, NOT committed (HERMES precedent: only `slides.qmd` + `refs.bib` are tracked) | Create (rendered, local-only) |
 | `research/lab_notebook/scientist.md` | Dated lab-notebook entry (after review) | Modify (append) |
 | Zotero collection `Z38GTJNW` (external) | 3-section HTML note on DOI `10.18632/aging.103581` | Create (via API) |
 | Issue #546 (external) | 5-mode decision comment + AC ticks | Modify |
@@ -316,14 +316,9 @@ Read each PNG; confirm no clipped text/tables. `.check_shots/` is a throwaway de
 
 If a slide clips, add `{.smaller}` / split content / trim bullets in `slides.qmd`, re-render (Step 1), re-check (Step 2). Repeat until clean.
 
-- [ ] **Step 4: Commit the rendered deck**
+- [ ] **Step 4: Keep the rendered deck locally — do NOT commit**
 
-```bash
-git add research/evals/issue_546_asneo/slides.html research/evals/issue_546_asneo/slides_files
-git commit -m "research(eval): render ASNEO deck (Issue #546)"
-```
-
-Keep `slides.html` + `slides_files/` in the tree (`feedback_keep_render_artifacts.md`). Delete only `.check_shots/`.
+`slides.html` + `slides_files/` are **gitignored** (`research/evals/**/*.html`, `**/*_files/`) — `git add` on them silently no-ops. Only the source (`slides.qmd` + `refs.bib`, committed in Task 3) is tracked, per HERMES precedent. Keep the rendered artifacts in the working tree for local browsing (`feedback_keep_render_artifacts.md`); delete only the throwaway `.check_shots/`. **Nothing to commit at this step.**
 
 ---
 

@@ -5,15 +5,17 @@
 **Parent Issue:** [#546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546) — *research: evaluate ASNEO as splice-neoepitope candidate generator (peer to our HISAT2/regtools + STAR/SJ.out.tab paths)*
 **Source eval:** [#258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (NeoGuider) — ASNEO surfaced as the actual splice tool NeoGuider delegates to.
 
+> ⚠️ **DOI corrected during the eval:** the Issue #546 body and this spec's first draft cited `10.18632/aging.103581`; the verified DOI is **`10.18632/aging.103516`** (PubMed PMID 32697765 / PMC7425491 / Aging / GitHub). The references below are corrected.
+
 ## Goal
 
-Decide whether **ASNEO** (Zhang et al., *Aging* 2020, DOI `10.18632/aging.103581`) — our closest published peer (personalized alternative-splicing neoepitopes from RNA-seq) — should change our pipeline. The decision is framed as the five pipeline-fit modes from the Issue body: **Triage / Replacement / Cross-check / Component reuse / Reject**.
+Decide whether **ASNEO** (Zhang et al., *Aging* 2020, DOI `10.18632/aging.103516`) — our closest published peer (personalized alternative-splicing neoepitopes from RNA-seq) — should change our pipeline. The decision is framed as the five pipeline-fit modes from the Issue body: **Triage / Replacement / Cross-check / Component reuse / Reject**.
 
 This is a **desk eval** (decision-only), consistent with the sibling evals [#218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) (HERMES), [#201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/201) (ImmSET), [#188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188) (Boltz-2), [#258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (NeoGuider). **No code execution / no ASNEO run** — the multi-day Python2-era dependency archaeology is not justified for a P3 informational eval.
 
 ## Success criteria (maps to #546 ACs)
 
-- Verified Zotero entry on DOI `10.18632/aging.103581` with a 3-section HTML note (**Findings / Methods / vs. our pipeline**), added after a dedup pre-check.
+- Verified Zotero entry on DOI `10.18632/aging.103516` with a 3-section HTML note (**Findings / Methods / vs. our pipeline**), added after a dedup pre-check.
 - ASNEO repo state verified: maintenance status, language (Py2 vs Py3), code + weights availability, license.
 - Head-to-head comparison of ASNEO's junction-calling backbone vs. ours documented across five axes (below).
 - A 5-mode pipeline-fit decision recorded with rationale on #546.
