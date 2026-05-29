@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+from collections.abc import Collection
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +51,15 @@ def check_priority_rationale(body: str) -> str | None:
     return "no 'Priority rationale' line in issue body"
 
 
-def check_lab_notebook(text: str, date: str, number: int) -> str | None:
+def check_lab_notebook(
+    text: str, date: str, number: int, also_accept: Collection[int] = ()
+) -> str | None:
+    """Gap unless the `## date` block references `#number` OR any `#also_accept`.
+
+    `also_accept` carries the PR's closing-Issue numbers (#495): entries written
+    before the PR exists reference the Issue, not the PR number — both are
+    semantically the same unit of work.
+    """
     header = f"## {date}"
     if header not in text:
         return f"no '## {date}' header in notebook"
@@ -60,8 +69,10 @@ def check_lab_notebook(text: str, date: str, number: int) -> str | None:
     block = rest[:nxt.start()] if nxt else rest
     if not re.search(r"^### ", block, re.MULTILINE):
         return f"'## {date}' has no '### HH:MM UTC — Editor: …' sub-section"
-    if f"#{number}" not in block:
-        return f"'## {date}' block does not reference '#{number}'"
+    accepted = [number, *also_accept]
+    if not any(f"#{n}" in block for n in accepted):
+        refs = " or ".join(f"'#{n}'" for n in accepted)
+        return f"'## {date}' block does not reference {refs}"
     return None
 
 
@@ -89,12 +100,13 @@ def check_lab_notebooks_for_issue(
     date: str,
     number: int,
     notebooks: dict[str, str | None],
+    also_accept: Collection[int] = (),
 ) -> tuple[str, str] | None:
     """Any-role-satisfies notebook check for one Issue's role set.
 
-    Returns None if at least one role's notebook references `#number` in the
-    `## date` block. Otherwise returns a single (role_label, description) tuple
-    summarizing the gap across all roles.
+    Returns None if at least one role's notebook references `#number` (or any
+    `#also_accept`) in the `## date` block. Otherwise returns a single
+    (role_label, description) tuple summarizing the gap across all roles.
 
     `notebooks` maps role → notebook text (None for missing file).
     """
@@ -104,7 +116,7 @@ def check_lab_notebooks_for_issue(
         if text is None:
             per_role_gaps.append((role, "lab notebook file missing"))
             continue
-        if (gap := check_lab_notebook(text, date, number)) is None:
+        if (gap := check_lab_notebook(text, date, number, also_accept)) is None:
             return None
         per_role_gaps.append((role, gap))
     if len(per_role_gaps) == 1:
@@ -119,12 +131,14 @@ def collect_notebook_gaps(
     date: str,
     number: int,
     notebooks: dict[str, str | None],
+    also_accept: Collection[int] = (),
 ) -> list[tuple[str, str]]:
     """Aggregate notebook gaps across closing Issues, deduped by role set.
 
     Two Issues with the same role set produce identical gap entries (the
-    underlying check is deterministic on role-set/date/number/notebooks), so
-    only the first is emitted.
+    underlying check is deterministic on role-set/date/number/also_accept/
+    notebooks — and `also_accept` is constant across one audit), so only the
+    first is emitted.
     """
     gaps: list[tuple[str, str]] = []
     seen: set[frozenset[str]] = set()
@@ -135,7 +149,9 @@ def collect_notebook_gaps(
         if key in seen:
             continue
         seen.add(key)
-        if gap := check_lab_notebooks_for_issue(roles, date, number, notebooks):
+        if gap := check_lab_notebooks_for_issue(
+            roles, date, number, notebooks, also_accept
+        ):
             gaps.append(gap)
     return gaps
 
@@ -238,7 +254,12 @@ def audit_pr(n: int) -> None:
         role_sets = resolve_roles(labels_per_issue)
         all_roles = {r for rs in role_sets for r in rs}
         notebooks = {r: _load_notebook(r) for r in all_roles}
-        nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
+        # An entry referencing any closing Issue # is as valid as one naming the
+        # PR # — entries are often written before the PR exists (#495).
+        issue_numbers = [r["number"] for r in refs]
+        nb_gaps.extend(
+            collect_notebook_gaps(role_sets, date, n, notebooks, also_accept=issue_numbers)
+        )
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))

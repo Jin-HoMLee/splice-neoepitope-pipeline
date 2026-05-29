@@ -28,6 +28,49 @@ def test_lab_notebook_no_date_header_is_gap():
     assert ca.check_lab_notebook(text, "2026-05-11", 100) is not None
 
 
+# --- #495: accept the PR number OR any closing-Issue number (`also_accept`) ---
+
+
+def test_lab_notebook_accepts_pr_number_even_with_also_accept():
+    """Only the PR # is referenced (closing Issue # absent) → pass."""
+    text = "## 2026-05-26\n\n### 14:00 UTC — Editor: PM\nShipped. Refs PR #494.\n"
+    assert ca.check_lab_notebook(text, "2026-05-26", 494, also_accept=[484]) is None
+
+
+def test_lab_notebook_accepts_closing_issue_number_when_pr_absent():
+    """Only a closing Issue # is referenced (PR # absent) → pass via also_accept.
+
+    Repro of the PR #494 false positive: the entry journaled the work against
+    Issue #484 but never named the PR number (it was written before the PR
+    existed, per the PM/Sci before-PR flow).
+    """
+    text = "## 2026-05-26\n\n### 14:00 UTC — Editor: PM\nRetired news_log (Issue #484).\n"
+    assert ca.check_lab_notebook(text, "2026-05-26", 494, also_accept=[484]) is None
+
+
+def test_lab_notebook_accepts_either_pr_or_issue():
+    """Both the PR # and a closing Issue # referenced → pass."""
+    text = "## 2026-05-26\n\n### 14:00 UTC — Editor: PM\nRefs PR #494 / Issue #484.\n"
+    assert ca.check_lab_notebook(text, "2026-05-26", 494, also_accept=[484]) is None
+
+
+def test_lab_notebook_gap_when_neither_pr_nor_any_issue():
+    """Neither the PR # nor any closing Issue # referenced → gap; message names all."""
+    text = "## 2026-05-26\n\n### 14:00 UTC — Editor: PM\nUnrelated, refs #999.\n"
+    gap = ca.check_lab_notebook(text, "2026-05-26", 494, also_accept=[484])
+    assert gap is not None
+    assert "#494" in gap and "#484" in gap
+
+
+def test_collect_notebook_gaps_threads_also_accept_for_pr_path():
+    """audit_pr path: block names the closing Issue # (not the PR #) → no gap."""
+    text = "## 2026-05-26\n\n### 14:00 UTC — Editor: PM\nRetired news_log, Issue #484.\n"
+    gaps = ca.collect_notebook_gaps(
+        [{"pm"}], "2026-05-26", 494, {"pm": text}, also_accept=[484]
+    )
+    assert gaps == []
+
+
 def test_ac_deferral_comment_unblocks_unticked():
     body = "- [x] one\n- [ ] two\n"
     assert ca.check_ac(body, comments=[]) is not None
