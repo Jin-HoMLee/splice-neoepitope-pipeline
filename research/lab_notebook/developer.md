@@ -8,6 +8,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 15:10 UTC — Editor: Developer
+
+**Headline:** [PR #558](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/558) (closes [Issue #550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550) — `PostToolUse` hook auto-boards a created PR + sets Status). The **rung-3 mechanism** for the board-Status-flip slip that left [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) + [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) at Backlog 2026-05-28 — the rule lived in `feedback_project_board.md` (memory, rung-2) and didn't fire on the create beat. Sibling of `scripts/audit_and_merge.sh` (closure-ritual gate on merge).
+
+**Two design pivots + a self-caught bug — the reason this entry exists (non-routine):**
+
+#### Pivot 1 — draft-awareness (caught in review of my own design)
+The first cut flipped *every* created PR to "Ready for review". Wrong: a `gh pr create --draft` is opened mid-In-progress (CI / shareable URL), not for review. Fixed to branch on the PR's authoritative `isDraft`: draft → "In progress", non-draft → "Ready for review". Either way it lands ON the board — board-*absence* was the real failure. (User flagged the always-Ready assumption before wiring.)
+
+#### Pivot 2 — the hook caught its OWN false positive, live
+The instant it went live this session it fired on my **review-reply comment** to the bot — that comment's `--body` contained the example `… git push && gh pr create …`, and the original `matches_pr_create` regex searched the *raw command line*, so the `&&`-prefixed occurrence **inside the quoted body** matched. It then parsed #558 from the comment URL and re-flipped it (idempotent + one spurious fire-log line). Exact substring-in-body class the `@-claude` mention guard exists for. Fix: tokenize with `shlex` (posix + `punctuation_chars`) so quoted args stay single tokens; only a real `gh pr create` segment (command-start or after a true shell separator) matches; unbalanced quotes fail safe. Verified `cd foo;gh pr create` → match, `gh pr comment … "… && gh pr create …"` → no match.
+
+#### Self-modification gate
+The harness **refused** my first edit to `.claude/hooks/` + committed `settings.json` — correct: wiring a hook that fires for all sessions/roles is agent self-modification, and "ok gogo" didn't specifically authorize it. Got explicit sign-off, then proceeded.
+
+**Verification:** 20 tests (pure matcher/parse/should_track/status_for_draft/extract_output + subprocess fail-open/no-op); full `tools/ci` suite green; CI green. **Live dogfood:** hook flipped #558 itself Backlog → Ready for review and wrote its fire-log line — non-draft path end-to-end. Bot review: one real finding (dead `has_project_flag` → removed) + fire-log key `issue`→`pr` clarity; two non-blocking notes declined with reasons.
+
+---
+
 ### 14:02 UTC — Editor: Developer
 
 **Headline:** [PR #556](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/556) (closes [Issue #555](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/555) — closure-audit bot honors a routine-ship lab-notebook skip marker). Closes the **enforcement half** of [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483): that Issue made routine single-PR-closes-single-Issue notebook entries optional *and* dropped the `audit_and_merge.sh` notebook gate — but never taught the post-merge closure-audit bot the exemption. The bot's only skip was **file-based** (`is_exempt`: all-glossary/notebook diffs), so any routine PR touching code still drew a "Lab notebook entry missing" gap. Rule and enforcement contradicted each other.
