@@ -62,11 +62,6 @@ class TestParsePrUrl:
         assert h.parse_pr_url(text)[2] == 2
 
 
-def test_has_project_flag():
-    assert h.has_project_flag('gh pr create --project "JH M Lee Lab"') is True
-    assert h.has_project_flag("gh pr create --title x --body y") is False
-
-
 def test_should_track():
     assert h.should_track("Jin-HoMLee", "splice-neoepitope-pipeline") is True
     assert h.should_track("Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline") is True

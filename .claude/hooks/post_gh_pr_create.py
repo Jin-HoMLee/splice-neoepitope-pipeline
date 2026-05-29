@@ -62,11 +62,6 @@ def matches_pr_create(cmd: str) -> bool:
     return bool(_PR_CREATE_RE.search(cmd or ""))
 
 
-def has_project_flag(cmd: str) -> bool:
-    """True if the create command already passed `--project`."""
-    return "--project" in (cmd or "")
-
-
 def parse_pr_url(text: str) -> tuple[str, str, int] | None:
     """Return (owner, repo, number) of the LAST PR URL in `text`, or None.
 
@@ -153,11 +148,16 @@ def _set_status(item_id: str, option_id: str) -> None:
 
 
 def _log_fire(number: int, repo: str, status_label: str) -> None:
-    """Append one fire-log line (Issue #453 infra). Never raises."""
+    """Append one fire-log line (Issue #453 infra). Never raises.
+
+    Uses a `pr` key (not the base schema's `issue`) because this hook fires on a
+    PR, not an Issue; `scripts/check_hook_health.sh` aggregates only on `hook`
+    and `ts`, so the field name is free.
+    """
     payload = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "hook": "post_gh_pr_create",
-        "issue": number,
+        "pr": number,
         "repo": repo,
         "action": f"board-add+status:{status_label}",
     }
