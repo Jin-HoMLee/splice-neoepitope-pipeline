@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-29
+
+### 10:55 UTC — Editor: Developer
+
+**Headline:** [PR #554](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/554) (closes [Issue #495](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/495) — closure_audit accepts a PR # **or** any closing-Issue # in the lab-notebook check) shipped TDD-first: 5 new tests, 96 total. Read-side fix for the [PR #494](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494) false positive — that entry named only its closing Issue (#484), not the PR, and tripped the bot's PR-number-only check.
+
+**Work shipped:**
+
+- `check_lab_notebook` gains an additive `also_accept: Collection[int] = ()`; a day-block passes on `#number` OR any `#also_accept`. Threaded through `check_lab_notebooks_for_issue` → `collect_notebook_gaps`; `audit_pr` now passes the PR's `closingIssuesReferences` numbers. `audit_issue` is unchanged (no PR number).
+- Default `()` preserves prior behavior + the gap message verbatim, so the 10 pre-existing notebook tests stay green as a regression guard.
+
+**Process notes:**
+
+- **This entry is the fix demonstrating itself.** Written before merge, it references the closing Issue (#495), not the PR number — the exact "entry predates the PR" shape that tripped [PR #494](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494). Pre-fix, the post-merge closure-audit bot would have gap-commented here too; with this PR merged, it accepts the entry via `also_accept=[495]`. Eating our own dog food.
+- **Review pushback held up under verification.** The bot's lone nit (drop the `(#495)` doc refs, citing CLAUDE.md) rested on a rule not present anywhere in the repo; the file already cites `see #524` / `see #325` for rationale. Kept the pointer, reformatted to the house `(see #N)` form for consistency — `grep`-verified the citation was absent before pushing back.
+
+---
+
 ## 2026-05-28
 
 ### 20:38 UTC — Editor: Developer
