@@ -1,0 +1,180 @@
+---
+title: "ASNEO as a splice-neoepitope candidate generator — peer or upgrade?"
+subtitle: "Tool evaluation · Issue #546 · 2026-05-29"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-29
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — Quarto/pandoc longtable + footnotehyper LaTeX
+# interaction (per CLAUDE.md "Render tooling"). HTML reveal.js is primary;
+# "Print → Save as PDF" from Chrome for a handout.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should ASNEO change\
+how *we* generate\
+splice neoepitopes?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** ASNEO surfaced from the [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) (NeoGuider eval) as the actual splice tool NeoGuider delegates to (STAR → `SJ.out.tab` → ASNEO). It is our **closest published peer** — RNA-seq → splice junctions → neoepitopes — so the head-to-head is the comparison a manuscript reviewer would expect.
+:::
+
+---
+
+## ASNEO at a glance {.smaller}
+
+**ASNEO** — *Identification of personalized **A**lternative **S**plicing based **NEO**antigens with RNA-seq* — Zhang et al., **Aging** 2020 [@zhang2020asneo] (DOI `10.18632/aging.103516`).
+
+::: {.incremental}
+- **Architecture:** STAR-based alternative-splicing neoantigen caller from tumor RNA-seq; ranks novel-junction peptides by an immunogenicity score.
+- **Code:** [`bm2-lab/ASNEO`](https://github.com/bm2-lab/ASNEO) — **Apache-2.0**, Python 3 (with Py2 shims). **Dormant**: last code change 2019, README-only edit 2021.
+- **Bundled weights:** three XGBoost immunogenicity models (9/10/11-mer) + reference panels `Norm_SJ.tab`, `Norm_Protein.fasta`, `iRefSeq.bed`, `iedb.fasta`.
+- **External deps (license-gated, user-obtained):** NetMHCpan-4.0 + NetCTLpan-1.1; plus STAR, bedtools.
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**Provenance caveat:** the [Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546) body cited DOI `…/aging.103581` — **incorrect**. PubMed (PMID 32697765), PMC7425491, Aging, and GitHub all confirm `…/aging.103516`.
+:::
+
+---
+
+## How ASNEO works {.smaller}
+
+::: {.incremental}
+1. **Align** — STAR 2.5 → `SJ.out.tab` (hg19, `--sjdbOverhang 100`).
+2. **Filter junctions** — keep > 10 unique reads **and** psi5/psi3 > 0.1 (via `sj2psi`).
+3. **Remove normal** — drop junctions in **GTEx** (≥ 2 reads in ≥ 1% of samples) **or** the **UCSC hg19** reference annotation. *Population-level — no matched normal.*
+4. **Assemble + translate** — insert novel junction into the reference isoform → **one-frame** translation (start → stop) → proteins > 30 aa → chop to 8–11-mers.
+5. **Score** — NetMHCpan-4.0 %rank < 2 → combine NetCTLpan cleavage/TAP + hydrophobicity + XGBoost + T-cell-recognition into one immune score.
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+One-frame translation was a **deliberate low-false-positive choice** by the authors (vs. three- or six-frame).
+:::
+
+---
+
+## Head-to-head {.smaller}
+
+| Axis | **ASNEO** | **Ours** |
+|---|---|---|
+| Junction calling | STAR 2.5 → `SJ.out.tab` only; filter reads > 10, psi > 0.1 | Dual-path: HISAT2/regtools BED12 **+** STAR `SJ.out.tab` (strand rescue from motif) |
+| Normal filtering | **GTEx panel + UCSC annotation** (population-level) | **Matched-normal** at junction level (annotated → shared → tumor-exclusive); GTEx pan-tissue *planned* [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) |
+| Peptide / frame | **One-frame** (start→stop), > 30 aa → 8–11-mers | **Three-frame** w/ GENCODE CDS phase + junction-spanning condition |
+| MHC predictor | **NetMHCpan-4.0** affinity %rank + NetCTLpan | **MHCflurry** `Class1PresentationPredictor` (presentation) |
+| Validation | Schuster ovarian (n=14, **2 MS-confirmed**); Van Allen (n=39); Hugo (n=25) | — |
+
+. . .
+
+**Maintenance / portability:** ASNEO is hg19-only, dormant since 2019, needs Biopython < 1.80, and wraps license-gated binaries — *not* a maintained GRCh38 drop-in.
+
+---
+
+## Where it would plug in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    R["Tumor RNA-seq"] --> AL["HISAT2 / STAR<br/>alignment"]
+    AL --> JX["Junction extraction<br/>(bed12 / star_sj)"]
+    JX --> FILT["filter_junctions.py<br/>matched-normal<br/>3-tier hierarchy"]
+    FILT --> ASM["assemble_contigs +<br/>translate_peptides<br/>(3-frame)"]
+    ASM --> MHC["MHCflurry<br/>presentation"]
+    GTEX["ASNEO GTEx-panel<br/>normal-junction ref<br/>(Norm_SJ.tab)"] -.->|"design ref · #212"| FILT
+
+    style GTEX fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style FILT fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
+```
+
+The one genuinely adoptable element is ASNEO's **population-level GTEx normal-junction reference** — it slots in *beside* our matched-normal filter, exactly the [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) GTEx pan-tissue enhancement. Full **replacement** would swap the entire highlighted chain — rejected (next slide).
+
+---
+
+## Reasons by mode {.smaller}
+
+| Mode | Verdict | Rationale |
+|---|:---:|---|
+| Triage | ❌ | ASNEO's junction filters sit at the **same stage** as ours — no upstream pre-filter advantage |
+| Replacement | ❌ | Unmaintained, **hg19-only** (we're GRCh38), stale Biopython dep, wraps license-gated NetMHCpan/NetCTLpan — regressive swap |
+| Cross-check | ⚠️ | Attractive (closest peer, orthogonal 2nd opinion) but costly: hg19 liftover + NetMHCpan license + old env. **Park as future manuscript-validation experiment** |
+| **Component reuse** | **✅** | ASNEO's **GTEx-panel normal-junction filter** (`Norm_SJ.tab`; "≥ 2 reads in ≥ 1% of GTEx samples") = direct **prior art** for our planned [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) filter |
+| Reject | ❌ | Not a reject — our closest published peer; yields a #212 design reference + a manuscript comparison point |
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 3em; font-weight: bold; margin-top: 0.4em;"}
+(✅) Component reuse
+:::
+
+::: {style="text-align: center; font-size: 1.3em; margin-top: 0.4em;"}
+ASNEO's GTEx-panel normal-junction filter\
+= design reference for [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)
+:::
+
+. . .
+
+**No new integration sub-issue** — this is a **design-reference note on [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)** (already-planned GTEx pan-tissue filter), not a fresh build. Decline Replacement + Triage; park Cross-check.
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**[Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) calculus unaffected:** the NeoGuider component-reuse take-home (KDE + isotonic calibration, [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547)) is a **downstream ranker-calibration layer** — orthogonal to ASNEO's upstream junction filtering.
+:::
+
+---
+
+## Open questions & caveats {.smaller}
+
+**Open scientific questions** *(board-backed on [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)):*
+
+::: {.incremental}
+1. Should [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) adopt ASNEO's exact thresholds (≥ 2 reads in ≥ 1% of GTEx samples), and which GTEx version / tissue set to match?
+2. **One-frame** (ASNEO, low-FP) vs. our **three-frame** (higher sensitivity) — worth quantifying the FP/sensitivity tradeoff on the chr22 PoC?
+:::
+
+. . .
+
+**Caveats:**
+
+::: {.incremental}
+- ASNEO's immunogenicity stack (NetCTLpan + XGBoost + T-cell recognition) overlaps [Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551) (NeoPrecis) + [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (NeoGuider calibration) already under eval — **no new action**.
+- Cross-check needs hg19 liftover + a NetMHCpan license — out of scope here.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
