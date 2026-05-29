@@ -308,6 +308,8 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 
 Mechanisms that fire automatically to enforce GitHub-related discipline rules that have broken repeatedly despite being documented in memory. Per the mechanism-over-memory ladder (memory → inline Always-in-effect → mechanism), these are the rung-3 escalation when a rule has slipped ≥2× on the same shape.
 
+> **⚠️ Hook loading — restart after editing `.claude/settings.json`.** Editing `.claude/settings.json` mid-session **silently deactivates ALL the hooks below** (every PreToolUse + PostToolUse) for the rest of that session — they do **not** hot-reload. So wiring a new hook (or changing one) also kills the *existing* guards (e.g. the `@claude` blocker) until you **restart the session**. Verify what's actually live with `/hooks`. Verified 2026-05-29: the committed `post_gh_pr_create` hook fired in a fresh session (trace probe) but was dead in the session that had edited `settings.json` mid-session — silently causing [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) + [PR #562](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/562) to miss auto-boarding. Also: hooks fire only on **Claude's tool calls**, not on commands a human runs in a terminal — so a firing test must be driven by a Claude session.
+
 ### `@claude` mention guard ([PreToolUse hook](.claude/settings.json))
 
 Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `@claude` substring, except the exact canonical review-trigger `--body "@claude review"` (and the single-quoted variant). The hook runs `.claude/hooks/check_at_claude.py` on stdin-piped PreToolUse JSON and emits a `permissionDecision: deny` when the guard fires.
