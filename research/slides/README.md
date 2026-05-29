@@ -112,6 +112,16 @@ python research/slides/issue_NNN_<short-desc>/figures/_regenerate_figures.py
 
 This pattern keeps notebook and slides reproducible from the same cached prediction parquet.
 
+### Diagrams (block diagrams, integration maps, flowcharts)
+
+Three ways to draw a *non-data* diagram, in increasing effort / control:
+
+- **ASCII / monospace** (a plain code fence, as in [`_template.qmd`](_template.qmd)) — quickest, zero-dependency, text-diffable. Crude (monospace box-drawing); no auto-layout, styling, or data. Fine for a rough placeholder or a sketch you'll replace.
+- **mermaid** (fenced ```` ```{mermaid} ```` in the `.qmd`) — declarative, **auto-layout**. Best when the diagram's *structure* keeps changing (add / remove / reorder nodes, re-wire edges) and default styling is fine. Text-diffable, no regenerate step. Limited fine styling; can drift between HTML and PDF; cannot plot data.
+- **matplotlib** (a `fig_*()` in `figures/_regenerate_figures.py` → PNG) — imperative, **hand-positioned**. Best for (a) anything with *plotted data*, (b) exact house-style polish / layered annotations on arrows, or (c) a stable "hero" diagram drawn once and frozen. Renders identically everywhere; matches `custom.scss` exactly. Costs layout labor on every structural change; PNGs are opaque in git diffs.
+
+**Rule of thumb: ASCII for a throwaway placeholder, mermaid for evolving topology, matplotlib for visual polish or plotted data.** Match the shared palette either way (`#1e5ba8` blue, `#b8860b` gold). Worked matplotlib examples: the NeoGuider eval deck's combine schematic + integration map ([`research/evals/issue_258_neoguider/figures/_regenerate_figures.py`](../evals/issue_258_neoguider/figures/_regenerate_figures.py)).
+
 ## Bibliography
 
 **For the pilot:** hand-roll `refs.bib` (~5-10 entries per deck; small enough that automation isn't worth the wiring).
