@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-29
+
+### 14:36 UTC — Editor: Scientist
+
+#### [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258) NeoGuider deck — added a visual KDE + centered-isotonic backup appendix + two matplotlib diagrams; 2nd automated review pass clean; diagram-tool convention documented. [PR #544](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/544) ready to merge — closes [Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258).
+
+**Why the appendix.** The "novel mechanism" slide compressed the whole KDE + centered-isotonic-regression (CIR) calibration into one dense slide; the user couldn't fully follow it. Added an 8-slide appendix that builds the mechanism visually for a non-specialist: a four-term primer (KDE/aKDE, class-conditional density, odds/log-odds), the "uncalibrated ruler" problem (now *explained*, not just asserted — no fixed zero, nonlinear), Steps 1a/1b (estimate → log-odds), the imbalance-as-additive-prior argument, Step 2 (isotonic → CIR with the plateau→weighted-centroid collapse annotated), the dose-response analogy, and Steps 3a/3b (single-feature lookup + the logistic-regression combine). Deck grew 10 → 20 slides.
+
+**7 regenerable matplotlib figures** at [`research/evals/issue_258_neoguider/figures/_regenerate_figures.py`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/evals/issue_258_neoguider/figures/_regenerate_figures.py): faithful `sklearn.IsotonicRegression` + a from-scratch CIR (Oron & Flournoy 2017); the KDE is drawn fixed-bandwidth for clarity and flagged on-slide as the one simplification vs the real shared *adaptive* aKDE. The Step 1b log-odds plot overlays the two class densities faintly — making "log-odds = log of the two densities' ratio" visible (the curve crosses zero exactly where the densities intersect). Replaced the "Where it would plug in" mermaid flowchart with a house-style matplotlib integration map (process boxes + data on the arrows).
+
+**Grounding + adversarial verification.** Two verification passes against the primary source (Wei et al., *Genome Medicine* 2025) caught and fixed: (a) the original slide's claim that per-feature log-odds are "summable" — they are **combined by a logistic regression that learns weights**, not a naive-Bayes sum (verbatim: *"NeoGuider uses logistic regression"*); (b) a density-ratio plotting artifact (an eps-on-both-terms guard broke monotonicity → replaced with a joint-support mask); (c) the shared-kernel / iterative-refine bandwidth wording.
+
+**Diagram-tool convention documented.** The slide template modelled only an ASCII block diagram with no signpost toward mermaid or matplotlib. Added a 3-tier "Diagrams" ladder to [`research/slides/README.md`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/slides/README.md) (ASCII placeholder / mermaid for evolving topology / matplotlib for polish or plotted data) + a signpost comment in [`_template.qmd`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/blob/main/research/slides/_template.qmd).
+
+**2nd automated review pass clean.** The review on the new commits returned 2 valid findings, both fixed in `1f88516`: a Caveats-slide accuracy bug (*"AGPLv3 (non-profit only)"* → *"AGPLv3 + author-imposed commercial restriction"* — AGPLv3 itself permits commercial use; the non-commercial limit is the author's *added* term) and a docstring inventory nit (2 of 7 figures missing). All eval-deck conventions re-confirmed conformant.
+
+**Commits.** `20baa4d` (appendix + 7 figures + faint-density overlay + integration map), `554078d` (diagram-tool convention docs), `1f88516` (review fixes). Visual verification per [`feedback_slide_visual_check.md`](.claude/memory/feedback_slide_visual_check.md): all 20 slides re-rendered + per-slide headless-Chrome PDF check, no overflow.
+
+---
+
 ## 2026-05-28
 
 ### 19:25 UTC — Editor: Scientist
