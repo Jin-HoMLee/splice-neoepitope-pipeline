@@ -37,6 +37,21 @@ class TestMatchesPrCreate:
         # "echo gh pr create" is not an invocation of the command
         assert h.matches_pr_create("echo gh pr create") is False
 
+    def test_create_inside_quoted_comment_body_not_matched(self):
+        # Real false positive (PR #558): a `gh pr comment` whose body discusses
+        # `gh pr create` must NOT match — the substring is inside a quoted arg.
+        cmd = 'gh pr comment 1 --body "narrow if to Bash(gh pr create *)"'
+        assert h.matches_pr_create(cmd) is False
+
+    def test_create_after_literal_separator_in_quoted_body_not_matched(self):
+        # The `&&` lives inside the quoted body, so it is not a shell separator.
+        cmd = 'gh pr comment 1 --body "example: git push && gh pr create --fill"'
+        assert h.matches_pr_create(cmd) is False
+
+    def test_unbalanced_quotes_fail_safe(self):
+        # Untokenizable command → fail safe (do not fire).
+        assert h.matches_pr_create('gh pr comment 1 --body "oops') is False
+
 
 class TestParsePrUrl:
     def test_basic_url(self):

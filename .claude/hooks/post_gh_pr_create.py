@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -50,16 +51,42 @@ TRACKED_REPOS = {
 }
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
-_PR_CREATE_RE = re.compile(r"(^|[;&|]\s*)gh\s+pr\s+create\b")
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
+_PR_CREATE_PREFIX = ("gh", "pr", "create")
+_PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
 
 
 # --- pure helpers (unit-tested) ---
 
 
 def matches_pr_create(cmd: str) -> bool:
-    """True if `cmd` invokes `gh pr create` (at the start or after ; && |)."""
-    return bool(_PR_CREATE_RE.search(cmd or ""))
+    """True only if `cmd` actually *invokes* `gh pr create` as a command.
+
+    Tokenizes with shlex (quotes + shell punctuation respected) rather than
+    substring-matching the raw command line, so `gh pr create` appearing INSIDE
+    a quoted argument — e.g. a `gh pr comment` body that discusses the command —
+    does NOT match. That false positive tripped on this hook's own PR #558
+    review-reply (`... git push && gh pr create ...` inside the comment body).
+
+    Compound commands are handled: a `gh pr create` segment after a real shell
+    separator (`&&`, `||`, `;`, `|`) matches; one buried in quotes does not.
+    Untokenizable input (unbalanced quotes) fails safe → no match.
+    """
+    try:
+        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        tokens = list(lex)
+    except ValueError:
+        return False
+    at_command_start = True
+    for i, tok in enumerate(tokens):
+        if tok and all(ch in _PUNCT for ch in tok):  # pure-punctuation = separator
+            at_command_start = True
+            continue
+        if at_command_start and tuple(tokens[i:i + 3]) == _PR_CREATE_PREFIX:
+            return True
+        at_command_start = False
+    return False
 
 
 def parse_pr_url(text: str) -> tuple[str, str, int] | None:
