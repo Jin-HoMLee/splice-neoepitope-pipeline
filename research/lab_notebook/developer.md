@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 14:02 UTC — Editor: Developer
+
+**Headline:** [PR #556](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/556) (closes [Issue #555](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/555) — closure-audit bot honors a routine-ship lab-notebook skip marker). Closes the **enforcement half** of [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483): that Issue made routine single-PR-closes-single-Issue notebook entries optional *and* dropped the `audit_and_merge.sh` notebook gate — but never taught the post-merge closure-audit bot the exemption. The bot's only skip was **file-based** (`is_exempt`: all-glossary/notebook diffs), so any routine PR touching code still drew a "Lab notebook entry missing" gap. Rule and enforcement contradicted each other.
+
+**Decision (AC 1):** deterministic **opt-out marker** `<!-- skip-lab-notebook: routine -->` in the PR body, over the two alternatives — heuristic trigger-detection ([Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) itself called this "too brittle") and decline-and-document. The marker mirrors the existing `❎ … deferred` AC-deferral convention: author-controlled, greppable, no false negatives.
+
+**Work shipped:**
+
+- `skip_lab_notebook(pr_body)` — case-insensitive, whitespace-tolerant regex `<!--\s*skip-lab-notebook\b[^>]*-->`. `fetch_pr` now requests `body`; `audit_pr` short-circuits **only** the notebook-check block (`and not skip_lab_notebook(...)`). AC-checkbox + Priority-rationale checks unaffected.
+- `audit_issue` deliberately **untouched** — the marker is PR-body-scoped, and decomposition Issues closed without a PR still require an entry, so no skip should reach that path.
+- TDD: 6 tests RED→GREEN (skip-honored: value/bare/whitespace+case; skip-absent: no-marker/empty/unrelated-HTML-comment). 32 `tools/ci` tests green locally + in CI.
+
+**Process notes:**
+
+- **Cross-repo AC (item 3).** The `shared/feedback_lab_notebook.md` cross-reference lives in the separate `claude-personas` repo, whose working tree is mid-flight on the MEMORY-slim epic (#538–#542). Made the edit but left it **uncommitted** per the maintainer's call — to be folded into that epic rather than committed onto a parallel session's dirty branch.
+- **Review.** Bot review found no bugs; applied the one doc nit (marker value must be `>`-free, since `[^>]*` stops at the first `>` — c75c68b), declined the suggested `audit_pr` integration test (YAGNI for a 2-line short-circuit; the suite is intentionally lean on live-`gh` paths).
+- **Not self-exempting.** This is a meta-decision/workflow-rule session → non-routine → entry required. Did *not* place the new marker on this very PR.
+
+---
+
 ### 10:55 UTC — Editor: Developer
 
 **Headline:** [PR #554](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/554) (closes [Issue #495](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/495) — closure_audit accepts a PR # **or** any closing-Issue # in the lab-notebook check) shipped TDD-first: 5 new tests, 96 total. Read-side fix for the [PR #494](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/494) false positive — that entry named only its closing Issue (#484), not the PR, and tripped the bot's PR-number-only check.
