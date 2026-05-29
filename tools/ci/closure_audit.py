@@ -42,7 +42,8 @@ _EXEMPT_PREFIX = ("research/lab_notebook/",)
 # notebook check by placing this marker in the PR body. Honors the routine
 # single-PR-closes-single-Issue skip that #483 declared optional — the bot must
 # not coerce an entry the lab-notebook rule says is unnecessary. The value after
-# the colon (e.g. `routine`) is free-text rationale; presence is what matters.
+# the colon (e.g. `routine`) is free-text rationale with no `>` (the regex stops
+# at the first `>`); presence of the marker is what matters, not the value.
 _SKIP_LAB_NOTEBOOK = re.compile(r"<!--\s*skip-lab-notebook\b[^>]*-->", re.IGNORECASE)
 
 
