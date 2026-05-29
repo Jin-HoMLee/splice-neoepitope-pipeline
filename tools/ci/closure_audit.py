@@ -6,6 +6,14 @@ Trying Sakana Fugu "critic-as-default" on PR-merge / issue-close. Posts a
 single marker-tagged gap comment, or stays silent if all 3 checks pass.
 No edit-in-place — comment is a post-only snapshot of close-time state.
 
+The three checks: AC checkboxes, Priority-rationale line, lab-notebook entry.
+The lab-notebook check is skipped when the PR is file-exempt (only glossary /
+lab-notebook files touched) OR the PR body carries the routine-ship opt-out
+marker `<!-- skip-lab-notebook: routine -->` (#555). The marker honors the
+routine single-PR-closes-single-Issue skip that #483 declared optional, so the
+bot stops coercing entries the lab-notebook rule says are unnecessary. The AC
+and Priority-rationale checks are unaffected by the marker.
+
 Usage (called by .github/workflows/closure-audit.yml):
     python closure_audit.py --event-type {pr|issue} --number <N>
 """
@@ -30,6 +38,12 @@ _UNTICKED = re.compile(r"^\s*-\s*\[\s\]\s", re.MULTILINE)
 _TICKED = re.compile(r"^\s*-\s*\[[xX]\]\s", re.MULTILINE)
 _EXEMPT_FILES = {"research/glossary.md"}
 _EXEMPT_PREFIX = ("research/lab_notebook/",)
+# Routine-ship lab-notebook opt-out (see #555): a PR author may skip the
+# notebook check by placing this marker in the PR body. Honors the routine
+# single-PR-closes-single-Issue skip that #483 declared optional — the bot must
+# not coerce an entry the lab-notebook rule says is unnecessary. The value after
+# the colon (e.g. `routine`) is free-text rationale; presence is what matters.
+_SKIP_LAB_NOTEBOOK = re.compile(r"<!--\s*skip-lab-notebook\b[^>]*-->", re.IGNORECASE)
 
 
 # --- pure checks ---
@@ -81,6 +95,16 @@ def is_exempt(changed_files: list[str]) -> bool:
         p in _EXEMPT_FILES or p.startswith(_EXEMPT_PREFIX)
         for p in changed_files
     )
+
+
+def skip_lab_notebook(pr_body: str | None) -> bool:
+    """True if the PR body carries the routine-ship lab-notebook opt-out marker.
+
+    Marker form: `<!-- skip-lab-notebook: routine -->` (see #555). Matched
+    case-insensitively and tolerant of comment whitespace. Skips only the
+    lab-notebook check — AC-checkbox and priority-rationale checks still run.
+    """
+    return bool(_SKIP_LAB_NOTEBOOK.search(pr_body or ""))
 
 
 def resolve_roles(labels_per_issue: list[list[str]]) -> list[set[str]]:
@@ -207,7 +231,7 @@ def _gh(*args: str) -> str:
 def fetch_pr(n: int) -> dict:
     return json.loads(_gh(
         "pr", "view", str(n),
-        "--json", "mergedAt,closingIssuesReferences,files,number",
+        "--json", "mergedAt,closingIssuesReferences,files,number,body",
     ))
 
 
@@ -247,7 +271,7 @@ def audit_pr(n: int) -> None:
         if d := check_priority_rationale(body):
             pr_gaps.append((issue["number"], d))
 
-    if not is_exempt(changed):
+    if not is_exempt(changed) and not skip_lab_notebook(pr.get("body")):
         labels_per_issue = [
             [lbl["name"] for lbl in i.get("labels", [])] for i in issues
         ]
