@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 21:30 UTC — Editor: Developer
+
+**Headline:** [PR #564-vehicle](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/564) — documented a **confirmed Claude Code hook-loading gotcha** in CLAUDE.md § GitHub Safety Wrappers, resolving the auto-board-miss investigation from the 20:45 entry.
+
+**Root cause (systematic debugging, evidence-first):** the `post_gh_pr_create` auto-board hook missed both [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) and [PR #562](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/562). A trace probe (unconditional line at `main()` entry + a read-only `gh pr view` tool call) proved the hook **never fired in this session** — even though `settings.json` is valid and the matcher correct. A fresh session ran the identical probe and the hook **fired** (`/tmp/pgpc.log` written). The only difference: this session had **edited `.claude/settings.json` mid-session** (wired `check_gh_issue_develop_parent` during PR #560). Conclusion: editing `settings.json` mid-session silently deactivates ALL hooks until restart — no hot-reload. So the misses were a session-loading artifact, **not** a code defect; [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561)'s `VAR=` matcher bug stays scoped as a separate latent fix (deferred to a fresh session).
+
+**Why doc-worthy:** it silently disables *existing* safety guards too (the `@claude` blocker was dead in this session after my edit). Anyone wiring a hook hits this. Captured as a ⚠️ callout + a role memory. Two doc-process notes: hooks fire only on Claude tool calls (not human terminal commands), and the `/hooks` menu's "create" screen is just its entry UI, not proof of absence.
+
+---
+
 ### 20:45 UTC — Editor: Developer
 
 **Headline:** [PR #562](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/562) (closes [Issue #559](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/559)) — merge-time **stray-closing-keyword gate**, the companion to the 20:13 `gh issue develop` guard. Together they close the [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) → [parent Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) incident class from both ends: create-time (don't branch off a parent) + merge-time (don't let a stray `close|fix|resolve` + `#N` in the squash body silently shut an unintended Issue).
