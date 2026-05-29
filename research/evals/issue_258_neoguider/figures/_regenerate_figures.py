@@ -12,6 +12,8 @@ Outputs (next to this script):
     imbalance_prior.png    — class imbalance enters ONLY as an additive vertical shift (prior log-odds)
     isotonic_vs_cir.png   — the core: PAVA step function (plateau) vs centered-isotonic smooth curve
     calibrated_curve.png  — final calibrated log-odds curve + how a NEW peptide's score maps
+    combine_schematic.png — block diagram: per-feature CIR log-odds → logistic regression → rank
+    integration_map.png   — pipeline integration map (NeoGuider calibration layer position)
 
 These are PEDAGOGICAL figures (synthetic data, fixed seed; no pipeline data is read).
 The isotonic + centered-isotonic transforms are faithful — sklearn IsotonicRegression and a

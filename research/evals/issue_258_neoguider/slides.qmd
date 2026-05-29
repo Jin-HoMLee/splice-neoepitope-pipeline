@@ -164,7 +164,7 @@ When the calibration sub-issue lands on Dev's plate, Sci consult points:
 ::: {.incremental}
 1. **Benchmark cohorts are SNV-heavy.** TESLA / NCI / HiTIDE / Borch are dominated by missense neoantigens. NeoGuider's headline numbers do not certify performance on splice-specific neoepitopes.
 2. **ASNEO is the actual splice tool** — separate eval Issue forthcoming. NeoGuider's headline splice support is a wrapper claim; the substantive work is in the [Zhang 2020 ASNEO paper](https://doi.org/10.18632/aging.103581) [@zhang2020asneo].
-3. **License layering.** Repo is AGPLv3 (non-profit only); paper is CC-BY-NC-ND 4.0. The algorithm can be reimplemented from the paper; the *repo code* cannot be embedded in commercial use without a paid license from the corresponding author.
+3. **License layering.** Repo is AGPLv3 + author-imposed commercial restriction; paper is CC-BY-NC-ND 4.0. The algorithm can be reimplemented from the paper; the *repo code* cannot be embedded in commercial use without a paid license from the corresponding author.
 4. **Verdict is upstream of TCR-pMHC scoring** — NeoGuider does NOT enter the [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) (TCR-pMHC landscape) verdict list. It's a neoepitope ranker, not a TCR-pMHC scorer.
 :::
 
