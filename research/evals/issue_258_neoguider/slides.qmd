@@ -73,11 +73,11 @@ join our scoring stack?
 **NeoGuider's contribution is in feature engineering, not architecture:**
 
 ::: {.incremental}
-- Each raw feature → **adaptive kernel density estimation (KDE)** of positive vs. negative class densities
-- Density ratio → **isotonic regression** (monotone fit, handles nonlinearity)
-- **Centered isotonic regression** [@oron2017isotonic] — interpolates flat plateaus that pure isotonic produces, restoring smoothness across feature space
-- Output: per-feature **immunogenicity log-odds** — calibrated, comparable, summable
-- *No hyperparameter tuning* — KDE bandwidth adapts to local density
+- Each raw feature → **adaptive KDE (aKDE)** — one shared kernel jointly estimates the positive- vs. negative-class densities
+- Density ratio (= odds) → **isotonic regression** — enforces monotonicity, no parametric shape assumed
+- **Centered isotonic regression** [@oron2017isotonic] — replaces isotonic's flat plateaus with a smooth, strictly-increasing curve
+- Per-feature **immunogenicity log-odds** — calibrated + comparable across features, then **combined by a logistic regression** that learns per-feature weights (*not* a naive-Bayes sum)
+- **Hyperparameter-free feature transform** — aKDE bandwidth is data-derived (adapts to spacing of consecutive positives, then refined); downstream classifier left at default settings
 :::
 
 :::
@@ -100,19 +100,7 @@ Class imbalance (1 immunogenic per ~100 candidates) is handled by the density-ra
 
 ## Where it would plug in {.smaller}
 
-```{mermaid}
-%%| fig-width: 11
-flowchart LR
-    A["Tumor-exclusive<br/>junctions<br/>(our pipeline)"] --> B["Peptide assembly<br/>+ flanking"]
-    B --> C["MHCflurry 2.x<br/>presentation"]
-    C --> D["presentation_score<br/>genotype_presentation_score<br/>per peptide"]
-    D --> E["NeoGuider<br/>rank-calibration<br/>(KDE + isotonic)"]
-    E --> F["calibrated<br/>immunogenicity<br/>log-odds"]
-    F --> G["TCRdock<br/>(top candidate)"]
-
-    style E fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
-    style G fill:#a3d8ff,stroke:#1e5ba8,stroke-width:2px
-```
+![](figures/integration_map.png){fig-align="center" width="88%"}
 
 **Integration shape:** a post-MHCflurry ranker calibration layer. Consumes our existing `presentation_score` / `genotype_presentation_score` columns; emits a calibrated log-odds column for downstream ranking.
 
@@ -185,4 +173,159 @@ When the calibration sub-issue lands on Dev's plate, Sci consult points:
 ## References {.smaller}
 
 ::: {#refs}
+:::
+
+---
+
+## Appendix {.smaller}
+
+::: {style="text-align: center; font-size: 1.9em; font-weight: bold; margin-top: 0.4em; line-height: 1.2;"}
+KDE + centered isotonic regression\
+— the mechanism, visually
+:::
+
+::: {style="text-align: center; font-size: 0.92em; margin-top: 0.6em; color: #555;"}
+Per-feature calibration, step by step. Figures use synthetic data. The isotonic + centered-isotonic transforms are exactly NeoGuider's (`sklearn.IsotonicRegression` + a from-scratch CIR); the KDE is drawn **fixed-bandwidth for clarity** — NeoGuider's is adaptive (see Step 1a). Regenerate with [`figures/_regenerate_figures.py`](figures/_regenerate_figures.py).
+:::
+
+---
+
+## First — four words you'll need {.smaller}
+
+::: {style="font-size: 0.95em;"}
+- **KDE (kernel density estimation)** — a *smoothed histogram*: drop a small bump on each data point, add them up into one smooth curve. The *bandwidth* sets how wide each bump (the single knob). **aKDE** = *adaptive* KDE — the bump widens where data is sparse, so even a rare class yields a usable curve.
+- **Class-conditional density** $p(s \mid \text{class})$ — reads as "*given* a peptide is immunogenic, how is its score $s$ distributed?" — and the same, separately, for non-immunogenic. Two **within-class** shapes.
+- **Odds** $= P(\text{immunogenic}) / P(\text{not})$. **Log-odds** $= \log(\text{odds})$ — an *additive* scale where **0 = 50:50**, positive favors immunogenic, negative against. The **"odds curve"** is just how those odds move as the score changes.
+:::
+
+---
+
+## The problem — an uncalibrated ruler {.smaller}
+
+Raw `presentation_score` (or any single feature) is an **uncalibrated ruler**: it has **no fixed zero** (which score means "as likely immunogenic as not"?) and is **not linear** (a 0.1 rise near 0.8 carries far more evidence than one near 0.4). We can't rank on it directly — we have to *learn* the score → immunogenicity mapping. NeoGuider re-rules each feature into **log-odds of immunogenicity** — in three jobs:
+
+| Job | What it does | Tool |
+|---|---|---|
+| **Estimate** the odds curve | capture nonlinearity (score-dependent odds) | adaptive KDE → density ratio |
+| **Regularize** it | enforce monotonicity, kill noise | isotonic → **centered** isotonic |
+| **Combine** features | weight each feature's evidence | **logistic regression** |
+
+::: {.callout-note appearance="simple"}
+The novelty is the **Estimate + Regularize** transform (rows 1–2). The combine step is an ordinary logistic regression that *learns weights* — **not** a naive-Bayes sum.
+:::
+
+---
+
+## Step 1a — class-conditional densities via one shared aKDE {.smaller}
+
+::: {.columns}
+::: {.column width="56%"}
+![](figures/kde_densities.png){fig-align="center" width="100%"}
+:::
+::: {.column width="44%"}
+- **One shared kernel** jointly estimates *both* class densities (here n = 70 immunogenic vs. 420 not) — the odds is their ratio.
+- Each density **integrates to 1 within its own class** (self-normalized): the ~6× rarer positive class still gives a full-height curve, so class size shifts the *prior* later, not the curve's *shape* here.
+- **Adaptive bandwidth** widens the kernel where positives are sparse — it tracks the spacing of consecutive positives, then is *iteratively refined*; robust in the tail.
+:::
+:::
+
+::: {style="font-size: 0.6em; color: #777; margin-top: 0.2em;"}
+Figure draws two independent **fixed-bandwidth** KDEs for clarity. NeoGuider's real aKDE is one *shared, adaptive* kernel — bandwidth tracks consecutive-positive spacing, then iteratively refined.
+:::
+
+---
+
+## Step 1b — density ratio → log-odds {.smaller}
+
+::: {.columns}
+::: {.column width="52%"}
+The density **ratio** is the per-feature evidence; Bayes turns it into log-odds:
+
+$$\operatorname{logit} P(\mathrm{pos}\mid s) = \underbrace{\log\frac{p(s\mid \mathrm{pos})}{p(s\mid \mathrm{neg})}}_{\text{KDE density ratio}} + \underbrace{\log\frac{\pi_{\mathrm{pos}}}{\pi_{\mathrm{neg}}}}_{\text{prior log-odds}}$$
+
+- **First term** — score-dependent, read off the two KDEs (the curve, right).
+- **Second term** — a single constant set by the base rate.
+- The **faint dashed curves** are the Step 1a densities; the gold curve is exactly the *log of their ratio* — crossing zero where they intersect (50:50).
+:::
+::: {.column width="48%"}
+![](figures/density_ratio.png){fig-align="center" width="100%"}
+:::
+:::
+
+---
+
+## Why class imbalance doesn't break it {.smaller}
+
+::: {.columns}
+::: {.column width="56%"}
+![](figures/imbalance_prior.png){fig-align="center" width="100%"}
+:::
+::: {.column width="44%"}
+- The base rate (~1 per 100) enters **only as the additive prior term** — it shifts the whole curve down, never bends it.
+- So **no resampling or class-weighting** is needed: the evidence *shape* is base-rate-invariant.
+- ⚠️ It neutralizes the **bias** of imbalance, not the **variance** — few positives ⇒ noisy positive density (exactly why the bandwidth is adaptive).
+:::
+:::
+
+---
+
+## Step 2 — isotonic → centered isotonic {.smaller}
+
+From a finite cohort the odds estimate is **noisy** — shown as per-score-bin empirical log-odds (grey dots) that dip non-monotonically. *This* is what the regularizer cleans up:
+
+::: {.columns}
+::: {.column width="56%"}
+![](figures/isotonic_vs_cir.png){fig-align="center" width="100%"}
+:::
+::: {.column width="44%"}
+- **Isotonic regression (PAVA)** fits the best monotone curve, no parametric shape — but it's a **step function**: scores tied on a plateau are unrankable.
+- **Centered isotonic** collapses each plateau to its **sample-weighted centroid**, then interpolates → a smooth, strictly-increasing curve.
+- Only inductive bias: **monotonicity**. No parametric form, no tuning knobs.
+:::
+:::
+
+---
+
+## Why borrow a dose-response estimator? {.smaller}
+
+Centered isotonic regression was invented for **dose-finding trials** [@oron2017isotonic]. The structure maps one-to-one onto score calibration:
+
+| Dose-response study | NeoGuider per-feature calibration |
+|---|---|
+| dose $x$ | feature value (e.g. `presentation_score`) |
+| response proportion | positive / negative **density ratio** |
+| monotone, strictly-increasing $F$ | feature → immunogenicity log-odds |
+| invert: dose at response $p$ | read off calibrated log-odds for a new score |
+| small $n$, no parametric form, no knobs | rare positives, nonlinearity, no tuning |
+
+Same problem shape: *estimate a monotone univariate curve nonparametrically, then read it off at arbitrary $x$.*
+
+---
+
+## Step 3a — score a new peptide on one feature {.smaller}
+
+::: {.columns}
+::: {.column width="56%"}
+![](figures/calibrated_curve.png){fig-align="center" width="100%"}
+:::
+::: {.column width="44%"}
+- A new peptide's score is **looked up** on the calibrated curve → its per-feature immunogenicity log-odds (peptides A and B, left).
+- Scores **beyond the calibrated range are clamped** to the endpoint log-odds — no extrapolation past the data.
+- ⚠️ CIR removes *parametric-shape* bias, **not cohort-shift** bias — the curve is learned from one cohort, so cross-cohort validation still matters.
+:::
+:::
+
+---
+
+## Step 3b — combine features into one ranking {.smaller}
+
+::: {.columns}
+::: {.column width="60%"}
+![](figures/combine_schematic.png){fig-align="center" width="100%"}
+:::
+::: {.column width="40%"}
+- Every feature produces its **own** calibrated log-odds (its own KDE → IR → CIR lookup).
+- These are **inputs to a logistic regression** that *learns* per-feature weights $w_i$ — **not** a naive-Bayes sum (that's just the special case all $w_i = 1$).
+- The fitted probability ranks all candidates. The *transform* is hyperparameter-free; the *classifier* runs at default settings.
+:::
 :::
