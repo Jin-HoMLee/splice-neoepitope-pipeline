@@ -56,9 +56,9 @@ def check_lab_notebook(
 ) -> str | None:
     """Gap unless the `## date` block references `#number` OR any `#also_accept`.
 
-    `also_accept` carries the PR's closing-Issue numbers (#495): entries written
-    before the PR exists reference the Issue, not the PR number — both are
-    semantically the same unit of work.
+    `also_accept` carries the PR's closing-Issue numbers (see #495): entries
+    written before the PR exists reference the Issue, not the PR number — both
+    are semantically the same unit of work.
     """
     header = f"## {date}"
     if header not in text:
@@ -255,7 +255,7 @@ def audit_pr(n: int) -> None:
         all_roles = {r for rs in role_sets for r in rs}
         notebooks = {r: _load_notebook(r) for r in all_roles}
         # An entry referencing any closing Issue # is as valid as one naming the
-        # PR # — entries are often written before the PR exists (#495).
+        # PR # — entries are often written before the PR exists (see #495).
         issue_numbers = [r["number"] for r in refs]
         nb_gaps.extend(
             collect_notebook_gaps(role_sets, date, n, notebooks, also_accept=issue_numbers)
