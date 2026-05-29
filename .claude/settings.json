@@ -10,6 +10,12 @@
             "command": ".claude/hooks/check_at_claude.py",
             "if": "Bash(gh *)",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/check_gh_issue_develop_parent.py",
+            "if": "Bash(gh issue develop *)",
+            "timeout": 15
           }
         ]
       }

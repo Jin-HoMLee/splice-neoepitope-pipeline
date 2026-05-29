@@ -316,6 +316,14 @@ Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `
 
 **Workaround for non-trigger references:** use `@-claude` (zero-width hyphen between `@` and `claude`). The literal substring `@claude` must not appear.
 
+### `gh issue develop` parent guard ([PreToolUse hook](.claude/settings.json))
+
+Refuses any `gh issue develop <N>` (number or issue-URL form) when Issue `N` is a parent/epic — i.e. its `subIssuesSummary.total > 0`. The hook runs `.claude/hooks/check_gh_issue_develop_parent.py` on stdin-piped PreToolUse JSON and emits a `permissionDecision: deny`. It **fails open** on every uncertain path (unparseable command, no issue number, repo unresolvable, `gh`/network error) — only a *confirmed* parent denies — so a hiccup never blocks legitimate `gh issue develop`. Each deny appends one line to `.claude/hook_fires.jsonl` (gitignored, [Issue #453](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/453) fire-log infra).
+
+**Why:** branching off a parent creates a PR↔parent `closingIssuesReferences` edge that auto-closes the epic on merge, silently orphaning its sub-issues. That bit [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) → [parent Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) (2026-05-28). The "parents have no branches/PRs" rule was Reference-tier in `memory/shared/feedback_parent_sub_issues.md` and didn't load at the gh-develop target-pick moment — rung-3 mechanism escalation ([Issue #549](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549)).
+
+**Workaround:** branch off a leaf sub-issue instead, or file a closure sub-issue (cf. [Issue #548](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/548)) under the epic and develop off that.
+
 ### Closure-ritual gate (`scripts/audit_and_merge.sh`)
 
 Refuses to run `gh pr merge` if any `- [ ]` remains on the PR body Test plan OR on any Issue in `closingIssuesReferences` (under that Issue's Acceptance criteria). Operational usage lives under [Merge workflow](#merge-workflow); this section captures the mechanism-over-memory rationale.
