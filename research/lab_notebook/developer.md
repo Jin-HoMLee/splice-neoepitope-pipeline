@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 20:45 UTC — Editor: Developer
+
+**Headline:** [PR #562](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/562) (closes [Issue #559](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/559)) — merge-time **stray-closing-keyword gate**, the companion to the 20:13 `gh issue develop` guard. Together they close the [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) → [parent Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) incident class from both ends: create-time (don't branch off a parent) + merge-time (don't let a stray `close|fix|resolve` + `#N` in the squash body silently shut an unintended Issue).
+
+**What + why (non-routine):** a closing keyword in a *commit-message body* auto-shuts the Issue on merge (the squash commit inherits it), but `closingIssuesReferences` surfaces only PR-**body** link edges — so the existing pre-merge check passed clean and missed exactly the vector that hit PR #543. New detector [`tools/ci/stray_closers.py`](tools/ci/stray_closers.py): a pure, word-boundary-aware `find_stray_closers()` (so `disclose`/`prefix`/`closing` don't match but `auto-close` does) + a thin `gh`-fetching CLI, wired as gate 4 in `scripts/audit_and_merge.sh`. Fails open on interpreter/gh error — never blocks a legitimate merge.
+
+**The most satisfying verification — the gate catches its own origin story:** ran the CLI against the real incident **PR #543** and it flagged the live `close #538` from the commit body (exit 1), plus a *second* stray `Closes #7` I hadn't known about; clean (exit 0) on the just-merged PR #560. So this gate would have blocked the original incident.
+
+**Review (`@-claude`):** no blocking issues. Accepted two: (1) tightened the separator `\s*` → `[ \t]*` so a keyword→`#N` match can't bridge the `"\n"` that `assemble_squash_text` joins fields with — a cross-field false positive GitHub itself wouldn't act on; (2) promoted the "word between keyword and `#N` = no match" invariant to a first-class `find_stray_closers` assertion. Declined two (both reviewer-acknowledged non-blocking): `owner/repo#N` coverage (single-repo project) and CLAUDE.md prose density.
+
+**Self-discipline note (the irony):** had to scrub my own commit messages + PR body so they carry only the intended `closes #559` — a stray `auto-close #538` adjacency there would have made this PR trip the very gate it adds. The `auto-close #538` strings *inside* the files are safe (the gate scans PR body + commit messages, not the diff). 30 tests; full `tools/ci` suite green. **Also surfaced:** the auto-board hook ([PR #558](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/558)) missed both PR #560 and PR #562 — and #562 had no `VAR=` prefix, so [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561)'s diagnosis is narrower than the real fault; the hook needs a broader look.
+
+---
+
 ### 20:13 UTC — Editor: Developer
 
 **Headline:** [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) (closes [Issue #549](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549)) — `PreToolUse` guard refusing `gh issue develop <N>` on parent/epic Issues (`subIssuesSummary.total > 0`). Rung-3 mechanism for the [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) → [parent Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) orphaning slip (2026-05-28); sibling of `check_at_claude.py`. Fails open on every uncertain path — only a *confirmed* parent denies, so a `gh`/network hiccup never blocks a legitimate develop.

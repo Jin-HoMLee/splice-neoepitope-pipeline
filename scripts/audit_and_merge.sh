@@ -4,7 +4,10 @@
 # Closure-ritual gate before `gh pr merge`. Refuses to merge if any of:
 #   1. `- [ ]` remains on the PR body Test plan, OR
 #   2. `- [ ]` remains under any linked Issue's Acceptance criteria, OR
-#   3. Any linked Issue is missing a `**Priority rationale:**` line.
+#   3. Any linked Issue is missing a `**Priority rationale:**` line, OR
+#   4. The would-be squash body (PR title + body + commit messages) contains a
+#      closing keyword (`close|fix|resolve` + `#N`) targeting an Issue OUTSIDE
+#      closingIssuesReferences — a silent unintended auto-close on merge.
 #
 # Why: declarative rules of the form "always include X" reliably drift across
 # session boundaries even when inlined into shared MEMORY.md. The gate enforces
@@ -13,7 +16,9 @@
 #
 # Closure-ritual gate (1+2) shipped via Issue #357 after 4× drift in 10 days.
 # Priority-rationale gate (3) added via Issue #481 after live drift in the
-# Issue #264 closure flow.
+# Issue #264 closure flow. Stray-closing-keyword gate (4) added via Issue #559
+# after PR #543 auto-closed epic Issue #538 via a commit-body keyword that the
+# closingIssuesReferences API does not surface.
 #
 # Usage:
 #   bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
@@ -30,6 +35,7 @@
 set -euo pipefail
 
 REPO="${REPO:-Jin-HoMLee/splice-neoepitope-pipeline}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
     echo "Usage: $0 <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]" >&2
@@ -113,10 +119,24 @@ for ISSUE in $LINKED_ISSUES; do
     fi
 done
 
+# Gate 4: stray closing-keyword in the would-be squash body (Issue #559). The
+# detector scans PR title + body + every commit message for a `close|fix|resolve`
+# + #N whose N is NOT in closingIssuesReferences. Fails OPEN (non-blocking) on a
+# missing interpreter or gh error — a hiccup must not block a legitimate merge.
+PYTHON="$(command -v python3 || command -v python || true)"
+if [[ -z "$PYTHON" ]]; then
+    echo "⚠ stray-closer check skipped (no python on PATH)." >&2
+elif ! STRAY_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/stray_closers.py" "$PR" 2>&1); then
+    printf '%s\n' "$STRAY_OUT" >&2
+    FAILED=1
+elif [[ -n "$STRAY_OUT" ]]; then
+    printf '%s\n' "$STRAY_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
+fi
+
 [[ "$FAILED" -eq 1 ]] && exit 1
 
 MERGE_ARGS=("$MERGE_TYPE")
 [[ -n "$DELETE_FLAG" ]] && MERGE_ARGS+=("$DELETE_FLAG")
 gh pr merge "$PR" --repo "$REPO" "${MERGE_ARGS[@]}"
 
-echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present)."
+echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present, no stray closing-keyword)."
