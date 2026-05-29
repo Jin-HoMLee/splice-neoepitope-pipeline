@@ -13,6 +13,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post_gh_pr_create.py",
+            "if": "Bash(gh *)",
+            "timeout": 35
+          }
+        ]
+      }
     ]
   }
 }
