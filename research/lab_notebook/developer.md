@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 20:13 UTC — Editor: Developer
+
+**Headline:** [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) (closes [Issue #549](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549)) — `PreToolUse` guard refusing `gh issue develop <N>` on parent/epic Issues (`subIssuesSummary.total > 0`). Rung-3 mechanism for the [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) → [parent Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) orphaning slip (2026-05-28); sibling of `check_at_claude.py`. Fails open on every uncertain path — only a *confirmed* parent denies, so a `gh`/network hiccup never blocks a legitimate develop.
+
+**Why this entry exists (non-routine) — two verification catches around the hook-matcher boundary:**
+
+#### The bot-review "gap" that wasn't — settled by docs, not assumption
+Review flagged the narrow `if: Bash(gh issue develop *)` matcher as possibly missing compound commands (`git fetch && gh issue develop N`), since `develop_args()` handles separators (and `test_after_separator` covers it) but the `if` filter "might be start-anchored." Verified against the Claude Code docs (hooks "`if` Condition" + permissions "Compound commands"): the `if` field uses permission-rule `Bash()` semantics, which are **subcommand-aware** — splits on `&&`/`||`/`;`/`|`/newlines, strips `VAR=value` prefixes, fires if *any* subcommand matches. So the compound case **does** fire; the test path is reachable, not dead code. Declined the change, pushed back with citation. Lesson: a matcher-semantics claim is verifiable from docs — don't widen a matcher defensively on an unverified premise.
+
+#### Mis-diagnosed, then verified: the sibling [PR #558](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/558) auto-board hook has a real `VAR=` bug
+The new auto-board hook didn't board PR #560. My first read (told to the user) blamed the harness `if` matcher being start-anchored — **wrong**, per the verification above. Empirically tested `matches_pr_create`: `B="x" gh pr create` and the `VAR=`-newline-`gh pr create` form both return `False`, while plain and `&&`-separated return `True`. Root cause is the hook's *own* matcher: `&&`/`;`/`|` are emitted by `shlex` as pure-punctuation separator tokens that reset command-start, but a bare `VAR=x` assignment token does not — so the trailing `gh pr create` is never recognized. Filed [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561) (follow-up). Lesson: when correcting a wrong claim, verify the replacement empirically before asserting it too.
+
+**Verification:** 33 tests — pure matcher / selector-extraction / repo-parse + orchestration with monkeypatched `gh` I/O + subprocess fail-open; full `tools/ci` suite 155 green; all 3 CI checks green. **Live smoke:** parent #538 (number + URL form) refused with a self-explanatory message; leaf #549 + a non-develop `gh issue view` allowed silently; fire-log line written only on deny (`.claude/hook_fires.jsonl`, gitignored). **Bot review:** item 1 (matcher) declined with docs citation; items 3 (`--repo=HOST/owner/repo` test gap) + 5 (deny-message wording legibility) fixed in `1b7b4a3`; items 2 (`from __future__` non-issue for a standalone hook) + 4 (`-F num` typed-int) confirmations.
+
+---
+
 ### 15:10 UTC — Editor: Developer
 
 **Headline:** [PR #558](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/558) (closes [Issue #550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550) — `PostToolUse` hook auto-boards a created PR + sets Status). The **rung-3 mechanism** for the board-Status-flip slip that left [PR #6](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/6) + [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) at Backlog 2026-05-28 — the rule lived in `feedback_project_board.md` (memory, rung-2) and didn't fire on the create beat. Sibling of `scripts/audit_and_merge.sh` (closure-ritual gate on merge).
