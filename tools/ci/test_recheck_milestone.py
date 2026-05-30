@@ -44,7 +44,7 @@ def is_well_formed_recheck(returncode: int, stdout: str) -> bool:
     return any(status in stdout for status in WELL_FORMED_STATUSES)
 
 
-def open_milestone_numbers() -> list:
+def open_milestone_numbers() -> list[int]:
     """Live: all open milestone numbers, via the script's own ``gh()`` helper."""
     data = rm.gh(
         "api", "--paginate",
@@ -277,10 +277,17 @@ class TestLiveIntegrationSmoke:
 
         malformed = []
         for ms in milestones:
-            result = subprocess.run(
-                ["python3", "scripts/pm/recheck_milestone.py", "--milestone", str(ms)],
-                capture_output=True, text=True,
-            )
+            try:
+                result = subprocess.run(
+                    ["python3", "scripts/pm/recheck_milestone.py", "--milestone", str(ms)],
+                    capture_output=True, text=True, timeout=60,
+                )
+            except subprocess.TimeoutExpired:
+                # Bounds the blast radius now that the loop hits every open
+                # milestone: a hung gh/network call fails one milestone cleanly
+                # instead of hanging the whole suite.
+                malformed.append(f"M#{ms} timed out after 60s (hung gh/network call)")
+                continue
             if not is_well_formed_recheck(result.returncode, result.stdout):
                 malformed.append(
                     f"M#{ms} exit={result.returncode}:\n{result.stdout}\n{result.stderr}"
@@ -330,9 +337,7 @@ class TestRecheckOutputProperty:
         assert is_well_formed_recheck(0, self.NO_CHANGE_STDOUT)
 
     def test_drifted_update_needed_snapshot_is_well_formed(self):
-        # The exact state the old hardcoded-baseline test went red on: a
-        # milestone whose due date drifted out of threshold. It is a valid
-        # recommendation (exit 2), so the property check must ACCEPT it.
+        # exit 2 (UPDATE NEEDED) is a valid recommendation, not a failure.
         assert is_well_formed_recheck(2, self.UPDATE_NEEDED_STDOUT)
 
     def test_unsized_snapshot_is_well_formed(self):
