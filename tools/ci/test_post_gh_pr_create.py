@@ -27,6 +27,29 @@ class TestMatchesPrCreate:
     def test_after_separator(self):
         assert h.matches_pr_create("git push -u origin br && gh pr create --fill") is True
 
+    def test_var_prefix_same_line_matched(self):
+        # `VAR=value gh pr create` — the harness Bash matcher is subcommand-aware
+        # and strips the assignment prefix; the hook must mirror that (Issue #561).
+        assert h.matches_pr_create('B="x" gh pr create --fill') is True
+
+    def test_var_prefix_newline_matched(self):
+        # `VAR=value` then `gh pr create` on the next line — PR #560's actual form,
+        # which silently failed to auto-board (Issue #561).
+        assert h.matches_pr_create('B="x"\ngh pr create --fill') is True
+
+    def test_multiple_var_prefixes_matched(self):
+        # Several leading assignments are all skipped before the command start.
+        assert h.matches_pr_create("A=1 B=2 gh pr create --fill") is True
+
+    def test_var_assignment_only_not_matched(self):
+        # A bare assignment with no following `gh pr create` must not match.
+        assert h.matches_pr_create('B="x"') is False
+
+    def test_var_prefix_before_other_subcommand_not_matched(self):
+        # The assignment prefix is stripped, but the command is `gh pr view`, not
+        # `gh pr create` — must not match.
+        assert h.matches_pr_create('B="x" gh pr view 1') is False
+
     def test_pr_view_not_matched(self):
         assert h.matches_pr_create("gh pr view 1") is False
 

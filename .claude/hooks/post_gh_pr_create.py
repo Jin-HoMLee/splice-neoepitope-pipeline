@@ -54,6 +54,10 @@ LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fir
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
 _PR_CREATE_PREFIX = ("gh", "pr", "create")
 _PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
+# A leading `VAR=value` assignment at a command-start position (shlex strips the
+# quotes in posix mode, so `B="x"` arrives as the token `B=x`). Mirrors the
+# harness's subcommand-aware Bash matcher, which strips such prefixes.
+_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
 # --- pure helpers (unit-tested) ---
@@ -70,6 +74,9 @@ def matches_pr_create(cmd: str) -> bool:
 
     Compound commands are handled: a `gh pr create` segment after a real shell
     separator (`&&`, `||`, `;`, `|`) matches; one buried in quotes does not.
+    Leading `VAR=value` environment-assignment prefixes are skipped so the
+    command start is found after them (the harness Bash matcher does the same) —
+    `B="x" gh pr create …` and its `VAR=…`-newline-`gh pr create` form both match.
     Untokenizable input (unbalanced quotes) fails safe → no match.
     """
     try:
@@ -83,6 +90,8 @@ def matches_pr_create(cmd: str) -> bool:
         if tok and all(ch in _PUNCT for ch in tok):  # pure-punctuation = separator
             at_command_start = True
             continue
+        if at_command_start and _ASSIGNMENT_RE.match(tok):
+            continue  # leading `VAR=value` prefix → command starts after it
         if at_command_start and tuple(tokens[i:i + 3]) == _PR_CREATE_PREFIX:
             return True
         at_command_start = False
