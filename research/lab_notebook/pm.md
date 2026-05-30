@@ -8,6 +8,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-29
 
+### 22:16 UTC — Editor: PM
+
+#### Personas-repo governance Phase 1 — [Issue #567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) (sub of [Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527))
+
+**Trigger.** User flagged "too many people touching the personas repo" after a stranding incident (morning-routine memory edits from multiple roles piling up uncommitted on a stale feature branch). Brainstormed → spec → Phase-1 landing this session.
+
+**Decisions captured (not in the Issue body).**
+- **MM-curated `shared/` — strict reading.** Roles cannot inline-edit `shared/`; they propose, MM edits. Chose this over the looser edit-with-flag, accepting day-to-day friction for a second-set-of-eyes guarantee on cross-cutting rules.
+- **#567 restructured from a parallel parent → native sub of #527** after the user caught the duplication (scan = #527 Sub 6; Phase-2 mechanisms = new #527 subs; explicit source-of-truth split between the two design docs).
+- **Scan landed in `shared/feedback_morning_routine.md` Step −1, NOT 3 role files** (deliberate plan deviation) — the shared backbone exists precisely to prevent the 3-way role-file drift its own "Why a shared backbone" section warns about. One place, all roles.
+
+**What landed (personas main, PM-caretaker commit `00fd8be`).** `shared/feedback_personas_governance.md` (policy: edit/commit matrix, propose-flows, caretaker convention, Phase-2 roadmap); `shared/MEMORY.md` rule rewrite + index + narrowed line-15 git-`-C` clause; session-start git-status scan in shared Step −1.
+
+**Why PM-caretaker committed (bootstrap exception).** MM not yet onboarded; the new rule itself authorizes PM-caretaker to commit personas edits with the user's push gate during the interim. Pushed on user OK.
+
+**Followups.** Phase 2 (per-role git-permission split + edit-boundary PreToolUse hook) = new #527 subs, gated on MM onboarding (#527 Subs 3–9). Unrelated stranded Developer edits (`developer/MEMORY.md` + new `developer/hooks-inactive-after-midsession-settings-edit.md`) found during the scan — surfaced to user, to be landed as a separate Dev-attributed caretaker commit or flagged to Dev (NOT folded into the governance commit).
+
+**Entry vehicle:** [PR #568](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/568) (closes #567).
+
 ### 14:39 UTC — Editor: PM
 
 PM morning routine (Friday, run post-lunch). No code/data PR — this entry is the durable artifact for a board-hygiene + methodology session. Issues touched are not closed by this entry; the closure-audit pass and triage/milestone edits below carry their own audit trail on GitHub.
