@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-30
+
+### 15:20 UTC — Editor: PM
+
+#### Property-based milestone-recheck smoke test — [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) ([PR #576](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/576))
+
+**Non-obvious finding that motivated the refactor.** `recheck_milestone.py` exits **2** on `[UPDATE NEEDED]` / `[UNSIZED]` — both *legitimate* recommendations — and only **1** on error. The old `TestLiveIntegrationSmoke` conflated "non-zero exit" with "failure", so two frozen baseline lists (`[10, 11, 13, 15, 18, 24, 30]` and `[3, 5, 17, 18, 20, 21, 22, 26]`) went red the moment any pinned milestone legitimately drifted past threshold. Milestone state is **calendar-driven state, not a test invariant** — pinning it guarantees recurring false positives.
+
+**Second non-obvious finding.** Despite the `@pytest.mark.live` docstring claiming "skipped by default", `ci-tools-pytest` runs `pytest tools/ci/ -v` with **no** `-m "not live"` — so the live tests *do* execute in CI (with `GH_PROJECT_TOKEN`). That is why the drift surfaced as red CI rather than a silently-skipped test. Fixing the misleading "skipped by default" claim is out of #506's scope — noted as a possible follow-up.
+
+**Fix shape.** One property-based check: every open milestone must emit a *well-formed* report (exit ∈ {0, 2} + `Milestone:` header + a known `Status:` line); only exit 1 / missing structure fails. Non-vacuousness is proven by a separate non-live `TestRecheckOutputProperty` feeding stable + drifted + unsized + crash + missing-status snapshots — this is how the "≥2 distinct milestone-state snapshots" AC is satisfied without live access. Confirmed the live board genuinely held drifted milestones (#3, #5 = exit 2) at refactor time, so the green is real, not vacuous.
+
+#### [Issue #567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) governance review ([PR #568](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/568)) — finding-resolution note
+
+Bot review surfaced 3 findings. Only **F1** (spec + plan still named three per-role `feedback_morning_routine.md` files vs. the shipped single shared-backbone Step −1) was actioned — one-line implementation notes added to each design artifact. **F2 ("`Co-Authored-By: Claude Opus 4.8` does not exist") rejected** — stale bot knowledge: Opus 4.8 *is* the current model and the standing commit trailer, and the bot also misreported `37faee8`'s trailer as "Sonnet 4.6" (it is Opus 4.8). **F3** (Sub-6 "not a #567 deliverable" framing) was a no-op — no open Sub-6 issue exists to double-count (#527's filed subs are #528, #530, #567 only). Recording the F2 rejection rationale because an unactioned bot finding is otherwise opaque to a future reader.
+
 ## 2026-05-29
 
 ### 22:16 UTC — Editor: PM
