@@ -145,6 +145,8 @@ Expected: `OK: index link resolves`.
 
 ## Task 3: Add the session-start git-status scan to each role's morning routine
 
+> ⚠️ **Implementation note (as shipped):** This task was executed as **one shared step in `shared/feedback_morning_routine.md` Step −1**, not as three per-role file edits as written below — the shared backbone avoids 3-way drift across the role copies. The Steps below are retained as the original plan; the deviation and rationale are recorded in the 2026-05-29 PM lab-notebook entry.
+
 **Files:**
 - Modify: `$PERSONAS/pm/feedback_morning_routine.md`
 - Modify: `$PERSONAS/scientist/feedback_morning_routine.md`

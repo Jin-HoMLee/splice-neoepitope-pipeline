@@ -78,7 +78,7 @@ This Issue (#567) is a **native sub of #527**. It refines and extends the rollou
 | File | Change |
 |---|---|
 | `shared/MEMORY.md` | Replace Always-in-effect "Personas-repo git state is not your responsibility" with the §1 model (own-dir-edit; `shared/` + cross-role = propose to MM; MM commits; interim = PM-caretaker commits) + the git-status-scan rule. |
-| `pm/`, `scientist/`, `developer/feedback_morning_routine.md` | Add the session-start `git -C <personas> status` scan step. |
+| `pm/`, `scientist/`, `developer/feedback_morning_routine.md` | Add the session-start `git -C <personas> status` scan step. ⚠️ **Implementation note (Phase 1):** delivered instead as one shared step in `shared/feedback_morning_routine.md` Step −1 (avoids 3-way drift across role copies), not three per-role files — see the 2026-05-29 PM lab-notebook entry. |
 | (Phase 2) personas `.claude/settings.json` (per-role), new `.claude/hooks/` PreToolUse edit-boundary guard | Created during MM onboarding. |
 
 ## Open questions / risks
