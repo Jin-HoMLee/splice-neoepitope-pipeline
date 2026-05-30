@@ -6,6 +6,17 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-30 — post_gh_pr_create matches `gh pr create` after a `VAR=value` prefix ([PR #575](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/575) closes [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561))
+
+**What:** `matches_pr_create()` in [post_gh_pr_create.py](../../.claude/hooks/post_gh_pr_create.py) skipped the auto-board when `gh pr create` was preceded by a shell env-assignment (`VAR=x gh pr create`, or a `VAR=x` line then `gh pr create`). The fix skips leading `VAR=value` assignment tokens (regex `^[A-Za-z_][A-Za-z0-9_]*=`) at each command-start position, mirroring the harness's subcommand-aware `Bash(gh *)` matcher. `shlex` (posix mode) strips the quotes (`B="x"` → `B=x`) and consumes newlines as whitespace, so the single fix covers both the same-line and newline forms. +5 unit tests.
+
+**Why:** root cause — `shlex` emits `&&`/`;`/`|` as pure-punctuation separator tokens that reset `at_command_start`, but a bare `VAR=x` assignment token does not, so the following `gh pr create` was never seen as a command start. [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) hit this and had to be boarded by hand.
+
+**What I learned / notes:**
+- **Dogfooded in production:** opened [PR #575](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/575) via `DOGFOOD=1 gh pr create …` — the exact previously-broken form — and the hook auto-boarded it + set Status "Ready for review", confirming the fix end-to-end (fire-log line `pr:575 board-add+status:Ready for review`).
+- Bot review approved; per its note, added a one-line comment that an `export VAR=x` builtin prefix is deliberately **not** stripped (rare for `gh pr create`, out of scope).
+- CI `ci-tools-pytest` is red on an **unrelated** stale live-test (`test_recheck_milestone.py::TestLiveIntegrationSmoke`): milestones #3/#5 legitimately flipped to `[UPDATE NEEDED]` as the calendar advanced (#5 due 2026-05-31). Non-required check; required checks (`pipeline-pytest`, `pipeline-snakemake-dry-run`) pass. Flagged the live recurrence on [Issue #506](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/506) (already P2; the property-based-refactor fix lives there).
+
 ## 2026-05-29
 
 ### 21:30 UTC — Editor: Developer
