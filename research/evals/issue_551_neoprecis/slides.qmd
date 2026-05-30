@@ -1,0 +1,197 @@
+---
+title: "NeoPrecis as a downstream immunogenicity re-scorer"
+subtitle: "Tool evaluation · Issue #551 · 2026-05-30"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-30
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — Quarto/pandoc longtable + footnotehyper LaTeX
+# interaction (per CLAUDE.md "Render tooling"). HTML reveal.js is primary;
+# "Print → Save as PDF" from Chrome for a handout.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should NeoPrecis re-rank\
+our presented splice\
+neoepitopes by *immunogenicity*?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** NeoPrecis [@lee2026neoprecis] adds a **T-cell-recognition** signal *beyond* MHC presentation — a distinct axis from our MHCflurry `Class1PresentationPredictor` ranker. The natural framing is **layering, not replacement** ([Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551)): could it annotate our `tumor_exclusive` junction candidates with a recognition score?
+:::
+
+---
+
+## NeoPrecis at a glance {.smaller}
+
+**NeoPrecis** — *enhancing immunotherapy response prediction through qualified immunogenicity + clonality-aware neoantigen landscapes* — Lee, Sears, Zanetti & **Carter** (UCSD), **Nature Communications** 2026-01-23 [@lee2026neoprecis].
+
+::: {.incremental}
+- **Two functions:** `neoagfinder` (per-mutation immunogenicity) + `neoagland` (tumor-level, **clonality-aware** landscape via PyClone).
+- **Per-peptide scores:** `NP-Immuno` (T-cell recognition) and `NP-Integrated` (logistic regression adding RNA abundance + PHBR), reported **separately for MHC-I and MHC-II**.
+- **Code + weights:** [`cartercompbio/NeoPrecis`](https://github.com/cartercompbio/NeoPrecis) — **Apache-2.0**, maintained (2026-03). Tiny bundled weights (16 KB `.ckpt`); torch loads on **CPU** — no GPU needed.
+- **Binding backend:** **NetMHCpan-4.1 + NetMHCIIpan-4.3** [@reynisson2020netmhcpan] — *license-gated DTU binaries*, user-obtained.
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**Input front end is WES-shaped:** a **VEP-annotated VCF** (SNV/indel) → peptides → NetMHCpan → recognition. No splice / fusion path.
+:::
+
+---
+
+## How the recognition score works {.smaller}
+
+::: {.columns}
+
+::: {.column width="55%"}
+
+**`NP-Immuno` = a Cross-Reactivity-Distance (CRD) model.** It scores immunogenicity as the **geometric distance between a mutant peptide and its wild-type counterpart** in an allele-specific latent space, with the NetMHCpan binding score as a covariate:
+
+::: {.incremental}
+- Embeds the **9-mer MHC-binding core** with trained AA + motif embeddings.
+- Learns recognition *beyond* binding from **IEDB + VDJdb** TCR-pMHC pairs and **CEDAR** T-cell-activation assays.
+- "Benefit-HLA alleles" = alleles whose motifs *amplify* the WT↔MT distance → predictive of ICI outcome.
+:::
+
+:::
+
+::: {.column width="45%"}
+
+::: {.callout-important appearance="simple"}
+**The premise is self vs. non-self.** A neoantigen is immunogenic when its presented core looks *unlike* the tolerized germline ("self") peptide. The model **needs both peptides** — and the code returns `NaN` when their lengths differ.
+:::
+
+:::
+
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**ICI evidence is cohort-level**, not per-peptide: benefit-HLA / landscape scores predict survival (melanoma Cox **p=0.04**, n=277; NSCLC **p=0.01**, n=248), via a Cox model with age/sex confounders [@lee2026neoprecis].
+:::
+
+---
+
+## The decisive mismatch — splice junctions have no "self" {.smaller}
+
+The CRD score requires a **defined, equal-length, position-aligned wild-type peptide**. The authors state the boundary explicitly:
+
+::: {.callout-important appearance="simple"}
+> *"the model is currently not applicable to indels or frameshift mutations, as it requires a defined wild-type peptide sequence."* [@lee2026neoprecis]
+:::
+
+::: {.incremental}
+- **Code confirms it:** `PeptCRD.score_peptide(wt_core, mt_core, allele, bind_score)` returns `NaN` when `len(wt) ≠ len(mt)`; `EpiGen` builds the WT counterpart from the reference CDS at a *point-mutation* site.
+- **Our candidates are exactly the excluded case.** A junction-spanning neoepitope is a **novel sequence** (exon-exon join, intron retention, frameshift) with **no aligned germline counterpart** of equal length — there is no "self" peptide to contrast against.
+- Fabricating a pseudo-WT (e.g. the canonical isoform) would be **scientifically arbitrary** — different length, different register — and violates the model's premise.
+:::
+
+---
+
+## Where it would plug in — and why the input never arrives {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    TP["translate_peptides<br/>(3-frame, junction-spanning)"] --> PF["proteome_filter"]
+    PF --> MF["run_mhcflurry<br/>mhc_presentation.tsv"]
+    AL["alleles.tsv<br/>(HLA genotype)"] --> NP
+    MF --> NP["[NEW] NeoPrecis<br/>NP-Immuno re-score"]
+    NP -.->|"needs WT peptide<br/>+ NetMHCpan score"| X["✗ no aligned WT<br/>for novel junctions"]
+    NP --> RANK["candidate ranking<br/>structure / tcr_panel / report"]
+
+    style NP fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style X fill:#ffd6d6,stroke:#c0392b,stroke-width:3px
+```
+
+The integration map from [Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551) is sound *plumbing-wise* — `mhc_presentation.tsv` + `alleles.tsv` are both produced. But the re-scorer needs **two inputs our junction peptides cannot supply**: a paired wild-type peptide, and a NetMHCpan-4.1 binding score (a different, license-gated stack from our MHCflurry presentation ranker).
+
+---
+
+## Reasons by mode {.smaller}
+
+| Mode | Verdict | Rationale |
+|---|:---:|---|
+| Re-scorer (integrate) | ❌ | `NP-Immuno` needs an aligned WT peptide; **authors exclude indels/frameshifts** — our novel junctions have no self counterpart |
+| Replacement | ❌ | Not a presentation ranker; it is a *downstream* recognition layer — nothing to replace |
+| Cross-check | ⚠️ | Conceptually attractive but blocked: WT-pairing + **license-gated NetMHCpan-4.1/4.3** + WES-shaped front end |
+| Component reuse | ❌ | No clean transferable nugget (contrast ASNEO's GTEx filter [#546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546), NeoGuider calibration [#258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258)); CRD, PHBR, landscape all assume mutation context |
+| **Decline** | **✅** | Relevant tool, wrong shape for *our* splice setting — record the architectural reason so we do not re-litigate |
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 3em; font-weight: bold; margin-top: 0.4em;"}
+\(b\) Decline-with-rationale
+:::
+
+::: {style="text-align: center; font-size: 1.3em; margin-top: 0.4em;"}
+NeoPrecis's recognition score is **self-vs-non-self**;\
+novel splice junctions have **no aligned wild-type self**
+:::
+
+. . .
+
+**No `role:developer` integration sub-issue.** Decision recorded on [Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551). One forward-looking spin-off filed: low-priority Backlog [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572) to evaluate **Łuksza-style foreignness** [@luksza2017fitness] — the lone *sequence-only* immunogenicity signal (used *inside* NeoPrecis) that **would** apply to junction peptides.
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Cross-eval pattern:** NeoPrecis is the **3rd "immunogenicity-beyond-presentation" tool** evaluated — alongside ASNEO's XGBoost stack ([#546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546), component reuse) and NeoGuider's KDE+isotonic calibration ([#258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258), component reuse). All three assume a **mutation/self-contrast** context that does not transfer to novel junction peptides.
+:::
+
+---
+
+## Open questions & caveats {.smaller}
+
+**Open questions** *(board-backed — [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572) + this eval's #551 comment):*
+
+::: {.incremental}
+1. Is **Łuksza foreignness** (IEDB-similarity, MT-peptide-only) worth adopting as a splice-applicable immunogenicity annotation? It needs no WT and no NetMHCpan — a genuinely different bet from NeoPrecis.
+2. Does the broader field offer **any** immunogenicity model that is *not* WT-contrast-based and thus splice-compatible? (manuscript-level survey question)
+:::
+
+. . .
+
+**Caveats:**
+
+::: {.incremental}
+- **MHC-II awareness noted, not scoped.** NeoPrecis qualifies MHC-II; our pipeline is MHC-I-only today — out of scope here.
+- **Benefit-HLA / landscape features** are cohort-level ICI-outcome predictors, not per-patient candidate re-rankers — orthogonal to what we'd want even if the WT problem were solved.
+- **Train/test corpora** (IEDB/VDJdb/CEDAR) overlap data we vendor (`references/vdjdb/`) — a memorization-risk check we'd owe *if* we ever integrated.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
