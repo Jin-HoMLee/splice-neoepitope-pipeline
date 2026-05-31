@@ -1,12 +1,13 @@
 # GTEx Pan-Tissue Junction Reference Set — Implementation Plan
 
-> **🛑 ON HOLD — pending Scientist/PM sign-off on a source redirect (2026-05-31).** Task 1 (recon)
-> is **complete** and proved the originally-scoped source (**GTEx V10 portal `junctions.gct.gz`**)
-> is annotation-only → a silent no-op for a novel-junction filter. The verified replacement is the
-> **Snaptron `gtexv2`** endpoint. See the **"Redirect addendum"** immediately below for the revised
-> architecture and which tasks change. **Do not execute Tasks 2–10 as written** — they target the
-> rejected GCT source. Full per-task re-write (complete TDD code) lands once the methodology change
-> is acknowledged on [Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587336618). The recon evidence + redirect rationale live in
+> **✅ Scientist-APPROVED redirect (2026-05-31); PM governance confirm pending (non-blocking).**
+> Task 1 (recon) is **complete**: the originally-scoped source (**GTEx V10 portal `junctions.gct.gz`**)
+> is annotation-only → a silent no-op; the verified replacement is the **Snaptron `gtexv2`** endpoint
+> ([Scientist sign-off](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587458018)). The only open item is a PM read (in-scope-without-re-commitment +
+> milestone feasibility) — governance, not technical. See the **"Redirect addendum"** immediately
+> below for the revised architecture + the Scientist's confirmed parameters. **Do not execute
+> Tasks 2–10 as written** — they target the rejected GCT source; they need a per-task re-write onto
+> Snaptron (design fully specified in the addendum). Recon evidence + redirect rationale:
 > [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -40,7 +41,17 @@ same sorted **BED6** blacklist. Reuse #225's helpers: `fetch_snaptron_chr22(regi
 - **Task 8 (config)** — keys become `gtex_filter.source: snaptron_gtexv2`, `snaptron_endpoint`, `min_samples` (not `min_read_count`/GCS `.gct` path).
 - **Task 9 (build)** — genome-wide Snaptron query (chr22 alone ≈ 880k junctions at `samples_count≥1`; the genome-wide BED is tens of millions of rows → size for GCS, keep out of git, `data_manifest.yaml`).
 
-**Open questions deferred to Sci/PM** (the reason this is On Hold): (a) confirm Snaptron `gtexv2` (GTEx v8) is acceptable vs pursuing controlled-access raw V10; (b) `min_samples` threshold (1 = most aggressive precision-over-recall, per #126 vaccine-safety framing); (c) keep per-tissue QC (needs sample-metadata join) or count-only.
+**Resolved by [Scientist sign-off](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587458018) (2026-05-31):**
+- **(a) Snaptron `gtexv2` — APPROVED** over controlled-access raw V10 (novel-junction containment is the gate's whole purpose; v10 recency would forfeit it).
+- **(b) `min_samples = 1` — CONFIRMED**, two conditions: expose as config param `gtex_filter.min_samples` (not hard-coded); QC sidecar must report a **`samples_count` sensitivity sweep** (union size at `>= {1, 2, 5, 10, 20}`).
+- **(c) QC — COUNT-ONLY** for this slice; per-tissue provenance deferred to [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (where the cancer-testis-antigen / immune-privileged-tissue exemption is decided).
+
+**Additional Scientist conditions folded into the rewritten [#211 ACs](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211):**
+- Provenance pinned to **19,214 samples / GTEx v8 / recount3** (NOT 19,788 portal / 9,662 recount2) + recount3 (Wilks 2021) & Snaptron (Wilks 2018) citations.
+- chr22 build slice must **reproduce #225's cached `chr22_gtex_panel.parquet`** (~880,769 @ `samples_count >= 1`) — consistency check.
+- METHODS caveat: recount3/STAR vs our HISAT2/STAR aligner difference → conservative under-filtering on 1-bp coord disagreements.
+
+**Still pending (non-blocking): PM read** — (i) confirm in-scope without re-commitment (source refinement, still M); (ii) genome-wide-build feasibility vs the `i2-S3` milestone (due 2026-06-03).
 
 ---
 
