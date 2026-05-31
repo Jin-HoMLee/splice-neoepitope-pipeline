@@ -251,6 +251,12 @@ research/evals/**/*_files/
 research/evals/**/.quarto/
 research/evals/**/slides.tex
 research/evals/**/slides.log
+research/decisions/**/*.html
+research/decisions/**/*.pdf
+research/decisions/**/*_files/
+research/decisions/**/.quarto/
+research/decisions/**/slides.tex
+research/decisions/**/slides.log
 
 # Feature-doc slide-deck build artefacts — same convention, docs/ location
 docs/features/**/*.html

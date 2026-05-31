@@ -8,6 +8,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 15:40 UTC — Editor: Scientist
+
+#### [Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) training-cohort selection for `presentation_score` calibration — ✅ decision landed; gates [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547). PR to follow.
+
+**What & why.** [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (NeoGuider-style KDE + centered-isotonic-regression rank-calibration) was gated on two unanswered scientific questions: *which* labelled immunogenicity cohort to calibrate MHCflurry `presentation_score` against, and *whether* a calibration learned on point-mutation neoantigens may be applied to our splice-junction neoepitopes at all. This Issue lands both (satisfies [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) AC 1). Filed as a **gate/dependency, not a sub-issue** — keeps [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) a leaf so Dev can `gh issue develop` it later.
+
+**Decision.**
+- **Cohort:** the **NeoRanking harmonized** SNV/indel pool (Mueller et al., *Immunity* 2023 — NCI-train + TESLA + HiTIDE + Bjerregaard, ~165 immunogenic positives / 74 patients) **+ Borch/IMPROVE** (Borch et al., *Front. Immunol.* 2024 — 17,520 candidates / 467 positives). Both ship openly-downloadable peptide+label+HLA tables (figshare). All four originally-named candidates are SNV/indel-only — there is no splice-junction cohort to choose among.
+- **Splice-junction applicability: qualified yes, proceed now.** Presentation is variant-origin-agnostic (sequence + HLA only); the field already runs general presentation/immunogenicity models on splice-junction-derived peptides unchanged (SNAF → MHCflurry + DeepImmuno). The known splice-junction bias is a *conservative under-call*, not random noise — the safe direction for a ranker. The single-feature MVP calibrates presentation only, the most transferable link in the chain. (Terminology: "splice-junction-derived neoepitope" = a peptide translated across a tumor-specific RNA-level neojunction — distinct from proteasome-spliced peptides.)
+- **Hold-out:** **leave-one-cohort-out**, not within-cohort k-fold — the real risk is cohort-to-cohort drift, which k-fold inside a single cohort hides. Resolves [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) open-question #3.
+- **No splice-specific labels exist at scale** (~5 validated positives field-wide — SNAF: PMEL/SLC45A2/CDH19) → waiting would stall [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) indefinitely.
+
+**Method.** Fact-checked literature sweep via the deep-research Workflow (109 agents, 26 sources, 80 claims extracted → 25 adversarially verified, 21 confirmed / 4 killed). Two of its claims were corrected against primary sources in the main loop before being trusted (below) per [`feedback_never_quote_unreachable_source.md`](feedback_never_quote_unreachable_source.md).
+
+**Two corrections the verification caught (worth recording).**
+1. **Self-similarity direction flipped my prior.** I'd intuited splice-junction-derived peptides look *more* self-like → calibration would *over*-predict. Lang et al. 2024 (splice2neo) shows the **opposite**: splice-junction-derived MHC-I candidates are *less* self-similar to the self-proteome → an SNV-trained curve **under**-predicts splice-junction immunogenicity. The flip strengthens the proceed case (conservative bias is the safe failure mode).
+2. **License.** The deep-research synthesis stated NeoRanking was "MIT-licensed." Direct repo check (`gh api repos/bassanilab/NeoRanking`) returned **`license: null` — LICR/Ludwig Institute copyright, no OSS license**. Consume for training; do **not** redistribute raw tables in-repo. Logged as caveat + AC. (Also disambiguated "Borch DNA-barcoded multimer" → the **IMPROVE cancer cohort**, *not* the Povlsen/Hadrup *eLife* viral-multimer methods paper, which has zero cancer neoantigens.)
+
+**Forward link.** The documented splice-junction under-prediction is exactly what a foreignness / dissimilarity-to-self term would correct → [Issue #585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585) (Łuksza foreignness, the [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572) spin-off filed 2026-05-31) becomes the natural splice-junction-correction follow-up rather than an orphan.
+
+**Deliverables.** Decision landed in the [Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) body + gate comment on [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (AC 1 now ticked). Borch/IMPROVE added to Zotero `Z38GTJNW` (key `Z3VDG4AA`, 3-section note); the other 6 cohort/calibration papers (NeoRanking, TESLA, SNAF, splice2neo, NeoGuider, MHCflurry 2.0) were already curated. **Open ACs ride along on [Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592)** (kept open, not closed): confirm the figshare tables actually download + schema-check *before* [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) implementation begins. Pilot Quarto deck for this research decision to follow on the same branch (testing whether research-tier Issues warrant decks, parallel to the eval/experiment deck conventions).
+
+---
+
 ### 11:12 UTC — Editor: Scientist
 
 #### [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572) Łuksza-style foreignness desk eval — ✅ (b) decline-with-rationale; tool-primer deck shipped. [PR #586](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/586) closes [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572).
