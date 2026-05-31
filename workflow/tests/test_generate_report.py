@@ -17,6 +17,7 @@ from generate_report import (
     _presenter_counts_html,
     _render_contig_peek,
     generate_report,
+    TOP_CANDIDATES_LIMIT,
 )
 
 
@@ -194,6 +195,29 @@ class TestBuildReportTsv:
         assert int(mhc[mhc["metric"] == "strong"]["value"].iloc[0]) == 4
         assert int(mhc[mhc["metric"] == "non"]["value"].iloc[0]) == 5
         assert int(mhc[mhc["metric"] == "total_predictions"]["value"].iloc[0]) == 11
+
+    def test_top_candidates_total_and_capped_recorded(self, tmp_path):
+        # 12 strong + 1 weak = 13 quality-gated presenters, capped to TOP_CANDIDATES_LIMIT
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(),
+                          _make_pred_df(n_strong=12, n_weak=1, n_non=2), None, out, 0.5, None)
+        df = pd.read_csv(out, sep="\t")
+        mhc = df[df["stage"] == "mhc_prediction"]
+        total = int(mhc[mhc["metric"] == "top_candidates_total"]["value"].iloc[0])
+        capped = int(mhc[mhc["metric"] == "top_candidates_capped"]["value"].iloc[0])
+        assert total == 13
+        assert capped == TOP_CANDIDATES_LIMIT
+
+    def test_top_candidates_capped_equals_total_when_under_limit(self, tmp_path):
+        out = tmp_path / "report.tsv"
+        _build_report_tsv("p001", _make_origin_df(),
+                          _make_pred_df(n_strong=3, n_weak=1, n_non=2), None, out, 0.5, None)
+        df = pd.read_csv(out, sep="\t")
+        mhc = df[df["stage"] == "mhc_prediction"]
+        total = int(mhc[mhc["metric"] == "top_candidates_total"]["value"].iloc[0])
+        capped = int(mhc[mhc["metric"] == "top_candidates_capped"]["value"].iloc[0])
+        assert total == 4
+        assert capped == 4
 
     def test_top_candidate_is_lowest_presentation_percentile(self, tmp_path):
         out = tmp_path / "report.tsv"
@@ -414,6 +438,15 @@ class TestLoadReportTsv:
         assert mp["weak"] == 1
         assert mp["non"] == 10
         assert all(isinstance(v, int) for v in mp.values())
+
+    def test_top_candidates_total_and_capped_exposed(self, tmp_path):
+        # _write_round_trip uses 3 strong + 1 weak = 4 gated presenters (under the cap)
+        loaded = self._write_round_trip(tmp_path)
+        mp = loaded["mhc_prediction"]
+        assert mp["top_candidates_total"] == 4
+        assert mp["top_candidates_capped"] == 4
+        assert isinstance(mp["top_candidates_total"], int)
+        assert isinstance(mp["top_candidates_capped"], int)
 
     def test_mhc_prediction_thresholds_loaded(self, tmp_path):
         loaded = self._write_round_trip(tmp_path)
@@ -684,6 +717,32 @@ class TestBuildStrongTableHtmlFromTopCandidates:
         assert '<span class="junction-mark">' in html
         assert '<span class="nt-pep-up">' in html
 
+    def test_truncation_notice_when_total_exceeds_capped(self):
+        html = _build_strong_table_html_from_top_candidates(
+            self._make_top_df(n_rows=10), total=47, capped=10)
+        assert "Showing 10 of 47" in html
+
+    def test_no_truncation_notice_when_total_within_cap(self):
+        html = _build_strong_table_html_from_top_candidates(
+            self._make_top_df(n_rows=5), total=5, capped=5)
+        assert "Showing" not in html
+
+    def test_no_truncation_notice_when_total_unknown(self):
+        # Backward-compatible default: callers without report.tsv pass nothing → no notice.
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=3))
+        assert "Showing" not in html
+
+    def test_no_truncation_notice_when_only_capped_given(self):
+        # Guard requires BOTH total and capped; one-of-two must suppress the notice.
+        html = _build_strong_table_html_from_top_candidates(
+            self._make_top_df(n_rows=5), total=None, capped=10)
+        assert "Showing" not in html
+
+    def test_no_truncation_notice_when_only_total_given(self):
+        html = _build_strong_table_html_from_top_candidates(
+            self._make_top_df(n_rows=5), total=47, capped=None)
+        assert "Showing" not in html
+
 
 class TestBuildFilteringFunnelHtml:
     """Issue #215 — funnel renders for the unified filtering_stats.tsv."""
@@ -774,11 +833,25 @@ class TestPresenterCountsHtml:
         assert "total_predictions" not in html
         assert "strong" in html and "weak" in html and "non" in html
 
+    def test_excludes_top_candidates_metrics(self):
+        html = _presenter_counts_html({
+            "total_predictions": 14, "strong": 3, "weak": 1, "non": 10,
+            "top_candidates_total": 47, "top_candidates_capped": 10,
+        })
+        assert "top_candidates_total" not in html
+        assert "top_candidates_capped" not in html
+        assert "strong" in html and "weak" in html and "non" in html
+
+    def test_only_non_class_metrics_returns_no_predictions(self):
+        html = _presenter_counts_html(
+            {"total_predictions": 14, "top_candidates_total": 5, "top_candidates_capped": 5})
+        assert "No predictions" in html
+
 
 class TestGenerateReportEndToEnd:
     """Integration test: drives generate_report() through the artefact-driven path."""
 
-    def _write_inputs(self, tmp_path):
+    def _write_inputs(self, tmp_path, n_strong=2, n_weak=1, n_non=3):
         junc_tsv = tmp_path / "novel_junctions.tsv"
         pd.DataFrame([
             {"sample_id": "S1", "sample_type": "Primary Tumor",
@@ -789,15 +862,15 @@ class TestGenerateReportEndToEnd:
              "junction_origin": "normal_shared", "contig_key": "k2", "start_nt": 18},
         ]).to_csv(junc_tsv, sep="\t", index=False)
 
+        pred_df = _make_pred_df(n_strong=n_strong, n_weak=n_weak, n_non=n_non)
         pred_tsv = tmp_path / "predictions.tsv"
-        _make_pred_df(n_strong=2, n_weak=1, n_non=3).to_csv(pred_tsv, sep="\t", index=False)
+        pred_df.to_csv(pred_tsv, sep="\t", index=False)
 
+        # One contig per distinct prediction key so the artefact writer finds a
+        # sequence for every candidate (default keys k0/k1/k2 stay unchanged).
         contigs_fa = tmp_path / "contigs.fa"
-        contigs_fa.write_text(
-            ">k0\n" + "ACGTACGT" * 7 + "\n"
-            ">k1\n" + "ACGTACGT" * 7 + "\n"
-            ">k2\n" + "ACGTACGT" * 7 + "\n"
-        )
+        keys = sorted(set(pred_df["contig_key"]), key=lambda k: (len(k), k))
+        contigs_fa.write_text("".join(f">{k}\n" + "ACGTACGT" * 7 + "\n" for k in keys))
         return junc_tsv, pred_tsv, contigs_fa
 
     def test_full_pipeline_writes_html_and_artefacts(self, tmp_path):
@@ -887,3 +960,52 @@ class TestGenerateReportEndToEnd:
             "after the writer ran, so its absence proves HTML is rendering "
             "from raw pred_df instead of the artefact."
         )
+
+    def test_full_pipeline_renders_truncation_notice_when_over_cap(self, tmp_path):
+        """End-to-end seam: with >TOP_CANDIDATES_LIMIT candidates, the notice must
+        flow from _build_report_tsv → report.tsv → _load_report_tsv → call site →
+        the artefact-driven renderer's HTML (Issue #226)."""
+        # 12 strong + 1 weak = 13 quality-gated candidates, capped to 10.
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(
+            tmp_path, n_strong=12, n_weak=1, n_non=2)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        html_out = out_dir / "report.html"
+        tsv_out = out_dir / "report.tsv"
+        top_out = out_dir / "report_top_candidates.tsv"
+
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(tsv_out),
+            output_top_candidates_tsv=str(top_out),
+            patient_id="p001",
+        )
+
+        html = html_out.read_text()
+        assert f"Showing {TOP_CANDIDATES_LIMIT} of 13 candidates." in html
+
+    def test_full_pipeline_omits_notice_when_no_report_tsv(self, tmp_path):
+        """Backward-compat seam: over-cap data but no report.tsv (output_tsv=None)
+        means the renderer gets no total/capped and must omit the notice."""
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(
+            tmp_path, n_strong=12, n_weak=1, n_non=2)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        html_out = out_dir / "report.html"
+        top_out = out_dir / "report_top_candidates.tsv"
+
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=None,
+            output_top_candidates_tsv=str(top_out),
+            patient_id="p001",
+        )
+
+        html = html_out.read_text()
+        assert "Showing" not in html

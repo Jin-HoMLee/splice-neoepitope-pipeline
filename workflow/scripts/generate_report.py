@@ -603,18 +603,23 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     )
 
 
-def _build_strong_table_html_from_top_candidates(top_candidates_df: "pd.DataFrame") -> str:
+def _build_strong_table_html_from_top_candidates(
+    top_candidates_df: "pd.DataFrame",
+    total: int | None = None,
+    capped: int | None = None,
+) -> str:
     """Build the top presenters table from the wide ``report_top_candidates.tsv``.
 
     The artefact is already quality-gated, sorted, capped, and carries a
     plain-text ``contig_peek`` that this function re-styles via
     ``_render_contig_peek``. No raw inputs needed.
 
-    Parity gap with ``_build_strong_table_html``: this renderer cannot emit a
-    "Showing N of M rows" notice because the writer caps the artefact at
-    ``TOP_CANDIDATES_LIMIT`` and the pre-cap total is lost. Tracked in
-    Issue #226 — fix is to surface the total in ``report.tsv``'s
-    ``mhc_prediction`` stage and render the notice from there.
+    ``total`` / ``capped`` are the pre-cap presenter total and the number of rows
+    actually written to the artefact (Issue #226 — surfaced in ``report.tsv``'s
+    ``mhc_prediction`` stage). When both are supplied and ``total > capped`` a
+    "Showing N of M candidates." notice is appended, matching the raw-data
+    renderer ``_build_strong_table_html``. When omitted (a caller without
+    ``report.tsv``) no notice is rendered.
     """
     if top_candidates_df is None or top_candidates_df.empty:
         return "<p><em>No strong presentations found.</em></p>"
@@ -659,7 +664,7 @@ def _build_strong_table_html_from_top_candidates(top_candidates_df: "pd.DataFram
         "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
         if has_gps else ""
     )
-    return (
+    table = (
         f"<table><thead><tr>"
         f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
         f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
@@ -668,6 +673,16 @@ def _build_strong_table_html_from_top_candidates(top_candidates_df: "pd.DataFram
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
     )
+    if total is not None and capped is not None and total > capped:
+        table += f"<p><em>Showing {capped} of {total} candidates.</em></p>"
+    return table
+
+
+# mhc_prediction metrics that are bookkeeping totals, NOT presentation classes.
+# Excluded from the per-class presenter-counts table and from threshold notes.
+_MHC_NON_CLASS_METRICS = frozenset({
+    "total_predictions", "top_candidates_total", "top_candidates_capped",
+})
 
 
 def _presenter_counts_html(
@@ -677,13 +692,14 @@ def _presenter_counts_html(
     """Render the presentation-class count table from the loaded report.tsv projection.
 
     ``mp`` is the ``mhc_prediction`` dict (from ``_load_report_tsv``); the
-    ``total_predictions`` entry is excluded from the table and the remaining
-    metrics become the per-class rows.
+    non-class bookkeeping metrics in ``_MHC_NON_CLASS_METRICS`` (``total_predictions``,
+    ``top_candidates_total``, ``top_candidates_capped``) are excluded from the table
+    and the remaining metrics become the per-class rows.
     """
-    if not mp or all(k == "total_predictions" for k in mp):
+    if not mp or all(k in _MHC_NON_CLASS_METRICS for k in mp):
         return "<p><em>No predictions available.</em></p>"
 
-    rows = [(cls, cnt) for cls, cnt in mp.items() if cls != "total_predictions"]
+    rows = [(cls, cnt) for cls, cnt in mp.items() if cls not in _MHC_NON_CLASS_METRICS]
     if not rows:
         return "<p><em>No predictions available.</em></p>"
 
@@ -865,6 +881,24 @@ def _build_report_tsv(
             top_candidates = top_candidates[top_candidates["best_presentation_percentile"] <= presentation_percentile_weak]
         top_candidates = _rank_presenters(top_candidates)
         strong_df = top_candidates
+
+        # Surface the pre-cap presenter total so the artefact-driven HTML renderer
+        # can emit a "Showing N of M" truncation notice (Issue #226). The wide
+        # report_top_candidates.tsv is capped at TOP_CANDIDATES_LIMIT and discards
+        # this total at write time. ``top_candidates_capped`` records the number of
+        # rows actually written (== min(total, cap)).
+        tc_total = len(strong_df)
+        tc_capped = min(tc_total, TOP_CANDIDATES_LIMIT)
+        rows.append({
+            "patient_id": patient_id, "stage": "mhc_prediction",
+            "metric": "top_candidates_total", "value": tc_total,
+            "notes": f"pre-cap; report_top_candidates.tsv capped to TOP_CANDIDATES_LIMIT={TOP_CANDIDATES_LIMIT}",
+        })
+        rows.append({
+            "patient_id": patient_id, "stage": "mhc_prediction",
+            "metric": "top_candidates_capped", "value": tc_capped,
+            "notes": f"rows written to report_top_candidates.tsv (cap TOP_CANDIDATES_LIMIT={TOP_CANDIDATES_LIMIT})",
+        })
     else:
         strong_df = pd.DataFrame()
 
@@ -1247,7 +1281,7 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
     for _, r in mp.iterrows():
         metric = str(r["metric"])
         out["mhc_prediction"][metric] = int(r["value"])
-        if metric != "total_predictions":
+        if metric not in _MHC_NON_CLASS_METRICS:
             note = r.get("notes", "")
             if pd.notna(note) and str(note).strip():
                 out["mhc_prediction_thresholds"][metric] = str(note)
@@ -1434,7 +1468,12 @@ def generate_report(
 
     # --- Top presenters table with contig visualisation ---
     if top_candidates_df is not None:
-        strong_html = _build_strong_table_html_from_top_candidates(top_candidates_df)
+        mp = report_data["mhc_prediction"] if report_data is not None else {}
+        strong_html = _build_strong_table_html_from_top_candidates(
+            top_candidates_df,
+            total=mp.get("top_candidates_total"),
+            capped=mp.get("top_candidates_capped"),
+        )
     elif pred_df.empty:
         strong_html = "<p><em>No predictions available.</em></p>"
     else:
