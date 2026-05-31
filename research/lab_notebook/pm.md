@@ -22,7 +22,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **Dogfooding.** Committed #583 through the late-commitment model — `pm-i6` at its own `Backlog → Ready` boundary; the `recheck_dispatch.py` hook fired (**+0 day capacity delta**, 22.5 d free) and surfaced the Target-sync command, which I ran (Target 2026-07-02). Consistent with the Phase-2d finding: a notifier, not a silent auto-executor.
 
-**Closure.** This entry is #583's closure deliverable; [PR #__PRNUM__](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/__PRNUM__) (from this `gh issue develop` branch) closes #583. Epic #580 now has a single open leaf — [Issue #582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) (morning-routine split + Ready-queue replenishment nudge, M).
+**Closure.** This entry is #583's closure deliverable; [PR #593](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/593) (from this `gh issue develop` branch) closes #583. Epic #580 now has a single open leaf — [Issue #582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) (morning-routine split + Ready-queue replenishment nudge, M).
 
 ---
 
