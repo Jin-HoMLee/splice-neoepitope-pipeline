@@ -65,31 +65,14 @@ CDR3-pLDDT reranking?
 | Tool | License / weights | P100 16 GB? | TCR-pMHC accuracy | Ship here? |
 |---|---|---|---|---|
 | **TCRdock-AF2** *(incumbent)* | MIT + CC-BY AF2 params — **ships legally** | ✅ today | 2nd-best, AF3-complementary | **Keep** |
-| **AlphaFold3** [@abramson_accurate_2024] | weights **non-redistributable, non-commercial, manual grant** | HW ok (~500 tok fits) | **best** (0.636 / 0.679) | ❌ license |
+| **AlphaFold3** [@abramson_accurate_2024] | weights **non-redistributable, non-commercial, manual grant** | likely ✓ — but *moot* | **best** (0.636 / 0.679) | ❌ license |
 | **Chai-1 / Protenix** [@chai_2024] | **Apache-2.0** ✅ | ❌ bf16 + ≥24 GB | competitive (PLM beats AF3 on 1/3) | ❌ HW now |
 | **ESMFold2 / ESMC** [@candido_language_2026] | **MIT** ✅ (best redistribution) | ❌ FP8 + bf16 | **none for TCR-pMHC** | ❌ no evidence + HW |
 
 . . .
 
 ::: {.callout-important appearance="simple"}
-**The pattern:** no candidate clears *both* an integrability bar **and** a task-accuracy bar on the current P100. The winner on accuracy (AF3) is license-blocked; the license-clean ones (Chai-1, ESMFold2) are hardware-blocked.
-:::
-
----
-
-## Why AF3 leads but cannot ship {.smaller}
-
-::: {.columns}
-::: {.column width="55%"}
-**Accuracy (real):** AF3's diffusion co-folder is best-overall on the unseen Class I + II benchmark [@lu_benchmarking_2025]. Hardware is a *surprise green light* — a ~500-token TCR-pMHC complex fits the documented P100 1,024-token ceiling.
-
-**License (the hard blocker):** AF3 weights are **non-redistributable, non-commercial-organisation-only, granted manually "at DeepMind's sole discretion."**
-:::
-::: {.column width="45%"}
-::: {.callout-important appearance="simple"}
-The entire reason TCRdock works in our shipped Docker image is that its **AF2 params are CC-BY** and *can* be bundled. AF3's weights cannot — barring a redistributable, commercial-use-clean pipeline. The accuracy half of "AF3 is the integrable winner" holds; the **integrability half is false.**
-:::
-:::
+**The pattern:** no candidate clears *both* an integrability bar **and** a task-accuracy bar on the current P100. AF3 wins on accuracy — and a TCR-pMHC complex is small enough that it would *plausibly even fit a P100* — but its weights are **non-redistributable / non-commercial**, so the blocker is **licensing, not hardware** (the entire reason TCRdock ships is that its AF2 params are CC-BY). The license-clean options (Chai-1, ESMFold2) are the inverse: hardware-blocked. *AF3's accuracy half holds; its integrability half is false.*
 :::
 
 ---
@@ -179,7 +162,7 @@ keep TCRdock-AF2; re-trigger at the next GPU refresh
 Parked on [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) — re-fire when the pipeline leaves the P100:
 
 ::: {.incremental}
-1. **GPU target** *(Developer)* — does L4 / A10 / A100 clear bf16 + FP8 + ≥24 GB for Chai-1 / ESMFold2? Cost delta vs P100? (Verify the "L4 lacks FP8" claim — Ada *should* support it.)
+1. **GPU target** *(Developer)* — which target (L4 / A10 / A100) clears bf16 + FP8 + ≥24 GB for Chai-1 / ESMFold2, and at what cost delta vs the P100? (L4/Ada clears all three — *cf.* the table; the open part is the A10-vs-A100-vs-L4 choice + cost.)
 2. **Accuracy-worth-it spike** — rent one L4/A100, benchmark Chai-1-PLM vs our TCRdock on patient structures *before* any migration.
 3. **Complementarity on our data** *(AF3-access-gated)* — does AF2/TCRdock catch cases an AF3-class model misses on *our* patients?
 4. **Deploy CDR3-pLDDT** — the column + (with N>1 seeds) reranking, *if/when* on an AF3-class backend.
