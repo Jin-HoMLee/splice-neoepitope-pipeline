@@ -1,0 +1,66 @@
+# data_manifest.yaml — GTEx pan-tissue novel-junction blacklist (Issue #211)
+#
+# The pan-tissue BEDs are regenerable (workflow/scripts/build_gtex_pan_tissue_ref.py)
+# and large (chr22 ~45 MB; genome-wide hundreds of MB), so they are gitignored and
+# staged to GCS. THIS manifest is the committed provenance + integrity record, per
+# the CLAUDE.md >100 MB / regenerable-data rule and the resources/test/ convention
+# (regenerable chr22 data is not committed — see prepare_test_data.sh for the FASTA/GTF
+# analogue). Build runbook: docs/gtex_pan_tissue_build.md.
+schema_version: 1
+
+source:
+  name: Snaptron gtexv2
+  compilation: recount3 reprocessing of GTEx v8 (hg38)
+  samples: 19214
+  endpoint: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+  citations:
+    - "recount3 — Wilks et al., Genome Biology 2021"
+    - "Snaptron — Wilks et al., Bioinformatics 2018"
+
+build:
+  script: workflow/scripts/build_gtex_pan_tissue_ref.py
+  coordinate_transform: >-
+    Snaptron 1-based inclusive intron -> BED 0-based half-open:
+    bed_start = start - 1, bed_end = end; strand passthrough.
+    Validated 259/259 in Issue #225's snaptron_to_key_set.
+  min_samples: 1
+
+artifacts:
+  - id: chr22_test_fixture
+    local_path: resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed
+    gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.chr22.bed
+    gcs_staged: false        # uploaded with the genome-wide build (Task 9, highmem VM)
+    format: "BED6 (chrom start end name 0 strand), sorted, UCSC chr*"
+    n_junctions: 880769      # samples_count >= 1
+    size_bytes: 47561526
+    sha256: d727ce5c8489f5940f69df229c3c9acfcb8d8ff071a6ac61131510b760da7f58
+    qc_samples_count_sweep:  # union size at samples_count >= t (count-only; per-tissue deferred to #212)
+      "1": 880769
+      "2": 389508
+      "5": 205160
+      "10": 139158
+      "20": 97559
+    validation: >-
+      Key set IDENTICAL to
+      research/experiments/issue_225_normal_junction_filter_strength/outputs/chr22_gtex_panel.parquet
+      (880769/880769 keys, 0 symmetric difference) — verified 2026-05-31.
+    regenerate: |
+      python workflow/scripts/build_gtex_pan_tissue_ref.py \
+        --region chr22:1-50818468 --restrict-chrom chr22 \
+        --output-bed resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
+        --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.chr22.qc.tsv \
+        --min-samples 1
+
+  - id: genome_wide_panel
+    local_path: null         # regenerated to /tmp during build; not kept locally
+    gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed
+    gcs_staged: false        # PENDING — Task 9 genome-wide build on the highmem VM
+    format: "BED6, sorted, UCSC chr*"
+    n_junctions: null        # filled at build (~tens of millions at min_samples=1)
+    size_bytes: null
+    sha256: null
+    regenerate: |
+      python workflow/scripts/build_gtex_pan_tissue_ref.py \
+        --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
+        --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
+        --min-samples 1

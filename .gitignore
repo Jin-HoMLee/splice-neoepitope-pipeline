@@ -222,6 +222,9 @@ resources/*
 resources/test/chr22*
 resources/test/hisat2_index/
 resources/test/star_index/
+# GTEx pan-tissue panel BEDs are large + regenerable (build_gtex_pan_tissue_ref.py);
+# staged to GCS, tracked via resources/test/gtex_gtexv2_data_manifest.yaml (Issue #211).
+resources/test/gtex_*pan_tissue_junctions*.bed
 data/
 logs/
 
