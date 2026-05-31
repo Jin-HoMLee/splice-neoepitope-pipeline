@@ -12,35 +12,13 @@ without `gh auth login`).
 """
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-import pytest
+from _live_gh import REQUIRES_LIVE_GH
 
 HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "recheck_dispatch.py"
-
-
-def _gh_has_project_read_scope() -> bool:
-    """Probe whether the current gh auth can read Projects v2 (one GraphQL call)."""
-    if not shutil.which("gh"):
-        return False
-    try:
-        result = subprocess.run(
-            ["gh", "api", "graphql", "-f",
-             "query=query { viewer { projectsV2(first: 1) { totalCount } } }"],
-            capture_output=True, timeout=10, check=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-    return result.returncode == 0
-
-
-REQUIRES_LIVE_GH = pytest.mark.skipif(
-    not _gh_has_project_read_scope(),
-    reason="requires gh auth with project read scope (set GH_TOKEN to a PAT with `read:project`)",
-)
 
 
 def _run(cmd: str) -> tuple[int, str, str]:
