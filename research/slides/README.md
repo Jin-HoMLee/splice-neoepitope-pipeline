@@ -4,10 +4,13 @@ Lab-seminar / external-talk slide decks for the splice-neoepitope pipeline. Buil
 
 ## When to make a deck
 
-**One deck per experiment Issue.** A deck ships in the same PR cycle as the experiment write-up (notebook + decision section). Don't ship retroactively.
+**Three deck tiers — one deck per qualifying Issue, per tier.** A deck ships in the same PR cycle as the work it presents; don't ship retroactively.
 
-- ✅ Experiment Issues (e.g. AlphaGenome chr22 PoC, GTEx filter integration, head-to-head filter comparison)
-- ❌ Closure tasks, doc updates, single-fix PRs, sub-issues of a larger experiment
+- **Experiment** — per-Issue analysis with a notebook + `outputs/` (`research/experiments/`). E.g. AlphaGenome chr22 PoC, GTEx filter integration, head-to-head filter comparison.
+- **Eval primer** — per-tool evaluation Issue (`research/evals/`). E.g. HERMES, ImmSET, Boltz-2.
+- **Research decision** — methods/science call that gates downstream work (`research/decisions/`; tool-agnostic, no notebook/outputs). E.g. the Issue #592 cohort-calibration gate.
+
+❌ Closure tasks, doc updates, single-fix PRs, and sub-issues of a larger experiment/eval/decision do **not** get a deck in any tier.
 
 Audience target: **lab seminar / external talk** (~20-25 min, conference-quality figures, deeper methods than a PI weekly).
 
