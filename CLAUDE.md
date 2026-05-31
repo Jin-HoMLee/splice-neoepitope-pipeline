@@ -352,6 +352,8 @@ Refuses to run `gh pr merge` if any `- [ ]` remains on the PR body Test plan OR 
 
 **Why (stray-closer gate, `tools/ci/stray_closers.py`):** a closing keyword + `#N` in a *commit-message body* auto-closes Issue N on merge (the squash commit inherits it), but the PR's `closingIssuesReferences` API surfaces only PR-**body** link edges — so a pre-merge `closingIssuesReferences` check passes clean and misses it. [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) auto-closed parent epic Issue #538 this way (2026-05-28; commit body `would auto-close #538`). The gate assembles the full squash text and flags any closer pointing outside the intended set. It **fails open** (non-blocking) on a missing interpreter or `gh` error.
 
+**Why (bot-review-offer gate, `tools/ci/bot_review_offer.py`):** the rule to proactively offer a `@-claude review` after a non-trivial PR (`shared/feedback_github_workflow.md`) broke twice on one morning — [PR #441](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/441) + [PR #442](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/442) merged without it (2026-05-21) — crossing the memory→mechanism threshold ([Issue #443](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/443)). After the closure-ritual checks pass, the gate detects whether the real trigger (`@claude review`, the literal string the GitHub Action fires on — *not* the hyphenated reference form) already appears in the PR's comments. If not: **interactive** runs prompt (a) offer now / (b) skip-trivial / (c) cancel; **non-interactive** runs (Claude/CI — the actor whose slips this targets) **block with exit 1** rather than silently merging, with guidance to offer-and-re-run or pass `--skip-review-offer`. Detection **fails open** to "offered" on a missing interpreter or `gh` error.
+
 **Workaround for genuine deferrals:** comment-defer per `.claude/memory/shared/feedback_closure_ritual.md` by ticking `- [x]` with a link to the carrier Issue (or remove the line entirely). The script does NOT parse "deferred" inline tags — keep the tick/remove convention explicit.
 
 **Workaround for a non-closing `#N` reference:** break the keyword→`#N` adjacency — neutral phrasing like "related to Issue #N", or move the keyword away from the token — in the PR body **and** commit messages. See `shared/feedback_hash_numbers.md` (Companion foot-gun section). If the close is genuinely intended, add the Issue to `closingIssuesReferences` (link it in the PR body) so the gate recognizes it.
@@ -361,9 +363,9 @@ Refuses to run `gh pr merge` if any `- [ ]` remains on the PR body Test plan OR 
 For all `gh pr merge` invocations, prefer the closure-ritual gate:
 
 ```bash
-bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
+bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch] [--skip-review-offer]
 ```
 
-Defaults: `--squash --delete-branch`. The script audits the PR body Test plan + every linked Issue's Acceptance criteria for unticked `- [ ]` boxes, prints any gaps to stderr, exits 1 without merging if any remain. On a clean audit it forwards to `gh pr merge` with the chosen flags.
+Defaults: `--squash --delete-branch`. The script audits the PR body Test plan + every linked Issue's Acceptance criteria for unticked `- [ ]` boxes, prints any gaps to stderr, exits 1 without merging if any remain. On a clean audit it then runs the bot-review-offer gate (offer a `@-claude review` first, or pass `--skip-review-offer` for a trivial PR) before forwarding to `gh pr merge` with the chosen flags.
 
 This is the operational path for shipping; bare `gh pr merge` bypasses the closure-ritual gate and should not be used.
