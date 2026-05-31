@@ -101,13 +101,20 @@ no-op filter.
 **Redirect → Snaptron `gtexv2` endpoint** (verified 2026-05-31 by a 5-agent recon workflow,
 incl. two independent adversarial live probes — both `refuted=false`, high confidence):
 
-- **Source:** `https://snaptron.cs.jhu.edu/gtexv2/snaptron?regions=<region>` — recount3-based
-  **GTEx v8, hg38, ~19,788 samples, ~33M junctions.** Returns novel + annotated junctions with
-  per-sample coverage. (The older `/gtex/` endpoint is recount2 / GTEx v6 / ~9,662 samples —
-  do not use it; that's what `research/scripts/issue_299/` targets.)
-- **Live-probe proof:** chr1:1,000,000–1,300,000 → 30,134 novel (`annotated=0`) vs 259
-  annotated, every novel record carrying valid `sample_id:count` pairs across 9,662 samples;
-  reproduced on chr12 (17,957 novel, read-counts >1 present). The portal `.gct` cannot do this.
+- **Source:** `https://snaptron.cs.jhu.edu/gtexv2/snaptron?regions=<region>` — **recount3
+  reprocessing of GTEx v8, hg38, 19,214 samples / 972 donors, ~33M junctions.** Returns novel +
+  annotated junctions with per-sample coverage. Sample count verified live:
+  `gtexv2/samples?all=1` → 19,214 rows. Cite **recount3 (Wilks et al., *Genome Biology* 2021)**
+  + **Snaptron (Wilks et al., *Bioinformatics* 2018)**.
+  - ⚠️ **Do not confuse three different numbers:** `19,214` = Snaptron **`gtexv2`** (recount3/v8 — the
+    source we use); `9,662` = the older **`/gtex/`** endpoint (recount2/v6 — `research/scripts/issue_299/`,
+    verified `gtex/samples?all=1` → 9,662); `19,788` = the **GTEx V10 portal `.gct`** sample columns
+    (the rejected source, unrelated to Snaptron). An earlier draft of this doc conflated these.
+- **Live-probe proof (mechanism):** the two adversarial verifiers probed the `/gtex/` (recount2)
+  endpoint and found chr1:1,000,000–1,300,000 → 30,134 novel (`annotated=0`) vs 259 annotated,
+  every novel record carrying valid `sample_id:count` pairs (reproduced on chr12: 17,957 novel,
+  read-counts >1). This confirms the **mechanism** (novel + per-sample) that `/gtexv2/` shares; the
+  production build uses `/gtexv2/` (19,214 samples), not `/gtex/`. The portal `.gct` cannot do this.
 - **Response schema (18-col TSV):** col 3/4/5/7 = chrom/start/end/strand, **col 8 = `annotated`**
   (0=novel, 1=annotated), **col 13 = `samples`** (RLE `id:count` list), **col 14 = `samples_count`**.
 - **Coordinate convention is identical** to the portal: Snaptron `start` is 1-based inclusive
@@ -124,6 +131,26 @@ phs000424.v10.p1 controlled access (DAR/DUOS + re-aligning ~19,788 samples). Tra
 controlled-access subproject only if V10-recency novel junctions ever become mission-critical.
 The V10 portal `.gct` may still serve as a *complementary annotated-junction* presence reference,
 but NOT as the novel-junction normal filter this issue needs.
+
+### Methods caveats for the Snaptron source (Scientist sign-off, 2026-05-31)
+
+- **Aligner difference → conservative under-filtering.** recount3/Snaptron junctions are
+  **STAR**-derived (Monorail pipeline); our pipeline calls junctions with **HISAT2** (local) /
+  **STAR** (prod). Any 1-bp coordinate disagreement between aligners means some true normal
+  junctions are *missed* by the GTEx filter — i.e. it **under**-filters, never over-filters. That
+  is conservative for vaccine safety (we don't wrongly drop a candidate), but it should get a
+  sentence in METHODS. The `start-1, end` transform was validated against GENCODE-annotated
+  junctions; novel-junction coordinate agreement across aligners is the residual risk.
+- **`samples_count >= 1` is intentionally aggressive.** At the `min_samples=1` default the union is
+  dominated by single-sample recount artifacts (~880k on chr22 alone). This is the precision-over-
+  recall / vaccine-safety choice (parent [Issue #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126)), but the QC sidecar must report a
+  `samples_count` sensitivity sweep (union size at `>= {1, 2, 5, 10, …}`) so the threshold can be
+  revisited if it costs real candidate yield. `min_samples` ships as a config param, not hard-coded.
+- **Immune-privileged tissues (deferred to filter integration, [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)):** a pan-tissue
+  blacklist at `min_samples >= 1` excludes junctions seen *only* in testis — but testis is
+  immune-privileged and testis-restricted reactivation defines the **cancer-testis antigen** class,
+  a validated vaccine-target family. Whether to exempt immune-privileged tissues is a sub-issue-B
+  design decision (needs per-tissue provenance, which this construction slice ships count-only).
 
 ## Sample attributes format (verified)
 
