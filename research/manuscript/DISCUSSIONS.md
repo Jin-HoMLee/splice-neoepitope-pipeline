@@ -921,8 +921,8 @@ set. Both will be evaluated as orthogonal post-TCRdock filters.
 
 **AlphaFold3** (Abramson et al., *Nature* 2024) was evaluated as a
 TCRdock-backend successor and parked for the shipped pipeline on
-integrability rather than accuracy grounds. Lu et al. 2025 ranks AF3 the
-best-overall TCR-pMHC predictor on their 70-complex benchmark (median DockQ
+integrability rather than accuracy grounds. Lu et al. 2025 ranks AF3 as
+the best-overall TCR-pMHC predictor on their 70-complex benchmark (median DockQ
 0.636 / 0.679 for Class I / II), but its weights are released under
 non-redistributable, non-commercial terms incompatible with a pipeline whose
 TCRdock backend ships CC-BY AlphaFold2 parameters in-container; the
@@ -936,14 +936,15 @@ next GPU refresh rather than declined permanently.
 
 ### Synthesis
 
-Two patterns emerge from the six-scorer evaluation. First, **co-folding
+Two patterns emerge from the seven-scorer evaluation. First, **co-folding
 replacements for TCRdock** were not adopted, but for two distinct reasons.
 Boltz-2 (declined) faces the data-availability constraint that motivated
 TCRdock's TCR-specific fine-tuning — architectural novelty does not substitute
 for in-distribution training data, and the OOD generalization gap remains the
 operative constraint. AlphaFold3 (parked), by contrast, leads the benchmark on
-accuracy and is blocked instead by integrability: non-redistributable weights
-and the current-GPU tensor-core requirements of the co-folding model class.
+accuracy and is blocked on integrability: its weights are non-redistributable /
+non-commercial, while the license-clean alternatives (Chai-1, ESMFold2) are
+hardware-blocked on the current GPU.
 Second, **structure-based cross-checks** (HERMES and
 NetTCR-struc both integrated; t2pmhc redundant; TCRLens backbone-limited)
 are the highest-value integration angle: they slot into the existing pipeline
@@ -966,7 +967,7 @@ as the structural-QC layer matures.
 | t2pmhc | Structure-based confidence | Decline — redundant with HERMES | Issue #236 re-decision comment |
 | TCRLens | Structure-based confidence | Decline — tFold-TCR backbone framework-accuracy limit | Issue #236 re-decision comment |
 | NetTCR-struc | Structure-based confidence (GNN) | Integrate — post-TCRdock structural QC (GNN-learned) | Sub-Issue #433 (milestone 29) |
-| AlphaFold3 | End-to-end structural prediction | Park — integrability (license + current GPU), not accuracy | Issue #316 close / Issue #601 |
+| AlphaFold3 | End-to-end structural prediction | Park — integrability (license + current GPU), not accuracy | Issue #316 close comment / Issue #601 |
 
 The two integrations under the TCR-pMHC scorer integration milestone
 (HERMES, NetTCR-struc) span the physics-guided and GNN-learned axes of
