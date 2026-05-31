@@ -151,6 +151,16 @@ def test_cli_json_error_fails_open(monkeypatch):
     assert _run(monkeypatch, ["lab_notebook_gate.py", "99"]) == 0
 
 
+def test_cli_os_error_fails_open(monkeypatch):
+    # _load_notebook can raise OSError if a notebook file is unreadable
+    # (permissions). Fail open — a local FS hiccup must not block a merge.
+    def boom(n, today):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(ca, "audit_pr_pre_merge", boom)
+    assert _run(monkeypatch, ["lab_notebook_gate.py", "99"]) == 0
+
+
 def test_cli_bad_usage_returns_2(monkeypatch):
     assert _run(monkeypatch, ["lab_notebook_gate.py"]) == 2
     assert _run(monkeypatch, ["lab_notebook_gate.py", "not-a-number"]) == 2

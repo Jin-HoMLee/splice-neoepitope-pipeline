@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31 — bot-review-offer pre-merge gate ([PR #600](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/600) closes [Issue #443](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/443))
 
+### 23:09 UTC — Editor: Developer
+
+#### Pre-merge lab-notebook gate ([Issue #409](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/409) → [PR #605](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/605))
+
+Shipped the next closure-ritual gate in `scripts/audit_and_merge.sh`: a pre-merge lab-notebook-entry check for role-tagged PRs. This is itself a *mechanism-over-memory* meta-decision, so it gets a journal entry (and, fittingly, the gate it adds demands one). Lands the morning after the bot-review-offer gate ([PR #600](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/600), the 21:23 entry below) — same `audit_and_merge.sh` gate family.
+
+**The gap it closes.** The lab-notebook entry was the *one* closure-ritual element checked only **post-merge** — `tools/ci/closure_audit.py` (the closure-audit workflow) posts a marker comment naming a missing `## <date>` entry *after* the PR has already merged. That's a cleanup loop, not prevention ([PR #403](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/403) merged 2026-05-19 without a Scientist entry; cleanup landed as [PR #408](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/408)). AC-checkboxes, priority-rationale, and stray-closers were already pre-merge gates; the notebook was the odd one out.
+
+**Why a deterministic gate is OK now, when memory said it wasn't.** `shared/feedback_lab_notebook.md` explicitly recorded "NOT gated by `scripts/audit_and_merge.sh` — trigger detection (routine vs non-routine) is too brittle for a deterministic gate." That reasoning was sound but pointed at the wrong solution: the brittleness is handled by **opt-out** (the `<!-- skip-lab-notebook: routine -->` marker from [Issue #555](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/555)), not by the gate trying to auto-classify. The gate enforces only what the post-hoc bot already flags — no new policy. So the memory note is a *correction* target, not a redundancy to delete (the routine-vs-non-routine judgment still lives with the author, who decides whether to add the marker).
+
+**Design.** Single-sourced: new `closure_audit.audit_pr_pre_merge(n, today)` reuses `is_exempt` / `skip_lab_notebook` / `resolve_roles` / `collect_notebook_gaps` — the pre-merge gate and the post-hoc bot can never drift. Thin CLI wrapper `tools/ci/lab_notebook_gate.py` fails open (exit 0 + warning) on any `gh`/FS error, mirroring `stray_closers.py` / `bot_review_offer.py`. Reads the entry from the **working tree**, so the gate must run from the PR branch where the entry was written (v2 candidate: read from the PR head ref instead).
+
+**Review.** Bot review returned 4 minor findings, no blockers. Accepted 3 (success-echo + exit-code-header now mention the lab-notebook gate; added `test_cli_os_error_fails_open` → 19 gate-file tests, full non-live suite 235 passed). Finding 1 (`REPO` env passthrough for fork composability) deferred — the fix threads `--repo` through `closure_audit._gh`, which the production post-hoc bot also uses, so it's out of scope for a quick-win PR (follow-up tracking pending).
+
+**Follow-up memory work (post-merge):** correct the two live "NOT gated / too brittle" claims (`shared/feedback_lab_notebook.md` §Enforcement, `shared/MEMORY.md` line 19) to "now gated at merge time via the skip-marker opt-out (#409)", and add #409 as a confirming incident to `shared/feedback_mechanism_over_memory.md`. Deferred until merge so memory doesn't lead reality.
+
 ### 21:23 UTC — Editor: Developer
 
 **What:** Added a fifth pre-merge gate to [`scripts/audit_and_merge.sh`](../../scripts/audit_and_merge.sh) (sister to the closure-ritual / priority-rationale / stray-closer gates): after those pass, it ensures a bot review was offered on the PR before merging. Deterministic detection lives in a new pure module [`tools/ci/bot_review_offer.py`](../../tools/ci/bot_review_offer.py) (mirrors `stray_closers.py`) — `has_bot_review_offer()` scans PR comments for the real review trigger (`_TRIGGER_RE = @claude[ \t]+review`, IGNORECASE) and prints `OFFERED`/`NOT_OFFERED`, failing open to `OFFERED` on any `gh` error. 18 unit tests. CLAUDE.md GitHub-Safety-Wrappers + Merge-workflow sections updated.
