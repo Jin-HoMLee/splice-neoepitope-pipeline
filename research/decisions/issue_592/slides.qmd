@@ -1,0 +1,192 @@
+---
+title: "Which cohort calibrates our immunogenicity ranker — and does it transfer to splice-junction neoepitopes?"
+subtitle: "Research decision · Issue #592 · gate for Issue #547 · 2026-05-31"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-31
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 1.8em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Which labelled cohort\
+calibrates our immunogenicity ranker —\
+and may we apply it to *splice-junction* neoepitopes?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (NeoGuider-style KDE + centered-isotonic calibration [@wei2025neoguider; @oron2017isotonic]) cannot start until a training cohort is chosen and the transfer question is settled. This deck lands that gate decision.
+:::
+
+::: {style="font-size: 0.6em; color: #777; margin-top: 0.4em;"}
+**Terminology:** "splice-junction(-derived) neoepitope" throughout = a peptide translated across a tumor-specific **neojunction** (an *RNA-level* aberrant exon–exon junction). Distinct from **proteasome-spliced peptides** (post-translational fragment re-ligation) — not the subject here.
+:::
+
+---
+
+## The gate — what blocks Issue #547 {.smaller}
+
+MHCflurry's `presentation_score` [@odonnell2020mhcflurry2] answers *"will this peptide be displayed?"* — **not** *"will it provoke a T-cell?"* [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) learns the display → immunogenicity mapping. To *learn* it, we need labelled examples.
+
+```{mermaid}
+flowchart LR
+  A["MHCflurry<br/>presentation_score"] --> B["calibration layer<br/>(KDE + centered isotonic)"]
+  B --> C["calibrated<br/>immunogenicity log-odds"]
+  T["labelled training cohort<br/>(peptide + immunogenic? + HLA)"] -.trains.-> B
+  style B fill:#1e5ba8,color:#fff
+  style T fill:#b8860b,color:#fff
+```
+
+::: {.callout-important appearance="simple"}
+Two scientific questions had to be answered first: **(1) which cohort?** and **(2) does an SNV/indel-trained calibration transfer to our splice-junction neoepitopes at all?**
+:::
+
+---
+
+## The cohort landscape {.smaller}
+
+All publicly-validated immunogenicity cohorts are **point-mutation (SNV/indel)** — there is no "splice-junction cohort" to pick among.
+
+| Cohort | Tested / immunogenic | Variant class | Access |
+|---|---|---|---|
+| **NeoRanking harmonized** [@mueller2023neoranking]<br/>(NCI-train + TESLA + HiTIDE + Bjerregaard) | ~74 pts / **~165 pos** | SNV/indel | **Open** figshare; ⚠️ LICR copyright |
+| **Borch / IMPROVE** [@borch2024improve] | 17,520 / **467 pos** | SNV/indel | **Open** |
+| TESLA alone [@wells2020tesla] | 608 / 37 pos | SNV/indel (splice *excluded*) | open (small) |
+| ~~Borch *eLife* viral multimer~~ | — | viral, 0 neoantigens | ⚠️ wrong paper |
+
+::: {.callout-note appearance="simple"}
+**Pick:** NeoRanking harmonized pool **+ IMPROVE** — already harmonized to peptide + label + HLA tables; pooling beats any single cohort given sparse positives.
+:::
+
+---
+
+## Does it transfer to splice-junction neoepitopes? {.smaller}
+
+::: {.columns}
+::: {.column width="50%"}
+**FOR transfer**
+
+::: {.incremental}
+- Presentation depends on **sequence + HLA**, not variant origin
+- Splice-junction-derived candidates show **comparable predicted MHC binding ranks** to SNVs in-cohort [@lang2024splice2neo]
+- Field already does it — **SNAF runs MHCflurry + DeepImmuno unchanged** on splice-junction-derived peptides [@kahles2024snaf]
+:::
+:::
+::: {.column width="50%"}
+**AGAINST blind transfer**
+
+::: {.incremental}
+- Splice-junction-derived peptides are **less self-similar to self** → under-call [@lang2024splice2neo]
+- Splice-junction neoantigens are **shared / recurrent** (≤90% melanoma), distinct AA composition [@kahles2024snaf]
+- **No published empirical test** on validated splice-junction-derived peptides — both sides inferential
+:::
+:::
+:::
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**Net:** the bias is **directional and conservative (under-call), not random** — the safe failure mode for a ranker. The MVP calibrates *presentation only*, the most origin-agnostic link.
+:::
+
+---
+
+## Two corrections the fact-check caught {.smaller}
+
+A 109-agent deep-research sweep (26 sources, 80 claims → 25 adversarially verified) — two load-bearing claims were corrected against primary sources before being trusted:
+
+::: {.incremental}
+1. **Self-similarity direction *flipped*.** Prior intuition: splice-junction-derived peptides look *more* self-like → calibration would *over*-predict. Literature [@lang2024splice2neo]: the **opposite** — splice-junction-derived MHC-I candidates are *less* self-similar → SNV-trained curve **under**-predicts. (Strengthens the proceed case.)
+2. **License.** Synthesis said NeoRanking was "MIT." Direct repo check: **no OSS license — LICR/Ludwig copyright.** Consume for training; **do not redistribute** raw tables in-repo.
+:::
+
+::: {.callout-note appearance="simple"}
+Verification changed the conclusion's *basis*, not just its confidence — the whole reason to fact-check.
+:::
+
+---
+
+## Hold-out design {.smaller}
+
+Resolves [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) open-question #3.
+
+::: {.columns}
+::: {.column width="52%"}
+**Leave-one-cohort-out** ✅
+
+Train on TESLA + HiTIDE + NCI → test on IMPROVE; rotate. Measures the real risk: **cohort-to-cohort drift**.
+:::
+::: {.column width="48%"}
+**Within-cohort k-fold** ❌
+
+Shuffles inside one cohort — **hides** exactly the drift we care about. Over-optimistic.
+:::
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+No splice-junction-specific labels exist at scale (**~5 validated positives** field-wide [@kahles2024snaf]) → waiting would stall [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) indefinitely. **Proceed now.**
+:::
+
+---
+
+## Decision {.smaller}
+
+::: {style="text-align: center; font-size: 2.0em; font-weight: bold; margin-top: 0.1em;"}
+Proceed now — qualified yes
+:::
+
+::: {style="text-align: center; font-size: 1.1em; margin-top: 0.1em;"}
+NeoRanking harmonized + IMPROVE · leave-one-cohort-out · presentation-anchored prior
+:::
+
+. . .
+
+- **Output is a *presentation-anchored prior*, not a validated probability** — label the column so.
+- **Forward link:** the documented splice-junction under-call is exactly what a foreignness / dissimilarity-to-self term corrects → [Issue #585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585) (Łuksza foreignness) becomes the natural splice-junction-correction follow-up.
+- **Open AC before code:** confirm the figshare tables actually download + schema-check.
+
+---
+
+## Caveats — read before citing {.smaller}
+
+::: {.incremental}
+1. **Transfer is qualified, not proven** — no direct empirical splice-junction test exists; both arguments inferential.
+2. **License** — NeoRanking is LICR copyright (no OSS license); train on it, don't redistribute raw tables.
+3. **Label scarcity** — positives sparse even pooled (TESLA 37, IMPROVE 467, NCI-train 82, HiTIDE 41, Bjerregaard 8); the splice-junction tail is unrepresented.
+4. **Splice-junction output = prior, not probability** — until a validated cohort-level calibrator exists.
+5. **Pilot deck** — first *research-decision* deck (vs eval / experiment tiers); convention itself under evaluation.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
