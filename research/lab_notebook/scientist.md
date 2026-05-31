@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 22:10 UTC — Editor: Scientist
+
+#### [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3 / ESMFold2 as a TCRdock successor + CDR3-pLDDT quality flag — ✅ **(c) park both prongs, coupled**; tool-primer deck shipped. [PR #602](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/602) closes [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316).
+
+**Verdict.** Evaluated three TCRdock-backend successors (AlphaFold3, Chai-1/Protenix, ESMFold2) **and** the CDR3-pLDDT confidence/reranking add-on, anchored on Lu et al. 2025 (bioRxiv, *Benchmarking TCR-pMHC structure prediction*). Lands at **(c) park — both prongs, coupled.** Governed by **integrability, not accuracy**: no candidate clears both an integrability bar and a task-accuracy bar on the current P100. (Scope note: this is TCR-pMHC *structure prediction* — DockQ/pLDDT — upstream of MHC *presentation* scoring; distinct vocabularies.)
+
+**Backend swap.** AF3 is best-overall (median DockQ 0.636/0.679 Class I/II) and would *plausibly* fit a P100 — but its weights are **non-redistributable / non-commercial / manual-grant**, so it cannot ship in our redistributable Docker image (the reason TCRdock works is that its AF2 params are CC-BY). Chai-1/Protenix are license-clean (Apache-2.0) and Chai-1-PLM is *competitive* (single-sequence, beats AF3 on ~1/3 of complexes) — but HW-blocked on Pascal (needs bf16 + ≥24 GB VRAM). ESMFold2 is MIT/open (best redistribution) but has **zero published TCR-pMHC evidence** — its "beats AF3" claim is **antibody-antigen only** — and needs FP8+bf16 (Pascal/Turing lack). TCRdock-AF2 stays: 2nd-best family, AF3-complementary, ships legally, runs today.
+
+**The decisive finding — CDR3-pLDDT does not transfer to AF2 (verdict-changer).** The web-only survey sold the CDR3-pLDDT add-on as a backend-agnostic "cheap win." Reading the **Lu et al. PDF from its Zotero attachment** (the cloud `/file` 404'd; the `imported_file` lived locally at `~/Zotero/storage/27MG444I/`) showed the paper *directly tested AF2* and found CDR3-pLDDT↔DockQ correlation drops 0.673 → **~0.4** and reranking **fails** on AF2 (blamed on AF2's earlier confidence head). Our backend *is* AF2 (TCRdock), we run a single model (nothing to rerank), and our de-novo predictions have no native structure to validate against locally → the add-on's real value re-couples to the AF3-class backend decision. This flipped prong 4b from "integrate" to "park," coupling it with 4a. Process lesson saved as a role-memory rule: **check the Zotero attachment before declaring a source unreachable.**
+
+**Method.** Two-stage — a parallel-research Workflow (8 agents: 5 tool deep-dives + 2 adversarial claim-checks on AF3-integrability and the ESMFold2 "beats-AF3" claim + synthesis), then primary-source verification of every Lu et al. figure from the PDF (DockQ 0.636/0.679; r=−0.673; +2.9/+4.3% *up-to*; >80% mutation-capture; AF2 ~0.4; aggregation = **mean**; Boltz genuinely absent from the 10-method set — all confirmed).
+
+**Deliverables.** Quarto tool-primer deck `research/evals/issue_316_af3_esmfold2/slides.qmd` (10 slides; rendered + visually verified for overflow). Park follow-up [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) filed + boarded — carries the **re-eval trigger** (L4-class GPU refresh, adjacent to [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310)), a **Developer GPU-research AC** (which target clears bf16+FP8+≥24 GB; cost vs P100; optional cloud-benchmark spike), and the ready-to-deploy CDR3-pLDDT recipe. AF3 (Zotero `79JMDMHQ`) + Chai-1 (`XIKCQKEV`, corporate-author API add) curated into `Z38GTJNW`. AC3's report-column integration deferred to [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) per the park decision; AC1/AC2/AC4 satisfied.
+
+**Review.** Bot review (4 real items) addressed in commit 5f98548: dropped the thin "Why AF3 leads" slide (title+10 → +9, within the ~8-10 convention), folding its hedged point into the candidates-table callout; reworded the self-contradicting L4/FP8 open question; `candido_language_2026` → `@techreport`; hedged the unverified "1,024-token P100 ceiling." Left the Abramson "and others" BibTeX as-is — the Nature CSL renders it "et al." (verified).
+
+**Forward.** [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) manuscript follow-up next (separate PR): swap the "Verdict pending eval close" AF3 paragraph + comparison-table row in [DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md) for the decline-as-shipped-backend verdict — the Lu et al. numbers are now PDF-verified and safe for the manuscript.
+
+---
+
 ### 15:40 UTC — Editor: Scientist
 
 #### [Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) training-cohort selection for `presentation_score` calibration — ✅ decision landed; gates [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547). PR to follow.
