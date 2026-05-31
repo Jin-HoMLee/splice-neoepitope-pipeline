@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 14:43 UTC — Editor: PM
+
+#### Board left-side governance Phase 2d — CLAUDE.md board-governance section ([Issue #584](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); [PR #591](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/591))
+
+**Context.** Promotes the late-commitment model from memory-only into the always-loaded `CLAUDE.md` — load-bearing, less drift-prone. New `## Board status governance` section placed in the board/PR-governance cluster (before GitHub Safety Wrappers): a 3-status table (No Status / Backlog / Ready), the `Backlog → Ready` commitment act, the milestone-as-commitment-signal rule + a one-line sub-issue non-inheritance tie-in to Phase 2a, the three left-side transitions, and cross-links. Deliberately a **summary + pointer** to `feedback_board_hygiene.md` + `feedback_milestones.md`, not a re-statement (reinforcement, P2).
+
+**Review — the non-obvious trap.** Bot flagged the `pm/feedback_milestones.md` cross-link as inconsistent (every other memory ref uses the `.claude/memory/` prefix) — a valid catch, but its proposed fix `.claude/memory/pm/feedback_milestones.md` is **broken**: `.claude/memory` is itself a symlink to the `pm/` role dir (`readlink` → `…/claude-personas…/pm`), so inserting `pm/` resolves to a non-existent `pm/pm/…`. The resolvable consistent path is `.claude/memory/feedback_milestones.md` (verified both ways before applying). Worth recording because the "obvious" consistency fix is exactly the wrong one here — the symlink topology will re-trap any future reader or reviewer. (The §Inheritance fragment the bot also queried checks out — `feedback_parent_sub_issues.md:19`.)
+
+**Dogfooding + hook clarification.** Committed #584 through the new model — assigned `pm-i6` at its own `Backlog → Ready` boundary. This run **resolves last session's #581 "Target hook didn't fire" worry**: the `recheck_dispatch.py` hook *did* fire — it ran the capacity recheck (no change, 23 d free) and surfaced the exact `updateProjectV2ItemFieldValue` command, which I then executed. So it is a **notifier, not a silent auto-executor**; the Phase 1 entry's "auto-fires … mechanical, not a separate manual step" framing is slightly off — the Target sync IS a Claude-run step, just a fully-guided one. (Possible follow-up: soften that wording in `feedback_board_hygiene.md` during 2c.) The hook also reported `target_sync_check` has now fired 3× → a mechanism-promotion candidate per [Issue #454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454).
+
+**Closure.** This entry is #584's final AC box; [PR #591](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/591) (from this `gh issue develop` branch) closes #584. Epic #580 stays open tracking the last two leaves — [Issue #582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) (morning-routine split + replenishment nudge) and [Issue #583](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/583) (residual retimes).
+
+---
+
 ### 14:18 UTC — Editor: PM (MM caretaker)
 
 #### Board left-side governance Phase 2a — sub-issue milestone inheritance under late commitment ([Issue #581](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); personas [PR #14](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/14))
