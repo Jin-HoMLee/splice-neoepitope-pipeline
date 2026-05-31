@@ -1,0 +1,211 @@
+---
+title: "Łuksza-style foreignness as a splice-applicable immunogenicity annotation"
+subtitle: "Tool evaluation · Issue #572 · 2026-05-31"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-31
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — Quarto/pandoc longtable + footnotehyper LaTeX
+# interaction (per CLAUDE.md "Render tooling"). HTML reveal.js is primary;
+# "Print → Save as PDF" from Chrome for a handout.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.2em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should a **foreignness** score\
+annotate our presented splice\
+neoepitopes with *immunogenicity*?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** spun out of the NeoPrecis eval ([Issue #551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551), declined — its recognition score needs an equal-length wild-type "self"). **Foreignness** [@luksza2017fitness] is the lone *sequence-only* member of the immunogenicity-beyond-presentation family — it needs **no wild-type**. The question this eval ([Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572)) parks: does it therefore apply to our novel `tumor_exclusive` junctions, where NeoPrecis could not even run?
+:::
+
+---
+
+## Foreignness at a glance {.smaller}
+
+**Łuksza neoantigen fitness model** — Łuksza, Greenbaum *et al.*, **Nature** 2017 [@luksza2017fitness]; refined as "neoantigen quality", **Nature** 2022 [@luksza2022quality].
+
+::: {.incremental}
+- **Fitness = A × R.** *Foreignness* is the **R** term — the probability a presented peptide is recognized by a TCR, estimated from **similarity to known immunogenic epitopes**.
+- **Reference set:** a curated **IEDB** panel (the 2017 set = **2,552** class-I, T-cell-positive, infectious-disease epitopes), bundled as `data/iedb.fasta`.
+- **Code:** [`LukszaLab/NeoantigenEditing`](https://github.com/LukszaLab/NeoantigenEditing) — Python scripts, actively maintained (2026); the `compute_R()` foreignness function is ~6 lines.
+- **Binding backend:** **none** for R — no NetMHCpan. (Only the *amplitude* A uses a binding predictor.)
+:::
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**License is the catch:** NeoantigenEditing carries **custom ACRRI/MSK non-commercial terms** (no OSI license; no redistribution; no publishing results without MSK permission). `antigen.garnish` (R) mirrors `foreignness_score()` under a similarly restrictive license; `mskcc/neoantigen-pipeline` is MIT *glue* but calls the ACRRI code **and** requires NetMHCpan.
+:::
+
+---
+
+## How the foreignness score works {.smaller}
+
+::: {.columns}
+
+::: {.column width="55%"}
+
+For an observed peptide `s`, **align it to every IEDB epitope** `e` and pool the alignment scores into a Boltzmann sum:
+
+::: {.incremental}
+- **Gapless BLOSUM62** alignment → score `|s,e|`.
+- **Partition function:** `R = Z⁻¹ · Σ_e exp[−k(a−|s,e|)]`, with `Z = 1 + Σ_e (…)`.
+- Fitted `a = 26`, `k = 4.87`; the `+1` ground state bounds **R ∈ [0,1]**.
+- **R ↑** when `s` resembles known immunogenic epitopes ("looks foreign / pathogen-like").
+:::
+
+:::
+
+::: {.column width="45%"}
+
+::: {.callout-important appearance="simple"}
+**R needs only the observed peptide** + the IEDB set. **No wild-type. No NetMHCpan.**
+
+Contrast the *amplitude* `A = Kd_WT / Kd_MT` — a wild-type-vs-mutant binding ratio that **does** require a paired WT and a binding predictor.
+:::
+
+:::
+
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+Distinct from the **IEDB Class-I immunogenicity tool** [@calis2013immunogenicity], which scores position-specific amino-acid enrichment — *not* similarity to an epitope set.
+:::
+
+---
+
+## The one property that matters for us — no "self" required {.smaller}
+
+The NeoPrecis decline ([#551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551)) turned on a **hard blocker**: its recognition score needs a defined, equal-length wild-type peptide, and authors exclude indels/frameshifts. Foreignness removes exactly that blocker.
+
+| Signal | Needs equal-length WT? | Runs on novel junctions? |
+|---|:---:|:---:|
+| NeoPrecis CRD / Łuksza amplitude `A` | ✅ yes | ❌ no |
+| Łuksza 2022 cross-reactivity `logC` | ✅ yes | ❌ no |
+| **Foreignness `R`** | **❌ no** | **✅ yes** |
+
+. . .
+
+::: {.callout-tip appearance="simple"}
+**Hypothesis confirmed.** Foreignness is the *one* immunogenicity-beyond-presentation signal that is **structurally computable** on our junction peptides — it consumes only the observed sequence aligned to IEDB.
+:::
+
+---
+
+## Where it would plug in {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    TP["translate_peptides<br/>(junction-spanning)"] --> PF["proteome_filter"]
+    PF --> MF["run_mhcflurry<br/>mhc_presentation.tsv"]
+    IEDB["vendored IEDB set<br/>(like references/vdjdb/)"] --> FN
+    MF --> FN["[NEW] foreignness R<br/>compute_R(peptide vs IEDB)"]
+    FN --> RANK["candidate ranking<br/>report / tcr_panel"]
+
+    style FN fill:#d6f5d6,stroke:#2e7d32,stroke-width:3px
+    style IEDB fill:#e6efff,stroke:#3367b8,stroke-width:2px
+```
+
+Plumbing is **clean**: the only inputs are the observed peptide (we have it) and a vendored IEDB epitope set (versioned like `references/vdjdb/`). A **clean-room `compute_R`** (~6 lines + `blastp`/Smith-Waterman BLOSUM62) sidesteps the ACRRI *code* license; the IEDB *data* terms would still apply.
+
+---
+
+## Reasons by mode {.smaller}
+
+| Mode | Verdict | Rationale |
+|---|:---:|---|
+| Annotation (integrate) | ❌ | Runs on junctions, but the signal is **weak/contested** + **uncalibratable on junctions** + license friction |
+| Replacement | ❌ | Not a presentation ranker; it is a *downstream* recognition layer — nothing to replace |
+| Cross-check | ⚠️ | A genuinely different axis, but **no ground-truth** to validate it on *our* junction candidates |
+| Component reuse | ⚠️ | `compute_R` is trivially reimplementable — but reusing the ACRRI code/data needs a license review |
+| **Decline** | **✅** | Splice-applicable yet low-value *now* — record the reason + a concrete revival path |
+
+---
+
+## Why decline — the evidence {.smaller}
+
+::: {.incremental}
+- **Weak standalone signal.** TESLA (Wells *et al.*, *Cell* 2020): submissions prioritizing **foreignness without presentation** had *"no difference in performance or performed worse"* [@wells2020tesla]. Foreignness helps only *layered on* presentation — which our MHCflurry `presentation_score` already ranks by.
+- **Uncalibratable for our case.** `a/k` were fit on **9-mer missense** neoantigens against a specific IEDB snapshot. Our candidates are **8–11mer novel-frame** junction peptides (different length, composition, BLAST-hit profile) → at best a *relative* ranking, and we hold **no ground-truth immunogenicity labels** to check whether it adds signal.
+- **License-encumbered.** The canonical implementation is ACRRI/MSK non-commercial; a clean-room reimplementation is trivial but **unjustified for a weak, unvalidatable signal at P3**.
+:::
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 3em; font-weight: bold; margin-top: 0.3em;"}
+\(b\) Decline-with-rationale
+:::
+
+::: {style="text-align: center; font-size: 1.25em; margin-top: 0.3em;"}
+Splice-applicable (the [#572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572) hypothesis **holds**) —\
+but a weak, uncalibratable, license-gated signal\
+is not worth integrating at P3.
+:::
+
+. . .
+
+**No `role:developer` sub-issue.** Decision recorded on [Issue #572](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/572).
+
+::: {.callout-note appearance="simple"}
+**Distinct from [#551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551):** NeoPrecis *cannot run* on junctions (no WT); foreignness *can run* but isn't worth it. **4th** immunogenicity-beyond-presentation tool evaluated — alongside NeoPrecis ([#551](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/551)), ASNEO ([#546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546)), NeoGuider ([#258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258)).
+:::
+
+---
+
+## Open questions & revival path {.smaller}
+
+**Open questions** *(board-backed — [Issue #585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585), Backlog · P3, spun from this eval):*
+
+::: {.incremental}
+1. **Revival trigger:** if we ever acquire **ground-truth immunogenicity labels** (a validation cohort), revisit a clean-room `compute_R` as an *optional* annotation — it is the only splice-compatible candidate.
+2. Does foreignness add ranking signal **on top of** `presentation_score` for junctions, or is it redundant? (needs a labelled pilot)
+3. Reference-set choice + `a/k` recalibration for **non-9mer** junction peptides.
+:::
+
+. . .
+
+**Caveats:**
+
+::: {.incremental}
+- **IEDB data terms** apply even to a clean-room reimplementation.
+- **ACRRI/MSK code license** would gate any direct vendoring of `NeoantigenEditing` / `antigen.garnish`.
+- Foreignness is **MHC-I framed** (the 2,552-epitope set is class-I) — consistent with our MHC-I-only pipeline today.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
