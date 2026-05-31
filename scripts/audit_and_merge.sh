@@ -33,7 +33,9 @@
 #
 # Exit codes:
 #   0 — merged successfully
-#   1 — audit failed (unticked boxes or missing priority rationale); the gaps are printed
+#   1 — audit failed (unticked boxes or missing priority rationale); OR the
+#       bot-review-offer gate blocked (no review offered: cancelled interactively,
+#       or non-interactive with no --skip-review-offer). The gaps/reason are printed
 #   2 — usage error
 
 set -euo pipefail
@@ -162,6 +164,8 @@ fi
 if [[ "$SKIP_REVIEW_OFFER" -eq 1 ]]; then
     echo "→ Bot-review-offer gate bypassed (--skip-review-offer; trivial PR)." >&2
 elif [[ -z "$PYTHON" ]]; then
+    # $PYTHON is resolved once in gate 4's setup and reused here — keep gate 4
+    # before this block if either is ever refactored.
     echo "⚠ bot-review-offer check skipped (no python on PATH)." >&2
 else
     REVIEW_STATUS="$("$PYTHON" "$SCRIPT_DIR/../tools/ci/bot_review_offer.py" "$PR")" || REVIEW_STATUS="OFFERED"
