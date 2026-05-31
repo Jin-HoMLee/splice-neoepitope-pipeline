@@ -1,6 +1,48 @@
-# GTEx V10 Pan-Tissue Junction Reference Set — Implementation Plan
+# GTEx Pan-Tissue Junction Reference Set — Implementation Plan
+
+> **🛑 ON HOLD — pending Scientist/PM sign-off on a source redirect (2026-05-31).** Task 1 (recon)
+> is **complete** and proved the originally-scoped source (**GTEx V10 portal `junctions.gct.gz`**)
+> is annotation-only → a silent no-op for a novel-junction filter. The verified replacement is the
+> **Snaptron `gtexv2`** endpoint. See the **"Redirect addendum"** immediately below for the revised
+> architecture and which tasks change. **Do not execute Tasks 2–10 as written** — they target the
+> rejected GCT source. Full per-task re-write (complete TDD code) lands once the methodology change
+> is acknowledged on [Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587336618). The recon evidence + redirect rationale live in
+> [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+---
+
+## Redirect addendum (2026-05-31) — Snaptron `gtexv2`, supersedes the GCT-based tasks below
+
+**Why:** the pipeline's normal-junction gate only sees **novel/unannotated** junctions (annotated
+ones are discarded one step earlier). The portal `.gct` is ~99.7% annotated (chr1 + chr22 verified)
+→ it would filter ≈ 0 candidates. The gate needs a **raw, novel-containing** population reference.
+Full rationale: [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md) + [#211 recon comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587336618).
+
+**Revised architecture:** `workflow/scripts/build_gtex_pan_tissue_ref.py` queries the **Snaptron
+`gtexv2`** HTTP endpoint (`https://snaptron.cs.jhu.edu/gtexv2/snaptron?regions=<region>`; recount3 /
+GTEx v8 / hg38 / ~19,788 samples / ~33M junctions, novel + per-sample) region-by-region across the
+genome, keeps junctions with `samples_count >= min_samples` (default 1 = pan-tissue), and writes the
+same sorted **BED6** blacklist. Reuse #225's helpers: `fetch_snaptron_chr22(region)` +
+`snaptron_to_key_set(df, min_samples)` from `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb` §2(c).
+
+**What carries over from the recon / old plan (unchanged):**
+- Coordinate transform **`bed_start = start − 1`, `bed_end = end`, strand passthrough** — Snaptron uses the *same* 1-based-inclusive-intron convention (validated 259/259 in #225). Empirically banked.
+- **BED6** output (drop-in with [filter_junctions.py:56-71](../../../workflow/scripts/filter_junctions.py#L56-L71)); strand IS carried.
+- The `--restrict-chrom` chr22-fixture path, the BED6 + QC writers (Task 6), the CLI shape (Task 7), the #225 §2(c) re-run AC (Task 10).
+
+**What changes vs the GCT-based tasks below:**
+- **Task 2 (`parse_sample_attributes`) — likely DROPPED.** With `min_samples=1` ("any sample"), no sample→tissue map is needed. The "seen in N tissues" QC would require mapping Snaptron sample IDs → GTEx tissue via recount3 metadata — **open question for Sci/PM** (keep the QC, or ship count-only?).
+- **Task 3 (`parse_junction_name`) — simplified.** Snaptron returns parsed `chromosome/start/end/strand` columns (18-col TSV: col 8 `annotated`, col 13 `samples`, col 14 `samples_count`) — no `chr:start-end:strand` string parsing.
+- **Task 4 (GCT streaming) — REPLACED** by paginated Snaptron region queries (per-chromosome or windowed; handle response size + retries, per #225's `fetch` helper).
+- **Task 5 (accumulate) — simplified** to `samples_count >= min_samples` per record; optionally retain the `annotated` flag for QC.
+- **Task 8 (config)** — keys become `gtex_filter.source: snaptron_gtexv2`, `snaptron_endpoint`, `min_samples` (not `min_read_count`/GCS `.gct` path).
+- **Task 9 (build)** — genome-wide Snaptron query (chr22 alone ≈ 880k junctions at `samples_count≥1`; the genome-wide BED is tens of millions of rows → size for GCS, keep out of git, `data_manifest.yaml`).
+
+**Open questions deferred to Sci/PM** (the reason this is On Hold): (a) confirm Snaptron `gtexv2` (GTEx v8) is acceptable vs pursuing controlled-access raw V10; (b) `min_samples` threshold (1 = most aggressive precision-over-recall, per #126 vaccine-safety framing); (c) keep per-tissue QC (needs sample-metadata join) or count-only.
+
+---
 
 **Goal:** Build a reproducible, GCS-staged pan-tissue splice-junction blacklist BED from GTEx V10, consumed downstream by [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) as a population-level normal reference.
 
