@@ -8,6 +8,9 @@
 #   4. The would-be squash body (PR title + body + commit messages) contains a
 #      closing keyword (`close|fix|resolve` + `#N`) targeting an Issue OUTSIDE
 #      closingIssuesReferences — a silent unintended auto-close on merge.
+# After those pass, a bot-review-offer gate (5) ensures a `@-claude review` was
+# offered on the PR before merging (interactive prompt, or block + --skip-review-offer
+# carve-out when non-interactive).
 #
 # Why: declarative rules of the form "always include X" reliably drift across
 # session boundaries even when inlined into shared MEMORY.md. The gate enforces
@@ -18,7 +21,8 @@
 # Priority-rationale gate (3) added via Issue #481 after live drift in the
 # Issue #264 closure flow. Stray-closing-keyword gate (4) added via Issue #559
 # after PR #543 auto-closed epic Issue #538 via a commit-body keyword that the
-# closingIssuesReferences API does not surface.
+# closingIssuesReferences API does not surface. Bot-review-offer gate (5) added
+# via Issue #443 after PR #441 + PR #442 merged without the review offer.
 #
 # Usage:
 #   bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
@@ -38,7 +42,7 @@ REPO="${REPO:-Jin-HoMLee/splice-neoepitope-pipeline}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-    echo "Usage: $0 <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]" >&2
+    echo "Usage: $0 <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch] [--skip-review-offer]" >&2
     exit 2
 }
 
@@ -48,11 +52,13 @@ PR="$1"; shift
 
 MERGE_TYPE="--squash"
 DELETE_FLAG="--delete-branch"
+SKIP_REVIEW_OFFER=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --squash|--merge|--rebase) MERGE_TYPE="$1" ;;
         --delete-branch)            DELETE_FLAG="--delete-branch" ;;
         --no-delete-branch)         DELETE_FLAG="" ;;
+        --skip-review-offer)        SKIP_REVIEW_OFFER=1 ;;
         *) echo "Unknown flag: $1" >&2; usage ;;
     esac
     shift
@@ -134,6 +140,61 @@ elif [[ -n "$STRAY_OUT" ]]; then
 fi
 
 [[ "$FAILED" -eq 1 ]] && exit 1
+
+# Bot-review-offer gate (Issue #443). The closure-ritual checks have passed, so
+# the PR is otherwise mergeable — now ensure a bot review (@-claude review) was
+# offered on it before merging. Two same-morning slips (PR #441 + PR #442 merged
+# without the offer) crossed the memory→mechanism escalation threshold; both were
+# Claude-driven (non-interactive) merges, so this gate must bite in BOTH the
+# interactive and non-interactive cases. Deterministic detection lives in
+# tools/ci/bot_review_offer.py (prints OFFERED / NOT_OFFERED, fails open to
+# OFFERED on a gh error). The rule's "skip for trivial PRs" carve-out keeps the
+# judgment call with the operator (interactive option b / non-interactive
+# --skip-review-offer flag) rather than coding a triviality heuristic.
+#
+#   --skip-review-offer set   → explicit trivial-PR bypass; proceed.
+#   no python on PATH         → fail open; proceed (mirrors stray-closer gate).
+#   review already offered    → proceed.
+#   not offered, interactive  → prompt (a) offer now / (b) skip / (c) cancel.
+#   not offered, non-interact → BLOCK (exit 1) with guidance — do NOT silently
+#                               merge; this is the exact agent-side slip the gate
+#                               exists to catch.
+if [[ "$SKIP_REVIEW_OFFER" -eq 1 ]]; then
+    echo "→ Bot-review-offer gate bypassed (--skip-review-offer; trivial PR)." >&2
+elif [[ -z "$PYTHON" ]]; then
+    echo "⚠ bot-review-offer check skipped (no python on PATH)." >&2
+else
+    REVIEW_STATUS="$("$PYTHON" "$SCRIPT_DIR/../tools/ci/bot_review_offer.py" "$PR")" || REVIEW_STATUS="OFFERED"
+    if [[ "$REVIEW_STATUS" == "NOT_OFFERED" ]]; then
+        if [[ -t 0 && -t 1 ]]; then
+            echo "" >&2
+            echo "No bot-review trigger (@-claude review) found on PR #${PR}. Offer one before merging?" >&2
+            echo "  (a) offer review now — post the trigger comment, then merge" >&2
+            echo "  (b) skip — trivial PR (typo / news_log / single-line doc fix)" >&2
+            echo "  (c) cancel merge" >&2
+            read -r -p "Choose [a/b/c]: " BR_CHOICE || BR_CHOICE=""
+            case "$BR_CHOICE" in
+                a|A)
+                    gh pr comment "$PR" --repo "$REPO" --body "@claude review"
+                    echo "✓ Posted review trigger on PR #${PR}." >&2
+                    ;;
+                b|B)
+                    echo "→ Proceeding without a review offer (trivial PR)." >&2
+                    ;;
+                *)
+                    echo "✗ Merge cancelled — no review offered." >&2
+                    exit 1
+                    ;;
+            esac
+        else
+            echo "✗ PR #${PR} has no bot-review trigger (@-claude review), and this merge is" >&2
+            echo "  running non-interactively (cannot prompt for a/b/c)." >&2
+            echo "  → Offer a review first (ask the user, then post the trigger) and re-run, OR" >&2
+            echo "  → pass --skip-review-offer for a genuinely trivial PR." >&2
+            exit 1
+        fi
+    fi
+fi
 
 MERGE_ARGS=("$MERGE_TYPE")
 [[ -n "$DELETE_FLAG" ]] && MERGE_ARGS+=("$DELETE_FLAG")
