@@ -1,142 +1,58 @@
 # GTEx Pan-Tissue Junction Reference Set — Implementation Plan
 
-> **✅ Scientist-APPROVED redirect (2026-05-31); PM governance confirm pending (non-blocking).**
-> Task 1 (recon) is **complete**: the originally-scoped source (**GTEx V10 portal `junctions.gct.gz`**)
-> is annotation-only → a silent no-op; the verified replacement is the **Snaptron `gtexv2`** endpoint
-> ([Scientist sign-off](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587458018)). The only open item is a PM read (in-scope-without-re-commitment +
-> milestone feasibility) — governance, not technical. See the **"Redirect addendum"** immediately
-> below for the revised architecture + the Scientist's confirmed parameters. **Do not execute
-> Tasks 2–10 as written** — they target the rejected GCT source; they need a per-task re-write onto
-> Snaptron (design fully specified in the addendum). Recon evidence + redirect rationale:
-> [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md).
+> **✅ Scientist-approved + lab-owner governance-confirmed (2026-05-31).** Source is the
+> **Snaptron `gtexv2`** endpoint (recount3 / GTEx v8 / hg38 / **19,214 samples** / ~33M junctions,
+> novel + per-sample). The originally-scoped source (GTEx V10 portal `junctions.gct.gz`) was
+> **rejected** — it is annotation-only (~99.7% annotated, chr1 + chr22 verified) and this gate
+> only ever sees *novel* junctions, so it would have filtered ≈ 0 candidates (a silent no-op).
+> Recon + rejection evidence: [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md);
+> [recon comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587336618);
+> [Scientist sign-off](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587458018);
+> [governance confirm](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587902847).
+> **Task 1 (recon) is complete.** Tasks 2–10 below are the live, Snaptron-targeted plan.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
----
+**Goal:** Build a reproducible, GCS-staged pan-tissue **novel-junction blacklist BED** from the Snaptron `gtexv2` compilation, consumed downstream by [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) as a population-level normal reference.
 
-## Redirect addendum (2026-05-31) — Snaptron `gtexv2`, supersedes the GCT-based tasks below
+**Architecture:** A standalone one-shot script `workflow/scripts/build_gtex_pan_tissue_ref.py` (NOT part of the per-patient Snakemake DAG) queries the Snaptron `gtexv2` HTTP endpoint **per chromosome**, streams the headered TSV response line-by-line, keeps every junction with `samples_count >= min_samples` (default 1 = pan-tissue), and emits a sorted **BED6** blacklist plus a QC sidecar (a `samples_count` sensitivity sweep). The pure parse/accumulate functions are unit-tested on tiny synthetic TSV fixtures; the fetch layer is isolated behind an injectable line source so the end-to-end test needs no network. A chr22-restricted output is produced as a committed local-pipeline-test fixture and must reproduce #225's cached `chr22_gtex_panel.parquet`.
 
-**Why:** the pipeline's normal-junction gate only sees **novel/unannotated** junctions (annotated
-ones are discarded one step earlier). The portal `.gct` is ~99.7% annotated (chr1 + chr22 verified)
-→ it would filter ≈ 0 candidates. The gate needs a **raw, novel-containing** population reference.
-Full rationale: [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md) + [#211 recon comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587336618).
-
-**Revised architecture:** `workflow/scripts/build_gtex_pan_tissue_ref.py` queries the **Snaptron
-`gtexv2`** HTTP endpoint (`https://snaptron.cs.jhu.edu/gtexv2/snaptron?regions=<region>`; recount3 /
-GTEx v8 / hg38 / ~19,788 samples / ~33M junctions, novel + per-sample) region-by-region across the
-genome, keeps junctions with `samples_count >= min_samples` (default 1 = pan-tissue), and writes the
-same sorted **BED6** blacklist. Reuse #225's helpers: `fetch_snaptron_chr22(region)` +
-`snaptron_to_key_set(df, min_samples)` from `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb` §2(c).
-
-**What carries over from the recon / old plan (unchanged):**
-- Coordinate transform **`bed_start = start − 1`, `bed_end = end`, strand passthrough** — Snaptron uses the *same* 1-based-inclusive-intron convention (validated 259/259 in #225). Empirically banked.
-- **BED6** output (drop-in with [filter_junctions.py:56-71](../../../workflow/scripts/filter_junctions.py#L56-L71)); strand IS carried.
-- The `--restrict-chrom` chr22-fixture path, the BED6 + QC writers (Task 6), the CLI shape (Task 7), the #225 §2(c) re-run AC (Task 10).
-
-**What changes vs the GCT-based tasks below:**
-- **Task 2 (`parse_sample_attributes`) — likely DROPPED.** With `min_samples=1` ("any sample"), no sample→tissue map is needed. The "seen in N tissues" QC would require mapping Snaptron sample IDs → GTEx tissue via recount3 metadata — **open question for Sci/PM** (keep the QC, or ship count-only?).
-- **Task 3 (`parse_junction_name`) — simplified.** Snaptron returns parsed `chromosome/start/end/strand` columns (18-col TSV: col 8 `annotated`, col 13 `samples`, col 14 `samples_count`) — no `chr:start-end:strand` string parsing.
-- **Task 4 (GCT streaming) — REPLACED** by paginated Snaptron region queries (per-chromosome or windowed; handle response size + retries, per #225's `fetch` helper).
-- **Task 5 (accumulate) — simplified** to `samples_count >= min_samples` per record; optionally retain the `annotated` flag for QC.
-- **Task 8 (config)** — keys become `gtex_filter.source: snaptron_gtexv2`, `snaptron_endpoint`, `min_samples` (not `min_read_count`/GCS `.gct` path).
-- **Task 9 (build)** — genome-wide Snaptron query (chr22 alone ≈ 880k junctions at `samples_count≥1`; the genome-wide BED is tens of millions of rows → size for GCS, keep out of git, `data_manifest.yaml`).
-
-**Resolved by [Scientist sign-off](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211#issuecomment-4587458018) (2026-05-31):**
-- **(a) Snaptron `gtexv2` — APPROVED** over controlled-access raw V10 (novel-junction containment is the gate's whole purpose; v10 recency would forfeit it).
-- **(b) `min_samples = 1` — CONFIRMED**, two conditions: expose as config param `gtex_filter.min_samples` (not hard-coded); QC sidecar must report a **`samples_count` sensitivity sweep** (union size at `>= {1, 2, 5, 10, 20}`).
-- **(c) QC — COUNT-ONLY** for this slice; per-tissue provenance deferred to [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (where the cancer-testis-antigen / immune-privileged-tissue exemption is decided).
-
-**Additional Scientist conditions folded into the rewritten [#211 ACs](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211):**
-- Provenance pinned to **19,214 samples / GTEx v8 / recount3** (NOT 19,788 portal / 9,662 recount2) + recount3 (Wilks 2021) & Snaptron (Wilks 2018) citations.
-- chr22 build slice must **reproduce #225's cached `chr22_gtex_panel.parquet`** (~880,769 @ `samples_count >= 1`) — consistency check.
-- METHODS caveat: recount3/STAR vs our HISAT2/STAR aligner difference → conservative under-filtering on 1-bp coord disagreements.
-
-**Still pending (non-blocking): PM read** — (i) confirm in-scope without re-commitment (source refinement, still M); (ii) genome-wide-build feasibility vs the `i2-S3` milestone (due 2026-06-03).
-
----
-
-**Goal:** Build a reproducible, GCS-staged pan-tissue splice-junction blacklist BED from GTEx V10, consumed downstream by [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) as a population-level normal reference.
-
-**Architecture:** A standalone one-shot script `workflow/scripts/build_gtex_pan_tissue_ref.py` (NOT part of the per-patient Snakemake DAG) streams the single GTEx V10 junction-counts GCT row-by-row, joins each sample column to its tissue via the `SampleAttributesDS` annotation, and emits a sorted **BED6** blacklist of every junction with `≥ min_read_count` reads in any tissue, plus a QC sidecar. The pure parse/accumulate functions are unit-tested on tiny synthetic GCT/annotation fixtures; a chr22-restricted output is produced for local pipeline tests.
-
-**Tech Stack:** Python 3.13 (test venv `workflow/tests/.venv`), stdlib only (`gzip`, `csv`, `argparse`, `logging`) — mirroring [build_reference_junctions.py](workflow/scripts/build_reference_junctions.py). `gsutil`/`gcloud` for GCS staging. Pytest for unit tests.
+**Tech Stack:** Python 3.13 (test venv `workflow/tests/.venv`), **stdlib only** (`urllib`, `argparse`, `logging`, `collections`) — mirroring [build_reference_junctions.py](../../../workflow/scripts/build_reference_junctions.py). Network calls are isolated in one fetch function (ported from #225's `fetch_snaptron_chr22`); everything else is pure and tested. `gsutil`/`gcloud` for GCS staging. Pytest for unit tests.
 
 ---
 
 ## Key facts established during planning (verified, not assumed)
 
-- **GTEx V10 distributes ONE junction matrix, not 54 per-tissue files.** A single `*_junctions.gct.gz` (rows = junctions, cols = ~20k samples) + a `*_Annotations_SampleAttributesDS.txt` mapping `SAMPID → SMTSD` (tissue). The issue's "download ~54 per-tissue files" framing is superseded: stream the one GCT, group columns by tissue via the annotation.
-- **Output format is BED6**, drop-in with the existing reference: [build_reference_junctions.py:131-150](workflow/scripts/build_reference_junctions.py#L131-L150) writes `chrom start end name score strand` (`name = chrom:start-end:strand`, score `0`), and [filter_junctions.py:56-71](workflow/scripts/filter_junctions.py#L56-L71) reads reference BEDs keying on cols 1/2/3/6 = `(chrom, start, end, strand)`.
-- **Coordinate convention is the #1 silent-failure risk.** reference_junctions.bed uses **0-based half-open** intron coords (`start` = upstream exon end 0-based, `end` = downstream exon start 0-based — see [build_reference_junctions.py:62-128](workflow/scripts/build_reference_junctions.py#L62-L128)). GTEx junction-ID coords must be normalized to the *same* space or the downstream intersect in #212 silently matches nothing (the Issue #148 / #370 empty-result bug class). Task 1 pins GTEx's convention against a known GENCODE junction before any parser code is trusted.
-- **GTEx junction IDs carry no strand.** Historically `chr_start_end`. The reference reader expects a strand in col 6. Decision (this plan): emit strand `.` and treat the GTEx blacklist as **strand-agnostic** (positional) — which is also the *more conservative / safer* choice for a vaccine off-tumour-toxicity filter. This is a **cross-issue note for #212** (see end of plan): #212 must intersect the GTEx source on `(chrom,start,end)` only, NOT reuse `_load_reference_junctions`'s 4-tuple key verbatim.
+- **Source = Snaptron `gtexv2`** (`https://snaptron.cs.jhu.edu/gtexv2/snaptron?regions=<region>`). recount3 reprocessing of **GTEx v8**, hg38, **19,214 samples**, ~33M junctions, with per-junction `samples_count`. NOT the V10 portal (19,788 samples / annotation-only) and NOT the `/gtex/` recount2 endpoint (9,662 samples). Provenance citations: recount3 (Wilks et al., *Genome Biology* 2021) + Snaptron (Wilks et al., *Bioinformatics* 2018).
+- **Response is a headered TSV with named columns.** Snaptron `gtexv2` returns a header row; the columns this build needs — `chromosome`, `start`, `end`, `strand`, `samples_count` — are addressed **by name** (not fixed position). Other columns (`snaptron_id`, `annotated`, `samples`, coverage stats, …) are ignored. Each junction is **one row** with its own `samples_count` across all samples — so per-region there is no within-region dedup to do.
+- **Coordinate transform is the #1 silent-failure risk — and it is already pinned.** Snaptron `start`/`end` are 1-based-inclusive intron donor/acceptor → BED 0-based half-open via **`bed_start = start − 1`, `bed_end = end`**. This is the *same* transform #225's `snaptron_to_key_set()` uses and it was validated **259/259** (every matched-normal ∩ GENCODE ground-truth intron present in the GTEx panel under this normalisation, 2026-05-21). Empirically banked — do not re-derive.
+- **Strand IS carried** (unlike the rejected GCT source). Snaptron emits a `strand` column, so the blacklist key is the full 4-tuple `(chrom, start, end, strand)` — a **true drop-in** for `filter_junctions.py`'s reference reader ([filter_junctions.py:56-71](../../../workflow/scripts/filter_junctions.py#L56-L71) keys on cols 1/2/3/6 = `(chrom,start,end,strand)`). **This removes the strand-agnostic special-case** the GCT plan needed — see the updated #212 cross-note at the end.
+- **Output format is BED6**, byte-identical in shape to [build_reference_junctions.py:131-150](../../../workflow/scripts/build_reference_junctions.py#L131-L150): `chrom start end name score strand` with `name = chrom:start-end:strand`, score `0`. UCSC `chr*` naming (Snaptron `gtexv2` ships `chr`-prefixed, matching the pipeline's GENCODE primary assembly — CLAUDE.md).
+- **Scale.** chr22 alone ≈ **880,769** junctions at `samples_count >= 1` (= #225's cached `chr22_gtex_panel.parquet`). Genome-wide at `min_samples=1` is ~33M rows → the BED is hundreds of MB; keep it out of git (GCS + `data_manifest.yaml`), commit only the chr22 fixture. The heavy genome-wide build runs on a highmem VM, not the M1.
 
 ## File Structure
 
-- **Create** `workflow/scripts/build_gtex_pan_tissue_ref.py` — the one-shot builder. Pure functions (`parse_sample_attributes`, `parse_junction_name`, `iter_gct_rows`, `accumulate_pan_tissue_union`, `write_bed6`, `write_qc_sidecar`) + a `--restrict-chrom` filter for the chr22 fixture + CLI entry point. No Snakemake `script:` entry (not in the DAG), so a plain `if __name__ == "__main__"` CLI only.
-- **Create** `workflow/tests/test_build_gtex_pan_tissue_ref.py` — unit tests on synthetic GCT + annotation strings.
-- **Modify** `config/config.yaml` — add the `gtex_filter:` block (consumed by #212; declared here so the reference path is documented in one place).
-- **Create** `docs/gtex_pan_tissue_build.md` — short runbook: exact V10 URLs, build command, GCS staging command, refresh procedure (the build is manual/one-shot, so the runbook IS the reproducibility record).
-- **Produce (artifacts, not committed if >100 MB)** `gtex_v10_pan_tissue_junctions.bed`, `gtex_v10_pan_tissue_junctions.qc.tsv`, `gtex_v10_pan_tissue_junctions.chr22.bed` → staged to `gs://splice-neoepitope-project/resources/gtex/v10/`. The chr22 fixture (small) is committed under `resources/test/`.
+- **Create** `workflow/scripts/build_gtex_pan_tissue_ref.py` — the one-shot builder. Pure functions (`build_col_index`, `parse_snaptron_line`, `accumulate_union`, `write_bed6`, `write_qc_sidecar`) + one network function (`fetch_snaptron_region`) + a `build()` orchestrator with an injectable line source + a `--restrict-chrom` / `--region` filter for the chr22 fixture + a CLI entry point. No Snakemake `script:` entry (not in the DAG), so a plain `if __name__ == "__main__"` CLI only.
+- **Create** `workflow/tests/test_build_gtex_pan_tissue_ref.py` — unit tests on synthetic Snaptron TSV strings + a monkeypatched fetch.
+- **Modify** `config/config.yaml` — add the `gtex_filter:` block (consumed by #212; declared here so the reference path + provenance live in one place).
+- **Modify** `docs/gtex_pan_tissue_build.md` — append a `## Build command` runbook section (exact genome-wide invocation, GCS staging, refresh procedure). The recon findings + provenance + transform are already in this doc.
+- **Produce (artifacts, chr22 fixture committed; genome-wide staged to GCS)** `gtex_gtexv2_pan_tissue_junctions.bed`, `gtex_gtexv2_pan_tissue_junctions.qc.tsv`, `gtex_gtexv2_pan_tissue_junctions.chr22.bed` → `gs://splice-neoepitope-project/resources/gtex/gtexv2/` + a committed `data_manifest.yaml`. The chr22 fixture (small) is committed under `resources/test/`.
 
 ---
 
-### Task 1: Data reconnaissance — pin real V10 filenames + junction-ID semantics
+### Task 1: Data reconnaissance — COMPLETE ✅
 
-**Files:**
-- Create: `docs/gtex_pan_tissue_build.md` (findings section)
+**Files:** `docs/gtex_pan_tissue_build.md` (findings).
 
-This task writes NO production code. It de-risks the parser by recording ground truth from the real files. Do it before any parsing code so the unit-test fixtures mirror reality.
+Done (commits `de930f2`, `046e5a5`). Established: the V10 portal `.gct` is annotation-only (rejected); the correct source is Snaptron `gtexv2`; the coordinate transform (`start−1, end`) is validated 259/259 via #225; provenance pinned to 19,214 / v8 / recount3. No production code in this task. Evidence in [`docs/gtex_pan_tissue_build.md`](../../gtex_pan_tissue_build.md).
 
-- [ ] **Step 1: Locate the V10 open-access bucket paths**
-
-Run (the GTEx open-access bulk files live on a public GCS bucket; list to find exact names):
-```bash
-gsutil ls -r 'gs://adult-gtex/bulk-gex/v10/rna-seq/**' 2>/dev/null | grep -iE 'junction|SampleAttributes' || \
-  echo "bucket path differs — fall back to the portal Downloads page: https://gtexportal.org/home/downloads/adult-gtex"
-```
-Expected: an exact `...v10..._junctions.gct.gz` URL and a `GTEx_Analysis_v10_Annotations_SampleAttributesDS.txt` URL. If `gsutil ls` fails (auth/path), open the portal Downloads → "Bulk tissue expression" and copy the two HTTPS links. Record both exact URLs in `docs/gtex_pan_tissue_build.md` under a `## Source files (V10)` heading.
-
-- [ ] **Step 2: Inspect the GCT header + first data row WITHOUT downloading the whole file**
-
-Run (stream just the head of the gzip):
-```bash
-curl -s '<JUNCTIONS_GCT_URL>' | zcat 2>/dev/null | head -4 | cut -c1-300
-```
-Expected shape:
-```
-#1.2
-<nrows>	<ncols>
-Name	Description	<SAMPID_1>	<SAMPID_2>	...
-<junction_id>	<gene_id>	<count>	<count>	...
-```
-Record in the findings doc: (a) the literal junction-ID format in the `Name` column (e.g. `chr1_14829_14969` vs `chr1:14829-14969`), (b) whether a strand token is present, (c) the column-header sample-ID format.
-
-- [ ] **Step 3: Pin the coordinate convention against a known GENCODE junction**
-
-Pick any junction that exists in the committed `references/reference_junctions.bed` (build it first if absent: `conda activate snakemake && python workflow/scripts/build_reference_junctions.py --gtf references/gencode.v47.annotation.gtf.gz --output /tmp/ref.bed`, then `head /tmp/ref.bed`). Take its `chrom/start/end`. Then grep the GTEx GCT `Name` column for the same locus:
-```bash
-curl -s '<JUNCTIONS_GCT_URL>' | zcat | cut -f1 | grep -E '<chrom>[_:]<approx_start>' | head
-```
-Determine whether GTEx coords equal the BED 0-based-half-open `start/end`, are 1-based, or are off-by-one/anchor-shifted. **Record the exact transform** (e.g. "GTEx start is 1-based intron start → BED start = gtex_start − 1; GTEx end = BED end") in the findings doc. This transform becomes the body of `parse_junction_name` in Task 3.
-
-- [ ] **Step 4: Inspect the sample-attributes columns**
-
-Run:
-```bash
-curl -s '<SAMPLE_ATTRIBUTES_URL>' | head -2
-```
-Confirm the column names: `SAMPID` (sample id, matches GCT column headers) and `SMTSD` (detailed tissue). Also note `SMAFRZE` (analysis-freeze flag; value `RNASEQ` marks the bulk RNA-seq samples to keep). Record the exact header in the findings doc.
-
-- [ ] **Step 5: Commit the findings doc**
-
-```bash
-git add docs/gtex_pan_tissue_build.md
-git commit -m "docs(gtex): pin V10 junction GCT + sample-attributes format (issue #211 recon)"
-```
+- [x] Source identified + rejected source documented
+- [x] Coordinate transform pinned + empirically validated (259/259, #225)
+- [x] Provenance + citations recorded
 
 ---
 
-### Task 2: Parse sample attributes → sample-id → tissue map
+### Task 2: Map Snaptron header → column index
 
 **Files:**
 - Create: `workflow/scripts/build_gtex_pan_tissue_ref.py`
@@ -149,6 +65,8 @@ git commit -m "docs(gtex): pin V10 junction GCT + sample-attributes format (issu
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 _SPEC = importlib.util.spec_from_file_location(
     "build_gtex_pan_tissue_ref",
     Path(__file__).parents[1] / "scripts" / "build_gtex_pan_tissue_ref.py",
@@ -156,47 +74,57 @@ _SPEC = importlib.util.spec_from_file_location(
 gtex = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(gtex)
 
+# A realistic Snaptron gtexv2 header (column order is NOT relied upon; lookup is by name).
+SNAPTRON_HEADER = (
+    "DataSource:Type\tsnaptron_id\tchromosome\tstart\tend\tlength\tstrand\t"
+    "annotated\tleft_motif\tright_motif\tleft_annotated\tright_annotated\t"
+    "samples\tsamples_count\tcoverage_sum\tcoverage_avg\tcoverage_median\tsource_dataset_id"
+)
 
-def test_parse_sample_attributes_maps_sampid_to_tissue(tmp_path):
-    p = tmp_path / "attrs.txt"
-    p.write_text(
-        "SAMPID\tSMTSD\tSMAFRZE\n"
-        "S-1\tWhole Blood\tRNASEQ\n"
-        "S-2\tLung\tRNASEQ\n"
-        "S-3\tLung\tEXCLUDE\n"          # non-RNASEQ freeze → dropped
-    )
-    mapping = gtex.parse_sample_attributes(str(p))
-    assert mapping == {"S-1": "Whole Blood", "S-2": "Lung"}
+
+def test_build_col_index_resolves_required_columns_by_name():
+    idx = gtex.build_col_index(SNAPTRON_HEADER)
+    assert idx["chromosome"] == 2
+    assert idx["start"] == 3
+    assert idx["end"] == 4
+    assert idx["strand"] == 6
+    assert idx["samples_count"] == 13
+
+
+def test_build_col_index_rejects_missing_columns():
+    with pytest.raises(ValueError, match="missing columns"):
+        gtex.build_col_index("snaptron_id\tchromosome\tstart\tend")  # no strand / samples_count
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py::test_parse_sample_attributes_maps_sampid_to_tissue -v`
-Expected: FAIL — `build_gtex_pan_tissue_ref.py` does not exist / `parse_sample_attributes` undefined.
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k build_col_index -v`
+Expected: FAIL — `build_gtex_pan_tissue_ref.py` does not exist / `build_col_index` undefined.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
 #!/usr/bin/env python3
-"""build_gtex_pan_tissue_ref.py — Build a pan-tissue splice-junction blacklist
-BED from the GTEx V10 junction read-counts GCT.
+"""build_gtex_pan_tissue_ref.py — Build a pan-tissue novel-junction blacklist BED
+from the Snaptron gtexv2 endpoint (recount3 / GTEx v8 / hg38 / 19,214 samples).
 
 One-shot reference builder (NOT part of the per-patient Snakemake DAG). See
-docs/gtex_pan_tissue_build.md for source URLs + the coordinate transform pinned
-against real V10 data (Issue #211).
+docs/gtex_pan_tissue_build.md for provenance + the coordinate transform, pinned
+against real data and validated 259/259 via Issue #225's helpers (Issue #211).
 
 Output BED is BED6 (chrom start end name score strand), drop-in with
-references/reference_junctions.bed. GTEx junctions carry no strand → strand
-column is '.', and the blacklist is positional (strand-agnostic) — the safer
-choice for a vaccine off-tumour-toxicity filter. See Issue #212 cross-note.
+references/reference_junctions.bed and filter_junctions.py's 4-tuple reference
+reader. Snaptron carries strand, so (chrom,start,end,strand) is used end-to-end.
 """
 
 import argparse
-import csv
-import gzip
 import logging
+import time
+import urllib.error
+import urllib.request
+from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterator, List, Set, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 logging.basicConfig(
     level=logging.INFO,
@@ -205,113 +133,57 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+SNAPTRON_GTEXV2_URL = "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
 
-def _open_maybe_gzip(path: str):
-    return gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)
+# Columns this build addresses by name (Snaptron gtexv2 TSV carries a header row).
+_REQUIRED_COLS = ("chromosome", "start", "end", "strand", "samples_count")
+
+# samples_count thresholds reported in the QC sensitivity sweep.
+QC_SWEEP_THRESHOLDS = (1, 2, 5, 10, 20)
+
+# hg38 (UCSC) primary chromosome sizes — the genome-wide region set (one query each).
+# chr22 = 50,818,468 matches Issue #225's SNAPTRON_CHR22_REGION exactly.
+HG38_CHROM_SIZES: Dict[str, int] = {
+    "chr1": 248956422, "chr2": 242193529, "chr3": 198295559, "chr4": 190214555,
+    "chr5": 181538259, "chr6": 170805979, "chr7": 159345973, "chr8": 145138636,
+    "chr9": 138394717, "chr10": 133797422, "chr11": 135086622, "chr12": 133275309,
+    "chr13": 114364328, "chr14": 107043718, "chr15": 101991189, "chr16": 90338345,
+    "chr17": 83257441, "chr18": 80373285, "chr19": 58617616, "chr20": 64444167,
+    "chr21": 46709983, "chr22": 50818468, "chrX": 156040895, "chrY": 57227415,
+}
 
 
-def parse_sample_attributes(path: str) -> Dict[str, str]:
-    """Map SAMPID -> SMTSD (detailed tissue) for RNA-seq freeze samples only.
+def build_col_index(header_line: str) -> Dict[str, int]:
+    """Map Snaptron column names -> positional indices.
 
-    Rows whose SMAFRZE column is not 'RNASEQ' are skipped.
+    Lookup is by name so a future Snaptron column reorder does not silently
+    shift the parse. Raises ValueError if any required column is absent.
     """
-    mapping: Dict[str, str] = {}
-    with _open_maybe_gzip(path) as fh:
-        reader = csv.DictReader(fh, delimiter="\t")
-        for row in reader:
-            if row.get("SMAFRZE") != "RNASEQ":
-                continue
-            sampid = row["SAMPID"]
-            mapping[sampid] = row["SMTSD"]
-    log.info("Parsed %d RNA-seq samples across %d tissues",
-             len(mapping), len(set(mapping.values())))
-    return mapping
+    cols = header_line.rstrip("\n").split("\t")
+    idx = {name: i for i, name in enumerate(cols)}
+    missing = [c for c in _REQUIRED_COLS if c not in idx]
+    if missing:
+        raise ValueError(
+            f"Snaptron header missing columns {missing}; got {cols}"
+        )
+    return idx
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py::test_parse_sample_attributes_maps_sampid_to_tissue -v`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): parse_sample_attributes (issue #211)"
-```
-
----
-
-### Task 3: Parse a GTEx junction ID → BED coords
-
-**Files:**
-- Modify: `workflow/scripts/build_gtex_pan_tissue_ref.py`
-- Test: `workflow/tests/test_build_gtex_pan_tissue_ref.py`
-
-> **NOTE:** the `start`/`end` arithmetic below assumes the most common GTEx convention (junction Name = `chrom_start_end`, 1-based intron start). **If Task 1 Step 3 pinned a different transform, edit the two arithmetic lines to match the recorded transform** — the test values must reflect the real convention so the keys land in the same 0-based-half-open space as reference_junctions.bed.
-
-- [ ] **Step 1: Write the failing test**
-
-```python
-def test_parse_junction_name_underscore_to_bed_coords():
-    # GTEx Name 'chr1_14830_14969' (1-based intron start) -> BED 0-based start
-    chrom, start, end = gtex.parse_junction_name("chr1_14830_14969")
-    assert chrom == "chr1"
-    assert start == 14829   # 1-based 14830 -> 0-based 14829
-    assert end == 14969
-
-
-def test_parse_junction_name_rejects_malformed():
-    assert gtex.parse_junction_name("not_a_junction") is None
-    assert gtex.parse_junction_name("chr1_abc_def") is None
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k parse_junction_name -v`
-Expected: FAIL — `parse_junction_name` undefined.
-
-- [ ] **Step 3: Write minimal implementation**
-
-```python
-def parse_junction_name(name: str) -> "Tuple[str, int, int] | None":
-    """Parse a GTEx junction ID into 0-based half-open BED coords.
-
-    GTEx V10 junction Name format: 'chrom_start_end' (1-based intron start).
-    Converted to BED 0-based half-open to match references/reference_junctions.bed.
-    Returns (chrom, start, end) or None on malformed input.
-
-    NOTE: GENCODE primary assembly uses UCSC 'chr' naming (CLAUDE.md). GTEx V10
-    also ships 'chr'-prefixed, so no chr/MT normalization is needed; if a future
-    release drops the prefix, normalize here.
-    """
-    parts = name.split("_")
-    if len(parts) != 3:
-        return None
-    chrom, raw_start, raw_end = parts
-    try:
-        start = int(raw_start) - 1   # 1-based -> 0-based half-open start
-        end = int(raw_end)
-    except ValueError:
-        return None
-    return chrom, start, end
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k parse_junction_name -v`
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k build_col_index -v`
 Expected: PASS (2 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): parse_junction_name -> BED coords (issue #211)"
+git commit -m "feat(gtex): Snaptron header->column-index map (issue #211)"
 ```
 
 ---
 
-### Task 4: Stream GCT rows (header sample list + per-junction counts)
+### Task 3: Parse a Snaptron row → BED coords (the pinned transform)
 
 **Files:**
 - Modify: `workflow/scripts/build_gtex_pan_tissue_ref.py`
@@ -320,78 +192,71 @@ git commit -m "feat(gtex): parse_junction_name -> BED coords (issue #211)"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-def _synthetic_gct() -> str:
-    # GCT: line1 version, line2 dims, line3 header, then data rows.
-    return (
-        "#1.2\n"
-        "2\t3\n"
-        "Name\tDescription\tS-1\tS-2\tS-3\n"
-        "chr1_101_200\tGENE_A\t0\t5\t0\n"
-        "chr1_301_400\tGENE_B\t0\t0\t0\n"
-    )
+def test_parse_snaptron_line_applies_start_minus_one_transform():
+    idx = gtex.build_col_index(SNAPTRON_HEADER)
+    # A row whose 1-based intron is 16,062,315..16,063,236 (+ strand), seen in 7 samples.
+    fields = (
+        "GTEX:I\t42\tchr22\t16062315\t16063236\t921\t+\t"
+        "1\tGT\tAG\t1\t1\t10,55,99\t7\t123\t17.6\t12\t0"
+    ).split("\t")
+    parsed = gtex.parse_snaptron_line(fields, idx)
+    assert parsed == ("chr22", 16062314, 16063236, "+", 7)  # start-1, end passthrough
 
 
-def test_iter_gct_rows_yields_samples_then_rows(tmp_path):
-    p = tmp_path / "j.gct"
-    p.write_text(_synthetic_gct())
-    samples, rows = gtex.iter_gct_rows(str(p))
-    rows = list(rows)
-    assert samples == ["S-1", "S-2", "S-3"]
-    assert rows[0] == ("chr1_101_200", [0, 5, 0])
-    assert rows[1] == ("chr1_301_400", [0, 0, 0])
+def test_parse_snaptron_line_rejects_malformed():
+    idx = gtex.build_col_index(SNAPTRON_HEADER)
+    assert gtex.parse_snaptron_line(["too", "few"], idx) is None
+    bad = (
+        "GTEX:I\t42\tchr22\tNOT_AN_INT\t16063236\t921\t+\t"
+        "1\tGT\tAG\t1\t1\t10\t7\t123\t17.6\t12\t0"
+    ).split("\t")
+    assert gtex.parse_snaptron_line(bad, idx) is None
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k iter_gct_rows -v`
-Expected: FAIL — `iter_gct_rows` undefined.
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k parse_snaptron_line -v`
+Expected: FAIL — `parse_snaptron_line` undefined.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
-def iter_gct_rows(path: str) -> "Tuple[List[str], Iterator[Tuple[str, List[int]]]]":
-    """Open a (optionally gzipped) GCT and return (sample_ids, row_iterator).
+def parse_snaptron_line(
+    fields: List[str], col_idx: Dict[str, int]
+) -> Optional[Tuple[str, int, int, str, int]]:
+    """Parse one Snaptron data row into (chrom, bed_start, bed_end, strand, samples_count).
 
-    GCT layout: line 1 '#1.2', line 2 '<nrows>\\t<ncols>', line 3 column header
-    'Name\\tDescription\\t<sample>...'. Data rows stream lazily so the full
-    junctions x ~20k-sample matrix is never held in memory.
+    Snaptron start/end are 1-based inclusive intron donor/acceptor; convert to
+    BED 0-based half-open via bed_start = start - 1, bed_end = end (the transform
+    pinned + validated 259/259 in Issue #225's snaptron_to_key_set). Returns None
+    on a short or non-integer row.
     """
-    fh = _open_maybe_gzip(path)
-    fh.readline()                      # '#1.2'
-    fh.readline()                      # dims
-    header = fh.readline().rstrip("\n").split("\t")
-    samples = header[2:]               # drop Name, Description
-
-    def _rows() -> Iterator[Tuple[str, List[int]]]:
-        try:
-            for line in fh:
-                fields = line.rstrip("\n").split("\t")
-                if len(fields) < 3:
-                    continue
-                name = fields[0]
-                counts = [int(float(x)) for x in fields[2:]]
-                yield name, counts
-        finally:
-            fh.close()
-
-    return samples, _rows()
+    try:
+        chrom = fields[col_idx["chromosome"]]
+        start = int(fields[col_idx["start"]])
+        end = int(fields[col_idx["end"]])
+        strand = fields[col_idx["strand"]]
+        samples_count = int(fields[col_idx["samples_count"]])
+    except (IndexError, ValueError):
+        return None
+    return chrom, start - 1, end, strand, samples_count
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k iter_gct_rows -v`
-Expected: PASS
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k parse_snaptron_line -v`
+Expected: PASS (2 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): stream GCT rows (issue #211)"
+git commit -m "feat(gtex): parse_snaptron_line with start-1 transform (issue #211)"
 ```
 
 ---
 
-### Task 5: Accumulate the pan-tissue union (junction → set of tissues)
+### Task 4: Accumulate the per-region union + QC sweep
 
 **Files:**
 - Modify: `workflow/scripts/build_gtex_pan_tissue_ref.py`
@@ -400,83 +265,206 @@ git commit -m "feat(gtex): stream GCT rows (issue #211)"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-def test_accumulate_pan_tissue_union(tmp_path):
-    p = tmp_path / "j.gct"
-    p.write_text(_synthetic_gct())     # S-2 has 5 reads on chr1_101_200
-    samples, rows = gtex.iter_gct_rows(str(p))
-    sample_tissue = {"S-1": "Blood", "S-2": "Lung", "S-3": "Lung"}
-    union = gtex.accumulate_pan_tissue_union(samples, rows, sample_tissue, min_read_count=1)
-    # chr1_101_200 present (>=1 read in Lung); chr1_301_400 all-zero -> absent.
-    assert ("chr1", 100, 200) in union          # 1-based 101 -> 0-based 100
-    assert union[("chr1", 100, 200)] == {"Lung"}
-    assert ("chr1", 300, 400) not in union
+def _synthetic_snaptron_tsv() -> list:
+    # header + 3 junctions: samples_count 7, 1, 0 (the 0 must be dropped at min_samples>=1).
+    return [
+        SNAPTRON_HEADER,
+        "GTEX:I\t1\tchr22\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1,2\t7\t9\t4.5\t4\t0",
+        "GTEX:I\t2\tchr22\t301\t400\t99\t-\t0\tCT\tAC\t0\t0\t3\t1\t2\t2.0\t2\t0",
+        "GTEX:I\t3\tchr22\t501\t600\t99\t+\t1\tGT\tAG\t1\t1\t\t0\t0\t0.0\t0\t0",
+    ]
 
 
-def test_accumulate_respects_min_read_count(tmp_path):
-    p = tmp_path / "j.gct"
-    p.write_text(_synthetic_gct())
-    samples, rows = gtex.iter_gct_rows(str(p))
-    sample_tissue = {"S-1": "Blood", "S-2": "Lung", "S-3": "Lung"}
-    union = gtex.accumulate_pan_tissue_union(samples, rows, sample_tissue, min_read_count=6)
-    assert union == {}                  # max count is 5 < 6
+def test_accumulate_union_keeps_min_samples_and_transforms():
+    keys, sweep = gtex.accumulate_union(_synthetic_snaptron_tsv(), min_samples=1)
+    assert keys == {("chr22", 100, 200, "+"), ("chr22", 300, 400, "-")}
+    assert sweep[1] == 2    # two junctions with samples_count >= 1
+    assert sweep[5] == 1    # only the samples_count=7 junction
+    assert sweep[10] == 0
+
+
+def test_accumulate_union_min_samples_gate():
+    keys, _ = gtex.accumulate_union(_synthetic_snaptron_tsv(), min_samples=5)
+    assert keys == {("chr22", 100, 200, "+")}  # only samples_count=7 survives
+
+
+def test_accumulate_union_restrict_chrom():
+    lines = _synthetic_snaptron_tsv() + [
+        "GTEX:I\t4\tchr1\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1\t9\t9\t9.0\t9\t0"
+    ]
+    keys, _ = gtex.accumulate_union(lines, min_samples=1, restrict_chrom="chr22")
+    assert all(k[0] == "chr22" for k in keys)
+
+
+def test_accumulate_union_empty_input():
+    assert gtex.accumulate_union([], min_samples=1) == (set(), Counter())
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k accumulate -v`
-Expected: FAIL — `accumulate_pan_tissue_union` undefined.
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k accumulate_union -v`
+Expected: FAIL — `accumulate_union` undefined.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
-def accumulate_pan_tissue_union(
-    samples: List[str],
-    rows: "Iterator[Tuple[str, List[int]]]",
-    sample_tissue: Dict[str, str],
-    min_read_count: int,
-) -> Dict[Tuple[str, int, int], Set[str]]:
-    """Build {(chrom, start, end): {tissues}} for every junction with
-    >= min_read_count reads in at least one sample of that tissue.
+def accumulate_union(
+    lines: Iterable[str],
+    min_samples: int,
+    restrict_chrom: Optional[str] = None,
+) -> Tuple[Set[Tuple[str, int, int, str]], Counter]:
+    """Consume Snaptron TSV lines (first line = header) into a junction-key set.
 
-    Samples absent from sample_tissue (non-RNASEQ freeze) are ignored. The
-    tissue set per junction drives the QC sidecar ('seen in N tissues').
+    Returns (keys, sweep):
+      - keys: {(chrom, bed_start, bed_end, strand)} for samples_count >= min_samples
+        (and chrom == restrict_chrom, if given).
+      - sweep: Counter mapping each QC_SWEEP_THRESHOLDS value t -> number of
+        (restrict-filtered) junctions with samples_count >= t. Drives the QC sidecar.
+
+    Each Snaptron junction is one row, so within a single region there is no
+    dedup; the set still guards against any Snaptron-side duplicate.
     """
-    # Precompute column index -> tissue (skip columns we don't track).
-    col_tissue: List["str | None"] = [sample_tissue.get(s) for s in samples]
+    it = iter(lines)
+    try:
+        header = next(it)
+    except StopIteration:
+        return set(), Counter()
+    col_idx = build_col_index(header)
 
-    union: Dict[Tuple[str, int, int], Set[str]] = {}
-    n_seen = 0
-    n_kept = 0
-    for name, counts in rows:
-        n_seen += 1
-        tissues: Set[str] = set()
-        for idx, c in enumerate(counts):
-            if c >= min_read_count:
-                t = col_tissue[idx]
-                if t is not None:
-                    tissues.add(t)
-        if not tissues:
+    keys: Set[Tuple[str, int, int, str]] = set()
+    sweep: Counter = Counter()
+    n_rows = 0
+    for line in it:
+        if not line:
             continue
-        parsed = parse_junction_name(name)
+        parsed = parse_snaptron_line(line.split("\t"), col_idx)
         if parsed is None:
             continue
-        union[parsed] = tissues
-        n_kept += 1
-    log.info("Pan-tissue union: %d/%d junctions kept (min_read_count=%d)",
-             n_kept, n_seen, min_read_count)
-    return union
+        chrom, bstart, bend, strand, sc = parsed
+        if restrict_chrom is not None and chrom != restrict_chrom:
+            continue
+        n_rows += 1
+        for t in QC_SWEEP_THRESHOLDS:
+            if sc >= t:
+                sweep[t] += 1
+        if sc >= min_samples:
+            keys.add((chrom, bstart, bend, strand))
+    log.info(
+        "Accumulated %d junctions (min_samples=%d) from %d parsed rows",
+        len(keys), min_samples, n_rows,
+    )
+    return keys, sweep
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k accumulate -v`
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k accumulate_union -v`
+Expected: PASS (4 tests)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
+git commit -m "feat(gtex): accumulate per-region union + QC sweep (issue #211)"
+```
+
+---
+
+### Task 5: Fetch a Snaptron region (network, with retry) — ported from #225
+
+**Files:**
+- Modify: `workflow/scripts/build_gtex_pan_tissue_ref.py`
+- Test: `workflow/tests/test_build_gtex_pan_tissue_ref.py`
+
+- [ ] **Step 1: Write the failing test (monkeypatch urlopen — no real network)**
+
+```python
+import io
+import urllib.error
+
+
+def test_fetch_snaptron_region_yields_decoded_lines(monkeypatch):
+    payload = (SNAPTRON_HEADER + "\n"
+               "GTEX:I\t1\tchr22\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1\t7\t9\t4.5\t4\t0\n")
+
+    class _FakeResp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): self.close()
+
+    def _fake_urlopen(url, timeout=None):
+        assert "regions=chr22:1-50818468" in url
+        return _FakeResp(payload.encode("utf-8"))
+
+    monkeypatch.setattr(gtex.urllib.request, "urlopen", _fake_urlopen)
+    lines = list(gtex.fetch_snaptron_region("chr22:1-50818468"))
+    assert lines[0] == SNAPTRON_HEADER
+    assert lines[1].startswith("GTEX:I\t1\tchr22")
+
+
+def test_fetch_snaptron_region_retries_then_raises(monkeypatch):
+    calls = {"n": 0}
+
+    def _always_fail(url, timeout=None):
+        calls["n"] += 1
+        raise urllib.error.URLError("boom")
+
+    monkeypatch.setattr(gtex.urllib.request, "urlopen", _always_fail)
+    monkeypatch.setattr(gtex.time, "sleep", lambda s: None)  # no real backoff wait
+    with pytest.raises(urllib.error.URLError):
+        list(gtex.fetch_snaptron_region("chr22:1-50818468", retries=3))
+    assert calls["n"] == 3
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k fetch_snaptron_region -v`
+Expected: FAIL — `fetch_snaptron_region` undefined.
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def fetch_snaptron_region(
+    region: str,
+    endpoint: str = SNAPTRON_GTEXV2_URL,
+    timeout_s: int = 180,
+    retries: int = 2,
+) -> Iterator[str]:
+    """Stream a Snaptron region query response as decoded, newline-stripped lines.
+
+    Ported from Issue #225's fetch_snaptron_chr22: connect with a bounded retry
+    (transient URLError -> 5s backoff), then yield lines lazily so a whole
+    chromosome's TSV is never fully held in memory. The connection is retried
+    only at open time; a mid-stream failure surfaces to the caller.
+    """
+    url = f"{endpoint}?regions={region}"
+    attempt = 0
+    resp = None
+    while True:
+        attempt += 1
+        try:
+            log.info("Snaptron query (attempt %d/%d): %s", attempt, retries, url)
+            resp = urllib.request.urlopen(url, timeout=timeout_s)
+            break
+        except urllib.error.URLError as e:
+            if attempt >= retries:
+                raise
+            log.warning("Snaptron query failed (%s); retrying in 5s", e)
+            time.sleep(5)
+    with resp:
+        for raw in resp:
+            yield raw.decode("utf-8").rstrip("\n")
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k fetch_snaptron_region -v`
 Expected: PASS (2 tests)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): accumulate pan-tissue union (issue #211)"
+git commit -m "feat(gtex): fetch_snaptron_region with retry (issue #211)"
 ```
 
 ---
@@ -490,32 +478,27 @@ git commit -m "feat(gtex): accumulate pan-tissue union (issue #211)"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-def test_write_bed6_sorted_strand_agnostic(tmp_path):
-    union = {
-        ("chr1", 300, 400): {"Lung"},
-        ("chr1", 100, 200): {"Lung", "Blood"},
+def test_write_bed6_sorted_with_strand(tmp_path):
+    keys = {
+        ("chr22", 300, 400, "-"),
+        ("chr22", 100, 200, "+"),
     }
     out = tmp_path / "panel.bed"
-    gtex.write_bed6(union, str(out))
+    gtex.write_bed6(keys, str(out))
     lines = out.read_text().splitlines()
-    # sorted by chrom,start,end; strand '.'; name chrom:start-end:.
-    assert lines[0] == "chr1\t100\t200\tchr1:100-200:.\t0\t."
-    assert lines[1] == "chr1\t300\t400\tchr1:300-400:.\t0\t."
+    assert lines[0] == "chr22\t100\t200\tchr22:100-200:+\t0\t+"
+    assert lines[1] == "chr22\t300\t400\tchr22:300-400:-\t0\t-"
 
 
-def test_write_qc_sidecar_counts(tmp_path):
-    union = {
-        ("chr1", 100, 200): {"Lung", "Blood"},
-        ("chr1", 300, 400): {"Lung"},
-    }
+def test_write_qc_sidecar_reports_sweep(tmp_path):
+    sweep = Counter({1: 880769, 2: 500000, 5: 120000, 10: 40000, 20: 9000})
     out = tmp_path / "panel.qc.tsv"
-    gtex.write_qc_sidecar(union, str(out))
+    gtex.write_qc_sidecar(sweep, n_junctions=880769, path=str(out))
     text = out.read_text()
-    assert "n_junctions\t2" in text
-    # distribution: 1 junction in 2 tissues, 1 junction in 1 tissue
-    assert "n_tissues\tn_junctions" in text
-    assert "1\t1" in text
-    assert "2\t1" in text
+    assert "n_junctions\t880769" in text
+    assert "min_samples_count\tn_junctions" in text
+    assert "1\t880769" in text
+    assert "20\t9000" in text
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -526,34 +509,32 @@ Expected: FAIL — writers undefined.
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
-def write_bed6(union: Dict[Tuple[str, int, int], Set[str]], path: str) -> None:
-    """Write the pan-tissue blacklist as sorted BED6 with strand '.'.
+def write_bed6(keys: Set[Tuple[str, int, int, str]], path: str) -> None:
+    """Write the pan-tissue blacklist as sorted BED6 (chrom,start,end,name,0,strand).
 
-    Strand is '.' because GTEx junction IDs carry no strand; the blacklist is
-    positional (strand-agnostic). See Issue #212 cross-note — downstream
-    intersection must key on (chrom,start,end), not the 4-tuple incl. strand.
+    name = 'chrom:start-end:strand' and score 0 — identical in shape to
+    build_reference_junctions.py, so filter_junctions.py's 4-tuple reference
+    reader consumes it unchanged.
     """
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    keys = sorted(union.keys(), key=lambda k: (k[0], k[1], k[2]))
+    ordered = sorted(keys, key=lambda k: (k[0], k[1], k[2], k[3]))
     with out.open("w") as fh:
-        for chrom, start, end in keys:
-            name = f"{chrom}:{start}-{end}:."
-            fh.write(f"{chrom}\t{start}\t{end}\t{name}\t0\t.\n")
-    log.info("Wrote %d junctions to %s", len(keys), out)
+        for chrom, start, end, strand in ordered:
+            name = f"{chrom}:{start}-{end}:{strand}"
+            fh.write(f"{chrom}\t{start}\t{end}\t{name}\t0\t{strand}\n")
+    log.info("Wrote %d junctions to %s", len(ordered), out)
 
 
-def write_qc_sidecar(union: Dict[Tuple[str, int, int], Set[str]], path: str) -> None:
-    """Write a QC TSV: total junction count + a 'seen in N tissues' histogram."""
-    from collections import Counter
-    hist = Counter(len(tissues) for tissues in union.values())
+def write_qc_sidecar(sweep: Counter, n_junctions: int, path: str) -> None:
+    """Write a QC TSV: total union size + the samples_count sensitivity sweep."""
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w") as fh:
-        fh.write(f"n_junctions\t{len(union)}\n")
-        fh.write("n_tissues\tn_junctions\n")
-        for n_tissues in sorted(hist):
-            fh.write(f"{n_tissues}\t{hist[n_tissues]}\n")
+        fh.write(f"n_junctions\t{n_junctions}\n")
+        fh.write("min_samples_count\tn_junctions\n")
+        for t in QC_SWEEP_THRESHOLDS:
+            fh.write(f"{t}\t{sweep.get(t, 0)}\n")
     log.info("Wrote QC sidecar to %s", out)
 ```
 
@@ -566,94 +547,124 @@ Expected: PASS (2 tests)
 
 ```bash
 git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): BED6 + QC sidecar writers (issue #211)"
+git commit -m "feat(gtex): BED6 + QC sweep writers (issue #211)"
 ```
 
 ---
 
-### Task 7: CLI entry point + `--restrict-chrom` (chr22 fixture support)
+### Task 7: `build()` orchestrator + CLI (`--region` / `--restrict-chrom`, genome-wide default)
 
 **Files:**
 - Modify: `workflow/scripts/build_gtex_pan_tissue_ref.py`
 - Test: `workflow/tests/test_build_gtex_pan_tissue_ref.py`
 
-- [ ] **Step 1: Write the failing test (end-to-end on synthetic files, incl. chrom restriction)**
+- [ ] **Step 1: Write the failing test (end-to-end, fetch injected — no network)**
 
 ```python
-def test_build_end_to_end_with_chrom_restriction(tmp_path):
-    gct = tmp_path / "j.gct"
-    gct.write_text(
-        "#1.2\n"
-        "2\t3\n"
-        "Name\tDescription\tS-1\tS-2\tS-3\n"
-        "chr22_101_200\tG_A\t0\t5\t0\n"
-        "chr1_101_200\tG_B\t9\t0\t0\n"     # different chrom -> excluded by restrict
-    )
-    attrs = tmp_path / "attrs.txt"
-    attrs.write_text(
-        "SAMPID\tSMTSD\tSMAFRZE\n"
-        "S-1\tBlood\tRNASEQ\n"
-        "S-2\tLung\tRNASEQ\n"
-        "S-3\tLung\tRNASEQ\n"
-    )
+def test_build_end_to_end_injected_fetch(tmp_path):
+    # Inject a fetcher so build() needs no network. Two regions, one row each.
+    region_lines = {
+        "chr22:1-50818468": _synthetic_snaptron_tsv(),
+        "chr21:1-46709983": [
+            SNAPTRON_HEADER,
+            "GTEX:I\t9\tchr21\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1\t12\t9\t4.5\t4\t0",
+        ],
+    }
     bed = tmp_path / "out.bed"
     qc = tmp_path / "out.qc.tsv"
-    gtex.build(
-        gct_path=str(gct), attributes_path=str(attrs),
-        bed_path=str(bed), qc_path=str(qc),
-        min_read_count=1, restrict_chrom="chr22",
+    n = gtex.build(
+        regions=["chr22:1-50818468", "chr21:1-46709983"],
+        bed_path=str(bed), qc_path=str(qc), min_samples=1,
+        line_source=lambda region: region_lines[region],
     )
     lines = bed.read_text().splitlines()
-    assert lines == ["chr22\t100\t200\tchr22:100-200:.\t0\t."]
+    # chr21 sorts before chr22; both kept junctions present; strand carried.
+    assert lines[0] == "chr21\t100\t200\tchr21:100-200:+\t0\t+"
+    assert "chr22\t100\t200\tchr22:100-200:+\t0\t+" in lines
+    assert n == 3  # 2 from chr22 (sc 7,1) + 1 from chr21
+
+
+def test_build_restrict_chrom_fixture(tmp_path):
+    region_lines = {"chr22:1-50818468": _synthetic_snaptron_tsv()}
+    bed = tmp_path / "out.chr22.bed"
+    qc = tmp_path / "out.chr22.qc.tsv"
+    gtex.build(
+        regions=["chr22:1-50818468"], bed_path=str(bed), qc_path=str(qc),
+        min_samples=1, restrict_chrom="chr22",
+        line_source=lambda region: region_lines[region],
+    )
+    assert all(line.startswith("chr22\t") for line in bed.read_text().splitlines())
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k end_to_end -v`
+Run: `workflow/tests/.venv/bin/python -m pytest workflow/tests/test_build_gtex_pan_tissue_ref.py -k build_ -v`
 Expected: FAIL — `build` undefined.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
 def build(
-    gct_path: str,
-    attributes_path: str,
+    regions: List[str],
     bed_path: str,
     qc_path: str,
-    min_read_count: int = 1,
-    restrict_chrom: "str | None" = None,
-) -> None:
-    """Full build: attributes -> GCT stream -> union -> BED6 + QC."""
-    sample_tissue = parse_sample_attributes(attributes_path)
-    samples, rows = iter_gct_rows(gct_path)
-    union = accumulate_pan_tissue_union(samples, rows, sample_tissue, min_read_count)
-    if restrict_chrom is not None:
-        union = {k: v for k, v in union.items() if k[0] == restrict_chrom}
-        log.info("Restricted to %s: %d junctions", restrict_chrom, len(union))
+    min_samples: int = 1,
+    restrict_chrom: Optional[str] = None,
+    endpoint: str = SNAPTRON_GTEXV2_URL,
+    line_source=None,
+) -> int:
+    """Query each region, union the kept junctions, write BED6 + QC. Returns union size.
+
+    line_source(region) -> iterable[str] is injectable for tests; default is the
+    live Snaptron fetch. Per-region QC sweeps are summed (regions are disjoint
+    per-chromosome queries, so no double counting).
+    """
+    if line_source is None:
+        line_source = lambda region: fetch_snaptron_region(region, endpoint=endpoint)
+
+    union: Set[Tuple[str, int, int, str]] = set()
+    sweep: Counter = Counter()
+    for region in regions:
+        keys, region_sweep = accumulate_union(
+            line_source(region), min_samples=min_samples, restrict_chrom=restrict_chrom
+        )
+        union |= keys
+        sweep += region_sweep
+        log.info("Region %s: +%d junctions (running total %d)", region, len(keys), len(union))
+
     write_bed6(union, bed_path)
-    write_qc_sidecar(union, qc_path)
+    write_qc_sidecar(sweep, n_junctions=len(union), path=qc_path)
+    return len(union)
 
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build GTEx V10 pan-tissue junction blacklist BED."
+        description="Build a Snaptron gtexv2 pan-tissue novel-junction blacklist BED."
     )
-    parser.add_argument("--junctions-gct", required=True, help="GTEx junctions .gct[.gz]")
-    parser.add_argument("--sample-attributes", required=True, help="SampleAttributesDS .txt")
     parser.add_argument("--output-bed", required=True)
     parser.add_argument("--output-qc", required=True)
-    parser.add_argument("--min-read-count", type=int, default=1)
+    parser.add_argument("--min-samples", type=int, default=1,
+                        help="Keep junctions seen in >= this many samples (default 1).")
+    parser.add_argument("--endpoint", default=SNAPTRON_GTEXV2_URL)
+    parser.add_argument(
+        "--region", action="append", default=None,
+        help="Snaptron region (e.g. chr22:1-50818468). Repeatable. "
+             "Default: all hg38 primary chromosomes (genome-wide).")
     parser.add_argument("--restrict-chrom", default=None,
-                        help="Emit only this chromosome (for the chr22 test fixture)")
+                        help="Emit only this chromosome (chr22 fixture build).")
     args = parser.parse_args()
-    build(
-        gct_path=args.junctions_gct,
-        attributes_path=args.sample_attributes,
-        bed_path=args.output_bed,
-        qc_path=args.output_qc,
-        min_read_count=args.min_read_count,
-        restrict_chrom=args.restrict_chrom,
+
+    if args.region:
+        regions = args.region
+    else:
+        regions = [f"{c}:1-{size}" for c, size in HG38_CHROM_SIZES.items()]
+
+    n = build(
+        regions=regions, bed_path=args.output_bed, qc_path=args.output_qc,
+        min_samples=args.min_samples, restrict_chrom=args.restrict_chrom,
+        endpoint=args.endpoint,
     )
+    log.info("Done: %d junctions in the pan-tissue union", n)
 
 
 if __name__ == "__main__":
@@ -669,7 +680,7 @@ Expected: PASS (all tests across Tasks 2–7)
 
 ```bash
 git add workflow/scripts/build_gtex_pan_tissue_ref.py workflow/tests/test_build_gtex_pan_tissue_ref.py
-git commit -m "feat(gtex): build() + CLI with --restrict-chrom (issue #211)"
+git commit -m "feat(gtex): build() orchestrator + genome-wide CLI (issue #211)"
 ```
 
 ---
@@ -682,14 +693,15 @@ git commit -m "feat(gtex): build() + CLI with --restrict-chrom (issue #211)"
 
 - [ ] **Step 1: Add the `gtex_filter` block to config**
 
-Add under the existing `reference:` neighbourhood in `config/config.yaml` (consumed by #212; the `reference_bed` path is the GCS staging target from Task 9):
+Add near the existing `reference:` neighbourhood in `config/config.yaml` (consumed by #212; `reference_bed` is the Task-9 GCS staging target):
 ```yaml
 gtex_filter:
-  enabled: false          # opt-in here in #211; #212 flips the default to true at integration
-  release: v10
-  min_read_count: 1       # most aggressive — precision over recall (vaccine safety, per #126)
-  reference_bed: "gs://splice-neoepitope-project/resources/gtex/v10/gtex_v10_pan_tissue_junctions.bed"
-  reference_bed_chr22: "resources/test/gtex_v10_pan_tissue_junctions.chr22.bed"
+  enabled: false                 # opt-in here in #211; #212 flips the default at integration
+  source: snaptron_gtexv2        # recount3 / GTEx v8 / hg38 / 19,214 samples
+  endpoint: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+  min_samples: 1                 # most aggressive — precision over recall (vaccine safety, #126)
+  reference_bed: "gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed"
+  reference_bed_chr22: "resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
 ```
 
 - [ ] **Step 2: Verify config still parses**
@@ -699,75 +711,87 @@ Expected: `config OK`
 
 - [ ] **Step 3: Write the build runbook**
 
-Append to `docs/gtex_pan_tissue_build.md` a `## Build command` section with the exact production invocation (using the URLs pinned in Task 1) and the GCS staging commands from Task 9. State explicitly that this is a manual one-shot — not in the per-patient DAG — and how to refresh on a new GTEx release.
+Append to `docs/gtex_pan_tissue_build.md` a `## Build command` section: the exact genome-wide invocation, the chr22-fixture invocation, the GCS staging + `data_manifest.yaml` commands (Task 9), and an explicit note that this is a manual one-shot (not in the per-patient DAG) + how to refresh on a new Snaptron/recount release.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add config/config.yaml docs/gtex_pan_tissue_build.md
-git commit -m "feat(gtex): config block + build runbook (issue #211)"
+git commit -m "feat(gtex): gtex_filter config block + build runbook (issue #211)"
 ```
 
 ---
 
-### Task 9: Production build + GCS staging + chr22 fixture
+### Task 9: Production genome-wide build + GCS staging + chr22 fixture (heavy; on a VM)
 
 **Files:**
-- Produce + stage artifacts (not committed if >100 MB; chr22 fixture committed)
+- Produce + stage artifacts (genome-wide BED staged to GCS, chr22 fixture committed, `data_manifest.yaml` committed)
 
-This task runs the real build against full V10 data. It is heavy (multi-GB stream) — run on a small VM or a machine with bandwidth, not necessarily the M1.
+This task runs the real genome-wide Snaptron build. It is heavy (24 chromosome queries, ~33M junctions, hundreds of MB) and memory-bounded by the union set — run on the highmem VM, not the M1. **Needs explicit go-ahead** (network + VM time).
 
-- [ ] **Step 1: Run the full pan-tissue build**
+- [ ] **Step 1: chr22 fixture FIRST — it gates correctness**
 
 ```bash
 conda activate snakemake
-# URLs from Task 1 findings doc:
-curl -s '<JUNCTIONS_GCT_URL>' -o /tmp/gtex_v10_junctions.gct.gz
-curl -s '<SAMPLE_ATTRIBUTES_URL>' -o /tmp/gtex_v10_sample_attrs.txt
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
-  --junctions-gct /tmp/gtex_v10_junctions.gct.gz \
-  --sample-attributes /tmp/gtex_v10_sample_attrs.txt \
-  --output-bed /tmp/gtex_v10_pan_tissue_junctions.bed \
-  --output-qc /tmp/gtex_v10_pan_tissue_junctions.qc.tsv \
-  --min-read-count 1
+  --region chr22:1-50818468 --restrict-chrom chr22 \
+  --output-bed resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
+  --output-qc /tmp/gtex_gtexv2_pan_tissue_junctions.chr22.qc.tsv \
+  --min-samples 1
+wc -l resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect ~880,769
 ```
-Expected: logs reporting samples/tissues parsed and `N/M junctions kept`. Sanity-check `head /tmp/gtex_v10_pan_tissue_junctions.bed` shows `chr*` BED6 rows; `cat /tmp/...qc.tsv` shows a plausible total + N-tissues histogram.
 
-- [ ] **Step 2: Build the chr22 fixture**
+- [ ] **Step 2: Reproduce #225's cached panel (consistency check)**
+
+The chr22 BED must contain the same junction keys as #225's `chr22_gtex_panel.parquet` (~880,769 @ `samples_count >= 1`). Compare key sets:
+```bash
+research/.venv/bin/python - <<'PY'
+import pandas as pd
+panel = pd.read_parquet("research/experiments/issue_225_normal_junction_filter_strength/outputs/chr22_gtex_panel.parquet")
+panel = panel[(panel.samples_count >= 1) & (panel.chromosome == "chr22")]
+ref = {(c, s-1, e, st) for c, s, e, st in zip(panel.chromosome, panel.start, panel.end, panel.strand)}
+bed = set()
+for line in open("resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed"):
+    c, s, e, _n, _sc, st = line.rstrip("\n").split("\t")
+    bed.add((c, int(s), int(e), st))
+print(f"parquet keys: {len(ref):,}  bed keys: {len(bed):,}  identical: {ref == bed}")
+print(f"only-in-parquet: {len(ref - bed):,}  only-in-bed: {len(bed - ref):,}")
+PY
+```
+Expected: `identical: True` (or a near-zero symmetric diff explained by a Snaptron refresh). **A large diff means the transform/parse regressed — STOP and diff a few keys.**
+
+- [ ] **Step 3: Genome-wide build**
 
 ```bash
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
-  --junctions-gct /tmp/gtex_v10_junctions.gct.gz \
-  --sample-attributes /tmp/gtex_v10_sample_attrs.txt \
-  --output-bed resources/test/gtex_v10_pan_tissue_junctions.chr22.bed \
-  --output-qc /tmp/gtex_v10_pan_tissue_junctions.chr22.qc.tsv \
-  --min-read-count 1 --restrict-chrom chr22
+  --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
+  --output-qc /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
+  --min-samples 1
+head /tmp/gtex_gtexv2_pan_tissue_junctions.bed
+cat  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv   # sanity-check the sweep monotonically decreases
 ```
-Expected: a small BED restricted to chr22. Confirm size is commit-friendly (`wc -l` + `du -h`).
 
-- [ ] **Step 3: Coordinate-space cross-check (the #148/#370 silent-empty guard)**
+- [ ] **Step 4: Coordinate cross-check against the GENCODE reference (the #148/#370 silent-empty guard)**
 
-Confirm GTEx coords land in the same space as `reference_junctions.bed` by checking overlap is non-trivial on chr22:
 ```bash
 conda activate snakemake
 python workflow/scripts/build_reference_junctions.py \
-  --gtf <(zcat references/gencode.v47.annotation.gtf.gz | awk '$1=="chr22"') \
-  --output /tmp/ref_chr22.bed 2>/dev/null || \
-  python workflow/scripts/build_reference_junctions.py --gtf references/gencode.v47.annotation.gtf.gz --output /tmp/ref_full.bed
-# Expect a substantial intersection on (chrom,start,end) — NOT zero:
-cut -f1-3 resources/test/gtex_v10_pan_tissue_junctions.chr22.bed | sort -u > /tmp/gtex_keys.txt
-grep -P '^chr22\t' /tmp/ref_*.bed | cut -f1-3 | sort -u > /tmp/ref_keys.txt
-echo "shared chr22 junctions: $(comm -12 /tmp/gtex_keys.txt /tmp/ref_keys.txt | wc -l)"
+  --gtf references/gencode.v47.annotation.gtf.gz --output /tmp/ref_full.bed
+comm -12 \
+  <(grep -P '^chr22\t' /tmp/gtex_gtexv2_pan_tissue_junctions.bed | cut -f1-3 | sort -u) \
+  <(grep -P '^chr22\t' /tmp/ref_full.bed | cut -f1-3 | sort -u) | wc -l
 ```
-Expected: a **non-zero, substantial** shared count (most annotated chr22 junctions are expressed somewhere in GTEx). **Zero means the coordinate transform in `parse_junction_name` is wrong — STOP and re-pin Task 1 Step 3.**
+Expected: a **substantial non-zero** chr22 overlap (most annotated junctions are expressed somewhere in GTEx). **Zero ⇒ coordinate transform wrong — STOP.**
 
-- [ ] **Step 4: Stage to GCS + commit the chr22 fixture**
+- [ ] **Step 5: Stage to GCS + commit the chr22 fixture + `data_manifest.yaml`**
 
 ```bash
-gsutil cp /tmp/gtex_v10_pan_tissue_junctions.bed     gs://splice-neoepitope-project/resources/gtex/v10/
-gsutil cp /tmp/gtex_v10_pan_tissue_junctions.qc.tsv  gs://splice-neoepitope-project/resources/gtex/v10/
-git add resources/test/gtex_v10_pan_tissue_junctions.chr22.bed
-git commit -m "feat(gtex): stage V10 pan-tissue BED to GCS + commit chr22 fixture (issue #211)"
+gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.bed    gs://splice-neoepitope-project/resources/gtex/gtexv2/
+gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv gs://splice-neoepitope-project/resources/gtex/gtexv2/
+# data_manifest.yaml: artifact GCS paths + sha256 + the exact build command (CLAUDE.md >100 MB rule)
+git add resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
+        research/experiments/issue_211_gtex_pan_tissue_ref/data_manifest.yaml
+git commit -m "feat(gtex): stage gtexv2 pan-tissue BED to GCS + chr22 fixture + manifest (issue #211)"
 ```
 
 ---
@@ -775,38 +799,41 @@ git commit -m "feat(gtex): stage V10 pan-tissue BED to GCS + commit chr22 fixtur
 ### Task 10: Re-run Issue #225 notebook §2(c) — NO-GO verdict guard (AC)
 
 **Files:**
-- Run (no code change expected): `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb` §2(c)
+- Run: `research/experiments/issue_225_normal_junction_filter_strength/notebook.ipynb` §2(c)
 
-- [ ] **Step 1: Re-run §2(c) against the production V10 panel from Task 9**
+- [ ] **Step 1: Re-run §2(c) against the production panel from Task 9**
 
-Open the notebook in the research venv (`research/.venv`), point the GTEx-panel construction cell at the staged `gtex_v10_pan_tissue_junctions.bed` (or its chr22 fixture for a fast check), and re-run §2(c).
+Open the notebook in `research/.venv`; point the GTEx-panel cell at the staged production BED (or the chr22 fixture for a fast check) and re-run §2(c). Because the production panel is the genome-wide extension of #225's exact chr22 source, this is now a **clean consistency check**, not a new experiment.
 
 - [ ] **Step 2: Confirm the verdict holds**
 
-Expected: the AlphaGenome-as-3rd-filter **NO-GO** verdict still holds (the production panel is at least as inclusive as the Snaptron chr22 proxy at F1-max τ). Record the before/after numbers.
+Expected: the AlphaGenome-as-3rd-filter **NO-GO** verdict still holds (the production panel is at least as inclusive as the chr22 proxy at F1-max τ). Record before/after numbers.
 
-- [ ] **Step 3: Document in lab notebook + commit (post-review, per lab-notebook timing rule)**
+- [ ] **Step 3: Lab notebook + commit (post-review, per the lab-notebook timing rule)**
 
-Capture the §2(c) re-run conclusion in `research/lab_notebook/developer.md` AFTER review feedback is incorporated (lab-notebook-entry-after-review rule), before merge.
+Capture the §2(c) re-run conclusion in `research/lab_notebook/developer.md` AFTER review feedback is incorporated, before merge.
 
 ---
 
 ## Acceptance-criteria coverage (self-review against Issue #211)
 
-- [x] GTEx V10 release version pinned in config → Task 8 (`gtex_filter.release: v10`)
-- [x] All tissues' junction read-counts ingested reproducibly, clean exit on missing/changed file → Tasks 4+7 (single GCT stream; CLI errors on missing path) + Task 1 (pinned URLs in runbook)
-- [x] Pan-tissue union with `min_read_count=1` default → Task 5 + Task 7 CLI default
-- [x] BED uses GRCh38 `chr*` naming consistent with pipeline → Task 3 (`parse_junction_name` note) + Task 9 Step 3 cross-check
-- [x] BED + QC TSV staged to GCS at documented path → Task 9 Step 4
-- [x] chr22 test fixture produced → Task 7 (`--restrict-chrom`) + Task 9 Step 2
-- [x] Pytest covers parse + union construction on synthetic input → Tasks 2–7 tests
-- [x] Re-run #225 notebook §2(c), confirm NO-GO holds → Task 10
+- [x] Snaptron `gtexv2` provenance pinned in config (recount3 / v8 / hg38 / 19,214 samples + citations) → Task 8 + doc
+- [x] Genome-wide region-query union, clean exit + retry on endpoint error → Tasks 5+7 (per-chromosome `--region` default; `fetch_snaptron_region` retry)
+- [x] `min_samples` exposed as config param, default 1 → Task 7 CLI + Task 8 config
+- [x] BED6, sorted/dedup'd, UCSC `chr*`, strand-carrying, transform `start-1,end` → Tasks 3+6
+- [x] QC sidecar reports the `samples_count` sweep (≥ {1,2,5,10,20}); count-only → Tasks 4+6
+- [x] BED + QC staged to GCS; `data_manifest.yaml` committed → Task 9 Step 5
+- [x] chr22 fixture produced AND reproduces #225's `chr22_gtex_panel.parquet` (~880,769) → Task 9 Steps 1–2
+- [x] Pytest covers Snaptron parse + union construction on synthetic input → Tasks 2–7 tests
+- [x] METHODS caveat (recount3/STAR vs HISAT2/STAR → conservative under-filtering) → doc (already in `gtex_pan_tissue_build.md`)
+- [x] Re-run #225 §2(c) against production panel; NO-GO holds → Task 10
 
 ## Cross-issue note for [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) (integration)
 
-The GTEx blacklist BED uses strand `.` (positional/strand-agnostic). When #212 wires it into `filter_junctions.py`, it MUST intersect tumour junctions on `(chrom, start, end)` only — do NOT reuse `_load_reference_junctions`'s `(chrom,start,end,strand)` 4-tuple key for the GTEx source (a `+`/`-` tumour junction would never match a `.` blacklist row). Add a strand-agnostic loader/intersection path for `gtex_pantissue_shared`. Tag filtered junctions `origin = gtex_pantissue_shared`.
+**Updated for Snaptron (strand IS carried — supersedes the GCT plan's strand-agnostic note).** The blacklist BED carries real strand, so #212 can intersect tumour junctions on the full 4-tuple `(chrom, start, end, strand)` — i.e. **reuse `filter_junctions.py`'s existing `_load_reference_junctions` reader verbatim**; no strand-agnostic special-case is needed. Tag filtered junctions `origin = gtex_pantissue_shared`. (The one remaining caveat: recount3/STAR vs our HISAT2/STAR may disagree by ±1 bp on a minority of junctions → conservative under-filtering, documented as a METHODS caveat — not a coordinate bug.) The **immune-privileged-tissue / cancer-testis-antigen exemption** (whether to keep testis-only junctions) is a #212 design decision — captured on [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212#issuecomment-4587476577); it needs per-tissue provenance, which is exactly why #211 ships count-only.
 
 ## Out of scope (this plan)
 - `filter_junctions.py` integration / stacking with matched-normal → #212
 - patient_002 / patient_001 validation runs → #212
+- Immune-privileged-tissue (CTA) exemption → #212
 - AlphaGenome predicted-normal axis → #203
