@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-05-31
+
+### 11:30 UTC — Editor: PM (MM caretaker)
+
+#### Board left-side governance — migrate to late-commitment Kanban, Phase 1 ([Issue #587](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/587) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); personas [PR #13](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/13))
+
+**Trigger.** User observed the board has conventions AND mechanisms for the right side (`In progress → Ready for review → In review → Done`) but nothing governing the left side (`No Status`, `Backlog`, `Ready`), and asked for best-practice / industry standards. A deep-research pass + a commitment-ritual design workflow converged on the upstream-Kanban **"commitment point"** model.
+
+**Reframe (the non-obvious bit).** The *current* rules were already a coherent textbook config — **early-commitment Kanban**: the milestone (= commitment) is assigned at triage, so `Ready` has no distinct job → stays empty → the **JIT-Ready anti-pattern** the user was feeling. So the real gap was *mechanism + naming*, not convention. I first mis-recommended a framing that contradicted the shipped rules; the user's "how do we get from a triaged Issue to a milestone?" question exposed it, and reading the actual memory files before redesigning corrected the course.
+
+**Decision (user).** Migrate to **late-commitment Kanban**, keeping a current practice only where it beats the standard. The commitment point moves from intake-triage to the `Backlog → Ready` boundary: Backlog = triaged *uncommitted options* (no milestone/Target); Ready = *committed* pull queue (iteration milestone via the capacity tree → Target inheritance + recheck; Definition of Ready). This gives `Ready` a real job and kills JIT-Ready structurally. Right side unchanged.
+
+**What landed (Phase 1 — personas [PR #13](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/13), squash `a472b86`).** 5 memory files rewritten: `pm/feedback_milestones.md` (new "Late-commitment board flow" section + two committed-at-creation exceptions — production-run + paired-S7 stub → `Ready`+`blocked:`), `shared/feedback_board_hygiene.md` (§1 → commitment act + **Definition of Ready**; JIT-Ready reframed structurally impossible), `pm/feedback_ask_for_help.md` (capacity trigger retimed to commitment), `pm/MEMORY.md` + `shared/feedback_github_workflow.md` (role-label bullet drops `milestone` from the at-triage field set). Designed + adversarially verified via a multi-agent workflow (blast-radius → draft → 4-lens review).
+
+**Key verification — zero automation changes.** The existing `recheck_dispatch.py` `PATTERN_MOVE` hook already fires Target-sync on the first `gh issue edit --milestone`, i.e. exactly the new commitment boundary; every milestone-touching script degrades gracefully on un-milestoned Backlog items. The migration is pure-convention.
+
+**Caretaker provenance (MM caretaker).** The personas edits (incl. two `shared/` files) were a PM-as-caretaker change per `shared/feedback_personas_governance.md` (MM not yet onboarded); committed + pushed on the user's explicit push-gate OK, via a dedicated branch + PR so the `shared/` changes got the second-set-of-eyes review the policy wants. Bot review raised one actionable finding — a `pm/MEMORY.md` index link to the untracked tracking scratchpad — fixed in `bba88e2` by repointing the entry to the durable GitHub tracker (epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580)) rather than committing a living scratchpad into shared memory.
+
+**Structure.** Reshaped into an epic mirroring [Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527): parent [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580) with leaf subs — Phase 1 [Issue #587](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/587) (this), Phases 2a–2d [Issue #581](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581)–[Issue #584](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584) (sub-issue inheritance design, morning-routine split + replenishment-nudge tooling, residual retimes, CLAUDE.md board section). The 2a–2d subs are filed **Backlog / no milestone** — dogfooding the new model as uncommitted options. Caught my own mis-citation here: [Issue #567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) was a *sub* of epic #527, so parent-epic was the precedent all along — user prompted the correction.
+
+**Closure.** This entry is #587's final AC box; the PR from this `gh issue develop` branch closes #587. Epic #580 stays open tracking 2a–2d (cleanest next leaf: #584, the CLAUDE.md board-governance section).
+
 ## 2026-05-30
 
 ### 15:20 UTC — Editor: PM
