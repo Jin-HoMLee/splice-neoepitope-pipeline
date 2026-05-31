@@ -1,5 +1,6 @@
 """Unit tests for scripts/pm/recheck_milestone.py."""
 
+import subprocess
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -11,6 +12,9 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent / "scripts" / "pm"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import recheck_milestone as rm
+
+import _live_gh
+from _live_gh import REQUIRES_LIVE_GH, _gh_has_project_read_scope
 
 
 # --- Property-based live-smoke helpers (Issue #506) -------------------------
@@ -249,8 +253,20 @@ class TestComputeLayeredDueDate:
         assert "standalone S7" in note
 
 
+@pytest.mark.live
+@REQUIRES_LIVE_GH
 class TestLiveIntegrationSmoke:
-    """Live API smoke test. Skipped by default; opt-in via ``pytest -m live``.
+    """Live integration smoke test (Issue #506; skip contract fixed in #577).
+
+    Runs whenever ``gh`` can read Projects v2 — which is the case inside
+    ``ci-tools-pytest`` (the ``GH_PROJECT_TOKEN`` secret) and any local env with
+    a ``read:project``-scoped login — so it executes on every CI sweep rather
+    than being deselected. The ``@pytest.mark.live`` marker is informational:
+    nothing filters it out (no ``-m "not live"`` in ``pytest.ini``). When the
+    scope is unavailable — a fork PR without the secret, or an unscoped local
+    env — the ``@REQUIRES_LIVE_GH`` guard SKIPS it gracefully instead of erroring
+    on the first ``gh`` call (``open_milestone_numbers()`` runs ``rm.gh(...,
+    check=True)``, which would otherwise raise).
 
     Property-based (Issue #506). Asserts the recheck integration produces a
     well-formed recommendation for *every* open milestone, instead of pinning a
@@ -268,7 +284,6 @@ class TestLiveIntegrationSmoke:
     the real board and emits a parseable report for whatever state it finds.
     """
 
-    @pytest.mark.live
     def test_recheck_emits_well_formed_report_for_every_open_milestone(self):
         import subprocess
 
@@ -357,3 +372,54 @@ class TestRecheckOutputProperty:
         # Even with a plausible-looking report, an exit code outside {0, 2}
         # signals the script did not complete its contract (e.g. SIGKILL=137).
         assert not is_well_formed_recheck(137, self.NO_CHANGE_STDOUT)
+
+
+class TestProjectScopeProbe:
+    """Unit coverage for the shared live-gh skip guard (Issue #577).
+
+    ``_gh_has_project_read_scope`` must return True only when ``gh`` exists and
+    the Projects-v2 probe query succeeds (exit 0), and otherwise return False
+    (→ ``pytest.skip``) WITHOUT raising — that is the contract that keeps
+    ``TestLiveIntegrationSmoke`` skipping cleanly on a fork PR / unscoped local
+    env instead of erroring on the first ``gh`` call. These mock ``gh`` so they
+    run in every ``ci-tools-pytest`` sweep regardless of the local token.
+    """
+
+    @staticmethod
+    def _fake_run(returncode):
+        def _run(*args, **kwargs):
+            return subprocess.CompletedProcess(args, returncode, b"", b"")
+        return _run
+
+    def test_true_when_probe_succeeds(self, monkeypatch):
+        monkeypatch.setattr(_live_gh.shutil, "which", lambda _: "/usr/bin/gh")
+        monkeypatch.setattr(_live_gh.subprocess, "run", self._fake_run(0))
+        assert _gh_has_project_read_scope() is True
+
+    def test_false_when_probe_fails(self, monkeypatch):
+        # gh present but the GraphQL query is rejected (e.g. missing read:project)
+        monkeypatch.setattr(_live_gh.shutil, "which", lambda _: "/usr/bin/gh")
+        monkeypatch.setattr(_live_gh.subprocess, "run", self._fake_run(1))
+        assert _gh_has_project_read_scope() is False
+
+    def test_false_when_gh_not_on_path(self, monkeypatch):
+        monkeypatch.setattr(_live_gh.shutil, "which", lambda _: None)
+        assert _gh_has_project_read_scope() is False
+
+    def test_false_when_gh_missing_midcall(self, monkeypatch):
+        monkeypatch.setattr(_live_gh.shutil, "which", lambda _: "/usr/bin/gh")
+
+        def _raise(*args, **kwargs):
+            raise FileNotFoundError("gh not found")
+
+        monkeypatch.setattr(_live_gh.subprocess, "run", _raise)
+        assert _gh_has_project_read_scope() is False
+
+    def test_false_on_timeout(self, monkeypatch):
+        monkeypatch.setattr(_live_gh.shutil, "which", lambda _: "/usr/bin/gh")
+
+        def _raise(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd="gh", timeout=10)
+
+        monkeypatch.setattr(_live_gh.subprocess, "run", _raise)
+        assert _gh_has_project_read_scope() is False
