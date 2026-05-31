@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 23:32 UTC — Editor: Scientist
+
+#### [Issue #597](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/597) document the `research/decisions/` slide-deck tier in CLAUDE.md — ✅ **KEEP**. [PR #606](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/606) closes [Issue #597](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/597).
+
+**What.** Closed the doc gap deferred from a code-review finding on [PR #596](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/596): the new `research/decisions/issue_NNN_<short>/` deck tier shipped (pilot [Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) deck) without a written convention. Added a `## Slide decks for research-decision Issues` section to [CLAUDE.md](CLAUDE.md), slotted after the eval-decks section so the three tier sections read experiment → eval → research-decision, plus the reciprocal index entry in [research/slides/README.md](research/slides/README.md).
+
+**Keep-vs-fold.** The issue framed this as a real decision (document *or* fold into eval/experiment). Landed **KEEP**: a decision deck is *tool-agnostic and question-centric* (compares options → picks one), unlike the eval primer's tool-centric "what is this tool" arc; and it has **no notebook and no `outputs/`** — its evidence is a fact-checked literature sweep, not pipeline-regenerated figures — so the experiment tier's co-location rationale (notebook + outputs migrate as a unit) literally does not apply. The dir is already committed to main, and each deck purpose already owns a documented section by precedent. Section is honest about the **n=1 pilot** caveat (revisit folding if no second decision deck materializes).
+
+**Method + the catch.** Built via a 3-phase Workflow (parallel readers of the two existing CLAUDE.md tiers / PR #596 / the pilot deck → synthesize draft → adversarial critique). The critique agent verified most facts against disk but **miscounted the pilot at 11 slides (title + 10 content)**; an independent `grep "^## "` showed **10 (title + 9 content; 9 `##` headings + YAML title)**, so I kept the format header at the eval tier's `~8-10 / 7-9 content` rather than the widened bounds the critique proposed. Lesson: even an adversarial-verify pass can fumble a load-bearing count — re-derive numbers from source before they land in a convention doc.
+
+**Review.** Bot review, 3 findings. (1) **Valid** — the README "When to make a deck" intro still said "one deck per *experiment* Issue" and predated *both* the eval and decisions tiers; rewrote it as three tiers. (3) **Valid** — "does not extend `_template.qmd`" wrongly implied eval/experiment decks formally *extend* the template; none do (copy-and-edit per README L141), so reworded to drop the false contrast. (2) **Declined** — "Established 2026-06-01" is correct in the working timezone (CEST, local merge day); the runner saw 05-31 only because CI fires in UTC (23:15). Posted the reasoned decline on the PR.
+
+---
+
 ### 22:42 UTC — Editor: Scientist
 
 #### [Issue #603](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/603) DISCUSSION — land the AF3 TCRdock-successor park verdict (#316 / #432 follow-up). [PR #604](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/604) closes [Issue #603](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/603).
