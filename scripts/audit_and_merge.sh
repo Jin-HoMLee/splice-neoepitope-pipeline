@@ -7,8 +7,10 @@
 #   3. Any linked Issue is missing a `**Priority rationale:**` line, OR
 #   4. The would-be squash body (PR title + body + commit messages) contains a
 #      closing keyword (`close|fix|resolve` + `#N`) targeting an Issue OUTSIDE
-#      closingIssuesReferences — a silent unintended auto-close on merge.
-# After those pass, a bot-review-offer gate (5) ensures a `@-claude review` was
+#      closingIssuesReferences — a silent unintended auto-close on merge, OR
+#   5. A role-tagged linked Issue lacks a `## <merge-date>` lab-notebook entry in
+#      research/lab_notebook/<role>.md referencing the PR/Issue (Issue #409).
+# After those pass, a bot-review-offer gate (6) ensures a `@-claude review` was
 # offered on the PR before merging (interactive prompt, or block + --skip-review-offer
 # carve-out when non-interactive).
 #
@@ -21,7 +23,9 @@
 # Priority-rationale gate (3) added via Issue #481 after live drift in the
 # Issue #264 closure flow. Stray-closing-keyword gate (4) added via Issue #559
 # after PR #543 auto-closed epic Issue #538 via a commit-body keyword that the
-# closingIssuesReferences API does not surface. Bot-review-offer gate (5) added
+# closingIssuesReferences API does not surface. Lab-notebook gate (5) added via
+# Issue #409 to move the post-hoc closure-audit notebook check to merge time
+# (prevention over post-merge cleanup comment). Bot-review-offer gate (6) added
 # via Issue #443 after PR #441 + PR #442 merged without the review offer.
 #
 # Usage:
@@ -139,6 +143,26 @@ elif ! STRAY_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/stray_closers
     FAILED=1
 elif [[ -n "$STRAY_OUT" ]]; then
     printf '%s\n' "$STRAY_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
+fi
+
+# Gate 5: lab-notebook entry for role-tagged linked Issues (Issue #409). Moves
+# the post-hoc closure-audit notebook check (tools/ci/closure_audit.py, run by
+# the closure-audit workflow AFTER merge) to merge time, so a role-tagged PR
+# cannot merge without its `## <today>` lab-notebook entry — prevention, not a
+# post-merge cleanup comment. Single-sourced via tools/ci/lab_notebook_gate.py
+# (a thin wrapper around closure_audit.audit_pr_pre_merge). The wrapper exits 1
+# on a real gap, 0 when clear/exempt/skip-marked, and fails OPEN (exit 0 +
+# warning) on a gh error — so a hiccup never blocks a legitimate merge. The entry
+# is read from the working tree, so run this from the PR branch where the entry
+# was written. Routine-ship bypass: `<!-- skip-lab-notebook: routine -->` in the
+# PR body (same marker the post-hoc bot honors).
+if [[ -z "$PYTHON" ]]; then
+    echo "⚠ lab-notebook check skipped (no python on PATH)." >&2
+elif ! NB_OUT=$("$PYTHON" "$SCRIPT_DIR/../tools/ci/lab_notebook_gate.py" "$PR" 2>&1); then
+    printf '%s\n' "$NB_OUT" >&2
+    FAILED=1
+elif [[ -n "$NB_OUT" ]]; then
+    printf '%s\n' "$NB_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
 fi
 
 [[ "$FAILED" -eq 1 ]] && exit 1
