@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 14:18 UTC — Editor: PM (MM caretaker)
+
+#### Board left-side governance Phase 2a — sub-issue milestone inheritance under late commitment ([Issue #581](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); personas [PR #14](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/14))
+
+**Context.** Phase 1 retimed the milestone to a commitment-time field but left the parent/sub-issue **inheritance** rules still asserting milestone-at-triage — a deferred design call ([Issue #581](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581) Q1: when a parent commits, do its open sub-issues auto-commit, or commit individually?).
+
+**Decision (user) — Option A, individual commitment.** Each sub-issue takes its iteration milestone at its **own** `Backlog → Ready` commitment, gated by blockers (earlier siblings closed) + capacity. The parent's milestone is a **roadmap anchor**, not an inheritance source; a sub-issue in a later milestone than its parent is **normal**, not drift. Priority/role/stage still inherit at triage. The non-obvious bit: this isn't a project-specific call — it's the **industry standard** (Scrum/Kanban/SAFe/Jira all separate the epic roadmap-anchor from per-story iteration commitment), which the user explicitly asked me to ground the recommendation in before deciding. The board already behaved this way (epic #580 in `pm-i6`, subs un-milestoned) — Phase 2a makes the rules match reality.
+
+**What landed (personas [PR #14](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/14), squash `a1870a3`).** 4 files: `shared/feedback_parent_sub_issues.md` (§Inheritance rewritten as a two-moment split — categorization @triage, milestone @commitment), `shared/feedback_sub_issue_creation.md` (`--milestone` made conditional → subs enter Backlog uncommitted; Step-5 "verify inheritance" → triage-fields-only), `shared/MEMORY.md` (L63 one-liner). **+1 beyond the AC:** a repo-wide `inherit.*milestone` sweep caught `pm/feedback_milestones.md:149` still asserting "sub-issues of committed parents inherit the milestone" (a Phase-1 interim placeholder) — folded the contradiction fix in rather than ship a self-inconsistent memory set.
+
+**Review.** Bot approved. 2 readability notes applied (tightened the §Inheritance lede + the create-block comment, `275726d`); 2 declined with rationale (L149 length = precision > scannability in a triggers list; an HTML marker on an append-only standup archive cuts against append-only).
+
+**Dogfooding.** Ran #581 itself through the new model: assigned `pm-i6` at its own `Backlog → Ready` boundary (Target 2026-07-02 — set manually, the recheck hook didn't populate it), Status mirrored to Ready-for-review. Cleanest possible application of the rule I'd just written.
+
+**Caretaker provenance (MM caretaker).** Personas edits (3 `shared/` + 1 `pm/`) were a PM-as-caretaker change per `shared/feedback_personas_governance.md` (MM not yet onboarded); committed + pushed on the user's explicit push-gate OK, via a dedicated branch + PR so the `shared/` changes got the second-set-of-eyes review the policy wants.
+
+**Closure.** This entry is #581's final AC box; the PR from this `gh issue develop` branch closes #581. Epic #580 stays open tracking 2b–2d ([Issue #582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) morning-routine split + replenishment nudge, [Issue #583](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/583) residual retimes, [Issue #584](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584) CLAUDE.md board section).
+
+---
+
 ### 11:30 UTC — Editor: PM (MM caretaker)
 
 #### Board left-side governance — migrate to late-commitment Kanban, Phase 1 ([Issue #587](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/587) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); personas [PR #13](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/13))
