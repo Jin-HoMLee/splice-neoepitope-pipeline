@@ -28,6 +28,10 @@ class TestRealTriggerDetected:
     def test_extra_internal_spaces(self):
         assert bro.has_bot_review_offer(comments("@claude   review")) is True
 
+    def test_tab_separator(self):
+        # `[ \t]+` covers a tab between mention and "review" — lock the invariant.
+        assert bro.has_bot_review_offer(comments("@claude\treview")) is True
+
     def test_one_of_many_comments(self):
         cs = comments("first comment", "looks good", "@claude review")
         assert bro.has_bot_review_offer(cs) is True
