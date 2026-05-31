@@ -919,22 +919,33 @@ per-residue confidence, NetTCR-struc contributes a graph-learned
 docking-quality discriminator trained on the experimental TCR-pMHC complex
 set. Both will be evaluated as orthogonal post-TCRdock filters.
 
-**AlphaFold3** (Abramson et al., *Nature* 2024) remains under evaluation as a
-TCRdock-backend successor. Lu et al. 2025 ranks AF3 as the best-overall
-TCR-pMHC predictor on their 70-complex benchmark; the open question is
-whether AF3's general-purpose accuracy advantage holds in the specific
-patient-private-neojunction regime that this pipeline operates in, and
-whether CDR3-region pLDDT can serve as a per-prediction quality flag.
-Verdict pending eval close.
+**AlphaFold3** (Abramson et al., *Nature* 2024) was evaluated as a
+TCRdock-backend successor and parked for the shipped pipeline on
+integrability rather than accuracy grounds. Lu et al. 2025 ranks AF3 as
+the best-overall TCR-pMHC predictor on their 70-complex benchmark (median DockQ
+0.636 / 0.679 for Class I / II), but its weights are released under
+non-redistributable, non-commercial terms incompatible with a pipeline whose
+TCRdock backend ships CC-BY AlphaFold2 parameters in-container; the
+license-clean co-folding alternatives surveyed alongside it (Chai-1 and
+ESMFold2) are blocked instead by the bf16/FP8 tensor-core and memory
+requirements that the production GPU lacks. The companion CDR3-region pLDDT
+quality flag was likewise not adopted — Lu et al. show that its reranking
+benefit is specific to AF3 and does not transfer to the AlphaFold2 confidence
+head that TCRdock uses. Both decisions are deferred for re-evaluation at the
+next GPU refresh rather than declined permanently.
 
 ### Synthesis
 
-Two patterns emerge from the six-scorer evaluation. First, **co-folding
-replacements for TCRdock** (Boltz-2 declined; AF3 pending) face the same
-data-availability constraint that motivated TCRdock's TCR-specific
-fine-tuning — architectural novelty does not substitute for in-distribution
-training data, and the OOD generalization gap remains the operative constraint
-on this class. Second, **structure-based cross-checks** (HERMES and
+Two patterns emerge from the seven-scorer evaluation. First, **co-folding
+replacements for TCRdock** were not adopted, but for two distinct reasons.
+Boltz-2 (declined) faces the data-availability constraint that motivated
+TCRdock's TCR-specific fine-tuning — architectural novelty does not substitute
+for in-distribution training data, and the OOD generalization gap remains the
+operative constraint. AlphaFold3 (parked), by contrast, leads the benchmark on
+accuracy and is blocked on integrability: its weights are non-redistributable /
+non-commercial, while the license-clean alternatives (Chai-1, ESMFold2) are
+hardware-blocked on the current GPU.
+Second, **structure-based cross-checks** (HERMES and
 NetTCR-struc both integrated; t2pmhc redundant; TCRLens backbone-limited)
 are the highest-value integration angle: they slot into the existing pipeline
 as post-TCRdock quality filters without replacing the prediction step, and a
@@ -956,7 +967,7 @@ as the structural-QC layer matures.
 | t2pmhc | Structure-based confidence | Decline — redundant with HERMES | Issue #236 re-decision comment |
 | TCRLens | Structure-based confidence | Decline — tFold-TCR backbone framework-accuracy limit | Issue #236 re-decision comment |
 | NetTCR-struc | Structure-based confidence (GNN) | Integrate — post-TCRdock structural QC (GNN-learned) | Sub-Issue #433 (milestone 29) |
-| AlphaFold3 | End-to-end structural prediction | Pending — eval in progress | Issue #316 |
+| AlphaFold3 | End-to-end structural prediction | Park — integrability (license + current GPU), not accuracy | Issue #316 close comment / Issue #601 |
 
 The two integrations under the TCR-pMHC scorer integration milestone
 (HERMES, NetTCR-struc) span the physics-guided and GNN-learned axes of
