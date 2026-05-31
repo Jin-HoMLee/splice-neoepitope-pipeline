@@ -304,6 +304,24 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 - All test outputs go to `results/test/` and `logs/test/`
 - **STAR is not usable for local development** — its genome index build requires >8 GB RAM, exceeding the M1 8 GB limit. HISAT2 was chosen for local testing specifically because its index fits within available memory.
 
+## Board status governance — late-commitment Kanban (left side)
+
+The GitHub project board (user project #9, "JH M Lee Lab") runs **late-commitment Kanban**: the commitment point — where an option becomes committed work — sits at the **`Backlog → Ready` boundary**, not at intake triage. The three left-side statuses:
+
+| Status | Meaning | Milestone / Target |
+|--------|---------|--------------------|
+| **No Status** | Untriaged intake inbox — newly filed, not yet categorized. | none |
+| **Backlog** | Triaged but **uncommitted** options: stage S#, priority, size, role label(s), priority rationale set — but not yet committed to an iteration. | **none** — a Backlog item legitimately has no milestone/Target (not a drift finding) |
+| **Ready** | **Committed** + Definition-of-Ready pull queue: an iteration milestone is assigned and the issue is refined enough to start. | milestone + Target, set at the commitment act |
+
+**The commitment act (`Backlog → Ready`)** bundles two things: (1) confirm the issue meets the **Definition of Ready** (scope clear, blockers cleared), and (2) **assign the iteration milestone** via the capacity decision tree. The `gh issue edit N --milestone "<full name>"` edit drives **Target-date sync** (`Target = milestone.due_on`) + a capacity recheck via the `recheck_dispatch.py` hook. Commitment is **PM-coordinated** (the capacity call needs the cross-cutting portfolio view); DoR-readiness is usually confirmed by the implementing role.
+
+**Milestone is the commitment signal, NOT a triage field.** A freshly-triaged issue — including a new sub-issue — enters Backlog with no milestone and takes one individually at its own `Backlog → Ready` commitment. Sub-issues do **not** inherit a parent's milestone; the parent milestone is a roadmap anchor (see `.claude/memory/shared/feedback_parent_sub_issues.md` §Inheritance).
+
+Left-side transitions: **intake-triage** (`No Status → Backlog`) → **commitment** (`Backlog → Ready`, PM-coordinated) → **pull** (`Ready → In progress`). The **right side** (`In progress → Ready for review → In review → Done`) is unchanged. Giving `Ready` a distinct job structurally kills the JIT-Ready anti-pattern: you cannot reach In progress without first crossing the commitment act.
+
+Full rules: `.claude/memory/shared/feedback_board_hygiene.md` (sweep cadence, DoR, commitment-act mechanics) and `.claude/memory/feedback_milestones.md` (milestone naming, the capacity decision tree).
+
 ## GitHub Safety Wrappers
 
 Mechanisms that fire automatically to enforce GitHub-related discipline rules that have broken repeatedly despite being documented in memory. Per the mechanism-over-memory ladder (memory → inline Always-in-effect → mechanism), these are the rung-3 escalation when a rule has slipped ≥2× on the same shape.
