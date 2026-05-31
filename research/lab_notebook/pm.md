@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 15:20 UTC — Editor: PM (MM caretaker)
+
+#### Board left-side governance Phase 2c — residual milestone-at-triage retimes ([Issue #583](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/583) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); personas [PR #15](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/15))
+
+**Context.** Cleans up the residual milestone-at-triage references the Phase-1 core rewrite didn't reach — three shared memory files, all behind links (not loaded every session), hence P2/S. Under late commitment the milestone is the `Backlog → Ready` *commitment* signal, so any framing that treats it as an at-triage / at-create field is now stale.
+
+**What landed (personas [PR #15](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/15), squash `a301596`).** 3 files, 7 lines. `shared/feedback_best_next_issue.md`: Backlog "groomed" → "triaged but uncommitted (no milestone)"; **sole-blocker lift scoped to milestoned (committed) candidates only** — a Backlog item carries no milestone, so it can't be a milestone's sole blocker; the worked example's impossible `Backlog/<milestone>` row → `Ready`. `shared/feedback_dependency_tracking.md` + `shared/MEMORY.md` L39: the "same step as setting milestone/size/priority" at-create analogy drops **milestone**. `shared/MEMORY.md` L69: board-hygiene index entry "Backlog→Ready grooming (anyone)" → "commitment (PM-coordinated)". The `Ready > Backlog` ranking and the lift *mechanism* are untouched — only the semantics gloss + scope.
+
+**Review.** Bot LGTM, no blocking issues; ran all 3 grep checks (clean) and confirmed the `_retired/` exclusion. Its one minor observation — `team_standup_archive/2026-05.md:442` still has the old `Backlog/P2 sole-blocker` phrasing — the bot itself flagged as correctly-left-as-is (immutable archive); concur, no change.
+
+**The non-obvious catch — negated closing keyword, cross-repo, on a repo without the merge-guard.** PR #15's Test-plan line 4 originally read "Companion … PR *closes* Jin-HoMLee/splice-neoepitope-pipeline#583 (this PR does not …)". GitHub's `closingIssuesReferences` parser is regex-only and ignores the "does not" negation, so the full `owner/repo#N` form created a **real cross-repo closing edge** — merging the *memory* PR would have auto-closed #583, mis-routing closure off the lab-notebook PR. Caught pre-merge by the `closingIssuesReferences` check; rewording line 4 re-parsed the edge away (`→ []`). The lesson worth journaling: `stray_closers.py` in `audit_and_merge.sh` is **pipeline-repo-only**, so a personas-repo PR has *no* merge-guard — the manual closing-ref check is the only line of defense. The negated-keyword foot-gun (`feedback_hash_numbers.md`) bit again, in its cross-repo form.
+
+**Dogfooding.** Committed #583 through the late-commitment model — `pm-i6` at its own `Backlog → Ready` boundary; the `recheck_dispatch.py` hook fired (**+0 day capacity delta**, 22.5 d free) and surfaced the Target-sync command, which I ran (Target 2026-07-02). Consistent with the Phase-2d finding: a notifier, not a silent auto-executor.
+
+**Closure.** This entry is #583's closure deliverable; [PR #__PRNUM__](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/__PRNUM__) (from this `gh issue develop` branch) closes #583. Epic #580 now has a single open leaf — [Issue #582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) (morning-routine split + Ready-queue replenishment nudge, M).
+
+---
+
 ### 14:43 UTC — Editor: PM
 
 #### Board left-side governance Phase 2d — CLAUDE.md board-governance section ([Issue #584](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584) under epic [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580); [PR #591](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/591))
