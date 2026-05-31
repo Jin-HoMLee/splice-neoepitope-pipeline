@@ -94,7 +94,7 @@ All publicly-validated immunogenicity cohorts are **point-mutation (SNV/indel)**
 ::: {.incremental}
 - Presentation depends on **sequence + HLA**, not variant origin
 - Splice-junction-derived candidates show **comparable predicted MHC binding ranks** to SNVs in-cohort [@lang2024splice2neo]
-- Field already does it — **SNAF runs MHCflurry + DeepImmuno unchanged** on splice-junction-derived peptides [@kahles2024snaf]
+- Field already does it — **SNAF runs MHCflurry + DeepImmuno unchanged** on splice-junction-derived peptides [@li2024snaf]
 :::
 :::
 ::: {.column width="50%"}
@@ -102,7 +102,7 @@ All publicly-validated immunogenicity cohorts are **point-mutation (SNV/indel)**
 
 ::: {.incremental}
 - Splice-junction-derived peptides are **less self-similar to self** → under-call [@lang2024splice2neo]
-- Splice-junction neoantigens are **shared / recurrent** (≤90% melanoma), distinct AA composition [@kahles2024snaf]
+- Splice-junction neoantigens are **shared / recurrent** (≤90% melanoma), distinct AA composition [@li2024snaf]
 - **No published empirical test** on validated splice-junction-derived peptides — both sides inferential
 :::
 :::
@@ -151,7 +151,7 @@ Shuffles inside one cohort — **hides** exactly the drift we care about. Over-o
 . . .
 
 ::: {.callout-important appearance="simple"}
-No splice-junction-specific labels exist at scale (**~5 validated positives** field-wide [@kahles2024snaf]) → waiting would stall [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) indefinitely. **Proceed now.**
+No splice-junction-specific labels exist at scale (**~5 validated positives** field-wide [@li2024snaf]) → waiting would stall [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) indefinitely. **Proceed now.**
 :::
 
 ---
