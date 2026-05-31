@@ -1,0 +1,197 @@
+---
+title: "AlphaFold3 / ESMFold2 as a TCRdock successor — and the CDR3-pLDDT quality flag"
+subtitle: "Tool evaluation · Issue #316 · 2026-05-31"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-05-31
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.0em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should an AF3-class model\
+replace TCRdock's AF2 backend —\
+and should we adopt\
+CDR3-pLDDT reranking?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Scope:** TCR-pMHC **structure prediction** (DockQ / pLDDT), *upstream* of MHC presentation scoring — distinct vocabularies. Triggered by [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316); the verdict also discharges the deferred AF3 row in the [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) TCR-pMHC-scorer landscape (manuscript DISCUSSION).
+:::
+
+---
+
+## The anchor — Lu et al. 2025 benchmark {.smaller}
+
+*Benchmarking TCR-pMHC structure prediction: a unified evaluation and CDR3-based functional insights* — bioRxiv, 2025-11-30 [@lu_benchmarking_2025].
+
+::: {.incremental}
+- **70 non-redundant complexes** (56 Class I + 14 Class II), all released *after* the AF3 training cutoff — genuinely unseen.
+- **10 methods** across three paradigms: MSA-based (AF2, **AF3**, Chai-1-MSA, RoseTTAFold2), PLM-based (Chai-1-PLM, ESM3, ESMFold, OmegaFold), docking (AlphaRED, HDOCK). *(Boltz is **not** in this set — cf. [Issue #188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/188).)*
+- **AF3 leads overall** — median DockQ **0.636** (Class I) / **0.679** (Class II).
+- **AF2 is 2nd-best and *complementary*** — catches cases AF3 misses; efficient variants give >70× speedup, no accuracy loss.
+- **Chai-1-PLM is competitive** — single-sequence (MSA-free), outperforms AF3 on **>1/3** of complexes.
+:::
+
+---
+
+## The candidates at a glance {.smaller}
+
+| Tool | License / weights | P100 16 GB? | TCR-pMHC accuracy | Ship here? |
+|---|---|---|---|---|
+| **TCRdock-AF2** *(incumbent)* | MIT + CC-BY AF2 params — **ships legally** | ✅ today | 2nd-best, AF3-complementary | **Keep** |
+| **AlphaFold3** [@abramson_accurate_2024] | weights **non-redistributable, non-commercial, manual grant** | HW ok (~500 tok fits) | **best** (0.636 / 0.679) | ❌ license |
+| **Chai-1 / Protenix** [@chai_2024] | **Apache-2.0** ✅ | ❌ bf16 + ≥24 GB | competitive (PLM beats AF3 on 1/3) | ❌ HW now |
+| **ESMFold2 / ESMC** [@candido_language_2026] | **MIT** ✅ (best redistribution) | ❌ FP8 + bf16 | **none for TCR-pMHC** | ❌ no evidence + HW |
+
+. . .
+
+::: {.callout-important appearance="simple"}
+**The pattern:** no candidate clears *both* an integrability bar **and** a task-accuracy bar on the current P100. The winner on accuracy (AF3) is license-blocked; the license-clean ones (Chai-1, ESMFold2) are hardware-blocked.
+:::
+
+---
+
+## Why AF3 leads but cannot ship {.smaller}
+
+::: {.columns}
+::: {.column width="55%"}
+**Accuracy (real):** AF3's diffusion co-folder is best-overall on the unseen Class I + II benchmark [@lu_benchmarking_2025]. Hardware is a *surprise green light* — a ~500-token TCR-pMHC complex fits the documented P100 1,024-token ceiling.
+
+**License (the hard blocker):** AF3 weights are **non-redistributable, non-commercial-organisation-only, granted manually "at DeepMind's sole discretion."**
+:::
+::: {.column width="45%"}
+::: {.callout-important appearance="simple"}
+The entire reason TCRdock works in our shipped Docker image is that its **AF2 params are CC-BY** and *can* be bundled. AF3's weights cannot — barring a redistributable, commercial-use-clean pipeline. The accuracy half of "AF3 is the integrable winner" holds; the **integrability half is false.**
+:::
+:::
+:::
+
+---
+
+## The hardware wall — three, not one {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Top neoepitope<br/>candidate"] --> B["TCRdock<br/>(AF2 / CC-BY)<br/>P100 ✅"]
+    F["VDJdb TCR panel"] --> B
+    B --> C["PDB + pLDDT, PAE, ipTM"]
+    B -. "successor swap?" .-> X["AF3-class<br/>(AF3 / Chai-1 / ESMFold2)"]
+    X -. "blocked" .-> W["bf16 ✗ · FP8 ✗ · ≥24 GB ✗"]
+    C --> I["candidate retained / dropped"]
+
+    style B fill:#a3e6a3,stroke:#2a8a2a,stroke-width:2px
+    style X fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style W fill:#ffb3b3,stroke:#b81e1e,stroke-width:2px
+```
+
+Unlike the `torch+cu126` pin (which merely restored *kernels* for the existing AF2 model on Pascal), AF3-class backends need tensor-core generations the **P100 (SM 6.0) lacks**:
+
+| Wall | P100 | T4 | **L4 (Ada)** | A100 |
+|---|---|---|---|---|
+| bf16 tensor cores | ✗ | ✗ | ✅ | ✅ |
+| FP8 | ✗ | ✗ | ✅ | ✗ |
+| ≥24 GB VRAM | ✗ (16) | ✗ (16) | ✅ (24) | ✅ |
+
+**Fix = GPU migration to an L4-class card** (adjacent to [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310)) — *not* a T4.
+
+---
+
+## ESMFold2 — stated precisely {.smaller}
+
+The 2026 Biohub "world model of protein biology" (ESMC + ESMFold2 + ESM Atlas) [@candido_language_2026]. Three sub-claims, kept strictly separate:
+
+::: {.incremental}
+1. **Multi-chain capability?** *Architecturally yes, empirically unverified.* It predicts general multi-chain complexes — but the 106-page paper has **zero** occurrences of TCR / pMHC / MHC / HLA. TCR-pMHC capability is **assumed, not demonstrated.**
+2. **Open weights?** *Real and genuinely permissive* — **MIT**, ungated on HuggingFace. **Best redistribution story of the four.**
+3. **"Beats AF3"?** ***Antibody-antigen only.*** The verbatim claim is binding-pose accuracy on **antibody-antigen** complexes — a different geometry (no peptide, no MHC groove). **No source extends it to TCR-pMHC.**
+:::
+
+::: {.callout-note appearance="simple"}
+**For the manuscript:** *"ESMFold2 is an open, MIT-licensed multi-chain complex predictor; its claim of exceeding AlphaFold3 is specific to antibody-antigen binding-pose prediction, with no published evidence of validated TCR-pMHC capability."*
+:::
+
+---
+
+## CDR3-pLDDT — the cheap win that isn't (for us) {.smaller}
+
+::: {.columns}
+::: {.column width="54%"}
+**The mechanism** [@lu_benchmarking_2025]: mean per-residue pLDDT over the combined CDR3-α + β loops is the single best *local* proxy for docking quality — Pearson **r = −0.673** vs CDR3 RMSD, stronger than whole-complex pLDDT or ipTM/pTM. Reranking AF3's predictions lifts Top-1 by **+2.9% / up to +4.3%**, and tracks mutation-induced affinity shifts in **>80%** of cases.
+:::
+::: {.column width="46%"}
+::: {.callout-important appearance="simple"}
+**But it is AF3-specific.** Lu et al. *directly tested AF2* and found the correlation drops to **~0.4** and **reranking fails** — blamed on AF2's "earlier confidence head." **Our backend is AF2 (TCRdock)**, we run a *single* model (nothing to rerank), and our de-novo predictions have **no native structure** to validate against locally.
+:::
+:::
+:::
+
+So the addon's real value is also **AF3-class-coupled** — it re-couples to the backend decision rather than standing alone.
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 2.6em; font-weight: bold; margin-top: 0.4em;"}
+\(c\) Park — both prongs, coupled
+:::
+
+::: {style="text-align: center; font-size: 1.25em; margin-top: 0.4em;"}
+keep TCRdock-AF2; re-trigger at the next GPU refresh
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Follow-up filed:** [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) carries the re-eval trigger (L4-class GPU), a **Developer GPU-research AC** (which target clears bf16 + FP8 + ≥24 GB; cost vs P100; reconcile [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310)), and the ready-to-deploy CDR3-pLDDT recipe. **[Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432):** AF3 row resolves to decline-as-shipped-backend (manuscript follow-up).
+:::
+
+---
+
+## Open questions + re-eval triggers {.smaller}
+
+Parked on [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) — re-fire when the pipeline leaves the P100:
+
+::: {.incremental}
+1. **GPU target** *(Developer)* — does L4 / A10 / A100 clear bf16 + FP8 + ≥24 GB for Chai-1 / ESMFold2? Cost delta vs P100? (Verify the "L4 lacks FP8" claim — Ada *should* support it.)
+2. **Accuracy-worth-it spike** — rent one L4/A100, benchmark Chai-1-PLM vs our TCRdock on patient structures *before* any migration.
+3. **Complementarity on our data** *(AF3-access-gated)* — does AF2/TCRdock catch cases an AF3-class model misses on *our* patients?
+4. **Deploy CDR3-pLDDT** — the column + (with N>1 seeds) reranking, *if/when* on an AF3-class backend.
+:::
+
+::: {.callout-tip appearance="simple"}
+**Resolved from the Lu et al. PDF (primary source):** aggregation = **mean**; CDR3-pLDDT↔DockQ confirmed (r=−0.673); AF2 non-transfer confirmed (~0.4); Boltz genuinely absent from the benchmark.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
