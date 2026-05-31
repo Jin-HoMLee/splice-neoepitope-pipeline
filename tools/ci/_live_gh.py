@@ -40,5 +40,8 @@ def _gh_has_project_read_scope() -> bool:
 
 REQUIRES_LIVE_GH = pytest.mark.skipif(
     not _gh_has_project_read_scope(),
-    reason="requires gh auth with project read scope (set GH_TOKEN to a PAT with `read:project`)",
+    reason=(
+        "requires gh auth with project read scope "
+        "(CI: GH_PROJECT_TOKEN secret; local: `gh auth login` with `read:project`)"
+    ),
 )

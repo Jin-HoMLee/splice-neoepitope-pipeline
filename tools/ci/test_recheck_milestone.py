@@ -285,8 +285,6 @@ class TestLiveIntegrationSmoke:
     """
 
     def test_recheck_emits_well_formed_report_for_every_open_milestone(self):
-        import subprocess
-
         milestones = open_milestone_numbers()
         assert milestones, "expected at least one open milestone on the board"
 
