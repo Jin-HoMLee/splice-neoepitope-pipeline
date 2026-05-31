@@ -31,10 +31,11 @@ research/slides/
 
 **File naming:** `slides.qmd` (generic; doesn't repeat folder name).
 
-**Decks live in two sibling trees, not under `research/slides/`:**
+**Decks live in three sibling trees, not under `research/slides/`:**
 
 - `research/experiments/issue_NNN_<short>/slides.qmd` — co-located with the experiment notebook + outputs. See [`CLAUDE.md` "Slide decks for experiment Issues"](../../CLAUDE.md).
 - `research/evals/issue_NNN_<tool>/slides.qmd` — per-tool primer for a tool-evaluation Issue. See [`CLAUDE.md` "Slide decks for eval Issues"](../../CLAUDE.md). Example: [`research/evals/issue_218_hermes/`](../evals/issue_218_hermes/).
+- `research/decisions/issue_NNN_<short>/slides.qmd` — research-decision deck for a methods/science call that gates downstream work (tool-agnostic option comparison; no notebook/outputs). See [`CLAUDE.md` "Slide decks for research-decision Issues"](../../CLAUDE.md). Example: [`research/decisions/issue_592/`](../decisions/issue_592/).
 
 `research/slides/` itself holds **only the shared scaffolding** (`_template.qmd`, `custom.scss`, `nature.csl`, this README). Decks reference the scaffolding via `theme: [simple, ../../slides/custom.scss]` and `csl: ../../slides/nature.csl`. (`research/slides/issue_393_alphagenome_chr22_poc/` predates the co-location rule and migrates under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).)
 
@@ -45,7 +46,7 @@ All decks share a single SCSS theme at [`custom.scss`](custom.scss) — palette 
 ```yaml
 format:
   revealjs:
-    theme: [simple, ../../slides/custom.scss]    # for decks under research/evals/ or research/experiments/
+    theme: [simple, ../../slides/custom.scss]    # for decks under research/evals/, research/experiments/, or research/decisions/
     # theme: [simple, custom.scss]               # for decks inside research/slides/ itself
     footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
 ```
