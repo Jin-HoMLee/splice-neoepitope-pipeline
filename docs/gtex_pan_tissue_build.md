@@ -182,12 +182,59 @@ the single `..._junctions.gct.gz` is the sole junction source. The issue's "down
 per-tissue junction files" framing is superseded: stream the one GCT, group sample
 columns by tissue via `SampleAttributesDS`.
 
-## Build command
+## Build command (Snaptron gtexv2)
 
-<!-- Filled in at Task 8/9 with the exact production invocation + GCS staging commands. -->
+The builder is `workflow/scripts/build_gtex_pan_tissue_ref.py` — a **manual one-shot**,
+NOT part of the per-patient Snakemake DAG. It queries Snaptron `gtexv2` per chromosome,
+keeps junctions with `samples_count >= --min-samples` (default 1), and writes sorted
+**BED6** + a QC `samples_count` sweep. Run on the highmem VM (genome-wide is memory-bounded
+by the union set, ~33M rows); the M1 is fine for the chr22 fixture only.
 
-## Refresh procedure (new GTEx release)
+**chr22 fixture first** (gates correctness — must reproduce #225's panel):
+```bash
+conda activate snakemake
+python workflow/scripts/build_gtex_pan_tissue_ref.py \
+  --region chr22:1-50818468 --restrict-chrom chr22 \
+  --output-bed resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
+  --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.chr22.qc.tsv \
+  --min-samples 1
+wc -l resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect ~880,769
+```
+Reproduction check against #225's cached `chr22_gtex_panel.parquet` — see plan Task 9 Step 2.
 
-1. Re-run the `Source files` `gsutil ls` to find the new release's junction GCT + SampleAttributesDS paths.
-2. Re-verify the GCT `Name` format + coordinate convention (this doc's two sections) — STAR version bumps can change conventions.
-3. Re-run the build command with the new URLs + `--release vNN`; re-stage to `gs://splice-neoepitope-project/resources/gtex/vNN/`.
+**Genome-wide** (default region set = all hg38 primary chromosomes):
+```bash
+python workflow/scripts/build_gtex_pan_tissue_ref.py \
+  --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
+  --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
+  --min-samples 1
+```
+
+**Coordinate cross-check** (the #148/#370 silent-empty guard) and **GCS staging**:
+```bash
+# Expect a substantial non-zero chr22 overlap with the GENCODE reference; zero => transform bug.
+python workflow/scripts/build_reference_junctions.py \
+  --gtf references/gencode.v47.annotation.gtf.gz --output /tmp/ref_full.bed
+comm -12 \
+  <(grep -P '^chr22\t' /tmp/gtex_gtexv2_pan_tissue_junctions.bed | cut -f1-3 | sort -u) \
+  <(grep -P '^chr22\t' /tmp/ref_full.bed                          | cut -f1-3 | sort -u) | wc -l
+
+gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.bed    gs://splice-neoepitope-project/resources/gtex/gtexv2/
+gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv gs://splice-neoepitope-project/resources/gtex/gtexv2/
+```
+The genome-wide BED is hundreds of MB → keep it out of git; commit a `data_manifest.yaml`
+(GCS paths + sha256 + the exact build command) per the CLAUDE.md >100 MB rule. Only the
+chr22 fixture is committed (under `resources/test/`).
+
+## Refresh procedure (new Snaptron / recount compilation)
+
+Snaptron `gtexv2` is a **fixed** compilation (recount3 reprocessing of GTEx v8). It does not
+change between pipeline runs, so no routine refresh is needed. Re-build only if:
+
+1. Snaptron publishes a newer GTEx compilation (e.g. a v9/v10 recount3 reprocessing at a new
+   endpoint) — point `--endpoint` / `config.gtex_filter.endpoint` at it.
+2. Before trusting a new compilation, **re-verify the coordinate transform** via the chr22
+   reproduction check (plan Task 9 Step 2) — an aligner/coordinate convention change would
+   surface as a key-set mismatch against #225's panel.
+3. Re-stage to a versioned GCS prefix (`gs://splice-neoepitope-project/resources/gtex/<compilation>/`)
+   and bump `config.gtex_filter.{source,reference_bed}`.
