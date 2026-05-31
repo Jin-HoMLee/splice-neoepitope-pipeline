@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-05-31
 
+### 22:42 UTC — Editor: Scientist
+
+#### [Issue #603](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/603) DISCUSSION — land the AF3 TCRdock-successor park verdict (#316 / #432 follow-up). [PR #604](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/604) closes [Issue #603](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/603).
+
+**What.** Discharged the manuscript follow-up deferred from [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) onto the now-closed [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3/ESMFold2 eval: replaced the "Verdict pending eval close" AF3 paragraph + the "Pending — eval in progress" per-scorer table row in [DISCUSSIONS.md](research/manuscript/DISCUSSIONS.md) with the landed verdict — AF3 parked for the shipped pipeline on **integrability** (non-redistributable / non-commercial weights), not accuracy; license-clean Chai-1/ESMFold2 GPU-blocked; CDR3-pLDDT flag declined (AF2 non-transfer). Also corrected the Synthesis sentence to separate AF3's integrability park from Boltz-2's OOD / data-availability decline — AF3 *leads* the benchmark, so the prior "AF3 pending" lumping under the data-availability constraint was wrong.
+
+**Review fixes ([PR #604](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/604), commit d20fec7).** Bot review caught four, all valid: (1) "six-scorer" → "seven-scorer" (AF3's row is now concluded, so all seven carry verdicts); (2) the *synthesis* sentence still conflated AF3's license barrier with the alternatives' GPU barrier — reworked to attribute each to the right tool (the detailed paragraph was already precise; the summary needed to match); (3) restored a dropped "as"; (4) carrier format — posted the AF3 verdict as a [close comment on Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316#issuecomment-4588438831) (matching the Boltz-2 / ImmSET pattern) and pointed the table carrier at it. Lesson worth recording: concluding a previously-deferred table row has ripple effects — it changes the scorer count *and* demands the same license-vs-hardware precision in the synthesis prose that the detailed paragraph already carried.
+
+**Closes the chain.** [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) (eval) → [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) (TCR-pMHC-scorer landscape) manuscript follow-up now landed; the open re-eval is parked to [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) at the next GPU refresh.
+
+---
+
 ### 22:10 UTC — Editor: Scientist
 
 #### [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3 / ESMFold2 as a TCRdock successor + CDR3-pLDDT quality flag — ✅ **(c) park both prongs, coupled**; tool-primer deck shipped. [PR #602](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/602) closes [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316).
