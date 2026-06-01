@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -46,8 +47,12 @@ def main() -> int:
         return 2
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Honor the REPO override so this gate composes with its sibling gates
+    # (stray_closers / bot_review_offer) when audit_and_merge.sh runs against a
+    # fork (Issue #607). Default matches them — the canonical repo.
+    repo = os.environ.get("REPO", "Jin-HoMLee/splice-neoepitope-pipeline")
     try:
-        gaps = ca.audit_pr_pre_merge(n, today)
+        gaps = ca.audit_pr_pre_merge(n, today, repo=repo)
     except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError, OSError) as e:
         print(f"⚠ lab-notebook check skipped (gh error: {e})", file=sys.stderr)
         return 0  # fail open — see module docstring

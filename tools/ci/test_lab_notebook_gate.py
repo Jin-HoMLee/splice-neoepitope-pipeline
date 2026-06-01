@@ -14,8 +14,8 @@ DATE = "2026-06-01"
 
 
 def _fake_io(monkeypatch, pr, issues_by_num, notebooks):
-    monkeypatch.setattr(ca, "fetch_pr", lambda n: pr)
-    monkeypatch.setattr(ca, "fetch_issue", lambda n: issues_by_num[n])
+    monkeypatch.setattr(ca, "fetch_pr", lambda n, repo=None: pr)
+    monkeypatch.setattr(ca, "fetch_issue", lambda n, repo=None: issues_by_num[n])
     monkeypatch.setattr(ca, "_load_notebook", lambda role: notebooks.get(role))
 
 
@@ -121,14 +121,16 @@ def _run(monkeypatch, argv):
 
 
 def test_cli_clean_returns_0(monkeypatch):
-    monkeypatch.setattr(ca, "audit_pr_pre_merge", lambda n, today: [])
+    monkeypatch.setattr(ca, "audit_pr_pre_merge", lambda n, today, repo=None: [])
     assert _run(monkeypatch, ["lab_notebook_gate.py", "99"]) == 0
 
 
 def test_cli_gap_returns_1(monkeypatch, capsys):
     monkeypatch.setattr(
         ca, "audit_pr_pre_merge",
-        lambda n, today: [("scientist", "no '## 2026-06-01' header in notebook")],
+        lambda n, today, repo=None: [
+            ("scientist", "no '## 2026-06-01' header in notebook")
+        ],
     )
     rc = _run(monkeypatch, ["lab_notebook_gate.py", "99"])
     assert rc == 1
@@ -136,7 +138,7 @@ def test_cli_gap_returns_1(monkeypatch, capsys):
 
 
 def test_cli_gh_error_fails_open(monkeypatch):
-    def boom(n, today):
+    def boom(n, today, repo=None):
         raise subprocess.CalledProcessError(1, ["gh"])
 
     monkeypatch.setattr(ca, "audit_pr_pre_merge", boom)
@@ -144,7 +146,7 @@ def test_cli_gh_error_fails_open(monkeypatch):
 
 
 def test_cli_json_error_fails_open(monkeypatch):
-    def boom(n, today):
+    def boom(n, today, repo=None):
         raise json.JSONDecodeError("bad", "doc", 0)
 
     monkeypatch.setattr(ca, "audit_pr_pre_merge", boom)
@@ -154,7 +156,7 @@ def test_cli_json_error_fails_open(monkeypatch):
 def test_cli_os_error_fails_open(monkeypatch):
     # _load_notebook can raise OSError if a notebook file is unreadable
     # (permissions). Fail open — a local FS hiccup must not block a merge.
-    def boom(n, today):
+    def boom(n, today, repo=None):
         raise OSError("permission denied")
 
     monkeypatch.setattr(ca, "audit_pr_pre_merge", boom)
@@ -164,3 +166,33 @@ def test_cli_os_error_fails_open(monkeypatch):
 def test_cli_bad_usage_returns_2(monkeypatch):
     assert _run(monkeypatch, ["lab_notebook_gate.py"]) == 2
     assert _run(monkeypatch, ["lab_notebook_gate.py", "not-a-number"]) == 2
+
+
+# --- #607: REPO env var read + forwarded to audit_pr_pre_merge ---
+
+
+def test_cli_reads_repo_env_and_forwards(monkeypatch):
+    captured = {}
+
+    def fake(n, today, repo):
+        captured["repo"] = repo
+        return []
+
+    monkeypatch.setenv("REPO", "fork/repo")
+    monkeypatch.setattr(ca, "audit_pr_pre_merge", fake)
+    assert _run(monkeypatch, ["lab_notebook_gate.py", "99"]) == 0
+    assert captured["repo"] == "fork/repo"
+
+
+def test_cli_defaults_repo_when_env_unset(monkeypatch):
+    """No REPO env → canonical repo default, matching stray_closers/bot_review_offer."""
+    captured = {}
+
+    def fake(n, today, repo):
+        captured["repo"] = repo
+        return []
+
+    monkeypatch.delenv("REPO", raising=False)
+    monkeypatch.setattr(ca, "audit_pr_pre_merge", fake)
+    assert _run(monkeypatch, ["lab_notebook_gate.py", "99"]) == 0
+    assert captured["repo"] == "Jin-HoMLee/splice-neoepitope-pipeline"
