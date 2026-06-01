@@ -6,7 +6,7 @@ and a monkeypatched fetch — no network.
 """
 
 import importlib.util
-import io
+import types
 import urllib.error
 from collections import Counter
 from pathlib import Path
@@ -103,41 +103,91 @@ def test_accumulate_union_empty_input():
     assert gtex.accumulate_union([], min_samples=1) == (set(), Counter())
 
 
-# ----- Task 5: fetch_snaptron_region (monkeypatched urlopen — no real network) -----
+# ----- fetch_chromosome_bgz: remote-tabix fetch from the bulk junctions.bgz (Issue #211) -----
+# The region API silently truncated (chunked, no Content-Length); the bulk BGZF has a real
+# Content-Length, so tabix/htslib raises on a short read. subprocess is mocked — no tabix/network.
 
-def test_fetch_snaptron_region_yields_decoded_lines(monkeypatch):
-    payload = (SNAPTRON_HEADER + "\n"
-               "GTEX:I\t1\tchr22\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1\t7\t9\t4.5\t4\t0\n")
-
-    class _FakeResp(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            self.close()
-
-    def _fake_urlopen(url, timeout=None):
-        assert "regions=chr22:1-50818468" in url
-        return _FakeResp(payload.encode("utf-8"))
-
-    monkeypatch.setattr(gtex.urllib.request, "urlopen", _fake_urlopen)
-    lines = list(gtex.fetch_snaptron_region("chr22:1-50818468"))
-    assert lines[0] == SNAPTRON_HEADER
-    assert lines[1].startswith("GTEX:I\t1\tchr22")
+# A real bulk 17-field row (no DataSource prefix): id chrom start end length strand ... samples_count(col13)
+_BULK_ROW = "20299374\tchr22\t101\t200\t99\t+\t0\taa\tac\t0\t0\t,1:5\t7\t9\t4.5\t4\t2"
 
 
-def test_fetch_snaptron_region_retries_then_raises(monkeypatch):
-    calls = {"n": 0}
+def _fake_tabix(rows, returncode=0, err=b""):
+    """A subprocess.run stand-in that writes `rows` to the stdout file and returns rc/stderr."""
+    def _run(cmd, stdout=None, stderr=None, **kw):
+        assert cmd[0] == "tabix"
+        if returncode == 0 and stdout is not None and rows:
+            stdout.write(("\n".join(rows) + "\n").encode("utf-8"))
+        return types.SimpleNamespace(returncode=returncode, stderr=err)
+    return _run
 
-    def _always_fail(url, timeout=None):
-        calls["n"] += 1
-        raise urllib.error.URLError("boom")
 
-    monkeypatch.setattr(gtex.urllib.request, "urlopen", _always_fail)
+def _have_tabix(monkeypatch):
+    """Pretend tabix is on PATH so fetch's preflight passes (CI may have no tabix)."""
+    monkeypatch.setattr(gtex.shutil, "which", lambda name: "/usr/bin/tabix")
+
+
+def test_fetch_chromosome_bgz_prepends_header_and_streams(monkeypatch):
+    _have_tabix(monkeypatch)
+    monkeypatch.setattr(gtex.subprocess, "run", _fake_tabix([_BULK_ROW]))
+    lines = list(gtex.fetch_chromosome_bgz("chr22", bgz_url="X"))
+    assert lines[0] == gtex.BULK_HEADER          # prepended so the by-name parse works
+    assert lines[1] == _BULK_ROW
+
+
+def test_fetch_chromosome_bgz_raises_on_tabix_failure(monkeypatch):
+    _have_tabix(monkeypatch)
+    monkeypatch.setattr(gtex.subprocess, "run", _fake_tabix([], returncode=1, err=b"truncated"))
     monkeypatch.setattr(gtex.time, "sleep", lambda s: None)  # no real backoff wait
-    with pytest.raises(urllib.error.URLError):
-        list(gtex.fetch_snaptron_region("chr22:1-50818468", retries=3))
-    assert calls["n"] == 3
+    with pytest.raises(RuntimeError, match="tabix"):
+        list(gtex.fetch_chromosome_bgz("chr22", bgz_url="X", retries=3))
+
+
+def test_fetch_chromosome_bgz_retries_then_succeeds(monkeypatch):
+    _have_tabix(monkeypatch)
+    calls = {"n": 0}
+    ok = _fake_tabix([_BULK_ROW])
+
+    def flaky(cmd, stdout=None, stderr=None, **kw):
+        calls["n"] += 1
+        if calls["n"] < 2:
+            return types.SimpleNamespace(returncode=1, stderr=b"transient")
+        return ok(cmd, stdout=stdout, stderr=stderr, **kw)
+
+    monkeypatch.setattr(gtex.subprocess, "run", flaky)
+    monkeypatch.setattr(gtex.time, "sleep", lambda s: None)
+    lines = list(gtex.fetch_chromosome_bgz("chr22", bgz_url="X", retries=3))
+    assert calls["n"] == 2
+    assert lines[1] == _BULK_ROW
+
+
+def test_fetch_chromosome_bgz_raises_on_empty_output(monkeypatch):
+    # tabix exits 0 with NO rows for a contig absent from the index / a name mismatch
+    # (chr22 vs 22) / an empty response. Accepting that would recreate the Issue #211
+    # silent-undercount class (an empty .done part), so it must raise.
+    _have_tabix(monkeypatch)
+    monkeypatch.setattr(gtex.subprocess, "run", _fake_tabix([]))  # rc=0, zero rows
+    with pytest.raises(RuntimeError, match="0 rows"):
+        list(gtex.fetch_chromosome_bgz("chr22", bgz_url="X"))
+
+
+def test_fetch_chromosome_bgz_raises_when_tabix_missing(monkeypatch):
+    # A missing tabix binary must surface an actionable error from a PATH preflight,
+    # not a raw FileNotFoundError — and must short-circuit before invoking subprocess.
+    monkeypatch.setattr(gtex.shutil, "which", lambda name: None)
+
+    def _no_run(*a, **k):
+        raise AssertionError("subprocess.run must not be called when tabix is missing")
+
+    monkeypatch.setattr(gtex.subprocess, "run", _no_run)
+    with pytest.raises(RuntimeError, match="not found"):
+        list(gtex.fetch_chromosome_bgz("chr22", bgz_url="X"))
+
+
+def test_bulk_header_parses_17_field_row():
+    # The bulk file's 17-col header maps the 17-field row's columns correctly BY NAME,
+    # so the same parse_snaptron_line yields the right (chrom, start-1, end, strand, sc).
+    idx = gtex.build_col_index(gtex.BULK_HEADER)
+    assert gtex.parse_snaptron_line(_BULK_ROW.split("\t"), idx) == ("chr22", 100, 200, "+", 7)
 
 
 # ----- Task 6: writers -----

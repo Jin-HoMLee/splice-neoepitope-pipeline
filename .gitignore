@@ -292,3 +292,7 @@ CLAUDE.local.md
 # claude-personas role-memory symlink
 /.claude/memory
 .claude/hook_fires.jsonl
+
+# Remote-tabix index downloaded by the GTEx pan-tissue builder (Issue #211); the builder
+# now stages it in a temp dir, but ignore the bare name as belt-and-suspenders.
+*.bgz.tbi

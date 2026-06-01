@@ -12,7 +12,9 @@ source:
   name: Snaptron gtexv2
   compilation: recount3 reprocessing of GTEx v8 (hg38)
   samples: 19214
-  endpoint: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+  bulk_file: "https://snaptron.cs.jhu.edu/data/gtexv2/junctions.bgz"   # BGZF, tabix-indexed; real Content-Length
+  fetch_method: "remote tabix per chromosome — truncation-detectable (Issue #211: the chunked region API had no Content-Length and silently truncated a genome-wide run; the bulk file is the SAME dataset, verified tabix chr22 = 880,769)"
+  region_api: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"            # spot-checks only — chunked, no Content-Length
   citations:
     - "recount3 — Wilks et al., Genome Biology 2021"
     - "Snaptron — Wilks et al., Bioinformatics 2018"
@@ -29,7 +31,7 @@ artifacts:
   - id: chr22_test_fixture
     local_path: resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed
     gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.chr22.bed
-    gcs_staged: false        # uploaded with the genome-wide build (Task 9, highmem VM)
+    gcs_staged: false        # uploaded with the genome-wide build (Task 9, local build)
     format: "BED6 (chrom start end name 0 strand), sorted, UCSC chr*"
     n_junctions: 880769      # samples_count >= 1
     size_bytes: 47561526
@@ -46,7 +48,7 @@ artifacts:
       (880769/880769 keys, 0 symmetric difference) — verified 2026-05-31.
     regenerate: |
       python workflow/scripts/build_gtex_pan_tissue_ref.py \
-        --region chr22:1-50818468 --restrict-chrom chr22 \
+        --region chr22 --restrict-chrom chr22 \
         --output-bed resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
         --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.chr22.qc.tsv \
         --min-samples 1
@@ -54,13 +56,23 @@ artifacts:
   - id: genome_wide_panel
     local_path: null         # regenerated to /tmp during build; not kept locally
     gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed
-    gcs_staged: false        # PENDING — Task 9 genome-wide build on the highmem VM
+    gcs_staged: false        # PENDING — GCS staging (outward write)
     format: "BED6, sorted, UCSC chr*"
-    n_junctions: null        # filled at build (~tens of millions at min_samples=1)
-    size_bytes: null
-    sha256: null
+    n_junctions: 32137439    # samples_count >= 1, all hg38 primary contigs; built 2026-06-02
+    size_bytes: 1721700950
+    sha256: 247349119deeff4ac11a2fd0ce2c799ccd91bb5be8e7b08bbbda83cb0daef994
+    qc_samples_count_sweep:  # union size at samples_count >= t (count-only; per-tissue deferred to #212)
+      "1": 32137439
+      "2": 14365177
+      "5": 7640132
+      "10": 5196876
+      "20": 3644959
+    validation: >-
+      chr22 slice byte-identical to the committed chr22 fixture (880,769) which is itself
+      identical to #225's chr22_gtex_panel.parquet; per-contig counts sane (no truncation).
+      The region-API genome-wide run silently undercounted to 13,931,584 (Issue #211).
     regenerate: |
       python workflow/scripts/build_gtex_pan_tissue_ref.py \
         --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
         --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
-        --min-samples 1
+        --min-samples 1 --resume

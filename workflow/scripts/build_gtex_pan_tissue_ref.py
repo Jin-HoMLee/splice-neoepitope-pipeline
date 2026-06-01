@@ -14,10 +14,11 @@ reader. Snaptron carries strand, so (chrom,start,end,strand) is used end-to-end.
 import argparse
 import json
 import logging
+import os
 import shutil
+import subprocess
+import tempfile
 import time
-import urllib.error
-import urllib.request
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
@@ -29,9 +30,23 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-SNAPTRON_GTEXV2_URL = "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+# Bulk gtexv2 junction dump (recount3 / GTEx v8 / hg38), the source the region API itself
+# serves from. Fetched via remote tabix per chromosome. Served static with a real
+# Content-Length (NOT chunked), so a short read raises in htslib/tabix instead of silently
+# truncating — the region API's chunked+no-Content-Length transport was the root cause of the
+# genome-wide silent truncation (Issue #211). BGZF, tabix-indexed (.bgz.tbi alongside).
+SNAPTRON_GTEXV2_BULK_BGZF = "https://snaptron.cs.jhu.edu/data/gtexv2/junctions.bgz"
 
-# Columns this build addresses by name (Snaptron gtexv2 TSV carries a header row).
+# The bulk file's 17-column header (junctions.header.tsv). Prepended to tabix output (which
+# carries no header) so build_col_index maps columns BY NAME: the bulk file's column order
+# differs from the region API, but the needed names are all present, so the parser is unchanged.
+BULK_HEADER = (
+    "snaptron_id\tchromosome\tstart\tend\tlength\tstrand\tannotated\t"
+    "left_motif\tright_motif\tleft_annotated\tright_annotated\t"
+    "samples\tsamples_count\tcoverage_sum\tcoverage_avg\tcoverage_median\tsource_dataset_id"
+)
+
+# Columns this build addresses by name (the prepended header carries a header row).
 _REQUIRED_COLS = ("chromosome", "start", "end", "strand", "samples_count")
 
 # samples_count thresholds reported in the QC sensitivity sweep.
@@ -134,36 +149,74 @@ def accumulate_union(
     return keys, sweep
 
 
-def fetch_snaptron_region(
-    region: str,
-    endpoint: str = SNAPTRON_GTEXV2_URL,
-    timeout_s: int = 180,
-    retries: int = 2,
+def fetch_chromosome_bgz(
+    chrom: str,
+    bgz_url: str = SNAPTRON_GTEXV2_BULK_BGZF,
+    retries: int = 3,
+    work_dir: Optional[str] = None,
 ) -> Iterator[str]:
-    """Stream a Snaptron region query response as decoded, newline-stripped lines.
+    """Yield BULK_HEADER then the bulk file's data rows for one chromosome, via tabix.
 
-    Ported from Issue #225's fetch_snaptron_chr22: connect with a bounded retry
-    (transient URLError -> 5s backoff), then yield lines lazily so a whole
-    chromosome's TSV is never fully held in memory. The connection is retried
-    only at open time; a mid-stream failure surfaces to the caller.
+    Runs ``tabix <bgz_url> <chrom>`` — htslib byte-range-streams just that contig over
+    HTTPS. Three fail-loud truncation defenses (Issue #211); none may silently undercount:
+      * transport short read — the static file's real Content-Length makes htslib error and
+        tabix exit non-zero -> retried, then RuntimeError;
+      * contig absent from the index / name mismatch (UCSC ``chr22`` vs ENSEMBL ``22``) /
+        empty response — tabix exits 0 with NO rows -> the zero-row guard raises (a primary
+        contig is never legitimately empty), so no empty ``.done`` part is ever written;
+      * tabix not installed — a PATH preflight raises an actionable error (not FileNotFoundError).
+    The contig TSV and the remote ``.tbi`` index htslib downloads both land in a private temp
+    dir (passed as ``cwd``) co-located with the build via ``work_dir``, and are removed
+    together. The contig is fetched with whole-operation retry (a failed run is re-run from
+    scratch — never a partial yield). BULK_HEADER is prepended so accumulate_union's by-name
+    column mapping is unchanged.
     """
-    url = f"{endpoint}?regions={region}"
-    attempt = 0
-    resp = None
-    while True:
-        attempt += 1
-        try:
-            log.info("Snaptron query (attempt %d/%d): %s", attempt, retries, url)
-            resp = urllib.request.urlopen(url, timeout=timeout_s)
-            break
-        except urllib.error.URLError as e:
+    if shutil.which("tabix") is None:
+        raise RuntimeError(
+            "tabix not found on PATH. Install htslib/tabix (Ubuntu: 'apt-get install tabix'; "
+            "conda: 'conda install -c bioconda htslib') — the pan-tissue builder fetches the "
+            "bulk junctions.bgz via remote tabix (Issue #211)."
+        )
+    yield BULK_HEADER
+    n_rows = 0
+    with tempfile.TemporaryDirectory(dir=work_dir, prefix=f"gtex_{chrom}_") as td:
+        tsv = os.path.join(td, f"{chrom}.tsv")
+        attempt = 0
+        while True:
+            attempt += 1
+            log.info("tabix fetch (attempt %d/%d): %s %s", attempt, retries, bgz_url, chrom)
+            with open(tsv, "wb") as out:
+                # cwd=td so the remote .tbi index htslib downloads lands in the temp dir
+                # (not CWD, where it would risk an accidental commit) and is cleaned up here.
+                proc = subprocess.run(
+                    ["tabix", bgz_url, chrom], stdout=out, stderr=subprocess.PIPE, cwd=td
+                )
+            if proc.returncode == 0:
+                break
+            err = (proc.stderr or b"").decode("utf-8", "replace").strip()
+            if "No space left on device" in err or "ENOSPC" in err:
+                raise RuntimeError(
+                    f"tabix ran out of disk staging {chrom} under {td}: {err}. Point "
+                    f"TMPDIR / the build's output partition at >~10 GB free (chr1 ~6 GB)."
+                )
             if attempt >= retries:
-                raise
-            log.warning("Snaptron query failed (%s); retrying in 5s", e)
+                raise RuntimeError(
+                    f"tabix failed for {chrom} after {retries} attempts "
+                    f"(exit {proc.returncode}): {err}"
+                )
+            log.warning("tabix %s failed (exit %d), retrying in 5s: %s",
+                        chrom, proc.returncode, err[:200])
             time.sleep(5)
-    with resp:
-        for raw in resp:
-            yield raw.decode("utf-8").rstrip("\n")
+        with open(tsv, "rt") as inp:
+            for line in inp:
+                n_rows += 1
+                yield line.rstrip("\n")
+    if n_rows == 0:
+        raise RuntimeError(
+            f"tabix returned 0 rows for {chrom} (exit 0) — contig absent from the index, a "
+            f"name mismatch (UCSC chr22 vs ENSEMBL 22?), or an empty response. A primary "
+            f"contig is never legitimately empty (Issue #211 silent-undercount guard)."
+        )
 
 
 def write_bed6(keys: Set[Tuple[str, int, int, str]], path: str) -> None:
@@ -232,19 +285,19 @@ def build(
     qc_path: str,
     min_samples: int = 1,
     restrict_chrom: Optional[str] = None,
-    endpoint: str = SNAPTRON_GTEXV2_URL,
+    bgz_url: str = SNAPTRON_GTEXV2_BULK_BGZF,
     line_source=None,
     resume: bool = False,
 ) -> int:
-    """Query each region, stream the kept junctions to a per-chromosome part on
-    disk, then merge the parts into the final sorted BED6 + QC. Returns the
-    junction count.
+    """Fetch each region (a chromosome), stream the kept junctions to a
+    per-chromosome part on disk, then merge the parts into the final sorted BED6
+    + QC. Returns the junction count.
 
-    Regions are disjoint per-chromosome queries, so the union never needs to be
+    Regions are disjoint per-chromosome fetches, so the union never needs to be
     held in memory: peak memory is one chromosome's key set (genome-wide that is
     ~1 GB, vs ~tens of GB for the full union — Issue #211). ``line_source(region)
-    -> iterable[str]`` is injectable for tests; default is the live Snaptron
-    fetch.
+    -> iterable[str]`` is injectable for tests; default is a remote-tabix fetch of
+    that contig from the bulk junctions.bgz (BULK_HEADER prepended).
 
     Parts live under ``<bed_path>.parts/`` and are removed on success. With
     ``resume=True`` a chromosome whose ``.done`` marker already exists is folded
@@ -254,9 +307,6 @@ def build(
     Assumes one region per chromosome (the default genome-wide region set);
     windowed multi-region-per-chromosome queries are not supported here.
     """
-    if line_source is None:
-        line_source = lambda region: fetch_snaptron_region(region, endpoint=endpoint)
-
     # Parts key on chromosome only, so two regions on one chromosome would
     # collide and silently truncate a window (the second write_bed6 overwrites
     # the first). Refuse rather than corrupt the BED/QC.
@@ -274,11 +324,18 @@ def build(
         shutil.rmtree(part_dir)
     part_dir.mkdir(parents=True, exist_ok=True)
 
+    if line_source is None:
+        # Stage each contig's TSV + the remote .tbi under part_dir (same partition as the
+        # output) rather than $TMPDIR, so disk headroom follows the operator's chosen path.
+        line_source = lambda region: fetch_chromosome_bgz(
+            region, bgz_url=bgz_url, work_dir=str(part_dir)
+        )
+
     # Stamp the parameters that define a part's contents and refuse to --resume
     # parts built under different parameters — otherwise the merge would silently
     # mix regimes (e.g. min_samples=10 early chromosomes + a min_samples=1 resumed
-    # tail). endpoint and restrict_chrom change part contents too.
-    params = {"min_samples": min_samples, "endpoint": endpoint,
+    # tail). bgz_url and restrict_chrom change part contents too.
+    params = {"min_samples": min_samples, "bgz_url": bgz_url,
               "restrict_chrom": restrict_chrom}
     params_path = part_dir / "params.json"
     if resume and params_path.exists():
@@ -335,10 +392,11 @@ def _cli_main() -> None:
     parser.add_argument("--output-qc", required=True)
     parser.add_argument("--min-samples", type=int, default=1,
                         help="Keep junctions seen in >= this many samples (default 1).")
-    parser.add_argument("--endpoint", default=SNAPTRON_GTEXV2_URL)
+    parser.add_argument("--bgz-url", default=SNAPTRON_GTEXV2_BULK_BGZF,
+                        help="Snaptron bulk junctions.bgz URL fetched via remote tabix.")
     parser.add_argument(
         "--region", action="append", default=None,
-        help="Snaptron region (e.g. chr22:1-50818468). Repeatable. "
+        help="Contig to fetch via tabix (e.g. chr22). Repeatable. "
              "Default: all hg38 primary chromosomes (genome-wide).")
     parser.add_argument("--restrict-chrom", default=None,
                         help="Emit only this chromosome (chr22 fixture build).")
@@ -351,12 +409,12 @@ def _cli_main() -> None:
     if args.region:
         regions = args.region
     else:
-        regions = [f"{c}:1-{size}" for c, size in HG38_CHROM_SIZES.items()]
+        regions = list(HG38_CHROM_SIZES.keys())  # bare contig names for tabix
 
     n = build(
         regions=regions, bed_path=args.output_bed, qc_path=args.output_qc,
         min_samples=args.min_samples, restrict_chrom=args.restrict_chrom,
-        endpoint=args.endpoint, resume=args.resume,
+        bgz_url=args.bgz_url, resume=args.resume,
     )
     log.info("Done: %d junctions in the pan-tissue union", n)
 

@@ -185,33 +185,49 @@ columns by tissue via `SampleAttributesDS`.
 ## Build command (Snaptron gtexv2)
 
 The builder is `workflow/scripts/build_gtex_pan_tissue_ref.py` — a **manual one-shot**,
-NOT part of the per-patient Snakemake DAG. It queries Snaptron `gtexv2` per chromosome,
-keeps junctions with `samples_count >= --min-samples` (default 1), and writes sorted
-**BED6** + a QC `samples_count` sweep. Each chromosome is streamed to a part under
-`<output-bed>.parts/` and the parts are merged in chrom-name order, so peak memory is one
-chromosome's key set (~1 GB genome-wide, not the ~tens of GB of the full ~33M-row union) —
-**it runs anywhere, including the M1**, no highmem VM required. The genome-wide query is
-~2–4 h of Snaptron HTTP; pass `--resume` so a dropped connection picks up from the next
-chromosome instead of restarting (Issue #211). Resume reuses `<output-bed>.parts/` and
-refuses with a clear error if you change `--min-samples` / `--endpoint` / `--restrict-chrom`
-between runs (it would otherwise mix parameter regimes); delete the parts dir to rebuild
-with different parameters.
+NOT part of the per-patient Snakemake DAG. It fetches each chromosome from the **bulk
+`gtexv2` junction dump** `https://snaptron.cs.jhu.edu/data/gtexv2/junctions.bgz` via remote
+`tabix` (`tabix <bgz_url> <chrom>`), keeps junctions with `samples_count >= --min-samples`
+(default 1), and writes sorted **BED6** + a QC `samples_count` sweep. Each chromosome is
+streamed to a part under `<output-bed>.parts/` and the parts are merged in chrom-name order,
+so peak memory is one chromosome's key set (~1 GB genome-wide, not the ~tens of GB of the full
+~14M-row union) — **it runs anywhere, including the M1**, no highmem VM required.
 
-**chr22 fixture first** (gates correctness — must reproduce #225's panel):
+> **Why the bulk file, not the live region API (`/gtexv2/snaptron?regions=`)?** The region API
+> serves `transfer-encoding: chunked` with **no `Content-Length`**, so a server-side-truncated
+> response is indistinguishable from a complete one — a genome-wide run silently undercounted
+> (chr22 returned 236,216 of the true 880,769, no error). The static bulk file has a **real
+> `Content-Length`**, so `htslib`/`tabix` raises on a short read and the builder retries instead
+> of silently truncating. The two sources are the **same dataset** (verified: `tabix … chr22`
+> = exactly 880,769 = #225's panel; identical `snaptron_id` sets on a bounded window). Requires
+> `tabix` (htslib, with the libcurl backend for `https://` URLs) on `PATH` — provisioned on the
+> VM by `setup_vm.sh` (apt `tabix`; note plain `samtools` does **not** ship `tabix`), and locally
+> via `brew install htslib` or `conda install -c bioconda htslib`. The builder runs a PATH
+> preflight and fails with an actionable message if `tabix` is absent. Each contig's TSV (~1.2 GB
+> chr22, ~6 GB chr1) + the remote `.tbi` index stage transiently under `<output-bed>.parts/`, so
+> point the output at a partition with **≥ ~10 GB free**. Reserve the region API for spot-checks
+> only ([Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)).
+
+The genome-wide build is ~2–4 h; pass `--resume` so a dropped fetch picks up from the next
+chromosome instead of restarting. Resume reuses `<output-bed>.parts/` and refuses with a clear
+error if you change `--min-samples` / `--bgz-url` / `--restrict-chrom` between runs (it would
+otherwise mix parameter regimes); delete the parts dir to rebuild with different parameters.
+
+**chr22 fixture first** (gates correctness — must reproduce #225's panel; ~3 min):
 ```bash
-conda activate snakemake
+conda activate snakemake   # any env works; the builder is stdlib-only + system tabix on PATH
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
-  --region chr22:1-50818468 --restrict-chrom chr22 \
+  --region chr22 --restrict-chrom chr22 \
   --output-bed resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed \
   --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.chr22.qc.tsv \
   --min-samples 1
-wc -l resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect ~880,769
+wc -l resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect 880,769
 ```
 Reproduction check against #225's cached `chr22_gtex_panel.parquet` — see plan Task 9 Step 2.
 
-**Genome-wide** (default region set = all hg38 primary chromosomes). ~2–4 h — run it
-detached (`tmux`) and pass `--resume` so a re-invocation after an interruption skips the
-chromosomes already in `<output-bed>.parts/`:
+**Genome-wide** (default region set = all hg38 primary contigs). ~2–4 h — run it detached
+(`tmux`) and pass `--resume` so a re-invocation after an interruption skips the chromosomes
+already in `<output-bed>.parts/`:
 ```bash
 conda activate snakemake
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
@@ -220,14 +236,16 @@ python workflow/scripts/build_gtex_pan_tissue_ref.py \
   --min-samples 1 --resume
 ```
 
-**Coordinate cross-check** (the #148/#370 silent-empty guard) and **GCS staging**:
+**Correctness check + GCS staging.** The strongest local check is that the genome-wide BED's
+chr22 rows are **byte-identical to the committed chr22 fixture** (itself validated against
+#225's panel) — `awk -F'\t' '$1=="chr22"'` the genome-wide BED and `diff` it against
+`resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed`. The classic GENCODE-overlap
+guard (#148/#370 silent-empty) needs the full genome GTF, so run it on the VM (or chr22-only
+locally via `resources/test/chr22.gtf.gz`):
 ```bash
-# Expect a substantial non-zero chr22 overlap with the GENCODE reference; zero => transform bug.
-python workflow/scripts/build_reference_junctions.py \
-  --gtf references/gencode.v47.annotation.gtf.gz --output /tmp/ref_full.bed
-comm -12 \
-  <(grep -P '^chr22\t' /tmp/gtex_gtexv2_pan_tissue_junctions.bed | cut -f1-3 | sort -u) \
-  <(grep -P '^chr22\t' /tmp/ref_full.bed                          | cut -f1-3 | sort -u) | wc -l
+# genome-wide chr22 vs the committed fixture (strongest local guard)
+awk -F'\t' '$1=="chr22"' /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
+  | diff -q - resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect: identical
 
 gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.bed    gs://splice-neoepitope-project/resources/gtex/gtexv2/
 gsutil cp /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv gs://splice-neoepitope-project/resources/gtex/gtexv2/
