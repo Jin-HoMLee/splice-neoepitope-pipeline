@@ -31,7 +31,7 @@ artifacts:
   - id: chr22_test_fixture
     local_path: resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed
     gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.chr22.bed
-    gcs_staged: false        # uploaded with the genome-wide build (Task 9, local build)
+    gcs_staged: true         # staged to GCS 2026-06-02 (size-verified vs upload)
     format: "BED6 (chrom start end name 0 strand), sorted, UCSC chr*"
     n_junctions: 880769      # samples_count >= 1
     size_bytes: 47561526
@@ -56,7 +56,7 @@ artifacts:
   - id: genome_wide_panel
     local_path: null         # regenerated to /tmp during build; not kept locally
     gcs_path: gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed
-    gcs_staged: false        # PENDING — GCS staging (outward write)
+    gcs_staged: true         # staged to GCS 2026-06-02 (size-verified vs upload)
     format: "BED6, sorted, UCSC chr*"
     n_junctions: 32137439    # samples_count >= 1, all hg38 primary contigs; built 2026-06-02
     size_bytes: 1721700950
