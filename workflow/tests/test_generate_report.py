@@ -7,10 +7,15 @@ from generate_report import (
     _build_chain_legend,
     _build_compnd_records,
     _build_contig_peek,
+    _build_docking_metrics_html,
     _build_filtering_funnel_html,
+    _build_report_3d_structure_tsv,
     _build_report_tsv,
     _build_strong_table_html,
     _build_strong_table_html_from_top_candidates,
+    _build_structure_section,
+    _build_tcr_provenance_html,
+    _build_vdjdb_panel_section,
     _df_to_html,
     _extract_chain_ids,
     _load_report_tsv,
@@ -1009,3 +1014,478 @@ class TestGenerateReportEndToEnd:
 
         html = html_out.read_text()
         assert "Showing" not in html
+
+
+# ---------------------------------------------------------------------------
+# Issue #206 — VDJdb panel reference table + matched-TCR provenance in report
+# ---------------------------------------------------------------------------
+
+# Minimal 4-chain PDB (A=MHC, B=peptide, C=TCRα, D=TCRβ) for structure tests.
+_MINI_PDB = (
+    "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00  0.00           C\n"
+    "ATOM      2  CA  GLY B   1       1.000   1.000   1.000  1.00  0.00           C\n"
+    "ATOM      3  CA  SER C   1       2.000   2.000   2.000  1.00  0.00           C\n"
+    "ATOM      4  CA  LEU D   1       3.000   3.000   3.000  1.00  0.00           C\n"
+)
+
+
+def _make_panel_df() -> pd.DataFrame:
+    """Two-allele VDJdb panel mirroring fetch_vdjdb_panel.PANEL_COLUMNS."""
+    return pd.DataFrame([
+        {"allele": "HLA-C*07:01", "va_gene": "TRAV29/DV5*01", "ja_gene": "TRAJ29*01",
+         "cdr3a": "CAANSGNTPLVF", "vb_gene": "TRBV2*01", "jb_gene": "TRBJ1-1*01",
+         "cdr3b": "CASSLMGGGNTIYF", "alpha_seq": "AAAA", "beta_seq": "BBBB",
+         "vdjdb_score": 2, "vdjdb_donor_id": "donor_42"},
+        {"allele": "HLA-A*02:01", "va_gene": "TRAV12-2*01", "ja_gene": "TRAJ33*01",
+         "cdr3a": "CAVNDSWGKLQF", "vb_gene": "TRBV6-5*01", "jb_gene": "TRBJ2-7*01",
+         "cdr3b": "CASSYQETQYF", "alpha_seq": "CCCC", "beta_seq": "DDDD",
+         "vdjdb_score": 1, "vdjdb_donor_id": "donor_7"},
+    ])
+
+
+def _make_qc_df() -> pd.DataFrame:
+    """Per-allele QC mirroring fetch_vdjdb_panel.QC_COLUMNS, with all 3 statuses."""
+    return pd.DataFrame([
+        {"allele": "HLA-C*07:01", "n_exact_matches": 1, "n_in_panel": 1,
+         "panel_status": "low_coverage"},
+        {"allele": "HLA-A*02:01", "n_exact_matches": 50, "n_in_panel": 10,
+         "panel_status": "ok"},
+        {"allele": "HLA-B*07:02", "n_exact_matches": 0, "n_in_panel": 0,
+         "panel_status": "empty"},
+    ])
+
+
+def _make_docking_scores_df(panel_status: str = "vdjdb_matched") -> pd.DataFrame:
+    """docking_scores.tsv top row mirroring run_tcrdock.collect_outputs output."""
+    matched = panel_status != "dmf5_fallback"
+    return pd.DataFrame([{
+        "peptide": "SQIPRTHSY", "mhc": "HLA-C*07:01",
+        "model_2_ptm_plddt": 91.3, "model_2_ptm_pae": 5.2, "pmhc_tcr_pae": 6.1,
+        "tcr_va": "TRAV29/DV5*01" if matched else "TRAV12-2",
+        "tcr_ja": "TRAJ29*01" if matched else "TRAJ23",
+        "tcr_vb": "TRBV2*01" if matched else "TRBV6-4",
+        "tcr_jb": "TRBJ1-1*01" if matched else "TRBJ1-1",
+        "tcr_cdr3a": "CAANSGNTPLVF" if matched else "CAVRPGGAGPFFVVF",
+        "tcr_cdr3b": "CASSLMGGGNTIYF" if matched else "CASSLSFGTEAFF",
+        "vdjdb_donor_id": "donor_42" if matched else "",
+        "vdjdb_score": 2 if matched else pd.NA,
+        "panel_status": panel_status,
+    }])
+
+
+class TestBuildVdjdbPanelSection:
+    def test_both_none_returns_empty(self):
+        assert _build_vdjdb_panel_section(None, None) == ""
+
+    def test_missing_files_return_empty(self, tmp_path):
+        assert _build_vdjdb_panel_section(
+            str(tmp_path / "nope.tsv"), str(tmp_path / "nope_qc.tsv")
+        ) == ""
+
+    def test_renders_coverage_table_with_status_badges(self, tmp_path):
+        qc = tmp_path / "panel_qc.tsv"
+        _make_qc_df().to_csv(qc, sep="\t", index=False)
+        html = _build_vdjdb_panel_section(None, str(qc))
+        assert "Per-allele coverage" in html
+        assert "low_coverage" in html and "empty" in html and "ok" in html
+        # Status colours present (ok=green, low=orange, empty=red)
+        assert "#27ae60" in html and "#e67e22" in html and "#c0392b" in html
+
+    def test_renders_reference_panel_table(self, tmp_path):
+        panel = tmp_path / "panel.tsv"
+        _make_panel_df().to_csv(panel, sep="\t", index=False)
+        html = _build_vdjdb_panel_section(str(panel), None)
+        assert "Reference panel" in html
+        assert "All 2 TCRs" in html
+        assert "CAANSGNTPLVF" in html  # CDR3α
+        assert "CASSLMGGGNTIYF" in html  # CDR3β
+        assert "donor_42" in html
+        assert "TRAV29/DV5*01" in html
+
+    def test_renders_both_tables_and_section_header(self, tmp_path):
+        panel = tmp_path / "panel.tsv"
+        qc = tmp_path / "panel_qc.tsv"
+        _make_panel_df().to_csv(panel, sep="\t", index=False)
+        _make_qc_df().to_csv(qc, sep="\t", index=False)
+        html = _build_vdjdb_panel_section(str(panel), str(qc))
+        assert "VDJdb TCR panel (reference)" in html
+        assert "Per-allele coverage" in html
+        assert "Reference panel" in html
+
+    def test_empty_dataframes_return_empty(self, tmp_path):
+        panel = tmp_path / "panel.tsv"
+        qc = tmp_path / "panel_qc.tsv"
+        _make_panel_df().head(0).to_csv(panel, sep="\t", index=False)
+        _make_qc_df().head(0).to_csv(qc, sep="\t", index=False)
+        assert _build_vdjdb_panel_section(str(panel), str(qc)) == ""
+
+
+class TestBuildTcrProvenanceHtml:
+    def test_none_meta_returns_legacy_note(self):
+        html = _build_tcr_provenance_html("HLA-C*07:01", None)
+        assert "DMF5 fallback (see config)" in html
+
+    def test_meta_without_panel_status_returns_legacy_note(self):
+        html = _build_tcr_provenance_html("HLA-C*07:01", {"tcr_va": "X"})
+        assert "DMF5 fallback (see config)" in html
+
+    def test_dmf5_fallback_flags_warning_with_allele(self):
+        html = _build_tcr_provenance_html(
+            "HLA-C*07:01", {"panel_status": "dmf5_fallback"}
+        )
+        assert "tcr-fallback" in html
+        assert "DMF5 fallback" in html
+        assert "HLA-C*07:01" in html
+        assert "sanity check" in html
+
+    def test_vdjdb_matched_shows_full_provenance(self):
+        meta = _make_docking_scores_df("vdjdb_matched").iloc[0].to_dict()
+        html = _build_tcr_provenance_html("HLA-C*07:01", meta)
+        assert "tcr-matched" in html
+        assert "HLA-matched" in html
+        assert "TRAV29/DV5*01" in html and "TRAJ29*01" in html
+        assert "CAANSGNTPLVF" in html and "CASSLMGGGNTIYF" in html
+        assert "donor_42" in html
+        assert "confidence score 2" in html
+
+    def test_matched_with_na_score_omits_score_phrase(self):
+        meta = {"panel_status": "vdjdb_matched", "tcr_va": "TRAV1",
+                "vdjdb_donor_id": "d1", "vdjdb_score": pd.NA}
+        html = _build_tcr_provenance_html("HLA-A*02:01", meta)
+        assert "HLA-matched" in html
+        assert "confidence score" not in html  # NA score suppressed
+        assert "donor" in html
+
+
+class TestBuildDockingMetricsHtml:
+    def test_none_returns_empty(self):
+        assert _build_docking_metrics_html(None) == ""
+
+    def test_no_metric_columns_returns_empty(self):
+        assert _build_docking_metrics_html({"peptide": "X", "panel_status": "ok"}) == ""
+
+    def test_renders_plddt_pae_ptm_rows(self):
+        meta = _make_docking_scores_df().iloc[0].to_dict()
+        html = _build_docking_metrics_html(meta)
+        assert "TCRdock confidence metrics" in html
+        assert "model_2_ptm_plddt" in html and "91.3" in html
+        assert "pmhc_tcr_pae" in html
+
+    def test_skips_nan_and_blank_metric_values(self):
+        html = _build_docking_metrics_html(
+            {"model_2_ptm_plddt": float("nan"), "model_2_ptm_pae": ""}
+        )
+        assert html == ""
+
+
+class TestBuildReport3dStructureProvenance:
+    def test_manifest_carries_provenance_columns(self, tmp_path):
+        scores = tmp_path / "docking_scores.tsv"
+        _make_docking_scores_df("vdjdb_matched").to_csv(scores, sep="\t", index=False)
+        manifest = tmp_path / "report_3d_structure.tsv"
+        _build_report_3d_structure_tsv(
+            patient_id="p001",
+            docking_scores_tsv=str(scores),
+            pdb_relative_path="predictions/tcrdock/top_candidate.pdb",
+            output_tsv=str(manifest),
+        )
+        df = pd.read_csv(manifest, sep="\t")
+        assert "panel_status" in df.columns
+        assert df.iloc[0]["panel_status"] == "vdjdb_matched"
+        assert df.iloc[0]["vdjdb_donor_id"] == "donor_42"
+        assert "model_2_ptm_plddt" in df.columns  # metrics still pass through
+
+    def test_manifest_without_provenance_columns_is_backward_compatible(self, tmp_path):
+        # Pre-#205 docking_scores.tsv: no provenance columns at all.
+        scores = tmp_path / "docking_scores.tsv"
+        pd.DataFrame([{"peptide": "SQIPRTHSY", "mhc": "HLA-C*07:01",
+                       "model_2_ptm_plddt": 88.0}]).to_csv(scores, sep="\t", index=False)
+        manifest = tmp_path / "report_3d_structure.tsv"
+        _build_report_3d_structure_tsv(
+            patient_id="p001",
+            docking_scores_tsv=str(scores),
+            pdb_relative_path="x.pdb",
+            output_tsv=str(manifest),
+        )
+        df = pd.read_csv(manifest, sep="\t")
+        assert "panel_status" not in df.columns
+        assert "model_2_ptm_plddt" in df.columns
+
+    def test_dmf5_fallback_na_score_blanked_in_manifest(self, tmp_path):
+        scores = tmp_path / "docking_scores.tsv"
+        _make_docking_scores_df("dmf5_fallback").to_csv(scores, sep="\t", index=False)
+        manifest = tmp_path / "report_3d_structure.tsv"
+        _build_report_3d_structure_tsv(
+            patient_id="p001",
+            docking_scores_tsv=str(scores),
+            pdb_relative_path="x.pdb",
+            output_tsv=str(manifest),
+        )
+        df = pd.read_csv(manifest, sep="\t")
+        assert df.iloc[0]["panel_status"] == "dmf5_fallback"
+        # NA score round-trips as blank (NaN), not a stray literal.
+        assert pd.isna(df.iloc[0]["vdjdb_score"]) or df.iloc[0]["vdjdb_score"] == ""
+
+
+class TestBuildStructureSectionWithMeta:
+    def test_matched_meta_renders_provenance_and_metrics(self, tmp_path):
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        meta = _make_docking_scores_df("vdjdb_matched").iloc[0].to_dict()
+        html = _build_structure_section(pdb, "SQIPRTHSY", "HLA-C*07:01", meta=meta)
+        assert "HLA-matched" in html
+        assert "donor_42" in html
+        assert "TCRdock confidence metrics" in html
+        assert "91.3" in html
+        assert "DMF5 fallback (see config)" not in html
+
+    def test_fallback_meta_flags_dmf5(self, tmp_path):
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        meta = _make_docking_scores_df("dmf5_fallback").iloc[0].to_dict()
+        html = _build_structure_section(pdb, "SQIPRTHSY", "HLA-C*07:01", meta=meta)
+        assert "tcr-fallback" in html
+        assert "DMF5 fallback" in html
+
+    def test_no_meta_keeps_legacy_note(self, tmp_path):
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        html = _build_structure_section(pdb, "SQIPRTHSY", "HLA-C*07:01")
+        assert "DMF5 fallback (see config)" in html
+
+
+class TestGenerateReportWithPanelAndStructure:
+    """End-to-end: panel section + matched-TCR provenance flow into report.html."""
+
+    def _write_inputs(self, tmp_path):
+        junc_tsv = tmp_path / "novel_junctions.tsv"
+        pd.DataFrame([
+            {"sample_id": "S1", "sample_type": "Primary Tumor",
+             "junction_origin": "tumor_exclusive", "contig_key": "k0", "start_nt": 20},
+        ]).to_csv(junc_tsv, sep="\t", index=False)
+        pred_df = _make_pred_df(n_strong=2, n_weak=1, n_non=2)
+        pred_tsv = tmp_path / "predictions.tsv"
+        pred_df.to_csv(pred_tsv, sep="\t", index=False)
+        contigs_fa = tmp_path / "contigs.fa"
+        keys = sorted(set(pred_df["contig_key"]), key=lambda k: (len(k), k))
+        contigs_fa.write_text("".join(f">{k}\n" + "ACGTACGT" * 7 + "\n" for k in keys))
+        return junc_tsv, pred_tsv, contigs_fa
+
+    def test_panel_section_appears_in_html(self, tmp_path):
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        panel = tmp_path / "panel.tsv"
+        qc = tmp_path / "panel_qc.tsv"
+        _make_panel_df().to_csv(panel, sep="\t", index=False)
+        _make_qc_df().to_csv(qc, sep="\t", index=False)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            vdjdb_panel_tsv=str(panel),
+            vdjdb_panel_qc_tsv=str(qc),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert "VDJdb TCR panel (reference)" in html
+        assert "CAANSGNTPLVF" in html
+        assert "low_coverage" in html
+
+    def test_structure_section_surfaces_matched_tcr_from_manifest(self, tmp_path):
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        scores = tmp_path / "docking_scores.tsv"
+        _make_docking_scores_df("vdjdb_matched").to_csv(scores, sep="\t", index=False)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            output_3d_structure_tsv=str(out_dir / "report_3d_structure.tsv"),
+            tcrdock_pdb=str(pdb),
+            docking_scores_tsv=str(scores),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert "HLA-matched" in html
+        assert "donor_42" in html
+        assert "TCRdock confidence metrics" in html
+        # Manifest carries the provenance the HTML rendered from.
+        manifest = pd.read_csv(out_dir / "report_3d_structure.tsv", sep="\t")
+        assert manifest.iloc[0]["panel_status"] == "vdjdb_matched"
+
+    def test_structure_section_flags_dmf5_fallback_end_to_end(self, tmp_path):
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        scores = tmp_path / "docking_scores.tsv"
+        _make_docking_scores_df("dmf5_fallback").to_csv(scores, sep="\t", index=False)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            output_3d_structure_tsv=str(out_dir / "report_3d_structure.tsv"),
+            tcrdock_pdb=str(pdb),
+            docking_scores_tsv=str(scores),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert "tcr-fallback" in html
+        assert "DMF5 fallback" in html
+
+    def test_panel_section_reflects_artefact_contents(self, tmp_path):
+        """Prove the panel section renders the *file* content, not hardcoded
+        values: a unique sentinel CDR3 + donor written into panel.tsv must
+        surface in the HTML (the panel section reads panel.tsv directly)."""
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        panel = tmp_path / "panel.tsv"
+        qc = tmp_path / "panel_qc.tsv"
+        panel_df = _make_panel_df()
+        panel_df.loc[0, "cdr3a"] = "SENTINELCDR3AXYZ"
+        panel_df.loc[0, "vdjdb_donor_id"] = "SENTINELDONOR999"
+        panel_df.to_csv(panel, sep="\t", index=False)
+        _make_qc_df().to_csv(qc, sep="\t", index=False)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            vdjdb_panel_tsv=str(panel),
+            vdjdb_panel_qc_tsv=str(qc),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert "SENTINELCDR3AXYZ" in html
+        assert "SENTINELDONOR999" in html
+
+    def test_generate_report_omits_panel_when_none(self, tmp_path):
+        """Backward-compat / HLA-disabled path: with no panel artefacts the
+        report still renders, just without the VDJdb panel section."""
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            vdjdb_panel_tsv=None,
+            vdjdb_panel_qc_tsv=None,
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert html_out.exists()
+        assert "VDJdb TCR panel" not in html
+        assert "Top strong presentations" in html  # other sections intact
+
+    def test_structure_section_with_legacy_docking_scores(self, tmp_path):
+        """Backward-compat end-to-end: a pre-#205 docking_scores.tsv with NO
+        provenance columns must flow through generate_report() to the legacy
+        DMF5 note, with no HLA-matched provenance leaking in (AC4 fallback)."""
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        scores = tmp_path / "docking_scores.tsv"
+        # Pre-#205: only peptide, mhc, and a metric column — no provenance.
+        pd.DataFrame([{"peptide": "SQIPRTHSY", "mhc": "HLA-C*07:01",
+                       "model_2_ptm_plddt": 88.0}]).to_csv(scores, sep="\t", index=False)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            output_3d_structure_tsv=str(out_dir / "report_3d_structure.tsv"),
+            tcrdock_pdb=str(pdb),
+            docking_scores_tsv=str(scores),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert "DMF5 fallback (see config)" in html  # legacy note
+        assert "HLA-matched" not in html
+        assert "VDJdb donor" not in html
+        # Metrics still pass through even on a legacy scores file.
+        assert "TCRdock confidence metrics" in html
+
+    def test_structure_section_reads_provenance_from_manifest_artefact(self, tmp_path, monkeypatch):
+        """Prove the structure section's provenance reads from the reloaded
+        report_3d_structure.tsv, not from docking_scores.tsv directly: inject a
+        sentinel donor into the manifest AFTER the writer runs; it can only reach
+        the HTML if the renderer reads the manifest artefact."""
+        import generate_report as gr_mod
+
+        junc_tsv, pred_tsv, contigs_fa = self._write_inputs(tmp_path)
+        out_dir = tmp_path / "results" / "p001" / "reports"
+        out_dir.mkdir(parents=True)
+        pdb = tmp_path / "top_candidate.pdb"
+        pdb.write_text(_MINI_PDB)
+        scores = tmp_path / "docking_scores.tsv"
+        _make_docking_scores_df("vdjdb_matched").to_csv(scores, sep="\t", index=False)
+
+        sentinel = "SENTINELDONOR777"
+        original_writer = gr_mod._build_report_3d_structure_tsv
+
+        def writer_with_sentinel(*args, **kwargs):
+            original_writer(*args, **kwargs)
+            out_path = kwargs["output_tsv"]
+            df = pd.read_csv(out_path, sep="\t")
+            assert not df.empty and "vdjdb_donor_id" in df.columns
+            df.loc[0, "vdjdb_donor_id"] = sentinel
+            df.to_csv(out_path, sep="\t", index=False)
+
+        monkeypatch.setattr(gr_mod, "_build_report_3d_structure_tsv", writer_with_sentinel)
+
+        html_out = out_dir / "report.html"
+        generate_report(
+            novel_junctions_tsv=str(junc_tsv),
+            predictions_tsv=str(pred_tsv),
+            output_html=str(html_out),
+            contigs_fasta=str(contigs_fa),
+            output_tsv=str(out_dir / "report.tsv"),
+            output_top_candidates_tsv=str(out_dir / "report_top_candidates.tsv"),
+            output_3d_structure_tsv=str(out_dir / "report_3d_structure.tsv"),
+            tcrdock_pdb=str(pdb),
+            docking_scores_tsv=str(scores),
+            patient_id="p001",
+        )
+        html = html_out.read_text()
+        assert sentinel in html, (
+            "structure section must render TCR provenance from the reloaded "
+            "report_3d_structure.tsv artefact — sentinel injected post-write "
+            "is absent, so the HTML is not reading from the manifest."
+        )

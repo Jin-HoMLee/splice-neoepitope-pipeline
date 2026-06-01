@@ -206,6 +206,14 @@ _HTML_TEMPLATE = """\
     .chain-legend th {{ background: #f2f2f2; padding: 5px 14px; }}
     .chain-legend td {{ padding: 5px 14px; }}
     .chain-legend code {{ background: #eee; padding: 1px 4px; border-radius: 3px; }}
+
+    /* TCR-source callouts (structure section) */
+    .tcr-matched  {{ background: #eafaf1; border-left: 4px solid #27ae60;
+                     padding: 8px 12px; margin: 1em 0; }}
+    .tcr-fallback {{ background: #fdecea; border-left: 4px solid #e74c3c;
+                     padding: 8px 12px; margin: 1em 0; }}
+    .tcr-matched code, .tcr-fallback code {{ background: #fff; padding: 1px 4px;
+                     border-radius: 3px; }}
   </style>
 </head>
 <body>
@@ -234,6 +242,8 @@ _HTML_TEMPLATE = """\
 
   <h2>Top strong presentations (presentation_percentile &le; {presentation_percentile_strong}%)</h2>
   {strong_table}
+
+  {vdjdb_panel_section}
 
   {structure_section}
 
@@ -364,6 +374,127 @@ def _build_hla_section(hla_qc_tsv: str) -> str:
         "including any HLA loss-of-heterozygosity. "
         "These alleles were used for patient-specific neoepitope prediction.</p>"
         + note + table
+    )
+
+
+# panel_status (panel_qc.tsv) → badge colour, mirroring fetch_vdjdb_panel.py's
+# ok / low_coverage / empty vocabulary.
+_VDJDB_PANEL_STATUS_COLOURS = {
+    "ok": "#27ae60",
+    "low_coverage": "#e67e22",
+    "empty": "#c0392b",
+}
+
+
+def _panel_status_badge(status: str) -> str:
+    """Render a panel_status value as a colour-coded bold span."""
+    colour = _VDJDB_PANEL_STATUS_COLOURS.get(status, "#888")
+    return (
+        f'<span style="color:{colour};font-weight:bold">'
+        f"{html_mod.escape(status)}</span>"
+    )
+
+
+def _build_vdjdb_panel_section(
+    vdjdb_panel_tsv: str | None,
+    vdjdb_panel_qc_tsv: str | None,
+) -> str:
+    """Build the VDJdb reference-panel section (Issue #206).
+
+    Two tables, both reading upstream artefacts directly (no round-trip through
+    the report's own TSVs, mirroring ``_build_hla_section``):
+
+      1. Per-allele coverage (``panel_qc.tsv``) — how many VDJdb TCRs were found
+         per patient HLA allele, plus the ``panel_status`` flag
+         (ok / low_coverage / empty).
+      2. The reference panel itself (``panel.tsv``) — every TCR available to the
+         HLA-matched selection step, with V/J genes, CDR3s, VDJdb donor + score.
+
+    Returns ``""`` when neither artefact is available — backward-compatible with
+    pipelines that ran before the VDJdb panel rule (Issue #204) existed, and with
+    HLA-disabled runs (the panel rule is gated on ``config[hla][enabled]``).
+    """
+    import pandas as pd
+
+    # --- per-allele coverage table (panel_qc.tsv) ---
+    qc_html = ""
+    if vdjdb_panel_qc_tsv and Path(vdjdb_panel_qc_tsv).exists():
+        try:
+            qc_df = pd.read_csv(vdjdb_panel_qc_tsv, sep="\t")
+        except Exception as exc:
+            log.warning("Could not read VDJdb panel QC TSV %s: %s", vdjdb_panel_qc_tsv, exc)
+            qc_df = pd.DataFrame()
+        if not qc_df.empty:
+            rows = []
+            for _, r in qc_df.iterrows():
+                rows.append(
+                    "<tr>"
+                    f"<td><code>{html_mod.escape(str(r.get('allele', '')))}</code></td>"
+                    f"<td>{html_mod.escape(str(r.get('n_exact_matches', '')))}</td>"
+                    f"<td>{html_mod.escape(str(r.get('n_in_panel', '')))}</td>"
+                    f"<td>{_panel_status_badge(str(r.get('panel_status', '')))}</td>"
+                    "</tr>"
+                )
+            qc_html = (
+                "<h3>Per-allele coverage</h3>"
+                "<p>How many VDJdb TCRs were found per patient HLA allele. "
+                "<strong>low_coverage</strong> means fewer than the target panel "
+                "size were available; <strong>empty</strong> means none &mdash; the "
+                "structural prediction below then falls back to the generic DMF5 TCR.</p>"
+                "<table><thead><tr>"
+                "<th>Allele</th><th>Exact VDJdb matches</th>"
+                "<th>TCRs in panel</th><th>Status</th>"
+                "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+            )
+
+    # --- reference panel table (panel.tsv) ---
+    panel_html = ""
+    if vdjdb_panel_tsv and Path(vdjdb_panel_tsv).exists():
+        try:
+            panel_df = pd.read_csv(vdjdb_panel_tsv, sep="\t")
+        except Exception as exc:
+            log.warning("Could not read VDJdb panel TSV %s: %s", vdjdb_panel_tsv, exc)
+            panel_df = pd.DataFrame()
+        if not panel_df.empty:
+            rows = []
+            for _, r in panel_df.iterrows():
+                rows.append(
+                    "<tr>"
+                    f"<td><code>{html_mod.escape(str(r.get('allele', '')))}</code></td>"
+                    f"<td>{html_mod.escape(str(r.get('va_gene', '')))} / "
+                    f"{html_mod.escape(str(r.get('ja_gene', '')))}</td>"
+                    f"<td><code>{html_mod.escape(str(r.get('cdr3a', '')))}</code></td>"
+                    f"<td>{html_mod.escape(str(r.get('vb_gene', '')))} / "
+                    f"{html_mod.escape(str(r.get('jb_gene', '')))}</td>"
+                    f"<td><code>{html_mod.escape(str(r.get('cdr3b', '')))}</code></td>"
+                    f"<td>{html_mod.escape(str(r.get('vdjdb_donor_id', '')))}</td>"
+                    f"<td>{html_mod.escape(str(r.get('vdjdb_score', '')))}</td>"
+                    "</tr>"
+                )
+            panel_html = (
+                "<h3>Reference panel</h3>"
+                f"<p>All {len(panel_df)} TCRs available to the HLA-matched "
+                "selection step, sorted by VDJdb confidence within each allele. "
+                "The single TCR docked below is the highest-confidence match for "
+                "the top neoepitope's allele.</p>"
+                "<table><thead><tr>"
+                "<th>Allele</th><th>TRAV / TRAJ</th><th>CDR3&alpha;</th>"
+                "<th>TRBV / TRBJ</th><th>CDR3&beta;</th>"
+                "<th>VDJdb donor</th><th>Score</th>"
+                "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+            )
+
+    if not qc_html and not panel_html:
+        return ""
+
+    return (
+        "<h2>VDJdb TCR panel (reference)</h2>"
+        "<p>Reference set of experimentally-observed TCRs from "
+        "<a href='https://vdjdb.cdr3.net'>VDJdb</a>, matched to this patient's "
+        "HLA alleles. This panel is the candidate pool from which a single TCR "
+        "is selected for the TCR-peptide-MHC structural prediction.</p>"
+        + qc_html
+        + panel_html
     )
 
 
@@ -753,7 +884,124 @@ def _resolve_top_candidate_from_manifest(
     return str(top.get("peptide", "NA")), str(top.get("allele", "NA"))
 
 
-def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
+def _meta_value(meta: dict | None, key: str) -> str:
+    """HTML-escaped string value from a manifest meta dict; "" for missing/NaN.
+
+    Handles every NA flavour a manifest row can carry — ``None``, float ``NaN``
+    (from a CSV round-trip), and ``pd.NA`` (from an in-memory row) — so a missing
+    ``vdjdb_score`` never leaks a literal ``<NA>`` into the rendered prose.
+    """
+    import pandas as pd
+
+    if not meta:
+        return ""
+    v = meta.get(key, "")
+    try:
+        if v is None or pd.isna(v):
+            return ""
+    except (TypeError, ValueError):
+        pass  # array-like / unhashable — fall through and stringify
+    s = str(v).strip()
+    return html_mod.escape(s)
+
+
+def _build_tcr_provenance_html(allele: str, meta: dict | None) -> str:
+    """Render the TCR-source paragraph for the structure section (Issue #206).
+
+    ``meta`` is the top row of ``report_3d_structure.tsv``. Reads ``panel_status``
+    to decide between the HLA-matched-VDJdb message (showing V/J genes, CDR3s,
+    VDJdb donor + confidence score) and the DMF5-fallback warning. Falls back to
+    the legacy note when ``meta`` lacks ``panel_status`` — old artefacts, or a
+    ``docking_scores.tsv`` predating the Issue #205 provenance columns.
+
+    ``allele`` is already HTML-escaped by the caller.
+    """
+    status = _meta_value(meta, "panel_status")
+
+    if not status:
+        # Pre-#205 artefacts with no provenance — keep the legacy note.
+        return "<p><em>TCR sequences: DMF5 fallback (see config).</em></p>"
+
+    if status == "dmf5_fallback":
+        return (
+            '<p class="tcr-fallback"><strong>&#9888; TCR source: DMF5 fallback.</strong> '
+            "No HLA-matched TCR was available in this patient's VDJdb panel for "
+            f"allele {allele}, so the generic DMF5 TCR (HLA-A*02:01 / MART-1) was "
+            "used. Read this structure as a docking-geometry sanity check, not an "
+            "allele-matched prediction.</p>"
+        )
+
+    # vdjdb_matched (or any non-fallback status carrying provenance).
+    va, ja = _meta_value(meta, "tcr_va"), _meta_value(meta, "tcr_ja")
+    vb, jb = _meta_value(meta, "tcr_vb"), _meta_value(meta, "tcr_jb")
+    cdr3a, cdr3b = _meta_value(meta, "tcr_cdr3a"), _meta_value(meta, "tcr_cdr3b")
+    donor, score = _meta_value(meta, "vdjdb_donor_id"), _meta_value(meta, "vdjdb_score")
+
+    gene_bits = []
+    if va or ja:
+        gene_bits.append(f"TRA <code>{va}</code> / <code>{ja}</code>")
+    if vb or jb:
+        gene_bits.append(f"TRB <code>{vb}</code> / <code>{jb}</code>")
+    cdr3_bits = []
+    if cdr3a:
+        cdr3_bits.append(f"CDR3&alpha; <code>{cdr3a}</code>")
+    if cdr3b:
+        cdr3_bits.append(f"CDR3&beta; <code>{cdr3b}</code>")
+    prov_bits = []
+    if donor:
+        prov_bits.append(f"VDJdb donor <code>{donor}</code>")
+    if score:
+        prov_bits.append(f"confidence score {score}")
+
+    detail = ". ".join(
+        "; ".join(bits) if isinstance(bits, list) else bits
+        for bits in (gene_bits, cdr3_bits, prov_bits)
+        if bits
+    )
+    return (
+        '<p class="tcr-matched"><strong>&#10003; TCR source: VDJdb (HLA-matched).</strong> '
+        f"Paired against the highest-confidence VDJdb TCR for {allele}"
+        + (f": {detail}." if detail else ".")
+        + "</p>"
+    )
+
+
+def _build_docking_metrics_html(meta: dict | None) -> str:
+    """Render TCRdock confidence metrics (pLDDT / PAE / pTM) as a small table.
+
+    Reads the pass-through metric columns from the structure manifest top row
+    (Issue #206). Column names are TCRdock-specific (e.g. ``model_2_ptm_plddt``),
+    so they are shown verbatim. Returns ``""`` when no metric columns are present.
+    """
+    import pandas as pd
+
+    if not meta:
+        return ""
+    rows = []
+    for k in meta:
+        if not any(t in str(k).lower() for t in ("plddt", "pae", "ptm")):
+            continue
+        v = meta.get(k, "")
+        if v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == "":
+            continue
+        rows.append(
+            f"<tr><td>{html_mod.escape(str(k))}</td>"
+            f"<td>{html_mod.escape(str(v))}</td></tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        "<h3>TCRdock confidence metrics</h3>"
+        "<p>AlphaFold confidence for the predicted complex &mdash; higher pLDDT "
+        "and pTM, lower PAE indicate a more reliable model.</p>"
+        "<table class='chain-legend'><thead><tr><th>Metric</th><th>Value</th>"
+        "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+    )
+
+
+def _build_structure_section(
+    pdb_path: Path, peptide: str, allele: str, meta: dict | None = None,
+) -> str:
     """Build the Mol* 3D viewer section for the top TCRdock candidate.
 
     The PDB is inlined as a JSON string so the HTML report is fully
@@ -763,6 +1011,12 @@ def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
         pdb_path: Path to the TCRdock-predicted PDB file.
         peptide:  Top candidate peptide (already resolved by caller).
         allele:   Top candidate allele (already resolved by caller).
+        meta:     Optional top-row dict from ``report_3d_structure.tsv`` carrying
+                  the TCR-provenance columns (``panel_status``, V/J genes, CDR3s,
+                  VDJdb donor + score; Issue #205) and the pass-through pLDDT/PAE/
+                  pTM metric columns. When supplied, the section surfaces which TCR
+                  was docked and flags the DMF5 fallback (Issue #206). When None/
+                  empty, falls back to the legacy DMF5 note.
 
     Returns:
         HTML string containing the Mol* viewer and inlined PDB.
@@ -784,6 +1038,9 @@ def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
     chains = _extract_chain_ids(pdb_text)
     chain_legend = _build_chain_legend(chains, peptide, allele)
 
+    tcr_provenance_html = _build_tcr_provenance_html(allele, meta)
+    metrics_html = _build_docking_metrics_html(meta)
+
     viewer_html = _MOLSTAR_VIEWER.format(pdb_data=pdb_json)
     return (
         "<h2>TCR-peptide-MHC structure (TCRdock)</h2>"
@@ -792,9 +1049,10 @@ def _build_structure_section(pdb_path: Path, peptide: str, allele: str) -> str:
         "Each chain is colored separately &mdash; hover over a region in the "
         "3D view to see chain details, or expand the sequence panel "
         "(top of the viewer) to browse per-chain sequences. "
-        "Rendered with <a href='https://molstar.org'>Mol*</a>. "
-        "TCR sequences: DMF5 fallback (see config).</p>"
+        "Rendered with <a href='https://molstar.org'>Mol*</a>.</p>"
+        + tcr_provenance_html
         + chain_legend
+        + metrics_html
         + viewer_html
     )
 
@@ -1139,6 +1397,16 @@ def _build_report_top_candidates_tsv(
 # which we don't want pulled into report generation).
 _TCRDOCK_CHAIN_NAMES = {"A": "MHC", "B": "peptide", "C": "TCR-alpha", "D": "TCR-beta"}
 
+# TCR-provenance columns written into docking_scores.tsv by run_tcrdock.py
+# (Issue #205). Mirrors run_tcrdock._TCR_PROVENANCE_COLUMNS — duplicated for the
+# same reason as _TCRDOCK_CHAIN_NAMES (avoid importing torch/Bio). Passed through
+# into report_3d_structure.tsv and surfaced in the HTML structure section so a
+# reader sees which TCR was docked and whether the DMF5 fallback fired (#206).
+_TCR_PROVENANCE_COLUMNS = [
+    "tcr_va", "tcr_ja", "tcr_vb", "tcr_jb", "tcr_cdr3a", "tcr_cdr3b",
+    "vdjdb_donor_id", "vdjdb_score", "panel_status",
+]
+
 
 def _build_report_3d_structure_tsv(
     patient_id: str,
@@ -1157,6 +1425,9 @@ def _build_report_3d_structure_tsv(
       patient_id | rank | peptide | allele | pdb_path
         | chain_A | chain_B | chain_C | chain_D
         | <pass-through plddt/pae/ptm columns from docking_scores.tsv>
+        | <TCR-provenance columns, when present in docking_scores.tsv (Issue #205):
+           tcr_va, tcr_ja, tcr_vb, tcr_jb, tcr_cdr3a, tcr_cdr3b,
+           vdjdb_donor_id, vdjdb_score, panel_status>
 
     ``pdb_path`` is recorded relative to the patient result directory
     (typically ``predictions/tcrdock/top_candidate.pdb``) so consumers can
@@ -1193,6 +1464,10 @@ def _build_report_3d_structure_tsv(
     metric_cols = [c for c in scores_df.columns
                    if any(k in c.lower() for k in ("plddt", "pae", "ptm"))]
 
+    # Pass-through the TCR-provenance columns (Issue #205) so the HTML structure
+    # section can surface which TCR was docked and flag the DMF5 fallback (#206).
+    prov_cols = [c for c in _TCR_PROVENANCE_COLUMNS if c in scores_df.columns]
+
     top = scores_df.iloc[0]
     row: dict = {
         "patient_id": patient_id,
@@ -1207,8 +1482,13 @@ def _build_report_3d_structure_tsv(
     }
     for col in metric_cols:
         row[col] = _round_or_blank(top.get(col), 4)
+    for col in prov_cols:
+        val = top.get(col)
+        # Provenance values are mostly strings (genes, CDR3s, donor, status);
+        # vdjdb_score may be NA on a DMF5-fallback row. Preserve as-is, blank NaN.
+        row[col] = "" if (val is None or (isinstance(val, float) and pd.isna(val))) else val
 
-    pd.DataFrame([row], columns=fixed_columns + metric_cols).to_csv(
+    pd.DataFrame([row], columns=fixed_columns + metric_cols + prov_cols).to_csv(
         output_path, sep="\t", index=False
     )
     log.info("3D structure manifest written to %s", output_path)
@@ -1345,6 +1625,8 @@ def generate_report(
     output_3d_structure_tsv: str | Path | None = None,
     junction_filter_stats_tsv: str | Path | None = None,
     filtering_stats_tsv: str | Path | None = None,
+    vdjdb_panel_tsv: str | Path | None = None,
+    vdjdb_panel_qc_tsv: str | Path | None = None,
     patient_id: str = "",
 ) -> None:
     """Generate the summary HTML report and the machine-readable report artefacts.
@@ -1355,6 +1637,10 @@ def generate_report(
         output_html:                   Destination HTML file.
         contigs_fasta:                 Contig FASTA for junction visualisation (optional).
         hla_qc_tsv:                    HLA QC TSV from aggregate_hla_alleles (optional).
+        vdjdb_panel_tsv:               Per-patient VDJdb TCR panel (panel.tsv, Issue #204);
+                                       drives the reference-panel table (optional).
+        vdjdb_panel_qc_tsv:            Per-allele VDJdb coverage QC (panel_qc.tsv);
+                                       drives the coverage table (optional).
         presentation_percentile_strong: Strong-presentation percentile threshold.
         presentation_percentile_weak:  Weak-presentation percentile threshold (quality gate).
         tcrdock_pdb:                   TCRdock-predicted PDB file (optional).
@@ -1485,18 +1771,27 @@ def generate_report(
     # --- HLA typing section (optional, reads upstream artefact directly) ---
     hla_section = _build_hla_section(hla_qc_tsv) if hla_qc_tsv else ""
 
+    # --- VDJdb reference panel section (Issue #206, reads upstream artefacts) ---
+    vdjdb_panel_section = _build_vdjdb_panel_section(vdjdb_panel_tsv, vdjdb_panel_qc_tsv)
+
     # --- Filtering funnel (Issue #215) ---
     filtering_funnel = _build_filtering_funnel_html(filtering_stats_tsv)
 
     # --- TCRdock 3D structure viewer (optional) ---
     if tcrdock_pdb is not None and Path(tcrdock_pdb).exists():
-        if structure_manifest is not None:
+        if structure_manifest is not None and not structure_manifest.empty:
             peptide, allele = _resolve_top_candidate_from_manifest(structure_manifest)
+            # Top manifest row carries the TCR provenance + pLDDT/PAE/pTM metrics
+            # used to render the structure section's TCR-source + metrics blocks.
+            structure_meta = structure_manifest.iloc[0].to_dict()
         else:
             peptide, allele = _resolve_top_candidate_for_structure(
                 pred_df, presentation_percentile_weak=presentation_percentile_weak,
             )
-        structure_section = _build_structure_section(Path(tcrdock_pdb), peptide, allele)
+            structure_meta = {}
+        structure_section = _build_structure_section(
+            Path(tcrdock_pdb), peptide, allele, meta=structure_meta,
+        )
     else:
         structure_section = ""
 
@@ -1518,6 +1813,7 @@ def generate_report(
         hla_section=hla_section,
         presenter_table=presenter_html,
         strong_table=strong_html,
+        vdjdb_panel_section=vdjdb_panel_section,
         structure_section=structure_section,
         presentation_percentile_strong=presentation_percentile_strong,
         molstar_assets=molstar_assets,
@@ -1549,6 +1845,8 @@ def _snakemake_main() -> None:
         output_3d_structure_tsv=getattr(snakemake.output, "report_3d_structure_tsv", None),  # type: ignore[name-defined]  # noqa: F821
         junction_filter_stats_tsv=snakemake.input.junction_filter_stats,  # type: ignore[name-defined]  # noqa: F821
         filtering_stats_tsv=getattr(snakemake.input, "filtering_stats", None),  # type: ignore[name-defined]  # noqa: F821
+        vdjdb_panel_tsv=getattr(snakemake.input, "vdjdb_panel", None),  # type: ignore[name-defined]  # noqa: F821
+        vdjdb_panel_qc_tsv=getattr(snakemake.input, "vdjdb_panel_qc", None),  # type: ignore[name-defined]  # noqa: F821
         patient_id=snakemake.wildcards.patient_id,  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -1570,6 +1868,10 @@ def _cli_main() -> None:
                         help="Per-tumor-sample junction funnel stats TSV (Issue #214)")
     parser.add_argument("--filtering-stats", default=None,
                         help="Aggregated cross-step filtering audit TSV (Issue #215)")
+    parser.add_argument("--vdjdb-panel", default=None,
+                        help="Per-patient VDJdb TCR panel TSV (panel.tsv, Issue #204)")
+    parser.add_argument("--vdjdb-panel-qc", default=None,
+                        help="Per-allele VDJdb coverage QC TSV (panel_qc.tsv)")
     parser.add_argument("--patient-id", default="", help="Patient identifier for report.tsv rows")
     args = parser.parse_args()
 
@@ -1585,6 +1887,8 @@ def _cli_main() -> None:
         output_tsv=args.output_tsv,
         junction_filter_stats_tsv=args.junction_filter_stats,
         filtering_stats_tsv=args.filtering_stats,
+        vdjdb_panel_tsv=args.vdjdb_panel,
+        vdjdb_panel_qc_tsv=args.vdjdb_panel_qc,
         patient_id=args.patient_id,
     )
 
