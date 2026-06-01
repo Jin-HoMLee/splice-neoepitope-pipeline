@@ -8,6 +8,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-01
 
+### 15:36 UTC — Editor: PM
+
+#### Memory Manager workspace built — the binding constraint on bootstrapping MM ([Issue #623](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/623), Phase 2 / Subs 3+4 of [parent Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527))
+
+**Trigger.** User: *"onboard the new Memory Manager quickly so we don't caretake memory-scope tasks all the time."* Treated as a brainstorm, but exploration showed there is **nothing to design** — MM is epic [#527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) with the design doc (Sub 1, [#528](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/528)) and full rollout plan (Sub 2, [#530](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/530)) already shipped. This was an **execution** question.
+
+**The real finding — the plan was half-done, out of order.** The rollout plan (2026-05-27) sequences Subs 3→9, but the personas-governance track ([#567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567)) + late-commitment Kanban work already executed the *convention* subs out of sequence:
+- **Sub 5** (shared-memory MM-ownership rule, escalation rewrite) → done (`shared/MEMORY.md` line 16 + `feedback_personas_governance.md`).
+- **Sub 6** (morning-routine personas `git status` scan) → done, and *better* than planned — one shared Step −1, not 3 per-role copies.
+- **Sub 7** (Issues enabled + `role:memory_manager` label on personas repo) → done; the label is already applied to a forming queue (#539–542, #553…).
+- **Sub 8** (relabel #248/#326/#346/#353) → still `role:pm`-only (partial).
+- **Subs 3+4** (the workspace: `CLAUDE.md`, `.claude/settings.json`, `memory_manager/` dir) → **never built**.
+
+So the queue had accumulated with no MM that could be opened to drain it — *that* is why PM kept caretaking. The binding constraint was the missing workspace, not the conventions.
+
+**What landed (this Issue).** Built the MM session workspace in the personas repo and committed direct to its `main` via PM `git -C` caretaker (migration-window exception per design-doc Phase 2; MM doesn't exist yet to do it). Personas-repo SHA `dd73613`, pushed on the user's push gate:
+- `CLAUDE.md` — repo structure, file-relative memory-path convention (+ the `.claude/memory/` foot-gun), 4-role mapping, and the **edit/commit governance matrix** reconciled to the *current* `feedback_personas_governance.md` (#567 — own-dir free / `shared/`+cross-role via MM / MM sole committer), **not** the superseded "not your responsibility" framing the 2026-05-27 plan drafted. Stale-plan reconciliation #1.
+- `.claude/settings.json` — minimum `gh` + `git` permissions for MM sessions (valid JSON).
+- `memory_manager/MEMORY.md` (frontmatter + 5 Always-in-effect seed rules) + `memory_manager/shared → ../shared` symlink.
+
+**Late-commitment reconciliation #2.** The plan's `gh issue create --milestone …` collapses triage+commitment into filing, which contradicts late-commitment Kanban. Bundled Subs 3+4 as one Phase-2 workspace Issue #623 (matches the design-doc phase boundary + the user's "one bundled PR"), filed to the board, then assigned `pm-i6` as the **explicit commitment act** so the `target_sync_check` hook fired and synced Target (dogfooding this morning's [#454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454) promotion). pm-i6 had 3 open — capacity fine.
+
+**Gate note (any-role-satisfies).** #623 carries `role:pm` + `role:memory_manager`. The pre-merge lab-notebook gate is any-role-satisfies (`check_lab_notebooks_for_issue`), so this `pm.md` entry covers it and the (correctly) absent `memory_manager.md` doesn't block — MM is lab-notebook-exempt by design. *Latent gap for later:* a **pure** `role:memory_manager` project-repo PR would hit "lab notebook file missing" since `resolve_roles` doesn't know the MM exemption; low-risk because MM commits direct to personas-repo, not via project PRs.
+
+**Followups.** The only remaining true gate is **Sub 9 — user wires `~/.claude/projects/<personas-hash>/memory → memory_manager/` and opens the first MM session** (`claude --add-dir <project-repo>`); I can't do that part. Once open, MM dogfoods its own cleanup as its first task: finish Sub 8 relabels, tick the de-facto-done Subs 5/6/7, and start the `shared/MEMORY.md` slimming (#539). Closes [Issue #623](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/623).
+
 ### 13:35 UTC — Editor: PM
 
 #### Hook promotion as a *scope-aware split*, not a file move — target-date sync → shared, capacity recheck stays PM-local ([Issue #454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454); [PR #616](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/616))
