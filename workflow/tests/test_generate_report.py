@@ -1177,6 +1177,11 @@ class TestBuildDockingMetricsHtml:
         )
         assert html == ""
 
+    def test_skips_pd_na_metric_value(self):
+        # pd.NA is not a float, so the guard must use pd.isna (not isinstance).
+        html = _build_docking_metrics_html({"model_2_ptm_plddt": pd.NA})
+        assert html == ""
+
 
 class TestBuildReport3dStructureProvenance:
     def test_manifest_carries_provenance_columns(self, tmp_path):

@@ -954,7 +954,7 @@ def _build_tcr_provenance_html(allele: str, meta: dict | None) -> str:
         prov_bits.append(f"confidence score {score}")
 
     detail = ". ".join(
-        "; ".join(bits) if isinstance(bits, list) else bits
+        "; ".join(bits)
         for bits in (gene_bits, cdr3_bits, prov_bits)
         if bits
     )
@@ -982,7 +982,14 @@ def _build_docking_metrics_html(meta: dict | None) -> str:
         if not any(t in str(k).lower() for t in ("plddt", "pae", "ptm")):
             continue
         v = meta.get(k, "")
-        if v is None or (isinstance(v, float) and pd.isna(v)) or str(v).strip() == "":
+        if v is None:
+            continue
+        try:
+            if pd.isna(v):  # catches float NaN and pd.NA, like _meta_value
+                continue
+        except (TypeError, ValueError):
+            pass  # array-like / unhashable — fall through
+        if str(v).strip() == "":
             continue
         rows.append(
             f"<tr><td>{html_mod.escape(str(k))}</td>"
