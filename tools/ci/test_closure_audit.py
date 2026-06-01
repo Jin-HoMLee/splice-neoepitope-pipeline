@@ -3,6 +3,70 @@
 import closure_audit as ca
 
 
+# --- #607: REPO threading through the gh I/O layer ---
+
+
+class _FakeCompleted:
+    """Stand-in for subprocess.CompletedProcess — only .stdout is read."""
+
+    def __init__(self, stdout):
+        self.stdout = stdout
+
+
+def _capture_gh(monkeypatch):
+    """Patch subprocess.run to capture each argv; return empty-JSON stdout."""
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return _FakeCompleted("{}")
+
+    monkeypatch.setattr(ca.subprocess, "run", fake_run)
+    return calls
+
+
+def _repo_arg(cmd):
+    """The value passed to `--repo` in a gh argv, or None if absent."""
+    return cmd[cmd.index("--repo") + 1] if "--repo" in cmd else None
+
+
+def test_fetch_pr_forwards_repo_when_set(monkeypatch):
+    calls = _capture_gh(monkeypatch)
+    ca.fetch_pr(99, repo="fork/repo")
+    assert _repo_arg(calls[0]) == "fork/repo"
+
+
+def test_fetch_issue_forwards_repo_when_set(monkeypatch):
+    calls = _capture_gh(monkeypatch)
+    ca.fetch_issue(42, repo="fork/repo")
+    assert _repo_arg(calls[0]) == "fork/repo"
+
+
+def test_fetch_pr_omits_repo_when_unset(monkeypatch):
+    """Default (repo=None) → no --repo flag → gh resolves from git context.
+
+    This is what keeps the post-hoc bot (audit_pr/audit_issue) on git-context
+    resolution: they never pass a repo (AC4).
+    """
+    calls = _capture_gh(monkeypatch)
+    ca.fetch_pr(99)
+    assert "--repo" not in calls[0]
+
+
+def test_fetch_issue_omits_repo_when_unset(monkeypatch):
+    calls = _capture_gh(monkeypatch)
+    ca.fetch_issue(42)
+    assert "--repo" not in calls[0]
+
+
+def test_audit_pr_pre_merge_forwards_repo_to_gh(monkeypatch):
+    """End-to-end: the orchestration entry point forwards repo down to gh."""
+    calls = _capture_gh(monkeypatch)
+    ca.audit_pr_pre_merge(99, "2026-06-01", repo="fork/repo")
+    assert all(_repo_arg(c) == "fork/repo" for c in calls)
+    assert calls  # fetch_pr was actually called
+
+
 def test_lab_notebook_slices_block_correctly():
     """Block lookup must stop at next '## ' header — must not match later dates."""
     text = """# Lab Notebook

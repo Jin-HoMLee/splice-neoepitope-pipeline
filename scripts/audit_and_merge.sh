@@ -159,7 +159,7 @@ fi
 # PR body (same marker the post-hoc bot honors).
 if [[ -z "$PYTHON" ]]; then
     echo "⚠ lab-notebook check skipped (no python on PATH)." >&2
-elif ! NB_OUT=$("$PYTHON" "$SCRIPT_DIR/../tools/ci/lab_notebook_gate.py" "$PR" 2>&1); then
+elif ! NB_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/lab_notebook_gate.py" "$PR" 2>&1); then
     printf '%s\n' "$NB_OUT" >&2
     FAILED=1
 elif [[ -n "$NB_OUT" ]]; then
