@@ -14,7 +14,7 @@
 → Cited in DISCUSSIONS.md (TCR–pMHC docking, future directions)
 
 **★ Avsec et al., *Nature* 2026** — Advancing regulatory variant effect prediction with AlphaGenome. *Nature* 2026. doi:10.1038/s41586-025-10014-0
-→ Cited in METHODS.md §3 (aligner comparison; AlphaGenome as candidate splice-junction predictor for predicted-normal validation); DISCUSSIONS.md (AlphaGenome predicted-normal filter NO-GO verdict per [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203))
+→ Cited in METHODS.md §3 (Junction Classification; AlphaGenome as candidate splice-junction predictor for predicted-normal validation); DISCUSSIONS.md (AlphaGenome predicted-normal filter NO-GO verdict per [Issue #203](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/203))
 
 ---
 
@@ -42,6 +42,16 @@
 **Coelho et al., *Cancer Cell* 2023** — [Base-editing screens for IFN-γ pathway — title TBD]. *Cancer Cell* 2023.
 → Cited in DISCUSSIONS.md (immune-pathway gene section; JAK1/JAK2 vulnerable residues)
 
+**Cotto et al., *Nat Commun* 2023** — Integrated analysis of genomic and transcriptomic data for the discovery of splice-associated variants in cancer (RegTools). *Nat Commun* 2023;14(1):1589. doi:10.1038/s41467-023-37266-6
+→ Cited in METHODS.md §2 (regtools junction extraction; HISAT2 low-memory path)
+
+---
+
+## D
+
+**Dobin et al., *Bioinformatics* 2013** — STAR: ultrafast universal RNA-seq aligner. *Bioinformatics* 2013;29(1):15–21. doi:10.1093/bioinformatics/bts635
+→ Cited in METHODS.md §1 (RNA-seq alignment; production aligner)
+
 ---
 
 ## I
@@ -52,6 +62,9 @@
 ---
 
 ## K
+
+**Kim et al., *Nat Biotechnol* 2019** — Graph-based genome alignment and genotyping with HISAT2 and HISAT-genotype. *Nat Biotechnol* 2019;37(8):907–915. doi:10.1038/s41587-019-0201-4
+→ Cited in METHODS.md §1 (RNA-seq alignment; low-memory aligner)
 
 **★ Kim et al., *Cell* 2025** — Mis-splicing-derived neoantigens and cognate TCRs in splicing factor mutant leukemias. *Cell* 2025. doi:10.1016/j.cell.2025.03.047
 → Cited in DISCUSSIONS.md (Kwok subsection; sister paper for SF3B1/SRSF2-driven public-axis splice neoantigens)
@@ -192,7 +205,10 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Chen & McCluskey, *Adv Cancer Res* 2006 | ✅ | |
 | Chiappinelli et al., *Cell* 2015 | ✅ | |
 | Coelho et al., *Cancer Cell* 2023 | ✅ | |
+| Cotto et al., *Nat Commun* 2023 | ✅ | RegTools; aligner Methods citation |
+| Dobin et al., *Bioinformatics* 2013 | ✅ | STAR; aligner Methods citation |
 | Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026 | ✅ | Manuscript uses full form ("Asia-Pacific Journal of Clinical Oncology") |
+| Kim et al., *Nat Biotechnol* 2019 | ✅ | HISAT2; aligner Methods citation |
 | Kim et al., *Cell* 2025 | ✅ | |
 | Kwok et al., *Nature* 2025 | ✅ | |
 | Lang et al., *Bioinform Adv* 2024 | ✅ | |

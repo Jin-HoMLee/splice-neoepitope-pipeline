@@ -119,11 +119,12 @@ precisely those expected to harbour the most actionable neoepitopes overall.
 
 Translating both strands of each contig was considered. For strand-specific libraries
 (e.g. dUTP second-strand marking, as confirmed for patient_001's gastric cancer samples:
-KAPA RNA HyperPrep with RiboErase), only the first-strand cDNA is amplified. HISAT2
-assigns the correct strand to all canonical GT-AG junctions via the XS auxiliary tag
-(derived from splice-site dinucleotide sequence). Genuine antisense transcription then
-appears as junctions on the opposite strand and is already translated in the correct
-orientation. Antisense translation of a strand-corrected contig would correspond to the
+KAPA RNA HyperPrep with RiboErase), only the first-strand cDNA is amplified. Both aligners
+assign strand to canonical junctions from splice-site sequence — STAR from the intron-motif
+field of `SJ.out.tab` (rescuing the strand from the motif where its own call is undefined),
+and HISAT2 from the XS auxiliary tag (derived from the splice-site dinucleotide). Genuine
+antisense transcription then appears as junctions on the opposite strand and is already
+translated in the correct orientation. Antisense translation of a strand-corrected contig would correspond to the
 non-transcribed DNA strand and has no established biological basis for MHC-I presentation.
 
 For non-stranded RNA-seq libraries, strand assignment relies entirely on splice-site
@@ -281,33 +282,33 @@ against observed healthy tissue, not the reverse.
 
 ---
 
-## HISAT2 vs. STAR for novel junction detection
+## Aligner choice: STAR for production, HISAT2 for local development
 
-HISAT2 is used for local development and testing (macOS M1, 8 GB RAM). Benchmarks
-consistently show STAR to be more sensitive for novel/unannotated junction detection,
-which is the critical step for this pipeline. STAR requires ~32 GB RAM for the full
-GRCh38 index and is therefore unsuitable for local runs but appropriate for cloud
-production runs.
+The production pipeline aligns with STAR, which published benchmarks consistently show to be
+more sensitive for novel/unannotated junction detection — the critical step for a
+junction-driven neoepitope pipeline. STAR's full GRCh38 index requires ~32 GB RAM, so HISAT2
+(~8 GB) is retained as a low-memory alternative for local development and testing (macOS M1,
+8 GB RAM), selected through a single configuration switch.
 
-A planned comparison (issue #17) will run both aligners on the same gastric cancer
-samples and compare the number and quality of tumor-specific junctions detected. The
-HISAT2 production run provides a baseline.
+The patient_001 and patient_002 results reported here were generated with the HISAT2 path and
+therefore represent a conservative baseline for novel-junction recovery; STAR's higher
+sensitivity would be expected to expand the unannotated-junction set on re-analysis.
 
 ---
 
 ## Impact of missing matched normal: patient_002
 
 Patient_002 (osteosarcoma IPISRC044) has no matched RNA-seq normal sample. Blood WGS
-DNA is available but cannot substitute: `regtools junctions extract` requires reads with
-spliced CIGAR operations (`N`), which are absent from DNA-seq alignments. Running the
+DNA is available but cannot substitute: junction extraction requires spliced (gapped,
+`N`-CIGAR) alignments, which are absent from DNA-seq. Running the
 pipeline without a normal labels all unannotated junctions `tumor_exclusive`.
 
 The patient_002 T0 run completed with 364,168 raw tumor junctions; 305,254 were
 annotated (GENCODE v47) and discarded, leaving 58,914 unannotated junctions.
 BG003082_N0_WES (WES, DNA) was used as the normal input — successfully for HLA
 typing, but it contributes no junctions to normal subtraction by design (WES
-alignments yield zero spliced reads, since `regtools junctions extract` requires
-`N` CIGAR operations). All 58,914 unannotated junctions are therefore labelled
+alignments yield zero spliced reads, which junction calling — whether from STAR or
+regtools — requires). All 58,914 unannotated junctions are therefore labeled
 `tumor_exclusive` with a warning.
 
 For reference, patient_001 had an 8.9% normal-shared rate among unannotated junctions

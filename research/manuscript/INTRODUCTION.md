@@ -62,8 +62,8 @@ The reimplementation updates the toolchain to current standards:
 
 | Component | Original (2015) | Current |
 |---|---|---|
-| Aligner | TopHat | HISAT2 / STAR |
-| Junction extraction | TopHat output | regtools |
+| Aligner | TopHat | STAR (HISAT2 low-memory option) |
+| Junction extraction | TopHat output | STAR SJ.out.tab / regtools |
 | MHC binding prediction | NetMHCPan | MHCflurry 2.x |
 | Structural validation | — | TCRdock (Bradley, *eLife* 2023) |
 | Workflow management | custom scripts | Snakemake |
