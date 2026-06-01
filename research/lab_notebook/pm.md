@@ -8,6 +8,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-01
 
+### 13:35 UTC — Editor: PM
+
+#### Hook promotion as a *scope-aware split*, not a file move — target-date sync → shared, capacity recheck stays PM-local ([Issue #454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454); [PR #616](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/616))
+
+**Trigger.** The proves-out signal from this morning ([target_sync_check](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454) hit its K=3 review threshold). Picked up as the warm-up to promote the target-date sync hook from PM-local `settings.local.json` → committed `settings.json` so Sci/Dev sessions benefit too.
+
+**Proves-out review (the readiness gate).** `target_sync_check` had **5 fires** (#524, #514, #582, #583, #584). Verified each by re-running the hook's own `target_sync_check()` against current state: all 5 now **in-sync** (board Target == milestone `due_on`) → **5/5 real stale-Target catches, 0 spurious, all re-synced**. By construction the check only fires on a genuine mismatch, so the review is "were these acted on?" — yes, uniformly. K=3 confirmed appropriate (no noise at 5 either).
+
+**The premise the original ACs rested on was false — caught by inspecting the wiring before the "mechanical move."** The ACs said "move *only* the target-sync entry; settings.local.json retains its *other* local-only hooks." But `recheck_dispatch.py` is a **single dispatcher** behind **one** settings entry, bundling three checks (`target_sync_check`, `recheck_milestone`, `recheck_parent_status`). There is no separable entry and no "other" local hooks. A binary file-move would have promoted all three to Sci/Dev at once. Same verify-before-mutate reflex as this morning's OBE catch — read the actual artifact before executing the described action.
+
+**Best-practice grounding (the user pushed for this, and it inverted the naive call).** Applied the **actionability principle** (*a warning is only worth emitting to a recipient who can act on it*; AWS Well-Architected OPS08-BP04, PagerDuty, Datadog) + Claude Code hook-scope guidance (commit team-wide hooks; keep role-specific automation local). Per-check verdict:
+- `target_sync_check` → **shared**: the Target re-sync is actionable by whoever moved the milestone, any role.
+- `recheck_milestone` → **PM-local**: the prompted action is a *capacity rebalance* (PM-coordinated, cross-portfolio) **and** it fires on every `gh issue close` — high-frequency × non-actionable for Sci/Dev = textbook alert fatigue. The naive "promote the proven dispatcher" would have shipped exactly this noise.
+- `recheck_parent_status` → **PM-local (defer)**: shared-leaning (sub-issue closer is well-placed to notice epic rollup) but **unproven** (2/3 fires, PM-only) — promote later via a 1-line scope flip.
+
+**Implementation.** `recheck_dispatch.py` gains `--scope {shared,pm,all}` + a `scope` field per check in `HOOK_CONFIG`; `dispatch()` gates each check before its subprocess (no wasted `gh` out of scope), `_wrap_warning` re-checks defensively. Committed `settings.json` runs `--scope shared`; PM-local `settings.local.json` runs `--scope pm`. Net: PM = shared ∪ pm (all 3), Sci/Dev = shared only. Flagless = `all` (backward-compat → existing tests unchanged). Tests: `_parse_scope`/`_in_scope` units + hermetic shared-scope-suppression-on-close integration; full suite **16 passed**; 5/5 scope-routing smoke cases pass.
+
+**Two mechanism notes.** (a) *Hooks didn't deactivate this session.* The CLAUDE.md "editing settings.json kills hooks until restart" caveat did **not** fire here — the `recheck_dispatch` hook ran on my subsequent `gh issue edit`. Live config is presumably pre-edit (flagless), but the script on disk is the new one. (b) *Why `target_sync_check` didn't fire on my own #454 commitment move:* the PostToolUse hook fires once per **Bash tool-call**, after the whole script runs — my call did `edit --milestone` → set Target in one block, so by hook time the Target was already synced → no drift → no fire (count stayed a clean 5, unpolluted). Worth remembering: bundling the fix into the same Bash call as the trigger self-resolves the warning before it can fire.
+
+**Governance + follow-up.** Committed #454 to `pm-i6` (commitment act: milestone + Target 2026-07-02, in-sync). The `recheck_milestone` advisory that fired on that move flagged **pm-i6 capacity** (1.0d open vs a 2026-07-02 date → proposed pull-in to 2026-06-02) — *not acted on*: tangential to #454, and the 1.0d count under-reads (mid-propagation + recently-closed #582–584). *Follow-up candidate:* a pm-i6 due_on right-sizing pass, and file dock Issues for `recheck_milestone`/`recheck_parent_status` if/when their promotion is sought.
+
+**Bot review: LGTM**, one doc-accuracy nit applied — the `_wrap_warning` defensive guard suppresses *output*, not the subprocess: `run_recheck()` is evaluated while building the f-string argument, *before* `_wrap_warning` is entered, so `dispatch()`'s per-check guard is the actual subprocess gate (the inner guard is a backstop). Reworded the comment to say so. Reviewer also confirmed all five trigger branches are scope-gated and the `PATTERN_MOVE` early-out correctly skips the live `prior_milestones_for_issue()` `gh` call when `recheck_milestone` is out of scope.
+
+---
+
 ### 10:19 UTC — Editor: PM
 
 #### Monday morning routine — weekend-batch closure audit (21-agent workflow), milestone-health closes, parked-arc re-dating, triage + caretaker commit
