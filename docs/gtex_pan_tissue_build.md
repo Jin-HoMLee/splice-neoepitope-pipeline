@@ -187,8 +187,15 @@ columns by tissue via `SampleAttributesDS`.
 The builder is `workflow/scripts/build_gtex_pan_tissue_ref.py` — a **manual one-shot**,
 NOT part of the per-patient Snakemake DAG. It queries Snaptron `gtexv2` per chromosome,
 keeps junctions with `samples_count >= --min-samples` (default 1), and writes sorted
-**BED6** + a QC `samples_count` sweep. Run on the highmem VM (genome-wide is memory-bounded
-by the union set, ~33M rows); the M1 is fine for the chr22 fixture only.
+**BED6** + a QC `samples_count` sweep. Each chromosome is streamed to a part under
+`<output-bed>.parts/` and the parts are merged in chrom-name order, so peak memory is one
+chromosome's key set (~1 GB genome-wide, not the ~tens of GB of the full ~33M-row union) —
+**it runs anywhere, including the M1**, no highmem VM required. The genome-wide query is
+~2–4 h of Snaptron HTTP; pass `--resume` so a dropped connection picks up from the next
+chromosome instead of restarting (Issue #211). Resume reuses `<output-bed>.parts/` and
+refuses with a clear error if you change `--min-samples` / `--endpoint` / `--restrict-chrom`
+between runs (it would otherwise mix parameter regimes); delete the parts dir to rebuild
+with different parameters.
 
 **chr22 fixture first** (gates correctness — must reproduce #225's panel):
 ```bash
@@ -202,12 +209,15 @@ wc -l resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed   # expect ~880,
 ```
 Reproduction check against #225's cached `chr22_gtex_panel.parquet` — see plan Task 9 Step 2.
 
-**Genome-wide** (default region set = all hg38 primary chromosomes):
+**Genome-wide** (default region set = all hg38 primary chromosomes). ~2–4 h — run it
+detached (`tmux`) and pass `--resume` so a re-invocation after an interruption skips the
+chromosomes already in `<output-bed>.parts/`:
 ```bash
+conda activate snakemake
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
   --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
   --output-qc  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
-  --min-samples 1
+  --min-samples 1 --resume
 ```
 
 **Coordinate cross-check** (the #148/#370 silent-empty guard) and **GCS staging**:

@@ -15,7 +15,7 @@
 
 **Goal:** Build a reproducible, GCS-staged pan-tissue **novel-junction blacklist BED** from the Snaptron `gtexv2` compilation, consumed downstream by [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) as a population-level normal reference.
 
-**Architecture:** A standalone one-shot script `workflow/scripts/build_gtex_pan_tissue_ref.py` (NOT part of the per-patient Snakemake DAG) queries the Snaptron `gtexv2` HTTP endpoint **per chromosome**, streams the headered TSV response line-by-line, keeps every junction with `samples_count >= min_samples` (default 1 = pan-tissue), and emits a sorted **BED6** blacklist plus a QC sidecar (a `samples_count` sensitivity sweep). The pure parse/accumulate functions are unit-tested on tiny synthetic TSV fixtures; the fetch layer is isolated behind an injectable line source so the end-to-end test needs no network. A chr22-restricted output is produced as a committed local-pipeline-test fixture and must reproduce #225's cached `chr22_gtex_panel.parquet`.
+**Architecture:** A standalone one-shot script `workflow/scripts/build_gtex_pan_tissue_ref.py` (NOT part of the per-patient Snakemake DAG) queries the Snaptron `gtexv2` HTTP endpoint **per chromosome**, streams the headered TSV response line-by-line, keeps every junction with `samples_count >= min_samples` (default 1 = pan-tissue), and emits a sorted **BED6** blacklist plus a QC sidecar (a `samples_count` sensitivity sweep). Because the per-chromosome regions are disjoint, each chromosome's kept junctions are written to a `<bed>.parts/` file and merged in chrom-name order — so the full union is never held in memory (peak ≈ one chromosome's key set, ~1 GB, vs ~tens of GB) and a `--resume` flag lets an interrupted multi-hour build skip already-built chromosomes. *(Streaming/resumable refactor: 2026-06-01 — the original design held the whole union in memory and required a highmem VM.)* The pure parse/accumulate functions are unit-tested on tiny synthetic TSV fixtures; the fetch layer is isolated behind an injectable line source so the end-to-end test needs no network. A chr22-restricted output is produced as a committed local-pipeline-test fixture and must reproduce #225's cached `chr22_gtex_panel.parquet`.
 
 **Tech Stack:** Python 3.13 (test venv `workflow/tests/.venv`), **stdlib only** (`urllib`, `argparse`, `logging`, `collections`) — mirroring [build_reference_junctions.py](../../../workflow/scripts/build_reference_junctions.py). Network calls are isolated in one fetch function (ported from #225's `fetch_snaptron_chr22`); everything else is pure and tested. `gsutil`/`gcloud` for GCS staging. Pytest for unit tests.
 
@@ -28,7 +28,7 @@
 - **Coordinate transform is the #1 silent-failure risk — and it is already pinned.** Snaptron `start`/`end` are 1-based-inclusive intron donor/acceptor → BED 0-based half-open via **`bed_start = start − 1`, `bed_end = end`**. This is the *same* transform #225's `snaptron_to_key_set()` uses and it was validated **259/259** (every matched-normal ∩ GENCODE ground-truth intron present in the GTEx panel under this normalisation, 2026-05-21). Empirically banked — do not re-derive.
 - **Strand IS carried** (unlike the rejected GCT source). Snaptron emits a `strand` column, so the blacklist key is the full 4-tuple `(chrom, start, end, strand)` — a **true drop-in** for `filter_junctions.py`'s reference reader ([filter_junctions.py:56-71](../../../workflow/scripts/filter_junctions.py#L56-L71) keys on cols 1/2/3/6 = `(chrom,start,end,strand)`). **This removes the strand-agnostic special-case** the GCT plan needed — see the updated #212 cross-note at the end.
 - **Output format is BED6**, byte-identical in shape to [build_reference_junctions.py:131-150](../../../workflow/scripts/build_reference_junctions.py#L131-L150): `chrom start end name score strand` with `name = chrom:start-end:strand`, score `0`. UCSC `chr*` naming (Snaptron `gtexv2` ships `chr`-prefixed, matching the pipeline's GENCODE primary assembly — CLAUDE.md).
-- **Scale.** chr22 alone ≈ **880,769** junctions at `samples_count >= 1` (= #225's cached `chr22_gtex_panel.parquet`). Genome-wide at `min_samples=1` is ~33M rows → the BED is hundreds of MB; keep it out of git (GCS + `data_manifest.yaml`), commit only the chr22 fixture. The heavy genome-wide build runs on a highmem VM, not the M1.
+- **Scale.** chr22 alone ≈ **880,769** junctions at `samples_count >= 1` (= #225's cached `chr22_gtex_panel.parquet`). Genome-wide at `min_samples=1` is ~33M rows → the BED is hundreds of MB; keep it out of git (GCS + `data_manifest.yaml`), commit only the chr22 fixture. The genome-wide build is ~2–4 h of Snaptron HTTP but **runs anywhere, including the M1** — the per-chromosome streaming/merge refactor (2026-06-01) bounds peak memory to one chromosome (~1 GB), so no highmem VM is needed; pass `--resume` to survive a dropped connection.
 
 ## File Structure
 
@@ -722,12 +722,12 @@ git commit -m "feat(gtex): gtex_filter config block + build runbook (issue #211)
 
 ---
 
-### Task 9: Production genome-wide build + GCS staging + chr22 fixture (heavy; on a VM)
+### Task 9: Production genome-wide build + GCS staging + chr22 fixture (heavy; local + `--resume`)
 
 **Files:**
 - Produce + stage artifacts (genome-wide BED staged to GCS, chr22 fixture committed, `data_manifest.yaml` committed)
 
-This task runs the real genome-wide Snaptron build. It is heavy (24 chromosome queries, ~33M junctions, hundreds of MB) and memory-bounded by the union set — run on the highmem VM, not the M1. **Needs explicit go-ahead** (network + VM time).
+This task runs the real genome-wide Snaptron build. It is heavy (24 chromosome queries, ~33M junctions, hundreds of MB) — ~2–4 h of HTTP — but the per-chromosome streaming/merge refactor (2026-06-01) bounds peak memory to one chromosome (~1 GB), so it **runs locally on the M1**, no highmem VM. Run it detached (`tmux`) with `--resume` so a dropped connection skips the chromosomes already in `<output-bed>.parts/` instead of restarting. **Needs explicit go-ahead** (network time + the GCS write is outward).
 
 - [ ] **Step 1: chr22 fixture FIRST — it gates correctness**
 
@@ -760,13 +760,14 @@ PY
 ```
 Expected: `identical: True` (or a near-zero symmetric diff explained by a Snaptron refresh). **A large diff means the transform/parse regressed — STOP and diff a few keys.**
 
-- [ ] **Step 3: Genome-wide build**
+- [ ] **Step 3: Genome-wide build** — ~2–4 h; run detached (`tmux`) with `--resume` so a dropped connection resumes from `<output-bed>.parts/` rather than restarting.
 
 ```bash
+conda activate snakemake
 python workflow/scripts/build_gtex_pan_tissue_ref.py \
   --output-bed /tmp/gtex_gtexv2_pan_tissue_junctions.bed \
   --output-qc /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv \
-  --min-samples 1
+  --min-samples 1 --resume
 head /tmp/gtex_gtexv2_pan_tissue_junctions.bed
 cat  /tmp/gtex_gtexv2_pan_tissue_junctions.qc.tsv   # sanity-check the sweep monotonically decreases
 ```

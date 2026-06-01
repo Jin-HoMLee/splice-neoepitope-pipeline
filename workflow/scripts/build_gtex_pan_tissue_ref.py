@@ -12,7 +12,9 @@ reader. Snaptron carries strand, so (chrom,start,end,strand) is used end-to-end.
 """
 
 import argparse
+import json
 import logging
+import shutil
 import time
 import urllib.error
 import urllib.request
@@ -193,6 +195,37 @@ def write_qc_sidecar(sweep: Counter, n_junctions: int, path: str) -> None:
     log.info("Wrote QC sidecar to %s", out)
 
 
+def _write_chrom_sweep(sweep: Counter, path: Path) -> None:
+    """Persist one chromosome's QC sweep next to its part, so a resumed run can
+    fold in already-built chromosomes without re-querying them."""
+    path.write_text(json.dumps({str(k): v for k, v in sweep.items()}))
+
+
+def _read_chrom_sweep(path: Path) -> Counter:
+    return Counter({int(k): v for k, v in json.loads(path.read_text()).items()})
+
+
+def _merge_parts(part_dir: Path, chroms: List[str], bed_path: str) -> int:
+    """Concatenate per-chromosome BED parts into the final BED in chrom-name
+    order, streaming line-by-line. Each part is internally sorted and holds a
+    single (disjoint) chromosome, so this reproduces a global ``sorted(union)``
+    without ever materialising the union. Returns the total junction count."""
+    out = Path(bed_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    total = 0
+    with out.open("w") as dst:
+        for chrom in sorted(set(chroms)):
+            part = part_dir / f"{chrom}.bed"
+            if not part.exists():
+                continue
+            with part.open() as src:
+                for line in src:
+                    dst.write(line)
+                    total += 1
+    log.info("Merged %d junctions into %s", total, out)
+    return total
+
+
 def build(
     regions: List[str],
     bed_path: str,
@@ -201,29 +234,97 @@ def build(
     restrict_chrom: Optional[str] = None,
     endpoint: str = SNAPTRON_GTEXV2_URL,
     line_source=None,
+    resume: bool = False,
 ) -> int:
-    """Query each region, union the kept junctions, write BED6 + QC. Returns union size.
+    """Query each region, stream the kept junctions to a per-chromosome part on
+    disk, then merge the parts into the final sorted BED6 + QC. Returns the
+    junction count.
 
-    line_source(region) -> iterable[str] is injectable for tests; default is the
-    live Snaptron fetch. Per-region QC sweeps are summed (regions are disjoint
-    per-chromosome queries, so no double counting).
+    Regions are disjoint per-chromosome queries, so the union never needs to be
+    held in memory: peak memory is one chromosome's key set (genome-wide that is
+    ~1 GB, vs ~tens of GB for the full union — Issue #211). ``line_source(region)
+    -> iterable[str]`` is injectable for tests; default is the live Snaptron
+    fetch.
+
+    Parts live under ``<bed_path>.parts/`` and are removed on success. With
+    ``resume=True`` a chromosome whose ``.done`` marker already exists is folded
+    in without re-querying — so an interrupted multi-hour build picks up where it
+    stopped. ``resume=False`` (default) clears any stale parts and rebuilds fresh.
+
+    Assumes one region per chromosome (the default genome-wide region set);
+    windowed multi-region-per-chromosome queries are not supported here.
     """
     if line_source is None:
         line_source = lambda region: fetch_snaptron_region(region, endpoint=endpoint)
 
-    union: Set[Tuple[str, int, int, str]] = set()
-    sweep: Counter = Counter()
+    # Parts key on chromosome only, so two regions on one chromosome would
+    # collide and silently truncate a window (the second write_bed6 overwrites
+    # the first). Refuse rather than corrupt the BED/QC.
+    region_chroms = [r.split(":")[0] for r in regions]
+    dups = sorted({c for c in region_chroms if region_chroms.count(c) > 1})
+    if dups:
+        raise ValueError(
+            f"Multiple regions target the same chromosome(s) {dups}; the "
+            f"per-chromosome streaming build requires one region per chromosome. "
+            f"Merge the windows into a single region per chromosome."
+        )
+
+    part_dir = Path(bed_path + ".parts")
+    if not resume and part_dir.exists():
+        shutil.rmtree(part_dir)
+    part_dir.mkdir(parents=True, exist_ok=True)
+
+    # Stamp the parameters that define a part's contents and refuse to --resume
+    # parts built under different parameters — otherwise the merge would silently
+    # mix regimes (e.g. min_samples=10 early chromosomes + a min_samples=1 resumed
+    # tail). endpoint and restrict_chrom change part contents too.
+    params = {"min_samples": min_samples, "endpoint": endpoint,
+              "restrict_chrom": restrict_chrom}
+    params_path = part_dir / "params.json"
+    if resume and params_path.exists():
+        prior = json.loads(params_path.read_text())
+        if prior != params:
+            raise ValueError(
+                f"Cannot --resume: parts in {part_dir} were built with {prior} but "
+                f"this run uses {params}. Delete {part_dir} to rebuild, or re-run "
+                f"with matching parameters."
+            )
+    elif resume and any(part_dir.glob("*.done")):
+        raise ValueError(
+            f"Cannot --resume: parts in {part_dir} have no params stamp, so their "
+            f"build parameters cannot be verified. Delete {part_dir} to rebuild."
+        )
+    params_path.write_text(json.dumps(params))
+
+    chroms: List[str] = []
+    sweeps: List[Counter] = []
     for region in regions:
+        chrom = region.split(":")[0]
+        chroms.append(chrom)
+        done = part_dir / f"{chrom}.done"
+        sweep_path = part_dir / f"{chrom}.sweep.json"
+        if resume and done.exists():
+            sweeps.append(_read_chrom_sweep(sweep_path))
+            log.info("Resume: %s already built, skipping query", chrom)
+            continue
         keys, region_sweep = accumulate_union(
             line_source(region), min_samples=min_samples, restrict_chrom=restrict_chrom
         )
-        union |= keys
-        sweep += region_sweep
-        log.info("Region %s: +%d junctions (running total %d)", region, len(keys), len(union))
+        # Write part + sweep first, touch the .done marker last: a crash between
+        # the two leaves an incomplete part with no marker, so resume re-queries.
+        write_bed6(keys, str(part_dir / f"{chrom}.bed"))
+        _write_chrom_sweep(region_sweep, sweep_path)
+        done.touch()
+        sweeps.append(region_sweep)
+        log.info("Region %s: +%d junctions (chromosome part written)", region, len(keys))
 
-    write_bed6(union, bed_path)
-    write_qc_sidecar(sweep, n_junctions=len(union), path=qc_path)
-    return len(union)
+    total = _merge_parts(part_dir, chroms, bed_path)
+    total_sweep: Counter = Counter()
+    for s in sweeps:
+        total_sweep += s
+    write_qc_sidecar(total_sweep, n_junctions=total, path=qc_path)
+    shutil.rmtree(part_dir, ignore_errors=True)
+    return total
 
 
 def _cli_main() -> None:
@@ -241,6 +342,10 @@ def _cli_main() -> None:
              "Default: all hg38 primary chromosomes (genome-wide).")
     parser.add_argument("--restrict-chrom", default=None,
                         help="Emit only this chromosome (chr22 fixture build).")
+    parser.add_argument("--resume", action="store_true",
+                        help="Skip chromosomes already built in a prior interrupted run "
+                             "(reuses <output-bed>.parts/). Use for the multi-hour "
+                             "genome-wide build so a dropped connection doesn't restart it.")
     args = parser.parse_args()
 
     if args.region:
@@ -251,7 +356,7 @@ def _cli_main() -> None:
     n = build(
         regions=regions, bed_path=args.output_bed, qc_path=args.output_qc,
         min_samples=args.min_samples, restrict_chrom=args.restrict_chrom,
-        endpoint=args.endpoint,
+        endpoint=args.endpoint, resume=args.resume,
     )
     log.info("Done: %d junctions in the pan-tissue union", n)
 

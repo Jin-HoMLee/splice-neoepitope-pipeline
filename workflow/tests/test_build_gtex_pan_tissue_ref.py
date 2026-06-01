@@ -198,3 +198,123 @@ def test_build_restrict_chrom_fixture(tmp_path):
         line_source=lambda region: region_lines[region],
     )
     assert all(line.startswith("chr22\t") for line in bed.read_text().splitlines())
+
+
+# ----- Task 9b: resumable per-chromosome streaming build (Issue #211) -----
+# Genome-wide, the in-memory global union is ~tens of GB. Regions are disjoint
+# per-chromosome, so the global set is unnecessary: each chromosome streams to a
+# part on disk, and a final merge in chrom-name order reproduces the globally
+# sorted BED. Per-chromosome parts also make a multi-hour build resumable.
+
+def _chrom_region_lines():
+    # one junction per chromosome; chr1's coords sort before chr2's globally.
+    return {
+        "chr1:1-248956422": [
+            SNAPTRON_HEADER,
+            "GTEX:I\t1\tchr1\t101\t200\t99\t+\t1\tGT\tAG\t1\t1\t1\t5\t9\t4.5\t4\t0",
+        ],
+        "chr2:1-242193529": [
+            SNAPTRON_HEADER,
+            "GTEX:I\t2\tchr2\t301\t400\t99\t-\t1\tCT\tAC\t1\t1\t1\t5\t9\t4.5\t4\t0",
+        ],
+    }
+
+
+def test_build_resumes_after_interruption_without_requerying(tmp_path):
+    region_lines = _chrom_region_lines()
+    regions = ["chr1:1-248956422", "chr2:1-242193529"]
+    bed = tmp_path / "out.bed"
+    qc = tmp_path / "out.qc.tsv"
+
+    # First pass: chr1 succeeds, chr2 drops mid-genome (simulated URLError).
+    def flaky(region):
+        if region.startswith("chr2:"):
+            raise urllib.error.URLError("connection dropped")
+        return region_lines[region]
+
+    with pytest.raises(urllib.error.URLError):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=flaky, resume=True)
+
+    # Second pass (resume): chr1 already done → not re-queried; chr2 now works.
+    queried = []
+
+    def good(region):
+        queried.append(region)
+        return region_lines[region]
+
+    n = gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=good, resume=True)
+
+    assert not any(r.startswith("chr1:") for r in queried), "chr1 should resume, not re-query"
+    assert any(r.startswith("chr2:") for r in queried)
+    lines = bed.read_text().splitlines()
+    assert lines[0] == "chr1\t100\t200\tchr1:100-200:+\t0\t+"  # globally first
+    assert lines[1] == "chr2\t300\t400\tchr2:300-400:-\t0\t-"  # appended in sort order
+    assert n == 2
+
+
+def test_build_without_resume_requeries_after_interruption(tmp_path):
+    region_lines = _chrom_region_lines()
+    regions = ["chr1:1-248956422", "chr2:1-242193529"]
+    bed = tmp_path / "out.bed"
+    qc = tmp_path / "out.qc.tsv"
+
+    def flaky(region):
+        if region.startswith("chr2:"):
+            raise urllib.error.URLError("connection dropped")
+        return region_lines[region]
+
+    with pytest.raises(urllib.error.URLError):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=flaky, resume=False)
+
+    # resume=False → a fresh re-run re-queries every chromosome (no skip).
+    queried = []
+
+    def good(region):
+        queried.append(region)
+        return region_lines[region]
+
+    gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+               min_samples=1, line_source=good, resume=False)
+    assert any(r.startswith("chr1:") for r in queried), "chr1 must re-query without resume"
+    assert any(r.startswith("chr2:") for r in queried)
+
+
+def test_build_rejects_duplicate_chromosome_regions(tmp_path):
+    # Two regions on one chromosome collide on a single <chrom>.bed part; the
+    # per-chromosome scheme cannot represent them, so fail loud rather than
+    # silently truncating one window (caught in adversarial review pre-commit).
+    bed = tmp_path / "out.bed"
+    qc = tmp_path / "out.qc.tsv"
+    with pytest.raises(ValueError, match="same chromosome"):
+        gtex.build(
+            regions=["chr1:1-100000", "chr1:100001-200000"],
+            bed_path=str(bed), qc_path=str(qc), min_samples=1,
+            line_source=lambda region: [SNAPTRON_HEADER],
+        )
+
+
+def test_build_resume_rejects_changed_min_samples(tmp_path):
+    # Resuming a build with different parameters than the parts were built under
+    # would silently produce a mixed-parameter blacklist. Refuse instead.
+    region_lines = _chrom_region_lines()
+    regions = ["chr1:1-248956422", "chr2:1-242193529"]
+    bed = tmp_path / "out.bed"
+    qc = tmp_path / "out.qc.tsv"
+
+    # First pass at min_samples=2: chr1 completes, chr2 drops mid-genome.
+    def flaky(region):
+        if region.startswith("chr2:"):
+            raise urllib.error.URLError("dropped")
+        return region_lines[region]
+
+    with pytest.raises(urllib.error.URLError):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=2, line_source=flaky, resume=True)
+
+    # Resume with a DIFFERENT min_samples → must refuse, not silently mix.
+    with pytest.raises(ValueError, match="resume"):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=lambda r: region_lines[r], resume=True)
