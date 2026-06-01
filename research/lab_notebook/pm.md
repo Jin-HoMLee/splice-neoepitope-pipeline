@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-01
+
+### 10:19 UTC — Editor: PM
+
+#### Monday morning routine — weekend-batch closure audit (21-agent workflow), milestone-health closes, parked-arc re-dating, triage + caretaker commit
+
+**Session shape.** Full PM morning routine after a high-throughput weekend (19 PRs merged; the late-commitment Kanban migration shipped end-to-end). Non-routine by the [Issue #483](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/483) criteria — cross-Issue board ops, a milestone-closure routing round, an audit tooling false-positive, and several meta-lessons the board/standup venues don't record. Those judgment calls are what this entry captures.
+
+**News → Zotero.** Routed the Anthropic *2026 Agentic Coding Trends Report* into the methodology corpus (Zotero `DA3EWEJ9`, item `RHD8FFEH` + three-section note `KPCV89XN`). The DOI-only `zotero_add.py` couldn't handle it (no DOI + it hardcodes the bio collection `Z38GTJNW`), so I added it via a direct Zotero API `POST` as a `report` item — grounding the metadata + note by reading the actual PDF (pages 1–10), not the WebFetch snippet (which failed to parse the binary). Landscape-doc scan = **skip** (already an entry, [Issue #235](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/235) closed). First item in the previously-empty methodology collection. *Follow-up candidate:* a `--collection` flag + non-DOI report support on `zotero_add.py` if this recurs.
+
+**Verify-before-mutate caught an OBE action (the i2 re-milestone).** The Sunday standup thread had Sci + Dev green-lighting a re-milestone of the 7 open i2 issues to a later iteration. Re-checking *current* state first showed the action was **overtaken by events**: Sunday's inventory migration ([Issue #608](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/608)) had already stripped every deprioritized *leaf* to uncommitted Backlog, and [Issue #86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) (the parent epic) correctly retains `i2-S5` as its roadmap anchor. Acting on the stale green-light would have re-milestoned leaves that should carry *no* milestone. Posted the reconciliation; no board change needed. The green-light is exactly what prompted the state re-check — which is the lesson.
+
+**Closure audit — 21-agent workflow, 18/21 clean, and a tooling false-positive worth fixing.** Fanned out one schema-constrained auditor per weekend-closed Issue against the 5-point checklist. 18 pass; 3 flagged for missing lab-notebook entries ([Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232), [Issue #597](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/597), [Issue #409](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/409)). **#409 was a false positive** — its `developer.md` entry *exists* but is nested as a `####` under the *PR #600* date-header, so the auditor's `grep "409" research/lab_notebook/` missed the date-block scoping (Dev verified deterministically @10:48 with the gate's own `closure_audit.check_lab_notebook(..., also_accept=(409,))` → no gap). **Lesson for the audit harness:** the lab-notebook check should call the gate's own function, not a substring grep — the grep is a presence heuristic blind to which date-block the reference sits under. #232/#597 nudged to Sci as genuine gaps (journal-only; closures themselves sound).
+
+**Milestone health.** Closed 3 tooling milestones as complete (`pm-i4`, `pm-i2`, `dev-i2`; all 0-open, guarded on a re-fetched count). Queued the 4 science milestones for collaborative closure-routing — Dev replied @10:48 (close `i3-S3` + `i4-S3` as complete, no Publication/Modeling sibling); Sci pending on `i2-S4` / `i3-S1`.
+
+**Parked-arc re-dating + the recheck-hook's missing "parked" concept.** The HLA-matched-TCR-panel arc (parent [Issue #86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) + milestones `i2-S5` / `i2-S7`) is parked. Extended both `due_on` → 2026-06-30 (a "revisit by month-end" parking horizon) + re-synced #86's Target. The `recheck_dispatch.py` hook fired and recomputed `due_on` → 2026-06-06, treating #86 (L, ~3.5d) as **active** work — I **overrode** it (the hook can't model "parked"; 06-06 would just re-flag it overdue next week). Contrast: for [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) (genuinely *active* In-progress) I **accepted** the hook's capacity date (`i5-S5` → 2026-06-24). *Follow-up candidate:* the capacity model needs a "parked / don't-count" signal so it stops proposing near-term dates for deprioritized epics.
+
+**Roadmap sweep — a field-name false-negative.** The first Target-overdue query returned "0 of 9" — a false negative from filtering on a field named `Target` when the board field is actually `Target date`. Caught by sanity-checking the zero against "how many Issues carry *any* Target." Re-ran correctly → only #86 overdue (resolved above). **Lesson:** when a board-field query returns 0, verify the field name before declaring "clean."
+
+**Triage.** Daily: only [Issue #607](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/607) needed intake (No Status → Backlog, P3 / XS; the 8 other weekend Issues were already triaged). Monday full-board sweep (deterministic, one paginated pull): surfaced that #547 (In progress) lacked a Target because milestone `i5-S5` itself had a null `due_on` → fixed. Surfaced, not auto-fixed: 12 priority-rationale gaps (10 pre-rule legacy baseline; 2 recent — [Issue #413](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/413) / [Issue #566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566)), #86's Ready-vs-parked status mismatch, #12 personas chore. #538 / #527 missing-Size = **correct** (parents — size rolls up).
+
+**Caretaker commit.** Landed the personas-repo stranded edits as 2 logical commits (standup hygiene · prior-session memory edits — late-commitment refs, lab-notebook gate-5 enforcement update, zotero PDF-attachment + implemented-state learnings, #211 redirect note), staged explicitly (never `-A`), held for the user's push gate per the interim caretaker model.
+
+**Follow-ups parked:** recheck_milestone hook fired 3× → promotion-review signal ([Issue #454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454) adjacent); audit-harness grep→gate-function fix; `zotero_add.py` `--collection` flag; #413 / #566 rationale backfill; #86 Ready-vs-parked (parent-status design, [Issue #580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580) workstream).
+
+---
+
 ## 2026-05-31
 
 ### 16:17 UTC — Editor: PM (MM caretaker)
