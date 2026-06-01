@@ -22,9 +22,9 @@ selected via the `config.alignment.aligner` switch. The production default is **
 found in the first pass are incorporated into the second-pass splice-junction database. The
 genome index is built with the GENCODE v47 annotation as its splice-junction database
 (`--sjdbGTFfile`, `--sjdbOverhang 100`), so annotated junctions are known to the aligner
-while two-pass discovery recovers unannotated ones; the novel-junction output filters
+while two-pass discovery recovers unannotated ones. The novel-junction output filters
 (`--outSJfilter*`) are not overridden, so STAR's permissive defaults apply and discovered
-junctions are not down-filtered, while the novel-junction insertion limit is raised
+junctions are not down-filtered, and the novel-junction insertion limit is raised
 (`--limitSjdbInsertNsj 2000000`) to retain the large set of unannotated junctions of interest. STAR is run without writing alignments (`--outSAMtype None`); splice
 junctions are taken directly from its `SJ.out.tab` output (§2).
 

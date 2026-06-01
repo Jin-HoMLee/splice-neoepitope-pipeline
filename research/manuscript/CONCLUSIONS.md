@@ -51,7 +51,7 @@ matched RNA-seq normal, the pipeline:
    junctions (16.2%). The available normal sample was BG003082_N0_WES (whole-exome
    sequencing, DNA), which yielded valid HLA typing but contributes no junctions to
    normal subtraction — WES contains no RNA splice junctions by design — so all
-   58,914 unannotated junctions are labelled `tumor_exclusive` by default. A fraction
+   58,914 unannotated junctions are labeled `tumor_exclusive` by default. A fraction
    may reflect patient-specific non-tumor splicing rather than truly tumor-specific
    events.
 
