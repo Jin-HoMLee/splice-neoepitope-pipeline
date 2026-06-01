@@ -6,6 +6,7 @@
         "daysSinceNoncurrentTime": 7,
         "matchesPrefix": [
           "results/patient_001/alignment/",
+          "results/patient_001_test/alignment/",
           "results/patient_002/alignment/"
         ]
       }
@@ -13,7 +14,8 @@
     {
       "action": { "type": "Delete" },
       "condition": {
-        "daysSinceNoncurrentTime": 90
+        "daysSinceNoncurrentTime": 90,
+        "isLive": false
       }
     }
   ]
