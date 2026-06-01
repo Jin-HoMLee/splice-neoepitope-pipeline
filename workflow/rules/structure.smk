@@ -20,6 +20,19 @@
 #   results/predictions/{patient_id}/tcrdock/docking_scores.tsv  — docking geometry metrics
 
 _TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
+_HLA_ENABLED = config.get("hla", {}).get("enabled", False)
+
+
+def _vdjdb_panel_input(wildcards):
+    """Attach the per-patient VDJdb panel (Issue #204) as an input only when
+    HLA typing is enabled — the fetch_vdjdb_panel rule that produces it is
+    gated on config[hla][enabled]. When absent, run_tcrdock.py falls back to
+    the DMF5 TCR (Issue #205)."""
+    if _HLA_ENABLED:
+        return {"vdjdb_panel": os.path.join(
+            _RES, wildcards.patient_id, "tcr_panel", "vdjdb", "panel.tsv"
+        )}
+    return {}
 
 
 if _TCRDOCK_ENABLED:
@@ -29,11 +42,12 @@ if _TCRDOCK_ENABLED:
 
         Selects the top N candidates ranked by genotype_presentation_score
         (quality-gated by presentation_percentile_weak) from MHCflurry predictions,
-        builds a TCRdock input TSV using the configured (or fallback) HLA
-        allele and TCR sequences, runs TCRdock, and writes the predicted
-        PDB structure and docking geometry scores.
+        picks the highest-confidence HLA-matched TCR from the VDJdb panel for each
+        candidate's allele (DMF5 fallback when the panel has no match), runs
+        TCRdock, and writes the predicted PDB structure and docking geometry scores.
         """
         input:
+            unpack(_vdjdb_panel_input),
             predictions_tsv=rules.run_mhcflurry.output.mhc_presentation_tsv,
         output:
             pdb=os.path.join(
