@@ -70,6 +70,14 @@ def _generate_report_input(wildcards):
         d["hla_qc"] = os.path.join(
             _RES, wildcards.patient_id, "hla_typing", "hla_qc.tsv",
         )
+        # VDJdb reference panel (Issue #204/#206) — the fetch_vdjdb_panel rule
+        # that produces these is gated on config[hla][enabled], same as hla_qc.
+        d["vdjdb_panel"] = os.path.join(
+            _RES, wildcards.patient_id, "tcr_panel", "vdjdb", "panel.tsv",
+        )
+        d["vdjdb_panel_qc"] = os.path.join(
+            _RES, wildcards.patient_id, "tcr_panel", "vdjdb", "panel_qc.tsv",
+        )
     if _TCRDOCK_ENABLED:
         d["pdb"] = rules.run_tcrdock.output.pdb.format(patient_id=wildcards.patient_id)
         d["scores_tsv"] = rules.run_tcrdock.output.scores_tsv.format(
@@ -97,7 +105,10 @@ rule generate_report:
     - HLA typing results with source and normal/tumor concordance (when enabled)
     - Neoepitope prediction summary (strong / weak / non presenter counts)
     - Top strong presenters table (presentation_percentile ≤ strong threshold)
-    - Embedded Mol* 3D viewer for the top TCR-pMHC candidate (when TCRdock enabled)"""
+    - VDJdb reference TCR panel + per-allele coverage stats (when HLA enabled; Issue #206)
+    - Embedded Mol* 3D viewer for the top TCR-pMHC candidate, with the selected TCR's
+      provenance (HLA-matched VDJdb or DMF5-fallback flag) + TCRdock confidence metrics
+      (when TCRdock enabled; Issue #205/#206)"""
     input:
         unpack(_generate_report_input),
     output:
