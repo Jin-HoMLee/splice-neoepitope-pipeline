@@ -1,5 +1,7 @@
 """Tests for closure_audit. Lean — focuses on parsing & format edge cases."""
 
+import json
+
 import closure_audit as ca
 
 
@@ -13,13 +15,17 @@ class _FakeCompleted:
         self.stdout = stdout
 
 
-def _capture_gh(monkeypatch):
-    """Patch subprocess.run to capture each argv; return empty-JSON stdout."""
+def _capture_gh(monkeypatch, stdout_for=None):
+    """Patch subprocess.run to capture each argv.
+
+    `stdout_for` is an optional callable (cmd argv) -> stdout str; when omitted
+    every call returns empty-JSON (`"{}"`).
+    """
     calls = []
 
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
-        return _FakeCompleted("{}")
+        return _FakeCompleted(stdout_for(cmd) if stdout_for else "{}")
 
     monkeypatch.setattr(ca.subprocess, "run", fake_run)
     return calls
@@ -59,12 +65,28 @@ def test_fetch_issue_omits_repo_when_unset(monkeypatch):
     assert "--repo" not in calls[0]
 
 
-def test_audit_pr_pre_merge_forwards_repo_to_gh(monkeypatch):
-    """End-to-end: the orchestration entry point forwards repo down to gh."""
-    calls = _capture_gh(monkeypatch)
+def test_audit_pr_pre_merge_forwards_repo_to_both_gh_calls(monkeypatch):
+    """End-to-end: repo is forwarded to BOTH gh fetches (PR view + issue view).
+
+    The PR fetch returns a closing-issue reference so the per-issue fetch
+    actually fires — otherwise `refs == []` short-circuits and only `fetch_pr`
+    is exercised (the prior test passed vacuously for the fetch_issue path; PR
+    #615 review). The issue carries no role label, so the notebook check is a
+    no-op and no _load_notebook FS access happens.
+    """
+    def stdout_for(cmd):
+        if "pr" in cmd:  # `gh pr view ...`
+            return json.dumps({"closingIssuesReferences": [{"number": 42}], "files": []})
+        return json.dumps({"number": 42, "labels": []})  # `gh issue view ...`
+
+    calls = _capture_gh(monkeypatch, stdout_for)
     ca.audit_pr_pre_merge(99, "2026-06-01", repo="fork/repo")
+
+    # Both a `pr view` and an `issue view` actually happened...
+    assert any("pr" in c for c in calls), "fetch_pr was not called"
+    assert any("issue" in c for c in calls), "fetch_issue was not called"
+    # ...and every gh call forwarded --repo.
     assert all(_repo_arg(c) == "fork/repo" for c in calls)
-    assert calls  # fetch_pr was actually called
 
 
 def test_lab_notebook_slices_block_correctly():
