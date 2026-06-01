@@ -385,3 +385,37 @@ class TestCollectOutputsProvenance:
         assert scores.iloc[0]["vdjdb_donor_id"] == "D2"
         assert scores.iloc[0]["tcr_va"] == "TRAV9"
         assert output_pdb.exists()
+
+    def _write_tcrdock_outputs(self, tmp_path):
+        """Minimal TCRdock output dir collect_outputs can consume."""
+        out_dir = tmp_path / "tcrdock_out"
+        out_dir.mkdir()
+        pdb_path = out_dir / "model.pdb"
+        pdb_path.write_text(_FLAT_PDB)
+        (out_dir / "alphafold_setup").mkdir()
+        (out_dir / "alphafold_setup" / "targets.tsv").write_text("target_chainseq\nAA/G/S/V\n")
+        pd.DataFrame([{
+            "peptide": "SQIPRTHSY", "mhc": "C*07:01",
+            "model_2_ptm_plddt": 80.0, "model_2_ptm_pdb_file": str(pdb_path),
+        }]).to_csv(out_dir / "tcrdock_out_final.tsv", sep="\t", index=False)
+        return out_dir
+
+    def test_dmf5_fallback_row_writes_na_score(self, tmp_path):
+        """A panel_status=dmf5_fallback candidate (vdjdb_score=pd.NA) writes
+        cleanly: no crash on the NA score, and the flag + empty donor survive
+        the TSV round-trip."""
+        out_dir = self._write_tcrdock_outputs(tmp_path)
+        candidates = pd.DataFrame([{
+            "peptide": "SQIPRTHSY", "best_allele": "HLA-C*07:01",
+            "tcr_va": _DMF5["va_gene"], "tcr_ja": _DMF5["ja_gene"],
+            "tcr_vb": _DMF5["vb_gene"], "tcr_jb": _DMF5["jb_gene"],
+            "tcr_cdr3a": _DMF5["cdr3a"], "tcr_cdr3b": _DMF5["cdr3b"],
+            "vdjdb_donor_id": "", "vdjdb_score": pd.NA, "panel_status": "dmf5_fallback",
+        }])
+        output_scores = tmp_path / "docking_scores.tsv"
+        collect_outputs(out_dir, candidates, tmp_path / "top_candidate.pdb", output_scores)
+
+        scores = pd.read_csv(output_scores, sep="\t")
+        assert scores.iloc[0]["panel_status"] == "dmf5_fallback"
+        assert scores.iloc[0]["tcr_va"] == _DMF5["va_gene"]
+        assert pd.isna(scores.iloc[0]["vdjdb_score"])    # NA score round-trips, no crash

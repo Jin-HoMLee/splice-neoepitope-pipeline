@@ -155,8 +155,6 @@ def _normalize_allele_4digit(allele: str):
     if not allele or ":" not in allele:
         return None
     parts = allele.split(":")
-    if len(parts) < 2:
-        return None
     return f"{parts[0]}:{parts[1]}"
 
 
@@ -231,10 +229,14 @@ def select_matched_tcr(panel_df, best_allele: str, fallback_tcr: dict) -> dict:
         kind="mergesort",  # stable
     )
     top = matched.iloc[0]
+    raw_score = top["vdjdb_score"]
     return {
         "tcr_va": top["va_gene"], "tcr_ja": top["ja_gene"], "tcr_cdr3a": top["cdr3a"],
         "tcr_vb": top["vb_gene"], "tcr_jb": top["jb_gene"], "tcr_cdr3b": top["cdr3b"],
-        "vdjdb_donor_id": top["vdjdb_donor_id"], "vdjdb_score": int(top["vdjdb_score"]),
+        "vdjdb_donor_id": top["vdjdb_donor_id"],
+        # Null-safe: the #204 producer guarantees integer scores, but guard
+        # against a blank cell (pandas → NaN) so the matched path never crashes.
+        "vdjdb_score": int(raw_score) if pd.notna(raw_score) else pd.NA,
         "panel_status": "vdjdb_matched",
     }
 
