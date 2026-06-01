@@ -84,8 +84,8 @@ HOOK_CONFIG: dict[str, dict] = {
     # scope: "shared" → runs in all role sessions (committed settings.json);
     #        "pm"     → PM-local only (settings.local.json).
     "target_sync_check":     {"threshold": 3, "dock": 454, "scope": "shared"},   # re-sync actionable by whoever moved the milestone (any role)
-    "recheck_milestone":     {"threshold": 3, "dock": None, "scope": "pm"},      # capacity rebalance is PM-coordinated + fires on every close → noise for Sci/Dev
-    "recheck_parent_status": {"threshold": 3, "dock": None, "scope": "pm"},      # shared-leaning but unproven (2/3); flip scope to "shared" to promote once proven
+    "recheck_milestone":     {"threshold": 3, "dock": 618, "scope": "pm"},      # PM-local by design (dock #618); capacity rebalance is PM-coordinated + fires on every close → noise for Sci/Dev
+    "recheck_parent_status": {"threshold": 3, "dock": 617, "scope": "pm"},      # shared-leaning but unproven (2/3); dock #617 — flip scope to "shared" to promote once proven
 }
 
 
