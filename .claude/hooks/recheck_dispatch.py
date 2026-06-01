@@ -164,7 +164,7 @@ def _is_fire(hook_name: str, output: str) -> bool:
 def _wrap_warning(hook_name: str, issue: int | None, warning: str, outputs: list[str]) -> None:
     """Append warning to outputs; if it's a real fire, log it + append threshold prompt."""
     if not _in_scope(hook_name):
-        return  # out of active scope — suppress entirely (defensive; dispatch() also guards before the costly subprocess)
+        return  # out of scope — suppress output (the dispatch() guard prevents the subprocess before reaching here; this is a defensive backstop)
     outputs.append(warning)  # always emit so user sees recheck context
     if not _is_fire(hook_name, warning):
         return
