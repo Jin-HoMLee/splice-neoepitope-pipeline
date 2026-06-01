@@ -193,7 +193,7 @@ elif [[ -z "$PYTHON" ]]; then
     # before this block if either is ever refactored.
     echo "⚠ bot-review-offer check skipped (no python on PATH)." >&2
 else
-    REVIEW_STATUS="$("$PYTHON" "$SCRIPT_DIR/../tools/ci/bot_review_offer.py" "$PR")" || REVIEW_STATUS="OFFERED"
+    REVIEW_STATUS="$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/bot_review_offer.py" "$PR")" || REVIEW_STATUS="OFFERED"
     if [[ "$REVIEW_STATUS" == "NOT_OFFERED" ]]; then
         if [[ -t 0 && -t 1 ]]; then
             echo "" >&2
