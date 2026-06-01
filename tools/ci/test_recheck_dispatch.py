@@ -21,10 +21,10 @@ from _live_gh import REQUIRES_LIVE_GH
 HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "recheck_dispatch.py"
 
 
-def _run(cmd: str) -> tuple[int, str, str]:
+def _run(cmd: str, *args: str) -> tuple[int, str, str]:
     payload = json.dumps({"tool_input": {"command": cmd}})
     proc = subprocess.run(
-        [sys.executable, str(HOOK)],
+        [sys.executable, str(HOOK), *args],
         input=payload,
         capture_output=True,
         text=True,
@@ -47,6 +47,28 @@ class TestDispatcherSilent:
 
     def test_non_matching_gh_command_silent(self):
         rc, out, _ = _run("gh pr status")
+        assert rc == 0
+        assert out.strip() == ""
+
+
+class TestScopeFilter:
+    """Issue #454 scope-aware split: --scope shared (Sci/Dev) runs only shared checks.
+
+    Hermetic — the pm-scope checks (recheck_milestone, recheck_parent_status) are
+    skipped *before* any `gh` subprocess on a `gh issue close`, so no live auth is
+    needed to prove the suppression.
+    """
+
+    def test_shared_scope_suppresses_pm_checks_on_close(self):
+        # gh issue close → only pm-scope checks; under --scope shared they are
+        # gated out before run_recheck / run_parent_status_recheck run → silent.
+        rc, out, _ = _run("gh issue close 123456", "--scope", "shared")
+        assert rc == 0
+        assert out.strip() == ""
+
+    def test_non_gh_command_silent_with_scope_flag(self):
+        # Scope flag must not change the non-matching-command silent contract.
+        rc, out, _ = _run("ls -la", "--scope", "shared")
         assert rc == 0
         assert out.strip() == ""
 

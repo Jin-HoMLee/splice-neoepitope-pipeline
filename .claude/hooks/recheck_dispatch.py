@@ -10,6 +10,13 @@ Watches Bash commands for trigger shapes:
 
 For each match, invokes the relevant script and emits its output as
 `additionalContext` so it appears in the next prompt.
+
+Scope filter (Issue #454): each check declares a "scope" in HOOK_CONFIG and
+runs only when that scope is active for this invocation (`--scope shared|pm|all`).
+Committed `.claude/settings.json` invokes `--scope shared`; the PM-local
+`.claude/settings.local.json` invokes `--scope pm`. So Scientist/Developer
+sessions get only the shared, broadly-actionable checks, while PM-only checks
+(e.g. capacity rechecks) stay local. A flagless invocation runs everything.
 """
 from __future__ import annotations
 
@@ -74,10 +81,40 @@ def _count_fires(hook_name: str) -> int:
 
 
 HOOK_CONFIG: dict[str, dict] = {
-    "target_sync_check":     {"threshold": 3, "dock": 454},
-    "recheck_milestone":     {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
-    "recheck_parent_status": {"threshold": 3, "dock": None},   # dock Issue to be filed when promotion is sought
+    # scope: "shared" → runs in all role sessions (committed settings.json);
+    #        "pm"     → PM-local only (settings.local.json).
+    "target_sync_check":     {"threshold": 3, "dock": 454, "scope": "shared"},   # re-sync actionable by whoever moved the milestone (any role)
+    "recheck_milestone":     {"threshold": 3, "dock": None, "scope": "pm"},      # capacity rebalance is PM-coordinated + fires on every close → noise for Sci/Dev
+    "recheck_parent_status": {"threshold": 3, "dock": None, "scope": "pm"},      # shared-leaning but unproven (2/3); flip scope to "shared" to promote once proven
 }
+
+
+# ---------------------------------------------------------------------------
+# Scope filter (Issue #454)
+# ---------------------------------------------------------------------------
+ACTIVE_SCOPES: set[str] = {"shared", "pm"}  # default: run everything (flagless / --scope all)
+
+
+def _parse_scope(argv: list[str]) -> set[str]:
+    """Map a --scope {shared,pm,all} CLI arg to the active-scope set. Unknown/absent → all (fail-open)."""
+    scope = "all"
+    for i, arg in enumerate(argv):
+        if arg == "--scope" and i + 1 < len(argv):
+            scope = argv[i + 1]
+        elif arg.startswith("--scope="):
+            scope = arg.split("=", 1)[1]
+    if scope == "shared":
+        return {"shared"}
+    if scope == "pm":
+        return {"pm"}
+    return {"shared", "pm"}
+
+
+def _in_scope(hook_name: str) -> bool:
+    """True if hook_name's scope is active this invocation. No scope key → always (fail-open)."""
+    cfg = HOOK_CONFIG.get(hook_name)
+    scope = cfg.get("scope") if cfg else None
+    return scope is None or scope in ACTIVE_SCOPES
 
 
 def _threshold_prompt(hook_name: str) -> str | None:
@@ -126,6 +163,8 @@ def _is_fire(hook_name: str, output: str) -> bool:
 
 def _wrap_warning(hook_name: str, issue: int | None, warning: str, outputs: list[str]) -> None:
     """Append warning to outputs; if it's a real fire, log it + append threshold prompt."""
+    if not _in_scope(hook_name):
+        return  # out of active scope — suppress entirely (defensive; dispatch() also guards before the costly subprocess)
     outputs.append(warning)  # always emit so user sees recheck context
     if not _is_fire(hook_name, warning):
         return
@@ -316,47 +355,51 @@ def dispatch(cmd: str) -> list[str]:
     m = PATTERN_CLOSE.search(cmd)
     if m:
         issue_n = int(m.group(1))
-        _wrap_warning(
-            "recheck_milestone",
-            issue_n,
-            f"[milestone recheck — close #{issue_n}]\n{run_recheck('--issue', str(issue_n))}",
-            outputs,
-        )
-        _wrap_warning(
-            "recheck_parent_status",
-            issue_n,
-            f"[parent-status recheck — close #{issue_n}]\n"
-            f"{run_parent_status_recheck('--issue', str(issue_n))}",
-            outputs,
-        )
+        if _in_scope("recheck_milestone"):
+            _wrap_warning(
+                "recheck_milestone",
+                issue_n,
+                f"[milestone recheck — close #{issue_n}]\n{run_recheck('--issue', str(issue_n))}",
+                outputs,
+            )
+        if _in_scope("recheck_parent_status"):
+            _wrap_warning(
+                "recheck_parent_status",
+                issue_n,
+                f"[parent-status recheck — close #{issue_n}]\n"
+                f"{run_parent_status_recheck('--issue', str(issue_n))}",
+                outputs,
+            )
 
     m = PATTERN_MOVE.search(cmd)
     if m:
         issue = int(m.group(1))
-        ms_numbers = prior_milestones_for_issue(issue)
-        if not ms_numbers:
-            _wrap_warning(
-                "recheck_milestone",
-                issue,
-                f"[milestone recheck — move on #{issue} "
-                f"(milestone history empty; rechecking current only)]\n"
-                f"{run_recheck('--issue', str(issue))}",
-                outputs,
-            )
-        else:
-            for ms in ms_numbers:
+        if _in_scope("recheck_milestone"):
+            ms_numbers = prior_milestones_for_issue(issue)
+            if not ms_numbers:
                 _wrap_warning(
                     "recheck_milestone",
                     issue,
-                    f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
-                    f"{run_recheck('--milestone', str(ms))}",
+                    f"[milestone recheck — move on #{issue} "
+                    f"(milestone history empty; rechecking current only)]\n"
+                    f"{run_recheck('--issue', str(issue))}",
                     outputs,
                 )
-        sync_warn = target_sync_check(issue)
-        if sync_warn:
-            _wrap_warning("target_sync_check", issue, sync_warn, outputs)
+            else:
+                for ms in ms_numbers:
+                    _wrap_warning(
+                        "recheck_milestone",
+                        issue,
+                        f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
+                        f"{run_recheck('--milestone', str(ms))}",
+                        outputs,
+                    )
+        if _in_scope("target_sync_check"):
+            sync_warn = target_sync_check(issue)
+            if sync_warn:
+                _wrap_warning("target_sync_check", issue, sync_warn, outputs)
 
-    if SIZE_FIELD_ID in cmd:
+    if SIZE_FIELD_ID in cmd and _in_scope("recheck_milestone"):
         item_match = PATTERN_ITEMID.search(cmd)
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
@@ -369,7 +412,7 @@ def dispatch(cmd: str) -> list[str]:
                     outputs,
                 )
 
-    if STATUS_FIELD_ID in cmd:
+    if STATUS_FIELD_ID in cmd and _in_scope("recheck_parent_status"):
         item_match = PATTERN_ITEMID.search(cmd)
         if item_match:
             issue = lookup_issue_for_item(item_match.group(1))
@@ -382,7 +425,7 @@ def dispatch(cmd: str) -> list[str]:
                     outputs,
                 )
 
-    if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd):
+    if PATTERN_GH_API.search(cmd) and PATTERN_PATCH_METHOD.search(cmd) and _in_scope("recheck_milestone"):
         m = PATTERN_MILESTONE_PATH.search(cmd)
         if m:
             _wrap_warning(
@@ -397,6 +440,8 @@ def dispatch(cmd: str) -> list[str]:
 
 
 def main() -> int:
+    global ACTIVE_SCOPES
+    ACTIVE_SCOPES = _parse_scope(sys.argv[1:])
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
