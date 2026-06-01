@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-01 — REPO passthrough for the pre-merge lab-notebook gate ([PR #615](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/615) closes [Issue #607](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/607))
+
+### 13:47 UTC — Editor: Developer
+
+Closed the **deferred Finding 1** from the [Issue #409](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/409) gate work (see the 2026-05-31 23:09 entry below). The pre-merge lab-notebook gate — gate 5 of `scripts/audit_and_merge.sh`, via `tools/ci/lab_notebook_gate.py` — did not honor the `REPO` override its sibling gates (`stray_closers.py` / `bot_review_offer.py`) use. Running the closure-ritual gate against a fork (`REPO=fork/repo bash scripts/audit_and_merge.sh <PR>`) made gates 4/6 query the fork while gate 5 queried upstream — a composability break of the gate *as a unit*, not a bug in the documented single-repo flow (P3).
+
+**Fix.** Threaded an optional `repo` through `closure_audit`'s gh-I/O layer (`_gh` / `fetch_pr` / `fetch_issue` / `audit_pr_pre_merge`), forwarding `--repo` to `gh` **only when set**. `lab_notebook_gate.py` now reads `os.environ.get("REPO", "Jin-HoMLee/splice-neoepitope-pipeline")` and forwards it (matching the siblings); `audit_and_merge.sh` gate 5 gets the `REPO="$REPO"` prefix (matches gate 4). The #409 deferral note correctly anticipated that `_gh` is *also* used by the production post-hoc closure-audit bot (`audit_pr` / `audit_issue`) — so the change is backward-compatible: the bot passes no `repo`, and `gh` resolves from git context exactly as before (AC4, verified — both bot entry points still call the no-`repo` form).
+
+**Tests (TDD, RED→GREEN).** Subprocess-mock assertions that `--repo` is forwarded when `repo` is set and omitted when unset (`fetch_pr` / `fetch_issue`), plus a gate-level test that the `REPO` env var is read and defaults to the canonical repo. 243 `tools/ci` tests pass.
+
+**Review.** Bot review ([PR #615](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/615)) — no blocking issues. It caught one real test-quality gap: the e2e forwarding test passed *vacuously* for the `fetch_issue` path (empty-JSON mock → no closing refs → `fetch_issue` never called, assertion ran over a single call). Fixed (`cca7cfb`) — the PR fetch now returns a closing-issue ref so the per-issue fetch fires, and the test asserts both `pr view` *and* `issue view` forward `--repo`. Declined the other three notes with reasoning: the always-`--repo` resolution is the *intended* sibling-matching behavior (explicit > git-context); `post_comment` correctly stays no-`repo` (bot path only); and **gate 6** (`bot_review_offer.py`, line 196) has the *same* missing `REPO=` prefix but is out of scope for #607 (gate 5 only) — left flagged in the PR body as a follow-up candidate rather than scope-creeping this PR.
+
 ## 2026-05-31 — bot-review-offer pre-merge gate ([PR #600](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/600) closes [Issue #443](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/443))
 
 ### 23:09 UTC — Editor: Developer
