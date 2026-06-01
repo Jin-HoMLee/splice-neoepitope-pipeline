@@ -32,13 +32,18 @@ Inputs
                     genotype_presentation_score, n_strong_alleles,
                     best_presentation_percentile, {allele}_presentation_score,
                     {allele}_presentation_percentile)
+  vdjdb_panel:     Per-patient VDJdb TCR panel TSV (Issue #204; optional). When
+                   provided, each candidate is docked against the highest-confidence
+                   HLA-matched TCR for its best_allele; the DMF5 fallback is used
+                   only when the panel has no entry for that allele (Issue #205).
 
 Outputs
 -------
   top_candidate.pdb    — predicted TCR-peptide-MHC ternary complex (PDB format)
-  docking_scores.tsv   — docking geometry metrics per candidate
-                         (columns: peptide, best_allele, va_gene, vb_gene,
-                          cdr3a, cdr3b, rmsd, tcr_pdb_rmsd, docking_geometry)
+  docking_scores.tsv   — pLDDT/PAE/pTM metrics per candidate, plus the TCR used:
+                         (columns: peptide, mhc, <pLDDT/PAE/pTM metric cols>,
+                          tcr_va, tcr_ja, tcr_vb, tcr_jb, tcr_cdr3a, tcr_cdr3b,
+                          vdjdb_donor_id, vdjdb_score, panel_status)
 
 Usage (standalone, Linux + GPU only):
   python run_tcrdock.py \\
@@ -129,13 +134,135 @@ def select_top_candidates(
 
 
 # ---------------------------------------------------------------------------
+# HLA-matched TCR selection (Issue #205)
+# ---------------------------------------------------------------------------
+
+# Output columns carrying TCR provenance, surfaced in docking_scores.tsv.
+_TCR_PROVENANCE_COLUMNS = [
+    "tcr_va", "tcr_ja", "tcr_vb", "tcr_jb", "tcr_cdr3a", "tcr_cdr3b",
+    "vdjdb_donor_id", "vdjdb_score", "panel_status",
+]
+
+
+def _normalize_allele_4digit(allele: str):
+    """Truncate an HLA allele string to its 4-digit form (`HLA-X*GG:PP`).
+
+    Mirrors fetch_vdjdb_panel.normalize_allele_to_4digit so the join key used
+    here matches the panel's `allele` column exactly. Inlined (rather than
+    imported) to keep this script self-contained under Snakemake's `script:`
+    wrapper. Returns None for forms shorter than 4-digit.
+    """
+    if not allele or ":" not in allele:
+        return None
+    parts = allele.split(":")
+    if len(parts) < 2:
+        return None
+    return f"{parts[0]}:{parts[1]}"
+
+
+def load_vdjdb_panel(panel_path):
+    """Load a per-patient VDJdb panel TSV (Issue #204 output) or return None.
+
+    Returns None when no path is given or the file is absent, so callers fall
+    back to the DMF5 TCR uniformly. `vdjdb_donor_id` is read as a string so the
+    deterministic lexicographic tiebreak in select_matched_tcr is stable.
+    """
+    if not panel_path:
+        return None
+    import pandas as pd
+
+    p = Path(panel_path)
+    if not p.exists():
+        log.warning("VDJdb panel %s not found — all candidates use the DMF5 fallback TCR", p)
+        return None
+    df = pd.read_csv(p, sep="\t", dtype={"vdjdb_donor_id": str})
+    if df.empty:
+        log.warning("VDJdb panel %s is empty — all candidates use the DMF5 fallback TCR", p)
+    return df
+
+
+def select_matched_tcr(panel_df, best_allele: str, fallback_tcr: dict) -> dict:
+    """Select the single highest-confidence VDJdb TCR matching `best_allele`.
+
+    Selection rule (Issue #205):
+      1. Filter the panel to rows whose `allele` == 4-digit-normalized best_allele
+      2. Sort by vdjdb_score DESC, then vdjdb_donor_id ASC (deterministic tiebreak)
+      3. Take the top row
+
+    When the panel is None/empty or has no entry for the allele, fall back to
+    the DMF5 `fallback_tcr` and flag panel_status='dmf5_fallback'.
+
+    Args:
+        panel_df:     Panel DataFrame from load_vdjdb_panel (or None).
+        best_allele:  Candidate's MHCflurry best_allele (e.g. "HLA-C*07:01").
+        fallback_tcr: DMF5 fallback dict (va_gene, ja_gene, cdr3a, vb_gene, jb_gene, cdr3b).
+
+    Returns:
+        Dict with keys in _TCR_PROVENANCE_COLUMNS — the chosen TCR's genes/CDR3s
+        plus provenance (donor, score, panel_status).
+    """
+    import pandas as pd
+
+    def _fallback() -> dict:
+        return {
+            "tcr_va": fallback_tcr["va_gene"], "tcr_ja": fallback_tcr["ja_gene"],
+            "tcr_cdr3a": fallback_tcr["cdr3a"],
+            "tcr_vb": fallback_tcr["vb_gene"], "tcr_jb": fallback_tcr["jb_gene"],
+            "tcr_cdr3b": fallback_tcr["cdr3b"],
+            "vdjdb_donor_id": "", "vdjdb_score": pd.NA,
+            "panel_status": "dmf5_fallback",
+        }
+
+    if panel_df is None or panel_df.empty:
+        return _fallback()
+
+    allele_4d = _normalize_allele_4digit(best_allele)
+    matched = panel_df[panel_df["allele"] == allele_4d].copy()
+    if matched.empty:
+        log.warning(
+            "No VDJdb panel TCR for allele %s (best_allele=%s) — using DMF5 fallback",
+            allele_4d, best_allele,
+        )
+        return _fallback()
+
+    matched = matched.sort_values(
+        ["vdjdb_score", "vdjdb_donor_id"],
+        ascending=[False, True],
+        kind="mergesort",  # stable
+    )
+    top = matched.iloc[0]
+    return {
+        "tcr_va": top["va_gene"], "tcr_ja": top["ja_gene"], "tcr_cdr3a": top["cdr3a"],
+        "tcr_vb": top["vb_gene"], "tcr_jb": top["jb_gene"], "tcr_cdr3b": top["cdr3b"],
+        "vdjdb_donor_id": top["vdjdb_donor_id"], "vdjdb_score": int(top["vdjdb_score"]),
+        "panel_status": "vdjdb_matched",
+    }
+
+
+def attach_matched_tcrs(candidates, panel_df, fallback_tcr: dict):
+    """Attach per-candidate TCR-provenance columns (_TCR_PROVENANCE_COLUMNS).
+
+    For each candidate, selects an HLA-matched TCR for its best_allele via
+    select_matched_tcr and writes the result as new columns on the DataFrame.
+    These columns feed both build_tcrdock_input (the TCR fed to TCRdock) and
+    collect_outputs (docking_scores.tsv provenance).
+    """
+    records = [
+        select_matched_tcr(panel_df, row.get("best_allele"), fallback_tcr)
+        for _, row in candidates.iterrows()
+    ]
+    for col in _TCR_PROVENANCE_COLUMNS:
+        candidates[col] = [r[col] for r in records]
+    return candidates
+
+
+# ---------------------------------------------------------------------------
 # TCRdock input preparation
 # ---------------------------------------------------------------------------
 
 def build_tcrdock_input(
     candidates: "pd.DataFrame",
     fallback_hla: dict,
-    fallback_tcr: dict,
     output_dir: Path,
 ) -> Path:
     """Write TCRdock input TSV for the selected candidates.
@@ -144,15 +271,19 @@ def build_tcrdock_input(
     (examples/benchmark/single_target.tsv):
       pdbid  organism  mhc_class  mhc  peptide  va  ja  cdr3a  vb  jb  cdr3b
 
+    The TCR genes/CDR3s come from the per-candidate tcr_* columns added by
+    attach_matched_tcrs (HLA-matched VDJdb TCR, or DMF5 fallback when the panel
+    has no entry for the candidate's allele).
+
     Notes:
     - mhc: no "HLA-" prefix (e.g. "A*02:01" not "HLA-A*02:01")
     - va/ja/vb/jb: gene name with "*01" allele suffix (e.g. "TRAV12-2*01")
     - pdbid: arbitrary label, used only for output file naming
 
     Args:
-        candidates:   DataFrame of top candidates from select_top_candidates().
+        candidates:   DataFrame of top candidates, already annotated by
+                      attach_matched_tcrs (carries the tcr_* columns).
         fallback_hla: Dict with keys A, B, C (allele strings, MHCflurry format).
-        fallback_tcr: Dict with va_gene, ja_gene, cdr3a, vb_gene, jb_gene, cdr3b.
         output_dir:   Directory to write the input TSV.
 
     Returns:
@@ -175,12 +306,12 @@ def build_tcrdock_input(
             "mhc_class": "1",
             "mhc":       mhc,
             "peptide":   row["peptide"],
-            "va":        _add_allele(fallback_tcr["va_gene"]),
-            "ja":        _add_allele(fallback_tcr["ja_gene"]),
-            "cdr3a":     fallback_tcr["cdr3a"],
-            "vb":        _add_allele(fallback_tcr["vb_gene"]),
-            "jb":        _add_allele(fallback_tcr["jb_gene"]),
-            "cdr3b":     fallback_tcr["cdr3b"],
+            "va":        _add_allele(row["tcr_va"]),
+            "ja":        _add_allele(row["tcr_ja"]),
+            "cdr3a":     row["tcr_cdr3a"],
+            "vb":        _add_allele(row["tcr_vb"]),
+            "jb":        _add_allele(row["tcr_jb"]),
+            "cdr3b":     row["tcr_cdr3b"],
         })
 
     with input_tsv.open("w", newline="") as fh:
@@ -355,7 +486,6 @@ def collect_outputs(
     candidates: "pd.DataFrame",
     output_pdb: Path,
     output_scores: Path,
-    fallback_tcr: dict,
 ) -> None:
     """Collect TCRdock PDB and docking scores into pipeline output files.
 
@@ -363,12 +493,16 @@ def collect_outputs(
       - {prefix}_final.tsv: one row per AlphaFold run, with pLDDT/PAE metric
         columns and a *_pdb_file column pointing to the predicted PDB.
 
+    docking_scores.tsv is augmented with the TCR-provenance columns
+    (_TCR_PROVENANCE_COLUMNS) carried on `candidates` so a reader can see which
+    TCR was used for each candidate and whether it was HLA-matched (Issue #205).
+
     Args:
         tcrdock_output_dir: Directory containing TCRdock output files.
-        candidates:         DataFrame of candidates (same order as input TSV).
+        candidates:         DataFrame of candidates (same order as input TSV),
+                            annotated by attach_matched_tcrs.
         output_pdb:         Destination PDB path (top candidate only).
         output_scores:      Destination docking scores TSV.
-        fallback_tcr:       TCR config dict (unused here, kept for signature compat).
     """
     import pandas as pd
 
@@ -424,7 +558,20 @@ def collect_outputs(
     metric_cols = [c for c in scores_df.columns if
                    any(k in c for k in ("plddt", "pae", "ptm"))]
     keep_cols = [c for c in ["peptide", "mhc"] + metric_cols if c in scores_df.columns]
-    scores_df[keep_cols].to_csv(output_scores, sep="\t", index=False)
+    out_df = scores_df[keep_cols].copy()
+
+    # Append TCR-provenance columns from candidates. TCRdock processes targets
+    # in input order (pdbid = neoepitope_{i}), so rows align positionally with
+    # `candidates`. Pad with NA if the final TSV has fewer rows than candidates
+    # (e.g. a per-target AlphaFold failure dropped a row).
+    prov_cols = [c for c in _TCR_PROVENANCE_COLUMNS if c in candidates.columns]
+    if prov_cols:
+        n = min(len(out_df), len(candidates))
+        for c in prov_cols:
+            vals = list(candidates[c].iloc[:n])
+            out_df[c] = vals + [pd.NA] * (len(out_df) - n)
+
+    out_df.to_csv(output_scores, sep="\t", index=False)
     log.info("Docking scores written to %s", output_scores)
 
 
@@ -440,6 +587,7 @@ def run_structural_validation(
     n_candidates: int = 1,
     fallback_hla: dict | None = None,
     fallback_tcr: dict | None = None,
+    vdjdb_panel: str | Path | None = None,
     presentation_percentile_weak: float = 2.0,
 ) -> None:
     """Run TCRdock structural validation on top neoepitope candidates.
@@ -451,7 +599,11 @@ def run_structural_validation(
         docker_image:    TCRdock Docker image name (e.g. "tcrdock:latest").
         n_candidates:    Number of top candidates to model.
         fallback_hla:    Fallback HLA alleles dict (keys: A, B, C).
-        fallback_tcr:    Fallback TCR sequences dict.
+        fallback_tcr:    Fallback TCR sequences dict (DMF5).
+        vdjdb_panel:     Per-patient VDJdb panel TSV (Issue #204). When provided,
+                         each candidate is docked against the highest-confidence
+                         HLA-matched TCR for its allele; the DMF5 fallback_tcr is
+                         used only when the panel has no entry for that allele.
     """
     if fallback_hla is None:
         fallback_hla = {"A": "HLA-A*02:01", "B": "HLA-B*07:02", "C": "HLA-C*07:02"}
@@ -481,14 +633,29 @@ def run_structural_validation(
         candidates[["peptide", "best_allele", "ic50_nM"]].to_string(index=False),
     )
 
-    # Step 2: Build TCRdock input TSV
-    input_tsv = build_tcrdock_input(candidates, fallback_hla, fallback_tcr, work_dir)
+    # Step 2: Select an HLA-matched TCR per candidate from the VDJdb panel
+    # (DMF5 fallback when the panel has no entry for the candidate's allele).
+    panel_df = load_vdjdb_panel(vdjdb_panel)
+    candidates = attach_matched_tcrs(candidates, panel_df, fallback_tcr)
+    log.info(
+        "TCR selection per candidate:\n%s",
+        candidates[["peptide", "best_allele", "panel_status", "vdjdb_donor_id"]].to_string(index=False),
+    )
+    n_fallback = int((candidates["panel_status"] == "dmf5_fallback").sum())
+    if n_fallback:
+        log.warning(
+            "%d/%d candidate(s) fell back to the DMF5 TCR (no HLA-matched panel entry)",
+            n_fallback, len(candidates),
+        )
 
-    # Step 3: Run TCRdock
+    # Step 3: Build TCRdock input TSV
+    input_tsv = build_tcrdock_input(candidates, fallback_hla, work_dir)
+
+    # Step 4: Run TCRdock
     tcrdock_output_dir = run_tcrdock(input_tsv, work_dir, docker_image)
 
-    # Step 4: Collect outputs
-    collect_outputs(tcrdock_output_dir, candidates, output_pdb, output_scores, fallback_tcr)
+    # Step 5: Collect outputs
+    collect_outputs(tcrdock_output_dir, candidates, output_pdb, output_scores)
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +666,10 @@ def _snakemake_main() -> None:
     log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
     logging.getLogger().addHandler(logging.FileHandler(log_file))
 
+    # vdjdb_panel is wired as an input only when hla.enabled (the panel rule is
+    # gated on it); fall back to None so the DMF5 path still works if absent.
+    vdjdb_panel = getattr(snakemake.input, "vdjdb_panel", None)  # type: ignore[name-defined]  # noqa: F821
+
     run_structural_validation(
         predictions_tsv=snakemake.input.predictions_tsv,  # type: ignore[name-defined]  # noqa: F821
         output_pdb=snakemake.output.pdb,  # type: ignore[name-defined]  # noqa: F821
@@ -507,6 +678,7 @@ def _snakemake_main() -> None:
         n_candidates=snakemake.params.n_candidates,  # type: ignore[name-defined]  # noqa: F821
         fallback_hla=snakemake.params.fallback_hla,  # type: ignore[name-defined]  # noqa: F821
         fallback_tcr=snakemake.params.fallback_tcr,  # type: ignore[name-defined]  # noqa: F821
+        vdjdb_panel=vdjdb_panel,
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
     )
 
@@ -520,6 +692,8 @@ def _cli_main() -> None:
     parser.add_argument("--output-scores", required=True)
     parser.add_argument("--docker-image", default="tcrdock:latest")
     parser.add_argument("--n-candidates", type=int, default=1)
+    parser.add_argument("--vdjdb-panel", default=None,
+                        help="Per-patient VDJdb panel TSV (Issue #204). Omit to use the DMF5 fallback TCR.")
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
     args = parser.parse_args()
 
@@ -529,6 +703,7 @@ def _cli_main() -> None:
         output_scores=args.output_scores,
         docker_image=args.docker_image,
         n_candidates=args.n_candidates,
+        vdjdb_panel=args.vdjdb_panel,
         presentation_percentile_weak=args.presentation_percentile_weak,
     )
 
