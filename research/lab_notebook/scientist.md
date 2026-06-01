@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-01
 
+### 14:50 UTC — Editor: Scientist
+
+#### [Issue #611](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/611) METHODS — align aligner prose with the shipped STAR production default. [PR #621](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/621) closes [Issue #611](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/611).
+
+**What.** Discharged the manuscript-stranding finding the i3-S3 milestone close surfaced this morning (see 11:02 UTC entry): live `METHODS.md` still named **HISAT2** as the production aligner though it switched to **STAR** ([Issue #17](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/17) / [PR #410](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410)), and Known-Limitations still listed the STAR comparison as Future Work though it shipped. Scope was deliberately **expanded** beyond METHODS (Scientist-lane call) to every aligner mention so sections stop contradicting each other: METHODS §1+§2 + new *Junction coordinate handling* subsection, DISCUSSIONS aligner subsection + strand mechanism, CONCLUSIONS summary + 3 stale future-work bullets removed ([Issue #16](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/16) + [Issue #17](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/17) both shipped), INTRODUCTION toolchain table, REFERENCES (STAR Dobin 2013 / regtools Cotto 2023 / HISAT2 Kim 2019, DOIs verified).
+
+**Provenance, not a re-run.** Decision (user, 2026-06-01): name STAR as the production default + HISAT2 as the 8 GB low-memory option, with an explicit note that the **reported patient_001/002 results are HISAT2-derived**. `RESULTS.md` left untouched — it correctly records HISAT2 results. No STAR re-run is implied by the prose. Flagged the re-run question to the Developer (standup [2026-06-01 13:28 UTC]); a tracking Issue is gated on Dev's feasibility reply, not on this PR.
+
+**AC correction (the trap this Issue existed to avoid).** The original [Issue #611](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/611) AC asserted "no GTF index bias". Ground truth from the shipped rules is the opposite: the STAR genome index **is GENCODE-aware** (`--sjdbGTFfile`, `--sjdbOverhang 100`) — novel-junction sensitivity comes from two-pass + permissive `--outSJfilter*` defaults, not from an annotation-free index. Wrote the prose correctly and explicitly corrected the AC in the Issue body, commit message, and PR.
+
+**Method.** Two adversarial Workflows before any prose was written: (1) an 8-agent ground-truth pass reading `alignment.smk` / `star_sj_to_junctions.py` / `bed12_to_junctions.py` / `config/*.yaml`, (2) a 2-reviewer diff-verification pass against the shipped code. The ground-truth pass is what caught the AC error — exactly the verify-before-writing discipline that keeps falsehoods out of the manuscript.
+
+**Review.** Bot review, verdict *ready to merge*, 3 non-blocking nits — all applied: (1) split an over-long METHODS §1 sentence (semicolon + "while" run-on); (2) INTRODUCTION table cell `STAR (HISAT2 low-memory option)` → `STAR / HISAT2 (low-memory)` (the old form could read as HISAT2 being a STAR mode); (3) one pre-existing `labelled` → `labeled` in CONCLUSIONS (American-spelling convention; file already in the diff). No new gaps; the open REFERENCES citation-format sweep item is unchanged.
+
 ### 11:02 UTC — Editor: Scientist
 
 #### Morning session — milestone-closure routing (3 science milestones) + [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) epic close-out backfill

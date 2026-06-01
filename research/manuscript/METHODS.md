@@ -16,23 +16,71 @@ MHC binding prediction, and structural validation.
 
 ## 1. RNA-seq Alignment
 
-Reads are aligned to the GRCh38 (hg38) reference genome using HISAT2 (v2.x), a
-splice-aware aligner. Alignments are output as coordinate-sorted BAM files using samtools.
-Single-end data uses the `-U` flag; paired-end data uses `-1`/`-2`.
+Reads are aligned to the GRCh38 (hg38) reference genome with a splice-aware aligner,
+selected via the `config.alignment.aligner` switch. The production default is **STAR**
+(Dobin et al., 2013), run in two-pass mode (`--twopassMode Basic`) so that novel junctions
+found in the first pass are incorporated into the second-pass splice-junction database. The
+genome index is built with the GENCODE v47 annotation as its splice-junction database
+(`--sjdbGTFfile`, `--sjdbOverhang 100`), so annotated junctions are known to the aligner
+while two-pass discovery recovers unannotated ones. The novel-junction output filters
+(`--outSJfilter*`) are not overridden, so STAR's permissive defaults apply and discovered
+junctions are not down-filtered, and the novel-junction insertion limit is raised
+(`--limitSjdbInsertNsj 2000000`) to retain the large set of unannotated junctions of interest. STAR is run without writing alignments (`--outSAMtype None`); splice
+junctions are taken directly from its `SJ.out.tab` output (§2).
+
+For memory-constrained environments — for example local development on a macOS M1 with 8 GB
+RAM, where STAR's ~32 GB genome index does not fit — the aligner can be switched to **HISAT2**
+(Kim et al., 2019), which writes coordinate-sorted BAM files via samtools (single-end data
+uses `-U`; paired-end `-1`/`-2`). Both aligners feed a common junction table, so all
+downstream stages are aligner-agnostic.
+
+The patient_001 and patient_002 results reported in this manuscript were generated with the
+HISAT2 path, the pipeline's earlier default; STAR is the current production default for new runs.
 
 ---
 
 ## 2. Splice Junction Extraction
 
-Splice junctions are extracted from the aligned BAM files using regtools
-(`junctions extract`), with the following parameters:
+Splice junctions are extracted in an aligner-specific manner and normalized to a common
+per-sample junction table; downstream stages do not depend on which aligner produced it.
+
+On the **STAR** path, junctions are read directly from STAR's `SJ.out.tab` output. Each
+junction carries intron donor/acceptor coordinates, an intron-motif code, and read support;
+only uniquely-mapping reads are counted toward support.
+
+On the **HISAT2** path, junctions are extracted from the coordinate-sorted BAM with regtools
+(`junctions extract`; Cotto et al., 2023):
 
 - Minimum anchor length: 8 nt (`-a 8`)
 - Minimum intron length: 50 nt (`-m 50`)
 - Maximum intron length: 500,000 nt (`-M 500000`)
 - Strand specificity inferred from the XS tag (`-s XS`)
 
-Output is a BED file of junction coordinates with read support counts.
+The resulting BED12 records are converted to the common junction table; the two coordinate
+conventions are reconciled as described below. Read support is counted slightly differently by
+the two paths — uniquely-mapping reads on the STAR path, total spliced reads on the regtools
+path — so a read-count threshold is not strictly comparable across aligners.
+
+### Junction coordinate handling
+
+The two extraction paths reach the same intron coordinates by different routes, and each
+requires a path-specific correction.
+
+regtools reports its junctions in BED12, where the start/end columns are the **outer
+boundaries of the spliced-read anchors**, not the intron donor and acceptor. The true intron
+boundaries are recovered from the block geometry (the donor is the start plus the first block
+size; the acceptor is the start plus the second block offset) rather than read from the
+start/end columns directly — which would otherwise displace every junction by the anchor
+length (typically 100–150 nt per side) and, during classification, silently fail to match any
+GENCODE-annotated junction.
+
+STAR reports intron donor/acceptor coordinates directly in `SJ.out.tab` and is not subject to
+this offset. It does, however, leave the strand undefined for junctions whose orientation it
+cannot infer; in those cases the strand is recovered from the intron-motif code (e.g. GT–AG and
+GC–AG → plus strand; CT–AC and CT–GC → minus strand). Junctions with a non-canonical motif,
+which cannot be strand-assigned, are dropped rather than carried forward with an ambiguous
+strand: an incorrect strand would yield a reverse-complemented contig and translation in the
+wrong frame at the contig-assembly stage.
 
 ---
 
@@ -273,10 +321,10 @@ visualisation via Mol\* 4.x.
 - **No proteome filter:** peptides are not cross-referenced against the full human
   proteome beyond the junction-spanning filter. A BLAST or exact-match check against
   the reference proteome would catch any remaining false positives.
-- **HISAT2 vs STAR:** STAR has been shown to detect more novel splice junctions in
-  benchmarks. Future production runs will compare results between the two aligners
-  (issue #17).
-- **Pre-built genome index:** the HISAT2 `genome_tran` index (GRCh38 + GENCODE splice sites) is downloaded from the HISAT2 S3 mirror at pipeline start rather than built from scratch, saving ~60–90 min per VM. The chr22 test configuration still builds from the local FASTA.
+- **Genome index build:** the production STAR index is built once per VM from the GRCh38
+  primary assembly and the GENCODE v47 annotation; the low-memory HISAT2 path instead
+  downloads a pre-built `genome_tran` index (GRCh38 + GENCODE splice sites) from the HISAT2 S3
+  mirror. The chr22 test configuration builds a small index from a local FASTA.
 - **HLA typing from RNA-seq:** OptiType is run on RNA-seq reads, which may have lower
   HLA coverage than WES/WGS. Low read depth (< 30 reads per locus) triggers fallback
   to configured default alleles with a warning.
