@@ -259,6 +259,11 @@ else
     log "Creating GCS bucket gs://${GCS_BUCKET}..."
     gcloud storage buckets create "gs://${GCS_BUCKET}" --location="${ZONE%-*}"
     log "  Bucket created."
+    # Protect the fresh bucket immediately (versioning + retention lifecycle, Issue #627)
+    # so first-deploy results aren't overwritten unrecoverably before someone runs setup.
+    log "Applying result-protection (versioning + lifecycle) to the new bucket..."
+    bash "$(dirname "$0")/setup_gcs_archiving.sh" "gs://${GCS_BUCKET}" \
+        || log "  WARNING: setup_gcs_archiving.sh failed — run it manually to protect this bucket."
 fi
 
 PROJECT_NUMBER="$(curl -sH 'Metadata-Flavor: Google' \
