@@ -368,3 +368,35 @@ def test_build_resume_rejects_changed_min_samples(tmp_path):
     with pytest.raises(ValueError, match="resume"):
         gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
                    min_samples=1, line_source=lambda r: region_lines[r], resume=True)
+
+
+def test_build_resume_raises_when_done_marker_but_bed_part_missing(tmp_path):
+    # .done implies the .bed part was written (write order bed -> sweep -> done), but a
+    # post-write deletion of the .bed (accidental rm, disk recycle) leaves a stale marker.
+    # _merge_parts silently skips a missing part, so the chromosome would drop out of the
+    # final BED while its sweep is still counted — a silent undercount. Fail loud instead
+    # (Issue #211 silent-undercount guard; review M1).
+    region_lines = _chrom_region_lines()
+    regions = ["chr1:1-248956422", "chr2:1-242193529"]
+    bed = tmp_path / "out.bed"
+    qc = tmp_path / "out.qc.tsv"
+
+    # First pass: chr1 succeeds (writes chr1.bed + .sweep.json + .done), chr2 drops.
+    def flaky(region):
+        if region.startswith("chr2:"):
+            raise urllib.error.URLError("connection dropped")
+        return region_lines[region]
+
+    with pytest.raises(urllib.error.URLError):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=flaky, resume=True)
+
+    # Simulate the .bed part being deleted while its .done marker survives.
+    part_dir = Path(str(bed) + ".parts")
+    (part_dir / "chr1.bed").unlink()
+    assert (part_dir / "chr1.done").exists()
+
+    # Resume must refuse rather than silently omit chr1 from the merged BED.
+    with pytest.raises(RuntimeError, match="BED part"):
+        gtex.build(regions=regions, bed_path=str(bed), qc_path=str(qc),
+                   min_samples=1, line_source=lambda r: region_lines[r], resume=True)

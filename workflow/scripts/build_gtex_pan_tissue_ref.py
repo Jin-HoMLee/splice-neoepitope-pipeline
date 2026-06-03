@@ -157,6 +157,10 @@ def fetch_chromosome_bgz(
 ) -> Iterator[str]:
     """Yield BULK_HEADER then the bulk file's data rows for one chromosome, via tabix.
 
+    ``chrom`` is a contig name (``chr22``) or any tabix region string
+    (``chr22:1-50818468``) — both are passed to ``tabix`` verbatim; the CLI uses bare
+    contig names, the tests exercise the windowed form.
+
     Runs ``tabix <bgz_url> <chrom>`` — htslib byte-range-streams just that contig over
     HTTPS. Three fail-loud truncation defenses (Issue #211); none may silently undercount:
       * transport short read — the static file's real Content-Length makes htslib error and
@@ -241,6 +245,8 @@ def write_qc_sidecar(sweep: Counter, n_junctions: int, path: str) -> None:
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w") as fh:
+        # Format: line 1 is a key-value header (n_junctions\t<total>); the remaining
+        # lines are a 2-column table (min_samples_count\tn_junctions) for the sweep.
         fh.write(f"n_junctions\t{n_junctions}\n")
         fh.write("min_samples_count\tn_junctions\n")
         for t in QC_SWEEP_THRESHOLDS:
@@ -361,6 +367,20 @@ def build(
         done = part_dir / f"{chrom}.done"
         sweep_path = part_dir / f"{chrom}.sweep.json"
         if resume and done.exists():
+            # .done implies write_bed6 ran (write order: bed -> sweep -> done.touch),
+            # but a post-write deletion of the .bed part leaves a stale marker that
+            # _merge_parts silently skips — dropping this chromosome from the final BED
+            # while its sweep is still counted (silent undercount, Issue #211). Refuse.
+            bed_part = part_dir / f"{chrom}.bed"
+            if not bed_part.exists():
+                raise RuntimeError(
+                    f"Cannot --resume: {done.name} marks {chrom} as built, but its BED "
+                    f"part {bed_part} is missing — _merge_parts would silently omit "
+                    f"{chrom} from the final BED while its sweep is still counted, "
+                    f"undercounting the union (Issue #211 silent-undercount guard). "
+                    f"Delete {done} (and {sweep_path}) to re-query {chrom}, or delete "
+                    f"{part_dir} to rebuild."
+                )
             sweeps.append(_read_chrom_sweep(sweep_path))
             log.info("Resume: %s already built, skipping query", chrom)
             continue
