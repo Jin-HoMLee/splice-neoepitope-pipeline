@@ -781,13 +781,13 @@ single positive sample is in GTEx's standard analysis freeze (`SMAFRZE = "USE ME
 falls in testis, a splicing-permissive tissue where low-frequency cryptic events
 are well-documented.
 
-### Independent validation of the splice-neoepitope axis: glioblastoma cohorts and single-cell maps
+### Independent validation of the splice-neoepitope axis: glioma cohorts and single-cell maps
 
 Beyond the methodological comparisons above, three 2025 studies externally validate the
-splice-junction-neoepitope axis itself. Two are glioblastoma cohorts. Xiong et al.
+splice-junction-neoepitope axis itself. Two are glioma cohorts. Xiong et al.
 (*Genes Immun* 2025) mapped tumor-enriched isoform antigens across 587 glioma patients,
 building per-patient candidate repertoires from isoform expression and HLA-I haplotype —
-the same per-patient junction × HLA-I logic applied here — and functionally validated an
+mirroring the per-patient junction × HLA-I logic applied here — and functionally validated an
 HLA-A11-restricted POSTN-203 junction epitope that elicited antigen-specific T-cell
 responses. Xiong et al. (*Cell Mol Immunol* 2025) carried a single splice-junction target
 the full distance to a therapeutic handle: a C/EBPβ-induced RCAN1-4 isoform, specific to
@@ -800,7 +800,7 @@ functioning TCR-T product — the translational exemplar of what this pipeline's
 stage screens candidates toward.
 
 A third study locates the axis in single-cell space. JAseC (Xiong et al., *Nucleic Acids
-Res* 2025 — a distinct first author from the glioblastoma work above) calls
+Res* 2025 — a distinct first author from the glioma work above) calls
 alternative-splicing events from short-read single-cell RNA-seq, predicts MHC-I
 presentation of the resulting isoform peptides (NetMHCpan, per-patient HLA), and reports
 that the resulting splicing-derived antigen burden — driven in part by the splicing
