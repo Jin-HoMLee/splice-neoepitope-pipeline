@@ -1,0 +1,82 @@
+name: STAR env solve probe (issue #629)
+
+# THROWAWAY diagnostic for Issue #629 — run on real ubuntu-latest (native
+# linux-64, real glibc) to settle whether a fixed star.yaml actually solves,
+# free of the macOS cross-solve artifacts (__glibc virtual package, etc.).
+# Delete this file once #629's fix path is decided.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}   # login shell so `conda activate` works (incl. -e)
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          auto-update-conda: true
+
+      - name: Environment + solver config
+        run: |
+          conda --version
+          conda config --show solver channel_priority channels 2>/dev/null || true
+          getconf GNU_LIBC_VERSION || ldd --version | head -1
+
+      - name: Accept Anaconda defaults ToS (avoid friction; star.yaml lists `defaults`)
+        run: |
+          conda tos accept --override-channels \
+            --channel https://repo.anaconda.com/pkgs/main \
+            --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+
+      - name: Probe candidate solves (native linux-64)
+        run: |
+          mkdir -p probe_logs
+          : > probe_logs/SUMMARY.txt
+          # Exact star.yaml channel set (incl. defaults), strict-as-configured.
+          CH="--override-channels -c bioconda -c conda-forge -c defaults"
+
+          probe () {
+            label="$1"; shift
+            key=$(echo "$label" | tr ' /' '__')
+            log="probe_logs/${key}.log"
+            echo "::group::${label}  ::  conda create --dry-run $*"
+            set +e
+            conda create --dry-run -n _probe $CH "$@" > "$log" 2>&1
+            rc=$?
+            set -e
+            if [ $rc -eq 0 ]; then
+              pkgs=$(grep -oE "(star|samtools|htslib|libdeflate)-[0-9][^ |]*" "$log" | sort -u | tr '\n' ' ')
+              line="RESULT[$label] = OK (rc=0)  resolved: ${pkgs:-<none matched>}"
+            else
+              line="RESULT[$label] = FAIL (rc=$rc)"
+            fi
+            echo "$line" | tee -a probe_logs/SUMMARY.txt
+            if [ $rc -ne 0 ]; then
+              echo "----- conflict tail -----"
+              tail -30 "$log"
+            fi
+            echo "::endgroup::"
+          }
+
+          probe "A current star.yaml (baseline)"   "star>=2.7.11"  "samtools>=1.18" "python>=3.11" "pandas"
+          probe "B drop samtools, keep broken pin"  "star>=2.7.11"  "python>=3.11" "pandas"
+          probe "C fix pin, keep samtools"          "star>=2.7.11a" "samtools>=1.18" "python>=3.11" "pandas"
+          probe "D fix pin + drop samtools (cand.)" "star>=2.7.11a" "python>=3.11" "pandas"
+          probe "E no star version, drop samtools"  "star"          "python>=3.11" "pandas"
+          probe "F STAR+htslib only (isolate)"      "star>=2.7.11a" "htslib"
+
+          echo "===================== SUMMARY ====================="
+          cat probe_logs/SUMMARY.txt
+
+      - name: Upload full solve logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: star-env-solve-logs
+          path: probe_logs/
