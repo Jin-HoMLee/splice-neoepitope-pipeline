@@ -266,3 +266,46 @@ change between pipeline runs, so no routine refresh is needed. Re-build only if:
    surface as a key-set mismatch against #225's panel.
 3. Re-stage to a versioned GCS prefix (`gs://splice-neoepitope-project/resources/gtex/<compilation>/`)
    and bump `config.gtex_filter.{source,reference_bed}`.
+
+## Task 10 — §2(c) NO-GO verdict consistency check (production panel)
+
+[Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)'s final
+acceptance criterion: re-run [Issue #225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225)
+(re-run)'s notebook §2(c) against the **production** `gtexv2` panel and confirm the
+AlphaGenome-as-3rd-filter **NO-GO** verdict still holds. The production panel is the
+genome-wide extension of #225's *exact* chr22 source, so this is a **consistency check**,
+not a new experiment.
+
+**Check (2026-06-03, reproducible).** The production chr22 slice
+(`gtex_gtexv2_pan_tissue_junctions.chr22.bed`, GCS-staged) and #225's cached
+`outputs/chr22_gtex_panel.parquet` yield **identical** `(chrom, donor, acceptor, strand)`
+key sets:
+
+| set | keys |
+|---|---|
+| §2(c) cached panel (`chr22_gtex_panel.parquet`) | 880,769 |
+| production chr22 slice (this build) | 880,769 |
+| symmetric difference | **0** |
+
+Re-derived fresh — load both, apply `start-1, end`, diff. The production builder's BED6 is
+already `(start-1, end)`-transformed, so its 4-tuple equals §2(c)'s `snaptron_to_key_set`
+output directly. (The parquet was read with a throwaway `pyarrow` venv — no project env ships
+a parquet engine; see CLAUDE.md.)
+
+**The verdict holds — on two independent grounds:**
+
+1. **Identical input.** §2(c)'s panel feeds §3/§4/§6 unchanged ⇒ `% AG-unique vs GTEx` stays
+   **0.0%**.
+2. **GTEx-independent trigger.** The NO-GO branch fires on `F1 < 0.5`, and the headline
+   `F1 = 0.3000` comes from §2(b) (AlphaGenome vs matched-normal ∩ GENCODE) — it never touches
+   the GTEx panel. The only GTEx-dependent metric gates the *ADOPT-as-fallback* branch
+   (`F1 ≥ 0.7 AND AG-unique ≥ 5%`), already excluded by `F1 = 0.3 < 0.7`.
+
+Before == after (identical panel): `F1 = 0.3000`, `% AG-unique vs GTEx = 0.0%`,
+decision = **NO-GO — treat as tissue prior**.
+
+> **Notebook follow-up (post-merge, Scientist-owned).** The #225 notebook still loads the
+> *proxy* §2(c) panel from its cached parquet — which we have now shown equals the production
+> chr22 slice. Repointing §2(c)'s source from the proxy to the production BED in the committed
+> notebook is a cosmetic refresh of a Scientist experiment artifact; it is deferred to the
+> #225 / #211-landing follow-up, not a #211 blocker. The verdict is unaffected either way.
