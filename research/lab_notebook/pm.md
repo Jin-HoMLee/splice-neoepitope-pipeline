@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-03
+
+### 13:42 UTC — Editor: PM
+
+#### `recheck_milestone` capacity under-read fixed — unsized-guard hoisted above the zero-check ([Issue #618](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/618), [PR #644](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/644))
+
+**Trigger.** Warm-up pull of the `recheck_milestone` proves-out dock [Issue #618](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/618). The scope verdict (keep PM-local) was already settled in [Issue #454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454); the live work was AC2 — "re-evaluate K and/or capacity-model accuracy," prompted by a 2026-06-01 `pm-i6` under-read.
+
+**Self-reproducing bug.** The commitment act for #618 — `gh issue edit 618 --milestone "pm-i6 …"` — *itself* fired `recheck_milestone` and reproduced the exact AC2 fault: open issues `#539 (S)` + `#527`/`#538` (unsized) → `Remaining capacity: 1.0d` → spurious `Proposed due_on: 2026-06-04 (delta -28 days) [UPDATE NEEDED]`. The dock Issue's own proves-out fire was the test case.
+
+**Root cause.** The unsized-capacity guard in `compute_recheck` was nested inside the `if remaining == 0:` branch, so a milestone with a **mix** of sized and unsized open issues bypassed it — the unsized issues were silently weighted 0d, under-reading capacity and driving a confident-but-bogus slip. Two distinct under-read causes were visible in the one fire; only the capacity-model one is in scope here:
+- **Capacity-model (this PR):** unsized issues counted as 0d when `remaining > 0`. **Fixed.**
+- **Mid-propagation membership lag:** the just-added #618 wasn't yet in the milestone's issue list (GitHub eventual-consistency). That is the separate domain of [Issue #406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406) — cross-referenced, not touched. It self-resolved within the session (the post-fix re-run showed #618 present).
+
+**Fix.** Hoist the unsized check above the zero-check: *any* unsized open issue now yields `[UNSIZED]` (reporting the sized subset as a floor — `sized subset 1.5d is a floor`) instead of a due-date recommendation. An unreliable read must not produce a confident proposal — the actionability principle (AWS Well-Architected OPS08-BP04) the dock Issue cites; a spurious `[UPDATE NEEDED]` is alert-fatigue noise. TDD: added direct `compute_recheck` coverage (`TestComputeRecheckUnsizedGuard` — mixed / all-unsized / no-open / all-sized); the mixed case was red pre-fix, green post-fix; full suite 39 passed, 0 regressions; live pm-i6 re-run now `[UNSIZED]`.
+
+**K unchanged.** AC2 also asked to re-evaluate K (`threshold=3`). No change: the proves-out has fired (3/3, equals-once so it won't re-fire) and the scope verdict is settled — K=3 stands; the real defect was capacity-model accuracy, not the fire threshold. Closes [Issue #618](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/618).
+
+---
+
 ## 2026-06-01
 
 ### 15:36 UTC — Editor: PM
