@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-03
+
+### 14:19 UTC — Editor: Scientist
+
+#### [Issue #599](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/599) integrate 2025-26 splice-neoepitope validation cohorts (POSTN, RCAN1-4, JAseC) into INTRODUCTION + DISCUSSION. [PR #643](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/643) closes [Issue #599](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/599).
+
+**What.** Integrated three independently-verified 2025 splice-neoepitope papers into the manuscript — continuing the [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) landscape work; read-and-integrate, no pipeline/method changes (+58 lines net). INTRODUCTION (*Aberrant Splicing in Cancer*) gains a POSTN-203 independent-cohort paragraph; DISCUSSION (*Comparison to related neoantigen-prediction tools*) gains a new subsection *"Independent validation of the splice-neoepitope axis: glioma cohorts and single-cell maps"*; REFERENCES gains a `## X` section (three Xiong entries) + three in-text-citation table rows.
+
+- **POSTN** (Zujian Xiong et al., *Genes Immun* 2025; Zotero `HMXA22SW`) — 587-glioma-patient transcript-targeted antigen map; per-patient isoform-antigen × HLA-I repertoires; functionally-validated HLA-A11 POSTN-203 junction epitope. INTRODUCTION + DISCUSSION.
+- **RCAN1-4** (Zujian Xiong et al., *Cell Mol Immunol* 2025; Zotero `BU83EAXW`) — C/EBPβ-induced isoform → HLA-A24 RCAN1-4₂₂₋₃₂ junction epitope → TCR-T cytotoxicity in vitro/in vivo; positioned as the downstream end of our TCRdock arm. DISCUSSION.
+- **JAseC** (Jieyi Xiong et al., *Nucleic Acids Res* 2025; Zotero `UBSWV97I`) — single-cell AS→MHC-I antigen mapping; ESRP1-driven splicing-antigen burden tracks anti-PD1 response independent of TMB; framed as the single-cell counterpart to our bulk junction calling (out of our bulk architecture). DISCUSSION.
+
+**Why it matters.** External independent-cohort + translational evidence that patient-specific, HLA-presented splice-junction neoepitopes are real and recoverable at scale — strengthening the motivating premise (INTRODUCTION) and the public/personalized + TCRdock translational arc (DISCUSSION). RCAN1-4 is the field's existence proof that a splice-junction neoepitope can reach a functioning TCR-T product.
+
+**Verification (AC4 — claims confirmed against primary sources, not the 2026-05-30 triage notes).** POSTN (paywalled, no local PDF) confirmed via Europe PMC abstract (PMID 40181162): **587 *glioma* patients** (corrected from the triage note's "glioblastoma"), POSTN-203 / HLA-A11. RCAN1-4 + JAseC confirmed against local Zotero PDF full-text (`.zotero-ft-cache`): C/EBPβ / HLA-A24 / RCAN1-4₂₂₋₃₂ / TCR-T cytotoxicity; JAseC NetMHCpan per-patient MHC-I prediction, ESRP1, antigen-burden-vs-ICB-response independent of TMB. Two distinct Xiong first authors disambiguated (Zujian ×2 glioma-group papers, Jieyi ×1 JAseC) — noted in the REFERENCES entry.
+
+**Review.** @-claude review: one blocking labelling fix — title + opening sentence (plus a third back-reference I caught) said "glioblastoma" for the POSTN/RCAN1-4 pair, but POSTN is pan-glioma; relabelled all three to "glioma" (commit `17efcb8`). Observation 2 (overstated method equivalence) → softened "the same … logic" to "mirroring …". Observations 1/3/4/5 verified as no-action (no INTRODUCTION Xiong ambiguity; `<sub>` matches house style; `## X` + table correct).
+
+**Process note.** Drafting edits landed on `main` first, then stashed → `gh issue develop` branch → restored, preserving the Development link + commitment-act order. Caught and removed a stray [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) closing edge in the PR body (the "closed [Issue #232](url)" keyword-adjacency foot-gun) — closing set is `#599` only.
+
 ## 2026-06-01
 
 ### 20:04 UTC — Editor: Scientist
