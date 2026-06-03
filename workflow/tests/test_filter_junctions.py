@@ -380,6 +380,42 @@ class TestClassifyJunctions:
         # Only the tumor_exclusive junction is a candidate downstream.
         assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
 
+    def test_gtex_disabled_junction_falls_through_to_tumor_exclusive(self, tmp_path):
+        # Contract: when gtex_bed is omitted (filter disabled), a junction that WOULD
+        # match a GTEx blacklist on disk is still labeled tumor_exclusive — only the
+        # passed argument enables filtering, never the mere existence of the file.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # would be gtex_pantissue_shared if the BED were passed
+            ("chr22:901:1000:+", 1),   # noise
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        # The BED file exists and contains the junction, but is NOT passed.
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=None,
+        )
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+
 
 # ---------------------------------------------------------------------------
 # classify_junctions — junction_filter_stats.tsv (Issue #214)

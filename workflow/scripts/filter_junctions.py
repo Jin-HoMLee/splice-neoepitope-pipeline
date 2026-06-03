@@ -509,7 +509,8 @@ def _snakemake_main() -> None:
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Classify splice junctions by origin (tumor_exclusive / normal_shared)."
+        description="Classify splice junctions by origin "
+                    "(tumor_exclusive / normal_shared / gtex_pantissue_shared)."
     )
     parser.add_argument(
         "--junction-files", nargs="+", required=True,
