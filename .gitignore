@@ -295,3 +295,6 @@ CLAUDE.local.md
 # claude-personas role-memory symlink
 /.claude/memory
 .claude/hook_fires.jsonl
+
+# Morning-news poller — per-role version watermark state (Issue #639)
+tools/news/watermark_*.yaml
