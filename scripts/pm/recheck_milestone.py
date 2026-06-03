@@ -208,12 +208,21 @@ def compute_recheck(milestone_number: int) -> int:
         print(f"  - #{n} ({size_disp})")
     print(f"Remaining capacity: {remaining}d")
 
+    # Any unsized open issue makes the capacity read unreliable: the size-weighted
+    # sum silently under-counts true remaining work, which then drives a
+    # confident-but-bogus due_on proposal (the 2026-06-03 pm-i6 under-read — one
+    # sized issue + two unsized yielded 1.0d and a spurious -28d slip; Issue #618
+    # AC2). Flag and bail BEFORE computing a due date, regardless of whether the
+    # sized subset happens to be > 0 — previously this guard was nested inside the
+    # `remaining == 0` branch and so was bypassed whenever even one issue had a size.
+    unsized_count = sum(1 for n in issue_numbers if sizes.get(n) is None)
+    if unsized_count > 0:
+        floor = f"; sized subset {remaining}d is a floor" if remaining else ""
+        print(f"Proposed due_on: (cannot compute — {unsized_count} open issue(s) missing Size{floor})")
+        print("Status: [UNSIZED] — assign Size on the project board, then re-run")
+        return 2
+
     if remaining == 0:
-        unsized_count = sum(1 for n in issue_numbers if sizes.get(n) is None)
-        if unsized_count > 0:
-            print(f"Proposed due_on: (cannot compute — {unsized_count} open issue(s) missing Size)")
-            print("Status: [UNSIZED] — assign Size on the project board, then re-run")
-            return 2
         print("Proposed due_on: (no open work)")
         print("Status: [No change] — milestone has no remaining capacity")
         return 0
