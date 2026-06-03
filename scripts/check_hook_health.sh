@@ -13,10 +13,10 @@ get_dock_issue() {
             echo "Issue #454"
             ;;
         recheck_milestone)
-            echo "(no dock Issue filed yet)"
+            echo "Issue #618"
             ;;
         recheck_parent_status)
-            echo "(no dock Issue filed yet)"
+            echo "Issue #617"
             ;;
         *)
             echo "(unknown hook)"

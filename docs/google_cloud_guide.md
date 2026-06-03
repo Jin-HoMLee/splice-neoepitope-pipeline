@@ -434,6 +434,46 @@ prefetch --location GCP SRR10971381
 
 ---
 
+## Result Archiving & Versioning
+
+`run_cloud_gpu.sh` uploads results with `gcloud storage cp -r results/ gs://…/`, an
+**in-place overwrite**. To make overwrites recoverable, the bucket has **object
+versioning** enabled plus a retention **lifecycle** ([Issue #627](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/627)). Every overwrite
+leaves the previous object as a *noncurrent version*; the lifecycle expires those
+automatically so storage stays bounded.
+
+Enable / re-apply (idempotent — reads `scripts/gcs_lifecycle.json`):
+
+```bash
+bash scripts/setup_gcs_archiving.sh        # defaults to gs://splice-neoepitope-project
+```
+
+Retention policy (`scripts/gcs_lifecycle.json`):
+
+| Noncurrent versions under… | Expire after |
+|---|---|
+| `results/<patient>/alignment/` (regenerable, ~75% of footprint) | 7 days |
+| everything else (predictions, tcrdock, junctions, reports) | 90 days |
+
+**Recovery** — restore a clobbered object from a prior version:
+
+```bash
+# 1. List all versions (current + noncurrent) and copy the generation number:
+gcloud storage ls --all-versions gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv
+# 2. Restore a specific generation over the current object:
+gcloud storage cp \
+  "gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv#<generation>" \
+  "gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv"
+```
+
+**Maintenance:** GCS lifecycle prefixes can't wildcard `*/alignment/`, so when a new
+patient is added, append its `results/<patient>/alignment/` prefix to the 7-day rule
+in `scripts/gcs_lifecycle.json` and re-run the setup script. Forgetting only means
+that patient's old alignment versions fall under the 90-day rule (a little extra
+storage) — never data loss.
+
+---
+
 ## Automated GPU Pipeline (TCRdock)
 
 The `scripts/run_cloud_gpu.sh` script automates the full three-phase lifecycle

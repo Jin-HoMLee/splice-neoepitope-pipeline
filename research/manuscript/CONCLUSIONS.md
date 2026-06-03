@@ -8,7 +8,7 @@
 
 We present a Snakemake-based pipeline for the discovery of splice-junction-derived
 neoepitope candidates from RNA-seq data. The pipeline integrates splice junction
-extraction (regtools), junction-level normal filtering, HLA typing (OptiType), peptide
+extraction (STAR or regtools), junction-level normal filtering, HLA typing (OptiType), peptide
 translation with a junction-spanning filter, MHC class I binding prediction (MHCflurry
 2.x), and structural validation (TCRdock), producing a ranked list of neoepitope
 candidates with predicted TCR–peptide–MHC ternary complex structures.
@@ -51,7 +51,7 @@ matched RNA-seq normal, the pipeline:
    junctions (16.2%). The available normal sample was BG003082_N0_WES (whole-exome
    sequencing, DNA), which yielded valid HLA typing but contributes no junctions to
    normal subtraction — WES contains no RNA splice junctions by design — so all
-   58,914 unannotated junctions are labelled `tumor_exclusive` by default. A fraction
+   58,914 unannotated junctions are labeled `tumor_exclusive` by default. A fraction
    may reflect patient-specific non-tumor splicing rather than truly tumor-specific
    events.
 
@@ -98,8 +98,6 @@ make it feasible to process a full patient dataset within a single cloud session
 - **No proteome filter:** predicted peptides are not cross-referenced against the full
   human proteome. The junction-spanning filter removes most exonic false positives, but
   a cross-proteome BLAST check would provide a further layer of confidence.
-- **HISAT2 sensitivity:** STAR has been shown to detect more novel splice junctions in
-  benchmarks. Future runs will compare junction yield between the two aligners (issue #17).
 - **HLA validation:** no ground-truth HLA alleles are available for patient_001.
   Patient_002 (osteosarcoma) confirmed OptiType accuracy against Red Cross serology
   (A\*01:01/A\*01:11N, B\*08:01/B\*27:05, C\*01:02/C\*07:01): all six alleles were
@@ -118,12 +116,8 @@ make it feasible to process a full patient dataset within a single cloud session
   junctions, 67,935 strong presenters, HLA typing validated against serology).
   Longitudinal samples T1 and T2 are available for neoepitope evolution analysis
   during treatment.
-- **STAR aligner comparison:** benchmark STAR vs. HISAT2 junction sensitivity on the
-  same dataset (issue #17).
 - **Chimeric codon recovery:** optionally retain junction-boundary 9-mers where a
   chimeric codon introduces an amino acid change at an anchor position (P2 or P9),
   representing a small high-confidence supplementary candidate set.
 - **Proteome filter:** add a BLAST or exact-match step against the reference proteome
   to catch any peptides matching a normal protein at a different genomic locus.
-- **Pre-built HISAT2 index:** cache the GRCh38 index to reduce VM startup time from
-  ~60–90 min to near-instant (issue #16).

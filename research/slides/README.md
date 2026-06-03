@@ -4,10 +4,13 @@ Lab-seminar / external-talk slide decks for the splice-neoepitope pipeline. Buil
 
 ## When to make a deck
 
-**One deck per experiment Issue.** A deck ships in the same PR cycle as the experiment write-up (notebook + decision section). Don't ship retroactively.
+**Three deck tiers — one deck per qualifying Issue, per tier.** A deck ships in the same PR cycle as the work it presents; don't ship retroactively.
 
-- ✅ Experiment Issues (e.g. AlphaGenome chr22 PoC, GTEx filter integration, head-to-head filter comparison)
-- ❌ Closure tasks, doc updates, single-fix PRs, sub-issues of a larger experiment
+- **Experiment** — per-Issue analysis with a notebook + `outputs/` (`research/experiments/`). E.g. AlphaGenome chr22 PoC, GTEx filter integration, head-to-head filter comparison.
+- **Eval primer** — per-tool evaluation Issue (`research/evals/`). E.g. HERMES, ImmSET, Boltz-2.
+- **Research decision** — methods/science call that gates downstream work (`research/decisions/`; tool-agnostic, no notebook/outputs). E.g. the Issue #592 cohort-calibration gate.
+
+❌ Closure tasks, doc updates, single-fix PRs, and sub-issues of a larger experiment/eval/decision do **not** get a deck in any tier.
 
 Audience target: **lab seminar / external talk** (~20-25 min, conference-quality figures, deeper methods than a PI weekly).
 
@@ -31,10 +34,11 @@ research/slides/
 
 **File naming:** `slides.qmd` (generic; doesn't repeat folder name).
 
-**Decks live in two sibling trees, not under `research/slides/`:**
+**Decks live in three sibling trees, not under `research/slides/`:**
 
 - `research/experiments/issue_NNN_<short>/slides.qmd` — co-located with the experiment notebook + outputs. See [`CLAUDE.md` "Slide decks for experiment Issues"](../../CLAUDE.md).
 - `research/evals/issue_NNN_<tool>/slides.qmd` — per-tool primer for a tool-evaluation Issue. See [`CLAUDE.md` "Slide decks for eval Issues"](../../CLAUDE.md). Example: [`research/evals/issue_218_hermes/`](../evals/issue_218_hermes/).
+- `research/decisions/issue_NNN_<short>/slides.qmd` — research-decision deck for a methods/science call that gates downstream work (tool-agnostic option comparison; no notebook/outputs). See [`CLAUDE.md` "Slide decks for research-decision Issues"](../../CLAUDE.md). Example: [`research/decisions/issue_592/`](../decisions/issue_592/).
 
 `research/slides/` itself holds **only the shared scaffolding** (`_template.qmd`, `custom.scss`, `nature.csl`, this README). Decks reference the scaffolding via `theme: [simple, ../../slides/custom.scss]` and `csl: ../../slides/nature.csl`. (`research/slides/issue_393_alphagenome_chr22_poc/` predates the co-location rule and migrates under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).)
 
@@ -45,7 +49,7 @@ All decks share a single SCSS theme at [`custom.scss`](custom.scss) — palette 
 ```yaml
 format:
   revealjs:
-    theme: [simple, ../../slides/custom.scss]    # for decks under research/evals/ or research/experiments/
+    theme: [simple, ../../slides/custom.scss]    # for decks under research/evals/, research/experiments/, or research/decisions/
     # theme: [simple, custom.scss]               # for decks inside research/slides/ itself
     footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
 ```

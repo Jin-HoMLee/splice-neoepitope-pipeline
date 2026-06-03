@@ -4,7 +4,14 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - star >=2.7.11
-  - samtools >=1.18
+  # >=2.7.11a, NOT >=2.7.11: conda orders a trailing-letter build as a *prerelease*,
+  # so 2.7.11b < 2.7.11. bioconda ships no plain `2.7.11` build (only 2.7.11a/2.7.11b),
+  # so `>=2.7.11` matched ZERO builds and poisoned the whole solve with a misleading
+  # samtools/htslib error (Issue #629). `>=2.7.11a` matches the 2.7.11 series (→ 2.7.11b).
+  - star >=2.7.11a
+  # samtools intentionally omitted: the star_align rule runs with `--outSAMtype None`
+  # (workflow/rules/alignment.smk) — it emits only SJ.out.tab, never a BAM — so samtools
+  # is never invoked on the STAR path. (It was unused dead weight, not the #629 blocker:
+  # CI confirmed samtools solves fine here; only the star pin was broken.)
   - python >=3.11
   - pandas

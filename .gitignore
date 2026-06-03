@@ -254,6 +254,12 @@ research/evals/**/*_files/
 research/evals/**/.quarto/
 research/evals/**/slides.tex
 research/evals/**/slides.log
+research/decisions/**/*.html
+research/decisions/**/*.pdf
+research/decisions/**/*_files/
+research/decisions/**/.quarto/
+research/decisions/**/slides.tex
+research/decisions/**/slides.log
 
 # Feature-doc slide-deck build artefacts — same convention, docs/ location
 docs/features/**/*.html
@@ -296,3 +302,6 @@ CLAUDE.local.md
 # Remote-tabix index downloaded by the GTEx pan-tissue builder (Issue #211); the builder
 # now stages it in a temp dir, but ignore the bare name as belt-and-suspenders.
 *.bgz.tbi
+
+# Morning-news poller — per-role version watermark state (Issue #639)
+tools/news/watermark_*.yaml

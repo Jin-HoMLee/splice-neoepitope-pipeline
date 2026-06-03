@@ -90,6 +90,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## H
 
+**HCC** — Hepatocellular Carcinoma. Most common primary liver cancer; typically arises on a background of chronic liver injury (HBV/HCV, cirrhosis, NASH). A major test bed for transcriptome-derived (non-mutation) neoantigen discovery — Lin et al. 2025 mined ~60 neoTSTs/patient from novel splice junctions, intron retention, and TE activation across 1,013 HCC patients ([bioRxiv 2025](https://www.biorxiv.org/content/10.64898/2025.12.07.692877v1)). *Domain: bio.*
+
 **HLA** — Human Leukocyte Antigen. Human MHC class I/II proteins (HLA-A/B/C class I; HLA-DR/DP/DQ class II); patient typing via OptiType drives MHCflurry's per-allele predictions. *Domain: bio.*
 
 **HLA-LOH** — HLA Loss of Heterozygosity. Tumor immune-escape mechanism: somatic deletion or copy-neutral loss of one HLA allele, narrowing the peptide-presentation repertoire and shielding the tumor from neoantigen-specific T cells. Detected from WES (e.g. LOHHLA); candidates predicted on a lost allele are no longer presented. *Domain: bio.*
@@ -133,6 +135,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **MHC** — Major Histocompatibility Complex. Cell-surface proteins that present peptides to T cells; class I (all nucleated cells, presents endogenous peptides) drives this pipeline. Human MHC = HLA. *Domain: bio.*
 
 **MHC1-TIP** — MHC class I 1-Tube Immunopeptidomics. Low-input, single-tube MHC-I ligandome workflow ([Dollinger et al. 2026, *Comm Bio*](https://www.nature.com/articles/s42003-026-09570-6)); scales to cell lines, patient-derived organoids, and sub-mg ex-vivo tumor fragments — replaces traditional workflows requiring hundreds of millions of cells. Primary RCC application revealed widespread **intratumoral heterogeneity in antigen presentation that is poorly correlated with source protein expression** — relevant to the RNA-Seq-abundance ≠ surface-presentation framing in this pipeline. *Domain: bio.*
+
+**MLP** — Multi-Layer Perceptron. Feedforward neural network of fully-connected layers with nonlinear activations — the generic "dense network" building block. In ImmunoStruct, a biochemical-feature MLP is fused with sequence and structure modules to predict pMHC immunogenicity ([Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610)). *Domain: ml.*
 
 **mRNA prime + peptide-target boost** — Specific heterologous prime-boost format inside the Prime-Target regimen: an mRNA-encoded antigen primes the T cell response, a synthetic peptide of the same antigen amplifies it. Heterologous formats consistently outperform same-format boosts in vaccinology — each modality engages distinct APC subsets and avoids anti-vector immunity that dampens homologous boosters. *Domain: bio.*
 
@@ -219,6 +223,8 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 **UGE** — Univa Grid Engine. Commercial fork of SGE (Univa, acquired by Altair 2020); drop-in `qsub`-compatible. *Domain: cloud.*
 
 ## V
+
+**VAE** — Variational Autoencoder. Generative neural network that encodes inputs into a probabilistic latent space (regularized toward a prior) and decodes samples back, learning a smooth low-dimensional representation. In ImmunoStruct a pMHC-sequence VAE supplies the sequence-embedding branch, fused with a structure graph-transformer + biochemical MLP for immunogenicity prediction ([Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610)). *Domain: ml.*
 
 **V(D)J** — Variable / Diversity / Joining segment recombination. Somatic DNA rearrangement at TCR and immunoglobulin loci during lymphocyte development: one V gene segment, optionally one D segment (β/δ chains and IgH only), and one J segment are spliced together to form the variable domain. Junctional diversity is amplified by exonuclease trimming and TdT-mediated N-nucleotide additions at the V-D and D-J joints — the source of CDR3 hypervariability and the reason CDR3 (V-D-J joint) is orders of magnitude more diverse than germline-encoded CDR1/CDR2 (within a single V segment). Theoretical TCR diversity ~10¹⁵–10²⁰; functional repertoire per individual ~10⁷–10⁸. *Domain: bio.*
 

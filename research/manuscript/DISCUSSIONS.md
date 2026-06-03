@@ -119,11 +119,12 @@ precisely those expected to harbour the most actionable neoepitopes overall.
 
 Translating both strands of each contig was considered. For strand-specific libraries
 (e.g. dUTP second-strand marking, as confirmed for patient_001's gastric cancer samples:
-KAPA RNA HyperPrep with RiboErase), only the first-strand cDNA is amplified. HISAT2
-assigns the correct strand to all canonical GT-AG junctions via the XS auxiliary tag
-(derived from splice-site dinucleotide sequence). Genuine antisense transcription then
-appears as junctions on the opposite strand and is already translated in the correct
-orientation. Antisense translation of a strand-corrected contig would correspond to the
+KAPA RNA HyperPrep with RiboErase), only the first-strand cDNA is amplified. Both aligners
+assign strand to canonical junctions from splice-site sequence — STAR from the intron-motif
+field of `SJ.out.tab` (rescuing the strand from the motif where its own call is undefined),
+and HISAT2 from the XS auxiliary tag (derived from the splice-site dinucleotide). Genuine
+antisense transcription then appears as junctions on the opposite strand and is already
+translated in the correct orientation. Antisense translation of a strand-corrected contig would correspond to the
 non-transcribed DNA strand and has no established biological basis for MHC-I presentation.
 
 For non-stranded RNA-seq libraries, strand assignment relies entirely on splice-site
@@ -281,33 +282,33 @@ against observed healthy tissue, not the reverse.
 
 ---
 
-## HISAT2 vs. STAR for novel junction detection
+## Aligner choice: STAR for production, HISAT2 for local development
 
-HISAT2 is used for local development and testing (macOS M1, 8 GB RAM). Benchmarks
-consistently show STAR to be more sensitive for novel/unannotated junction detection,
-which is the critical step for this pipeline. STAR requires ~32 GB RAM for the full
-GRCh38 index and is therefore unsuitable for local runs but appropriate for cloud
-production runs.
+The production pipeline aligns with STAR, which published benchmarks consistently show to be
+more sensitive for novel/unannotated junction detection — the critical step for a
+junction-driven neoepitope pipeline. STAR's full GRCh38 index requires ~32 GB RAM, so HISAT2
+(~8 GB) is retained as a low-memory alternative for local development and testing (macOS M1,
+8 GB RAM), selected through a single configuration switch.
 
-A planned comparison (issue #17) will run both aligners on the same gastric cancer
-samples and compare the number and quality of tumor-specific junctions detected. The
-HISAT2 production run provides a baseline.
+The patient_001 and patient_002 results reported here were generated with the HISAT2 path and
+therefore represent a conservative baseline for novel-junction recovery; STAR's higher
+sensitivity would be expected to expand the unannotated-junction set on re-analysis.
 
 ---
 
 ## Impact of missing matched normal: patient_002
 
 Patient_002 (osteosarcoma IPISRC044) has no matched RNA-seq normal sample. Blood WGS
-DNA is available but cannot substitute: `regtools junctions extract` requires reads with
-spliced CIGAR operations (`N`), which are absent from DNA-seq alignments. Running the
+DNA is available but cannot substitute: junction extraction requires spliced (gapped,
+`N`-CIGAR) alignments, which are absent from DNA-seq. Running the
 pipeline without a normal labels all unannotated junctions `tumor_exclusive`.
 
 The patient_002 T0 run completed with 364,168 raw tumor junctions; 305,254 were
 annotated (GENCODE v47) and discarded, leaving 58,914 unannotated junctions.
 BG003082_N0_WES (WES, DNA) was used as the normal input — successfully for HLA
 typing, but it contributes no junctions to normal subtraction by design (WES
-alignments yield zero spliced reads, since `regtools junctions extract` requires
-`N` CIGAR operations). All 58,914 unannotated junctions are therefore labelled
+alignments yield zero spliced reads, which junction calling — whether from STAR or
+regtools — requires). All 58,914 unannotated junctions are therefore labeled
 `tumor_exclusive` with a warning.
 
 For reference, patient_001 had an 8.9% normal-shared rate among unannotated junctions
@@ -780,6 +781,38 @@ single positive sample is in GTEx's standard analysis freeze (`SMAFRZE = "USE ME
 falls in testis, a splicing-permissive tissue where low-frequency cryptic events
 are well-documented.
 
+### Independent validation of the splice-neoepitope axis: glioma cohorts and single-cell maps
+
+Beyond the methodological comparisons above, three 2025 studies externally validate the
+splice-junction-neoepitope axis itself. Two are glioma cohorts. Xiong et al.
+(*Genes Immun* 2025) mapped tumor-enriched isoform antigens across 587 glioma patients,
+building per-patient candidate repertoires from isoform expression and HLA-I haplotype —
+mirroring the per-patient junction × HLA-I logic applied here — and functionally validated an
+HLA-A11-restricted POSTN-203 junction epitope that elicited antigen-specific T-cell
+responses. Xiong et al. (*Cell Mol Immunol* 2025) carried a single splice-junction target
+the full distance to a therapeutic handle: a C/EBPβ-induced RCAN1-4 isoform, specific to
+mesenchymal glioblastoma, yields an HLA-A24-restricted epitope spanning the exon4/exon5
+junction (RCAN1-4<sub>22–32</sub>) against which TCR-engineered T cells showed sustained,
+HLA-restricted cytotoxicity in vitro and in vivo. This is the downstream end of the
+structural-validation arm framed below (*Structural validation: TCR-pMHC docking and TCR
+panel design*): a splice-junction neoepitope advanced from epitope identification to a
+functioning TCR-T product — the translational exemplar of what this pipeline's TCRdock
+stage screens candidates toward.
+
+A third study locates the axis in single-cell space. JAseC (Xiong et al., *Nucleic Acids
+Res* 2025 — a distinct first author from the glioma work above) calls
+alternative-splicing events from short-read single-cell RNA-seq, predicts MHC-I
+presentation of the resulting isoform peptides (NetMHCpan, per-patient HLA), and reports
+that the resulting splicing-derived antigen burden — driven in part by the splicing
+regulator ESRP1 — tracks anti-PD1 response across breast cancer, melanoma, and additional
+checkpoint-blockade cohorts, correlating with T-cell clonal expansion independently of
+tumor mutational burden. JAseC is the single-cell counterpart to this pipeline's bulk
+junction calling: it resolves splicing-antigen load per cell and links it to checkpoint
+outcome, whereas the bulk approach here trades single-cell resolution for the read depth
+needed to call low-abundance tumor-specific junctions confidently. Single-cell
+splicing-antigen mapping is therefore complementary to, rather than within, the current
+bulk RNA-seq architecture.
+
 ---
 
 ## Structural validation: TCR-pMHC docking and TCR panel design
@@ -919,22 +952,33 @@ per-residue confidence, NetTCR-struc contributes a graph-learned
 docking-quality discriminator trained on the experimental TCR-pMHC complex
 set. Both will be evaluated as orthogonal post-TCRdock filters.
 
-**AlphaFold3** (Abramson et al., *Nature* 2024) remains under evaluation as a
-TCRdock-backend successor. Lu et al. 2025 ranks AF3 as the best-overall
-TCR-pMHC predictor on their 70-complex benchmark; the open question is
-whether AF3's general-purpose accuracy advantage holds in the specific
-patient-private-neojunction regime that this pipeline operates in, and
-whether CDR3-region pLDDT can serve as a per-prediction quality flag.
-Verdict pending eval close.
+**AlphaFold3** (Abramson et al., *Nature* 2024) was evaluated as a
+TCRdock-backend successor and parked for the shipped pipeline on
+integrability rather than accuracy grounds. Lu et al. 2025 ranks AF3 as
+the best-overall TCR-pMHC predictor on their 70-complex benchmark (median DockQ
+0.636 / 0.679 for Class I / II), but its weights are released under
+non-redistributable, non-commercial terms incompatible with a pipeline whose
+TCRdock backend ships CC-BY AlphaFold2 parameters in-container; the
+license-clean co-folding alternatives surveyed alongside it (Chai-1 and
+ESMFold2) are blocked instead by the bf16/FP8 tensor-core and memory
+requirements that the production GPU lacks. The companion CDR3-region pLDDT
+quality flag was likewise not adopted — Lu et al. show that its reranking
+benefit is specific to AF3 and does not transfer to the AlphaFold2 confidence
+head that TCRdock uses. Both decisions are deferred for re-evaluation at the
+next GPU refresh rather than declined permanently.
 
 ### Synthesis
 
-Two patterns emerge from the six-scorer evaluation. First, **co-folding
-replacements for TCRdock** (Boltz-2 declined; AF3 pending) face the same
-data-availability constraint that motivated TCRdock's TCR-specific
-fine-tuning — architectural novelty does not substitute for in-distribution
-training data, and the OOD generalization gap remains the operative constraint
-on this class. Second, **structure-based cross-checks** (HERMES and
+Two patterns emerge from the seven-scorer evaluation. First, **co-folding
+replacements for TCRdock** were not adopted, but for two distinct reasons.
+Boltz-2 (declined) faces the data-availability constraint that motivated
+TCRdock's TCR-specific fine-tuning — architectural novelty does not substitute
+for in-distribution training data, and the OOD generalization gap remains the
+operative constraint. AlphaFold3 (parked), by contrast, leads the benchmark on
+accuracy and is blocked on integrability: its weights are non-redistributable /
+non-commercial, while the license-clean alternatives (Chai-1, ESMFold2) are
+hardware-blocked on the current GPU.
+Second, **structure-based cross-checks** (HERMES and
 NetTCR-struc both integrated; t2pmhc redundant; TCRLens backbone-limited)
 are the highest-value integration angle: they slot into the existing pipeline
 as post-TCRdock quality filters without replacing the prediction step, and a
@@ -956,7 +1000,7 @@ as the structural-QC layer matures.
 | t2pmhc | Structure-based confidence | Decline — redundant with HERMES | Issue #236 re-decision comment |
 | TCRLens | Structure-based confidence | Decline — tFold-TCR backbone framework-accuracy limit | Issue #236 re-decision comment |
 | NetTCR-struc | Structure-based confidence (GNN) | Integrate — post-TCRdock structural QC (GNN-learned) | Sub-Issue #433 (milestone 29) |
-| AlphaFold3 | End-to-end structural prediction | Pending — eval in progress | Issue #316 |
+| AlphaFold3 | End-to-end structural prediction | Park — integrability (license + current GPU), not accuracy | Issue #316 close comment / Issue #601 |
 
 The two integrations under the TCR-pMHC scorer integration milestone
 (HERMES, NetTCR-struc) span the physics-guided and GNN-learned axes of

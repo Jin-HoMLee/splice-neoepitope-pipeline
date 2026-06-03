@@ -126,3 +126,46 @@ def test_is_fire_unknown_hook_returns_false():
     """Unknown hook names default to no-fire (safe-by-default)."""
     import recheck_dispatch
     assert recheck_dispatch._is_fire("unknown_hook", "any text") is False
+
+
+# ---------------------------------------------------------------------------
+# Scope filter (Issue #454)
+# ---------------------------------------------------------------------------
+
+def test_parse_scope_mappings():
+    """--scope {shared,pm} narrow the active set; absent/all/unknown fail open to everything."""
+    import recheck_dispatch as rd
+    assert rd._parse_scope([]) == {"shared", "pm"}                  # flagless → all (backward-compat)
+    assert rd._parse_scope(["--scope", "all"]) == {"shared", "pm"}
+    assert rd._parse_scope(["--scope", "shared"]) == {"shared"}
+    assert rd._parse_scope(["--scope", "pm"]) == {"pm"}
+    assert rd._parse_scope(["--scope=shared"]) == {"shared"}        # = form
+    assert rd._parse_scope(["--scope", "bogus"]) == {"shared", "pm"}  # unknown → fail open
+
+
+def test_in_scope_honors_active_scopes(monkeypatch):
+    """_in_scope gates each check by its HOOK_CONFIG scope against ACTIVE_SCOPES."""
+    import recheck_dispatch as rd
+
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"shared"})
+    assert rd._in_scope("target_sync_check") is True          # shared check runs in shared session
+    assert rd._in_scope("recheck_milestone") is False         # pm check suppressed for Sci/Dev
+    assert rd._in_scope("recheck_parent_status") is False
+
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"pm"})
+    assert rd._in_scope("target_sync_check") is False
+    assert rd._in_scope("recheck_milestone") is True
+    assert rd._in_scope("recheck_parent_status") is True
+
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"shared", "pm"})  # PM session sees both
+    assert rd._in_scope("target_sync_check") is True
+    assert rd._in_scope("recheck_milestone") is True
+
+
+def test_in_scope_unknown_hook_fails_open(monkeypatch):
+    """A check with no 'scope' key (or unknown name) runs everywhere (fail-open)."""
+    import recheck_dispatch as rd
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"shared"})
+    monkeypatch.setattr(rd, "HOOK_CONFIG", {"scopeless": {"threshold": 1, "dock": None}})
+    assert rd._in_scope("scopeless") is True       # no scope key → always in scope
+    assert rd._in_scope("never_configured") is True  # unknown name → always in scope

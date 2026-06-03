@@ -223,23 +223,28 @@ def _load_notebook(role: str) -> str | None:
     return path.read_text(encoding="utf-8") if path.exists() else None
 
 
-def _gh(*args: str) -> str:
+def _gh(*args: str, repo: str | None = None) -> str:
+    cmd = ["gh", *args]
+    if repo:
+        cmd += ["--repo", repo]
     return subprocess.run(
-        ["gh", *args], check=True, capture_output=True, text=True
+        cmd, check=True, capture_output=True, text=True
     ).stdout
 
 
-def fetch_pr(n: int) -> dict:
+def fetch_pr(n: int, repo: str | None = None) -> dict:
     return json.loads(_gh(
         "pr", "view", str(n),
         "--json", "mergedAt,closingIssuesReferences,files,number,body",
+        repo=repo,
     ))
 
 
-def fetch_issue(n: int) -> dict:
+def fetch_issue(n: int, repo: str | None = None) -> dict:
     return json.loads(_gh(
         "issue", "view", str(n),
         "--json", "number,body,labels,comments,closedAt",
+        repo=repo,
     ))
 
 
@@ -288,6 +293,49 @@ def audit_pr(n: int) -> None:
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("pr", n, format_comment(f"PR #{n}", ac_gaps, pr_gaps, nb_gaps))
+
+
+def audit_pr_pre_merge(
+    n: int, today: str, repo: str | None = None
+) -> list[tuple[str, str]]:
+    """Lab-notebook gaps for PR #n about to be merged on `today` (YYYY-MM-DD).
+
+    Pre-merge sibling of audit_pr's notebook check (Issue #409), single-sourcing
+    the same is_exempt / skip_lab_notebook / resolve_roles / collect_notebook_gaps
+    logic. Two differences from audit_pr: the PR is not merged yet so `mergedAt`
+    is null — the caller passes today's UTC date — and the gaps are *returned*
+    for a blocking pre-merge gate rather than posted as a comment. Only the
+    notebook check is mirrored; AC-checkbox + priority-rationale are already
+    enforced by audit_and_merge.sh's bash checks.
+
+    `repo` (Issue #607) is forwarded to the gh I/O layer so the gate composes
+    with the `REPO` override that its sibling gates (stray_closers /
+    bot_review_offer) honor in audit_and_merge.sh. When None (the post-hoc bot
+    path, audit_pr / audit_issue), gh resolves the repo from git context — the
+    production closure-audit bot is unaffected.
+
+    Notebook text is read from the working tree (_load_notebook), so the gate
+    must run from the PR branch where the entry was written — the documented
+    closure-ritual flow (write the entry, then merge). Reading the entry from the
+    PR head ref instead is a v2 candidate. Returns [] when clear, exempt, or
+    skip-marked.
+    """
+    pr = fetch_pr(n, repo=repo)
+    refs = pr.get("closingIssuesReferences") or []
+    changed = [f["path"] for f in pr.get("files", [])]
+    if is_exempt(changed) or skip_lab_notebook(pr.get("body")):
+        return []
+    issues = [fetch_issue(r["number"], repo=repo) for r in refs]
+    labels_per_issue = [
+        [lbl["name"] for lbl in i.get("labels", [])] for i in issues
+    ]
+    role_sets = resolve_roles(labels_per_issue)
+    all_roles = {r for rs in role_sets for r in rs}
+    notebooks = {r: _load_notebook(r) for r in all_roles}
+    issue_numbers = [r["number"] for r in refs]
+    return collect_notebook_gaps(
+        role_sets, today, n, notebooks, also_accept=issue_numbers
+    )
 
 
 def audit_issue(n: int) -> None:
