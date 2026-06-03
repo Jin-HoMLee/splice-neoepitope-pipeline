@@ -144,7 +144,7 @@ If/when the hardware clears, the plumbing our issue worried about is **favorable
 :::
 ::: {.column width="46%"}
 ::: {.callout-important appearance="simple"}
-**No transfer, two ways.** (1) The AF3 *family* tops TCR-pMHC (Lu et al.: median DockQ 0.64/0.68 [@lu_benchmarking_2025]) — but **OpenFold3, Boltz, and TCRdock are not in that 10-model roster**, so AF3's win is *not* OpenFold3's. (2) Antibody–antigen — the closest immune analogue — is the AF3 family's **weakest** category and an explicit **2026 roadmap** item, *not* done.
+**No transfer, two ways.** (1) The AF3 *family* tops TCR-pMHC (Lu et al.: median DockQ 0.64/0.68 [@lu_benchmarking_2025]) — but **OpenFold3 and Boltz are absent from that 10-model roster** (TCRdock is represented only by its **AF2** backbone, the roster's 2nd-best entry), so AF3's win is *not* OpenFold3's. (2) Antibody–antigen — the closest immune analogue — is the AF3 family's **weakest** category and an explicit **2026 roadmap** item, *not* done.
 :::
 :::
 :::
