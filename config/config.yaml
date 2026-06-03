@@ -60,6 +60,21 @@ filtering:
   min_normal_reads: 2
 
 # -----------------------------------------------------------------
+# GTEx pan-tissue population-normal junction filter (Issue #211 builds the
+# reference; Issue #212 wires it into filter_junctions.py).
+# Source: Snaptron gtexv2 (recount3 / GTEx v8 / hg38 / 19,214 samples) — a
+# raw, novel-containing compilation. NOT the V10 portal .gct (annotation-only,
+# which would filter ~0 novel junctions). See docs/gtex_pan_tissue_build.md.
+# -----------------------------------------------------------------
+gtex_filter:
+  enabled: false                 # opt-in here in #211; #212 flips the default at integration
+  source: snaptron_gtexv2        # recount3 / GTEx v8 / hg38 / 19,214 samples
+  endpoint: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+  min_samples: 1                 # most aggressive — precision over recall (vaccine safety, #126)
+  reference_bed: "gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed"
+  reference_bed_chr22: "resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
+
+# -----------------------------------------------------------------
 # Peptide translation
 # -----------------------------------------------------------------
 # Peptide lengths to extract from each junction contig.
