@@ -5,11 +5,19 @@ Junction origin hierarchy:
   all junctions
     └─ annotated         (in GENCODE)              → discarded
     └─ unannotated       (not in GENCODE)
-         ├─ normal_shared  (also in normal)     → kept with label, excluded downstream
-         └─ tumor_exclusive    (absent in normal)   → neoepitope prediction candidates
+         ├─ normal_shared          (also in matched normal)        → kept with label, excluded downstream
+         ├─ gtex_pantissue_shared  (in GTEx pan-tissue blacklist)  → kept with label, excluded downstream
+         └─ tumor_exclusive        (absent in normal AND GTEx)     → neoepitope prediction candidates
 
 When no normal sample is present, all unannotated tumor junctions are labeled
-`tumor_exclusive` with a warning.
+`tumor_exclusive` (subject to the GTEx filter) with a warning.
+
+The GTEx pan-tissue blacklist (Issue #211/#212) is an optional population-normal
+filter: a junction seen in GTEx normal tissue is not tumor-specific even if it is
+absent from the matched normal. Membership is checked AFTER the matched-normal
+step, so the gtex_pantissue_shared count is the filter's *marginal* contribution
+beyond the matched normal (no double-counting). When ``gtex_bed`` is None the
+filter is a no-op and no junction is labeled gtex_pantissue_shared.
 
 Output TSV columns:
   junction_id  chrom  start  end  strand  mapped_reads  sample_id  sample_type
@@ -245,12 +253,15 @@ def classify_junctions(
     stats_output_path: str | Path | None = None,
     min_normal_reads: int = 2,
     gencode_gtf: str | Path | None = None,
+    gtex_bed: str | Path | None = None,
 ) -> None:
     """Classify all junction quantification files by origin.
 
     Tumor junctions that survive the reference filter are labeled:
-      - ``tumor_exclusive``  — absent in the matched normal
-      - ``normal_shared`` — also present in the matched normal
+      - ``normal_shared``          — also present in the matched normal
+      - ``gtex_pantissue_shared``  — absent in matched normal but present in the
+                                     GTEx pan-tissue population blacklist (Issue #212)
+      - ``tumor_exclusive``        — absent in both the matched normal AND GTEx
 
     Normal samples are used only to build the exclusion set and do not
     appear in the output TSV.
@@ -262,12 +273,15 @@ def classify_junctions(
 
     When ``stats_output_path`` is supplied, also writes a long-format
     per-tumor-sample stats TSV (Issue #214) with columns:
-    ``sample_id, sample_type, category, count``. Categories form a 5-step
-    funnel that reconciles arithmetically — ``junctions_raw`` (pre-filter raw
+    ``sample_id, sample_type, category, count``. Categories form a funnel
+    that reconciles arithmetically — ``junctions_raw`` (pre-filter raw
     regtools output) equals the sum of ``mean_reads_filtered`` (noise removed
     by the per-sample mean-reads filter) + ``annotated_discarded`` (in
-    GENCODE) + ``normal_shared`` + ``tumor_exclusive`` (the two unannotated
-    classes). Normal samples are omitted.
+    GENCODE) + ``normal_shared`` + ``gtex_pantissue_shared`` +
+    ``tumor_exclusive`` (the three unannotated classes). The
+    ``gtex_pantissue_shared`` row is always emitted (count 0 when no GTEx
+    blacklist is supplied) so the funnel schema is stable. Normal samples are
+    omitted.
 
     Issue #215 adds four descriptive (non-funnel) rows per tumor sample —
     ``min_reads``, ``mean_reads``, ``median_reads``, ``max_reads`` — that
@@ -285,10 +299,19 @@ def classify_junctions(
         min_normal_reads:  Minimum reads required to trust a normal junction.
         gencode_gtf:       Optional path to GENCODE GTF for reading frame
                            annotation.  When None, reading_frame is always "".
+        gtex_bed:          Optional path to the GTEx pan-tissue population-normal
+                           junction blacklist (BED6, Issue #211/#212). When supplied,
+                           unannotated tumor junctions absent from the matched normal
+                           but present in this set are labeled gtex_pantissue_shared
+                           and excluded downstream. When None, the filter is a no-op.
     """
     import pandas as pd
 
     ref_junctions = _load_reference_junctions(reference_bed)
+    gtex_junctions = _load_reference_junctions(gtex_bed) if gtex_bed else frozenset()
+    if gtex_bed:
+        log.info("GTEx pan-tissue blacklist active: %d junctions from %s",
+                 len(gtex_junctions), gtex_bed)
     donor_frames = _build_cds_donor_lookup(gencode_gtf) if gencode_gtf else {}
     manifest = _load_manifest(manifest_path)
 
@@ -343,7 +366,7 @@ def classify_junctions(
         rows = [(jid, r) for jid, r in rows if r > mean_reads]
         n_mean_filtered = n_raw - len(rows)
 
-        n_annotated = n_normal_shared = n_tumor_exclusive = 0
+        n_annotated = n_normal_shared = n_gtex_shared = n_tumor_exclusive = 0
 
         for junc_id, reads in rows:
             parsed = _parse_junction_id(junc_id)
@@ -358,10 +381,18 @@ def classify_junctions(
                 n_annotated += 1
                 continue
 
-            # Classify unannotated junctions
+            # Classify unannotated junctions. Priority order: matched normal
+            # (patient-specific, highest confidence) → GTEx pan-tissue population
+            # blacklist → tumor-exclusive. Checking GTEx only after the normal step
+            # makes gtex_pantissue_shared the filter's *marginal* contribution beyond
+            # the matched normal (a junction already removed as normal_shared is not
+            # re-counted), keeping the funnel a clean partition.
             if parsed in normal_junction_set:
                 origin = "normal_shared"
                 n_normal_shared += 1
+            elif parsed in gtex_junctions:
+                origin = "gtex_pantissue_shared"
+                n_gtex_shared += 1
             else:
                 origin = "tumor_exclusive"
                 n_tumor_exclusive += 1
@@ -386,8 +417,9 @@ def classify_junctions(
             )
 
         log.info(
-            "Tumor sample %s: %d annotated (discarded), %d normal_shared, %d tumor_exclusive",
-            sample_id, n_annotated, n_normal_shared, n_tumor_exclusive,
+            "Tumor sample %s: %d annotated (discarded), %d normal_shared, "
+            "%d gtex_pantissue_shared, %d tumor_exclusive",
+            sample_id, n_annotated, n_normal_shared, n_gtex_shared, n_tumor_exclusive,
         )
 
         for category, count in (
@@ -395,6 +427,8 @@ def classify_junctions(
             ("mean_reads_filtered", n_mean_filtered),
             ("annotated_discarded", n_annotated),
             ("normal_shared", n_normal_shared),
+            # Always emitted (0 when no GTEx blacklist) so the funnel schema is stable.
+            ("gtex_pantissue_shared", n_gtex_shared),
             ("tumor_exclusive", n_tumor_exclusive),
             # Distribution summaries — descriptive, not part of the funnel sum.
             ("min_reads", dist_min),
@@ -422,11 +456,12 @@ def classify_junctions(
     df.to_csv(output_path, sep="\t", index=False)
     log.info(
         "Wrote %d classified junction records to %s "
-        "(%d tumor_exclusive, %d normal_shared)",
+        "(%d tumor_exclusive, %d normal_shared, %d gtex_pantissue_shared)",
         len(df),
         output_path,
         (df["junction_origin"] == "tumor_exclusive").sum() if not df.empty else 0,
         (df["junction_origin"] == "normal_shared").sum() if not df.empty else 0,
+        (df["junction_origin"] == "gtex_pantissue_shared").sum() if not df.empty else 0,
     )
 
     if stats_output_path is not None:
@@ -448,6 +483,18 @@ def _snakemake_main() -> None:
     log_file = snakemake.log[0]  # type: ignore[name-defined]  # noqa: F821
     logging.getLogger().addHandler(logging.FileHandler(log_file))
 
+    # Optional named input: the gtex_bed input function returns [] when the GTEx
+    # filter is disabled, so .get() yields a falsy value. When enabled it returns a
+    # single path, which Snakemake may surface as a bare string OR a 1-element list —
+    # handle both robustly (indexing a bare string would slice the first character).
+    gtex_in = snakemake.input.get("gtex_bed")  # type: ignore[name-defined]  # noqa: F821
+    if not gtex_in:
+        gtex_bed = None
+    elif isinstance(gtex_in, str):
+        gtex_bed = gtex_in
+    else:
+        gtex_bed = gtex_in[0]
+
     classify_junctions(
         junction_files=snakemake.input.junction_files,  # type: ignore[name-defined]  # noqa: F821
         manifest_path=snakemake.input.manifest,  # type: ignore[name-defined]  # noqa: F821
@@ -456,6 +503,7 @@ def _snakemake_main() -> None:
         stats_output_path=snakemake.output.stats,  # type: ignore[name-defined]  # noqa: F821
         min_normal_reads=snakemake.params.min_normal_reads,  # type: ignore[name-defined]  # noqa: F821
         gencode_gtf=snakemake.input.gencode_gtf,  # type: ignore[name-defined]  # noqa: F821
+        gtex_bed=gtex_bed,
     )
 
 
@@ -485,6 +533,12 @@ def _cli_main() -> None:
         "--gencode-gtf", default=None,
         help="GENCODE GTF file for reading frame annotation (plain or .gz)",
     )
+    parser.add_argument(
+        "--gtex-bed", default=None,
+        help="GTEx pan-tissue population-normal junction blacklist BED6 (Issue #211/#212). "
+             "When supplied, unannotated junctions present in this set (and absent from the "
+             "matched normal) are labeled gtex_pantissue_shared and excluded downstream.",
+    )
     args = parser.parse_args()
 
     classify_junctions(
@@ -495,6 +549,7 @@ def _cli_main() -> None:
         stats_output_path=args.stats_output,
         min_normal_reads=args.min_normal_reads,
         gencode_gtf=args.gencode_gtf,
+        gtex_bed=args.gtex_bed,
     )
 
 
