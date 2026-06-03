@@ -10,7 +10,7 @@ Produces a self-contained HTML page showing:
 Usage (standalone):
   python generate_report.py \\
       --novel-junctions results/junctions/local/novel_junctions.tsv \\
-      --predictions results/predictions/local/mhc_presentation.tsv \\
+      --predictions results/local/mhcflurry/presentation.tsv \\
       --output results/reports/local/report.html
 
 Usage (Snakemake):
@@ -1437,7 +1437,7 @@ def _build_report_3d_structure_tsv(
            vdjdb_donor_id, vdjdb_score, panel_status>
 
     ``pdb_path`` is recorded relative to the patient result directory
-    (typically ``predictions/tcrdock/top_candidate.pdb``) so consumers can
+    (typically ``tcrdock/top_candidate.pdb``) so consumers can
     resolve it from the patient root regardless of how reports/ was copied.
 
     The manifest tracks the single PDB that's actually written today
@@ -1722,10 +1722,10 @@ def generate_report(
         )
 
     if output_3d_structure_tsv and docking_scores_tsv:
-        # PDB lives in predictions/tcrdock/ next to the docking scores.
-        # reports/ and predictions/ are siblings under results/{patient_id}/
+        # PDB lives in tcrdock/ next to the docking scores.
+        # reports/ and tcrdock/ are siblings under results/{patient_id}/
         # so this relative path resolves from any patient root.
-        pdb_relative_path = "predictions/tcrdock/top_candidate.pdb"
+        pdb_relative_path = "tcrdock/top_candidate.pdb"
         _build_report_3d_structure_tsv(
             patient_id=effective_patient_id,
             docking_scores_tsv=docking_scores_tsv,

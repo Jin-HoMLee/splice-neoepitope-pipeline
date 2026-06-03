@@ -16,8 +16,8 @@
 #
 # Outputs
 # -------
-#   results/predictions/{patient_id}/tcrdock/top_candidate.pdb   — predicted ternary complex
-#   results/predictions/{patient_id}/tcrdock/docking_scores.tsv  — docking geometry metrics
+#   results/{patient_id}/tcrdock/top_candidate.pdb   — predicted ternary complex
+#   results/{patient_id}/tcrdock/docking_scores.tsv  — docking geometry metrics
 
 _TCRDOCK_ENABLED = config.get("tcrdock", {}).get("enabled", False)
 _HLA_ENABLED = config.get("hla", {}).get("enabled", False)
@@ -51,10 +51,10 @@ if _TCRDOCK_ENABLED:
             predictions_tsv=rules.run_mhcflurry.output.mhc_presentation_tsv,
         output:
             pdb=os.path.join(
-                _RES, "{patient_id}", "predictions", "tcrdock", "top_candidate.pdb"
+                _RES, "{patient_id}", "tcrdock", "top_candidate.pdb"
             ),
             scores_tsv=os.path.join(
-                _RES, "{patient_id}", "predictions", "tcrdock", "docking_scores.tsv"
+                _RES, "{patient_id}", "tcrdock", "docking_scores.tsv"
             ),
         log:
             os.path.join(_LOGS, "{patient_id}", "structure", "tcrdock.log"),

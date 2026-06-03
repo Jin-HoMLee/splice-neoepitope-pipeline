@@ -1191,7 +1191,7 @@ class TestBuildReport3dStructureProvenance:
         _build_report_3d_structure_tsv(
             patient_id="p001",
             docking_scores_tsv=str(scores),
-            pdb_relative_path="predictions/tcrdock/top_candidate.pdb",
+            pdb_relative_path="tcrdock/top_candidate.pdb",
             output_tsv=str(manifest),
         )
         df = pd.read_csv(manifest, sep="\t")
