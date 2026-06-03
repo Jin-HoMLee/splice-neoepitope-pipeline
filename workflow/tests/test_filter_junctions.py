@@ -8,8 +8,47 @@ from filter_junctions import (
     _build_normal_junction_set,
     _load_reference_junctions,
     _parse_junction_id,
+    _read_junction_file,
     classify_junctions,
 )
+
+
+# ---------------------------------------------------------------------------
+# _read_junction_file (Issue #375 — optional 3rd annotated-flag column)
+# ---------------------------------------------------------------------------
+
+class TestReadJunctionFile:
+    def test_two_column_legacy_annotated_none(self, tmp_path):
+        # HISAT2/regtools path (bed12_to_junctions.py) emits only 2 columns.
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\nchr22:301:400:-\t5\n")
+        rows = _read_junction_file(f)
+        assert rows == [
+            ("chr22:101:200:+", 10.0, None),
+            ("chr22:301:400:-", 5.0, None),
+        ]
+
+    def test_three_column_star_annotated_parsed(self, tmp_path):
+        # STAR path now carries the annotated flag as a 3rd column.
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\t1\nchr22:301:400:-\t5\t0\n")
+        rows = _read_junction_file(f)
+        assert rows == [
+            ("chr22:101:200:+", 10.0, 1),
+            ("chr22:301:400:-", 5.0, 0),
+        ]
+
+    def test_three_column_non_integer_flag_falls_back_to_none(self, tmp_path):
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\tnotanint\n")
+        rows = _read_junction_file(f)
+        assert rows == [("chr22:101:200:+", 10.0, None)]
+
+    def test_skips_comment_and_blank_lines(self, tmp_path):
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("# header\n\nchr22:101:200:+\t10\t1\n")
+        rows = _read_junction_file(f)
+        assert rows == [("chr22:101:200:+", 10.0, 1)]
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +151,159 @@ class TestBuildNormalJunctionSet:
     def test_empty_normal_files_returns_empty_set(self):
         result = _build_normal_junction_set([], frozenset(), min_reads=2)
         assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# classify_junctions — STAR annotated-flag cross-check (Issue #375)
+# ---------------------------------------------------------------------------
+
+class TestAnnotatedFlagCrossCheck:
+    """The col-6 flag is a diagnostic cross-check against GENCODE membership.
+
+    It is WARNING-only — it must never change the classification, which stays
+    authoritative on ref_junctions (GENCODE BED) membership.
+    """
+
+    def _write_3col(self, path, rows):
+        """rows: list of (junction_id, reads, annotated_flag)."""
+        path.write_text("".join(f"{jid}\t{reads}\t{ann}\n" for jid, reads, ann in rows))
+
+    def _write_manifest(self, path, entries):
+        lines = ["file_id\tfile_name\tsample_type\tproject_id\n"]
+        for fid, stype in entries:
+            lines.append(f"{fid}\t{fid}.tsv\t{stype}\tlocal\n")
+        path.write_text("".join(lines))
+
+    def _write_reference_bed(self, path, junctions):
+        path.write_text("".join(f"{c}\t{s}\t{e}\tjunc\t0\t{st}\n" for c, s, e, st in junctions))
+
+    def test_warns_when_star_annotated_but_not_in_bed(self, tmp_path, caplog):
+        # STAR flags chr22:201:300:+ as annotated (1), but it is NOT in our BED
+        # → disagreement → WARNING. Classification still uses BED membership, so
+        # the junction is unannotated and survives as tumor_exclusive.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:201:300:+", 100, 1),  # STAR-annotated, absent from BED
+            ("chr22:401:500:+", 1, 0),    # noise — below mean, filtered out
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])  # empty → nothing is in our BED
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        # WARNING fired naming the disagreeing junction.
+        assert any(
+            "chr22:201:300:+" in rec.message
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+        # Classification is UNCHANGED — BED membership stays authoritative.
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+
+    def test_warns_when_in_bed_but_not_star_annotated(self, tmp_path, caplog):
+        # STAR flags chr22:101:200:+ as novel (0), but it IS in our BED
+        # → disagreement → WARNING. BED membership wins: it is discarded.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:101:200:+", 100, 0),  # STAR-novel, but present in BED
+            ("chr22:401:500:+", 1, 0),    # noise — keeps the other above mean
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert any(
+            "chr22:101:200:+" in rec.message
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+        # Annotated per BED → discarded, regardless of STAR's flag.
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 0
+
+    def test_no_warning_when_flags_agree(self, tmp_path, caplog):
+        # STAR-annotated AND in BED → agreement; STAR-novel AND not in BED →
+        # agreement. No cross-check WARNING should fire.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:101:200:+", 100, 1),  # annotated, in BED → agree
+            ("chr22:201:300:+", 100, 0),  # novel, not in BED → agree
+            ("chr22:401:500:+", 1, 0),    # noise
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert not any(
+            "annotated-flag" in rec.message.lower()
+            or "star" in rec.message.lower()
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+
+    def test_legacy_two_column_no_crosscheck_warning(self, tmp_path, caplog):
+        # 2-column (HISAT2) input → annotated is None → cross-check is skipped,
+        # no spurious WARNING.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        tumor_f.write_text("chr22:201:300:+\t100\nchr22:401:500:+\t1\n")
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert not any(
+            "annotated-flag" in rec.message.lower()
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
 
 
 # ---------------------------------------------------------------------------

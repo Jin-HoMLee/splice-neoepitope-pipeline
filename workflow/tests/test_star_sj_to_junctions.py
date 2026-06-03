@@ -53,7 +53,7 @@ class TestDirectStrand:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == "chr22:101:200:+\t10"
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t0"
 
     def test_strand_minus_direct(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
@@ -61,7 +61,7 @@ class TestDirectStrand:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == "chr22:101:200:-\t10"
+        assert out.read_text().strip() == "chr22:101:200:-\t10\t0"
 
     @pytest.mark.parametrize("strand,motif,expected", [
         (1, 2, "+"),  # col 4 says +, motif says -; col 4 wins
@@ -78,7 +78,7 @@ class TestDirectStrand:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == f"chr22:101:200:{expected}\t10"
+        assert out.read_text().strip() == f"chr22:101:200:{expected}\t10\t0"
 
 
 class TestMotifRescue:
@@ -95,7 +95,7 @@ class TestMotifRescue:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10"
+        assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10\t0"
 
     @pytest.mark.parametrize("motif,expected_strand", [
         (2, "-"),  # CT/AC
@@ -108,7 +108,7 @@ class TestMotifRescue:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10"
+        assert out.read_text().strip() == f"chr22:101:200:{expected_strand}\t10\t0"
 
     def test_motif_zero_strand_zero_dropped(self, tmp_path):
         """strand=0 + motif=0 (truly non-canonical) is dropped, not emitted as '.'.
@@ -153,7 +153,7 @@ class TestFiltering:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == "chr22:101:200:+\t10"
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t0"
 
     def test_skips_blank_lines(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
@@ -165,7 +165,7 @@ class TestFiltering:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == "chr22:101:200:+\t10"
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t0"
 
     def test_skips_non_integer_count(self, tmp_path):
         sj = tmp_path / "SJ.out.tab"
@@ -176,7 +176,7 @@ class TestFiltering:
         out = tmp_path / "raw_junctions.tsv"
 
         convert_sj_to_junctions(sj, out)
-        assert out.read_text().strip() == "chr22:101:200:+\t10"
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t0"
 
 
 class TestMultipleRecords:
@@ -195,9 +195,52 @@ class TestMultipleRecords:
         convert_sj_to_junctions(sj, out)
         lines = out.read_text().strip().splitlines()
         assert lines == [
-            "chr22:101:200:+\t5",
-            "chr22:300:400:-\t3",
-            "chr22:700:800:-\t2",
+            "chr22:101:200:+\t5\t0",
+            "chr22:300:400:-\t3\t0",
+            "chr22:700:800:-\t2\t0",
+        ]
+
+
+class TestAnnotatedFlagColumn:
+    """Issue #375 — col 6 (annotated flag) is surfaced as a 3rd output column."""
+
+    def test_annotated_row_emits_flag_one(self, tmp_path):
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(strand=1, motif=1, annotated=1) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t1"
+
+    def test_novel_row_emits_flag_zero(self, tmp_path):
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(strand=1, motif=1, annotated=0) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+        assert out.read_text().strip() == "chr22:101:200:+\t10\t0"
+
+    def test_rescued_strand_row_carries_annotated_flag(self, tmp_path):
+        # strand=0 rescued via motif, annotated=1 → still emits the flag.
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(strand=0, motif=2, annotated=1) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+        assert out.read_text().strip() == "chr22:101:200:-\t10\t1"
+
+    def test_mixed_annotated_and_novel_rows(self, tmp_path):
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(
+            _sj_line(strand=1, motif=1, annotated=1, unique=5) + "\n"
+            + _sj_line(start=300, end=400, strand=2, motif=2, annotated=0, unique=3) + "\n"
+        )
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+        assert out.read_text().strip().splitlines() == [
+            "chr22:101:200:+\t5\t1",
+            "chr22:300:400:-\t3\t0",
         ]
 
 

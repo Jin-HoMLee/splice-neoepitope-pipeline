@@ -105,12 +105,18 @@ def _parse_junction_id(junction_id: str) -> tuple[str, int, int, str] | None:
     return chrom, start, end, strand
 
 
-def _read_junction_file(file_path: str | Path) -> list[tuple[str, float]]:
+def _read_junction_file(file_path: str | Path) -> list[tuple[str, float, int | None]]:
     """Read a raw junction quantification TSV.
 
-    Returns a list of ``(junction_id, read_count)`` tuples.
+    Returns a list of ``(junction_id, read_count, annotated)`` tuples.
+
+    The optional 3rd column is STAR's col-6 annotated flag (0=novel, 1=annotated),
+    surfaced by ``star_sj_to_junctions.py`` (Issue #375). The HISAT2 path
+    (``bed12_to_junctions.py``) emits only 2 columns, so ``annotated`` is ``None``
+    for legacy 2-column rows — back-compat is preserved. A 3rd column that is not
+    a valid integer is treated as absent (``None``).
     """
-    rows: list[tuple[str, float]] = []
+    rows: list[tuple[str, float, int | None]] = []
     with Path(file_path).open() as fh:
         for line in fh:
             if line.startswith("#") or not line.strip():
@@ -119,9 +125,16 @@ def _read_junction_file(file_path: str | Path) -> list[tuple[str, float]]:
             if len(parts) < 2:
                 continue
             try:
-                rows.append((parts[0], float(parts[1])))
+                reads = float(parts[1])
             except ValueError:
                 continue
+            annotated: int | None = None
+            if len(parts) >= 3:
+                try:
+                    annotated = int(parts[2])
+                except ValueError:
+                    annotated = None
+            rows.append((parts[0], reads, annotated))
     return rows
 
 
@@ -221,7 +234,7 @@ def _build_normal_junction_set(
     for path, sample_id in normal_files:
         rows = _read_junction_file(path)
         n_added = 0
-        for junc_id, reads in rows:
+        for junc_id, reads, _annotated in rows:  # annotated flag unused here
             if reads < min_reads:
                 continue
             parsed = _parse_junction_id(junc_id)
@@ -332,7 +345,7 @@ def classify_junctions(
         # Capture the raw read-count distribution before the per-file mean
         # filter is applied — supports the "was the threshold appropriate?"
         # diagnostic in the filtering audit trail (Issue #215).
-        raw_reads = [r for _, r in rows]
+        raw_reads = [r for _, r, _ in rows]
         dist_min = float(min(raw_reads))
         dist_max = float(max(raw_reads))
         dist_median = float(statistics.median(raw_reads))
@@ -340,12 +353,15 @@ def classify_junctions(
         # Keep only junctions with read count above the per-file mean,
         # reducing noise from low-evidence junctions.
         mean_reads = sum(raw_reads) / len(raw_reads)
-        rows = [(jid, r) for jid, r in rows if r > mean_reads]
+        rows = [(jid, r, ann) for jid, r, ann in rows if r > mean_reads]
         n_mean_filtered = n_raw - len(rows)
 
         n_annotated = n_normal_shared = n_tumor_exclusive = 0
+        # STAR col-6 annotated-flag cross-check counters (Issue #375).
+        n_star_annot_not_in_ref = 0
+        n_ref_not_star_annot = 0
 
-        for junc_id, reads in rows:
+        for junc_id, reads, annotated in rows:
             parsed = _parse_junction_id(junc_id)
             if parsed is None:
                 log.warning("Could not parse junction ID: %r", junc_id)
@@ -353,8 +369,34 @@ def classify_junctions(
 
             chrom, start, end, strand = parsed
 
+            in_ref = parsed in ref_junctions
+
+            # STAR annotated-flag cross-check (Issue #375). Diagnostic ONLY —
+            # GENCODE/ref_junctions membership stays authoritative for the
+            # classification below; this never alters the decision. When STAR's
+            # col-6 flag is present (3-column STAR input) and disagrees with our
+            # GENCODE-BED membership, warn: a mismatch flags a chromosome-naming
+            # bug (cf. Issue #148) or an index built from a different GTF.
+            if annotated is not None:
+                star_annotated = annotated == 1
+                if star_annotated and not in_ref:
+                    n_star_annot_not_in_ref += 1
+                    log.warning(
+                        "Annotated-flag mismatch for %s: STAR=annotated but absent "
+                        "from reference BED (possible chr-naming mismatch or stale "
+                        "reference)",
+                        junc_id,
+                    )
+                elif not star_annotated and in_ref:
+                    n_ref_not_star_annot += 1
+                    log.warning(
+                        "Annotated-flag mismatch for %s: in reference BED but "
+                        "STAR=novel (STAR index likely built from a different GTF)",
+                        junc_id,
+                    )
+
             # Discard annotated junctions
-            if parsed in ref_junctions:
+            if in_ref:
                 n_annotated += 1
                 continue
 
@@ -389,6 +431,17 @@ def classify_junctions(
             "Tumor sample %s: %d annotated (discarded), %d normal_shared, %d tumor_exclusive",
             sample_id, n_annotated, n_normal_shared, n_tumor_exclusive,
         )
+
+        # Summary of the STAR annotated-flag cross-check (Issue #375). Only
+        # meaningful for 3-column STAR input; both counts are 0 for the HISAT2
+        # 2-column path (annotated is None there, so no comparison is made).
+        if n_star_annot_not_in_ref or n_ref_not_star_annot:
+            log.warning(
+                "Tumor sample %s: STAR annotated-flag cross-check found %d "
+                "disagreements (STAR-annotated/not-in-BED=%d, in-BED/STAR-novel=%d)",
+                sample_id, n_star_annot_not_in_ref + n_ref_not_star_annot,
+                n_star_annot_not_in_ref, n_ref_not_star_annot,
+            )
 
         for category, count in (
             ("junctions_raw", n_raw),
