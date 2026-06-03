@@ -198,6 +198,9 @@ def fetch_latest(tool, *, get_json=_http_get_json, get_text=_http_get_text, gh=_
     except Exception as exc:  # noqa: BLE001 - intentional fail-soft per feed
         print(f"  ! fetch failed for {tool['tool']} ({ft}): {exc}", file=sys.stderr)
         return None
+    # Reached only for an unrecognised feed_type (e.g. a typo like "bioconde"):
+    # warn so a misconfigured basket entry is caught at dev time, not silently muted.
+    print(f"  ! unknown feed_type {ft!r} for {tool['tool']} (skipped)", file=sys.stderr)
     return None
 
 

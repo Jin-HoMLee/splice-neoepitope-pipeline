@@ -256,5 +256,8 @@ def test_basket_file_parses_and_has_known_guards():
     by_name = {t["tool"]: t for t in basket["software"]}
     assert by_name["jax"].get("frozen") is True
     assert by_name["IMGTgeneDL"].get("max_version") == "0.6.1"
-    assert by_name["gcp_dlvm_image"].get("watch_only") is True
+    # gcp_dlvm_image is suppressed by feed_type: manual (no machine feed), NOT by
+    # a watch_only guard — manual feeds return None before apply_guards sees them.
+    assert by_name["gcp_dlvm_image"]["feed_type"] == "manual"
+    assert "watch_only" not in by_name["gcp_dlvm_image"]
     assert by_name["torch"]["feed_type"] == "pytorch_cu126"

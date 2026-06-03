@@ -106,26 +106,26 @@ software:
     frozen: true
     note: "Frozen; bumping breaks the cuDNN/JAX/openmm compat the Docker image exists to avoid."
 
-  # --- Watch-only: a newer release is a regression risk, not a bump target ---
+  # --- Human-watch only: newer images are a P100 regression risk, not a bump target ---
   - tool: gcp_dlvm_image
     current_pin: "pytorch-latest-cu124-v20250327-ubuntu-2204 (driver 550.90.07)"
     feed_type: manual
     feed: "https://cloud.google.com/deep-learning-vm/docs/release-notes"
-    watch_only: true
-    note: "Newer DLVM images ship -open drivers that fail on P100 (Issue #522). Watch, never bump."
+    note: >-
+      Newer DLVM images ship -open drivers that fail on P100 (Issue #522), so a
+      bump is never a win. feed_type: manual is the suppression mechanism here —
+      the release-notes page has no machine feed, so the poller never surfaces it
+      (no watch_only needed; that guard is for *pollable* watch-only tools).
 
 # Candidate-to-adopt tools (NOT current deps) — the recurring 'revisit if we adopt' items.
-# Tracked here with a last_surfaced date so they do not re-nag every morning.
+# NAME-ONLY: the poller never polls this section (run() iterates software +
+# reference_data only). Only the `tool:` name is read — rendered in the briefing
+# footer as a muted reminder. The `note:` is human prose; do not add feed_type/feed
+# here (it would imply polling that does not happen).
 watch:
   - tool: uv
-    feed_type: pypi
-    feed: uv
-    last_surfaced: "2026-06-02"
     note: "Test+research venv adoption tracked in Issue #570 (open)."
   - tool: ruff
-    feed_type: pypi
-    feed: ruff
-    last_surfaced: "2026-06-02"
     note: "Linting-adoption decision has no Issue home yet; deferred (see Issue #639 out-of-scope)."
 
 # Reference DATA feeds (different cadence than software; releases still matter).

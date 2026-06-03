@@ -71,7 +71,8 @@ open-Issue annotation lookup), `--json` (machine-readable), `--watermark PATH`,
 |-------|-------|----------|
 | `frozen: true` | `jax`, `TCRdock` | Never flagged; never enters the watermark. Pinned together for the AlphaFold-2.3.2-era Docker compat. |
 | `max_version: X` | `IMGTgeneDL` (`0.6.1`) | Never flagged above the cap — `>=0.7.0` breaks the conda solve. |
-| `watch_only: true` | `gcp_dlvm_image` | Surfaced as a *watch* note, never an actionable bump — a newer DLVM image is a P100 regression risk ([Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522)), not a win. |
+| `feed_type: manual` | `gcp_dlvm_image`, `gencode`, … | No machine feed → never polled, never surfaces. For `gcp_dlvm_image` this *is* the suppression: a newer DLVM image is a P100 regression risk ([Issue #522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522)), so we deliberately give it no feed and watch it by hand. |
+| `watch_only: true` | *(pollable watch tools)* | For a tool we **do** poll but whose bumps are regression risks: surfaced as a *watch* note, never an actionable bump. No current basket tool needs it (the DLVM entry above is handled by `feed_type: manual`); the mechanism is kept + unit-tested for the day a pollable watch-only dep appears. |
 | `pytorch_cu126` feed | `torch` | Polls the cu126 wheel channel (not plain PyPI) and preserves the `+cu126` tag — a bare PyPI poll always shows a newer non-Pascal build. |
 
 ## Tests
