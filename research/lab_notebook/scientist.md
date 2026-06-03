@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-03
 
+### 20:24 UTC — Editor: Scientist
+
+#### [Issue #552](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/552) evaluate OpenFold3 as the TCR-pMHC structure-prediction backend. [PR #654](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/654) closes [Issue #552](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/552).
+
+**What.** Decision-only tool eval; verdict **(b) decline-for-now**. Standalone tool-primer deck (`research/evals/issue_552_openfold3/`, title + 9 content + refs, HERMES [Issue #218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/218) format) **extending the [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3-class verdict** — OpenFold3 is the next license-clean AF3-class candidate in that survey. No pipeline/integration changes.
+
+**Why it matters.** OpenFold3 **fixes the exact blocker that killed AlphaFold3 in #316** (non-redistributable weights): code + weights are **Apache-2.0**, training data **CC BY 4.0** on AWS Open Data — the cleanest AF3-class license posture yet. But it **reproduces #316's hardware blocker at a higher floor**, so it is a *deferred yes-candidate*, not a dead end. Re-eval folds into the existing [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) parking lot, not a new track.
+
+**Two decisive blockers (vs a P100 backend).** (1) **Structural P100 incompatibility** — the official OpenFold3 NVIDIA NIM needs CUDA 13.1 / driver ≥590 / Ampere-or-newer / ≥48 GB VRAM (L40S-class); CUDA 13.x drops Pascal entirely (Turing SM 7.5 floor). This is *higher* than the L4-class (≥24 GB) refresh #601 targets — an L4 clears Chai-1/ESMFold2 but **not** the OpenFold3 NIM. (2) **No TCR-pMHC validation** — OpenFold3 reports no immune-ternary accuracy and is absent from the Lu et al. 10-model benchmark; antibody-antigen (closest immune analogue) is the AF3 family's weakest, roadmap-2026 modality.
+
+**Verification.** Backed by a 99-agent fact-checked deep-research run (17 primary sources; 79 claims → 25 adversarially verified → 23 confirmed). All OpenFold3 facts confirmed against the GitHub repo, HF model card, AWS Open Data registry, and NVIDIA NIM docs. **Premise corrections caught:** the preview is **Oct-2025** (the issue's "March 2026 release" is the training-data-release update); license is **code+weights Apache-2.0 / training-data CC-BY-4.0** (not "weights on AWS under Apache-2.0"). The exact NIM supported-GPU roster did not fully survive adversarial verification — the load-bearing, high-confidence fact (CUDA 13.x structurally excludes Pascal/P100) is sufficient for the verdict.
+
+**Review.** @-claude review — **DOI flag was a false alarm, pushed back with evidence:** the reviewer assumed `lu_benchmarking_2025` should be bioRxiv `10.1101`, but CrossRef returns **200** for `10.64898/2025.11.30.691400` (publisher *openRxiv*) and **404** for `10.1101/...` — the deck DOI is correct (and matches the merged #316 deck), no change. **TCRdock-roster wording fixed** (commit `1cacaa8`): "OpenFold3, Boltz, and TCRdock are not in that roster" → "OpenFold3 and Boltz are absent … (TCRdock is represented only by its **AF2** backbone, the roster's 2nd-best entry)", since TCRdock's AF2 backbone *is* in the roster. Section-(iii) why-it-works adaptation (no standalone mechanism slide for a hardware-blocked decline) accepted by the reviewer as non-blocking.
+
+**Routing + AC discharge.** [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) updated with OpenFold3 as a tracked candidate + the ≥48 GB-vs-L4 refinement + self-hosted-vs-NIM and OpenFold3-specific-TCR-pMHC-validation open questions (so no slide-only state). #552 verdict comment discharges AC1 + AC4; **AC2** (Developer, P100/Pascal NIM gating) answered from NVIDIA's published docs — P100 structurally excluded, empirical benchmark moot + parked to #601; the stale "blocked by #310" edge cleared. Milestone left to PM (uncommitted; candidate = a new i6-S1 *Tool Landscape Evaluations III*).
+
 ### 14:19 UTC — Editor: Scientist
 
 #### [Issue #599](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/599) integrate 2025-26 splice-neoepitope validation cohorts (POSTN, RCAN1-4, JAseC) into INTRODUCTION + DISCUSSION. [PR #643](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/643) closes [Issue #599](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/599).
