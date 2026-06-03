@@ -173,6 +173,140 @@ def crossref_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
     return item
 
 
+def fetch_datacite(doi):
+    """DataCite fallback for DOIs CrossRef doesn't know (arXiv 10.48550, dataset DOIs).
+
+    Returns the JSON:API `data.attributes` object — mirror of fetch_crossref()
+    returning CrossRef's `message`. arXiv mints through DataCite, so a CrossRef
+    404 on an arXiv DOI is resolved here instead.
+    """
+    encoded = urllib.parse.quote(doi, safe="")
+    url = f"https://api.datacite.org/dois/{encoded}"
+    req = urllib.request.Request(url, headers={"User-Agent": "splice-neoepitope-pipeline/1.0"})
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read())["data"]["attributes"]
+
+
+def _datacite_publisher(data):
+    """DataCite `publisher` may be a plain string or a {'name': ...} object."""
+    publisher = data.get("publisher", "")
+    if isinstance(publisher, dict):
+        return publisher.get("name", "")
+    return publisher or ""
+
+
+def _datacite_is_preprint(data):
+    """arXiv (publisher) or an explicit Preprint resourceTypeGeneral → preprint path.
+
+    Mirrors _is_preprint()'s role for CrossRef; routes arXiv through the same
+    journalArticle/publicationTitle-as-host treatment bioRxiv gets.
+    """
+    if _datacite_publisher(data).lower() == "arxiv":
+        return True
+    resource_type = (data.get("types") or {}).get("resourceTypeGeneral", "")
+    return resource_type.lower() == "preprint"
+
+
+def _datacite_creators(creators):
+    """Map DataCite creators[] → Zotero author dicts (firstName/lastName).
+
+    Personal creators carry givenName/familyName; name-only / organizational
+    creators carry just 'name', often as 'Family, Given' — split on the comma.
+    """
+    authors = []
+    for c in creators or []:
+        given = c.get("givenName", "")
+        family = c.get("familyName", "")
+        if not given and not family:
+            name = c.get("name", "")
+            if "," in name:
+                family_part, _, given_part = name.partition(",")
+                family = family_part.strip()
+                given = given_part.strip()
+            else:
+                family = name
+        authors.append({
+            "creatorType": "author",
+            "firstName": given,
+            "lastName": family,
+        })
+    return authors
+
+
+def _datacite_date(data):
+    """Prefer an explicit Issued date, then Submitted, then publicationYear.
+
+    DataCite dates[] carry a dateType; arXiv records expose Submitted + Issued.
+    Falls back to the year-only publicationYear when no dated entry exists.
+    """
+    dates = data.get("dates") or []
+    for date_type in ("Issued", "Submitted"):
+        for d in dates:
+            if d.get("dateType") == date_type and d.get("date"):
+                return str(d["date"])
+    year = data.get("publicationYear")
+    return str(year) if year else ""
+
+
+def _datacite_abstract(data):
+    for d in data.get("descriptions") or []:
+        if d.get("descriptionType") == "Abstract" and d.get("description"):
+            return d["description"].strip()
+    return ""
+
+
+def datacite_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract=None, pmid=None):
+    """Map a DataCite `data.attributes` record → the same Zotero item shape
+    crossref_to_zotero() produces. arXiv routes through the preprint path
+    (itemType=journalArticle, publicationTitle=<publisher>), consistent with
+    how the CrossRef path treats bioRxiv."""
+    authors = _datacite_creators(data.get("creators"))
+    title = _first_or_empty([t.get("title", "") for t in data.get("titles") or []])
+    publisher = _datacite_publisher(data)
+
+    # Prefer DataCite date; let a more-precise PubMed date win if one exists.
+    datacite_date = _datacite_date(data)
+    date = pubmed_date if pubmed_date and pubmed_date.count("-") > datacite_date.count("-") else datacite_date
+
+    abstract = _datacite_abstract(data) or pubmed_abstract or ""
+
+    if _datacite_is_preprint(data):
+        # Host (arXiv, …) goes in publicationTitle, mirroring the bioRxiv path.
+        item = {
+            "itemType": "journalArticle",
+            "title": title,
+            "creators": authors,
+            "publicationTitle": publisher,
+            "date": date,
+            "DOI": data.get("doi", ""),
+            "url": data.get("url", ""),
+            "PMID": pmid or "",
+            "collections": [collection],
+            "tags": [{"tag": t} for t in tags],
+        }
+    else:
+        # Non-preprint DataCite (datasets, repository DOIs): publisher (or the
+        # container title, when present) acts as the publication title.
+        container = data.get("container") or {}
+        publication_title = container.get("title") or publisher
+        item = {
+            "itemType": "journalArticle",
+            "title": title,
+            "creators": authors,
+            "publicationTitle": publication_title,
+            "date": date,
+            "DOI": data.get("doi", ""),
+            "url": data.get("url", ""),
+            "PMID": pmid or "",
+            "collections": [collection],
+            "tags": [{"tag": t} for t in tags],
+        }
+
+    if abstract:
+        item["abstractNote"] = abstract
+    return item
+
+
 def post_to_zotero(item, user_id, api_key):
     url = f"https://api.zotero.org/users/{user_id}/items"
     payload = json.dumps([item]).encode()
@@ -262,24 +396,41 @@ def main():
         return
 
     print(f"Fetching metadata for DOI: {args.doi}")
+    source = "crossref"
     try:
         data = fetch_crossref(args.doi)
     except urllib.error.HTTPError as e:
-        sys.exit(f"CrossRef lookup failed: {e.code} {e.reason}")
+        if e.code == 404:
+            # arXiv / DataCite-minted DOIs 404 on CrossRef — try DataCite.
+            print("Not found on CrossRef; trying DataCite (arXiv / DataCite-minted DOIs)...")
+            try:
+                data = fetch_datacite(args.doi)
+                source = "datacite"
+            except urllib.error.HTTPError as e2:
+                sys.exit(f"DOI not found on CrossRef or DataCite: {e2.code} {e2.reason}")
+        else:
+            sys.exit(f"CrossRef lookup failed: {e.code} {e.reason}")
 
     print("Fetching supplementary data from PubMed...")
     pubmed_date, pubmed_abstract, pmid = fetch_pubmed(args.doi)
 
     tags = DEFAULT_TAGS + args.tags
-    item = crossref_to_zotero(data, ZOTERO_COLLECTION, tags, pubmed_date, pubmed_abstract, pmid)
+    if source == "datacite":
+        item = datacite_to_zotero(data, ZOTERO_COLLECTION, tags, pubmed_date, pubmed_abstract, pmid)
+        is_preprint = _datacite_is_preprint(data)
+    else:
+        item = crossref_to_zotero(data, ZOTERO_COLLECTION, tags, pubmed_date, pubmed_abstract, pmid)
+        is_preprint = _is_preprint(data)
 
     print(f"Title: {item['title']}")
     print(f"Authors: {len(item['creators'])} authors")
-    if _is_preprint(data):
+    if is_preprint:
         # itemType is now journalArticle for both paths; use CrossRef classification to tell them apart.
         print(f"Preprint ({item['publicationTitle'] or '—'}): {item['date']}")
     else:
-        print(f"Journal: {item['publicationTitle']} {item['volume']}({item['issue']}): {item['pages']}, {item['date']}")
+        # .get() defaults keep this safe for the DataCite non-preprint path,
+        # which omits volume/issue/pages/ISSN (only CrossRef journals carry them).
+        print(f"Journal: {item['publicationTitle']} {item.get('volume', '')}({item.get('issue', '')}): {item.get('pages', '')}, {item['date']}")
         print(f"ISSN: {item.get('ISSN', '—')}")
     print(f"Abstract: {'yes' if item.get('abstractNote') else 'not available'}")
     print(f"Tags: {[t['tag'] for t in item['tags']]}")
