@@ -47,6 +47,16 @@ Because splice-junction-derived neoepitopes arise from intronic or exon-boundary
 that are never translated in normal tissue, they represent a class of truly tumor-specific
 antigens with strong potential for immune recognition.
 
+This premise is increasingly supported by independent cohorts. A transcript-targeted
+antigen-mapping study across 587 glioma patients built per-patient repertoires of
+tumor-enriched isoform antigens and their HLA-I-presented peptides, and showed that the
+periostin isoform POSTN-203 — associated with poor patient survival — carries multiple
+HLA-restricted splice-junction epitopes, one of which (an HLA-A11-restricted peptide)
+elicited antigen-specific T-cell responses against POSTN-203-expressing glioma cells
+(Xiong et al., *Genes Immun* 2025). That patient-specific, HLA-presented splice-junction
+neoepitopes are recoverable from tumor RNA-seq at cohort scale is precisely the premise on
+which the pipeline described here is built.
+
 ---
 
 ## The Original 2015 Pipeline

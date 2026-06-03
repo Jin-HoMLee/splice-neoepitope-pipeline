@@ -157,6 +157,19 @@
 
 ---
 
+## X
+
+**Xiong (Zujian) et al., *Genes Immun* 2025** — Transcript-targeted antigen mapping reveals the potential of POSTN splicing junction epitopes in glioblastoma immunotherapy. *Genes Immun* 2025. doi:10.1038/s41435-025-00326-6
+→ Cited in INTRODUCTION.md (Aberrant Splicing in Cancer; 587-glioma-patient independent-cohort validation) + DISCUSSIONS.md (independent splice-neoepitope-axis validation; POSTN-203)
+
+**Xiong (Zujian) et al., *Cell Mol Immunol* 2025** — C/EBPβ-induced alternative splicing of RCAN1 generates a potent TCR-T target in mesenchymal glioblastoma. *Cell Mol Immunol* 2025. doi:10.1038/s41423-025-01360-0
+→ Cited in DISCUSSIONS.md (independent splice-neoepitope-axis validation; RCAN1-4 junction epitope → TCR-T translational exemplar for the structural-validation arm)
+
+**Xiong (Jieyi) et al., *Nucleic Acids Res* 2025** — Single-cell mapping of alternative splicing linked to checkpoint immunotherapy response. *Nucleic Acids Res* 2025. doi:10.1093/nar/gkaf1171
+→ Cited in DISCUSSIONS.md (independent splice-neoepitope-axis validation; JAseC single-cell counterpart, ESRP1-driven splicing-antigen load vs anti-PD1 response). Distinct first author (Jieyi Xiong) from the two Zujian Xiong glioblastoma papers above.
+
+---
+
 ## Y
 
 **Yewdell & Bennink, *Annu Rev Immunol* 1999** — Immunodominance in major histocompatibility complex class I-restricted T lymphocyte responses. *Annu Rev Immunol* 1999;17:51–88.
@@ -228,6 +241,9 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Trolle et al. 2016 | ✅ | Journal TBD — no journal given in-text |
 | Valitutti et al., *Nature* 1995 | ✅ | |
 | van Bergen et al. 2004 | ✅ | Journal TBD — no journal given in-text |
+| Xiong (Zujian) et al., *Genes Immun* 2025 | ✅ | POSTN; Issue #599. Same first author as the Cell Mol Immunol 2025 entry |
+| Xiong (Zujian) et al., *Cell Mol Immunol* 2025 | ✅ | RCAN1-4; Issue #599 |
+| Xiong (Jieyi) et al., *Nucleic Acids Res* 2025 | ✅ | JAseC; Issue #599. Distinct first author (Jieyi) from the Zujian Xiong entries |
 | Yewdell & Bennink, *Annu Rev Immunol* 1999 | ✅ | |
 | Zaretsky et al., *N Engl J Med* 2016 | ✅ | Manuscript uses "NEJM" abbreviation rather than "N Engl J Med" |
 | Zemmour & Parham 1992 | ✅ | Journal TBD — no journal given in-text |
