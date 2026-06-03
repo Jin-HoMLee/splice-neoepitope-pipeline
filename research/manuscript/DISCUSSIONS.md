@@ -781,6 +781,38 @@ single positive sample is in GTEx's standard analysis freeze (`SMAFRZE = "USE ME
 falls in testis, a splicing-permissive tissue where low-frequency cryptic events
 are well-documented.
 
+### Independent validation of the splice-neoepitope axis: glioblastoma cohorts and single-cell maps
+
+Beyond the methodological comparisons above, three 2025 studies externally validate the
+splice-junction-neoepitope axis itself. Two are glioblastoma cohorts. Xiong et al.
+(*Genes Immun* 2025) mapped tumor-enriched isoform antigens across 587 glioma patients,
+building per-patient candidate repertoires from isoform expression and HLA-I haplotype —
+the same per-patient junction × HLA-I logic applied here — and functionally validated an
+HLA-A11-restricted POSTN-203 junction epitope that elicited antigen-specific T-cell
+responses. Xiong et al. (*Cell Mol Immunol* 2025) carried a single splice-junction target
+the full distance to a therapeutic handle: a C/EBPβ-induced RCAN1-4 isoform, specific to
+mesenchymal glioblastoma, yields an HLA-A24-restricted epitope spanning the exon4/exon5
+junction (RCAN1-4<sub>22–32</sub>) against which TCR-engineered T cells showed sustained,
+HLA-restricted cytotoxicity in vitro and in vivo. This is the downstream end of the
+structural-validation arm framed below (*Structural validation: TCR-pMHC docking and TCR
+panel design*): a splice-junction neoepitope advanced from epitope identification to a
+functioning TCR-T product — the translational exemplar of what this pipeline's TCRdock
+stage screens candidates toward.
+
+A third study locates the axis in single-cell space. JAseC (Xiong et al., *Nucleic Acids
+Res* 2025 — a distinct first author from the glioblastoma work above) calls
+alternative-splicing events from short-read single-cell RNA-seq, predicts MHC-I
+presentation of the resulting isoform peptides (NetMHCpan, per-patient HLA), and reports
+that the resulting splicing-derived antigen burden — driven in part by the splicing
+regulator ESRP1 — tracks anti-PD1 response across breast cancer, melanoma, and additional
+checkpoint-blockade cohorts, correlating with T-cell clonal expansion independently of
+tumor mutational burden. JAseC is the single-cell counterpart to this pipeline's bulk
+junction calling: it resolves splicing-antigen load per cell and links it to checkpoint
+outcome, whereas the bulk approach here trades single-cell resolution for the read depth
+needed to call low-abundance tumor-specific junctions confidently. Single-cell
+splicing-antigen mapping is therefore complementary to, rather than within, the current
+bulk RNA-seq architecture.
+
 ---
 
 ## Structural validation: TCR-pMHC docking and TCR panel design
