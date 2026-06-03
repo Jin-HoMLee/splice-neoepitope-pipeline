@@ -71,10 +71,14 @@ jobs:
           python-version: "3.11"
 
       - name: Install pytest
-        run: python -m pip install --upgrade pip pytest
+        run: python -m pip install --upgrade pip pytest pyyaml
 
       - name: Run CI-tooling tests
-        run: pytest tools/ci/ -v
+        # Separate invocations so each dir uses its own pytest.ini (marker
+        # registration); tools/news is the morning-news poller (Issue #639).
+        run: |
+          pytest tools/ci/ -v
+          pytest tools/news/ -v
         env:
           # PAT with `read:project` scope; integration tests that resolve
           # project items via GraphQL need this scope (the default
