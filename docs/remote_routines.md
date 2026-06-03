@@ -45,6 +45,18 @@ The sandbox boots with **zero memory and no skills**, so the prompt must encode 
 **Good fit** = *specifiable* (a complete brief) ∧ *machine-verifiable* (a gate the agent can run: pytest, `snakemake -n` deferred to CI, lint) ∧ *reviewable-as-artifact* (a draft PR you ratify).
 **Bad fit** = needs the GCP VM / live GCS / local data / a human judgment call on direction / ambiguous scope.
 
+## Handoff — routine-drafted PRs go to the owning role
+
+A routine-drafted draft PR is reviewed, lab-notebooked, and merged by the **role persona named on its Issue's `role:` label** — *not* by the PM who dispatched it, and *not* by another routine. Dispatch deliberately leaves three human-in-loop steps the unattended run must never do:
+
+- the **lab-notebook entry** (`research/lab_notebook/<role>.md`) — reflective judgment; enforced at merge by `scripts/audit_and_merge.sh` (lab-notebook gate);
+- any **creds/network-gated ratification** the sandbox allowlist blocked — e.g. a live external-API `--dry-run` (the routine builds from the documented schema and leaves that AC unchecked);
+- the **merge** itself (the closure-ritual gate).
+
+Routing is mostly automatic: each PR carries its `role:` label, sits at *Ready for review* on board #9, and its body documents its own residuals. But because a `Claude`-authored draft at Ready-for-review can read as *"did I make this?"* to the picking-up persona, the dispatcher posts a brief **handoff comment** on each PR naming the owner role + the pre-merge residuals. Coordinate via the board/PR, **not** a standup message (per the [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) work-vs-message split).
+
+**In short: PM dispatches + routes; the owning role finishes.** Always delegate to the role *persona* (a human-in-loop session), never to another unattended routine — those three residuals are exactly the steps kept human by design. (Optional future step: a routine could *draft* the lab-notebook entry for the persona to ratify, mirroring how the code PR is itself a draft — but the merge gate stays human.)
+
 ## Provenance
 
 - #632 pilot (the first overnight code dispatch) → [PR #647](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/647); env-probe smoke test → the `## Environment` comment on that PR.
