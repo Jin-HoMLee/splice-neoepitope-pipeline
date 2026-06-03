@@ -253,6 +253,97 @@ class TestComputeLayeredDueDate:
         assert "standalone S7" in note
 
 
+class TestComputeRecheckUnsizedGuard:
+    """compute_recheck must flag [UNSIZED] whenever ANY open issue lacks a Size —
+    not only when total remaining capacity is exactly 0 (Issue #618 AC2).
+
+    Reproduces the 2026-06-03 pm-i6 live under-read: one sized issue (#539 S) plus
+    two unsized (#527, #538) yielded "Remaining capacity 1.0d" and a spurious
+    [UPDATE NEEDED] -28d proposal, because the unsized guard was nested inside the
+    ``remaining == 0`` branch and got bypassed when even one issue carried a size.
+    An unreliable capacity read must not produce a confident due_on recommendation.
+    """
+
+    def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes):
+        monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
+        monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
+        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
+
+    def test_mixed_sized_and_unsized_flags_unsized_not_update(self, monkeypatch, capsys):
+        self._patch_board(
+            monkeypatch,
+            title="pm-i6 - PM Tooling, Memory & Methodology II",
+            due_on="2026-07-02T00:00:00Z",
+            issues=[527, 538, 539],
+            sizes={527: None, 538: None, 539: "S"},
+        )
+        # The due-date computation must NOT be reached when open work is unsized:
+        # if it were, the under-read 1.0d would drive a bogus proposal.
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail(
+            "compute_layered_due_date path reached despite unsized open issues"))
+
+        rc = rm.compute_recheck(33)
+        out = capsys.readouterr().out
+
+        assert rc == 2
+        assert "[UNSIZED]" in out
+        assert "missing Size" in out
+        assert "[UPDATE NEEDED]" not in out
+        assert "delta" not in out  # no due_on proposal line emitted
+
+    def test_all_unsized_still_flags_unsized(self, monkeypatch, capsys):
+        # Pre-existing remaining==0 + unsized>0 case must be preserved.
+        self._patch_board(
+            monkeypatch,
+            title="pm-i4 - PM Tooling",
+            due_on="2026-06-03T00:00:00Z",
+            issues=[10, 11],
+            sizes={10: None, 11: None},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail("should not compute due date"))
+        rc = rm.compute_recheck(30)
+        out = capsys.readouterr().out
+        assert rc == 2
+        assert "[UNSIZED]" in out
+
+    def test_no_open_issues_is_no_change(self, monkeypatch, capsys):
+        self._patch_board(
+            monkeypatch,
+            title="pm-i4 - PM Tooling",
+            due_on="2026-06-03T00:00:00Z",
+            issues=[],
+            sizes={},
+        )
+        rc = rm.compute_recheck(30)
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "[No change]" in out
+        assert "[UNSIZED]" not in out
+
+    def test_all_sized_still_computes_due_date(self, monkeypatch, capsys):
+        # Regression: with every issue sized, the normal due-date path runs.
+        self._patch_board(
+            monkeypatch,
+            title="i3 - S5 - Modeling - X",
+            due_on="2026-05-10T00:00:00Z",
+            issues=[1, 2],
+            sizes={1: "L", 2: "M"},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])  # no other milestones
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 5, 22)
+
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(5)
+        out = capsys.readouterr().out
+        assert "[UNSIZED]" not in out
+        assert "Proposed due_on:" in out
+
+
 @pytest.mark.live
 @REQUIRES_LIVE_GH
 class TestLiveIntegrationSmoke:
