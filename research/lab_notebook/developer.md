@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-03 — star.yaml conda prerelease-ordering trap ([PR #645](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/645) closes [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629))
+
+### 14:36 UTC — Editor: Developer
+
+Started as the morning warm-up XS pick; the investigation falsified both the "XS" sizing and the issue's root-cause diagnosis — so it gets an entry (non-routine: two reusable learnings below).
+
+**The issue's diagnosis was wrong.** [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629) read the from-scratch `star.yaml` solve failure as "the same `libdeflate`/`samtools`/`htslib` conflict as `hisat2.yaml`" (where `regtools` forces `libdeflate >=1.26`, incompatible with any samtools/htslib build). But `star.yaml` has no `regtools`. The real bug is a **conda prerelease-ordering trap**: conda orders a trailing-letter build as a *prerelease*, so `2.7.11b < 2.7.11`. bioconda ships no plain `2.7.11` — only `2.7.11a`/`2.7.11b` — so `star >=2.7.11` matched **zero** builds. An unsatisfiable `star` spec poisoned the whole solve, and libmamba reported the *next* unsatisfiable constraint it explored (the samtools/htslib subtree), not the root — hence the misleading error. CI probe C (fix pin, **keep** samtools → solves) conclusively cleared samtools. samtools was also unused dead weight: `star_align` runs `--outSAMtype None` (no BAM), so it's never invoked on the STAR path.
+
+**Fix:** `star >=2.7.11` → `>=2.7.11a` (matches the series, resolves to `2.7.11b`) + drop samtools. One-file change.
+
+**Learning 1 — conda prerelease ordering.** `X.Y.Zb < X.Y.Z`. Any bioconda pin against a lettered version (`>=2.7.11`) silently matches nothing if no bare build exists. Pin against the first lettered build (`>=2.7.11a`). Documented inline in `star.yaml` and folded into [Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646)'s ACs (CLAUDE.md gotcha note).
+
+**Learning 2 — `ubuntu-latest` CI is a free, faithful linux-64 solve probe.** My local macOS cross-solve (`--platform linux-64`) was **artifacted**: it ruled out installable `libdeflate` builds because the linux `__glibc` virtual package isn't simulated on a macOS host (even with `CONDA_OVERRIDE_GLIBC` the verdict stayed unreliable). A throwaway `workflow_dispatch`+`push`-triggered probe on `ubuntu-latest` (native linux-64, real glibc) gave the authoritative answer in ~2 min — no P100 VM needed. The 4-probe table (A current=FAIL, B drop-samtools-only=FAIL, C fix-pin-keep-samtools=OK, D fix-pin+drop-samtools=OK → `star-2.7.11b`/`htslib-1.23.1`/`libdeflate-1.25`) is in the PR. **Principle: match the verification environment to the failure class** — solver/dependency questions → cheap linux-64 CI; GPU/driver/runtime → the VM.
+
+**Review.** Bot review clean ("No issues"). One low-priority nit (python uncapped vs `hisat2.yaml`'s `<3.13`) — verified and declined with reasoning: the hisat2 cap is an undocumented/incidental pin from commit `4774614` (a samtools-fix), not STAR-relevant; the STAR env solves uncapped and its only python consumer (`star_sj_to_junctions.py`) is version-agnostic.
+
+**Follow-up.** [Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646) (filed): a path-filtered CI guard running `conda env create --dry-run` over `workflow/envs/*.yaml`, closing the documented dry-run blind spot (CI doesn't build conda envs, so solver regressions are invisible until a VM run).
+
 ## 2026-06-03 — dependency release-feed poller + pure-delta version watermark ([PR #640](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/640) closes [Issue #639](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/639))
 
 ### 12:52 UTC — Editor: Developer
