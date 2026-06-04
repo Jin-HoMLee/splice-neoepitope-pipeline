@@ -86,3 +86,46 @@ jobs:
           # Secret may be absent on fork PRs — tests probe for scope at
           # collection time and skip gracefully if unavailable.
           GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+
+  pipeline-conda-env-solve:
+    # Catch conda solver regressions (e.g. the bioconda libdeflate/htslib
+    # transition that broke star.yaml — Issue #629) at PR time. The
+    # snakemake dry-run does NOT build conda envs, so an unsatisfiable spec
+    # only surfaces on a real `--use-conda` run on the VM (hours in). This job
+    # solves every env up front. ubuntu-latest is linux-64 + Miniforge
+    # (channel-priority strict), matching the GPU VM, so the solve is faithful.
+    # Limitation: `--dry-run` solves the conda layer only; `pip:` blocks (e.g.
+    # python.yaml's torch pin) are not resolved here.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Miniforge (conda, bioconda/conda-forge, strict)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge,bioconda
+          channel-priority: strict
+
+      - name: Dry-run solve every workflow/envs/*.yaml
+        shell: bash -el {0}
+        run: |
+          set -uo pipefail
+          fail=0
+          for env in workflow/envs/*.yaml; do
+            echo "::group::solve ${env}"
+            if conda env create --dry-run --name "probe-$(basename "${env}" .yaml)" --file "${env}"; then
+              echo "OK: ${env} solves"
+            else
+              echo "::error file=${env}::conda solver could not satisfy ${env}"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          if [[ "${fail}" -ne 0 ]]; then
+            echo "One or more workflow/envs/*.yaml failed to solve — see the ::error annotations above."
+            exit 1
+          fi
+          echo "All workflow/envs/*.yaml solve cleanly."
