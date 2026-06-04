@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-04
+
+### 10:27 UTC — Editor: PM
+
+#### Visual morning-routine cockpit — design spec + Phase-1 plan ([Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656), [PR #657](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/657))
+
+**Trigger.** Open-ended request to make the daily morning routine "more visual / interactive / coupled to the session," eventually a reusable Claude Code skill for all three roles. Ran the full brainstorm → spec → plan arc in one session.
+
+**Design (9 decisions).** Cockpit form factor (pinned summary + live progress rail + focus panel); bidirectional + co-equal surfaces; **hybrid liveness** (page-local nav acts live, any GitHub write confirms in chat); delivered as a `/morning` skill; PM-first but config-driven so Dev/Sci drop in; purpose-built stdlib server; one-server-per-clone; every Issue/PR/milestone rendered as a GitHub hyperlink. Full decision log, push/pull protocol, and security threat model in the spec.
+
+**Phase-0 spike — the load-bearing unknown, de-risked with evidence.** The whole feature rests on a browser click auto-waking an idle CLI session. Two spikes: (1) a real browser click woke the session once; (2) a hardened loop on the *purpose-built* server drove **6/6 consecutive re-arm wakes, 0% miss, 9/9 events** → **GO** on the full live bridge (vs the batch-reconcile fallback). Coalescing (9 events → 6 wakes) bounds token cost; end-to-end latency ~7–35 s.
+
+**Adversarial review.** A 7-lens fan-out review of the spec caught a foundational over-claim (the first spike was n=1, single-shot, on the rejected companion infra — corrected in §2.1) plus two security blockers (no CSRF token on `POST /event`; a board-mutating triage mis-tagged `safe`). All folded in. The bot review then approved-for-merge and *sharpened* the §14 CSRF analysis — the custom `X-Morning-Token` header + `application/json` already make the request non-simple, so browser CSRF is defeated by preflight; the Origin check is belt-and-suspenders. Fixes pushed in `a8ff01a`.
+
+**Governance — split by work-type.** Resolved the dual-role-label question by splitting the tracker: design/pre-implementation → [Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656) (`role:pm`, this PR); implementation epic → [Issue #655](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/655) (`role:developer`), build sub-issues carved later. Branch re-created via `gh issue develop` after an initial manual-`checkout -b` slip — the convention gap was deduped and flagged onto the existing [Issue #626](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/626) (PreToolUse hooks).
+
+[PR #657](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/657) closes [Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656) (design); [Issue #655](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/655) (implementation epic) stays open.
+
 ## 2026-06-03
 
 ### 13:42 UTC — Editor: PM
