@@ -8,6 +8,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-04
 
+### 12:57 UTC — Editor: PM
+
+#### Closure-audit backfill — GitHub Issue fields eval: not applicable to user-owned repos ([Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502))
+
+**Why this entry is retrospective.** [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) closed COMPLETED on 2026-06-03 via a closing comment (no PR), and today's PM morning closure audit (10-issue fan-out + adversarial verify) flagged the missing `pm.md` entry — confirmed real, not a stale-snapshot false positive (HEAD == origin/main, live grep). The closure-audit bot had independently flagged the same gap at close-time. Backfilling per the established retrospective pattern (cf. scientist [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232)/[Issue #511](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/511)); the close itself was sound (verdict + evidence + revival triggers all recorded on the Issue).
+
+**Trigger.** [GitHub Changelog 2026-05-21](https://github.blog/changelog/2026-05-21-issue-fields-are-now-in-public-preview-for-all-organizations/) — Issue fields (single-select / text / number / date) entered public preview, with REST support for setting values at creation. Question: could native Issue fields replace some of project #9's board metadata (`role:*`, Priority, Size, Status, Target), collapsing the two-step "create Issue + set board field" flow?
+
+**Verdict: not applicable — board fields stay canonical.** The feature is **organization-scoped**; this repo is under user `Jin-HoMLee`, not an org. Probed 2026-06-03:
+- `repositoryOwner(login:"Jin-HoMLee").__typename` = `User` (not Organization).
+- `repository.issueTypes` = `null` — the org-only Issue-types/fields surface is absent.
+- REST `GET /repos/.../issues/fields` → **404 Not Found**.
+
+**Why it'd be a near-non-event even if available.** The fields that could plausibly collapse to native Issue fields (Priority, Size, `role:*`) are single-select metadata, but the load-bearing ones — **Status** (kanban column), **Target** (roadmap), **cross-Issue ordering** — are inherently project-level views and would stay board-level regardless. The two-step create flow isn't eliminable by Issue fields alone, so even the upside motivating the spike is limited.
+
+**Outcome.** No migration, no follow-up Issue. Board fields on project #9 remain canonical. **Revival triggers:** (a) this repo migrates to an organization, or (b) GitHub extends Issue fields to user-owned repos.
+
 ### 10:27 UTC — Editor: PM
 
 #### Visual morning-routine cockpit — design spec + Phase-1 plan ([Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656), [PR #657](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/657))
