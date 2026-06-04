@@ -4,11 +4,19 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  # >=2.7.11a, NOT >=2.7.11: conda orders a trailing-letter build as a *prerelease*,
-  # so 2.7.11b < 2.7.11. bioconda ships no plain `2.7.11` build (only 2.7.11a/2.7.11b),
-  # so `>=2.7.11` matched ZERO builds and poisoned the whole solve with a misleading
-  # samtools/htslib error (Issue #629). `>=2.7.11a` matches the 2.7.11 series (→ 2.7.11b).
-  - star >=2.7.11a
+  # star =2.7.10b (pinned DOWN from 2.7.11): bioconda's in-flight libdeflate ABI
+  # migration has made modern htslib (>=1.17) unsolvable on linux-64 — `htslib` alone
+  # falls back to the 2018-era 1.9 — and STAR 2.7.11a/2.7.11b both *require* modern
+  # htslib, so the prior `>=2.7.11a` pin raised CreateCondaEnvironmentException on a
+  # from-scratch build (Issue #629; surfaced on the first prod STAR run, 2026-06-04).
+  # 2.7.10b is the newest STAR that solves cleanly — it pulls no htslib at all, which
+  # is fine here since star_align only emits SJ.out.tab, never a BAM (samtools note
+  # below). Same libdeflate conflict class CLAUDE.md documents for hisat2.yaml/regtools.
+  # TODO(#629): bump back to >=2.7.11 once bioconda's htslib/libdeflate transition
+  # settles — re-test before bumping with:
+  #   CONDA_OVERRIDE_GLIBC=2.35 conda create --dry-run --platform linux-64 \
+  #     -c bioconda -c conda-forge star=2.7.11b   # must SOLVE
+  - star=2.7.10b
   # samtools intentionally omitted: the star_align rule runs with `--outSAMtype None`
   # (workflow/rules/alignment.smk) — it emits only SJ.out.tab, never a BAM — so samtools
   # is never invoked on the STAR path. (It was unused dead weight, not the #629 blocker:

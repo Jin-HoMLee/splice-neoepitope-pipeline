@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-04 — STAR env re-broke overnight from upstream bioconda churn; pinned DOWN to 2.7.10b ([PR #661](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/661) closes [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629), reopened)
+
+### 10:56 UTC — Editor: Developer
+
+[Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629) was closed yesterday via [PR #645](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/645) (env verified solving on a `ubuntu-latest` CI probe: `star 2.7.11b / htslib 1.23.1 / libdeflate 1.25`). It **re-broke ~18h later**, surfacing when the first real prod STAR run — the [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) / [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) GTEx validation — died at `CreateCondaEnvironmentException` ~26s in, before any GTEx code executed. Non-routine incident + durable learnings, so its own entry (the #645 entry stays immutable).
+
+**Root cause — a fresh upstream regression, not an incomplete fix.** bioconda's `libdeflate` ABI migration advanced overnight (1.25 → 1.26 now forced; htslib hasn't caught up), so modern `htslib` (≥1.17) is no longer co-installable on linux-64 — `htslib` alone now falls back to the 2018-era 1.9. STAR 2.7.11a/2.7.11b both *require* modern htslib, so the (correct-yesterday) `>=2.7.11a` pin stopped solving. I first reopened #629 framing this as "#645 was insufficient" — **wrong, and I corrected it on the Issue**: #645 was right at merge; bioconda regressed a day later.
+
+**Fix — pin DOWN past the churning subtree.** `star=2.7.10b` is the newest STAR with **no htslib dependency at all**, so it's structurally immune to the htslib/libdeflate transition — more durable than chasing a transient-stable 2.7.11 build that re-breaks on the next repodata shift. Functionally equivalent here: the pipeline uses STAR only for `SJ.out.tab`, never BAM (samtools already omitted for the same reason).
+
+**Learning 1 — "fixed + CI-green" conda envs can silently re-break from upstream ABI churn within a day.** A solve verified on CI is a point-in-time fact, not a durable guarantee; repodata drifts. The env-solve guard ([Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646)) catches regressions *at CI-run time*, not against future drift. **During an active bioconda ABI transition, pin DOWN past the churning subtree (here: a STAR build with no htslib dep) rather than re-pinning the newest transient-stable build.**
+
+**Learning 2 — read the actual error; don't ship the plausible fix.** The failure *looked* like the new GTEx code (first cloud exercise of `download_gtex_pan_tissue_bed`). I held two specific hypotheses — H1 `gsutil` not on the rule-shell PATH, H2 SHA256 mismatch — both plausible, both **wrong**. The VM log showed the GTEx rule never ran (`references/gtex/` absent, `gsutil` *is* on PATH); the pipeline died upstream at STAR env-create. Had I "fixed" the download rule on H1/H2, the next P100 run would have failed identically. Reading the authoritative log (worth a brief P100 restart) beat guessing.
+
+**Verification note.** macOS cross-solve (`--platform linux-64`, even with `CONDA_OVERRIDE_GLIBC`) is documented-unreliable in the htslib subtree (the #645 entry, Learning 2) — but `2.7.10b` doesn't touch that subtree (no htslib), so the verdict holds; the [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) re-validation is the faithful linux-64 *build* confirmation (fast-fails ~minutes at env-create if wrong, so no multi-hour-run risk). Local Docker (the ideal faithful probe) wasn't available this session.
+
+**Session-adjacent (not this PR):** the same GTEx validation drove a GCS before/after-snapshot audit — versioning is on but lifecycle prunes noncurrent (alignment 7d / all 90d) and `run_cloud_gpu.sh` doesn't auto-archive — so I snapshotted `results/patient_00X` → `_archive/..._pre_issue212_2026-06-04` and filed [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) (pre-run auto-snapshot). Re-validation resumes once this lands.
+
 ## 2026-06-03 — Integrate the GTEx pan-tissue filter into filter_junctions ([PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
 
 ### 20:07 UTC — Editor: Developer
