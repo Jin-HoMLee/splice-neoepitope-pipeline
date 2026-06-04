@@ -1092,8 +1092,10 @@ revival is parked on the acquisition of such labels.
 
 One pattern dominates. The immunogenicity-beyond-presentation scorers encode
 immunogenicity as a contrast between a mutant peptide and its wild-type self:
-NeoPrecis's cross-reactivity distance and the Łuksza amplitude term both require
-an equal-length, aligned germline counterpart. Splice-junction-derived
+NeoPrecis's cross-reactivity distance is computed against an equal-length,
+position-aligned wild-type peptide, and the Łuksza amplitude term (A =
+Kd_WT/Kd_MT) requires that same paired wild-type peptide to supply its reference
+MHC binding affinity. Splice-junction-derived
 neoepitopes have no such counterpart by construction — they are novel reading
 frames spanning exon-exon joins and retained introns, not single substitutions of
 a germline residue — so the family does not transfer to this setting, and
@@ -1116,7 +1118,7 @@ natural next target in this landscape.
 
 | Tool | Layer / axis | Verdict | Carrier |
 |------|--------------|---------|---------|
-| ASNEO | End-to-end splice generator | Component reuse — GTEx normal-junction filter (design reference) | Issue #546 close comment / Issue #212, #566 |
+| ASNEO | End-to-end splice generator | Component reuse — GTEx normal-junction filter (design reference) | Issue #546 close comment; GTEx filter → Issue #212; cross-check → Issue #566 |
 | NeoGuider | End-to-end ranker | Component reuse — KDE + centered-isotonic calibration module | Issue #258 close comment / Issue #547 |
 | NeoPrecis | Immunogenicity beyond presentation (cross-reactivity distance) | Decline — requires a wild-type counterpart (missing value on junctions) | Issue #551 close comment |
 | Łuksza foreignness | Immunogenicity beyond presentation (foreignness) | Decline — wild-type-free but weak / uncalibratable | Issue #572 close comment / Issue #585 |
