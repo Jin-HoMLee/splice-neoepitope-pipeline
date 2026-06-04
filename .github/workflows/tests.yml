@@ -113,8 +113,13 @@ jobs:
         shell: bash -el {0}
         run: |
           set -uo pipefail
+          shopt -s nullglob
+          envs=( workflow/envs/*.yaml )
+          if [[ ${#envs[@]} -eq 0 ]]; then
+            echo "::error::No workflow/envs/*.yaml files found — nothing to solve"; exit 1
+          fi
           fail=0
-          for env in workflow/envs/*.yaml; do
+          for env in "${envs[@]}"; do
             echo "::group::solve ${env}"
             if conda env create --dry-run --name "probe-$(basename "${env}" .yaml)" --file "${env}"; then
               echo "OK: ${env} solves"
