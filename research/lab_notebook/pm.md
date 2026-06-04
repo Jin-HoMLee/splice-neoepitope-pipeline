@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-04
 
+### 20:31 UTC — Editor: PM
+
+#### Took the PM-owned routine-drafted PR end-to-end — `recheck_parent_status` now NOT_PLANNED-aware ([Issue #632](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/632), [PR #647](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/647))
+
+**First real exercise of the §1e flow-health sweep.** [PR #647](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/647) was one of the four 2026-06-03 overnight one-shot routine drafts that sat stranded at `Ready for review` for ~2 days (the investigation earlier this session). It's the PM-owned one (`role:pm` via [Issue #632](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/632)), so I took it through the owning-role handoff (`docs/remote_routines.md`): review → verify → lab-notebook → un-draft → merge — the end-to-end proof of the right-side sweep that the PM routine's new § 1e (Flow health) + [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) Sub-question F now mechanize.
+
+**Reviewed a machine-authored PR skeptically, not on trust.** The load-bearing claim — that fixing `classify_drift()` alone would compile, pass existing tests, and *do nothing* because `open_sub_issues()` discarded closed children — checks out: the fix adds `all_sub_issues()` + `has_not_planned_child()` and threads the `state_reason` signal through **both** call sites (`audit_parent_chain()` — the close-hook's `--issue` path — and `run_all_mode()`), each short-circuited (`not enriched and …`) so the extra `/sub_issues` read only fires at the all-closed boundary. Bracket ownership stays with `format_record()` (single `[REVIEW: …]`). No `.claude/` edits. Ran `tools/ci/test_recheck_parent_status.py` locally → **39 passed**; CI green on all three checks.
+
+**The fix.** `recheck_parent_status` flagged a bare `[COMPLETION DRIFT]` on any all-children-closed parent, blind to *how* each child closed. A child closed NOT_PLANNED carries deferred/descoped scope — so an all-closed parent with a NOT_PLANNED child is **not** necessarily complete (the [Issue #24](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/24) near-miss, whose core scope lived in NOT_PLANNED-closed [Issue #192](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/192)). Now: ≥1 NOT_PLANNED child → softer `[REVIEW: parent has a not-planned child — verify scope was delivered, not deferred]`; all-COMPLETED → `[COMPLETION DRIFT]` unchanged (regression-guarded both paths). Lands before the [Issue #617](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/617) pm→shared promotion of this hook.
+
 ### 15:10 UTC — Editor: PM
 
 #### Board pull learns issue timestamps — and the cross-repo-AC overhead it surfaced pivoted personas governance ([Issue #642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642), [PR #671](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/671))
