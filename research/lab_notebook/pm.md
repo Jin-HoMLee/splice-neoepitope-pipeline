@@ -8,6 +8,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-04
 
+### 14:15 UTC — Editor: PM
+
+#### Morning routine — per-role Ready-queue starvation diagnosed + refilled; flow-cap recalibration ([Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (board governance), [Issue #665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) (guard carve))
+
+**Container.** Thursday 2026-06-04 PM morning routine (run mid-afternoon; deferred from the morning slot). Mechanics nominal — closure audit (10 issues, 9 pass / 1 flag → #502 backfilled via [PR #662](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/662) (merged)), stand-up, replenishment, signals, warm-up — but two non-routine PM-methodology findings fell out of replenishment and are recorded here.
+
+**Finding 1 — the Ready queue was starving *per role*, masked by a healthy global count.** User flagged it from the symptom (*"the Scientist can't pull any Issue, the PM only one"*). Verified structural, not a missed commitment act. Per-role Ready depth at the start: **Scientist 0 / PM 1 / Developer 2** — the aggregate looked adequate while two roles sat at/near zero. Refilled in-session via the `Backlog → Ready` commitment act on 6 DoR-ready issues (milestone + Target synced each):
+- **Scientist 0 → 3:** [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) (i5-S3, real-science STAR cohort re-run), [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) + [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) (i6-S3, research housekeeping).
+- **PM 1 → 3:** [Issue #642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642) + [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (pm-i6).
+- **Developer 2 → 3:** [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) (i5-S3, STAR tuning); plus dual-labeled [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) → Dev sees 4.
+
+**The deeper cause — the Scientist's *science* Backlog is upstream dependency-gated, not under-committed.** Walking it: #233 waits on i2-S5, #381 is a design fork, #566 on licenses, #594 on #212, #585 on labels, #601 on a GPU run. Only #636 was a genuine science pull; #455/#634 are housekeeping with no science-stage milestone home (committed pragmatically to i6-S3). So "fill the Sci queue" cannot be solved by the commitment act alone when the upstream science gates have not cleared — a per-role Ready floor + dependency-aware replenishment is the structural fix, scoped onto [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E).
+
+**Finding 2 — the flow caps are calibrated against a ~5–6× stale close-rate.** Prompted by the user's instinct that the caps need adjusting; pulled 6 weeks of flow data rather than eyeballing it. Issues close **~25–31/wk** (~43 PRs/wk merged), at **net +9/wk inflow** — not the "~5/week" the news-cap rationale assumes. Conclusions: (a) **keep** the ≤1/day news cap — its *conclusion* still holds (net inflow exceeds outflow; news is the lowest-signal channel), only the rationale number is wrong (MM-flagged to fix the clause in `shared/feedback_morning_routine.md`); (b) the real mis-calibration is the **global** Ready threshold masking the per-role starvation of Finding 1. Both routed to [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E) with the data.
+
+**Also shipped this session.** Closed milestone `i3 - S7 - Publication - Splice Neoantigen Tooling Landscape (Lit Review)` (0 open / 15 closed; Scientist verified (a) complete — no consolidating-deck gap: the arc's final artifact is the manuscript DISCUSSION subsection, [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610) (closed), not a separate deck). Intake-triaged 4 issues to Backlog (#630, #646, #658, #659). Carved [Issue #665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) — cross-repo guard-coverage gap (project-repo PreToolUse + AC-gate guards don't fire from the personas cwd), `role:developer`, raised by MM.
+
+**Journal-only entry** — closes no open Issue; the durable decision records live on [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E comment) + the standup (MM hand-offs).
+
 ### 12:57 UTC — Editor: PM
 
 #### Closure-audit backfill — GitHub Issue fields eval: not applicable to user-owned repos ([Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502))
