@@ -6,6 +6,72 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-04
+
+### 15:10 UTC — Editor: PM
+
+#### Board pull learns issue timestamps — and the cross-repo-AC overhead it surfaced pivoted personas governance ([Issue #642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642), [PR #671](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/671))
+
+**The tool.** Threaded content-level `createdAt/updatedAt/closedAt` into `scripts/board_open_items.py` (Issues + PRs) and added two recency modes keyed on **`Issue.updatedAt`** (not `ProjectV2Item.updatedAt` — a bare board-field nudge must not reset staleness): `--sort-updated` (momentum, Phase 1a) and `--stale-days N` (dormancy sweep, oldest-active first). Table gains an `Age` column; JSON gains the three keys (additive — `check_ready_queue.sh`'s `--json | jq length` contract preserved). Mechanizes two PM touchpoints that were on weaker substitutes (Phase 1a momentum diff; the Phase 1c milestone-health liveness check).
+
+**Verification ladder.** TDD red→green (20 unit tests) → an adversarial **4-lens** review (recency-logic / spec-fidelity / regression-compat / test-quality) that folded in real coverage gaps — the JSON-array-shape consumer contract, the inclusive `>=` stale boundary, the default no-flag ordering guard — → the `@-claude` bot review (**approve with nits**), all 5 nits folded (`--stale-days 0` foot-gun doc + test, `main()` `--stale-days` wiring test, `pytest.approx`, `now=None` fallback, JSON timestamp-key assertions). Full suite **436 passed, 0 regressions**.
+
+**AC3 (cross-repo) landed by MM.** The morning-routine wiring — Phase 1a momentum + the Phase 1c L87 liveness line — lives in personas `pm/feedback_morning_routine.md`, committed by MM (`6642d65`). That split is the interesting part:
+
+**The governance pivot #642 forced.** This one Issue's ACs spanned **two repos** — tool code (project) + a memory edit (personas, MM-committed) — so closing it needed a PM→MM→PM relay. It completed only because MM was active in a parallel session; structurally it's a per-Issue cross-session tax. Adopted as a trial ([Issue #672](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/672)): **#1** each role commits its own role-dir (`pm/`,`scientist/`,`developer/`); MM owns `shared/` + audits — because MM-sole-committer doesn't *prevent* the stranding it was created for, it *centralizes* it (edits wait longer); **#2** keep every Issue's ACs within a single repo, so the tool Issue closes on its code and memory-wiring is a cheap role-owned fast-follow. #642 is grandfathered as the **last** old-pattern cross-repo-AC Issue.
+
+### 14:15 UTC — Editor: PM
+
+#### Morning routine — per-role Ready-queue starvation diagnosed + refilled; flow-cap recalibration ([Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (board governance), [Issue #665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) (guard carve))
+
+**Container.** Thursday 2026-06-04 PM morning routine (run mid-afternoon; deferred from the morning slot). Mechanics nominal — closure audit (10 issues, 9 pass / 1 flag → #502 backfilled via [PR #662](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/662) (merged)), stand-up, replenishment, signals, warm-up — but two non-routine PM-methodology findings fell out of replenishment and are recorded here.
+
+**Finding 1 — the Ready queue was starving *per role*, masked by a healthy global count.** User flagged it from the symptom (*"the Scientist can't pull any Issue, the PM only one"*). Verified structural, not a missed commitment act. Per-role Ready depth at the start: **Scientist 0 / PM 1 / Developer 2** — the aggregate looked adequate while two roles sat at/near zero. Refilled in-session via the `Backlog → Ready` commitment act on 6 DoR-ready issues (milestone + Target synced each):
+- **Scientist 0 → 3:** [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) (i5-S3, real-science STAR cohort re-run), [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) + [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) (i6-S3, research housekeeping).
+- **PM 1 → 3:** [Issue #642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642) + [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (pm-i6).
+- **Developer 2 → 3:** [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) (i5-S3, STAR tuning); plus dual-labeled [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) → Dev sees 4.
+
+**The deeper cause — the Scientist's *science* Backlog is upstream dependency-gated, not under-committed.** Walking it: #233 waits on i2-S5, #381 is a design fork, #566 on licenses, #594 on #212, #585 on labels, #601 on a GPU run. Only #636 was a genuine science pull; #455/#634 are housekeeping with no science-stage milestone home (committed pragmatically to i6-S3). So "fill the Sci queue" cannot be solved by the commitment act alone when the upstream science gates have not cleared — a per-role Ready floor + dependency-aware replenishment is the structural fix, scoped onto [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E).
+
+**Finding 2 — the flow caps are calibrated against a ~5–6× stale close-rate.** Prompted by the user's instinct that the caps need adjusting; pulled 6 weeks of flow data rather than eyeballing it. Issues close **~25–31/wk** (~43 PRs/wk merged), at **net +9/wk inflow** — not the "~5/week" the news-cap rationale assumes. Conclusions: (a) **keep** the ≤1/day news cap — its *conclusion* still holds (net inflow exceeds outflow; news is the lowest-signal channel), only the rationale number is wrong (MM-flagged to fix the clause in `shared/feedback_morning_routine.md`); (b) the real mis-calibration is the **global** Ready threshold masking the per-role starvation of Finding 1. Both routed to [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E) with the data.
+
+**Also shipped this session.** Closed milestone `i3 - S7 - Publication - Splice Neoantigen Tooling Landscape (Lit Review)` (0 open / 15 closed; Scientist verified (a) complete — no consolidating-deck gap: the arc's final artifact is the manuscript DISCUSSION subsection, [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610) (closed), not a separate deck). Intake-triaged 4 issues to Backlog (#630, #646, #658, #659). Carved [Issue #665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) — cross-repo guard-coverage gap (project-repo PreToolUse + AC-gate guards don't fire from the personas cwd), `role:developer`, raised by MM.
+
+**Journal-only entry** — closes no open Issue; the durable decision records live on [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (Sub-question E comment) + the standup (MM hand-offs).
+
+### 12:57 UTC — Editor: PM
+
+#### Closure-audit backfill — GitHub Issue fields eval: not applicable to user-owned repos ([Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502))
+
+**Why this entry is retrospective.** [Issue #502](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/502) closed COMPLETED on 2026-06-03 via a closing comment (no PR), and today's PM morning closure audit (10-issue fan-out + adversarial verify) flagged the missing `pm.md` entry — confirmed real, not a stale-snapshot false positive (HEAD == origin/main, live grep). The closure-audit bot had independently flagged the same gap at close-time. Backfilling per the established retrospective pattern (cf. scientist [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232)/[Issue #511](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/511)); the close itself was sound (verdict + evidence + revival triggers all recorded on the Issue).
+
+**Trigger.** [GitHub Changelog 2026-05-21](https://github.blog/changelog/2026-05-21-issue-fields-are-now-in-public-preview-for-all-organizations/) — Issue fields (single-select / text / number / date) entered public preview, with REST support for setting values at creation. Question: could native Issue fields replace some of project #9's board metadata (`role:*`, Priority, Size, Status, Target), collapsing the two-step "create Issue + set board field" flow?
+
+**Verdict: not applicable — board fields stay canonical.** The feature is **organization-scoped**; this repo is under user `Jin-HoMLee`, not an org. Probed 2026-06-03:
+- `repositoryOwner(login:"Jin-HoMLee").__typename` = `User` (not Organization).
+- `repository.issueTypes` = `null` — the org-only Issue-types/fields surface is absent.
+- REST `GET /repos/.../issues/fields` → **404 Not Found**.
+
+**Why it'd be a near-non-event even if available.** The fields that could plausibly collapse to native Issue fields (Priority, Size, `role:*`) are single-select metadata, but the load-bearing ones — **Status** (kanban column), **Target** (roadmap), **cross-Issue ordering** — are inherently project-level views and would stay board-level regardless. The two-step create flow isn't eliminable by Issue fields alone, so even the upside motivating the spike is limited.
+
+**Outcome.** No migration, no follow-up Issue. Board fields on project #9 remain canonical. **Revival triggers:** (a) this repo migrates to an organization, or (b) GitHub extends Issue fields to user-owned repos.
+
+### 10:27 UTC — Editor: PM
+
+#### Visual morning-routine cockpit — design spec + Phase-1 plan ([Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656), [PR #657](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/657))
+
+**Trigger.** Open-ended request to make the daily morning routine "more visual / interactive / coupled to the session," eventually a reusable Claude Code skill for all three roles. Ran the full brainstorm → spec → plan arc in one session.
+
+**Design (9 decisions).** Cockpit form factor (pinned summary + live progress rail + focus panel); bidirectional + co-equal surfaces; **hybrid liveness** (page-local nav acts live, any GitHub write confirms in chat); delivered as a `/morning` skill; PM-first but config-driven so Dev/Sci drop in; purpose-built stdlib server; one-server-per-clone; every Issue/PR/milestone rendered as a GitHub hyperlink. Full decision log, push/pull protocol, and security threat model in the spec.
+
+**Phase-0 spike — the load-bearing unknown, de-risked with evidence.** The whole feature rests on a browser click auto-waking an idle CLI session. Two spikes: (1) a real browser click woke the session once; (2) a hardened loop on the *purpose-built* server drove **6/6 consecutive re-arm wakes, 0% miss, 9/9 events** → **GO** on the full live bridge (vs the batch-reconcile fallback). Coalescing (9 events → 6 wakes) bounds token cost; end-to-end latency ~7–35 s.
+
+**Adversarial review.** A 7-lens fan-out review of the spec caught a foundational over-claim (the first spike was n=1, single-shot, on the rejected companion infra — corrected in §2.1) plus two security blockers (no CSRF token on `POST /event`; a board-mutating triage mis-tagged `safe`). All folded in. The bot review then approved-for-merge and *sharpened* the §14 CSRF analysis — the custom `X-Morning-Token` header + `application/json` already make the request non-simple, so browser CSRF is defeated by preflight; the Origin check is belt-and-suspenders. Fixes pushed in `a8ff01a`.
+
+**Governance — split by work-type.** Resolved the dual-role-label question by splitting the tracker: design/pre-implementation → [Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656) (`role:pm`, this PR); implementation epic → [Issue #655](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/655) (`role:developer`), build sub-issues carved later. Branch re-created via `gh issue develop` after an initial manual-`checkout -b` slip — the convention gap was deduped and flagged onto the existing [Issue #626](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/626) (PreToolUse hooks).
+
+[PR #657](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/657) closes [Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656) (design); [Issue #655](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/655) (implementation epic) stays open.
+
 ## 2026-06-03
 
 ### 13:42 UTC — Editor: PM

@@ -49,7 +49,7 @@ log ""
 # ---------------------------------------------------------------------------
 log "[1/8] Installing system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y git curl wget tmux samtools
+sudo apt-get install -y git curl wget tmux samtools tabix
 log "    Done."
 
 # ---------------------------------------------------------------------------
