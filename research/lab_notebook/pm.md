@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-04
 
+### 15:10 UTC — Editor: PM
+
+#### Board pull learns issue timestamps — and the cross-repo-AC overhead it surfaced pivoted personas governance ([Issue #642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642), [PR #671](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/671))
+
+**The tool.** Threaded content-level `createdAt/updatedAt/closedAt` into `scripts/board_open_items.py` (Issues + PRs) and added two recency modes keyed on **`Issue.updatedAt`** (not `ProjectV2Item.updatedAt` — a bare board-field nudge must not reset staleness): `--sort-updated` (momentum, Phase 1a) and `--stale-days N` (dormancy sweep, oldest-active first). Table gains an `Age` column; JSON gains the three keys (additive — `check_ready_queue.sh`'s `--json | jq length` contract preserved). Mechanizes two PM touchpoints that were on weaker substitutes (Phase 1a momentum diff; the Phase 1c milestone-health liveness check).
+
+**Verification ladder.** TDD red→green (20 unit tests) → an adversarial **4-lens** review (recency-logic / spec-fidelity / regression-compat / test-quality) that folded in real coverage gaps — the JSON-array-shape consumer contract, the inclusive `>=` stale boundary, the default no-flag ordering guard — → the `@-claude` bot review (**approve with nits**), all 5 nits folded (`--stale-days 0` foot-gun doc + test, `main()` `--stale-days` wiring test, `pytest.approx`, `now=None` fallback, JSON timestamp-key assertions). Full suite **436 passed, 0 regressions**.
+
+**AC3 (cross-repo) landed by MM.** The morning-routine wiring — Phase 1a momentum + the Phase 1c L87 liveness line — lives in personas `pm/feedback_morning_routine.md`, committed by MM (`6642d65`). That split is the interesting part:
+
+**The governance pivot #642 forced.** This one Issue's ACs spanned **two repos** — tool code (project) + a memory edit (personas, MM-committed) — so closing it needed a PM→MM→PM relay. It completed only because MM was active in a parallel session; structurally it's a per-Issue cross-session tax. Adopted as a trial ([Issue #672](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/672)): **#1** each role commits its own role-dir (`pm/`,`scientist/`,`developer/`); MM owns `shared/` + audits — because MM-sole-committer doesn't *prevent* the stranding it was created for, it *centralizes* it (edits wait longer); **#2** keep every Issue's ACs within a single repo, so the tool Issue closes on its code and memory-wiring is a cheap role-owned fast-follow. #642 is grandfathered as the **last** old-pattern cross-repo-AC Issue.
+
 ### 14:15 UTC — Editor: PM
 
 #### Morning routine — per-role Ready-queue starvation diagnosed + refilled; flow-cap recalibration ([Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (board governance), [Issue #665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) (guard carve))
