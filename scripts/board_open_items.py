@@ -275,7 +275,8 @@ def main() -> int:
     p.add_argument("--sort-updated", dest="sort_updated", action="store_true",
                    help="Sort by last activity (Issue.updatedAt), most-recent first (momentum)")
     p.add_argument("--stale-days", dest="stale_days", type=int, metavar="N",
-                   help="Keep only items idle >= N days, oldest-active first (dormancy sweep)")
+                   help="Keep only items idle >= N days, oldest-active first (dormancy sweep; "
+                        "N=0 keeps all past-dated items, it does not filter everything out)")
     p.add_argument("--json", dest="as_json", action="store_true", help="Emit JSON array instead of a table")
     args = p.parse_args()
 

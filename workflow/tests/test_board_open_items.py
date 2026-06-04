@@ -13,6 +13,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 # Make top-level scripts/ importable (board_open_items.py is a standalone CLI,
 # not a Snakemake script:-invoked module under workflow/scripts/).
 _SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
@@ -71,7 +73,7 @@ def test_normalize_includes_timestamps():
 
 def test_age_days_basic():
     # 3 days, 12 hours before NOW
-    assert boi.age_days("2026-06-01T00:00:00Z", NOW) == 3.5
+    assert boi.age_days("2026-06-01T00:00:00Z", NOW) == pytest.approx(3.5)
 
 
 def test_age_days_handles_missing():
@@ -186,6 +188,8 @@ def test_main_json_emits_flat_array(monkeypatch, capsys):
     assert isinstance(parsed, list)      # not an envelope object
     assert len(parsed) == 2              # what `jq length` would report
     assert {it["number"] for it in parsed} == {1, 2}
+    # additive timestamp keys reach the JSON output (the PR-body additive-field claim)
+    assert all(k in parsed[0] for k in ("created_at", "updated_at", "closed_at"))
 
 
 def test_main_default_no_flags_uses_sort_key(monkeypatch, capsys):
@@ -209,6 +213,30 @@ def test_main_sort_updated_overrides_sort_key(monkeypatch, capsys):
     assert [it["number"] for it in json.loads(out)] == [1, 2]
 
 
+def test_main_stale_days_filters_via_main(monkeypatch, capsys):
+    """main() routes --stale-days through apply_recency. Ancient/future fixtures
+    keep this robust to the real clock (main() uses datetime.now, not NOW)."""
+    raw = [
+        _board_item(1, updated="2099-01-01T00:00:00Z"),  # future → age < 14 → dropped
+        _board_item(2, updated="2020-01-01T00:00:00Z"),  # ancient → age >= 14 → kept
+    ]
+    _, out = _run_main(monkeypatch, capsys, ["--stale-days", "14", "--json"], raw)
+    assert [it["number"] for it in json.loads(out)] == [2]
+
+
+def test_main_stale_days_zero_keeps_all_past_items(monkeypatch, capsys):
+    """--stale-days 0 (idle >= 0) keeps every past-dated item, oldest-active first —
+    it does NOT filter everything out (the documented foot-gun)."""
+    raw = [
+        _board_item(1, updated="2025-01-01T00:00:00Z"),
+        _board_item(2, updated="2020-01-01T00:00:00Z"),
+    ]
+    _, out = _run_main(monkeypatch, capsys, ["--stale-days", "0", "--json"], raw)
+    parsed = json.loads(out)
+    assert {it["number"] for it in parsed} == {1, 2}      # both kept
+    assert [it["number"] for it in parsed] == [2, 1]       # oldest-active first
+
+
 # --- table Age column ------------------------------------------------------
 
 def test_age_label_clamps_future_to_zero():
@@ -227,3 +255,12 @@ def test_format_table_age_column_position_and_missing_render():
     assert header.index("Age") < header.index("Role")
     assert "3d" in table
     assert "—" in table   # missing-timestamp renders in the TABLE, not just the helper
+
+
+def test_format_table_now_defaults_to_real_clock():
+    # the now=None fallback (datetime.now) renders without error; ancient fixture
+    # so the rendered Age is clock-independent
+    items = [boi.normalize(_board_item(1, updated="2020-01-01T00:00:00Z"))]
+    table = boi.format_table(items)  # no now= → exercises the None branch
+    assert "Age" in table.splitlines()[0]
+    assert "issue 1" in table
