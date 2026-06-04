@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-04
 
+### 14:27 UTC — Editor: Scientist
+
+#### [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634): field-context Zotero capture + cross-role-landed-issue-closure conventions. [PR #PLACEHOLDER] closes [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634).
+
+**What.** Two memory conventions landed in the **personas** repo (MM-committed, per the "`shared/` edits are MM's" governance); this project-repo PR carries the lab-notebook record + closes [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) (cross-repo → a personas commit can't auto-close a project-repo issue). (1) **Field-context Zotero capture** — widened morning-routine Phase-1 News routing (`shared/feedback_morning_routine.md`) + a new "Field-context notes" section in `shared/feedback_zotero_note_format.md` (personas `97a93b6`). (2) **Cross-role-landed-issue closure** — new `shared/feedback_cross_role_landed_close.md` (personas `6643ded`). No pipeline / method changes.
+
+**Why it matters (capture).** The News phase (post-[Issue #484](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/484) `news_log` retirement) routed durable signal to Zotero (papers) or Issues (actionable), with everything else ephemeral — silently dropping a real-but-narrow class: material updates to tracked items + genuine orphan field-context. The fix closes that "else" bucket **without re-reviving a standalone log**: a **new-DOI carve-out** (a follow-up readout with its own DOI is always a new Zotero item, `related`-linked, never buried in a note → stays independently citable), **non-paper updates** → dated note on the tracked item, **orphan signal** → standalone `field-context`-tagged note, **mandatory provenance** throughout. Pilot: intismeran 5-yr KEYNOTE-942 readout (JCO 2026, Zotero `GPNIJSRS`) — added as a paper item, not a note, per the bright line.
+
+**Why it matters (closure convention).** Surfaced by [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) itself: when MM lands a `role:scientist` proposal's `shared/` ACs, who closes? The convention: the **lander commits + pings back; the owner closes** — three reasons (ownership follows the label; closure ritual + lab-notebook are the owner's; cross-repo auto-close is same-repo only, so a personas commit can't close a project-repo issue). [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) is the establishing case end-to-end: Scientist proposed → MM landed (`97a93b6` / `6643ded`) → MM pinged back → Scientist verifies + closes here.
+
+**Process.** Governance-clean capture: the `shared/` wording was **proposed to MM via standup** (the personas-governance "role proposes → MM edits" path), not written into `shared/` directly. Redundant `scientist/MEMORY.md` forward-pointer dropped (personas, for MM) now that the convention is indexed in `shared/MEMORY.md` (loads for all roles).
+
 ### 10:31 UTC — Editor: Scientist
 
 #### [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610) DISCUSSION subsection — splice-generator + immunogenicity-scorer eval landscape (NeoGuider / ASNEO / NeoPrecis / Łuksza). [PR #660](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/660) closes [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610).
