@@ -190,7 +190,7 @@ Arm-lifetime is **decoupled from event-processing**. The watcher's exit conditio
 
 ### 8.2 Wake economy — nav is page-local, builders cache (controls token cost)
 
-- **Pure `nav`/`jump` are handled page-side and do NOT wake the session.** The page changes focus locally and the session reconciles lazily on the next *action* wake. Wakes are reserved for actions that genuinely need session work. This is the primary lever against the §2.1(4) token blow-up.
+- **Pure `nav`/`jump` are handled page-side and do NOT wake the session.** The page changes focus locally and the session reconciles lazily on the next *action* wake. Wakes are reserved for actions that genuinely need session work. This is the primary lever against the §2.1(4) token blow-up. **Action buttons render only for the session's active phase (`focus.phase_id`);** a page-local jump to another rail phase is a view-only highlight that exposes **no** action buttons — so a page-local nav can never surface a stale, silently-no-op action. (Making a *different* phase active — to act on it — is itself an action that wakes the session.)
 - **Builders run once when a phase becomes active**; their structured blocks are cached in `state`. A `github_write` action mutates the cached state in-place (or targeted-refetches only the affected row) rather than re-running the whole gh-heavy builder. Live `gh` calls are capped per routine (secondary-rate-limit exposure noted).
 - A **token budget** is part of the Phase-0 spike: estimate tokens/wake = (system prompt + current transcript) and model the worst case (N action-wakes × growing transcript); set a hard click-budget and a go/no-go threshold.
 
@@ -286,8 +286,8 @@ tools/morning/
 
 Controls (all required):
 
-1. **Per-launch secret token** generated at server start, written only into `cockpit.html` + `.morning/server-info` (never logged, passed via **header** never URL). Every `POST /event` must present it → `403` otherwise. Loopback binding is necessary but **not sufficient** against CSRF (a cross-origin simple POST is *sent* even if the response can't be read — and the side effect, not the response, is the attack).
-2. **Origin/Referer check** on `POST /event` (reject cross-origin); reject any body whose content-type isn't `application/json`. Defence-in-depth with the token.
+1. **Per-launch secret token** generated at server start, written only into `cockpit.html` + `.morning/server-info` (never logged, passed via the custom **`X-Morning-Token`** header, never the URL). Every `POST /event` must present it → `403` otherwise. **This alone fully defeats *browser* CSRF:** the custom header + the required `application/json` content-type make `POST /event` a *non-simple* CORS request, so any cross-origin page triggers a preflight `OPTIONS`; the server implements **no** CORS headers, so the browser blocks the request before it ever reaches `do_POST`. **Never add permissive CORS headers** — that reopens the hole. (The token still matters independently for *non-browser* local processes — `curl`, another local process — which bypass CORS entirely; loopback binding bounds reachability to the host but is not itself a CSRF control.)
+2. **Content-type enforcement + Origin/Referer check** on `POST /event`: reject any body whose content-type isn't `application/json` (`415`) — *load-bearing*, since the `application/json` requirement is part of what makes the request non-simple/preflighted (control 1), not merely input hygiene. The Origin/Referer check (reject cross-origin) is genuine **belt-and-suspenders** on top of control 1's already-complete browser-CSRF defense — a Phase-5 implementor must not treat it as the missing piece that makes Phases 1–4 safe (they already are, via the custom-header preflight).
 3. **`safe` redefined narrowly = page-local navigation only** (no state mutation, no `gh`). **Every GitHub/board mutation is `github_write` (confirm-gated)** — including triage→Backlog. A dispatcher assertion: a handler tagged `safe` that attempts any subprocess/`gh` call is a **hard error**, not silent execution.
 4. **Server-authoritative action kind.** The dispatcher **ignores any `kind` on the wire** and re-derives safety class solely by `id` → action registry. Unknown/absent/wrong-phase `id` → no-op. (Safety class is not carried on the wire at all.)
 5. **`events.jsonl` is UNTRUSTED, typed command input** — never prose for the LLM. Parse each line, match `id` against the registry, act only on the registry handler, and **never surface raw event-supplied strings into reasoning or chat** (re-derive every label from trusted `state.json`/registry). A **per-wake event-count cap + rate limit** bounds wake-amplification (token-cost DoS). A malformed line advances the cursor without crashing.
@@ -295,7 +295,7 @@ Controls (all required):
 7. **Link hardening.** `cockpit.js` allowlists `https` schemes (rejects `javascript:`/`data:`/`file:` → inert text) and adds `rel="noopener noreferrer"` to every `target="_blank"`. Builders only emit URLs constructed from known GitHub patterns, never echo a user-supplied URL field.
 8. **Idle-wake window.** The auto-wake channel is open while the server lives; the server's idle watchdog (§10) bounds an abandoned-but-live window. On idempotent reuse, the token is **regenerated** so a stale/leaked token can't be replayed.
 
-Boundary after mitigations: **same-user processes that can read `server-info`/`cockpit.html` are trusted; cross-user and browser-CSRF are not.**
+Boundary after mitigations: **browser CSRF is blocked** (custom-header preflight, control 1); the residual trust boundary is **same-user local processes that can read the token** (`server-info`/`cockpit.html`); cross-user is out of scope.
 
 ## 15. Open questions (resolve in writing-plans or Phase 0)
 
@@ -311,7 +311,7 @@ Unified multi-role aggregator view; SSE/WebSocket push (polling suffices); PDF/h
 
 ## 17. Memory / governance follow-ups
 
-- **Tracking Issue (do first):** file a role-labelled, sized Issue with a Priority rationale; add its `[Issue #N](url)` to this spec's header. This is a **propose-and-confirm** item (cross-role framework + ongoing maintenance) per `feedback_ask_for_help.md`, not an auto-committed build.
+- **Tracking Issues (filed 2026-06-04):** split by work-type — design tracked by [Issue #656](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/656) (`role:pm`), implementation epic [Issue #655](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/655) (`role:developer`); both filed via propose-and-confirm (cross-role framework + ongoing maintenance per `feedback_ask_for_help.md`). The header references both. **The Phase-5-deferred §14 controls (origin-check, `0600` perms, token-regen-on-reuse) must be tracked as explicit checklist items in the #655 build sub-issues** so they don't slip.
 - **"good morning" routing edit (personas repo, MM-committed):** the Always-in-effect rule must be amended to "invoke the `/morning` skill," and **must land before the skill is usable** (§2.2). Flag for MM; this role does not commit the personas repo.
 - **Lab-notebook merge gate:** the build PR ships via `scripts/audit_and_merge.sh` (not bare `gh pr merge`); a `research/lab_notebook/pm.md` entry (or `<!-- skip-lab-notebook: routine -->`) is required at merge.
 - The skill code itself lives in the **project repo** `.claude/` + `tools/morning/` and is committed normally.

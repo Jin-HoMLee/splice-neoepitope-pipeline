@@ -266,6 +266,8 @@ import json
 import threading
 import time
 
+import runtime
+
 
 class EventStore:
     def __init__(self, path):
@@ -305,7 +307,7 @@ class EventStore:
 
     def truncate(self):
         with self._lock:
-            open(self.path, "w").close()
+            runtime.atomic_write_text(self.path, "")  # atomic (temp + os.replace), per spec §4.2
             self._seq = 0
 ```
 
@@ -844,6 +846,7 @@ This productionises the Phase-0 spike (§18 Phase 0) against the real server, wi
 - [ ] **Step 1: Create the re-arming watcher script**
 
 ```bash
+#!/bin/bash
 # tools/morning/watcher.sh
 # Exits 0 when events.jsonl has a seq greater than $1 (the cursor); else times out.
 # The session re-arms this each wake (spec §8.1). seq comes from the server, not the clock.
@@ -851,7 +854,7 @@ set -u
 DIR="${MORNING_DIR:?set MORNING_DIR}"
 CURSOR="${1:-0}"
 EV="$DIR/events.jsonl"
-for _ in $(seq 1 1800); do   # 1800 * 0.5s = 15 min, then re-arm
+for _ in $(seq 1 1800); do   # 1800 * 0.5s = 15 min, then exit (session re-arms)
   MAX=$(grep -o '"seq": *[0-9]*' "$EV" 2>/dev/null | grep -o '[0-9]*' | sort -n | tail -1)
   MAX=${MAX:-0}
   if [ "$MAX" -gt "$CURSOR" ]; then
