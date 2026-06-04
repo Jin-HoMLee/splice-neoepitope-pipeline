@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-04
+
+### 10:31 UTC — Editor: Scientist
+
+#### [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610) DISCUSSION subsection — splice-generator + immunogenicity-scorer eval landscape (NeoGuider / ASNEO / NeoPrecis / Łuksza). [PR #660](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/660) closes [Issue #610](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/610).
+
+**What.** Consolidating manuscript DISCUSSION subsection (`DISCUSSIONS.md`, ~125 lines) mirroring the [Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432) TCR-pMHC scoring-landscape subsection's 4-part shape (taxonomy → per-tool verdicts → synthesis → carrier table). Lands the i3-S1 generator / immunogenicity-scorer eval arm that was evaluated but never written up — the TCR-pMHC arm already had its subsection ([Issue #432](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/432)), this arm had zero `DISCUSSIONS.md` coverage. Six references reconciled in `REFERENCES.md` (new `## G` / `## W` sections + `L`/`Z` inserts + tracking-table rows). No pipeline / method changes.
+
+**Why it matters (the payload).** The immunogenicity-beyond-presentation family encodes immunogenicity as a mutant-vs-wild-type **self-contrast** — NeoPrecis's cross-reactivity distance (needs an aligned WT peptide) and the Łuksza amplitude term (`A = Kd_WT/Kd_MT`, needs the paired WT peptide for its reference MHC binding affinity) — which **splice-junction-derived neoepitopes lack by construction** (novel reading frames over exon-exon joins / retained introns, no aligned germline self). So the family does not transfer; NeoPrecis's missing-value-on-junction-peptides is the explicit failure. Łuksza foreignness is the lone WT-free exception (structurally runs) but was declined on signal strength. Per-tool verdicts: ASNEO → component reuse (GTEx normal-junction filter, design reference); NeoGuider → component reuse (KDE + centered-isotonic calibration); NeoPrecis → decline; Łuksza foreignness → decline.
+
+**Forward-pointer + board-backing.** The Synthesis closes by pointing to **structure-aware** scorers as the WT-free frontier — ImmunoStruct (Givechian et al., *Nat Mach Intell* 2026). Filed as eval [Issue #659](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/659) so the manuscript actionable is backed on board #9 before merge (slides-for-humans / board-for-actionables rule). Carrier column in the summary table points each verdict at its board provenance, mirroring the TCR-pMHC table.
+
+**Verification (citations vs Zotero `Z38GTJNW`).** All six references cited from the curated Zotero records rather than the eval decks — which caught two errors: NeoGuider's first author is **Zhao** (the eval deck's `refs.bib` had "Wei", the 2nd author); the ASNEO DOI is **10.18632/aging.103516** ([Issue #546](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/546)'s body has the wrong `…103581`). Wells / TESLA DOI verified via CrossRef. AC scan clean: "splice-junction-derived" terminology (no bare "splice peptide"), American spelling, presentation vocabulary (no "binder / binding affinity" for the pipeline's own scoring).
+
+**Review.** @-claude review: 11 confirmations clean + 3 findings. **Finding 1 (substantive) — pushed back with the source.** The reviewer characterized the Łuksza amplitude term as VAF / clonal-dynamics and proposed a VAF-based rewrite; our eval deck (`research/evals/issue_572_foreignness/slides.qmd`) shows `A = Kd_WT/Kd_MT` is a peptide–MHC *binding* ratio needing the paired WT peptide — so the original framing was accurate and the per-tool Łuksza entry already introduced the amplitude term, i.e. the per-tool↔Synthesis loop was already closed. Took the valid kernel: the Synthesis now distinguishes the two peptide-level WT dependencies precisely (commit `b7ebd78`). **Finding 2 (adopted):** sharpened the ASNEO carrier cell to separate GTEx-filter ([Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)) from cross-check ([Issue #566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566)). **Finding 3 (kept):** the NeoGuider "delegates to ASNEO" provenance is its carrier cell ([Issue #258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/258)) per the mirror's design (no inline issue numbers in prose, consistent with the TCR-pMHC subsection).
+
+**Process.** Brainstormed the design first (the ImmunoStruct forward-pointer + eval-Issue scoping was a user-confirmed scoping call) before writing; section-by-section manuscript edit, no deletions (154 insertions / 0 deletions on the first commit). Commits `4dd3e07` (subsection + references) + `b7ebd78` (review response).
+
 ## 2026-06-03
 
 ### 20:24 UTC — Editor: Scientist
