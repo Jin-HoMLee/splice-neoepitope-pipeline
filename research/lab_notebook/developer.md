@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-04 — Cloud re-run robustness + CI conda env-solve guard ([PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) closes [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) + [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664); [PR #668](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/668) closes [Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646))
+
+### 14:50 UTC — Editor: Developer
+
+The [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) patient validation surfaced two infra gaps in one afternoon, both now fixed.
+
+**1. CI is blind to conda solver failures → env-solve guard ([PR #668](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/668) / [Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646)).** The [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629) STAR re-break (bioconda libdeflate/htslib drift) died at `CreateCondaEnvironmentException` on the prod VM because `snakemake -n` walks the DAG without building envs. New `pipeline-conda-env-solve` CI job dry-solves every `workflow/envs/*.yaml` on linux-64 (Miniforge, strict). **Key design call:** it runs on *every* PR, NOT path-filtered (the original AC #2) — because #629 was upstream drift with **no env-file change**, which a path filter would have skipped. (Long-term: add a scheduled run for pure-drift detection.) CLAUDE.md's "what `snakemake -n` doesn't catch" now points at it. Verified: green on all 7 current envs; red (exit 1) on an unsolvable spec.
+
+**2. `run_cloud_gpu.sh` re-run fragility ([PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) / [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664) + [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658)).** patient_002's first launch **false-completed in 2 s**: the completion poller greps `pipeline.log` for "100% done", and patient_001's *successful* run had left that string in the VM's log — matched before the new run's `tee` truncated it, so the launcher uploaded stale results + stopped the VM. Fix: `rm -f pipeline.log` before the snakemake tmux ([Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664)). Also added a pre-run results snapshot ([Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658)) so before/after comparative analyses keep a durable before-state. Filed [Issue #669](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/669) for a sibling poller bug the bot review spotted (case-sensitive `grep 'Error'` false-positives).
+
+**Learning:** a fixed + CI-green env can re-break from upstream channel churn with no repo change (#629) — so guard the *solve* in CI, on every PR. And a completion poller that reads a persistent log file must clear it per-run, or a prior success silently aborts the next run.
+
 ## 2026-06-04 — STAR env re-broke overnight from upstream bioconda churn; pinned DOWN to 2.7.10b ([PR #661](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/661) closes [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629), reopened)
 
 ### 10:56 UTC — Editor: Developer

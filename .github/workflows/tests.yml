@@ -94,6 +94,9 @@ jobs:
     # only surfaces on a real `--use-conda` run on the VM (hours in). This job
     # solves every env up front. ubuntu-latest is linux-64 + Miniforge
     # (channel-priority strict), matching the GPU VM, so the solve is faithful.
+    # Native glibc is >=2.35 (Ubuntu 22.04+ runner), matching the production VM,
+    # so CONDA_OVERRIDE_GLIBC (the knob the macOS dev cross-solve needs — see
+    # star.yaml) is unnecessary here.
     # Limitation: `--dry-run` solves the conda layer only; `pip:` blocks (e.g.
     # python.yaml's torch pin) are not resolved here.
     runs-on: ubuntu-latest
