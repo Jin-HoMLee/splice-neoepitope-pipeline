@@ -187,7 +187,7 @@ Snakemake's `PythonScript.write_script` (`snakemake/script/__init__.py:807`) unc
 
 ### What `snakemake -n` (dry-run) does NOT catch
 `pipeline-snakemake-dry-run` in CI walks the DAG without (a) building conda envs or (b) executing scripts. Bug classes structurally invisible to dry-run:
-- **Conda solver failure** — e.g. `IMGTgeneDL>=0.7.0` pinned when PyPI max is `0.6.1`. Envs are built lazily on first execute.
+- **Conda solver failure** — e.g. `IMGTgeneDL>=0.7.0` pinned when PyPI max is `0.6.1`, or upstream channel drift (the bioconda libdeflate/htslib transition that re-broke `star.yaml`, [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629)). Envs are built lazily on first execute. **Backstopped by the `pipeline-conda-env-solve` CI job ([Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646)), which dry-solves every `workflow/envs/*.yaml` on linux-64; it runs on *every* PR (not path-filtered) so it also catches upstream drift with no env-file change.** Watch the conda prerelease-ordering gotcha when pinning: `2.7.11b` sorts *below* `2.7.11` (a `b` suffix is a beta prerelease).
 - **Subprocess CLI typos** — e.g. `stitchr -species HUMAN` (correct flag is `-s` / `--species`). Only the real subprocess argparses the args.
 - **NaN flowing through pandas into subprocesses** — curated unit-test fixtures hide single-chain rows that the production VDJdb TSV contains.
 - **Snakemake `script:` wrapper incompat** (preceding section).
