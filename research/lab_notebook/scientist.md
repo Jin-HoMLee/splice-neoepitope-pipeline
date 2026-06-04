@@ -10,7 +10,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### 14:27 UTC — Editor: Scientist
 
-#### [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634): field-context Zotero capture + cross-role-landed-issue-closure conventions. [PR #PLACEHOLDER] closes [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634).
+#### [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634): field-context Zotero capture + cross-role-landed-issue-closure conventions. [PR #670](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/670) closes [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634).
 
 **What.** Two memory conventions landed in the **personas** repo (MM-committed, per the "`shared/` edits are MM's" governance); this project-repo PR carries the lab-notebook record + closes [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) (cross-repo → a personas commit can't auto-close a project-repo issue). (1) **Field-context Zotero capture** — widened morning-routine Phase-1 News routing (`shared/feedback_morning_routine.md`) + a new "Field-context notes" section in `shared/feedback_zotero_note_format.md` (personas `97a93b6`). (2) **Cross-role-landed-issue closure** — new `shared/feedback_cross_role_landed_close.md` (personas `6643ded`). No pipeline / method changes.
 
