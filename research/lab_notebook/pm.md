@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-05
 
+### 15:14 UTC — Editor: PM
+
+#### Arc work-structuring — Plan 2 landed: the arc labels start *driving* the four async sessions ([Issue #692](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/692), [PR #688](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/688) foundation)
+
+**Why this is the payoff.** Plan 1 (this morning) stood up the arc dimension as *metadata* — labels + taxonomy + queryability. Inert on its own. **Plan 2 is the rule layer that makes the metadata act**: it changes how all four roles answer "what's next?" so they converge on a shared current focus instead of each wandering into a different corner of the backlog. That convergence is the thing the whole effort was for.
+
+**What landed (4 rules, personas memory).**
+- **Arc-aware daily pull** — `shared/feedback_best_next_issue.md` gains **Step 1.5**: the default candidate pool is restricted to `arc-phase:active ∧ role:self`. Two hard guards keep it a focusing default, not a wall: In Progress overrides the lens (finish what you started, even off-slate), and an empty active-arc pool falls back to the full pool with a "consider an arc review" nudge. User override ("show me everything") bypasses it.
+- **Board-hygiene arc-coverage** — `shared/feedback_board_hygiene.md` gains a 4th drift mode + a per-sweep check: un-arced-`Ready` issues are a triage gap (same tier as a missing role label); surface the active slate; >3 active arcs = drift → arc review.
+- **Arc-review cadence** — new `shared/feedback_arc_review.md`: the arc axis lifecycle (born / split / merge / rename / retire — arcs *retire* editorially, never *close*, the core difference from an epic), the `arc-phase` slate cap (≤3 active), the PM-coordinated review cadence (~monthly / at milestone close, on-demand on drift), and the tooling map.
+- **Three-axis milestone memory** — `pm/feedback_milestones.md`: stage / arc / due-date as three orthogonal axes (stage = fixed scaffold, arc = fluid label, due-date = pointwise clock), plus a naming-collision warning (the milestone-name `<Arc>` suffix is a *different* concept from the new `arc:` label — Plan 3 [Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693) decides whether to drop the suffix).
+
+**Governance fork, resolved.** 3 of the 4 edits live in `shared/`, which personas governance ([Issue #567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567)) reserves for **MM** (PM's only direct write is its own `pm/` dir; PM never commits the personas repo). The user authorized PM writing `shared/` directly this session, so I drafted all 6 files and flagged them to MM, who **committed + provided the cross-cutting second-eyes review** (`3a8e942` on `main`) — conventions conform, **cliff-neutral** (always-loaded cost = one index line; the arc body is tier-2 lazy-loaded). MM flagged one non-blocking nit — a `shared/feedback_arc_review.md` → `pm/feedback_milestones.md` cross-link (wrong dependency direction; shared memory must be self-contained for all roles). Fixed by inlining the three-axis framing and dropping the `pm/` path (one follow-up hunk for MM).
+
+**Verification.** `board_open_items.py --role pm --arc-phase active` → 15 active-arc PM issues; the arc-aware pull lands on [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) (Ready/P1) — concrete evidence a pull picks active-arc work (AC1).
+
+**Cross-repo closure + what's next.** A personas commit can't auto-close a project Issue, so this project-repo PR carries the PM deliverable (this entry) and `Closes #692` (cross-role-landed-close: MM landed the substance, PM verifies + ticks ACs + closes). Epic [Issue #691](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/691) → **2/3**. Only **Plan 3 ([Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693))** remains — milestone de-overloading (drop the redundant `<Arc>` suffix, kill dead `M1/M2/M7`, Milestones-vs-Iteration-field call) + CLAUDE.md.
+
 ### 11:58 UTC — Editor: PM
 
 #### Arc work-structuring — foundation shipped: the board gains a narrative throughline ([Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) arc/milestone strand, [PR #688](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/688))
