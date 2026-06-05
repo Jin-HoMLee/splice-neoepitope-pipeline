@@ -173,7 +173,7 @@ This is what turns four async sessions into a coordinated team pulling a shared 
 - **No change to epics, sub-issue non-inheritance, the commitment act, or `Target` sync.**
 - **No retroactive renaming of closed milestones** (cosmetic; cleanup applies to dead/empty ones only).
 
-## 12. Open questions (for [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633))
+## 12. Open questions (arc-rollout details resolved across Plans 2-3; the [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) governance remainder — parent-anchor / deferral / WIP — is tracked in [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690))
 
 1. **Milestones vs native Iteration field** — once `i<N>` leaves the name, do we adopt the Projects Iteration field for real time-boxes, or rely on `due_on` alone?
 2. **`arc-phase` as label vs Projects single-select** — label is text-readable (MVP); a single-select is tidier on the board. Decide at Phase 1.
