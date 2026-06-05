@@ -169,7 +169,7 @@ def api_request(method, url, key, body=None, extra_headers=None):
     if extra_headers:
         headers.update(extra_headers)
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         raw = resp.read()
         return resp.status, (json.loads(raw) if raw else None), dict(resp.headers)
 
@@ -181,6 +181,7 @@ def get_paginated(path, key):
         url = f"{API_BASE}/users/{os.environ['ZOTERO_USER_ID']}/{path}"
         url += ("&" if "?" in url else "?") + f"limit=100&start={start}"
         status, data, hdr = api_request("GET", url, key)
+        data = data or []  # empty-body page (network blip) -> stop, don't crash
         out.extend(data)
         total = int(hdr.get("Total-Results", len(out)))
         start += len(data)
@@ -221,10 +222,14 @@ def plan_saved_searches(uid, key, apply):
             conds += [{"condition": "tag", "operator": "is", "value": t} for t in tags]
             body.append({"name": name, "conditions": conds})
         status, data, _ = api_request("POST", f"{API_BASE}/users/{uid}/searches", key, body=body)
+        if not data:
+            sys.exit("ERROR: empty response creating saved searches (check credentials / Zotero status).")
         if data.get("failed"):
             sys.exit(f"ERROR creating saved searches: {data['failed']}")
         made = data.get("successful") or data.get("success") or {}
         print(f"  -> created {len(made)} saved search(es)")
+    elif not apply and to_make:
+        print("  (created only with:  --apply --saved-searches)")
 
 
 def main():
@@ -261,6 +266,8 @@ def main():
         url = f"{API_BASE}/users/{uid}/collections"
         body = [{"name": nm, "parentCollection": ZOTERO_COLLECTION} for nm in to_create]
         status, data, _ = api_request("POST", url, key, body=body)
+        if not data:
+            sys.exit("ERROR: empty response creating collections (check credentials / Zotero status).")
         succ = data.get("success") or {}
         for idx, ck in succ.items():
             name_to_key[to_create[int(idx)]] = ck
@@ -302,7 +309,9 @@ def main():
         for title, already in rows:
             print(f"    {'.' if already else '+'} {title[:74]}")
             to_add += 0 if already else 1
-    print(f"\n  -> {to_add} membership(s) to add across {len(items)} items")
+    # to_add counts memberships (edges): a cross-stage paper counts once per folder.
+    print(f"\n  -> {to_add} membership(s) to add across {len(items)} items "
+          f"(memberships, not items — cross-stage papers count once per folder)")
 
     if spanners:
         print("\nCross-stage papers (filed in two sub-collections):")
@@ -359,7 +368,7 @@ def main():
             patch = {}
             if set(new_cols) != set(cur_cols):
                 patch["collections"] = new_cols
-            if len(new_tags) != len(cur_tags):
+            if {t["tag"] for t in new_tags} != {t["tag"] for t in cur_tags}:
                 patch["tags"] = new_tags
             if not patch:
                 continue
@@ -371,20 +380,31 @@ def main():
                     changed += 1
                     break
                 except urllib.error.HTTPError as e:
-                    if e.code == 412 and attempt < 2:  # version conflict: refetch + retry
-                        _, fresh, _ = api_request(
-                            "GET", f"{API_BASE}/users/{uid}/items/{it['key']}", key)
-                        it["version"] = fresh["version"]
-                        time.sleep(1)
+                    # 412 = version conflict (refetch + retry); 429 = rate-limited (honor Retry-After)
+                    if e.code in (412, 429) and attempt < 2:
+                        if e.code == 412:
+                            _, fresh, _ = api_request(
+                                "GET", f"{API_BASE}/users/{uid}/items/{it['key']}", key)
+                            it["version"] = fresh["version"]
+                            time.sleep(1)
+                        else:
+                            time.sleep(int(e.headers.get("Retry-After", 2 ** attempt)))
                         continue
                     raise
         print(f"  -> patched {changed} item(s)")
         if args.saved_searches:
             plan_saved_searches(uid, key, apply=True)
+        else:
+            print("\n(saved searches NOT created — re-run with --apply --saved-searches)")
         print("\nDONE. Duplicates (if any) still need a manual merge in the desktop client.")
     else:
         print("\n(dry-run — nothing was modified. Re-run with --apply to execute.)")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except urllib.error.HTTPError as e:
+        sys.exit(f"ERROR: Zotero API HTTP {e.code} {e.reason} — {e.read()[:200]!r}")
+    except urllib.error.URLError as e:
+        sys.exit(f"ERROR: network failure reaching the Zotero API: {e.reason}")
