@@ -140,6 +140,11 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         return None
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
     role = next((l for l in labels if l.startswith("role:")), None)
+    arc = next((l for l in labels if l.startswith("arc:")), None)
+    arc_phase = next(
+        (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
+        None,
+    )
     return {
         "number": content.get("number"),
         "title": content.get("title", ""),
@@ -151,6 +156,8 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "priority": priority,
         "size": size,
         "role": role,
+        "arc": arc,
+        "arc_phase": arc_phase,
         "labels": labels,
         "created_at": content.get("createdAt"),
         "updated_at": content.get("updatedAt"),
@@ -242,6 +249,12 @@ def matches_filter(it: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if args.size and it["size"] != args.size:
         return False
+    if args.arc:
+        want = args.arc if args.arc.startswith("arc:") else f"arc:{args.arc}"
+        if it["arc"] != want:
+            return False
+    if args.arc_phase and it["arc_phase"] != args.arc_phase:
+        return False
     return True
 
 
@@ -272,6 +285,9 @@ def main() -> int:
     p.add_argument("--status", choices=list(STATUS_ORDER), help="Filter by board Status")
     p.add_argument("--priority", choices=list(PRIORITY_ORDER), help="Filter by Priority")
     p.add_argument("--size", choices=list(SIZE_ORDER), help="Filter by Size")
+    p.add_argument("--arc", help='Filter by arc label (e.g. "scoring-tcr-pmhc" or "arc:scoring-tcr-pmhc")')
+    p.add_argument("--arc-phase", dest="arc_phase", choices=["active", "next", "later"],
+                   help="Filter by arc focus phase")
     p.add_argument("--sort-updated", dest="sort_updated", action="store_true",
                    help="Sort by last activity (Issue.updatedAt), most-recent first (momentum)")
     p.add_argument("--stale-days", dest="stale_days", type=int, metavar="N",
