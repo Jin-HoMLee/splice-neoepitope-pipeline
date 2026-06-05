@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-05
+
+### 03:35 UTC — Editor: Scientist
+
+#### [Issue #675](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/675): reorganize Zotero collection into 8 pipeline-stage sub-collections. [PR #676](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/676) closes [Issue #675](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/675).
+
+**What.** Reorganized the "Splice Neoepitope Pipeline" Zotero collection (`Z38GTJNW`, 70 items) from a flat list into **8 pipeline-stage sub-collections** (counts `7/21/8/17/8/4/14/2`; 11 cross-stage papers filed in two folders), added the `splice-neoepitope-pipeline` tag to the 6 items missing it (now 70/70), and created **3 manuscript-section saved searches** (`Cited in INTRODUCTION/METHODS/DISCUSSION`, `joinMode=any` over the `manuscript-*` tag + variants). Applied to the live library via a new committed, idempotent, **dry-run-first** script, `research/scripts/zotero_organize_collections.py`. Non-destructive: items retain parent `Z38GTJNW` membership and gain ≥1 sub-collection. No pipeline / method changes — this is literature-management infrastructure.
+
+**Why.** At 70 entries the flat collection was no longer scannable (user-reported difficulty recalling which paper was which). Pipeline-stage spine chosen over manuscript-section / Issue# axes (those stay as tags + saved searches, since a paper spans them). Full taxonomy + rationale in [Issue #675](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/675).
+
+**Verification.** Dry-run matched all 70 items (0 unmatched); post-apply folder counts verified against `meta.numItems`; 0 items missing the project tag; idempotent re-run = 0 changes. After [PR #676](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/676) bot review, hardened the script (request timeouts, `None`-body guards, 429/`Retry-After` retry, clean error wrap) in `be76f83`; re-verified compile + idempotent dry-run + clean error on a bad key.
+
+**Manual follow-up.** One duplicate ("AI predicted TCR-pMHC structures differentiate immune interactions") is reported by the script for a manual **desktop-client merge** (master `654D8NFP`; sparse copy `4N2J7SIH`) — the Zotero web API has no faithful merge primitive.
+
+**Memory edits — for MM to commit** (own-`scientist/`-dir edits this session; per `shared/feedback_personas_governance.md`):
+- `scientist/reference_zotero_api.md` — new "Collection structure" section (8 sub-collections, 3 saved searches, the filing rule, sub-collection/saved-search write API).
+- `scientist/MEMORY.md` — filing rule appended to the add-a-paper line; structure note on the API-queries line.
+
+**Shared-memory proposal — for MM** (`shared/` is MM-only): create `shared/reference_zotero_collection_structure.md` so PM/Dev follow the same filing rule (they add papers too) — full draft in the [PR #676](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/676) thread. Core: the 8-folder structure + "every new paper is filed into its matching stage folder before it's done."
+
 ## 2026-06-04
 
 ### 14:27 UTC — Editor: Scientist
