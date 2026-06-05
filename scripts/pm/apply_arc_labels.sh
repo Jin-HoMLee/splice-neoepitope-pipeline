@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${1:-$SCRIPT_DIR/arc_taxonomy.tsv}"
 [[ -f "$MANIFEST" ]] || { echo "manifest not found: $MANIFEST" >&2; exit 1; }
 
-while read -r arc phase rest; do
+while read -r arc phase rest || [[ -n "${arc:-}" ]]; do
   [[ -z "${arc:-}" || "${arc:0:1}" == "#" ]] && continue
   for n in $rest; do
     echo "  #$n -> $arc + arc-phase:$phase"

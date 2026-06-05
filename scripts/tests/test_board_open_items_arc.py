@@ -40,6 +40,12 @@ def test_arc_phase_label_not_mistaken_for_arc():
     assert n["arc"] is None and n["arc_phase"] == "later"
 
 
+def test_normalize_multi_arc_picks_first_and_warns(capsys):
+    n = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc:board-governance"]))
+    assert n["arc"] == "arc:scoring-tcr-pmhc"
+    assert "multiple arc labels" in capsys.readouterr().err
+
+
 def test_filter_by_arc_phase():
     it = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc-phase:active"]))
     assert b.matches_filter(it, _args(arc_phase="active"))

@@ -1,7 +1,7 @@
 # Arc-Based Work Structuring — Design Spec
 
 **Date:** 2026-06-05
-**Status:** Draft for review (brainstorming output → next: writing-plans)
+**Status:** Approved — Plan 1 (foundation: labels + taxonomy + queryability) implemented in [PR #688](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/688); Plans 2–3 pending
 **Issue:** tracked by [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (`role:pm` — board governance review: parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits). This spec is the design output of that review's arc/milestone strand.
 **Author:** PM session (Claude) + Jin-Ho Lee
 

@@ -140,7 +140,13 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         return None
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
     role = next((l for l in labels if l.startswith("role:")), None)
-    arc = next((l for l in labels if l.startswith("arc:")), None)
+    arc_labels = [l for l in labels if l.startswith("arc:")]
+    if len(arc_labels) > 1:
+        print(
+            f"Warning: issue #{content.get('number')} has multiple arc labels: {arc_labels}",
+            file=sys.stderr,
+        )
+    arc = arc_labels[0] if arc_labels else None
     arc_phase = next(
         (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
         None,
