@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-05
+
+### 11:58 UTC — Editor: PM
+
+#### Arc work-structuring — foundation shipped: the board gains a narrative throughline ([Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) arc/milestone strand, [PR #688](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/688))
+
+**The problem.** Work felt stand-alone day-to-day and the four async personas (Dev/Sci/PM/MM) felt like separate workstreams — no throughline outliving a single milestone. Root cause, evidenced from the live board: the milestone name `i<iter> - S<N> - <Stage> - <Arc>` was carrying **three** axes, and the `i<N>` masquerades as a global clock but isn't — open milestones sorted by `due_on` read `i2,5,4,5,2,6,4` (the `pm-i*` series `1,3,5,4,2,6`). The DS-lifecycle **stage** axis (S#) held up; **iteration-as-sprint** did not, because the board runs late-commitment Kanban (flow) executed by async personas — there's no synchronized cadence for an iteration to mean. The `i<N>` had mutated into a per-track version counter wearing a clock's clothes.
+
+**The decision.** Add one new dimension — an **arc**: a never-closing `arc:<slug>` label (narrative throughline) + an `arc-phase:active|next|later` focus marker — orthogonal to milestone (stage/time) and due-date (the real clock). Crucially **arc ≠ a tier above epics**: a fact-checked landscape sweep (Scrum/SAFe/Jira/Linear/GitHub/Shape Up/Cagan/Asana/ClickUp/ThoughtWorks) found the dividing line is *closure not size* (epic closes; arc never does), and the long-lived tier is almost always an *orthogonal label*, not a structural parent — only Jira/Linear make it a tier and both premium-gate it. On user project #9 a real tier is doubly blocked: Issue Types are org-only (404 on a user repo), and a parent-issue arc collides with the `recheck_parent_status` rollup. So: orthogonal **label**, MVP label-only (it's the carrier the text-reading cron sessions actually see).
+
+**What shipped (Plan 1 of 3 — the project-repo foundation).** `scripts/pm/arc_labels.sh` (8 `arc:*` + 3 `arc-phase:*` labels), `scripts/pm/arc_taxonomy.tsv` (v1 source-of-truth: **71 of 75 open issues across 8 theme arcs**, 4 left unfiled), `scripts/pm/apply_arc_labels.sh` (synced to live issues — per-arc counts 8× OK; active=30 / next=11 / later=30), and `scripts/board_open_items.py --arc/--arc-phase` filters (queryable for the Plan-2 pull rule; TDD, 5 tests). Opening **active slate**: `arc:aligner-junctions` + `arc:scoring-tcr-pmhc` + `arc:board-governance`.
+
+**The taxonomy was earned, not asserted.** A first partition collapsed the science into "upstream/downstream" — caught (by the user) as just the S3/S5 *stages relabeled*, the exact category error to avoid. Re-ran at **theme-lineage granularity** (GTEx, STAR, TCR-pMHC, … — the recurring milestone stems): no catch-all anymore (largest arc 23%, down from 42%). Two mirrors fell out: **science ≈ persona-OS in mass (30 ≈ 30 issues)** — half the open backlog is the personas building their own machinery — and the persona-OS arc is the first fission candidate. Distinction settled: the arc *taxonomy* is ~4-8 (fluid, cheap to split/merge/rename/retire via label ops, revised on a cadenced review); only the *active slate* is capped at 3.
+
+**Verification ladder.** Two fact-checked research workflows (framework landscape + 75-issue partition, each with adversarial critic) → brainstorming spec, user-approved → subagent-driven execution: implementer per task + two-stage (spec→quality) review on the Python change, both APPROVED; the live 71-issue mutation run under direct controller observation, not delegated → `@claude` bot review **requested (in flight)** → CI green (pytest ×2 + dry-run). Merge held until the bot review lands and is addressed.
+
+**Cross-repo framing + what's NOT done.** This PR is the project-repo half only. **Plan 2** (personas repo, MM-landed per the [Issue #672](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/672) single-repo-AC convention) carries the actual *core deliverable* — the arc-aware daily pull, a one-line change to shared `feedback_best_next_issue.md` Step 1 that makes all four roles pull `arc-phase:active ∧ role:self` — plus the board-hygiene un-arced sweep and the cadenced arc-review process. **Plan 3** is milestone de-overloading + dead-milestone cleanup. [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) **stays open** — this delivered only its arc/milestone strand; the Milestones-vs-Iteration-field / deferral / WIP-limit strands remain. Spec + plan: `docs/superpowers/specs/2026-06-05-arc-work-structuring-design.md`, `docs/superpowers/plans/2026-06-05-arc-work-structuring-foundation.md`.
+
 ## 2026-06-04
 
 ### 20:31 UTC — Editor: PM
