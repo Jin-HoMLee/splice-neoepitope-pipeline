@@ -473,14 +473,14 @@
       ],
       "function_count": 11,
       "imports": [
-        "argparse",
         "collections",
-        "logging",
-        "re",
-        "csv",
         "statistics",
+        "re",
         "pathlib",
-        "gzip"
+        "csv",
+        "gzip",
+        "logging",
+        "argparse"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -510,14 +510,14 @@
       ],
       "function_count": 6,
       "imports": [
-        "argparse",
         "collections",
-        "logging",
         "re",
-        "sys",
         "pathlib",
+        "sys",
+        "os",
         "gzip",
-        "os"
+        "logging",
+        "argparse"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -549,13 +549,13 @@
       ],
       "function_count": 10,
       "imports": [
-        "argparse",
-        "logging",
+        "pathlib",
         "sys",
         "subprocess",
-        "pathlib",
-        "tempfile",
-        "os"
+        "os",
+        "logging",
+        "argparse",
+        "tempfile"
       ],
       "import_count": 7,
       "argparse_args": [
@@ -583,11 +583,11 @@
       ],
       "function_count": 5,
       "imports": [
-        "argparse",
-        "logging",
-        "csv",
         "pathlib",
-        "Bio.Seq"
+        "Bio.Seq",
+        "csv",
+        "logging",
+        "argparse"
       ],
       "import_count": 5,
       "argparse_args": [
@@ -615,10 +615,10 @@
       ],
       "function_count": 5,
       "imports": [
-        "argparse",
+        "csv",
         "logging",
         "pathlib",
-        "csv"
+        "argparse"
       ],
       "import_count": 4,
       "argparse_args": [],
@@ -647,10 +647,10 @@
       ],
       "function_count": 12,
       "imports": [
-        "argparse",
+        "csv",
         "logging",
         "pathlib",
-        "csv"
+        "argparse"
       ],
       "import_count": 4,
       "argparse_args": [
@@ -680,9 +680,9 @@
       ],
       "function_count": 7,
       "imports": [
+        "csv",
         "logging",
-        "pathlib",
-        "csv"
+        "pathlib"
       ],
       "import_count": 3,
       "argparse_args": [],
@@ -711,12 +711,12 @@
       ],
       "function_count": 12,
       "imports": [
-        "argparse",
-        "logging",
-        "csv",
-        "shutil",
+        "pathlib",
         "subprocess",
-        "pathlib"
+        "shutil",
+        "csv",
+        "logging",
+        "argparse"
       ],
       "import_count": 6,
       "argparse_args": [],
@@ -745,8 +745,8 @@
       ],
       "function_count": 9,
       "imports": [
-        "typing",
-        "logging"
+        "logging",
+        "typing"
       ],
       "import_count": 2,
       "argparse_args": [],
@@ -775,12 +775,12 @@
       ],
       "function_count": 32,
       "imports": [
-        "argparse",
-        "html",
-        "logging",
         "json",
         "pathlib",
-        "typing"
+        "typing",
+        "html",
+        "logging",
+        "argparse"
       ],
       "import_count": 6,
       "argparse_args": [
@@ -809,9 +809,9 @@
       ],
       "function_count": 5,
       "imports": [
-        "argparse",
+        "pathlib",
         "logging",
-        "pathlib"
+        "argparse"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -859,9 +859,9 @@
       ],
       "function_count": 2,
       "imports": [
-        "argparse",
+        "pathlib",
         "logging",
-        "pathlib"
+        "argparse"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -888,9 +888,9 @@
       ],
       "function_count": 3,
       "imports": [
-        "argparse",
+        "pathlib",
         "logging",
-        "pathlib"
+        "argparse"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -922,17 +922,17 @@
       ],
       "function_count": 11,
       "imports": [
-        "argparse",
         "collections",
-        "logging",
         "json",
-        "shutil",
-        "time",
-        "subprocess",
         "pathlib",
-        "tempfile",
+        "time",
         "typing",
-        "os"
+        "subprocess",
+        "os",
+        "shutil",
+        "logging",
+        "argparse",
+        "tempfile"
       ],
       "import_count": 11,
       "argparse_args": [
@@ -961,12 +961,12 @@
       ],
       "function_count": 6,
       "imports": [
-        "argparse",
-        "logging",
+        "pathlib",
         "sys",
         "subprocess",
-        "pathlib",
-        "os"
+        "os",
+        "logging",
+        "argparse"
       ],
       "import_count": 6,
       "argparse_args": [
