@@ -15,6 +15,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -480,7 +481,7 @@ function init(){
   svg.call(zoom);
 
   buildHierarchy();
-  GROUP_ROOTS.forEach(r => expanded.add(r));   // default overview: groups + their top-level folders
+  // default: show only the 5 group roots (collapsed); users click to expand
   buildLegend();
   populateIssueFilter();
   renderGraph();
