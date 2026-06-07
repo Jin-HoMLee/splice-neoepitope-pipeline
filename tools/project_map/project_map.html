@@ -16,6 +16,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -512,6 +513,20 @@ function renderGraph(){
   const edges = visibleEdges();
   if (simulation) simulation.stop();
   g.selectAll("*").remove();
+
+  // Initialize node positions: new nodes get placed near their parent to avoid explosion
+  nodes.forEach(d => {
+    if (d.x === undefined || d.y === undefined) {
+      const parent = nodeById.get(parentOf.get(d.id));
+      if (parent && parent.x !== undefined) {
+        d.x = parent.x + (Math.random() - 0.5) * 40;
+        d.y = parent.y + (Math.random() - 0.5) * 40;
+      } else {
+        d.x = width / 2 + (Math.random() - 0.5) * 100;
+        d.y = height / 2 + (Math.random() - 0.5) * 100;
+      }
+    }
+  });
 
   simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(edges).id(d => d.id).distance(d => 60 + Math.min((d.count||1)*3, 30)).strength(0.35))
