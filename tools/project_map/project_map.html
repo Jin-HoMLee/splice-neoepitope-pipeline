@@ -20,6 +20,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -445,7 +446,6 @@ function liftToVisible(id){ if (isVisible(id)) return id; for (const a of ancest
 function visibleEdges(){
   const agg = new Map();
   for (const e of graphData.edges){
-    if (e.type === "contained_in") continue;
     const s = liftToVisible(eid(e.source)), t = liftToVisible(eid(e.target));
     if (s == null || t == null || s === t) continue;
     const k = s + "|" + t + "|" + e.type;
