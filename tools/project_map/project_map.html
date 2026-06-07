@@ -22,6 +22,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -535,20 +536,20 @@ function renderGraph(){
   simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(edges).id(d => d.id).distance(d => 60 + Math.min((d.count||1)*3, 30)).strength(0.35))
     .force("charge", d3.forceManyBody().strength(d => -130 * Math.sqrt(sizeOf(d))))
-    .force("center", d3.forceCenter(width/2, height/2))
+    .force("center", d3.forceCenter(width/2, height/2).strength(0.02))  // very weak, just prevents drift
     .force("collision", d3.forceCollide().radius(d => radiusOf(d) + 7))
     .force("group-zone", d3.forceRadial(d => {
-      // Weak force that pulls non-root nodes toward their group's zone center
+      // Strong force that pulls non-root nodes toward their group's zone center (corners)
       if (d.type === "root") return 0;  // roots are pinned; don't apply radial force
       const root = nodeById.get(parentOf.get(d.id));  // walk up to find the group root
       let p = root ? parentOf.get(root.id) : null;
       while (p && !GROUP_ROOTS.has(p)) p = parentOf.get(p);
       if (!p) return width * 0.1;  // fallback: center pull
-      // The zone centers are defined in positionRoots; use them
-      const L = { pipeline_root:[0.22,0.30], research_root:[0.74,0.26], infrastructure_root:[0.20,0.74], docs_root:[0.76,0.72], config_root:[0.48,0.90] };
+      // Zone centers at corners (match positionRoots)
+      const L = { pipeline_root:[0.15,0.20], research_root:[0.82,0.18], infrastructure_root:[0.12,0.80], docs_root:[0.85,0.78], config_root:[0.50,0.95] };
       const pos = L[p];
-      return pos ? Math.sqrt((pos[0]*width)**2 + (pos[1]*height)**2) * 0.4 : width * 0.1;
-    }).strength(0.08))
+      return pos ? Math.sqrt((pos[0]*width)**2 + (pos[1]*height)**2) * 0.35 : width * 0.1;
+    }).strength(0.18))  // stronger pull (was 0.08)
     .alphaDecay(0.03);
 
   linkSel = g.append("g").attr("stroke-opacity", 0.5).selectAll("line")
@@ -641,7 +642,7 @@ function renderGraph(){
 }
 
 function positionRoots(nodes){
-  const L = { pipeline_root:[0.22,0.30], research_root:[0.74,0.26], infrastructure_root:[0.20,0.74], docs_root:[0.76,0.72], config_root:[0.48,0.90] };
+  const L = { pipeline_root:[0.15,0.20], research_root:[0.82,0.18], infrastructure_root:[0.12,0.80], docs_root:[0.85,0.78], config_root:[0.50,0.95] };
   nodes.forEach(n => { const p = L[n.id]; if (p){ n.fx = width*p[0]; n.fy = height*p[1]; } });
 }
 
