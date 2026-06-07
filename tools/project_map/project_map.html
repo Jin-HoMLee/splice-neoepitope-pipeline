@@ -18,6 +18,8 @@
 
 
 
+
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -543,6 +545,25 @@ function renderGraph(){
     .attr("stroke-dasharray", d => d.type === "references" ? "4,3" : null)
     .attr("marker-end", d => `url(#arrow-${EDGE_COLORS[d.type] ? d.type : "fallback"})`);
 
+  // ── Visual grouping for hierarchy (subtle backgrounds around child clusters) ──
+  // For each expanded container, draw a faint background rect that groups its children visually.
+  const groupBgs = g.append("g").attr("class", "group-backgrounds").selectAll("rect");
+  const groupData = [];
+  nodes.forEach(n => {
+    if (isContainer(n.id) && expanded.has(n.id)) {
+      const children = (childrenOf.get(n.id) || []).filter(cid => isVisible(cid));
+      if (children.length > 0) groupData.push({parent: n, children: children.map(cid => nodes.find(cn => cn.id === cid)).filter(Boolean)});
+    }
+  });
+  groupBgs.data(groupData, d => d.parent.id).join("rect")
+    .attr("rx", 8).attr("ry", 8)
+    .attr("fill", d => d3.color(getNodeColor(d.parent)).copy({opacity: 0.04}))
+    .attr("stroke", "#888")
+    .attr("stroke-opacity", 0.08)
+    .attr("stroke-width", 1)
+    .attr("stroke-dasharray", "2,2")
+    .attr("pointer-events", "none");
+
   nodeG = g.append("g").selectAll("g.node-group")
     .data(nodes, d => d.id).join("g")
     .attr("class", "node-group")
@@ -584,6 +605,20 @@ function renderGraph(){
   simulation.on("tick", () => {
     linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
     nodeG.attr("transform", d => `translate(${d.x},${d.y})`);
+    // Update group background rectangles to enclose their children
+    g.selectAll("g.group-backgrounds rect").attr("x", (d, i, rects) => {
+      const xs = d.children.map(c => c.x).filter(x => x !== undefined);
+      return xs.length ? Math.min(...xs) - 30 : 0;
+    }).attr("y", (d, i, rects) => {
+      const ys = d.children.map(c => c.y).filter(y => y !== undefined);
+      return ys.length ? Math.min(...ys) - 30 : 0;
+    }).attr("width", (d, i, rects) => {
+      const xs = d.children.map(c => c.x).filter(x => x !== undefined);
+      return xs.length ? Math.max(...xs) - Math.min(...xs) + 60 : 60;
+    }).attr("height", (d, i, rects) => {
+      const ys = d.children.map(c => c.y).filter(y => y !== undefined);
+      return ys.length ? Math.max(...ys) - Math.min(...ys) + 60 : 60;
+    });
   });
 
   positionRoots(nodes);
