@@ -21,6 +21,7 @@
 
 
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Splice Neoepitope Pipeline — Project Structure (2026)</title>
@@ -379,7 +380,7 @@ svg { width: 100%; height: 100%; }
 // ═══════════════════════════════════════════════════════════════════════════
 
 const COLORS = {
-  rule:"#58a6ff", script:"#3fb950", env:"#d29922", config:"#d29922",
+  rule:"#58a6ff", script:"#3fb950", env:"#d29922", config:"#ff6b6b",
   slide:"#bc8cff", manuscript:"#f0883e", notebook:"#79c0ff", labnotebook:"#56d364",
   test:"#ff7b72", ci:"#8b949e", news:"#8b949e", docker:"#8b949e",
   doc:"#e3b341", sample:"#7ee787", data:"#7ee787", reference:"#d2a8ff",
@@ -387,7 +388,7 @@ const COLORS = {
 };
 const GROUP_COLORS = {
   pipeline:"#58a6ff", research:"#bc8cff", infrastructure:"#8b949e",
-  docs:"#e3b341", config:"#d29922", project:"#6e7681",
+  docs:"#e3b341", config:"#ff6b6b", project:"#6e7681",
 };
 const EDGE_COLORS = {
   references:"#bc8cff", calls:"#3fb950", runs_in:"#d29922", depends_on:"#58a6ff",
@@ -536,6 +537,18 @@ function renderGraph(){
     .force("charge", d3.forceManyBody().strength(d => -130 * Math.sqrt(sizeOf(d))))
     .force("center", d3.forceCenter(width/2, height/2))
     .force("collision", d3.forceCollide().radius(d => radiusOf(d) + 7))
+    .force("group-zone", d3.forceRadial(d => {
+      // Weak force that pulls non-root nodes toward their group's zone center
+      if (d.type === "root") return 0;  // roots are pinned; don't apply radial force
+      const root = nodeById.get(parentOf.get(d.id));  // walk up to find the group root
+      let p = root ? parentOf.get(root.id) : null;
+      while (p && !GROUP_ROOTS.has(p)) p = parentOf.get(p);
+      if (!p) return width * 0.1;  // fallback: center pull
+      // The zone centers are defined in positionRoots; use them
+      const L = { pipeline_root:[0.22,0.30], research_root:[0.74,0.26], infrastructure_root:[0.20,0.74], docs_root:[0.76,0.72], config_root:[0.48,0.90] };
+      const pos = L[p];
+      return pos ? Math.sqrt((pos[0]*width)**2 + (pos[1]*height)**2) * 0.4 : width * 0.1;
+    }).strength(0.08))
     .alphaDecay(0.03);
 
   linkSel = g.append("g").attr("stroke-opacity", 0.5).selectAll("line")
