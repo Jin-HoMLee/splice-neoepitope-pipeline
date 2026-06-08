@@ -773,8 +773,8 @@ function buildLegend(){
 // ── View presets (expand a slice of the tree) ──
 const VIEW_EXPAND = {
   full: null,
-  pipeline: ["pipeline_root","workflow","workflow__rules","workflow__scripts","workflow__envs"],
-  research: ["research_root","research","research__evals","research__experiments","research__decisions"],
+  pipeline: ["pipeline_root"],
+  research: ["research_root"],
 };
 function isContainer(id){ return childrenOf.has(id); }
 function applyView(view){
@@ -785,7 +785,15 @@ function applyView(view){
       if (isContainer(n.id)) expanded.add(n.id);
     }
   } else {
-    VIEW_EXPAND[view].forEach(id => expanded.add(id));
+    // Expand the given roots and ALL descendant containers recursively
+    const stack = [...VIEW_EXPAND[view]];
+    while (stack.length) {
+      const id = stack.pop();
+      expanded.add(id);
+      for (const child of (childrenOf.get(id) || [])) {
+        if (isContainer(child)) stack.push(child);
+      }
+    }
   }
   selectedNodeId = null;
   renderGraph();
