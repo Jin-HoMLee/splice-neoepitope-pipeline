@@ -537,8 +537,9 @@ def parse_smk_rules():
         content = smk_file.read_text()
         smk_file_id = slug(rel_path)
 
-        # Find rule names inside this file
-        for m in re.finditer(r'^rule\s+(\w+):', content, re.MULTILINE):
+        # Find rule names inside this file (including indented rules inside if/elif blocks)
+        _entries = []
+        for m in re.finditer(r'(?:^|\n)\s*rule\s+(\w+):', content):
             rule_name = m.group(1)
             rule_id = f"rule__{rule_name}"
 
@@ -548,9 +549,13 @@ def parse_smk_rules():
                 "type": "defined_in", "label": "defined in rule file",
             })
 
-            # Extract script: directives for this rule context
-            after_rule = content[m.end():]
-            rule_block = after_rule.split('\n\nrule ')[0] if '\n\nrule ' in after_rule else after_rule
+            # Collect position info for block extraction
+            _entries.append((rule_name, rule_id, m.end()))
+
+        # Extract script/conda/dep edges using position-based block extraction
+        for i, (rule_name, rule_id, block_start) in enumerate(_entries):
+            next_pos = _entries[i + 1][2] + 1 if i + 1 < len(_entries) else len(content)
+            rule_block = content[block_start:next_pos]
             for sm in re.finditer(r'script:\s*"\.\./scripts/(.+?)"', rule_block):
                 script_name = sm.group(1)
                 script_id = slug(f"workflow/scripts/{script_name}")
@@ -642,10 +647,13 @@ def build_graph():
     _rule_resources = {}
     for smk_path in sorted((PROJECT_ROOT / "workflow" / "rules").glob("*.smk")):
         content = smk_path.read_text()
-        for m in re.finditer(r'^rule\s+(\w+):', content, re.MULTILINE):
-            rn = m.group(1)
-            after_rule = content[m.end():]
-            rule_block = after_rule.split('\n\nrule ')[0] if '\n\nrule ' in after_rule else after_rule
+        # Collect all rule positions first (including indented rules inside if/elif blocks)
+        _entries = []
+        for m in re.finditer(r'(?:^|\n)\s*rule\s+(\w+):', content):
+            _entries.append((m.group(1), m.end()))
+        for i, (rn, rule_end) in enumerate(_entries):
+            next_pos = _entries[i + 1][1] + 1 if i + 1 < len(_entries) else len(content)
+            rule_block = content[rule_end:next_pos]
             _rule_resources[rn] = parse_rule_resources(rule_block)
 
     for rule_name, meta in PIPELINE_RULES_DETAIL.items():

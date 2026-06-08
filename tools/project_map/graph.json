@@ -118,16 +118,10 @@
         "alignment/manifest.tsv"
       ],
       "size": 3,
-      "threads": 8,
-      "mem_mb": 1000,
-      "gpu": true,
       "config_keys": [
-        "reference.genome_fasta",
-        "reference.gencode_gtf",
-        "samples_tsv",
-        "reference"
+        "samples_tsv"
       ],
-      "degree": 7
+      "degree": 3
     },
     {
       "id": "rule__hisat2_download_index",
@@ -141,7 +135,8 @@
         "indices/hisat2/"
       ],
       "size": 3,
-      "degree": 1
+      "mem_mb": 1000,
+      "degree": 2
     },
     {
       "id": "rule__hisat2_index",
@@ -155,7 +150,13 @@
         "indices/hisat2/"
       ],
       "size": 3,
-      "degree": 1
+      "threads": 8,
+      "mem_mb": 8000,
+      "config_keys": [
+        "reference.genome_fasta",
+        "reference"
+      ],
+      "degree": 3
     },
     {
       "id": "rule__hisat2_align",
@@ -172,7 +173,10 @@
         "alignment/{sample}/{sample}_junctions.bed"
       ],
       "size": 3,
-      "degree": 1
+      "threads": 8,
+      "mem_mb": 20000,
+      "gpu": true,
+      "degree": 3
     },
     {
       "id": "rule__star_index",
@@ -186,7 +190,14 @@
         "indices/star/"
       ],
       "size": 3,
-      "degree": 1
+      "threads": 8,
+      "mem_mb": 32000,
+      "config_keys": [
+        "reference.genome_fasta",
+        "reference.gencode_gtf",
+        "reference"
+      ],
+      "degree": 3
     },
     {
       "id": "rule__star_align",
@@ -200,7 +211,9 @@
         "alignment/{sample}/raw_junctions.tsv"
       ],
       "size": 3,
-      "degree": 1
+      "threads": 8,
+      "mem_mb": 32000,
+      "degree": 3
     },
     {
       "id": "rule__run_optitype",
@@ -215,7 +228,8 @@
         "hla_typing/{sample}/{sample}_coverage_plot.pdf"
       ],
       "size": 3,
-      "degree": 2
+      "threads": 4,
+      "degree": 4
     },
     {
       "id": "rule__aggregate_hla_alleles",
@@ -230,7 +244,10 @@
         "hla_typing/hla_qc.tsv"
       ],
       "size": 3,
-      "degree": 4
+      "config_keys": [
+        "samples_tsv"
+      ],
+      "degree": 7
     },
     {
       "id": "rule__assemble_contigs",
@@ -268,7 +285,7 @@
         "translation.peptide_lengths",
         "translation"
       ],
-      "degree": 7
+      "degree": 8
     },
     {
       "id": "rule__download_human_proteome",
@@ -282,7 +299,7 @@
         "references/human_proteome.fasta"
       ],
       "size": 3,
-      "degree": 2
+      "degree": 4
     },
     {
       "id": "rule__proteome_filter_peptides",
@@ -298,7 +315,11 @@
         "peptides/proteome_stats.tsv"
       ],
       "size": 3,
-      "degree": 4
+      "config_keys": [
+        "translation.peptide_lengths",
+        "translation"
+      ],
+      "degree": 8
     },
     {
       "id": "rule__download_mhcflurry_models",
@@ -335,7 +356,7 @@
         "mhcflurry.threads",
         "mhcflurry"
       ],
-      "degree": 8
+      "degree": 9
     },
     {
       "id": "rule__fetch_vdjdb_panel",
@@ -350,7 +371,14 @@
         "tcr_panel/vdjdb/panel_qc.tsv"
       ],
       "size": 3,
-      "degree": 5
+      "gpu": true,
+      "config_keys": [
+        "tcrdock.vdjdb_release",
+        "tcrdock.vdjdb_min_score",
+        "tcrdock.vdjdb_panel_size",
+        "tcrdock"
+      ],
+      "degree": 8
     },
     {
       "id": "rule__download_vdjdb_release",
@@ -398,7 +426,7 @@
         "data/{patient_id}/{sample}/{filename}"
       ],
       "size": 3,
-      "degree": 1
+      "degree": 2
     },
     {
       "id": "rule__run_tcrdock",
@@ -413,7 +441,18 @@
         "predictions/tcrdock/docking_scores.tsv"
       ],
       "size": 3,
-      "degree": 3
+      "gpu": true,
+      "docker": "docker_image=config[\"tcrdock\"][\"docker_image\"]",
+      "config_keys": [
+        "tcrdock.n_candidates",
+        "tcrdock.docker_image",
+        "tcrdock.fallback_hla",
+        "tcrdock.fallback_tcr",
+        "mhcflurry.presentation_percentile_weak",
+        "tcrdock",
+        "mhcflurry"
+      ],
+      "degree": 7
     },
     {
       "id": "rule__aggregate_filtering_stats",
@@ -473,14 +512,14 @@
       ],
       "function_count": 11,
       "imports": [
-        "collections",
+        "argparse",
         "statistics",
-        "re",
+        "collections",
         "pathlib",
-        "csv",
+        "re",
         "gzip",
-        "logging",
-        "argparse"
+        "csv",
+        "logging"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -510,14 +549,14 @@
       ],
       "function_count": 6,
       "imports": [
+        "argparse",
         "collections",
-        "re",
-        "pathlib",
-        "sys",
         "os",
+        "sys",
+        "pathlib",
+        "re",
         "gzip",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -549,13 +588,13 @@
       ],
       "function_count": 10,
       "imports": [
-        "pathlib",
-        "sys",
+        "tempfile",
         "subprocess",
-        "os",
-        "logging",
         "argparse",
-        "tempfile"
+        "os",
+        "sys",
+        "pathlib",
+        "logging"
       ],
       "import_count": 7,
       "argparse_args": [
@@ -583,11 +622,11 @@
       ],
       "function_count": 5,
       "imports": [
+        "argparse",
         "pathlib",
         "Bio.Seq",
         "csv",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 5,
       "argparse_args": [
@@ -615,16 +654,16 @@
       ],
       "function_count": 5,
       "imports": [
-        "csv",
-        "logging",
+        "argparse",
         "pathlib",
-        "argparse"
+        "csv",
+        "logging"
       ],
       "import_count": 4,
       "argparse_args": [],
       "lines_of_code": 230,
       "size": 2,
-      "degree": 2
+      "degree": 3
     },
     {
       "id": "workflow__scripts__run_mhcflurry_py",
@@ -647,10 +686,10 @@
       ],
       "function_count": 12,
       "imports": [
-        "csv",
-        "logging",
+        "argparse",
         "pathlib",
-        "argparse"
+        "csv",
+        "logging"
       ],
       "import_count": 4,
       "argparse_args": [
@@ -680,15 +719,15 @@
       ],
       "function_count": 7,
       "imports": [
+        "pathlib",
         "csv",
-        "logging",
-        "pathlib"
+        "logging"
       ],
       "import_count": 3,
       "argparse_args": [],
       "lines_of_code": 343,
       "size": 2,
-      "degree": 2
+      "degree": 3
     },
     {
       "id": "workflow__scripts__run_tcrdock_py",
@@ -711,18 +750,18 @@
       ],
       "function_count": 12,
       "imports": [
-        "pathlib",
-        "subprocess",
         "shutil",
+        "subprocess",
+        "argparse",
+        "pathlib",
         "csv",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 6,
       "argparse_args": [],
       "lines_of_code": 719,
       "size": 2,
-      "degree": 2
+      "degree": 3
     },
     {
       "id": "workflow__scripts__fetch_vdjdb_panel_py",
@@ -752,7 +791,7 @@
       "argparse_args": [],
       "lines_of_code": 330,
       "size": 2,
-      "degree": 2
+      "degree": 3
     },
     {
       "id": "workflow__scripts__generate_report_py",
@@ -776,11 +815,11 @@
       "function_count": 32,
       "imports": [
         "json",
-        "pathlib",
         "typing",
+        "argparse",
         "html",
-        "logging",
-        "argparse"
+        "pathlib",
+        "logging"
       ],
       "import_count": 6,
       "argparse_args": [
@@ -809,9 +848,9 @@
       ],
       "function_count": 5,
       "imports": [
+        "argparse",
         "pathlib",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -859,9 +898,9 @@
       ],
       "function_count": 2,
       "imports": [
+        "argparse",
         "pathlib",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -888,9 +927,9 @@
       ],
       "function_count": 3,
       "imports": [
+        "argparse",
         "pathlib",
-        "logging",
-        "argparse"
+        "logging"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -922,17 +961,17 @@
       ],
       "function_count": 11,
       "imports": [
-        "collections",
         "json",
-        "pathlib",
-        "time",
+        "tempfile",
+        "shutil",
         "typing",
         "subprocess",
-        "os",
-        "shutil",
-        "logging",
         "argparse",
-        "tempfile"
+        "collections",
+        "os",
+        "pathlib",
+        "time",
+        "logging"
       ],
       "import_count": 11,
       "argparse_args": [
@@ -961,12 +1000,12 @@
       ],
       "function_count": 6,
       "imports": [
-        "pathlib",
-        "sys",
         "subprocess",
+        "argparse",
         "os",
-        "logging",
-        "argparse"
+        "sys",
+        "pathlib",
+        "logging"
       ],
       "import_count": 6,
       "argparse_args": [
@@ -1004,7 +1043,7 @@
       ],
       "notes": "",
       "size": 2,
-      "degree": 9
+      "degree": 13
     },
     {
       "id": "workflow__envs__biotools_yaml",
@@ -1068,7 +1107,7 @@
       ],
       "notes": "",
       "size": 2,
-      "degree": 1
+      "degree": 2
     },
     {
       "id": "workflow__envs__vdjdb_yaml",
@@ -1086,7 +1125,7 @@
       ],
       "notes": "",
       "size": 2,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "workflow__envs__alphagenome_yaml",
@@ -1120,7 +1159,7 @@
       "path": "workflow/rules/alignment.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 9
+      "degree": 14
     },
     {
       "id": "workflow__rules__analysis_smk",
@@ -1160,7 +1199,7 @@
       "path": "workflow/rules/download.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 7
+      "degree": 8
     },
     {
       "id": "workflow__rules__filter_junctions_smk",
@@ -1180,7 +1219,7 @@
       "path": "workflow/rules/hla_typing.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 4
+      "degree": 6
     },
     {
       "id": "workflow__rules__mhc_affinity_smk",
@@ -1200,7 +1239,7 @@
       "path": "workflow/rules/proteome_filter.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 4
+      "degree": 6
     },
     {
       "id": "workflow__rules__structure_smk",
@@ -1210,7 +1249,7 @@
       "path": "workflow/rules/structure.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "workflow__rules__tcr_panel_smk",
@@ -1220,7 +1259,7 @@
       "path": "workflow/rules/tcr_panel.smk",
       "description": "Snakemake rule module",
       "size": 3,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "workflow__rules__translate_peptides_smk",
@@ -5920,25 +5959,73 @@
       "label": "defined in rule file"
     },
     {
+      "source": "rule__hisat2_download_index",
+      "target": "workflow__rules__alignment_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__hisat2_index",
+      "target": "workflow__rules__alignment_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__hisat2_align",
+      "target": "workflow__rules__alignment_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__star_index",
+      "target": "workflow__rules__alignment_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__star_align",
+      "target": "workflow__rules__alignment_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
       "source": "rule__create_alignment_manifest",
       "target": "workflow__envs__python_yaml",
       "type": "runs_in",
       "label": "uses env"
     },
     {
-      "source": "rule__create_alignment_manifest",
+      "source": "rule__hisat2_index",
       "target": "workflow__envs__hisat2_yaml",
       "type": "runs_in",
       "label": "uses env"
     },
     {
-      "source": "rule__create_alignment_manifest",
+      "source": "rule__hisat2_align",
+      "target": "workflow__envs__hisat2_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__star_index",
+      "target": "workflow__envs__star_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__star_align",
       "target": "workflow__envs__star_yaml",
       "type": "runs_in",
       "label": "uses env"
     },
     {
       "source": "rule__aggregate_filtering_stats",
+      "target": "workflow__rules__analysis_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__generate_report",
       "target": "workflow__rules__analysis_smk",
       "type": "defined_in",
       "label": "defined in rule file"
@@ -5954,12 +6041,6 @@
       "target": "workflow__envs__python_yaml",
       "type": "runs_in",
       "label": "uses env"
-    },
-    {
-      "source": "rule__generate_report",
-      "target": "workflow__rules__analysis_smk",
-      "type": "defined_in",
-      "label": "defined in rule file"
     },
     {
       "source": "rule__generate_report",
@@ -5998,7 +6079,19 @@
       "label": "requires filter_junctions"
     },
     {
+      "source": "rule__download_fastq",
+      "target": "workflow__rules__download_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
       "source": "rule__download_vdjdb_release",
+      "target": "workflow__rules__download_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__download_imgt_germlines",
       "target": "workflow__rules__download_smk",
       "type": "defined_in",
       "label": "defined in rule file"
@@ -6008,12 +6101,6 @@
       "target": "workflow__envs__vdjdb_yaml",
       "type": "runs_in",
       "label": "uses env"
-    },
-    {
-      "source": "rule__download_imgt_germlines",
-      "target": "workflow__rules__download_smk",
-      "type": "defined_in",
-      "label": "defined in rule file"
     },
     {
       "source": "rule__download_imgt_germlines",
@@ -6023,6 +6110,12 @@
     },
     {
       "source": "rule__build_reference_junctions",
+      "target": "workflow__rules__filter_junctions_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__filter_junctions",
       "target": "workflow__rules__filter_junctions_smk",
       "type": "defined_in",
       "label": "defined in rule file"
@@ -6041,12 +6134,6 @@
     },
     {
       "source": "rule__filter_junctions",
-      "target": "workflow__rules__filter_junctions_smk",
-      "type": "defined_in",
-      "label": "defined in rule file"
-    },
-    {
-      "source": "rule__filter_junctions",
       "target": "workflow__scripts__filter_junctions_py",
       "type": "calls",
       "label": "runs script"
@@ -6058,7 +6145,43 @@
       "label": "uses env"
     },
     {
+      "source": "rule__run_optitype",
+      "target": "workflow__rules__hla_typing_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__aggregate_hla_alleles",
+      "target": "workflow__rules__hla_typing_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__run_optitype",
+      "target": "workflow__envs__optitype_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__aggregate_hla_alleles",
+      "target": "workflow__scripts__aggregate_hla_alleles_py",
+      "type": "calls",
+      "label": "runs script"
+    },
+    {
+      "source": "rule__aggregate_hla_alleles",
+      "target": "workflow__envs__python_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
       "source": "rule__download_mhcflurry_models",
+      "target": "workflow__rules__mhc_affinity_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__run_mhcflurry",
       "target": "workflow__rules__mhc_affinity_smk",
       "type": "defined_in",
       "label": "defined in rule file"
@@ -6071,12 +6194,6 @@
     },
     {
       "source": "rule__run_mhcflurry",
-      "target": "workflow__rules__mhc_affinity_smk",
-      "type": "defined_in",
-      "label": "defined in rule file"
-    },
-    {
-      "source": "rule__run_mhcflurry",
       "target": "workflow__scripts__run_mhcflurry_py",
       "type": "calls",
       "label": "runs script"
@@ -6084,6 +6201,84 @@
     {
       "source": "rule__run_mhcflurry",
       "target": "workflow__envs__python_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__download_human_proteome",
+      "target": "workflow__rules__proteome_filter_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__proteome_filter_peptides",
+      "target": "workflow__rules__proteome_filter_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__download_human_proteome",
+      "target": "workflow__envs__python_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__proteome_filter_peptides",
+      "target": "workflow__scripts__proteome_filter_py",
+      "type": "calls",
+      "label": "runs script"
+    },
+    {
+      "source": "rule__proteome_filter_peptides",
+      "target": "workflow__envs__python_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__proteome_filter_peptides",
+      "target": "rule__translate_peptides",
+      "type": "depends_on",
+      "label": "requires translate_peptides"
+    },
+    {
+      "source": "rule__run_tcrdock",
+      "target": "workflow__rules__structure_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__run_tcrdock",
+      "target": "workflow__scripts__run_tcrdock_py",
+      "type": "calls",
+      "label": "runs script"
+    },
+    {
+      "source": "rule__run_tcrdock",
+      "target": "workflow__envs__python_yaml",
+      "type": "runs_in",
+      "label": "uses env"
+    },
+    {
+      "source": "rule__run_tcrdock",
+      "target": "rule__run_mhcflurry",
+      "type": "depends_on",
+      "label": "requires run_mhcflurry"
+    },
+    {
+      "source": "rule__fetch_vdjdb_panel",
+      "target": "workflow__rules__tcr_panel_smk",
+      "type": "defined_in",
+      "label": "defined in rule file"
+    },
+    {
+      "source": "rule__fetch_vdjdb_panel",
+      "target": "workflow__scripts__fetch_vdjdb_panel_py",
+      "type": "calls",
+      "label": "runs script"
+    },
+    {
+      "source": "rule__fetch_vdjdb_panel",
+      "target": "workflow__envs__vdjdb_yaml",
       "type": "runs_in",
       "label": "uses env"
     },
