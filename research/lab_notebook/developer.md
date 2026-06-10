@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-10 — DataCite fallback for arXiv DOIs in zotero_add.py ([PR #648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648) closes [Issue #641](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/641))
+
+### 19:33 UTC — Editor: Developer
+
+Ratified one of the 2026-06-03 overnight one-shot routine drafts (stranded 7 days at *Ready for review*). The change itself is XS — a DataCite metadata fallback so arXiv DOIs (`10.48550/…`, minted via DataCite, invisible to CrossRef) can be auto-added to Zotero instead of 404-exiting. It gets an entry not for the feature but for the **ratification learning** below.
+
+**Learning — a fixture built from documented schema, not a live record, masked a real bug; the deferred live-probe AC is what caught it.** The routine couldn't reach `api.datacite.org` (sandbox egress `403 Host not in allowlist`), so it built the date mapper + test fixture from DataCite's *documented* JSON:API schema and left the live `--dry-run` as an explicitly-unchecked AC for a human. Running that probe locally (`10.48550/arXiv.2512.06592`) exposed a shape the docs didn't telegraph: arXiv's record carries a **year-only `Issued` ("2025")** alongside a **full-precision `Submitted` ("2025-12-06T…")**. `_datacite_date`'s fixed `Issued`-before-`Submitted` order returned the year and silently dropped the real submission date — and the fixture had hidden it by giving *both* dateTypes a full date. Fix: pick the most-precise `Issued`/`Submitted` entry (order-independent, `count("-")` ranks precision), trim the `T` timestamp to `YYYY-MM-DD`. Updated the fixture to the verified live shape so the suite now guards reality. **Principle: a network-gated AC deferred to "ratify locally" must be ratified against the *real source*, not re-confirmed against the same assumed schema the code was written from — the fixture and the code share the blind spot.**
+
+**Bot review.** Three findings triaged: (1) `_datacite_creators` comma-split fired on Organizational names too (`"Chen, Wang & Associates"` → bad Family,Given) — fixed with an *Organizational-only* guard (not the bot's `Personal`-only suggestion, which would have regressed name-only personal creators that omit the optional `nameType`) + regression test; (2) stale `main()` comment — fixed; (3) a pre-existing, symmetric `URLError`-leaves-`data`-unbound gap on both fetch paths — **deferred** as out of scope for #641 (a clean follow-up, not a DataCite-fallback concern). Suite 19 green locally (`workflow/tests/.venv`; `zotero_add.py` is pure-stdlib).
+
+**Follow-up.** Harden `fetch_crossref` + `fetch_datacite` against bare `URLError` (DNS/connection failures currently propagate as a traceback rather than a clean message) — pre-existing, low priority.
+
 ## 2026-06-04 — Cloud re-run robustness + CI conda env-solve guard ([PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) closes [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) + [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664); [PR #668](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/668) closes [Issue #646](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/646))
 
 ### 14:50 UTC — Editor: Developer
