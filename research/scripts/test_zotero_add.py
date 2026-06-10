@@ -233,12 +233,23 @@ def test_datacite_prefers_full_date_over_year_issued():
 
 
 def test_datacite_name_only_creator_splits_family_given():
-    """Organizational / name-only creators ('Family, Given') still parse."""
+    """Name-only personal creators ('Family, Given') still parse."""
     data = _arxiv_datacite()
     data["creators"] = [{"name": "Smith, John", "nameType": "Personal"}]
     item = datacite_to_zotero(data, _COLLECTION, _TAGS)
     assert item["creators"][0] == {
         "creatorType": "author", "firstName": "John", "lastName": "Smith",
+    }
+
+
+def test_datacite_organizational_creator_name_taken_whole():
+    """An Organizational creator with a comma in its name is NOT comma-split
+    into Family,Given — the whole name goes into lastName."""
+    data = _arxiv_datacite()
+    data["creators"] = [{"name": "Chen, Wang & Associates Lab", "nameType": "Organizational"}]
+    item = datacite_to_zotero(data, _COLLECTION, _TAGS)
+    assert item["creators"][0] == {
+        "creatorType": "author", "firstName": "", "lastName": "Chen, Wang & Associates Lab",
     }
 
 

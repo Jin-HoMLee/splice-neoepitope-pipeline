@@ -210,8 +210,12 @@ def _datacite_is_preprint(data):
 def _datacite_creators(creators):
     """Map DataCite creators[] → Zotero author dicts (firstName/lastName).
 
-    Personal creators carry givenName/familyName; name-only / organizational
-    creators carry just 'name', often as 'Family, Given' — split on the comma.
+    Personal creators carry givenName/familyName; name-only personal creators
+    carry just 'name', often as 'Family, Given' — split on the comma. An
+    Organizational creator's name is taken whole (no comma split), since a comma
+    in an org name ('Chen, Wang & Associates') is not a Family,Given separator.
+    nameType is optional in DataCite, so only an explicit 'Organizational'
+    suppresses the split — absent/Personal still splits.
     """
     authors = []
     for c in creators or []:
@@ -219,7 +223,9 @@ def _datacite_creators(creators):
         family = c.get("familyName", "")
         if not given and not family:
             name = c.get("name", "")
-            if "," in name:
+            if c.get("nameType") == "Organizational":
+                family = name
+            elif "," in name:
                 family_part, _, given_part = name.partition(",")
                 family = family_part.strip()
                 given = given_part.strip()
@@ -437,7 +443,8 @@ def main():
     print(f"Title: {item['title']}")
     print(f"Authors: {len(item['creators'])} authors")
     if is_preprint:
-        # itemType is now journalArticle for both paths; use CrossRef classification to tell them apart.
+        # itemType is journalArticle for journals and preprints alike; is_preprint
+        # (set per-source above) drives the display label, not the item shape.
         print(f"Preprint ({item['publicationTitle'] or '—'}): {item['date']}")
     else:
         # .get() defaults keep this safe for the DataCite non-preprint path,
