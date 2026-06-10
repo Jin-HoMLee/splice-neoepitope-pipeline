@@ -36,6 +36,15 @@ def rank(status: str | None) -> int:
 
 LADDER_INVERSE = {v: k for k, v in STATUS_LADDER.items()}
 
+# Softer flag emitted in place of a bare COMPLETION DRIFT when a parent's only
+# remaining children are all closed but ≥1 was closed NOT_PLANNED — that scope
+# was deferred, not delivered, so a confident rollup-close suggestion would be
+# wrong (Issue #632). format_record() owns the surrounding brackets, so this
+# constant carries no brackets of its own.
+NOT_PLANNED_REVIEW = (
+    "REVIEW: parent has a not-planned child — verify scope was delivered, not deferred"
+)
+
 
 def collective_state(open_children: list[dict]) -> str:
     """Max-rank status across open children. Empty list → 'Done'."""
@@ -45,15 +54,30 @@ def collective_state(open_children: list[dict]) -> str:
     return LADDER_INVERSE[max_rank]
 
 
-def classify_drift(parent_status: str | None, open_children: list[dict]) -> str | None:
+def classify_drift(
+    parent_status: str | None,
+    open_children: list[dict],
+    has_not_planned: bool = False,
+) -> str | None:
     """Classify drift for a parent vs its open children.
 
-    Returns one of: 'FORWARD DRIFT', 'BACKWARD DRIFT', 'COMPLETION DRIFT', or None.
+    Returns one of: 'FORWARD DRIFT', 'BACKWARD DRIFT', 'COMPLETION DRIFT',
+    NOT_PLANNED_REVIEW, or None.
+
+    ``has_not_planned`` is True when the parent has ≥1 sub-issue closed
+    NOT_PLANNED. It only matters when every child is closed (``open_children``
+    empty): a NOT_PLANNED child carries deferred scope, so "all closed" does
+    not imply "complete" — emit the softer verify prompt instead of a confident
+    rollup-close suggestion (Issue #632).
     """
     p_rank = rank(parent_status)
     if not open_children:
-        # All children closed; parent should be Done
-        return None if p_rank == STATUS_LADDER["Done"] else "COMPLETION DRIFT"
+        # All children closed; parent should be Done.
+        if p_rank == STATUS_LADDER["Done"]:
+            return None
+        # A NOT_PLANNED child means the completion claim is unverified; downgrade
+        # the bare COMPLETION DRIFT to a verify prompt (Issue #632).
+        return NOT_PLANNED_REVIEW if has_not_planned else "COMPLETION DRIFT"
     c_rank = rank(collective_state(open_children))
     if p_rank > c_rank and p_rank >= STATUS_LADDER["In progress"]:
         # Only flag when the parent is making a falsifiable progress claim (In progress
@@ -80,10 +104,28 @@ def parent_issue_number(issue_number: int) -> int | None:
     return int(url.rstrip("/").rsplit("/", 1)[-1])
 
 
+def all_sub_issues(issue_number: int) -> list[dict]:
+    """Return all sub-issues (open and closed), each carrying 'state' and
+    'state_reason' from the REST /sub_issues endpoint."""
+    return gh("api", f"repos/{REPO}/issues/{issue_number}/sub_issues")
+
+
 def open_sub_issues(issue_number: int) -> list[dict]:
     """Return list of open sub-issues (each a dict with 'number' at minimum)."""
-    data = gh("api", f"repos/{REPO}/issues/{issue_number}/sub_issues")
-    return [c for c in data if c.get("state") == "open"]
+    return [c for c in all_sub_issues(issue_number) if c.get("state") == "open"]
+
+
+def has_not_planned_child(issue_number: int) -> bool:
+    """True if any sub-issue was closed with state_reason 'not_planned'.
+
+    open_sub_issues() discards closed children, so this is the only path that
+    inspects close reasons — required to tell a deferred (NOT_PLANNED) close
+    from a delivered (COMPLETED) one when a parent is all-closed (Issue #632).
+    """
+    return any(
+        c.get("state") == "closed" and c.get("state_reason") == "not_planned"
+        for c in all_sub_issues(issue_number)
+    )
 
 
 def status_for_issue(issue_number: int) -> str | None:
@@ -133,12 +175,15 @@ def audit_parent_chain(issue_number: int) -> list[dict]:
         # Enrich children with their Status
         enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
                     for c in children]
+        # Only consult close reasons when every child is closed — that's the one
+        # case classify_drift uses the flag, and it saves an API call otherwise.
+        has_np = not enriched and has_not_planned_child(cursor)
         chain.append({
             "issue": cursor,
             "status": parent_status,
             "open_children": enriched,
             "collective": collective_state(enriched),
-            "drift": classify_drift(parent_status, enriched),
+            "drift": classify_drift(parent_status, enriched, has_not_planned=has_np),
         })
         cursor = parent_issue_number(cursor)
     return chain
@@ -212,12 +257,13 @@ def run_all_mode() -> int:
         children = open_sub_issues(p)
         enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
                     for c in children]
+        has_np = not enriched and has_not_planned_child(p)
         record = {
             "issue": p,
             "status": parent_status,
             "open_children": enriched,
             "collective": collective_state(enriched),
-            "drift": classify_drift(parent_status, enriched),
+            "drift": classify_drift(parent_status, enriched, has_not_planned=has_np),
         }
         if record["drift"] is not None:
             drifted_count += 1
