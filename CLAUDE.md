@@ -332,6 +332,26 @@ Left-side transitions: **intake-triage** (`No Status → Backlog`) → **commitm
 
 Full rules: `.claude/memory/shared/feedback_board_hygiene.md` (sweep cadence, DoR, commitment-act mechanics) and `.claude/memory/feedback_milestones.md` (milestone naming, the capacity decision tree).
 
+## Three-axis work model (stage / arc / due-date)
+
+Work on board #9 is structured along **three orthogonal axes**, each carried by the object that fits it (de-overloading landed by [Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693)):
+
+| Axis | Question | Carried by |
+|------|----------|-----------|
+| **Stage** | where in the data-science lifecycle? | the **milestone** (`S<N>` in its name) |
+| **Arc** | which long-running narrative throughline? | a never-closing **`arc:<slug>` label** on the issue (+ `arc-phase:active\|next\|later` focus slate, ≤3 active — full spec: `docs/superpowers/specs/2026-06-05-arc-work-structuring-design.md`) |
+| **Due-date** | by when? | the milestone's `due_on` → synced to the board **Target date** field |
+
+**Milestone naming (terse, post-#693):** `i<N> - S<N> - <Stage Name>` — e.g. `i5 - S3 - Data Preparation`. The trailing ` - <Arc>` content-suffix was **dropped**: a cross-cutting theme belongs on a label, not a milestone — [GitHub allows one milestone per issue](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones) and milestones *close*, whereas an arc never does (themes/epics → labels is documented GitHub practice). The arc now lives only as the `arc:<slug>` label (taxonomy in `scripts/pm/arc_taxonomy.tsv`). Excluded from the rename: `pm-i*` / `dev-i*` milestones (different format, suffix is the sole descriptor) and closed milestones (historical record).
+
+**Four distinct senses of "iteration" — do not conflate:**
+- **`i<N>` (ours)** = a *pass through the DS lifecycle* (S1→S7); **variable-length, work/learning-driven**. Lives in the milestone name. Not a calendar time-box.
+- **Scrum sprint** = a *fixed-length calendar time-box*. **We do not run sprints** (we run Kanban/flow).
+- **GitHub Iteration field** = GitHub's implementation of Scrum sprints (auto-rolling fixed windows, `@current`). **Not adopted** — see below.
+- The lifecycle **stage** `S<N>` is occasionally called an "iteration" loosely — it is a *phase*, not a time-box.
+
+**Time-boxing decision ([Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693), 2026-06-10): Target date, not the Iteration field.** The chronological clock lives in milestone `due_on` → the board **Target date** field (auto-synced by `recheck_dispatch.py`). The native Projects **Iteration field is declined** — it encodes fixed Scrum-cadence sprints, which clashes with our **Kanban/flow** model (late-commitment Ready queue + WIP limits, no sprints) *and* with the variable-length `i<N>` lifecycle passes. The **Roadmap view** plots off **Target date**; **Start date is left unused** (empty on all items). Pointing the Roadmap's date field at Target date is a **manual UI step** — ProjectV2's API can't mutate view config. **Revisit** only if sprint swimlanes / `@current` auto-roll / velocity Insights are ever wanted — none are used today. Optional future nicety: populate **Start date** for roadmap *duration bars* (start→deadline) — a deliberate date-field choice, still not the Iteration field.
+
 ## GitHub Safety Wrappers
 
 Mechanisms that fire automatically to enforce GitHub-related discipline rules that have broken repeatedly despite being documented in memory. Per the mechanism-over-memory ladder (memory → inline Always-in-effect → mechanism), these are the rung-3 escalation when a rule has slipped ≥2× on the same shape.
