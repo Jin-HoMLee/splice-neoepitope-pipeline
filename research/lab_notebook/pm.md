@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-10
+
+### 18:21 UTC — Editor: PM
+
+#### Arc work-structuring — Plan 3 landed: milestone de-overloading + the three-axis model documented; epic → 3/3 ([Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693), [PR #700](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/700))
+
+**What shipped.** The final arc-rollout plan, all project-repo. Milestone state (live via API, no file artifacts): **6 open milestones renamed** to drop the `<Arc>` content-suffix → terse `i<N> - S<N> - <Stage>`; **2 empty placeholders closed** (i2-S7 Publication, i3-S4 EDA); **3 legacy empties deleted** (M1/M2/M7). Docs: a new "Three-axis work model (stage / arc / due-date)" section in `CLAUDE.md` board-governance.
+
+**The decision that took the session (AC 3 — time-boxing): Target date, not the native Iteration field.** The clock lives in milestone `due_on` → the board **Target date** field (already populated + `recheck_dispatch.py`-synced; **Start date** turned out empty on every open item — the Roadmap was sorting on nothing). The Iteration field is **declined**: it encodes fixed Scrum-cadence sprints, which clashes with (a) our Kanban/flow model (late-commitment Ready queue + WIP, no sprints) and (b) the variable-length `i<N>` lifecycle passes. Roadmap repoint Start→Target is a **manual UI step** (ProjectV2 API can't mutate view config) — surfaced as a post-merge action, not an AC.
+
+**The conceptual untangle (the durable bit).** The session pivoted on separating **four distinct senses of "iteration"** that the old milestone name had been conflating: our **`i<N>`** = a *pass through the DS lifecycle* (variable-length, work/learning-driven); a **Scrum sprint** = a fixed calendar time-box; a **GitHub Iteration field** = GitHub's impl of sprints (auto-rolling `@current`); and the lifecycle **stage** `S<N>` = a *phase*. We run none of the sprint-flavored ones. This is why the de-overloading is *correct*, not just tidy: stage→milestone, arc→label, clock→due_on/Target — each axis on the object that fits it.
+
+**Standards-first interrogation (user-driven, worth recording).** The user pushed hard on whether "arc" is idiosyncratic vs best-practice. Verified against GitHub's own docs ([Using labels and milestones](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work), [About milestones](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones)): **cross-cutting themes belong on labels, one milestone per issue (intentional), milestones close** — so an arc (a never-closing throughline) *literally cannot* be a milestone, and arc-as-label is textbook standard. The only genuinely bespoke piece is the **`arc-phase:active` ≤3 focus slate**, justified by a real gap (async, non-overlapping role-sessions with no synchronous standup → need a shared pull target). Key epistemic catch (the user's): we **can't empirically validate** the slate by watching our own pulls — behavior is fully determined by the memory we author, so an A/B "test" is circular. Whether the slate earns its keep is therefore a *design-reasoning* question, deferred as a **separate decision** (the milestone de-overloading is standard-aligned and worth doing regardless of how that lands — which is why we proceeded with Plan 3).
+
+**Follow-up flagged (out of #693 scope).** The personas-repo memory naming template (`pm/feedback_milestones.md`, `pm/MEMORY.md` "Full milestone names") still shows the dropped `<Arc>` suffix → needs the terse update (PM self-commit per the [Issue #672](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/672) trial, or MM landing). Until then the two naming sources are transiently out of sync.
+
+**Review.** Bot review: clean, docs-only, no correctness bugs. Took finding 1 (add the arc-spec cross-reference to the ≤3 line) + finding 2 (reworded the Roadmap note as a durable instruction, not a one-time incident); declined 3 (cosmetic) + 4 (the follow-up above, already flagged). Epic [Issue #691](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/691) → **3/3 complete** with this.
+
 ## 2026-06-05
 
 ### 15:14 UTC — Editor: PM
