@@ -234,16 +234,28 @@ def _datacite_creators(creators):
 
 
 def _datacite_date(data):
-    """Prefer an explicit Issued date, then Submitted, then publicationYear.
+    """Return the most-precise of the Issued/Submitted dates, then publicationYear.
 
-    DataCite dates[] carry a dateType; arXiv records expose Submitted + Issued.
-    Falls back to the year-only publicationYear when no dated entry exists.
+    DataCite dates[] carry a dateType; arXiv records expose BOTH a year-only
+    Issued ("2025") and a full-precision Submitted timestamp ("2025-12-06T...",
+    the v1 submission date — verified live on 10.48550/arXiv.2512.06592). A fixed
+    Issued-before-Submitted order would return the year-only Issued and drop the
+    real date, so pick whichever entry carries the most precision instead.
+    Timestamps are trimmed to the date portion (YYYY-MM-DD), matching the
+    CrossRef path's `-`-joined date format. Falls back to the year-only
+    publicationYear when no Issued/Submitted entry exists.
     """
-    dates = data.get("dates") or []
-    for date_type in ("Issued", "Submitted"):
-        for d in dates:
-            if d.get("dateType") == date_type and d.get("date"):
-                return str(d["date"])
+    best = ""
+    best_precision = -1
+    for d in data.get("dates") or []:
+        if d.get("dateType") in ("Issued", "Submitted") and d.get("date"):
+            candidate = str(d["date"]).split("T")[0]
+            precision = candidate.count("-")
+            if precision > best_precision:
+                best = candidate
+                best_precision = precision
+    if best:
+        return best
     year = data.get("publicationYear")
     return str(year) if year else ""
 

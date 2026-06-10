@@ -158,9 +158,11 @@ def _arxiv_datacite():
         "publisher": "arXiv",
         "container": {},
         "publicationYear": 2025,
+        # Verified live shape: Issued is year-only; Submitted carries the
+        # full v1 submission timestamp (the real, more-precise date).
         "dates": [
-            {"date": "2025-12-08", "dateType": "Submitted"},
-            {"date": "2025-12-08", "dateType": "Issued"},
+            {"date": "2025-12-06T23:07:10Z", "dateType": "Submitted", "dateInformation": "v1"},
+            {"date": "2025", "dateType": "Issued"},
         ],
         "types": {
             "ris": "GEN", "bibtex": "misc", "citeproc": "article-journal",
@@ -181,7 +183,8 @@ def test_datacite_arxiv_maps_to_preprint_zotero_item():
     assert item["publicationTitle"] == "arXiv"
     assert item["DOI"] == "10.48550/arxiv.2512.06592"
     assert item["url"] == "https://arxiv.org/abs/2512.06592"
-    assert item["date"] == "2025-12-08"
+    # full-precision Submitted (time-stripped) wins over the year-only Issued
+    assert item["date"] == "2025-12-06"
     # creators mirror the crossref mapper's firstName/lastName shape
     assert item["creators"][0] == {
         "creatorType": "author", "firstName": "Alex", "lastName": "King",
@@ -213,6 +216,20 @@ def test_datacite_date_falls_back_to_publication_year():
     data["dates"] = []
     item = datacite_to_zotero(data, _COLLECTION, _TAGS)
     assert item["date"] == "2025"
+
+
+def test_datacite_prefers_full_date_over_year_issued():
+    """Real arXiv shape (verified live on 10.48550/arXiv.2512.06592): a year-only
+    Issued alongside a full-precision Submitted timestamp. Pick the most-precise
+    date (Submitted, time-stripped to YYYY-MM-DD) regardless of list order — not
+    the year-only Issued that happens to come first."""
+    data = _arxiv_datacite()
+    data["dates"] = [
+        {"date": "2025", "dateType": "Issued"},
+        {"date": "2025-12-06T23:07:10Z", "dateType": "Submitted", "dateInformation": "v1"},
+    ]
+    item = datacite_to_zotero(data, _COLLECTION, _TAGS)
+    assert item["date"] == "2025-12-06"
 
 
 def test_datacite_name_only_creator_splits_family_given():
