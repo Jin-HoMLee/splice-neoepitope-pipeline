@@ -40,6 +40,8 @@ A feasibility gate established that only ~tens of such peptides exist field-wide
 
 ## How it was curated (provenance)
 
+Per-peptide source locations + provenance grades (direct / inferred / agent-local / agent-web / unpublished) are in **`PROVENANCE.md`** and the `provenance_grade` / `provenance_ref` columns of `registry.tsv` — so anyone scoring against this set knows which sequences are rock-solid vs need a manual confirm.
+
 1. Adversarially-verified novelty check (25/25 claims, 0 killed) confirmed no prior open splice-immunogenicity benchmark exists.
 2. Multi-agent literature + database sweep → dual-gate verification.
 3. Local Zotero full-text PDF mining (paywall-free) — surfaced sources the literature sweep missed (Kim leukemia, Zhao PDAC, Ji, Fisher) and **doubled** the set; added intron-retention biology.
