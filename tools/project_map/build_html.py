@@ -89,8 +89,14 @@ def build():
     html, _ = D3_INLINED_RE.subn("", html)
     html, n_cdn = D3_CDN_RE.subn("", html)
 
-    # 2) Collapse duplicate loadGraph() definitions from older builds.
-    html, n_fns = collapse_duplicate_function(html, "loadGraph")
+    # 2) Collapse duplicate helper definitions from older builds. isContainer
+    #    appears twice in the hand-authored template (identical bodies); JS
+    #    resolves last-wins silently, so collapse it too lest a future divergence
+    #    pick the wrong one.
+    n_fns = 0
+    for fn_name in ("loadGraph", "isContainer"):
+        html, n_this = collapse_duplicate_function(html, fn_name)
+        n_fns += n_this
 
     # 3) Inline D3 right after <head> so it's defined before any script runs.
     d3_block = f'<script id="d3-inlined">{d3_src}</script>\n'
@@ -111,7 +117,7 @@ def build():
     if n_cdn:
         print("   replaced d3js.org CDN <script> with vendored D3")
     if n_fns:
-        print(f"   collapsed {n_fns} duplicate loadGraph() definition(s)")
+        print(f"   collapsed {n_fns} duplicate helper definition(s)")
     return 0
 
 

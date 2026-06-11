@@ -513,13 +513,13 @@
       "function_count": 11,
       "imports": [
         "argparse",
-        "statistics",
         "collections",
+        "csv",
+        "gzip",
+        "logging",
         "pathlib",
         "re",
-        "gzip",
-        "csv",
-        "logging"
+        "statistics"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -551,12 +551,12 @@
       "imports": [
         "argparse",
         "collections",
+        "gzip",
+        "logging",
         "os",
-        "sys",
         "pathlib",
         "re",
-        "gzip",
-        "logging"
+        "sys"
       ],
       "import_count": 8,
       "argparse_args": [
@@ -588,13 +588,13 @@
       ],
       "function_count": 10,
       "imports": [
-        "tempfile",
-        "subprocess",
         "argparse",
+        "logging",
         "os",
-        "sys",
         "pathlib",
-        "logging"
+        "subprocess",
+        "sys",
+        "tempfile"
       ],
       "import_count": 7,
       "argparse_args": [
@@ -622,11 +622,11 @@
       ],
       "function_count": 5,
       "imports": [
-        "argparse",
-        "pathlib",
         "Bio.Seq",
+        "argparse",
         "csv",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 5,
       "argparse_args": [
@@ -655,9 +655,9 @@
       "function_count": 5,
       "imports": [
         "argparse",
-        "pathlib",
         "csv",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 4,
       "argparse_args": [],
@@ -687,9 +687,9 @@
       "function_count": 12,
       "imports": [
         "argparse",
-        "pathlib",
         "csv",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 4,
       "argparse_args": [
@@ -719,9 +719,9 @@
       ],
       "function_count": 7,
       "imports": [
-        "pathlib",
         "csv",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 3,
       "argparse_args": [],
@@ -750,12 +750,12 @@
       ],
       "function_count": 12,
       "imports": [
-        "shutil",
-        "subprocess",
         "argparse",
-        "pathlib",
         "csv",
-        "logging"
+        "logging",
+        "pathlib",
+        "shutil",
+        "subprocess"
       ],
       "import_count": 6,
       "argparse_args": [],
@@ -799,7 +799,7 @@
       "type": "script",
       "group": "pipeline",
       "path": "workflow/scripts/generate_report.py",
-      "description": "Self-contained HTML report: junction summary, HLA QC, top binders, Mol* 3D viewer",
+      "description": "Self-contained HTML report: junction summary, HLA QC, top presenters, Mol* 3D viewer",
       "inputs_schema": "novel_junctions.tsv, filtering_stats.tsv, mhc_presentation.tsv, hla_qc.tsv, vdjdb_panel.tsv, contigs.fa, tcrdock outputs",
       "outputs_schema": "report.html, report.tsv, report_top_candidates.tsv",
       "functions": [
@@ -814,12 +814,12 @@
       ],
       "function_count": 32,
       "imports": [
-        "json",
-        "typing",
         "argparse",
         "html",
+        "json",
+        "logging",
         "pathlib",
-        "logging"
+        "typing"
       ],
       "import_count": 6,
       "argparse_args": [
@@ -849,8 +849,8 @@
       "function_count": 5,
       "imports": [
         "argparse",
-        "pathlib",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -899,8 +899,8 @@
       "function_count": 2,
       "imports": [
         "argparse",
-        "pathlib",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -928,8 +928,8 @@
       "function_count": 3,
       "imports": [
         "argparse",
-        "pathlib",
-        "logging"
+        "logging",
+        "pathlib"
       ],
       "import_count": 3,
       "argparse_args": [
@@ -961,17 +961,17 @@
       ],
       "function_count": 11,
       "imports": [
-        "json",
-        "tempfile",
-        "shutil",
-        "typing",
-        "subprocess",
         "argparse",
         "collections",
+        "json",
+        "logging",
         "os",
         "pathlib",
+        "shutil",
+        "subprocess",
+        "tempfile",
         "time",
-        "logging"
+        "typing"
       ],
       "import_count": 11,
       "argparse_args": [
@@ -1000,12 +1000,12 @@
       ],
       "function_count": 6,
       "imports": [
-        "subprocess",
         "argparse",
+        "logging",
         "os",
-        "sys",
         "pathlib",
-        "logging"
+        "subprocess",
+        "sys"
       ],
       "import_count": 6,
       "argparse_args": [
@@ -2092,7 +2092,7 @@
       "path": "research/slides/README.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "research__slides___template_qmd",
@@ -2850,7 +2850,7 @@
       "path": "docs/data_preparation.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__configuration_md",
@@ -2860,7 +2860,7 @@
       "path": "docs/configuration.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 5
+      "degree": 4
     },
     {
       "id": "docs__gtex_pan_tissue_build_md",
@@ -2870,7 +2870,7 @@
       "path": "docs/gtex_pan_tissue_build.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__modernization_notes_md",
@@ -2919,7 +2919,7 @@
       "path": "docs/features/README.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__features__issue_204_vdjdb_panel",
@@ -3261,7 +3261,7 @@
       "path": "docs/superpowers/plans/2026-05-31-issue-211-gtex-pan-tissue-ref.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__superpowers__plans__2026_05_21_issue_225_normal_junction_filter_strength_md",
@@ -3271,7 +3271,7 @@
       "path": "docs/superpowers/plans/2026-05-21-issue-225-normal-junction-filter-strength.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 4
+      "degree": 2
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -3281,7 +3281,7 @@
       "path": "docs/superpowers/plans/2026-05-19-issue-17-star-aligner.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__superpowers__specs",
@@ -3320,7 +3320,7 @@
       "path": "docs/superpowers/specs/2026-05-27-memory-manager-role-design.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__superpowers__specs__2026_06_04_visual_morning_routine_design_md",
@@ -3380,7 +3380,7 @@
       "path": "docs/superpowers/specs/2026-05-29-personas-repo-governance-design.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__superpowers__specs__2026_05_21_issue_225_normal_junction_filter_strength_design_md",
@@ -3390,7 +3390,7 @@
       "path": "docs/superpowers/specs/2026-05-21-issue-225-normal-junction-filter-strength-design.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 5
+      "degree": 3
     },
     {
       "id": "docs__superpowers__specs__2026_05_19_issue_17_star_aligner_design_md",
@@ -3400,7 +3400,7 @@
       "path": "docs/superpowers/specs/2026-05-19-issue-17-star-aligner-design.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 2
     },
     {
       "id": "docs__superpowers__specs__2026_05_28_hook_fire_log_infra_design_md",

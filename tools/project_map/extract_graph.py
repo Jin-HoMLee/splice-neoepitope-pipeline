@@ -152,8 +152,11 @@ def get_script_metadata(script_path):
         return {}, [], [], 0
     content = path.read_text()
     functions = list(re.findall(r'^def\s+(\w+)\(', content, re.MULTILINE))
-    imports = list(set(re.findall(r'^import\s+(\S+)', content, re.MULTILINE) +
-                        re.findall(r'^from\s+(\S+)\s+import', content, re.MULTILINE)))
+    # sorted(), not list(set(...)): bare set ordering is PYTHONHASHSEED-dependent,
+    # so an unsorted serialization makes graph.json regenerate non-identically
+    # across runs/machines — breaking the committed-vs-regenerated invariant.
+    imports = sorted(set(re.findall(r'^import\s+(\S+)', content, re.MULTILINE) +
+                         re.findall(r'^from\s+(\S+)\s+import', content, re.MULTILINE)))
     argparse_args = [m.group(1) for m in re.finditer(r"add_argument\(['\"]-{1,2}(\w+)['\"]", content)]
     lines = content.count("\n") + 1
     return functions, imports, argparse_args, lines
@@ -180,16 +183,18 @@ def parse_rule_resources(content):
 
     # Match threads: <number> or threads: config.get(...)
     tm = re.search(r'threads:\s*(\d+)', content)
-    if not tm:
+    if tm:
+        resources["threads"] = int(tm.group(1))
+    else:
         # threads: config.get("alignment", {}).get("threads", 8)
-        tm = re.search(r'threads:\s*.*\.get\(["\']\w+["\'],\s*["\']?\w+["\']?\s*\)', content)
-        if tm:
-            # Extract the default value from the second .get(... 8)
+        # The matcher regex has no capture group, so the default must be pulled
+        # with a separate capturing search — never call tm.group(1) on it.
+        tm_cfg = re.search(
+            r'threads:\s*.*\.get\(["\']\w+["\'],\s*["\']?\w+["\']?\s*\)', content)
+        if tm_cfg:
             tm2 = re.search(r'\.get\(["\']\w+["\'],\s*(\d+)\)', content)
             if tm2:
                 resources["threads"] = int(tm2.group(1))
-    if not resources["threads"] and tm:
-        resources["threads"] = int(tm.group(1))
 
     # Match resources: block with mem_mb=N
     mm = re.search(r'resources:\s*\n\s+mem_mb=(\d+)', content)
@@ -310,7 +315,7 @@ PIPELINE_SCRIPTS_META = {
         "outputs": "panel.tsv (TCRs with full sequences), panel_qc.tsv (per-allele coverage)",
     },
     "workflow/scripts/generate_report.py": {
-        "desc": "Self-contained HTML report: junction summary, HLA QC, top binders, Mol* 3D viewer",
+        "desc": "Self-contained HTML report: junction summary, HLA QC, top presenters, Mol* 3D viewer",
         "inputs": "novel_junctions.tsv, filtering_stats.tsv, mhc_presentation.tsv, hla_qc.tsv, vdjdb_panel.tsv, contigs.fa, tcrdock outputs",
         "outputs": "report.html, report.tsv, report_top_candidates.tsv",
     },
@@ -907,14 +912,6 @@ def build_graph():
             dropped_edges.append(e)
     edges = valid_edges
 
-    # ── Degrees ──
-    degree_count = {}
-    for e in edges:
-        degree_count[e["source"]] = degree_count.get(e["source"], 0) + 1
-        degree_count[e["target"]] = degree_count.get(e["target"], 0) + 1
-    for n in nodes:
-        n["degree"] = degree_count.get(n["id"], 0)
-
     # ── Deduplicate edges ──
     seen_edges = set()
     unique_edges = []
@@ -923,6 +920,17 @@ def build_graph():
         if key not in seen_edges:
             seen_edges.add(key)
             unique_edges.append(e)
+
+    # ── Degrees ──
+    # Tally from unique_edges, NOT edges: a duplicated edge would otherwise
+    # double-count both endpoints, inflating degree → sizeOf() renders those
+    # nodes artificially large in the HTML.
+    degree_count = {}
+    for e in unique_edges:
+        degree_count[e["source"]] = degree_count.get(e["source"], 0) + 1
+        degree_count[e["target"]] = degree_count.get(e["target"], 0) + 1
+    for n in nodes:
+        n["degree"] = degree_count.get(n["id"], 0)
 
     if dropped_nodes:
         print(f"  ⚠ dropped {dropped_nodes} duplicate node id(s)")
