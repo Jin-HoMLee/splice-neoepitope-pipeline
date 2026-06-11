@@ -41,3 +41,10 @@ hla:
 
 mhcflurry:
   threads: 4      # M1 MacBook Air (8 GB RAM)
+
+# GTEx pan-tissue filter (Issue #212): point reference_bed at the local chr22
+# fixture so the gs:// download rule never fires for the test run. enabled: true is
+# inherited from config.yaml. The fixture is gitignored + GCS-staged and fetched
+# (with SHA256 verify) by scripts/prepare_test_data.sh.
+gtex_filter:
+  reference_bed: "resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
