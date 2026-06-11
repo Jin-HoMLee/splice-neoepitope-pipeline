@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11 — STAR annotated-flag cross-check merged: conflict resolution + merge-seam test ([PR #649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649) closes [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375))
+
+### 14:40 UTC — Editor: Developer
+
+Picked up [PR #649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649) — a routine-drafted draft from the 2026-06-03 overnight batch (Developer handoff comment, owner `role:developer`). Surfaces STAR's `SJ.out.tab` col 6 (annotated flag, 0=novel/1=annotated) as a free verification signal: `star_sj_to_junctions.py` emits an optional 3rd column, `filter_junctions._read_junction_file` returns 3-tuples (`annotated=None` for legacy 2-col HISAT2 rows), and `classify_junctions` cross-checks STAR's flag against our own GENCODE-BED membership, **WARNING-only** — a mismatch flags a chr-naming bug ([Issue #148](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/148) class) or an index built from a different GTF. The original diff was CI-green and clean; the work here was the **integration**, not the feature.
+
+**The non-obvious part — the merge seam.** The branch was cut 2026-06-03, *before* [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) (GTEx pan-tissue filter) landed in the **same** `classify_junctions()` per-junction loop. Merging the 18 intervening main commits conflicted on exactly one block: the per-sample counter-init line, where main's `n_gtex_shared` had to be reconciled with this branch's two STAR cross-check counters. Everything else (the 3-tuple return, the cross-check, the GTEx classification branch) auto-merged because they touch disjoint lines — the conflict was *only* the shared init statement. Resolved by keeping main's `n_gtex_shared` and appending the two STAR counters; verified all three `_read_junction_file` call sites still unpack 3-tuples and the GTEx path (BED-based via `_load_reference_junctions`, never a junction TSV) is shape-independent.
+
+**Bot review caught the test gap I'd have missed.** The `@claude review` confirmed both focus areas (tuple consistency, cross-check/GTEx independence) and flagged that no test exercised 3-col STAR input *with* `gtex_bed` active in one call — i.e. the merge seam itself was untested. Added `test_star_3col_input_with_gtex_active`: a flag=1/in-BED junction (agree→discarded), a flag=0/in-GTEx junction (→gtex_pantissue_shared), and a flag=1/not-in-BED junction (disagree→WARN, still tumor_exclusive) in one `classify_junctions()` call. Suite 480→481.
+
+**Learning.** When a draft PR ages past a sibling PR that touches the same function, the merge conflict is the *only* visible signal of overlap — but a clean auto-merge of the surrounding lines does **not** mean the combined behavior is tested. The conflict resolution created a code path (3-col input × active GTEx) that neither PR's tests covered; "the conflict resolved and the suite is green" is necessary but not sufficient. Add a test that exercises the specific intersection the merge created, not just the union of the two PRs' existing tests.
+
 ## 2026-06-11 — Cloud re-run robustness merged: pre-run snapshot + stale-log clear ([PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) closes [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) + [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664))
 
 ### 11:34 UTC — Editor: Developer
