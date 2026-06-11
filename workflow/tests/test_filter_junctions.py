@@ -380,6 +380,42 @@ class TestClassifyJunctions:
         # Only the tumor_exclusive junction is a candidate downstream.
         assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
 
+    def test_gtex_applies_when_no_normal_sample(self, tmp_path):
+        # GTEx as the SOLE filter (no matched normal): every other GTEx test passes
+        # a normal sample, so the [tumor only, no normal] + GTEx-active path was
+        # untested. A no-normal patient is structurally the stacking path with an
+        # empty normal set, so GTEx must still partition tumor junctions. One in the
+        # blacklist (→ gtex_pantissue_shared) and one in neither (→ tumor_exclusive).
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # in GTEx → gtex_pantissue_shared
+            ("chr22:301:400:+", 100),  # in neither → tumor_exclusive
+            ("chr22:901:1000:+", 1),   # noise — below mean, filtered out
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=gtex_bed,
+        )
+        df = pd.read_csv(output, sep="\t")
+        origins = dict(zip(df["junction_id"], df["junction_origin"]))
+        assert origins["chr22:201:300:+"] == "gtex_pantissue_shared"
+        assert origins["chr22:301:400:+"] == "tumor_exclusive"
+        # GTEx still removed the blacklisted junction with no normal present.
+        assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
+
     def test_gtex_disabled_junction_falls_through_to_tumor_exclusive(self, tmp_path):
         # Contract: when gtex_bed is omitted (filter disabled), a junction that WOULD
         # match a GTEx blacklist on disk is still labeled tumor_exclusive — only the
