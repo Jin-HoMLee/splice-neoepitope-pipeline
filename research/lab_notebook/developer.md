@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11 — Cloud re-run robustness merged: pre-run snapshot + stale-log clear ([PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) closes [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) + [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664))
+
+### 11:34 UTC — Editor: Developer
+
+Merge-landed [PR #666](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666) (drafted 2026-06-04, ratified after a 5-day Ready-for-review wait). Two `run_cloud_gpu.sh` re-run-robustness fixes: a pre-run snapshot of headline results before overwrite ([Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658)) and `rm -f pipeline.log` before the snakemake tmux so the completion poller can't false-complete on a stale log ([Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664)). Implementation detail is in the 2026-06-04 entry below; this entry records the **ratification decisions**, which are the non-obvious part.
+
+**De-scoped #658 to match the build.** The PR shipped an always-on, timestamp-labelled snapshot of `reports/` + `junctions/`; three originally-filed ACs (`--snapshot-label`, `--no-snapshot`, usage/`--help`) were never built. Rather than build flags for a P3 convenience guard, I dropped those ACs as YAGNI — the real data-safety net is GCS Object Versioning (90-day noncurrent retention), the snapshot is just a live diffable before-state, and the copy self-skips + fails open, so an opt-out guards against almost nothing. Rewrote #658's ACs to the 3 that match what shipped, with a de-scope note on the Issue.
+
+**Deferred prod validation → a real carrier, not a dead letter.** Both fixes' only un-exercised AC is an end-to-end prod run — inherently post-merge (the script takes effect only once the orchestrator git-pulls main). Correction caught mid-merge (user-flagged): [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653)'s STAR runs do **not** validate these — they ran on the *pre-fix* script (they are what *exposed* #664's 2-second false-completion). So I filed [Issue #706](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/706) as an XS verification carrier that rides whatever the next prod launch is, and pointed the deferred ticks at it. Separately flagged to the Scientist (standup) that #653's STAR runs may already satisfy part of [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636)'s cohort-re-run AC.
+
+**Learning.** A "validate on the next prod run" deferral silently evaporates unless it's pinned to a carrier that will actually execute — "the next patient launch" is not a carrier; a tracked Issue is. And a prior run only validates a fix if it ran on the *fixed* code: the run that **exposed** a bug cannot double as the run that **confirms** its fix.
+
 ## 2026-06-11 — GTEx pan-tissue filter merged: sole-filter unit test + sign-off ([PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
 
 ### 10:44 UTC — Editor: Developer
