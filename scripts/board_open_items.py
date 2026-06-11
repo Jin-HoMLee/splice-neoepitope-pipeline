@@ -312,7 +312,8 @@ def main() -> int:
                    help="Filter by arc focus phase")
     p.add_argument("--arc-columns", dest="arc_columns", action="store_true",
                    help="Add Arc + phase columns to the table (slug after 'arc:'); "
-                        "useful with --arc-phase active to see each issue's arc")
+                        "useful with --arc-phase active to see each issue's arc "
+                        "(ignored with --json, which already exposes arc/arc_phase)")
     p.add_argument("--sort-updated", dest="sort_updated", action="store_true",
                    help="Sort by last activity (Issue.updatedAt), most-recent first (momentum)")
     p.add_argument("--stale-days", dest="stale_days", type=int, metavar="N",

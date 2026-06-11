@@ -7,9 +7,12 @@
 #   1. removes any arc:* / arc-phase:* label NOT matching the manifest pair, then
 #   2. adds the manifest-correct arc + arc-phase.
 # So after an arc-review slate change (a phase edit, a re-tag, a split/merge in
-# arc_taxonomy.tsv) a re-run leaves each issue with exactly its manifest pair —
-# the TSV stays authoritative. Idempotent: a no-op manifest re-applies the same
-# labels and removes nothing.
+# arc_taxonomy.tsv) a re-run leaves each LISTED issue with exactly its manifest
+# pair — the TSV is authoritative for every issue it lists. (Scope note: an issue
+# silently *removed* from the manifest keeps its old arc labels; de-labeling a
+# dropped issue would need a separate full `gh issue list --label arc:*` sweep,
+# out of scope here.) Idempotent: a no-op manifest re-applies the same labels and
+# removes nothing.
 #
 # Prereq: run scripts/pm/arc_labels.sh first (the labels must exist in the repo).
 set -euo pipefail
