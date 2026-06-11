@@ -264,23 +264,39 @@ def matches_filter(it: dict[str, Any], args: argparse.Namespace) -> bool:
     return True
 
 
-def format_table(items: list[dict[str, Any]], now: datetime | None = None) -> str:
+def format_table(
+    items: list[dict[str, Any]],
+    now: datetime | None = None,
+    arc_columns: bool = False,
+) -> str:
     if not items:
         return "(no items matched)\n"
     if now is None:
         now = datetime.now(timezone.utc)
+    # Arc/phase columns are opt-in (--arc-columns): the base table is already wide,
+    # and arc only matters for an arc-scoped sweep (e.g. after --arc-phase active,
+    # where the human table otherwise can't show which arc each issue belongs to —
+    # only --json exposes it). Issue #689.
+    arc_hdr = f"{'Arc':<18} {'Ph':<7} " if arc_columns else ""
+    arc_sep = f"{'-' * 18} {'-' * 7} " if arc_columns else ""
     lines = [
-        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<5} {'#':<5} Title",
-        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 5} {'-' * 5} {'-' * 60}",
+        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<5} {'#':<5} {arc_hdr}Title",
+        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 5} {'-' * 5} {arc_sep}{'-' * 60}",
     ]
     for it in items:
         role = (it["role"] or "(none)").removeprefix("role:")[:16]
         kind = it["kind"] + ("/D" if it["is_draft"] else "")
         title = (it["title"] or "")[:60]
         age = age_label(it.get("updated_at"), now)
+        if arc_columns:
+            arc = (it["arc"] or "—").removeprefix("arc:")[:17]
+            phase = it["arc_phase"] or "—"  # fixed vocab: active/next/later
+            arc_cell = f"{arc:<18} {phase:<7} "
+        else:
+            arc_cell = ""
         lines.append(
             f"{it['status']:<17} {it['priority'] or '?':<3} {it['size'] or '?':<3} "
-            f"{age:<5} {role:<17} {kind:<5} {it['number']:<5} {title}"
+            f"{age:<5} {role:<17} {kind:<5} {it['number']:<5} {arc_cell}{title}"
         )
     return "\n".join(lines) + "\n"
 
@@ -294,6 +310,10 @@ def main() -> int:
     p.add_argument("--arc", help='Filter by arc label (e.g. "scoring-tcr-pmhc" or "arc:scoring-tcr-pmhc")')
     p.add_argument("--arc-phase", dest="arc_phase", choices=["active", "next", "later"],
                    help="Filter by arc focus phase")
+    p.add_argument("--arc-columns", dest="arc_columns", action="store_true",
+                   help="Add Arc + phase columns to the table (slug after 'arc:'); "
+                        "useful with --arc-phase active to see each issue's arc "
+                        "(ignored with --json, which already exposes arc/arc_phase)")
     p.add_argument("--sort-updated", dest="sort_updated", action="store_true",
                    help="Sort by last activity (Issue.updatedAt), most-recent first (momentum)")
     p.add_argument("--stale-days", dest="stale_days", type=int, metavar="N",
@@ -326,7 +346,7 @@ def main() -> int:
         json.dump(filtered, sys.stdout, indent=2)
         sys.stdout.write("\n")
     else:
-        sys.stdout.write(format_table(filtered, now=now))
+        sys.stdout.write(format_table(filtered, now=now, arc_columns=args.arc_columns))
     return 0
 
 
