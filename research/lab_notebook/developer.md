@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11 — Flatten `predictions/` wrapper dir merged: tool-named sibling folders + doc-sync ([PR #650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650) closes [Issue #435](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/435))
+
+### 16:05 UTC — Editor: Developer
+
+Picked up [PR #650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650) — another routine-drafted branch from the overnight batch (single commit, no PR-body validation beyond a sandbox `pytest`). The change is a pure path rename: `predictions/mhc_presentation.tsv` → `mhcflurry/presentation.tsv`, `predictions/mhc_stats.tsv` → `mhcflurry/stats.tsv`, `predictions/tcrdock/*` → `tcrdock/*`. Drops the `predictions/` wrapper so prediction outputs sit in tool-named sibling folders symmetric with `hla_typing/`, `junctions/`, `peptides/`, `contigs/`, `reports/` and the `tcr_panel/<source>/` shape from [Issue #204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/204) (parent). 8 files, no schema change.
+
+**Merged 20 commits of main — clean, no conflict.** Unlike [PR #649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649) earlier today, none of the intervening PRs touched the rule output paths or `generate_report.py`'s `pdb_relative_path`, so the merge was a no-op on the changed lines.
+
+**Validated the rename against a real run dir, not just the literals.** The routine's PR body reported `test_integration.py::TestPredictions` as gate-invisible (module `skipif`-gated on `report.html` existing; the sandbox had no run). Locally I *do* have a stale chr22 run, so those assertions actually fired — and failed, because the on-disk dir still had the old `predictions/` layout. Rather than skip, I performed the exact manual move the AC documents (`mv predictions/mhc_presentation.tsv mhcflurry/presentation.tsv`, etc.; `results/` is gitignored) — which both green-lit the suite (481 passed) *and* end-to-end-validated that the new rule paths match what a migrated user dir looks like. The `snakemake -n` dry-run then resolved the DAG against the new paths with no dangling-rename error (CI `pipeline-snakemake-dry-run` green too).
+
+**Bot review: LGTM, but surfaced doc staleness the AC had scoped out.** AC #5 was explicitly `workflow/`-only. The `@claude review` confirmed the rename consistent across all 8 files and then listed five stale `predictions/` references *outside* `workflow/`. I triaged by ownership: fixed `docs/google_cloud_guide.md` (Developer-owned infra doc — 4 GCS-path references in the bucket-recovery + lifecycle sections that this very PR made stale) in this PR; left `research/manuscript/RESULTS.md` and the two `research/notebooks/*.ipynb` GCS-fetch cells for Scientist (manuscript territory — flagged at standup, not touched); left the historical `developer.md:371` and the superpowers spec's "why NOT this path" rationale as immutable/correct-as-is.
+
+**Learning.** A `skipif`-gated integration test isn't dead weight when you have the gated artifact locally — a stale run dir turns "gate-invisible in CI" into a live end-to-end check, but *only* if you migrate the dir to the new contract first (the failure is otherwise a false negative against the old layout). And: a `workflow/`-scoped AC doesn't mean the blast radius stops at `workflow/` — the rename silently rotted four user-facing `gcloud` examples a doc-grep inside the AC's scope would never have caught. Bot-review's out-of-scope sweep is where that surfaced.
+
 ## 2026-06-11 — STAR annotated-flag cross-check merged: conflict resolution + merge-seam test ([PR #649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649) closes [Issue #375](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/375))
 
 ### 14:40 UTC — Editor: Developer

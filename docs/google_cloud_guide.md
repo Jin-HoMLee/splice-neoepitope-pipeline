@@ -453,17 +453,17 @@ Retention policy (`scripts/gcs_lifecycle.json`):
 | Noncurrent versions under… | Expire after |
 |---|---|
 | `results/<patient>/alignment/` (regenerable, ~75% of footprint) | 7 days |
-| everything else (predictions, tcrdock, junctions, reports) | 90 days |
+| everything else (mhcflurry, tcrdock, junctions, reports) | 90 days |
 
 **Recovery** — restore a clobbered object from a prior version:
 
 ```bash
 # 1. List all versions (current + noncurrent) and copy the generation number:
-gcloud storage ls --all-versions gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv
+gcloud storage ls --all-versions gs://splice-neoepitope-project/results/patient_001/tcrdock/docking_scores.tsv
 # 2. Restore a specific generation over the current object:
 gcloud storage cp \
-  "gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv#<generation>" \
-  "gs://splice-neoepitope-project/results/patient_001/predictions/tcrdock/docking_scores.tsv"
+  "gs://splice-neoepitope-project/results/patient_001/tcrdock/docking_scores.tsv#<generation>" \
+  "gs://splice-neoepitope-project/results/patient_001/tcrdock/docking_scores.tsv"
 ```
 
 **Maintenance:** GCS lifecycle prefixes can't wildcard `*/alignment/`, so when a new

@@ -33,13 +33,13 @@ Output TSV columns:
 Usage (standalone, explicit alleles):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/mhc_presentation.tsv \\
+      --output results/patient_001/mhcflurry/presentation.tsv \\
       --alleles HLA-A*02:01 HLA-B*07:02 HLA-C*07:02
 
 Usage (standalone, alleles from HLA typing):
   python run_mhcflurry.py \\
       --peptides-tsv results/peptides/patient_001/peptides.tsv \\
-      --output results/predictions/patient_001/mhc_presentation.tsv \\
+      --output results/patient_001/mhcflurry/presentation.tsv \\
       --alleles-tsv results/hla_typing/patient_001/alleles.tsv
 
 Usage (Snakemake):

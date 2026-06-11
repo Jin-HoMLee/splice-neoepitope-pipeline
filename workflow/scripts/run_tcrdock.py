@@ -47,9 +47,9 @@ Outputs
 
 Usage (standalone, Linux + GPU only):
   python run_tcrdock.py \\
-      --predictions-tsv results/predictions/local/mhc_presentation.tsv \\
-      --output-pdb results/predictions/local/tcrdock/top_candidate.pdb \\
-      --output-scores results/predictions/local/tcrdock/docking_scores.tsv
+      --predictions-tsv results/local/mhcflurry/presentation.tsv \\
+      --output-pdb results/local/tcrdock/top_candidate.pdb \\
+      --output-scores results/local/tcrdock/docking_scores.tsv
 
 Usage (Snakemake):
   Called automatically by the run_tcrdock rule when tcrdock.enabled is true.

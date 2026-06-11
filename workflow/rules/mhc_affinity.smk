@@ -62,10 +62,10 @@ rule run_mhcflurry:
         unpack(_run_mhcflurry_input),
     output:
         mhc_presentation_tsv=os.path.join(
-            _RES, "{patient_id}", "predictions", "mhc_presentation.tsv"
+            _RES, "{patient_id}", "mhcflurry", "presentation.tsv"
         ),
         stats=os.path.join(
-            _RES, "{patient_id}", "predictions", "mhc_stats.tsv"
+            _RES, "{patient_id}", "mhcflurry", "stats.tsv"
         ),
     log:
         os.path.join(_LOGS, "{patient_id}", "mhc_affinity", "predict.log"),
