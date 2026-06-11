@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11 — GTEx pan-tissue filter merged: sole-filter unit test + sign-off ([PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
+
+### 10:44 UTC — Editor: Developer
+
+Landed the always-on GTEx pan-tissue blacklist after the Scientist's AC 6 sign-off ([2026-06-10 19:45 UTC standup](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)). Three merge-gating items, all closed this session:
+
+**1. Sole-filter unit test (the Scientist's one ask).** Every existing GTEx test passed a matched normal, so `[tumor only, no normal] + GTEx active` was untested — the path AC 6 was originally written around. Added `test_gtex_applies_when_no_normal_sample` (the `test_gtex_and_tumor_exclusive_coexist` case minus the normal sample): a blacklisted junction still partitions to `gtex_pantissue_shared` and a clean one to `tumor_exclusive` with no normal present. Closes the gap deterministically + CI-permanently rather than burning a P100 window on a tumor-only re-run — the classify loop applies GTEx independent of normal presence, so a no-normal patient is structurally the stacking path with an empty normal set (Scientist verified the code-path equivalence from the branch).
+
+**2. Merge conflict.** Branch was 12 behind main; only conflict was `research/lab_notebook/scientist.md` (both sides appended dated entries) — resolved by keeping both blocks in reverse-chronological order (2026-06-10 sign-off on top, 2026-06-05 below), no content lost.
+
+**3. Test plan / ACs.** Full suite 468 passed / 6 skipped (was 446 at PR draft — main brought in 22 more). Both PR Test-plan cloud-validation boxes ticked (AC 6 patient_002 + AC 7 patient_001 sign-offs both landed); Issue ACs were already ticked by the Scientist's AC reword.
+
+**Learning.** A network-gated validation AC ("validate the sole-filter path on cloud") can sometimes be discharged by a unit test + a code-path-equivalence argument instead of a GPU run — but only after reading the branch code to confirm the two paths genuinely collapse. The cheap deterministic close is correct *because* the production code has no separate sole-filter branch, not as a shortcut around one.
+
 ## 2026-06-10 — DataCite fallback for arXiv DOIs in zotero_add.py ([PR #648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648) closes [Issue #641](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/641))
 
 ### 19:33 UTC — Editor: Developer
