@@ -57,3 +57,28 @@ def test_filter_by_arc_slug_accepts_short_and_full_form():
     assert b.matches_filter(it, _args(arc="scoring-tcr-pmhc"))
     assert b.matches_filter(it, _args(arc="arc:scoring-tcr-pmhc"))
     assert not b.matches_filter(it, _args(arc="cloud-reproducibility"))
+
+
+def test_format_table_omits_arc_columns_by_default():
+    it = b.normalize(_item(["role:pm", "arc:board-governance", "arc-phase:active"]))
+    out = b.format_table([it])
+    assert "Arc" not in out.splitlines()[0]
+    assert "board-governance" not in out
+
+
+def test_format_table_arc_columns_render_slug_and_phase():
+    it = b.normalize(_item(["role:pm", "arc:board-governance", "arc-phase:active"]))
+    out = b.format_table([it], arc_columns=True)
+    header = out.splitlines()[0]
+    assert "Arc" in header and "Ph" in header
+    # slug is shown without the "arc:" prefix
+    assert "board-governance" in out
+    assert "arc:board-governance" not in out
+    assert "active" in out
+
+
+def test_format_table_arc_columns_handle_missing_arc():
+    it = b.normalize(_item(["role:pm"]))  # no arc / phase labels
+    out = b.format_table([it], arc_columns=True)
+    assert "Arc" in out.splitlines()[0]
+    assert "—" in out  # placeholder, no crash
