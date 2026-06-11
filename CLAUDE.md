@@ -16,6 +16,7 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 - Pipeline is run with `snakemake --cores $(nproc) --use-conda --rerun-triggers mtime` inside a `tmux` session
 - GitHub project board: user project #9 ("JH M Lee Lab") under user `Jin-HoMLee` — query via `gh api graphql` with `user(login: "Jin-HoMLee") { projectV2(number: 9) { ... } }` (it's a user project, not org)
 - `main` branch protection: required CI checks (`pipeline-pytest`, `pipeline-snakemake-dry-run`) + squash-merge default. The "Require branches to be up to date before merging" rule was **removed 2026-05-09** — it fired on every PR cut from a worktree branch lagging `main`, even without real conflicts. Don't suggest `gh pr update-branch` or `--admin` workarounds for "branch is behind main" anymore (the rule is gone). Real file-level conflicts still need manual resolution.
+- Remote scheduled/one-shot agents (board-hygiene sweeps; overnight Issue→draft-PR dispatch) run in an isolated cloud sandbox via the `/schedule` skill — see [`docs/remote_routines.md`](docs/remote_routines.md) for the sandbox env facts (allowlisted egress, no conda/snakemake, the `pip --upgrade pyyaml` trap, `claude/*`-only push) and the hardened dispatch prompt checklist. The CCR sandbox token is a *different* identity (`Claude <noreply@anthropic.com>`) with repo+project scope.
 
 ### Historical P100 unavailability — `europe-west1-b` (pre-migration)
 
