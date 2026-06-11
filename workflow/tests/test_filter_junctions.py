@@ -644,6 +644,65 @@ class TestClassifyJunctions:
         assert len(df) == 1
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
 
+    def _write_3col_junction_file(self, path, rows):
+        """rows: list of (junction_id, reads, annotated_flag) — STAR 3-column."""
+        path.write_text("".join(f"{jid}\t{reads}\t{ann}\n" for jid, reads, ann in rows))
+
+    def test_star_3col_input_with_gtex_active(self, tmp_path, caplog):
+        # Merge-seam regression (Issue #375 × Issue #211/#212): 3-column STAR input
+        # AND an active gtex_bed exercised together in one classify_junctions call,
+        # the exact interplay reconciled when this branch was merged onto main. Proves
+        # (a) the annotated flag flows through the GTEx classification path, (b) the
+        # WARNING-only cross-check counters stay independent of the gtex counter, and
+        # (c) a cross-check disagreement fires alongside gtex labeling without
+        # perturbing either origin assignment.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_3col_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100, 1),  # flag=1, in ref BED → agree → annotated, discarded
+            ("chr22:201:300:+", 100, 0),  # flag=0, in GTEx → gtex_pantissue_shared (agree)
+            ("chr22:301:400:+", 100, 1),  # flag=1 but NOT in ref → DISAGREE → warn; tumor_exclusive
+            ("chr22:901:1000:+", 1, 0),   # noise — below mean, filtered out
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f, normal_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+                gtex_bed=gtex_bed,
+            )
+
+        df = pd.read_csv(output, sep="\t")
+        origins = dict(zip(df["junction_id"], df["junction_origin"]))
+        # Annotated junction discarded (BED membership authoritative), not emitted.
+        assert "chr22:101:200:+" not in origins
+        # GTEx and tumor_exclusive partition the two surviving unannotated junctions.
+        assert origins["chr22:201:300:+"] == "gtex_pantissue_shared"
+        assert origins["chr22:301:400:+"] == "tumor_exclusive"
+        assert (df["junction_origin"] == "gtex_pantissue_shared").sum() == 1
+        assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
+        # The cross-check WARNING fired for the one disagreeing junction, and the
+        # GTEx-labeled junction (flag=0, novel, agreeing) did NOT trigger one.
+        warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
+        assert any("chr22:301:400:+" in m for m in warnings)
+        assert not any("chr22:201:300:+" in m and "annotated-flag" in m.lower()
+                       for m in warnings)
+
 
 # ---------------------------------------------------------------------------
 # classify_junctions — junction_filter_stats.tsv (Issue #214)
