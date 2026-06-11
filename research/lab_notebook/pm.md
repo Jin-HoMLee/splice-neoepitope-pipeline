@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11
+
+### 14:25 UTC — Editor: PM
+
+#### `docs/remote_routines.md` — remote-routine sandbox facts + hardened dispatch checklist captured as a team doc ([Issue #651](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/651), [PR #652](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/652))
+
+**Trigger.** The hard-won CCR sandbox facts + hardened dispatch-prompt checklist from the 2026-06-03 overnight one-shot batch (#632/#641/#375/#435 → draft PRs [#647](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/647)/[#648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648)/[#649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649)/[#650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650)) lived only in a PM session. Captured them as a team-accessible reference so future dispatches start from known ground instead of re-probing the sandbox.
+
+**What landed.** `docs/remote_routines.md` — the CCR env reference table (allowlisted egress, no conda/snakemake, the `pip --upgrade pyyaml` trap, shallow proxied checkout / `claude/*`-only push, the `Claude <noreply@anthropic.com>` bot identity), the 9-step hardened dispatch checklist, when-to-dispatch criteria (specifiable ∧ machine-verifiable ∧ reviewable-as-artifact), and the handoff convention (the owning role finishes; PM dispatches + routes). Plus a one-line `CLAUDE.md` Infrastructure pointer.
+
+**Review correction worth recording.** The `@claude` review flagged checklist step 5's *"not `gh issue develop`"* as missing a rationale; the bot's proposed reason (the git proxy 403s the branch name) was **wrong** — `gh issue develop --name claude/issue-NNN-slug` does produce a pushable `claude/*` branch, as the user caught. Replaced it with the accurate why: `gh issue develop` is **untested through the sandbox's proxied shallow checkout**, and the **local parent-guard hook that protects it doesn't load in-sandbox**. Also: confirmed #435 *did* produce a PR ([#650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650), still open/draft) and added the citation the preamble was missing; tightened the attribution-trailer guidance ("omit the trailer") and the `allowed_tools` example. Doc-only; no code/CI impact. Closes [Issue #651](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/651).
+
+---
+
 ## 2026-06-03
 
 ### 13:42 UTC — Editor: PM
