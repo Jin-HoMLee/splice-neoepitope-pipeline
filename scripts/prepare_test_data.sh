@@ -9,6 +9,8 @@
 #   2. chr22 GTF           — GENCODE v47 basic, stream-filtered to chr22 (~400 MB download)
 #   3. Test FASTQs         — 500K reads each from a matched gastric cancer tumor/normal pair
 #                            (SRR9143066 tumor, SRR9143065 normal) via ENA HTTPS
+#   4. GTEx chr22 fixture  — pan-tissue junction blacklist slice (~45 MB) from GCS (Issue #211/#212);
+#                            needs gcloud auth — gracefully skipped if gsutil is unavailable
 #
 # Runtime: 15–30 min depending on connection speed (GTF download dominates).
 #
@@ -25,7 +27,7 @@ mkdir -p "$RESOURCES" "$DATA"
 # ---------------------------------------------------------------------------
 # 1. chr22 FASTA
 # ---------------------------------------------------------------------------
-echo "=== [1/3] Downloading chr22 reference FASTA (UCSC hg38) ==="
+echo "=== [1/4] Downloading chr22 reference FASTA (UCSC hg38) ==="
 if [[ -f "$RESOURCES/chr22.fa" ]]; then
     echo "    Already exists — skipping."
 else
@@ -39,7 +41,7 @@ fi
 # 2. chr22 GTF (stream and filter — avoids storing the full 400 MB file)
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== [2/3] Downloading and filtering GENCODE v47 GTF to chr22 ==="
+echo "=== [2/4] Downloading and filtering GENCODE v47 GTF to chr22 ==="
 echo "    Streaming ~400 MB — estimated 5–15 min depending on connection."
 if [[ -f "$RESOURCES/chr22.gtf.gz" ]]; then
     echo "    Already exists — skipping."
@@ -67,7 +69,7 @@ fi
 # write its end-of-file marker, producing a truncated-but-readable archive)
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== [3/3] Downloading 500K reads each from SRR9143066 (tumor) and SRR9143065 (normal) ==="
+echo "=== [3/4] Downloading 500K reads each from SRR9143066 (tumor) and SRR9143065 (normal) ==="
 echo "    Streaming via ENA HTTPS — no sra-tools required."
 
 TUMOR_URL="https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR914/006/SRR9143066/SRR9143066.fastq.gz"
@@ -107,6 +109,44 @@ else
         exit 1
     fi
     echo "    Saved: $NORMAL_DEST"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. GTEx pan-tissue blacklist — chr22 fixture (Issue #211/#212)
+# ---------------------------------------------------------------------------
+# Population-normal junction blacklist slice for chr22, consumed by the GTEx
+# filter (gtex_filter.enabled is on by default). Unlike sections [1-3] (public
+# HTTPS), this lives in a PRIVATE GCS bucket and needs `gcloud auth`, so it is
+# fetched with gsutil and SHA256-verified against the manifest. If gsutil is
+# unavailable/unauthenticated we SKIP with a clear message rather than failing
+# the whole setup: the pytest unit suite uses synthetic BEDs and does NOT need
+# this file — only the chr22 end-to-end integration run does. To regenerate it
+# auth-free, use the `regenerate:` recipe in
+# resources/test/gtex_gtexv2_data_manifest.yaml (needs tabix on PATH).
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== [4/4] Downloading GTEx pan-tissue chr22 blacklist fixture (Issue #211/#212) ==="
+GTEX_DEST="$RESOURCES/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
+GTEX_SRC="gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
+GTEX_SHA256="d727ce5c8489f5940f69df229c3c9acfcb8d8ff071a6ac61131510b760da7f58"
+if [[ -f "$GTEX_DEST" ]]; then
+    echo "    Already exists — skipping."
+elif ! command -v gsutil >/dev/null 2>&1; then
+    echo "    gsutil not found — SKIPPING GTEx fixture (needed only for the chr22 integration"
+    echo "    run, not the pytest suite). Install the gcloud SDK + authenticate, then re-run,"
+    echo "    or regenerate it auth-free via resources/test/gtex_gtexv2_data_manifest.yaml."
+elif gsutil cp "$GTEX_SRC" "$GTEX_DEST"; then
+    ACTUAL=$(shasum -a 256 "$GTEX_DEST" | awk '{print $1}')
+    if [[ "$ACTUAL" != "$GTEX_SHA256" ]]; then
+        echo "ERROR: GTEx fixture SHA256 mismatch (expected=$GTEX_SHA256 actual=$ACTUAL) — removing." >&2
+        rm -f "$GTEX_DEST"
+        exit 1
+    fi
+    echo "    Saved + SHA256-verified: $GTEX_DEST"
+else
+    echo "    gsutil cp failed (auth? network?) — SKIPPING GTEx fixture. The pytest suite still"
+    echo "    works; the chr22 integration run needs this file. Authenticate and re-run."
+    rm -f "$GTEX_DEST" 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------

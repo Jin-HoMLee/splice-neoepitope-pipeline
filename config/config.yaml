@@ -60,6 +60,29 @@ filtering:
   min_normal_reads: 2
 
 # -----------------------------------------------------------------
+# GTEx pan-tissue population-normal junction filter (Issue #211 builds the
+# reference; Issue #212 wires it into filter_junctions.py).
+# Source: Snaptron gtexv2 (recount3 / GTEx v8 / hg38 / 19,214 samples) — a
+# raw, novel-containing compilation. NOT the V10 portal .gct (annotation-only,
+# which would filter ~0 novel junctions). See docs/gtex_pan_tissue_build.md.
+# -----------------------------------------------------------------
+gtex_filter:
+  enabled: true                  # #212: always-on population-normal safety net (was opt-in in #211).
+                                 # Override per-patient with enabled: false via config layering if a
+                                 # specific case justifies relaxing it.
+  source: snaptron_gtexv2        # recount3 / GTEx v8 / hg38 / 19,214 samples
+  endpoint: "https://snaptron.cs.jhu.edu/gtexv2/snaptron"
+  min_samples: 1                 # The samples_count threshold the staged BED was BUILT at (>= 1, most
+                                 # aggressive — precision over recall, vaccine safety #126). Filtering is
+                                 # set-membership against this pre-thresholded BED; this value is
+                                 # provenance, NOT a live filter-time knob — changing it requires
+                                 # rebuilding the BED (build_gtex_pan_tissue_ref.py).
+  reference_bed: "gs://splice-neoepitope-project/resources/gtex/gtexv2/gtex_gtexv2_pan_tissue_junctions.bed"
+  # Genome-wide BED SHA256 — the download rule verifies the GCS copy against this to
+  # catch silent truncation (the #211 hazard). Source: gtex_gtexv2_data_manifest.yaml.
+  reference_bed_sha256: "247349119deeff4ac11a2fd0ce2c799ccd91bb5be8e7b08bbbda83cb0daef994"
+
+# -----------------------------------------------------------------
 # Peptide translation
 # -----------------------------------------------------------------
 # Peptide lengths to extract from each junction contig.

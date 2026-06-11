@@ -54,6 +54,13 @@
 
 ---
 
+## G
+
+**Givechian et al., *Nat Mach Intell* 2026** — ImmunoStruct enables multimodal deep learning for immunogenicity prediction. *Nature Machine Intelligence* 2026. doi:10.1038/s42256-025-01163-y
+→ Cited in DISCUSSIONS.md (neoantigen-generator + immunogenicity-scorer landscape; structure-aware, wild-type-free escape candidate — [Issue #659](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/659))
+
+---
+
 ## I
 
 **★ Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026** — Personalized Cancer Vaccines in the Clinical Trial Pipeline. *Asia-Pac J Clin Oncol* 2026. doi:10.1111/ajco.70006
@@ -78,6 +85,12 @@
 
 **★ Lang et al., *Bioinform Adv* 2024** — Prediction of tumor-specific splicing from somatic mutations as a source of neoantigens. *Bioinform Adv* 2024;4(1):vbae080. doi:10.1093/bioadv/vbae080
 → Cited in METHODS.md §2-3 (variant-driven splice-neoantigen tooling; closest published methodological analog)
+
+**Lee et al., *Nat Commun* 2026** — NeoPrecis: enhancing immunotherapy response prediction through integration of qualified immunogenicity and clonality-aware neoantigen landscapes. *Nature Communications* 2026. doi:10.1038/s41467-026-68651-6
+→ Cited in DISCUSSIONS.md (immunogenicity-scorer landscape; cross-reactivity-distance recognition model declined — requires a wild-type counterpart)
+
+**Łuksza et al., *Nature* 2017** — A neoantigen fitness model predicts tumour response to checkpoint blockade immunotherapy. *Nature* 2017. doi:10.1038/nature24473
+→ Cited in DISCUSSIONS.md (immunogenicity-scorer landscape; foreignness recognition term — wild-type-free but declined on signal strength)
 
 ---
 
@@ -157,6 +170,26 @@
 
 ---
 
+## W
+
+**Wells et al., *Cell* 2020** — Key Parameters of Tumor Epitope Immunogenicity Revealed Through a Consortium Approach Improve Neoantigen Prediction. *Cell* 2020. doi:10.1016/j.cell.2020.09.015
+→ Cited in DISCUSSIONS.md (immunogenicity-scorer landscape; TESLA-consortium benchmark — foreignness adds value only when layered on presentation)
+
+---
+
+## X
+
+**Xiong (Zujian) et al., *Genes Immun* 2025** — Transcript-targeted antigen mapping reveals the potential of POSTN splicing junction epitopes in glioblastoma immunotherapy. *Genes Immun* 2025. doi:10.1038/s41435-025-00326-6
+→ Cited in INTRODUCTION.md (Aberrant Splicing in Cancer; 587-glioma-patient independent-cohort validation) + DISCUSSIONS.md (independent splice-neoepitope-axis validation; POSTN-203)
+
+**Xiong (Zujian) et al., *Cell Mol Immunol* 2025** — C/EBPβ-induced alternative splicing of RCAN1 generates a potent TCR-T target in mesenchymal glioblastoma. *Cell Mol Immunol* 2025. doi:10.1038/s41423-025-01360-0
+→ Cited in DISCUSSIONS.md (independent splice-neoepitope-axis validation; RCAN1-4 junction epitope → TCR-T translational exemplar for the structural-validation arm)
+
+**Xiong (Jieyi) et al., *Nucleic Acids Res* 2025** — Single-cell mapping of alternative splicing linked to checkpoint immunotherapy response. *Nucleic Acids Res* 2025. doi:10.1093/nar/gkaf1171
+→ Cited in DISCUSSIONS.md (independent splice-neoepitope-axis validation; JAseC single-cell counterpart, ESRP1-driven splicing-antigen load vs anti-PD1 response). Distinct first author (Jieyi Xiong) from the two Zujian Xiong glioblastoma papers above.
+
+---
+
 ## Y
 
 **Yewdell & Bennink, *Annu Rev Immunol* 1999** — Immunodominance in major histocompatibility complex class I-restricted T lymphocyte responses. *Annu Rev Immunol* 1999;17:51–88.
@@ -171,6 +204,12 @@
 
 **Zemmour & Parham 1992** — [HLA-C surface expression — title and journal TBD]. 1992.
 → Cited in INTRODUCTION.md (HLA-C ~10–50% surface density relative to HLA-A/B)
+
+**Zhang et al., *Aging* 2020** — ASNEO: Identification of personalized alternative splicing based neoantigens with RNA-seq. *Aging* 2020. doi:10.18632/aging.103516
+→ Cited in DISCUSSIONS.md (immunogenicity-scorer landscape; closest published splice-neoantigen peer — GTEx normal-junction filter adopted as design reference)
+
+**Zhao et al., *Genome Med* 2025** — NeoGuider: neoepitope prediction using advanced feature engineering. *Genome Medicine* 2025. doi:10.1186/s13073-025-01592-9
+→ Cited in DISCUSSIONS.md (immunogenicity-scorer landscape; KDE + centered-isotonic calibration module adopted)
 
 ---
 
@@ -207,11 +246,14 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Coelho et al., *Cancer Cell* 2023 | ✅ | |
 | Cotto et al., *Nat Commun* 2023 | ✅ | RegTools; aligner Methods citation |
 | Dobin et al., *Bioinformatics* 2013 | ✅ | STAR; aligner Methods citation |
+| Givechian et al., *Nat Mach Intell* 2026 | ✅ | ImmunoStruct; DISCUSSIONS immunogenicity-scorer landscape ([Issue #659](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/659)) |
 | Iamukova & Alferova, *Asia-Pac J Clin Oncol* 2026 | ✅ | Manuscript uses full form ("Asia-Pacific Journal of Clinical Oncology") |
 | Kim et al., *Nat Biotechnol* 2019 | ✅ | HISAT2; aligner Methods citation |
 | Kim et al., *Cell* 2025 | ✅ | |
 | Kwok et al., *Nature* 2025 | ✅ | |
 | Lang et al., *Bioinform Adv* 2024 | ✅ | |
+| Lee et al., *Nat Commun* 2026 | ✅ | NeoPrecis; DISCUSSIONS immunogenicity-scorer landscape |
+| Łuksza et al., *Nature* 2017 | ✅ | Foreignness term; DISCUSSIONS immunogenicity-scorer landscape |
 | McKeithan, *PNAS* 1995 | ✅ | |
 | O'Donnell et al., *Cell Syst* 2020 | ✅ | Manuscript uses full form ("Cell Systems"); also year-before-journal ordering |
 | Onkar et al., *Cell Rep Med* 2026 | ✅ | |
@@ -228,9 +270,15 @@ The original 8-paper inventory plus Kwok 2025 and Kim 2025 (both added after the
 | Trolle et al. 2016 | ✅ | Journal TBD — no journal given in-text |
 | Valitutti et al., *Nature* 1995 | ✅ | |
 | van Bergen et al. 2004 | ✅ | Journal TBD — no journal given in-text |
+| Wells et al., *Cell* 2020 | ✅ | TESLA consortium benchmark; DISCUSSIONS immunogenicity-scorer landscape |
+| Xiong (Zujian) et al., *Genes Immun* 2025 | ✅ | POSTN; Issue #599. Same first author as the Cell Mol Immunol 2025 entry |
+| Xiong (Zujian) et al., *Cell Mol Immunol* 2025 | ✅ | RCAN1-4; Issue #599 |
+| Xiong (Jieyi) et al., *Nucleic Acids Res* 2025 | ✅ | JAseC; Issue #599. Distinct first author (Jieyi) from the Zujian Xiong entries |
 | Yewdell & Bennink, *Annu Rev Immunol* 1999 | ✅ | |
 | Zaretsky et al., *N Engl J Med* 2016 | ✅ | Manuscript uses "NEJM" abbreviation rather than "N Engl J Med" |
 | Zemmour & Parham 1992 | ✅ | Journal TBD — no journal given in-text |
+| Zhang et al., *Aging* 2020 | ✅ | ASNEO; DISCUSSIONS immunogenicity-scorer landscape |
+| Zhao et al., *Genome Med* 2025 | ✅ | NeoGuider; DISCUSSIONS immunogenicity-scorer landscape |
 
 ### Open items before submission
 

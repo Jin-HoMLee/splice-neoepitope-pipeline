@@ -52,14 +52,32 @@ def _get_manifest_input(wildcards):
     return os.path.join(_RES, wildcards.patient_id, "alignment", "manifest.tsv")
 
 
+def _get_gtex_bed_input(wildcards):
+    """GTEx pan-tissue blacklist BED for the filter step, or [] when disabled.
+
+    Returns a list so an empty result cleanly omits the optional named input
+    (the established repo idiom — see _get_junction_files_input). The path is
+    single-sourced via _gtex_blacklist_bed() in common.smk so it matches the
+    download_gtex_pan_tissue_bed rule's output exactly. When the BED is a gs://
+    object the returned local path is produced by that download rule; when it is
+    a local fixture (chr22 tests) the path is consumed in place."""
+    bed = _gtex_blacklist_bed()
+    return [bed] if bed else []
+
+
 rule filter_junctions:
     """For each raw junction quantification file:
       1. Keep junctions with read count > mean read count in that file
          (removes low-read background noise).
-      2. Remove junctions present in the reference (GENCODE) junction list.
-      3. Annotate each tumor-exclusive junction with its canonical CDS reading
-         frame derived from the GENCODE GTF (informational; all three frames
-         are still translated downstream).
+      2. Discard junctions present in the reference (GENCODE) junction list.
+      3. Classify unannotated junctions by origin: normal_shared (matched
+         normal) → gtex_pantissue_shared (GTEx pan-tissue population blacklist,
+         when gtex_filter.enabled) → tumor_exclusive. Only tumor_exclusive
+         junctions proceed to neoepitope prediction; the others are retained in
+         the TSV for transparency.
+      4. Annotate each junction with its canonical CDS reading frame derived from
+         the GENCODE GTF (informational; all three frames are still translated
+         downstream).
     The output is a TSV of novel junctions per sample.
 
     Works with both HISAT2 and STAR alignments."""
@@ -68,6 +86,9 @@ rule filter_junctions:
         manifest=_get_manifest_input,
         reference_junctions=config["reference"]["junction_bed"],
         gencode_gtf=config["reference"]["gencode_gtf"],
+        # Optional: GTEx pan-tissue population-normal blacklist (Issue #211/#212).
+        # Empty (filter disabled) → omitted; the script treats absence as a no-op.
+        gtex_bed=_get_gtex_bed_input,
     output:
         novel_junctions=os.path.join(
             _RES, "{patient_id}", "junctions", "novel_junctions.tsv"

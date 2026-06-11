@@ -89,3 +89,38 @@ def _local_fastq(path, patient_id="", sample_id=""):
     if path and any(path.startswith(s) for s in _REMOTE_SCHEMES):
         return os.path.join("data", patient_id, sample_id, Path(path).name)
     return path
+
+
+# ── GTEx pan-tissue blacklist path (Issue #211/#212) ────────────────────────────
+# The population-normal junction blacklist lives on GCS in production (a gs://
+# reference_bed) and as a small committed/fetched fixture for chr22 tests (a local
+# reference_bed set via config/test_config.yaml). The download_gtex_pan_tissue_bed
+# rule (download.smk) stages the gs:// object to the local path below; the
+# filter_junctions input function (filter_junctions.smk) consumes the SAME path.
+# Single-source the derivation here so the download rule's output and the filter
+# rule's input cannot drift — a mismatch passes the dry-run clean but fails at
+# execute time with a missing-input error (a known dry-run-blind class, CLAUDE.md).
+
+def _gtex_filter_cfg():
+    """Return the gtex_filter config block (empty dict when the key is absent)."""
+    return config.get("gtex_filter", {}) or {}
+
+
+def _gtex_blacklist_bed():
+    """Local path the GTEx pan-tissue blacklist resolves to, or "" when disabled.
+
+    A gs:// ``reference_bed`` is staged to ``references/gtex/<basename>`` by the
+    ``download_gtex_pan_tissue_bed`` rule; a local ``reference_bed`` (the chr22
+    test fixture) is consumed in place. Returns "" when the filter is disabled or
+    no ``reference_bed`` is set, which makes the filter a no-op (the input function
+    then omits the optional input and filter_junctions.py skips GTEx tagging).
+    """
+    cfg = _gtex_filter_cfg()
+    if not cfg.get("enabled", False):
+        return ""
+    ref = (cfg.get("reference_bed") or "").strip()
+    if not ref:
+        return ""
+    if ref.startswith("gs://"):
+        return os.path.join("references", "gtex", os.path.basename(ref))
+    return ref

@@ -282,6 +282,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Pre-run snapshot of prior results (Issue #658)
+# ---------------------------------------------------------------------------
+# Object Versioning protects the upcoming overwrite (90-day noncurrent retention),
+# but an explicit, named snapshot of the small funnel/classification files gives a
+# live, diffable before-state for before/after comparative analyses — no
+# generation-number juggling. Large regenerable artifacts (BAMs, AlphaFold
+# intermediates) are left to versioning to avoid per-run archive bloat.
+# Sentinel = reports/report.tsv (the run's final output): a prior run that failed
+# before the report is treated as "no prior results" — its partial junctions stay
+# in versioning rather than the archive (a partial-run snapshot has little value).
+PRIOR_RESULTS="${GCS_PATH}/${PATIENT_ID}"
+if gcloud storage ls "${PRIOR_RESULTS}/reports/report.tsv" &>/dev/null; then
+    SNAP_TS="$(date -u +%Y%m%dT%H%M%SZ)"
+    SNAP_DEST="${GCS_PATH}/_archive/${PATIENT_ID}_pre_${SNAP_TS}"
+    log "Snapshotting prior headline results -> ${SNAP_DEST}/ (Issue #658)..."
+    if snap_out="$(gcloud storage cp -r "${PRIOR_RESULTS}/reports" "${PRIOR_RESULTS}/junctions" "${SNAP_DEST}/" 2>&1)"; then
+        log "  Pre-run snapshot complete (reports/ + junctions/)."
+    else
+        log "  WARNING: pre-run snapshot failed — continuing (Object Versioning still protects the overwrite):"
+        log "    gcloud: $(printf '%s\n' "${snap_out}" | tail -1)"
+    fi
+else
+    log "No prior results for ${PATIENT_ID} — skipping pre-run snapshot."
+fi
+
+# ---------------------------------------------------------------------------
 # Create or start pipeline VM
 # ---------------------------------------------------------------------------
 VM_STATUS="$(vm_status "${PIPELINE_VM}")"
@@ -396,6 +422,11 @@ cd "\$HOME/splice-neoepitope-pipeline"
 git fetch --all --prune
 git checkout "${BRANCH}"
 git pull origin "${BRANCH}"
+
+# Issue #664: drop any pipeline.log left from a prior successful run on this VM.
+# Its "steps (100%) done" line would make the completion poller false-complete
+# within ~2s (before the new run's tee truncates the file), uploading stale results.
+rm -f pipeline.log
 
 tmux kill-session -t pipeline 2>/dev/null || true
 
