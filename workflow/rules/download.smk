@@ -95,6 +95,55 @@ rule download_vdjdb_release:
 
 
 # =============================================================================
+# GTEx pan-tissue blacklist download — Issue #211/#212
+# =============================================================================
+# Stage the genome-wide GTEx pan-tissue junction blacklist (Snaptron gtexv2) from
+# GCS to a local path for the filter_junctions step. Registered ONLY when the
+# filter is enabled AND reference_bed is a gs:// URI — the chr22 test fixture is a
+# local path (config/test_config.yaml, prepared by scripts/prepare_test_data.sh)
+# and needs no download rule. Relies on HOST gsutil (gcloud SDK): no conda env
+# declares gsutil, and this rule only ever fires in production on the VM where
+# gcloud exists.
+
+_GTEX_CFG = config.get("gtex_filter", {}) or {}
+_GTEX_REF = (_GTEX_CFG.get("reference_bed") or "").strip()
+if _GTEX_CFG.get("enabled", False) and _GTEX_REF.startswith("gs://"):
+
+    rule download_gtex_pan_tissue_bed:
+        """Download the GTEx pan-tissue junction blacklist BED from GCS (Issue #211/#212).
+
+        Idempotent: with no inputs, Snakemake won't re-run once the local BED exists.
+        Optionally SHA256-verified against gtex_filter.reference_bed_sha256 — this
+        guards against the silent truncation that bit the #211 genome-wide build (a
+        partial copy would otherwise pass downstream unnoticed). Uses host gsutil."""
+        output:
+            bed=_gtex_blacklist_bed(),
+        params:
+            src=_GTEX_REF,
+            sha256=(_GTEX_CFG.get("reference_bed_sha256") or "").strip(),
+        log:
+            os.path.join(_LOGS, "download", "gtex_pan_tissue_bed.log"),
+        shell:
+            """
+            set -euo pipefail
+            mkdir -p "$(dirname {output.bed})"
+            echo "Downloading GTEx pan-tissue blacklist from {params.src}" > {log} 2>&1
+            gsutil cp {params.src} {output.bed} >> {log} 2>&1
+            if [ -n "{params.sha256}" ]; then
+                echo "Verifying SHA256..." >> {log} 2>&1
+                ACTUAL=$(shasum -a 256 {output.bed} | awk '{{print $1}}')
+                if [ "$ACTUAL" != "{params.sha256}" ]; then
+                    echo "SHA256 mismatch! expected={params.sha256} actual=$ACTUAL" >> {log} 2>&1
+                    rm -f {output.bed}
+                    exit 1
+                fi
+                echo "SHA256 OK" >> {log} 2>&1
+            fi
+            echo "Done." >> {log} 2>&1
+            """
+
+
+# =============================================================================
 # IMGT germline download via stitchrdl — Issue #204
 # =============================================================================
 
