@@ -139,15 +139,23 @@ run_variant() {
     mkdir -p "$outdir"
     log "RUN  ${label}   extra: ${extra[*]:-<none>}"
     local t0 t1; t0=$(date +%s)
-    STAR --runMode alignReads --runThreadN "$THREADS" \
+    # Tolerate a single variant's failure: log it and skip, but keep the sweep
+    # going so one bad flag does not lose the whole unattended run. (STAR in an
+    # if-condition is exempt from set -e.)
+    if STAR --runMode alignReads --runThreadN "$THREADS" \
          --genomeDir "$index_dir" \
          --readFilesIn "$FASTQ1" "$FASTQ2" --readFilesCommand zcat \
          --outFileNamePrefix "$prefix" \
-         "${BASELINE_FLAGS[@]}" "${extra[@]}"
-    t1=$(date +%s); echo $((t1 - t0)) > "${outdir}/runtime_s.txt"
+         "${BASELINE_FLAGS[@]}" "${extra[@]}"; then
+      t1=$(date +%s); echo $((t1 - t0)) > "${outdir}/runtime_s.txt"
+    else
+      log "!! ${label} FAILED (STAR nonzero) — skipping this variant, continuing sweep"
+      return 0
+    fi
   fi
 
-  # Metrics
+  # Metrics (guard: only emit a row if an SJ.out.tab actually exists)
+  [[ -s "$sjtab" ]] || { log "!! ${label}: no SJ.out.tab — no metrics row"; return 0; }
   local secs total annot novel pct uniq multi toomany flagstr
   secs=$(cat "${outdir}/runtime_s.txt" 2>/dev/null || echo NA)
   total=$(wc -l < "$sjtab")
@@ -164,6 +172,22 @@ run_variant() {
 }
 
 # ── Step 2: baseline ─────────────────────────────────────────────────────────
+# Reuse a config-identical existing production STAR run as the baseline column
+# (set REUSE_BASELINE_DIR) rather than recomputing it. The existing run MUST be
+# the same prod star_align config: same index, same FASTQs, same 2-pass flags,
+# same STAR build. We stage its raw artifacts into the baseline outdir; run_variant
+# then sees the SJ.out.tab as "already present" and only computes the metrics row.
+if [[ -n "${REUSE_BASELINE_DIR:-}" ]]; then
+  if [[ -s "${REUSE_BASELINE_DIR}/star_SJ.out.tab" && -s "${REUSE_BASELINE_DIR}/star_Log.final.out" ]]; then
+    log "Reusing existing baseline from $REUSE_BASELINE_DIR (no recompute)"
+    mkdir -p "${OUTROOT}/baseline"
+    cp -f "${REUSE_BASELINE_DIR}/star_SJ.out.tab"    "${OUTROOT}/baseline/star_SJ.out.tab"
+    cp -f "${REUSE_BASELINE_DIR}/star_Log.final.out" "${OUTROOT}/baseline/star_Log.final.out"
+    echo "reused" > "${OUTROOT}/baseline/runtime_s.txt"
+  else
+    log "!! REUSE_BASELINE_DIR set but artifacts missing — falling back to a fresh baseline run"
+  fi
+fi
 run_variant "baseline" "$INDEX_DIR"
 
 # ── Step 3: one-flag-at-a-time variants (1–6) ────────────────────────────────
@@ -179,15 +203,22 @@ if [[ -f "${NOGTF_INDEX_DIR}/index.done" || -f "${NOGTF_INDEX_DIR}/SAindex" ]]; 
 else
   log "Building no-GTF STAR index → $NOGTF_INDEX_DIR (separate from prod cache)"
   mkdir -p "$NOGTF_INDEX_DIR"
-  STAR --runMode genomeGenerate --runThreadN "$THREADS" \
+  if STAR --runMode genomeGenerate --runThreadN "$THREADS" \
        --genomeDir "$NOGTF_INDEX_DIR" --genomeFastaFiles "$GENOME" \
-       --sjdbOverhang 100
-  touch "${NOGTF_INDEX_DIR}/index.done"
+       --sjdbOverhang 100; then
+    touch "${NOGTF_INDEX_DIR}/index.done"
+  else
+    log "!! no-GTF index build FAILED — skipping noGTF_index variant"
+  fi
 fi
 # NOTE: with no sjdb in the index, EVERY junction is reported as novel (col 6 == 0)
 # by construction — % annotated is meaningless for this variant; compare on total
 # and unique-supported counts.
-run_variant "noGTF_index" "$NOGTF_INDEX_DIR"
+if [[ -f "${NOGTF_INDEX_DIR}/SAindex" ]]; then
+  run_variant "noGTF_index" "$NOGTF_INDEX_DIR"
+else
+  log "!! skipping noGTF_index (no usable index)"
+fi
 
 # ── Step 5: summary table (markdown, ready to paste into developer.md) ────────
 log "Sweep complete. Metrics → $RESULTS_TSV"
