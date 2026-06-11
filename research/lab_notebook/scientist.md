@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-10
+
+### 19:47 UTC — Editor: Scientist
+
+#### [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) GTEx pan-tissue filter — AC 6 (patient_002) sign-off. [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212).
+
+**What.** Signed off AC 6 (patient_002) on the always-on GTEx pan-tissue filter, completing the [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) validation gate alongside the AC 7 (patient_001) sign-off [2026-06-04]. patient_002 STAR+GTEx run (18/18 clean, 2026-06-04 22:06 UTC): `tumor_exclusive` **288 → 42** — marginal GTEx removal of 246 junctions (85.4%), in-run partition, funnel reconciles, the 246 gtex rows span 21 chromosomes (1.7 GB production panel live, not the chr22 fixture). Tracks patient_001's 83%. Downstream: 42 contigs → 1,847 peptides → 32 strong + 188 weak presenters.
+
+**The scope correction (why this entry matters).** AC 6 was written assuming patient_002 had no matched normal, making GTEx "the sole filter beyond annotated." It doesn't — patient_002's sheet includes a CD3+ PBMC matched normal (154 `normal_shared`), so this run validated matched-normal + GTEx **stacking**, identical in kind to AC 7. Neither patient run exercised the no-normal sole-filter path. Rather than burn a P100 window on a tumor-only re-run, I verified from the **branch** code that "sole filter" is not a separate code path: `gtex_junctions` loads unconditionally and the classify loop applies GTEx independent of normal presence (`if parsed in normal_junction_set … elif parsed in gtex_junctions …`); a no-normal patient is structurally the stacking path with an empty normal set (docstring confirms: *"…labeled tumor_exclusive (subject to the GTEx filter)"*).
+
+**Residual closed.** The one true gap — every GTEx unit test passes a normal sample, so `[no normal] + GTEx active` was untested — handed to Developer as a ~10-line unit test (`test_gtex_applies_when_no_normal_sample`) rather than a cloud run: deterministic + CI-permanent. AC 6 reworded on the Issue to reflect what was actually validated (stacking delta + unit-tested sole-filter path), keeping the ticked box honest.
+
+**Verification.** Funnel arithmetic re-checked (`245,791 = 196,889 + 48,460 + 154 + 246 + 42`); branch code read directly (the GTEx logic lives only on `feat/issue-212-gtex-pantissue-filter`, not main — initial inspection of main's `filter_junctions.py` showed no GTEx code, caught before reasoning from the wrong version); 21-chromosome span confirms the production BED was active.
+
+**Process.** Verified against primary sources (Issue ACs, Developer delta comment, PR-branch `filter_junctions.py` + tests) before signing — not the standup summary. Decision: accept stacking-as-AC6 + cheap unit-test close, no re-run. Sign-off comment + AC reword landed on [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212); merge stays Developer's gate (pending the unit test + PR Test-plan boxes).
+
 ## 2026-06-05
 
 ### 11:47 UTC — Editor: Scientist

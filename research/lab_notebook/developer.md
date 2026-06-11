@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11 — GTEx pan-tissue filter merged: sole-filter unit test + sign-off ([PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
+
+### 10:44 UTC — Editor: Developer
+
+Landed the always-on GTEx pan-tissue blacklist after the Scientist's AC 6 sign-off ([2026-06-10 19:45 UTC standup](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)). Three merge-gating items, all closed this session:
+
+**1. Sole-filter unit test (the Scientist's one ask).** Every existing GTEx test passed a matched normal, so `[tumor only, no normal] + GTEx active` was untested — the path AC 6 was originally written around. Added `test_gtex_applies_when_no_normal_sample` (the `test_gtex_and_tumor_exclusive_coexist` case minus the normal sample): a blacklisted junction still partitions to `gtex_pantissue_shared` and a clean one to `tumor_exclusive` with no normal present. Closes the gap deterministically + CI-permanently rather than burning a P100 window on a tumor-only re-run — the classify loop applies GTEx independent of normal presence, so a no-normal patient is structurally the stacking path with an empty normal set (Scientist verified the code-path equivalence from the branch).
+
+**2. Merge conflict.** Branch was 12 behind main; only conflict was `research/lab_notebook/scientist.md` (both sides appended dated entries) — resolved by keeping both blocks in reverse-chronological order (2026-06-10 sign-off on top, 2026-06-05 below), no content lost.
+
+**3. Test plan / ACs.** Full suite 468 passed / 6 skipped (was 446 at PR draft — main brought in 22 more). Both PR Test-plan cloud-validation boxes ticked (AC 6 patient_002 + AC 7 patient_001 sign-offs both landed); Issue ACs were already ticked by the Scientist's AC reword.
+
+**Learning.** A network-gated validation AC ("validate the sole-filter path on cloud") can sometimes be discharged by a unit test + a code-path-equivalence argument instead of a GPU run — but only after reading the branch code to confirm the two paths genuinely collapse. The cheap deterministic close is correct *because* the production code has no separate sole-filter branch, not as a shortcut around one.
+
 ## 2026-06-10 — DataCite fallback for arXiv DOIs in zotero_add.py ([PR #648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648) closes [Issue #641](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/641))
 
 ### 19:33 UTC — Editor: Developer
@@ -47,6 +61,26 @@ The [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues
 **Verification note.** macOS cross-solve (`--platform linux-64`, even with `CONDA_OVERRIDE_GLIBC`) is documented-unreliable in the htslib subtree (the #645 entry, Learning 2) — but `2.7.10b` doesn't touch that subtree (no htslib), so the verdict holds; the [PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) re-validation is the faithful linux-64 *build* confirmation (fast-fails ~minutes at env-create if wrong, so no multi-hour-run risk). Local Docker (the ideal faithful probe) wasn't available this session.
 
 **Session-adjacent (not this PR):** the same GTEx validation drove a GCS before/after-snapshot audit — versioning is on but lifecycle prunes noncurrent (alignment 7d / all 90d) and `run_cloud_gpu.sh` doesn't auto-archive — so I snapshotted `results/patient_00X` → `_archive/..._pre_issue212_2026-06-04` and filed [Issue #658](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/658) (pre-run auto-snapshot). Re-validation resumes once this lands.
+
+## 2026-06-03 — Integrate the GTEx pan-tissue filter into filter_junctions ([PR #653](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653) closes [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
+
+### 20:07 UTC — Editor: Developer
+
+The consumer slice of [parent Issue #126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/126): wire [#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)'s Snaptron gtexv2 blacklist into `filter_junctions.py` as an always-on filter that stacks with the matched-normal step. M-sized, multi-consumer, one reusable learning → entry. **Scope this session (user call): code + chr22 only; the patient_001/002 cloud validation + Scientist sign-off (AC #6/#7) are the gated pre-merge step.**
+
+**The spec was stale, but the config wasn't.** The [#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) body predates #211's V10→Snaptron redirect, so it asked for GTEx-V10 paths + a `min_read_count` knob. But #211 had already landed the correct `gtex_filter:` config block (Snaptron paths, `enabled: false`, comment "*#212 flips the default*"). So this was not a source reconciliation — just flip `enabled: true` + wire it. The threshold is `min_samples` (Snaptron `samples_count`), and the staged BED is pre-thresholded at build time → filtering is **set-membership**, reusing `_load_reference_junctions()` verbatim (the GTEx BED6 is the same `(chrom,start,end,strand)` shape). `min_samples` is provenance, not a live filter-time knob (documented inline against that foot-gun).
+
+**Design — marginal partition.** Origin priority `normal_shared → gtex_pantissue_shared → tumor_exclusive`: GTEx is checked *after* the matched normal, so its count is the *marginal* contribution beyond the patient-specific normal (no double-counting), and the funnel stays a clean partition. Downstream is safe for free — `assemble_contigs.py` selects `== "tumor_exclusive"` (inclusion, not a `!= normal_shared` exclusion list), so the new bucket is dropped from prediction and retained in the TSV for transparency, exactly like `normal_shared`.
+
+**Learning — a new partition bucket has to be threaded through *every* enumerator of the origin set, and the misses are dry-run-invisible.** Adding a third origin isn't one edit — it touched **three** independent places that enumerate/sum the origin partition, each of which fails *silently* (drops or undercounts, no error): (1) `generate_report.py` `funnel_cats` (HTML table would silently omit the row) + `junctions_unannotated_total` (report.tsv funnel would undercount, breaking the closed-funnel invariant a test enforces); (2) `test_integration.py` `VALID_JUNCTION_ORIGINS` (the 2-origin set rejects `gtex_pantissue_shared` once a gtex-enabled run exists). A pre-implementation adversarial red-team caught (1); (2) surfaced only when I regenerated the local `results/` fixture and the integration suite ran against real gtex output. **Principle: when you add a category to a partition, grep every consumer that *enumerates* or *sums* the old set — the compiler won't, and neither will `snakemake -n`.**
+
+**Snakemake wiring.** Single-sourced the local-path derivation in `common.smk` (`_gtex_blacklist_bed()`: `gs://` → `references/gtex/<basename>` download target, local fixture → consumed in place) so the `download_gtex_pan_tissue_bed` rule's output and the filter's optional input can't drift — a mismatch is a `MissingInputException` at execute time, dry-run-invisible. The download rule is host-`gsutil` (no conda env declares it; prod-only, gs:// guard) and SHA256-verifies the 1.7 GB BED — guarding the exact silent-truncation hazard #211 fought. Dry-run confirmed the rule is correctly *absent* in the chr22 test (local fixture path).
+
+**chr22 integration (real CLI vs the 880,769-junction fixture).** `tumor_exclusive` **151 → 122** (−29, a 19% candidate-set cut); all 29 `gtex_pantissue_shared` rows verified present in the BED; funnel reconciles (`1872 = 1638 + 79 + 4 + 29 + 122`); `normal_shared` unchanged (marginal partition holds). The full `--use-conda` chr22 run can't build locally — `python.yaml` pins `torch ==2.12.0+cu126` (Linux-only wheel), so that path runs on the Linux VM during patient validation; I validated the data path via the real `filter_junctions.py` CLI against the production-scale fixture + the dry-run DAG instead.
+
+**Review.** Bot review: no bugs; verified the partition, the single-source helper, and the str-or-list input guard. Two minor observations applied (an explicit gtex-disabled no-op test; stale `--help` string). Self-caught the `VALID_JUNCTION_ORIGINS` miss above. Full suite **447 passed / 6 skipped**; CI green.
+
+**Gated / follow-ups.** Merge blocked on patient_001/002 cloud validation + Scientist sign-off (AC #6/#7). The *runs* are Developer/infra work (`run_cloud_gpu.sh` on the P100 VM — pipeline execution is Developer territory); the Scientist owns only the **sign-off on the deltas** + the `scientist.md` interpretation entry. (AC wording: "*Scientist signs off the deltas before merge*" — sign-off, not execution.) Carried forward: verify `gsutil` on the VM session PATH before the first prod-BED fetch (review confirmation #3). Manuscript prose (METHODS/DISCUSSIONS' 2-way unannotated split) is a Scientist follow-up once the validation numbers land. #212 is *In progress* but still **needs a milestone** — flagged for PM (the commitment act is PM-coordinated; the director authorized starting directly).
 
 ## 2026-06-03 — GTEx pan-tissue novel-junction blacklist (Snaptron gtexv2) ([PR #598](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/598) closes [Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211))
 
