@@ -89,6 +89,11 @@ printf 'variant\tflag\ttotal_sj\tannotated\tnovel\tpct_annotated\tuniq_supported
 log()  { printf '\n\033[1;34m[sweep %(%H:%M:%S)T]\033[0m %s\n' -1 "$*"; }
 
 # ── Step 0: FASTQs (download once, reuse) ────────────────────────────────────
+# Atomic download to .part then mv, so an interrupted/partial transfer is never
+# mistaken for a complete cached file by the -s check below. --http1.1 avoids
+# B2's HTTP/2 "stream not closed cleanly" flakiness (curl 92); --retry-all-errors
+# retries transport-level failures (curl 92 is not an HTTP status code, so a
+# plain --retry would not catch it).
 mkdir -p "$FASTQ_DIR"
 for pair in "$FASTQ1_URL|$FASTQ1" "$FASTQ2_URL|$FASTQ2"; do
   url="${pair%%|*}"; dst="${pair##*|}"
@@ -96,7 +101,9 @@ for pair in "$FASTQ1_URL|$FASTQ1" "$FASTQ2_URL|$FASTQ2"; do
     log "FASTQ cached: $dst"
   else
     log "Downloading $(basename "$dst") from B2 ..."
-    curl --fail -L --no-progress-meter -o "$dst" "$url"
+    curl --fail -L --http1.1 --retry 5 --retry-delay 10 --retry-all-errors \
+         --no-progress-meter -o "${dst}.part" "$url"
+    mv "${dst}.part" "$dst"
   fi
 done
 
