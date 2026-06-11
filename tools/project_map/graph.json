@@ -526,7 +526,7 @@
         "manifest",
         "output"
       ],
-      "lines_of_code": 507,
+      "lines_of_code": 616,
       "size": 2,
       "degree": 3
     },
@@ -826,7 +826,7 @@
         "predictions",
         "output"
       ],
-      "lines_of_code": 1909,
+      "lines_of_code": 1915,
       "size": 2,
       "degree": 3
     },
@@ -936,7 +936,7 @@
         "input",
         "output"
       ],
-      "lines_of_code": 155,
+      "lines_of_code": 164,
       "size": 2,
       "degree": 2
     },
@@ -2819,8 +2819,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs",
-      "size": 8,
-      "degree": 12
+      "size": 9,
+      "degree": 13
     },
     {
       "id": "docs__resources_md",
@@ -2901,6 +2901,16 @@
       "description": "Documentation",
       "size": 1,
       "degree": 2
+    },
+    {
+      "id": "docs__remote_routines_md",
+      "label": "remote_routines.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/remote_routines.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "docs__features",
@@ -3969,8 +3979,18 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 1,
-      "degree": 2
+      "size": 2,
+      "degree": 3
+    },
+    {
+      "id": "scripts__tests__test_apply_arc_labels_resync_py",
+      "label": "test_apply_arc_labels_resync.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_apply_arc_labels_resync.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
     },
     {
       "id": "scripts__tests__test_board_open_items_arc_py",
@@ -5299,6 +5319,12 @@
       "label": ""
     },
     {
+      "source": "docs__remote_routines_md",
+      "target": "docs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__features",
       "target": "docs",
       "type": "contained_in",
@@ -5943,6 +5969,12 @@
     {
       "source": "scripts__tests",
       "target": "scripts",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_apply_arc_labels_resync_py",
+      "target": "scripts__tests",
       "type": "contained_in",
       "label": ""
     },
