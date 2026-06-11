@@ -264,10 +264,11 @@ class TestComputeRecheckUnsizedGuard:
     An unreliable capacity read must not produce a confident due_on recommendation.
     """
 
-    def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes):
+    def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents=()):
         monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
         monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
         monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
+        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
 
     def test_mixed_sized_and_unsized_flags_unsized_not_update(self, monkeypatch, capsys):
         self._patch_board(
@@ -342,6 +343,90 @@ class TestComputeRecheckUnsizedGuard:
         out = capsys.readouterr().out
         assert "[UNSIZED]" not in out
         assert "Proposed due_on:" in out
+
+
+class TestComputeRecheckParentSkip:
+    """compute_recheck must exclude parent epics (subIssuesSummary.total > 0) from
+    both the capacity sum and the unsized-check (Issue #689).
+
+    A parent carries no Size by convention (size rolls up from its sub-issues —
+    shared/feedback_parent_sub_issues.md), so a milestone holding a parent as a
+    roadmap anchor must not emit a spurious, un-clearable [UNSIZED] flag.
+    Reproduces the 2026-06-11 pm-i6 case: parents #527/#538 + sized leaf #539.
+    """
+
+    def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents):
+        monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
+        monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
+        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
+        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
+
+    def _freeze_today(self, monkeypatch, fake_today):
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return fake_today
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+    def test_parents_excluded_no_unsized_flag(self, monkeypatch, capsys):
+        # pm-i6: parents #527/#538 (unsized by convention) + sized leaf #539.
+        # Pre-#689 this flagged [UNSIZED]; now the parents are excluded and the
+        # due date computes from the leaf's 1.0d alone.
+        self._patch_board(
+            monkeypatch,
+            title="pm-i6 - PM Tooling, Memory & Methodology II",
+            due_on="2026-07-02T00:00:00Z",
+            issues=[527, 538, 539],
+            sizes={527: None, 538: None, 539: "S"},
+            parents=[527, 538],
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])  # no other milestones for layered calc
+        self._freeze_today(monkeypatch, date(2026, 6, 11))
+
+        rc = rm.compute_recheck(33)
+        out = capsys.readouterr().out
+
+        assert "[UNSIZED]" not in out
+        assert out.count("parent epic — excluded") == 2  # #527 and #538
+        assert "Remaining capacity: 1.0d" in out  # only #539 (S) counted
+        assert "Proposed due_on:" in out  # due-date path reached, not bailed
+        assert rc in (0, 2)  # a real recommendation, not a crash
+
+    def test_milestone_with_only_parent_is_no_change(self, monkeypatch, capsys):
+        # A roadmap-anchor parent alone → no countable leaf capacity, no [UNSIZED].
+        self._patch_board(
+            monkeypatch,
+            title="pm-i6 - PM Tooling, Memory & Methodology II",
+            due_on="2026-07-02T00:00:00Z",
+            issues=[538],
+            sizes={538: None},
+            parents=[538],
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail("should not compute due date"))
+        rc = rm.compute_recheck(33)
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "[No change]" in out
+        assert "[UNSIZED]" not in out
+
+    def test_unsized_leaf_still_flagged_with_parent_present(self, monkeypatch, capsys):
+        # Parent excluded, but a genuinely unsized LEAF still trips [UNSIZED]:
+        # the convention only exempts parents, not unsized leaf/standalone work.
+        self._patch_board(
+            monkeypatch,
+            title="pm-i6 - PM Tooling, Memory & Methodology II",
+            due_on="2026-07-02T00:00:00Z",
+            issues=[538, 539, 540],
+            sizes={538: None, 539: "S", 540: None},
+            parents=[538],
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail(
+            "should not compute due date while a leaf is unsized"))
+        rc = rm.compute_recheck(33)
+        out = capsys.readouterr().out
+        assert rc == 2
+        assert "[UNSIZED]" in out
+        assert "1 open issue(s) missing Size" in out  # only #540, not the parent #538
 
 
 @pytest.mark.live

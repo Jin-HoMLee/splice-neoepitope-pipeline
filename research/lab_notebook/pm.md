@@ -6,6 +6,53 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-11
+
+### 19:27 UTC — Editor: PM
+
+#### Arc tooling hardening — Arc column + apply_arc_labels re-sync + recheck parent-skip ([Issue #689](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/689), [PR #710](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/710))
+
+**Trigger.** The capacity-recheck hook flagged `pm-i6` as `[UNSIZED]` on a milestone whose only "unsized" members were parent epics (#527/#538/#539) — which carry no Size by convention (size rolls up from sub-issues). An un-clearable false positive: sizing a parent to clear it would itself violate the no-size rule. Surfaced while sizing #527/#538 earlier this session. Folded the fix into the existing `role:pm` leaf #689 (two arc-tooling items deferred from [PR #688](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/688)) as a third item rather than minting a sub-issue — keeping #689 a leaf preserves its own PR path.
+
+**What landed (3 items).** (1) `board_open_items.py` — opt-in `--arc-columns` flag (Arc + phase columns) so an `--arc-phase active` sweep shows each issue's arc in the human table, not only `--json`. (2) `apply_arc_labels.sh` — converted from add-only to a true re-sync: removes any `arc:*`/`arc-phase:*` label not matching `arc_taxonomy.tsv` before adding the manifest pair, so a slate change (phase edit, re-tag, split/merge) leaves each *listed* issue with exactly its manifest pair; bash 3.2-portable (no `mapfile`, guarded empty-array expansion). (3) `recheck_milestone.py` — new `parent_numbers()` excludes parent epics (`subIssuesSummary.total > 0`) from both the capacity sum and the unsized-check.
+
+**Verification.** Unit: parent-skip tests (parents excluded; only-parent → `[No change]`; unsized *leaf* still flags `[UNSIZED]`); 5 stubbed-`gh` re-sync tests (full-replace / no-op / phase-flip / arc-retag / comment-skip); Arc-column render tests. Suites green (`scripts/tests` 14, `tools/ci` 261). Live: `recheck_milestone.py --milestone 33` now shows #527/#538/#539 as "parent epic — excluded", no `[UNSIZED]`, capacity 6.0d from the real leaves (#569 M + #696 L). Live `apply_arc_labels.sh` re-sync = **zero** stale removals (idempotent on the freshly-applied taxonomy). All 4 CI checks pass.
+
+**Review.** `@claude review` (non-trivial human-authored PR) returned LGTM, no bugs; 4 optional-polish observations. Folded the two wording nits (apply_arc_labels scope comment; `--arc-columns`/`--json` help note) in ce42c16; deferred the two intentional ones (merging the two GraphQL calls — kept separate for independent monkeypatching; broad `rc in (0, 2)` assert — precise invariants are checked separately).
+
+**Slip caught (recorded).** The reviewer-reply comment used `#1`-`#4` for the finding numbers, which GitHub auto-linked to unrelated Issues/PRs (user caught it). Fixed the comment to "Finding N"; inlined the positional-`#N` trap into PM Always-in-effect (the shared `feedback_hash_numbers.md` rule existed but was only an index link, so it didn't surface at comment-writing distance). Side effect of the item-3 fix worth a downstream look: `pm-i6` now reads `[UPDATE NEEDED] -13d` — a *legitimate* re-date signal, no longer the false positive. Closes [Issue #689](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/689).
+
+---
+
+### 14:25 UTC — Editor: PM
+
+#### `docs/remote_routines.md` — remote-routine sandbox facts + hardened dispatch checklist captured as a team doc ([Issue #651](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/651), [PR #652](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/652))
+
+**Trigger.** The hard-won CCR sandbox facts + hardened dispatch-prompt checklist from the 2026-06-03 overnight one-shot batch (#632/#641/#375/#435 → draft PRs [#647](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/647)/[#648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648)/[#649](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649)/[#650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650)) lived only in a PM session. Captured them as a team-accessible reference so future dispatches start from known ground instead of re-probing the sandbox.
+
+**What landed.** `docs/remote_routines.md` — the CCR env reference table (allowlisted egress, no conda/snakemake, the `pip --upgrade pyyaml` trap, shallow proxied checkout / `claude/*`-only push, the `Claude <noreply@anthropic.com>` bot identity), the 9-step hardened dispatch checklist, when-to-dispatch criteria (specifiable ∧ machine-verifiable ∧ reviewable-as-artifact), and the handoff convention (the owning role finishes; PM dispatches + routes). Plus a one-line `CLAUDE.md` Infrastructure pointer.
+
+**Review correction worth recording.** The `@claude` review flagged checklist step 5's *"not `gh issue develop`"* as missing a rationale; the bot's proposed reason (the git proxy 403s the branch name) was **wrong** — `gh issue develop --name claude/issue-NNN-slug` does produce a pushable `claude/*` branch, as the user caught. Replaced it with the accurate why: `gh issue develop` is **untested through the sandbox's proxied shallow checkout**, and the **local parent-guard hook that protects it doesn't load in-sandbox**. Also: confirmed #435 *did* produce a PR ([#650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650), still open/draft) and added the citation the preamble was missing; tightened the attribution-trailer guidance ("omit the trailer") and the `allowed_tools` example. Doc-only; no code/CI impact. Closes [Issue #651](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/651).
+
+---
+## 2026-06-10
+
+### 18:21 UTC — Editor: PM
+
+#### Arc work-structuring — Plan 3 landed: milestone de-overloading + the three-axis model documented; epic → 3/3 ([Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693), [PR #700](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/700))
+
+**What shipped.** The final arc-rollout plan, all project-repo. Milestone state (live via API, no file artifacts): **6 open milestones renamed** to drop the `<Arc>` content-suffix → terse `i<N> - S<N> - <Stage>`; **2 empty placeholders closed** (i2-S7 Publication, i3-S4 EDA); **3 legacy empties deleted** (M1/M2/M7). Docs: a new "Three-axis work model (stage / arc / due-date)" section in `CLAUDE.md` board-governance.
+
+**The decision that took the session (AC 3 — time-boxing): Target date, not the native Iteration field.** The clock lives in milestone `due_on` → the board **Target date** field (already populated + `recheck_dispatch.py`-synced; **Start date** turned out empty on every open item — the Roadmap was sorting on nothing). The Iteration field is **declined**: it encodes fixed Scrum-cadence sprints, which clashes with (a) our Kanban/flow model (late-commitment Ready queue + WIP, no sprints) and (b) the variable-length `i<N>` lifecycle passes. Roadmap repoint Start→Target is a **manual UI step** (ProjectV2 API can't mutate view config) — surfaced as a post-merge action, not an AC.
+
+**The conceptual untangle (the durable bit).** The session pivoted on separating **four distinct senses of "iteration"** that the old milestone name had been conflating: our **`i<N>`** = a *pass through the DS lifecycle* (variable-length, work/learning-driven); a **Scrum sprint** = a fixed calendar time-box; a **GitHub Iteration field** = GitHub's impl of sprints (auto-rolling `@current`); and the lifecycle **stage** `S<N>` = a *phase*. We run none of the sprint-flavored ones. This is why the de-overloading is *correct*, not just tidy: stage→milestone, arc→label, clock→due_on/Target — each axis on the object that fits it.
+
+**Standards-first interrogation (user-driven, worth recording).** The user pushed hard on whether "arc" is idiosyncratic vs best-practice. Verified against GitHub's own docs ([Using labels and milestones](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work), [About milestones](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/about-milestones)): **cross-cutting themes belong on labels, one milestone per issue (intentional), milestones close** — so an arc (a never-closing throughline) *literally cannot* be a milestone, and arc-as-label is textbook standard. The only genuinely bespoke piece is the **`arc-phase:active` ≤3 focus slate**, justified by a real gap (async, non-overlapping role-sessions with no synchronous standup → need a shared pull target). Key epistemic catch (the user's): we **can't empirically validate** the slate by watching our own pulls — behavior is fully determined by the memory we author, so an A/B "test" is circular. Whether the slate earns its keep is therefore a *design-reasoning* question, deferred as a **separate decision** (the milestone de-overloading is standard-aligned and worth doing regardless of how that lands — which is why we proceeded with Plan 3).
+
+**Follow-up flagged (out of #693 scope).** The personas-repo memory naming template (`pm/feedback_milestones.md`, `pm/MEMORY.md` "Full milestone names") still shows the dropped `<Arc>` suffix → needs the terse update (PM self-commit per the [Issue #672](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/672) trial, or MM landing). Until then the two naming sources are transiently out of sync.
+
+**Review.** Bot review: clean, docs-only, no correctness bugs. Took finding 1 (add the arc-spec cross-reference to the ≤3 line) + finding 2 (reworded the Roadmap note as a durable instruction, not a one-time incident); declined 3 (cosmetic) + 4 (the follow-up above, already flagged). Epic [Issue #691](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/691) → **3/3 complete** with this.
+
 ## 2026-06-05
 
 ### 15:14 UTC — Editor: PM

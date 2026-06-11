@@ -8,8 +8,47 @@ from filter_junctions import (
     _build_normal_junction_set,
     _load_reference_junctions,
     _parse_junction_id,
+    _read_junction_file,
     classify_junctions,
 )
+
+
+# ---------------------------------------------------------------------------
+# _read_junction_file (Issue #375 — optional 3rd annotated-flag column)
+# ---------------------------------------------------------------------------
+
+class TestReadJunctionFile:
+    def test_two_column_legacy_annotated_none(self, tmp_path):
+        # HISAT2/regtools path (bed12_to_junctions.py) emits only 2 columns.
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\nchr22:301:400:-\t5\n")
+        rows = _read_junction_file(f)
+        assert rows == [
+            ("chr22:101:200:+", 10.0, None),
+            ("chr22:301:400:-", 5.0, None),
+        ]
+
+    def test_three_column_star_annotated_parsed(self, tmp_path):
+        # STAR path now carries the annotated flag as a 3rd column.
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\t1\nchr22:301:400:-\t5\t0\n")
+        rows = _read_junction_file(f)
+        assert rows == [
+            ("chr22:101:200:+", 10.0, 1),
+            ("chr22:301:400:-", 5.0, 0),
+        ]
+
+    def test_three_column_non_integer_flag_falls_back_to_none(self, tmp_path):
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("chr22:101:200:+\t10\tnotanint\n")
+        rows = _read_junction_file(f)
+        assert rows == [("chr22:101:200:+", 10.0, None)]
+
+    def test_skips_comment_and_blank_lines(self, tmp_path):
+        f = tmp_path / "raw_junctions.tsv"
+        f.write_text("# header\n\nchr22:101:200:+\t10\t1\n")
+        rows = _read_junction_file(f)
+        assert rows == [("chr22:101:200:+", 10.0, 1)]
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +151,159 @@ class TestBuildNormalJunctionSet:
     def test_empty_normal_files_returns_empty_set(self):
         result = _build_normal_junction_set([], frozenset(), min_reads=2)
         assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# classify_junctions — STAR annotated-flag cross-check (Issue #375)
+# ---------------------------------------------------------------------------
+
+class TestAnnotatedFlagCrossCheck:
+    """The col-6 flag is a diagnostic cross-check against GENCODE membership.
+
+    It is WARNING-only — it must never change the classification, which stays
+    authoritative on ref_junctions (GENCODE BED) membership.
+    """
+
+    def _write_3col(self, path, rows):
+        """rows: list of (junction_id, reads, annotated_flag)."""
+        path.write_text("".join(f"{jid}\t{reads}\t{ann}\n" for jid, reads, ann in rows))
+
+    def _write_manifest(self, path, entries):
+        lines = ["file_id\tfile_name\tsample_type\tproject_id\n"]
+        for fid, stype in entries:
+            lines.append(f"{fid}\t{fid}.tsv\t{stype}\tlocal\n")
+        path.write_text("".join(lines))
+
+    def _write_reference_bed(self, path, junctions):
+        path.write_text("".join(f"{c}\t{s}\t{e}\tjunc\t0\t{st}\n" for c, s, e, st in junctions))
+
+    def test_warns_when_star_annotated_but_not_in_bed(self, tmp_path, caplog):
+        # STAR flags chr22:201:300:+ as annotated (1), but it is NOT in our BED
+        # → disagreement → WARNING. Classification still uses BED membership, so
+        # the junction is unannotated and survives as tumor_exclusive.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:201:300:+", 100, 1),  # STAR-annotated, absent from BED
+            ("chr22:401:500:+", 1, 0),    # noise — below mean, filtered out
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])  # empty → nothing is in our BED
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        # WARNING fired naming the disagreeing junction.
+        assert any(
+            "chr22:201:300:+" in rec.message
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+        # Classification is UNCHANGED — BED membership stays authoritative.
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+
+    def test_warns_when_in_bed_but_not_star_annotated(self, tmp_path, caplog):
+        # STAR flags chr22:101:200:+ as novel (0), but it IS in our BED
+        # → disagreement → WARNING. BED membership wins: it is discarded.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:101:200:+", 100, 0),  # STAR-novel, but present in BED
+            ("chr22:401:500:+", 1, 0),    # noise — keeps the other above mean
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert any(
+            "chr22:101:200:+" in rec.message
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+        # Annotated per BED → discarded, regardless of STAR's flag.
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 0
+
+    def test_no_warning_when_flags_agree(self, tmp_path, caplog):
+        # STAR-annotated AND in BED → agreement; STAR-novel AND not in BED →
+        # agreement. No cross-check WARNING should fire.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_3col(tumor_f, [
+            ("chr22:101:200:+", 100, 1),  # annotated, in BED → agree
+            ("chr22:201:300:+", 100, 0),  # novel, not in BED → agree
+            ("chr22:401:500:+", 1, 0),    # noise
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert not any(
+            "annotated-flag" in rec.message.lower()
+            or "star" in rec.message.lower()
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
+
+    def test_legacy_two_column_no_crosscheck_warning(self, tmp_path, caplog):
+        # 2-column (HISAT2) input → annotated is None → cross-check is skipped,
+        # no spurious WARNING.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        tumor_f.write_text("chr22:201:300:+\t100\nchr22:401:500:+\t1\n")
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+            )
+
+        assert not any(
+            "annotated-flag" in rec.message.lower()
+            for rec in caplog.records
+            if rec.levelname == "WARNING"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +458,251 @@ class TestClassifyJunctions:
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
         assert "reading_frame" in df.columns
 
+    # --- GTEx pan-tissue filter (Issue #212) ---------------------------------
+    # The GTEx blacklist BED is the same BED6 format as the reference, so the
+    # existing _write_reference_bed helper writes it. Junction IDs are 1-based
+    # (chr22:201:300:+ → 0-based 200,300), so a matching gtex entry is (200,300).
+
+    def test_gtex_pantissue_shared_labeled_correctly(self, tmp_path):
+        # Unannotated junction absent from the matched normal but present in the
+        # GTEx blacklist → gtex_pantissue_shared.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # in GTEx, not in normal → gtex_pantissue_shared
+            ("chr22:901:1000:+", 1),   # noise — below mean, filtered out
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=gtex_bed,
+        )
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "gtex_pantissue_shared"
+
+    def test_normal_takes_precedence_over_gtex(self, tmp_path):
+        # A junction present in BOTH the matched normal AND the GTEx blacklist is
+        # labeled normal_shared (matched normal is the higher-confidence, more
+        # specific evidence). The GTEx count is the *marginal* contribution beyond
+        # the matched normal, so it does not re-count this junction.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # in BOTH normal and gtex
+            ("chr22:901:1000:+", 1),   # noise
+        ])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=gtex_bed,
+        )
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "normal_shared"
+
+    def test_gtex_and_tumor_exclusive_coexist(self, tmp_path):
+        # Two unannotated junctions absent from the normal: one in the GTEx
+        # blacklist (→ gtex_pantissue_shared, excluded downstream) and one in
+        # neither (→ tumor_exclusive, the only prediction candidate).
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # in GTEx → gtex_pantissue_shared
+            ("chr22:301:400:+", 100),  # in neither → tumor_exclusive
+            ("chr22:901:1000:+", 1),   # noise
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=gtex_bed,
+        )
+        df = pd.read_csv(output, sep="\t")
+        origins = dict(zip(df["junction_id"], df["junction_origin"]))
+        assert origins["chr22:201:300:+"] == "gtex_pantissue_shared"
+        assert origins["chr22:301:400:+"] == "tumor_exclusive"
+        # Only the tumor_exclusive junction is a candidate downstream.
+        assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
+
+    def test_gtex_applies_when_no_normal_sample(self, tmp_path):
+        # GTEx as the SOLE filter (no matched normal): every other GTEx test passes
+        # a normal sample, so the [tumor only, no normal] + GTEx-active path was
+        # untested. A no-normal patient is structurally the stacking path with an
+        # empty normal set, so GTEx must still partition tumor junctions. One in the
+        # blacklist (→ gtex_pantissue_shared) and one in neither (→ tumor_exclusive).
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # in GTEx → gtex_pantissue_shared
+            ("chr22:301:400:+", 100),  # in neither → tumor_exclusive
+            ("chr22:901:1000:+", 1),   # noise — below mean, filtered out
+        ])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=gtex_bed,
+        )
+        df = pd.read_csv(output, sep="\t")
+        origins = dict(zip(df["junction_id"], df["junction_origin"]))
+        assert origins["chr22:201:300:+"] == "gtex_pantissue_shared"
+        assert origins["chr22:301:400:+"] == "tumor_exclusive"
+        # GTEx still removed the blacklisted junction with no normal present.
+        assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
+
+    def test_gtex_disabled_junction_falls_through_to_tumor_exclusive(self, tmp_path):
+        # Contract: when gtex_bed is omitted (filter disabled), a junction that WOULD
+        # match a GTEx blacklist on disk is still labeled tumor_exclusive — only the
+        # passed argument enables filtering, never the mere existence of the file.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),  # would be gtex_pantissue_shared if the BED were passed
+            ("chr22:901:1000:+", 1),   # noise
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        # The BED file exists and contains the junction, but is NOT passed.
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            gtex_bed=None,
+        )
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 1
+        assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+
+    def _write_3col_junction_file(self, path, rows):
+        """rows: list of (junction_id, reads, annotated_flag) — STAR 3-column."""
+        path.write_text("".join(f"{jid}\t{reads}\t{ann}\n" for jid, reads, ann in rows))
+
+    def test_star_3col_input_with_gtex_active(self, tmp_path, caplog):
+        # Merge-seam regression (Issue #375 × Issue #211/#212): 3-column STAR input
+        # AND an active gtex_bed exercised together in one classify_junctions call,
+        # the exact interplay reconciled when this branch was merged onto main. Proves
+        # (a) the annotated flag flows through the GTEx classification path, (b) the
+        # WARNING-only cross-check counters stay independent of the gtex counter, and
+        # (c) a cross-check disagreement fires alongside gtex labeling without
+        # perturbing either origin assignment.
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_3col_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100, 1),  # flag=1, in ref BED → agree → annotated, discarded
+            ("chr22:201:300:+", 100, 0),  # flag=0, in GTEx → gtex_pantissue_shared (agree)
+            ("chr22:301:400:+", 100, 1),  # flag=1 but NOT in ref → DISAGREE → warn; tumor_exclusive
+            ("chr22:901:1000:+", 1, 0),   # noise — below mean, filtered out
+        ])
+        self._write_junction_file(normal_f, [])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 200, 300, "+")])
+
+        output = tmp_path / "novel.tsv"
+        with caplog.at_level("WARNING"):
+            classify_junctions(
+                junction_files=[tumor_f, normal_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+                gtex_bed=gtex_bed,
+            )
+
+        df = pd.read_csv(output, sep="\t")
+        origins = dict(zip(df["junction_id"], df["junction_origin"]))
+        # Annotated junction discarded (BED membership authoritative), not emitted.
+        assert "chr22:101:200:+" not in origins
+        # GTEx and tumor_exclusive partition the two surviving unannotated junctions.
+        assert origins["chr22:201:300:+"] == "gtex_pantissue_shared"
+        assert origins["chr22:301:400:+"] == "tumor_exclusive"
+        assert (df["junction_origin"] == "gtex_pantissue_shared").sum() == 1
+        assert (df["junction_origin"] == "tumor_exclusive").sum() == 1
+        # The cross-check WARNING fired for the one disagreeing junction, and the
+        # GTEx-labeled junction (flag=0, novel, agreeing) did NOT trigger one.
+        warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
+        assert any("chr22:301:400:+" in m for m in warnings)
+        assert not any("chr22:201:300:+" in m and "annotated-flag" in m.lower()
+                       for m in warnings)
+
 
 # ---------------------------------------------------------------------------
 # classify_junctions — junction_filter_stats.tsv (Issue #214)
@@ -326,9 +763,10 @@ class TestClassifyJunctionsStats:
         stats = pd.read_csv(stats_output, sep="\t")
         assert set(stats.columns) == {"sample_id", "sample_type", "category", "count"}
 
-        # Long-format per tumor sample: 5 funnel rows (Issue #214) +
-        # 4 descriptive distribution rows (Issue #215) = 9 total.
-        assert len(stats) == 9
+        # Long-format per tumor sample: 6 funnel rows (Issue #214 + the
+        # gtex_pantissue_shared row from Issue #212, always emitted) +
+        # 4 descriptive distribution rows (Issue #215) = 10 total.
+        assert len(stats) == 10
         assert (stats["sample_id"] == "tumor").all()
         assert (stats["sample_type"] == "Primary Tumor").all()
 
@@ -341,9 +779,11 @@ class TestClassifyJunctionsStats:
         assert by_cat["annotated_discarded"] == 1
         assert by_cat["normal_shared"] == 1
         assert by_cat["tumor_exclusive"] == 1
+        # No GTEx blacklist supplied → the row is still emitted with count 0.
+        assert by_cat["gtex_pantissue_shared"] == 0
 
     def test_funnel_reconciles_arithmetically(self, tmp_path):
-        """junctions_raw must equal the sum of the 4 downstream categories."""
+        """junctions_raw must equal the sum of the downstream partition categories."""
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
@@ -385,6 +825,55 @@ class TestClassifyJunctionsStats:
             by_cat["mean_reads_filtered"]
             + by_cat["annotated_discarded"]
             + by_cat["normal_shared"]
+            + by_cat["gtex_pantissue_shared"]
+            + by_cat["tumor_exclusive"]
+        )
+
+    def test_gtex_pantissue_shared_counted_and_reconciles(self, tmp_path):
+        """With a GTEx blacklist supplied, the gtex_pantissue_shared row carries the
+        marginal count and the funnel (now 6 buckets) still reconciles."""
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:101:200:+", 100),  # annotated → discarded
+            ("chr22:201:300:+", 100),  # in normal → normal_shared
+            ("chr22:301:400:+", 100),  # in GTEx, not normal → gtex_pantissue_shared
+            ("chr22:401:500:+", 100),  # in neither → tumor_exclusive
+            ("chr22:901:1000:+", 1),   # noise → mean_reads_filtered
+        ])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [("chr22", 100, 200, "+")])
+        gtex_bed = tmp_path / "gtex.bed"
+        self._write_reference_bed(gtex_bed, [("chr22", 300, 400, "+")])
+
+        output = tmp_path / "novel.tsv"
+        stats_output = tmp_path / "junction_filter_stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, normal_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats_output,
+            gtex_bed=gtex_bed,
+        )
+        stats = pd.read_csv(stats_output, sep="\t")
+        by_cat = dict(zip(stats["category"], stats["count"]))
+        assert by_cat["normal_shared"] == 1
+        assert by_cat["gtex_pantissue_shared"] == 1
+        assert by_cat["tumor_exclusive"] == 1
+        assert by_cat["junctions_raw"] == (
+            by_cat["mean_reads_filtered"]
+            + by_cat["annotated_discarded"]
+            + by_cat["normal_shared"]
+            + by_cat["gtex_pantissue_shared"]
             + by_cat["tumor_exclusive"]
         )
 
@@ -461,8 +950,9 @@ class TestClassifyJunctionsStats:
         )
 
         stats = pd.read_csv(stats_output, sep="\t")
-        # 9 categories per tumor sample (5 funnel + 4 distribution) × 2 samples = 18 rows
-        assert len(stats) == 18
+        # 10 categories per tumor sample (6 funnel incl. gtex_pantissue_shared +
+        # 4 distribution) × 2 samples = 20 rows
+        assert len(stats) == 20
         assert set(stats["sample_id"]) == {"tumor1", "tumor2"}
 
     def test_stats_tsv_optional(self, tmp_path):

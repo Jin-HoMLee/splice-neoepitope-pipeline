@@ -184,6 +184,35 @@ def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
     return sizes
 
 
+def parent_numbers(issue_numbers: list[int]) -> set[int]:
+    """Subset of issue_numbers that are parent epics (subIssuesSummary.total > 0).
+
+    Parents carry no Size by convention — size rolls up from their sub-issues
+    (shared/feedback_parent_sub_issues.md). compute_recheck excludes them from
+    both the capacity sum and the unsized-check, so a milestone holding a parent
+    as a roadmap anchor doesn't emit a spurious, un-clearable [UNSIZED] flag
+    (Issue #689 — sizing the parent to clear it would itself violate the
+    no-size convention).
+    """
+    if not issue_numbers:
+        return set()
+    owner, name = REPO.split("/")
+    aliases = " ".join(
+        f"i{n}: issue(number: {n}) {{ subIssuesSummary {{ total }} }}"
+        for n in issue_numbers
+    )
+    query = f'query {{ repository(owner: "{owner}", name: "{name}") {{ {aliases} }} }}'
+    data = gh("api", "graphql", "-f", f"query={query}")
+    repo = data["data"]["repository"]
+    parents: set[int] = set()
+    for n in issue_numbers:
+        node = repo.get(f"i{n}") or {}
+        total = (node.get("subIssuesSummary") or {}).get("total") or 0
+        if total > 0:
+            parents.add(n)
+    return parents
+
+
 def compute_recheck(milestone_number: int) -> int:
     meta = milestone_meta(milestone_number)
     title = meta["title"]
@@ -195,12 +224,23 @@ def compute_recheck(milestone_number: int) -> int:
 
     issue_numbers = open_issues_in_milestone(title)
     sizes = sizes_for_issues(issue_numbers)
+    parents = parent_numbers(issue_numbers)
 
     print(f"Milestone: {title}")
     print(f"Current due_on: {current_due_date or '—'}")
     print(f"Open issues ({len(issue_numbers)}):")
     remaining = 0.0
+    leaf_numbers: list[int] = []
     for n in sorted(issue_numbers):
+        # Parent epics are roadmap anchors only — they carry no Size by convention
+        # (size rolls up from sub-issues, shared/feedback_parent_sub_issues.md), so
+        # exclude them from both the capacity sum and the unsized-check below. Without
+        # this a parent-anchored milestone emits an un-clearable [UNSIZED] flag
+        # (Issue #689; surfaced 2026-06-11 on pm-i6 with parents #527/#538).
+        if n in parents:
+            print(f"  - #{n} (parent epic — excluded; size rolls up from sub-issues)")
+            continue
+        leaf_numbers.append(n)
         size = sizes.get(n)
         weight = SIZE_WEIGHTS.get(size or "", 0)
         remaining += weight
@@ -208,14 +248,15 @@ def compute_recheck(milestone_number: int) -> int:
         print(f"  - #{n} ({size_disp})")
     print(f"Remaining capacity: {remaining}d")
 
-    # Any unsized open issue makes the capacity read unreliable: the size-weighted
-    # sum silently under-counts true remaining work, which then drives a
-    # confident-but-bogus due_on proposal (the 2026-06-03 pm-i6 under-read — one
+    # Any unsized open LEAF issue makes the capacity read unreliable: the
+    # size-weighted sum silently under-counts true remaining work, which then drives
+    # a confident-but-bogus due_on proposal (the 2026-06-03 pm-i6 under-read — one
     # sized issue + two unsized yielded 1.0d and a spurious -28d slip; Issue #618
     # AC2). Flag and bail BEFORE computing a due date, regardless of whether the
     # sized subset happens to be > 0 — previously this guard was nested inside the
     # `remaining == 0` branch and so was bypassed whenever even one issue had a size.
-    unsized_count = sum(1 for n in issue_numbers if sizes.get(n) is None)
+    # Parents are excluded above, so an unsized parent never trips this (Issue #689).
+    unsized_count = sum(1 for n in leaf_numbers if sizes.get(n) is None)
     if unsized_count > 0:
         floor = f"; sized subset {remaining}d is a floor" if remaining else ""
         print(f"Proposed due_on: (cannot compute — {unsized_count} open issue(s) missing Size{floor})")

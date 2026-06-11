@@ -19,7 +19,7 @@ def _aggregate_filtering_stats_input(wildcards):
             _RES, wildcards.patient_id, "peptides", "translate_stats.tsv"
         ),
         "mhc": os.path.join(
-            _RES, wildcards.patient_id, "predictions", "mhc_stats.tsv"
+            _RES, wildcards.patient_id, "mhcflurry", "stats.tsv"
         ),
     }
     if _PROTEOME_FILTER_ENABLED_REPORT:
@@ -60,7 +60,7 @@ def _generate_report_input(wildcards):
             _RES, wildcards.patient_id, "reports", "filtering_stats.tsv"
         ),
         "predictions_tsv": os.path.join(
-            _RES, wildcards.patient_id, "predictions", "mhc_presentation.tsv"
+            _RES, wildcards.patient_id, "mhcflurry", "presentation.tsv"
         ),
         "contigs_fasta": os.path.join(
             _RES, wildcards.patient_id, "contigs", "contigs.fa"
