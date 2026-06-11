@@ -127,12 +127,14 @@ class TestBuildCompndRecords:
 # Helpers for _build_report_tsv tests
 # ---------------------------------------------------------------------------
 
-def _make_origin_df(tumor_exclusive: int = 5, normal_shared: int = 2) -> pd.DataFrame:
+def _make_origin_df(tumor_exclusive: int = 5, normal_shared: int = 2,
+                    gtex_pantissue_shared: int = 0) -> pd.DataFrame:
     return pd.DataFrame([{
         "sample_id": "S1", "sample_type": "Primary Tumor",
-        "unannotated": tumor_exclusive + normal_shared,
+        "unannotated": tumor_exclusive + normal_shared + gtex_pantissue_shared,
         "tumor_exclusive": tumor_exclusive,
         "normal_shared": normal_shared,
+        "gtex_pantissue_shared": gtex_pantissue_shared,
     }])
 
 
@@ -346,6 +348,42 @@ class TestBuildReportTsv:
             + int(jf["junctions_unannotated_total"])
         )
 
+    def test_junction_funnel_unannotated_total_includes_gtex(self, tmp_path):
+        """Issue #212: gtex_pantissue_shared is a 3rd unannotated bucket and must be
+        folded into junctions_unannotated_total so the report.tsv funnel stays closed."""
+        stats = tmp_path / "junction_filter_stats.tsv"
+        self._write_stats_tsv(stats, [
+            ("S1", "Primary Tumor", "junctions_raw", 1000),
+            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "annotated_discarded", 750),
+            ("S1", "Primary Tumor", "normal_shared", 40),
+            ("S1", "Primary Tumor", "gtex_pantissue_shared", 30),
+            ("S1", "Primary Tumor", "tumor_exclusive", 80),
+        ])
+        out = tmp_path / "report.tsv"
+        _build_report_tsv(
+            patient_id="p001",
+            origin_df=_make_origin_df(gtex_pantissue_shared=30),
+            pred_df=_make_pred_df(),
+            hla_qc_tsv=None,
+            output_tsv=out,
+            presentation_percentile_strong=0.5,
+            tcrdock_pdb=None,
+            junction_filter_stats_tsv=stats,
+        )
+        df = pd.read_csv(out, sep="\t")
+        jf = df[df["stage"] == "junction_filtering"].set_index("metric")["value"]
+        # unannotated_total folds in the GTEx bucket: 40 + 30 + 80
+        assert int(jf["junctions_unannotated_total"]) == 40 + 30 + 80
+        # funnel still closed with the 3rd bucket present
+        assert int(jf["junctions_extracted_total"]) == (
+            int(jf["junctions_mean_reads_filtered"])
+            + int(jf["junctions_annotated_discarded"])
+            + int(jf["junctions_unannotated_total"])
+        )
+        # the per-sample gtex_pantissue_shared metric row is surfaced in report.tsv
+        assert int(jf["gtex_pantissue_shared"]) == 30
+
     def test_junction_funnel_totals_omitted_when_no_stats_path(self, tmp_path):
         """Without stats path, the 4 new totals must not appear (back-compat)."""
         out = tmp_path / "report.tsv"
@@ -427,7 +465,8 @@ class TestLoadReportTsv:
         jf = loaded["junction_filtering"]
         assert isinstance(jf, pd.DataFrame)
         assert list(jf.columns) == [
-            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+            "sample_id", "sample_type", "unannotated",
+            "normal_shared", "gtex_pantissue_shared", "tumor_exclusive",
         ]
         assert int(jf.iloc[0]["tumor_exclusive"]) == 7
         assert int(jf.iloc[0]["normal_shared"]) == 3
@@ -506,7 +545,8 @@ class TestLoadReportTsv:
         assert isinstance(jf, pd.DataFrame)
         assert jf.empty
         assert list(jf.columns) == [
-            "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+            "sample_id", "sample_type", "unannotated",
+            "normal_shared", "gtex_pantissue_shared", "tumor_exclusive",
         ]
 
 

@@ -14,10 +14,17 @@ STAR emits 9 tab-separated columns in ``SJ.out.tab``:
     8: # multi-mapping reads crossing the junction
     9: maximum spliced alignment overhang
 
-This script emits the same 2-column TSV that ``bed12_to_junctions.py`` produces
-on the HISAT2 path, so downstream rules are aligner-agnostic:
+This script emits a TSV whose first two columns match what
+``bed12_to_junctions.py`` produces on the HISAT2 path, so downstream rules stay
+aligner-agnostic:
 
-    <chrom>:<1-based donor>:<1-based inclusive end>:<strand>\\t<reads>
+    <chrom>:<1-based donor>:<1-based inclusive end>:<strand>\\t<reads>\\t<annotated>
+
+The third column is STAR's col-6 annotated flag (0=novel, 1=annotated), surfaced
+as a free verification signal (Issue #375): ``filter_junctions`` cross-checks it
+against its own GENCODE-BED membership test and warns on disagreement. The HISAT2
+path emits only the first two columns; ``filter_junctions._read_junction_file``
+treats the third column as optional, so both paths interoperate.
 
 Numerically, STAR's 1-based inclusive end equals the 0-based half-open exclusive
 end consumed by ``filter_junctions._parse_junction_id`` (``end = int(parts[2])``).
@@ -68,11 +75,12 @@ def _resolve_strand(strand_code: int, motif_code: int) -> str | None:
 
 
 def convert_sj_to_junctions(input_path: str | Path, output_path: str | Path) -> int:
-    """Convert STAR ``SJ.out.tab`` to a 2-column junctions TSV.
+    """Convert STAR ``SJ.out.tab`` to a 3-column junctions TSV.
 
     Args:
         input_path:  STAR ``SJ.out.tab`` (9-column TSV).
-        output_path: Destination TSV (``<chrom>:<donor>:<end>:<strand>\\treads``).
+        output_path: Destination TSV
+                     (``<chrom>:<donor>:<end>:<strand>\\treads\\tannotated``).
 
     Returns:
         Number of junctions written.
@@ -100,6 +108,7 @@ def convert_sj_to_junctions(input_path: str | Path, output_path: str | Path) -> 
             try:
                 strand_code = int(fields[3])
                 motif_code = int(fields[4])
+                annotated = int(fields[5])  # col 6: 0=novel, 1=annotated (Issue #375)
                 reads = int(fields[6])
             except ValueError:
                 n_dropped_malformed += 1
@@ -122,7 +131,7 @@ def convert_sj_to_junctions(input_path: str | Path, output_path: str | Path) -> 
             chrom = fields[0]
             start = fields[1]
             end = fields[2]
-            fh_out.write(f"{chrom}:{start}:{end}:{strand}\t{reads}\n")
+            fh_out.write(f"{chrom}:{start}:{end}:{strand}\t{reads}\t{annotated}\n")
             n_written += 1
 
     log.info(
@@ -142,7 +151,7 @@ def convert_sj_to_junctions(input_path: str | Path, output_path: str | Path) -> 
 
 def _cli_main() -> None:
     parser = argparse.ArgumentParser(
-        description="Convert STAR SJ.out.tab to a 2-column junctions TSV."
+        description="Convert STAR SJ.out.tab to a 3-column junctions TSV."
     )
     parser.add_argument("--input", required=True, help="STAR SJ.out.tab input")
     parser.add_argument("--output", required=True, help="junctions TSV output")

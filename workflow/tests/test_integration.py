@@ -30,7 +30,9 @@ def _first_patient_id() -> str:
 PATIENT_ID = _first_patient_id()
 RESULTS = REPO_ROOT / "results" / PATIENT_ID
 
-VALID_JUNCTION_ORIGINS = {"tumor_exclusive", "normal_shared"}
+# gtex_pantissue_shared added in Issue #212 (GTEx pan-tissue population-normal
+# filter) — a third valid origin alongside the matched-normal and tumor classes.
+VALID_JUNCTION_ORIGINS = {"tumor_exclusive", "normal_shared", "gtex_pantissue_shared"}
 VALID_PRESENTATION_CLASSES = {"strong", "weak", "non"}
 VALID_SAMPLE_TYPES = {"Primary Tumor", "Solid Tissue Normal", "Blood Derived Normal"}
 AMINO_ACIDS = set("ACDEFGHIKLMNPQRSTVWY")

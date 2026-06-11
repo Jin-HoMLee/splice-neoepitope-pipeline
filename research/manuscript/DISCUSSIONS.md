@@ -1008,3 +1008,127 @@ structural quality scoring respectively, providing the redundancy on the
 calibration axis described above; integration outcomes will inform whether
 further cross-checks from the sequence-based or end-to-end classes are
 warranted in subsequent iterations.
+
+---
+
+## Neoantigen-generator and immunogenicity-scorer landscape: self-contrast dependence and per-tool verdicts
+
+The MHCflurry composite predictor ranks tumor-exclusive junction candidates by
+presentation likelihood (see *MHC binding prediction* above), and the TCR-pMHC
+scoring landscape above surveys the scorers that act once a candidate TCR
+engages the presented peptide. Between those two layers sits the immunogenicity
+question: among presented peptides, which are likely to be recognized as foreign
+by a T cell? Four tools spanning two layers — end-to-end neoantigen generators /
+rankers and immunogenicity-beyond-presentation scorers — were evaluated across
+the i3-S1 tool-landscape sprint to determine which, if any, transfer to
+splice-junction-derived neoepitopes. The organizing finding is that the
+immunogenicity layer's dominant design — contrasting a mutant peptide against
+its wild-type self — has no counterpart for novel junction sequences, which
+arise from exon-exon joins and retained introns rather than point substitutions
+and so carry no aligned germline self.
+
+### Scoring-layer taxonomy
+
+- **End-to-end generators and rankers.** Tools that reconstruct neoepitope
+  candidates from sequencing data and rank them (ASNEO, NeoGuider).
+  Architectural peers to this pipeline; evaluated for whole-pipeline replacement
+  or component reuse, not as add-on scorers.
+- **Immunogenicity-beyond-presentation scorers.** Models that score the
+  likelihood that a presented peptide is recognized by a T cell, layered above
+  MHC presentation (NeoPrecis, Łuksza foreignness). This is the layer where the
+  wild-type-self-contrast assumption lives.
+
+### Per-tool evaluation outcomes
+
+**ASNEO** (Zhang et al., *Aging* 2020) was evaluated as an end-to-end splice
+neoantigen generator — our closest published peer (RNA-seq → splice junctions →
+neoepitopes). The decision was component reuse. Its population-level GTEx
+normal-junction filter is direct prior art for our planned pan-tissue filter and
+is adopted as a design reference; full replacement was declined — ASNEO is
+unmaintained since 2019, hg19-only against our GRCh38, uses one-frame translation
+against our three-frame junction-spanning approach, and wraps a license-gated
+NetMHCpan / NetCTLpan backend rather than a presentation predictor. A head-to-head
+cross-check on our own candidates is parked as a possible manuscript-validation
+experiment.
+
+**NeoGuider** (Zhao et al., *Genome Med* 2025) was evaluated as an end-to-end
+ranker whose novel contribution is feature calibration rather than architecture.
+The decision was component reuse. Its kernel-density-estimate plus
+centered-isotonic-regression rank calibration — which maps raw per-feature scores
+to immunogenicity log-odds — is adoptable as a calibration module downstream of
+MHCflurry presentation scoring, while its variant-calling and splice branches are
+redundant with ours (its splice branch in fact delegates to ASNEO). One caveat
+carries forward: the calibration was learned on single-nucleotide-variant
+neoantigens, and whether it transfers to novel junction peptides is itself an
+open question.
+
+**NeoPrecis** (Lee et al., *Nat Commun* 2026) was evaluated as an immunogenicity
+re-scorer built on a cross-reactivity-distance recognition model. The decision
+was decline. The recognition score is a distance between a mutant peptide and its
+equal-length, position-aligned wild-type counterpart; the implementation returns
+a missing value when the two differ in length, and the authors state it is not
+applicable to indels or frameshift mutations. Splice-junction-derived neoepitopes
+are exactly that excluded case — novel sequences with no aligned germline self —
+so the recognition score cannot be computed for our junction candidates, and
+constructing a pseudo-wild-type from the canonical isoform would be arbitrary and
+would violate the model's premise.
+
+**Łuksza foreignness** (Łuksza et al., *Nature* 2017) was evaluated as the
+recognition term of the neoantigen fitness model, which scores TCR-recognition
+potential from sequence similarity to known immunogenic epitopes. The decision
+was decline. Unlike the cross-reactivity-distance and amplitude terms,
+foreignness is wild-type-free — it needs no germline counterpart and so
+structurally runs on junction peptides, the lone exception in this family. It was
+declined nonetheless on signal strength: independent TESLA-consortium
+benchmarking (Wells et al., *Cell* 2020) found that prioritizing foreignness
+without accounting for presentation does not improve — and can worsen — candidate
+ranking, and this pipeline already ranks by presentation; its fitted parameters
+were calibrated on 9-mer missense neoantigens against a fixed IEDB snapshot and
+may not transfer to our 8–11-mer novel-frame peptides; and no ground-truth
+immunogenicity labels are available to validate added signal. A conditional
+revival is parked on the acquisition of such labels.
+
+### Synthesis
+
+One pattern dominates. The immunogenicity-beyond-presentation scorers encode
+immunogenicity as a contrast between a mutant peptide and its wild-type self:
+NeoPrecis's cross-reactivity distance is computed against an equal-length,
+position-aligned wild-type peptide, and the Łuksza amplitude term (A =
+Kd_WT/Kd_MT) requires that same paired wild-type peptide to supply its reference
+MHC binding affinity. Splice-junction-derived
+neoepitopes have no such counterpart by construction — they are novel reading
+frames spanning exon-exon joins and retained introns, not single substitutions of
+a germline residue — so the family does not transfer to this setting, and
+NeoPrecis's missing-value behavior on junction peptides is the explicit form of
+that failure. The two generators / rankers (ASNEO, NeoGuider) sit at a different
+layer and yielded component reuse — a normal-junction filter and a calibration
+module — rather than whole-tool adoption.
+
+The lone wild-type-free signal in the family, Łuksza foreignness, escapes the
+contrast trap structurally but proved too weak and uncalibratable to bank. That
+leaves an open question the sequence-based family cannot answer: whether a
+wild-type-free immunogenicity signal can add over presentation for junction
+peptides at all. Structure-aware scorers are the natural next probe — ImmunoStruct
+(Givechian et al., *Nat Mach Intell* 2026) scores immunogenicity from the
+peptide-MHC structure rather than from a mutant-versus-wild-type comparison, and
+so is wild-type-free by design; its evaluation for the splice setting is the
+natural next target in this landscape.
+
+### Per-tool evaluation summary
+
+| Tool | Layer / axis | Verdict | Carrier |
+|------|--------------|---------|---------|
+| ASNEO | End-to-end splice generator | Component reuse — GTEx normal-junction filter (design reference) | Issue #546 close comment; GTEx filter → Issue #212; cross-check → Issue #566 |
+| NeoGuider | End-to-end ranker | Component reuse — KDE + centered-isotonic calibration module | Issue #258 close comment / Issue #547 |
+| NeoPrecis | Immunogenicity beyond presentation (cross-reactivity distance) | Decline — requires a wild-type counterpart (missing value on junctions) | Issue #551 close comment |
+| Łuksza foreignness | Immunogenicity beyond presentation (foreignness) | Decline — wild-type-free but weak / uncalibratable | Issue #572 close comment / Issue #585 |
+| ImmunoStruct | Immunogenicity beyond presentation (structure-aware) | Evaluation pending — wild-type-free escape candidate | Issue #659 |
+
+As with the TCR-pMHC scoring landscape above, the highest-value outcomes are not
+whole-tool replacements but the components that survive scrutiny — there,
+orthogonal structural cross-checks; here, a normal-junction filter and a
+calibration module — together with a sharpened design constraint: any
+immunogenicity signal adopted downstream of presentation must be computable
+without a wild-type self. That constraint is what makes the structure-aware,
+wild-type-free class the next evaluation target rather than a further
+sequence-based contrast model.

@@ -290,3 +290,141 @@ class TestAllMode:
         mock_status.side_effect = lambda n: "Ready"  # parent + sub both Ready
         rc = rps.run_all_mode()
         assert rc == 0
+
+
+class TestNotPlannedDrift:
+    """Issue #632: a parent whose only remaining children are all closed must
+    distinguish COMPLETED (delivered) from NOT_PLANNED (deferred) closes. A
+    NOT_PLANNED child means the bare [COMPLETION DRIFT] rollup-close suggestion
+    is unsafe — emit the softer verify prompt instead."""
+
+    # The exact FINAL rendered flag the spec requires (single-bracketed by
+    # format_record). Spelled out literally here so a typo / em-dash drift in
+    # the source constant fails the test.
+    RENDERED = (
+        "Status: [REVIEW: parent has a not-planned child — "
+        "verify scope was delivered, not deferred]"
+    )
+
+    def test_classify_not_planned_child_emits_review_not_completion(self):
+        # The #24 mixed shape: parent claims progress, all children closed,
+        # ≥1 closed NOT_PLANNED → softer REVIEW flag, not bare COMPLETION DRIFT.
+        result = rps.classify_drift(
+            parent_status="In progress", open_children=[], has_not_planned=True
+        )
+        assert result == rps.NOT_PLANNED_REVIEW
+        assert "COMPLETION DRIFT" not in (result or "")
+
+    def test_classify_all_completed_still_flags_completion_drift(self):
+        # Regression guard: all children closed COMPLETED → COMPLETION DRIFT.
+        result = rps.classify_drift(
+            parent_status="In progress", open_children=[], has_not_planned=False
+        )
+        assert result == "COMPLETION DRIFT"
+
+    def test_done_parent_with_not_planned_child_still_no_drift(self):
+        # An already-Done parent never had completion drift; REVIEW only
+        # substitutes for the flag that would otherwise fire.
+        result = rps.classify_drift(
+            parent_status="Done", open_children=[], has_not_planned=True
+        )
+        assert result is None
+
+    @patch("recheck_parent_status.gh")
+    def test_has_not_planned_child_true_for_mixed_set(self, mock_gh):
+        # Real /sub_issues shape confirmed by live probe: state + state_reason.
+        mock_gh.return_value = [
+            {"number": 145, "state": "closed", "state_reason": "completed"},
+            {"number": 86, "state": "closed", "state_reason": "completed"},
+            {"number": 192, "state": "closed", "state_reason": "not_planned"},
+        ]
+        assert rps.has_not_planned_child(24) is True
+
+    @patch("recheck_parent_status.gh")
+    def test_has_not_planned_child_false_when_all_completed(self, mock_gh):
+        mock_gh.return_value = [
+            {"number": 145, "state": "closed", "state_reason": "completed"},
+            {"number": 86, "state": "closed", "state_reason": "completed"},
+        ]
+        assert rps.has_not_planned_child(24) is False
+
+    def test_format_record_single_brackets_review_flag(self):
+        record = {
+            "issue": 24,
+            "status": "In progress",
+            "open_children": [],
+            "collective": "Done",
+            "drift": rps.NOT_PLANNED_REVIEW,
+        }
+        out = rps.format_record(record)
+        assert self.RENDERED in out
+        assert "[[" not in out  # brackets owned solely by format_record
+
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.parent_issue_number")
+    def test_audit_chain_issue_path_emits_review(
+        self, mock_parent, mock_subs, mock_status, mock_np
+    ):
+        # --issue path (the close-hook's production-critical route): closing
+        # #86 walks to parent #24, whose children are all closed with one
+        # NOT_PLANNED (#192) → REVIEW, not COMPLETION DRIFT.
+        mock_parent.side_effect = lambda n: {86: 24, 24: None}[n]
+        mock_subs.side_effect = lambda n: {24: []}[n]  # all #24 children closed
+        mock_status.side_effect = lambda n: {24: "In progress"}.get(n)
+        mock_np.return_value = True
+
+        chain = rps.audit_parent_chain(86)
+        assert [r["issue"] for r in chain] == [24]
+        assert chain[0]["drift"] == rps.NOT_PLANNED_REVIEW
+        assert self.RENDERED in rps.format_record(chain[0])
+
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.parent_issue_number")
+    def test_audit_chain_all_completed_still_completion_drift(
+        self, mock_parent, mock_subs, mock_status, mock_np
+    ):
+        mock_parent.side_effect = lambda n: {86: 24, 24: None}[n]
+        mock_subs.side_effect = lambda n: {24: []}[n]
+        mock_status.side_effect = lambda n: {24: "In progress"}.get(n)
+        mock_np.return_value = False
+
+        chain = rps.audit_parent_chain(86)
+        assert chain[0]["drift"] == "COMPLETION DRIFT"
+
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_all_mode_emits_review_for_not_planned(
+        self, mock_parents, mock_subs, mock_status, mock_np, capsys
+    ):
+        # --all sweep (the second call site): same NOT_PLANNED parent must get
+        # the REVIEW flag, proving run_all_mode is wired too.
+        mock_parents.return_value = [24]
+        mock_subs.side_effect = lambda n: {24: []}[n]
+        mock_status.side_effect = lambda n: "In progress"
+        mock_np.return_value = True
+
+        rc = rps.run_all_mode()
+        assert rc == 2  # REVIEW is a non-None drift → counted as a fire
+        assert self.RENDERED in capsys.readouterr().out
+
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_all_mode_all_completed_still_completion_drift(
+        self, mock_parents, mock_subs, mock_status, mock_np, capsys
+    ):
+        mock_parents.return_value = [24]
+        mock_subs.side_effect = lambda n: {24: []}[n]
+        mock_status.side_effect = lambda n: "In progress"
+        mock_np.return_value = False
+
+        rc = rps.run_all_mode()
+        assert rc == 2
+        assert "Status: [COMPLETION DRIFT]" in capsys.readouterr().out

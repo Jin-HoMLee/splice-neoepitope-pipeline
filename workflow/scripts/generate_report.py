@@ -229,10 +229,12 @@ _HTML_TEMPLATE = """\
   <h2>Junction origin summary</h2>
   <p>Splice junctions detected in the tumor that are absent from the GENCODE
   reference annotation, grouped by whether they also appear in the matched normal
-  tissue. Only <strong class="keep">tumor_exclusive</strong> junctions — absent
-  from both the reference and the normal sample — are used for neoepitope
-  prediction. <strong class="discard">normal_shared</strong> junctions are
-  present in normal tissue and are therefore not tumor-derived.</p>
+  tissue or the GTEx pan-tissue population-normal panel. Only
+  <strong class="keep">tumor_exclusive</strong> junctions — absent from the
+  reference, the matched normal, AND the GTEx panel — are used for neoepitope
+  prediction. <strong class="discard">normal_shared</strong> (matched normal) and
+  <strong class="discard">gtex_pantissue_shared</strong> (GTEx population normal)
+  junctions appear in normal tissue and are therefore not tumor-specific.</p>
   {origin_table}
 
   {hla_section}
@@ -675,7 +677,7 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     junction_df = df[df["step"] == "junction-filter"].copy()
     funnel_cats = [
         "junctions_raw", "mean_reads_filtered", "annotated_discarded",
-        "normal_shared", "tumor_exclusive",
+        "normal_shared", "gtex_pantissue_shared", "tumor_exclusive",
     ]
     dist_cats = ["min_reads", "median_reads", "mean_reads", "max_reads"]
 
@@ -1098,7 +1100,7 @@ def _build_report_tsv(
             sid = r.get("sample_id", "")
             stype = r.get("sample_type", "")
             note = f"{sid} ({stype})"
-            for metric in ("unannotated", "tumor_exclusive", "normal_shared"):
+            for metric in ("unannotated", "tumor_exclusive", "normal_shared", "gtex_pantissue_shared"):
                 rows.append({
                     "patient_id": patient_id, "stage": "junction_filtering",
                     "metric": metric, "value": int(r.get(metric, 0)), "notes": note,
@@ -1113,7 +1115,8 @@ def _build_report_tsv(
                 ("junctions_extracted_total", ("junctions_raw",)),
                 ("junctions_mean_reads_filtered", ("mean_reads_filtered",)),
                 ("junctions_annotated_discarded", ("annotated_discarded",)),
-                ("junctions_unannotated_total", ("normal_shared", "tumor_exclusive")),
+                ("junctions_unannotated_total",
+                 ("normal_shared", "gtex_pantissue_shared", "tumor_exclusive")),
             ):
                 value = sum(int(by_cat.get(c, 0)) for c in source_cats)
                 rows.append({
@@ -1518,8 +1521,8 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
 
     Returns:
         {
-          'junction_filtering':        DataFrame[sample_id, sample_type,
-                                                 unannotated, normal_shared, tumor_exclusive],
+          'junction_filtering':        DataFrame[sample_id, sample_type, unannotated,
+                                                 normal_shared, gtex_pantissue_shared, tumor_exclusive],
           'mhc_prediction':            {metric: int}      # total_predictions + class counts
           'mhc_prediction_thresholds': {metric: str}      # threshold notes per class
           'top_candidate':             {metric: str|float}# numerics typed; strings as-is
@@ -1556,11 +1559,12 @@ def _load_report_tsv(path: str | Path) -> dict[str, Any]:
             row = rows.setdefault(key, {"sample_id": sid, "sample_type": stype})
             row[str(r["metric"])] = int(r["value"])
         origin_df = pd.DataFrame(list(rows.values()))
-        for col in ("unannotated", "normal_shared", "tumor_exclusive"):
+        for col in ("unannotated", "normal_shared", "gtex_pantissue_shared", "tumor_exclusive"):
             if col not in origin_df.columns:
                 origin_df[col] = 0
         out["junction_filtering"] = origin_df[
-            ["sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive"]
+            ["sample_id", "sample_type", "unannotated",
+             "normal_shared", "gtex_pantissue_shared", "tumor_exclusive"]
         ]
 
     # --- mhc_prediction: counts (int) + thresholds (str) ---
@@ -1613,7 +1617,8 @@ def _empty_origin_df() -> "pd.DataFrame":
     import pandas as pd
 
     return pd.DataFrame(columns=[
-        "sample_id", "sample_type", "unannotated", "normal_shared", "tumor_exclusive",
+        "sample_id", "sample_type", "unannotated",
+        "normal_shared", "gtex_pantissue_shared", "tumor_exclusive",
     ])
 
 
@@ -1681,6 +1686,7 @@ def generate_report(
                 "sample_type": sample_type,
                 "unannotated": len(grp),
                 "normal_shared": counts.get("normal_shared", 0),
+                "gtex_pantissue_shared": counts.get("gtex_pantissue_shared", 0),
                 "tumor_exclusive": counts.get("tumor_exclusive", 0),
             })
         origin_df = pd.DataFrame(origin_rows)

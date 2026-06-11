@@ -1,0 +1,194 @@
+---
+title: "OpenFold3 as a TCR-pMHC structure backend — the open AF3-class candidate #316 was hunting for"
+subtitle: "Tool evaluation · Issue #552 · 2026-06-03"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-06-03
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled — same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print → Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 2.0em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+Should OpenFold3 replace\
+TCRdock's AF2 backend for\
+TCR-pMHC structure prediction?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Scope:** TCR-pMHC **structure prediction** (DockQ / pLDDT), *upstream* of MHC-presentation scoring — distinct vocabularies. Decision-only ([Issue #552](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/552)); no integration here. This **extends [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)** (the AF3-class / ESMFold2 verdict) rather than re-opening it — OpenFold3 is the *next candidate* in that same survey.
+:::
+
+---
+
+## Tool primer — what OpenFold3 actually is {.smaller}
+
+::: {.incremental}
+- An **AlphaFold3-class, all-atom co-folding model** — a PyTorch reimplementation of DeepMind's AF3, explicitly aiming for a *bitwise reproduction* (Pairformer + diffusion module; folds proteins, RNA, DNA, ligands jointly). From the **AlQuraishi Lab (Columbia) + OpenFold Consortium** [@openfold3_2026].
+- **Architecturally distinct from "OpenFold."** The original `aqlaboratory/openfold` is an **AF2** protein-only reproduction; OpenFold3 lives in a separate repo (`aqlaboratory/openfold-3`) and is the AF2→AF3 generational jump.
+- **It is a research preview, not a finished model.** Latest tag **0.4.1 (Apr 9 2026)**; preview first shipped **2025-10-28**, with the **2026-03-13** update adding the public training-data release. The repo states verbatim *"the final OpenFold3 model is still in development,"* with **"full parity with AlphaFold3 on all modalities"** and improved **antibody–antigen** performance still on the 2026 roadmap.
+:::
+
+::: {.callout-note appearance="simple"}
+**Premise correction:** the issue's "March 2026 release" is the *training-data-release update* — the preview itself is from Oct 2025, and it remains a *preview*.
+:::
+
+---
+
+## The openness story — genuinely better than AF3 {.smaller}
+
+This is OpenFold3's real differentiator, and it is **the exact blocker that killed AF3 in [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316)** (non-redistributable weights).
+
+| Layer | OpenFold3 | vs AlphaFold3 |
+|---|---|---|
+| Inference code | **Apache-2.0** | AF3 code restricted |
+| Model weights | **Apache-2.0** (HF/portal, *registration*-gated — an access gate, not a license restriction) | AF3 weights non-commercial, manual grant |
+| Training data | **CC BY 4.0**, open on AWS Registry of Open Data (`openfold3-data`, `--no-sign-request`) | AF3 training data not released |
+| Output usage | **no restriction** | AF3 ships an output-terms-of-use |
+
+::: {.callout-important appearance="simple"}
+**Correction to the issue premise:** it's a **code+weights = Apache-2.0 / training-data = CC BY 4.0** split (not "weights on AWS under Apache-2.0"). **Separate qualifier:** the *NVIDIA NIM* path is governed by the **NVIDIA Open Model License + API Trial ToS**, *not* pure Apache-2.0 — the bare GitHub/HF weights are the Apache route.
+:::
+
+---
+
+## Where it sits vs the #316 candidates {.smaller}
+
+OpenFold3 slots straight into the [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) survey as the **next license-clean AF3-class backend**:
+
+| Tool | License / weights | P100 16 GB? | TCR-pMHC accuracy | Ship here? |
+|---|---|---|---|---|
+| **TCRdock-AF2** *(incumbent)* | MIT + CC-BY AF2 params — **ships legally** | ✅ today | 2nd-best, AF3-complementary | **Keep** |
+| **AlphaFold3** [@abramson_accurate_2024] | non-redistributable, non-commercial | *moot* | **best** (0.64 / 0.68) | ❌ license |
+| **Chai-1 / Protenix** [@chai_2024] | Apache-2.0 ✅ | ❌ bf16 + ≥24 GB | competitive | ❌ HW |
+| **ESMFold2** [@candido_language_2026] | MIT ✅ | ❌ FP8 + bf16 | **none for TCR-pMHC** | ❌ no evidence + HW |
+| **OpenFold3** *(this eval)* | **Apache + CC-BY data ✅✅** | ❌ **≥48 GB + CUDA 13.x** | **none reported** | ❌ HW + no evidence |
+
+::: {.callout-important appearance="simple"}
+**OpenFold3 fixes #316's license half and reproduces its hardware half — at an even higher floor.** It is the cleanest-licensed AF3-class option yet (open *training data* too), but it is **hardware-blocked on the P100** like Chai-1/ESMFold2, and reports **no TCR-pMHC accuracy** like ESMFold2.
+:::
+
+---
+
+## The hardware wall — higher than #316's L4 plan {.smaller}
+
+```{mermaid}
+%%| fig-width: 11
+flowchart LR
+    A["Top neoepitope<br/>candidate"] --> B["TCRdock<br/>(AF2 / CC-BY)<br/>P100 ✅"]
+    F["VDJdb TCR panel"] --> B
+    B --> C["PDB + pLDDT, PAE, ipTM"]
+    B -. "OpenFold3 swap?" .-> X["OpenFold3 NIM<br/>(Apache / open data)"]
+    X -. "blocked" .-> W["CUDA 13.x · Ampere+ · ≥48 GB"]
+    C --> I["candidate retained / dropped"]
+
+    style B fill:#a3e6a3,stroke:#2a8a2a,stroke-width:2px
+    style X fill:#ffe6a3,stroke:#b8860b,stroke-width:3px
+    style W fill:#ffb3b3,stroke:#b81e1e,stroke-width:2px
+```
+
+The official OpenFold3 **NVIDIA NIM** floor: **CUDA 13.1 / driver ≥590**, an **Ampere/Ada-or-newer** GPU, **≥48 GB VRAM (L40S-class)**. CUDA 13.x **drops Pascal entirely** (Turing SM 7.5 is the new compile floor) — our **P100 (SM 6.0, 16 GB, driver 550.90.07)** is *structurally* excluded.
+
+| Wall | P100 | T4 | **L4 (Ada)** | L40S / A100 |
+|---|---|---|---|---|
+| Modern arch (CUDA 13.x) | ✗ | ✅ | ✅ | ✅ |
+| ≥48 GB VRAM | ✗ (16) | ✗ (16) | ✗ **(24)** | ✅ |
+
+::: {.callout-important appearance="simple"}
+**Refines [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601):** the **L4-class refresh #601 targets (≥24 GB) clears Chai-1/ESMFold2 but *not* the OpenFold3 NIM (≥48 GB).** Open escape hatch: a *self-hosted* OpenFold3 from the bare Apache-2.0 weights, outside the NIM, *might* relax the 48 GB / CUDA-13.x floor — **unverified**, to pin at re-eval.
+:::
+
+---
+
+## Integration mechanics — the good news {.smaller}
+
+If/when the hardware clears, the plumbing our issue worried about is **favorable** — these are *not* blockers:
+
+::: {.incremental}
+- **Output format:** the NIM emits **both mmCIF and PDB** (`output_format='pdb'`). So `relabel_pdb_chains()` (A=MHC / B=peptide / C=TCR-α / D=TCR-β, driving the Mol* report panel) would **not** need an mmCIF rewrite — the original integration concern dissolves.
+- **Confidence metrics:** emits **pLDDT, pTM, ipTM, PDE** (NIM: `complex_plddt_score`, `ptm_score`, `iptm_score`, `complex_pde_score`; PAE in the UI) — directly usable the way we consume TCRdock's `docking_scores.tsv`.
+- **CDR3-pLDDT reranking is portable.** The [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) recipe (mean per-residue pLDDT over CDR3-α+β; +4.3% Top-1 on AF3-class) needs per-residue pLDDT + ipTM — **both of which OpenFold3 emits.** Banked on [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601), ready to fire.
+:::
+
+---
+
+## The validation gap — no TCR-pMHC number {.smaller}
+
+::: {.columns}
+::: {.column width="54%"}
+**What OpenFold3 reports:** competitive on protein/RNA **monomers** (CASP16), **protein–protein** (CASP16, FoldBench), **protein–ligand** (Runs N' Poses); *"the only model to match AF3 on monomeric RNA."* **No TCR-pMHC / immune-ternary accuracy** is asserted, and **no DockQ/TM/RMSD numbers** appear on any official page — only **speed** (≤1.8× faster).
+:::
+::: {.column width="46%"}
+::: {.callout-important appearance="simple"}
+**No transfer, two ways.** (1) The AF3 *family* tops TCR-pMHC (Lu et al.: median DockQ 0.64/0.68 [@lu_benchmarking_2025]) — but **OpenFold3 and Boltz are absent from that 10-model roster** (TCRdock is represented only by its **AF2** backbone, the roster's 2nd-best entry), so AF3's win is *not* OpenFold3's. (2) Antibody–antigen — the closest immune analogue — is the AF3 family's **weakest** category and an explicit **2026 roadmap** item, *not* done.
+:::
+:::
+:::
+
+So OpenFold3's TCR-pMHC capability today is **assumed from architecture, not demonstrated** — the same posture that held back ESMFold2 in [Issue #316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316).
+
+---
+
+## Decision
+
+::: {style="text-align: center; font-size: 2.6em; font-weight: bold; margin-top: 0.4em;"}
+\(b\) Decline — *for now*
+:::
+
+::: {style="text-align: center; font-size: 1.25em; margin-top: 0.4em;"}
+keep TCRdock-AF2; fold the OpenFold3 re-eval into [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601)
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why not (a) integrate:** structurally cannot run on the P100, and no validated TCR-pMHC accuracy. **Why not (c) skip:** OpenFold3 is the **best license posture yet** for an AF3-class backend (open weights *and* open training data) — a genuine future candidate the moment the hardware constraint lifts. So it is a *deferred yes-candidate*, not a dead end — tracked, not re-litigated.
+:::
+
+---
+
+## Open questions + re-eval triggers {.smaller}
+
+Folded into [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) (the AF3-class parking lot) — re-fire when the pipeline leaves the P100:
+
+::: {.incremental}
+1. **GPU target, refined** *(Developer)* — OpenFold3's NIM needs **≥48 GB (L40S-class)**, *above* #601's L4 (24 GB) plan; an L4 refresh clears Chai-1/ESMFold2 but **not** the OpenFold3 NIM. Reconcile with [Issue #310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310).
+2. **Self-hosted vs NIM floor** — does a bare Apache-2.0 OpenFold3 install (no NIM) relax the CUDA-13.x / 48 GB / Ampere floor? Decides whether OpenFold3 is reachable on a cheaper card *and* off the NVIDIA license path.
+3. **OpenFold3-specific TCR-pMHC validation** — run the Lu et al. 70-complex set against OpenFold3 (it's absent from the published benchmark) before any adoption.
+4. **Watch the roadmap** — re-evaluate when OpenFold3 reaches "full parity on all modalities" (antibody–antigen closes) and a finalized, non-preview release ships.
+:::
+
+::: {.callout-tip appearance="simple"}
+**Verification note:** all OpenFold3 facts confirmed against primary sources (GitHub repo, HF model card, AWS Open Data registry, NVIDIA NIM docs). The exact NIM supported-GPU roster did **not** fully survive adversarial verification — the load-bearing, high-confidence fact is that **CUDA 13.x structurally excludes Pascal/P100**, which is sufficient for the verdict.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
