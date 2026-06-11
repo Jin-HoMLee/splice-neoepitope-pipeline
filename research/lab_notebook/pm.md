@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-11
 
+### 20:40 UTC — Editor: PM
+
+#### Project-map atlas landed — bot review addressed + a latent non-determinism fix ([Issue #696](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/696), [PR #697](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/697))
+
+**Context.** [PR #697](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/697) (the offline D3 whole-project atlas under `tools/project_map/`, a board-governance/PM-tooling comprehension aid) had sat green-but-unmerged since 2026-06-09 because its first `@claude review` **crashed mid-run** (errored after 1m5s with only step 1 of its todo checked). Re-triggered the review; this pass completed clean (3m58s) and returned a real verdict — *approve after 3 bugs + 1 vocab nit*.
+
+**Bot findings, all fixed.** (1) **Degree computed before edge dedup** — a duplicated edge double-counted both endpoints, inflating `sizeOf()` so those nodes rendered artificially large; swapped to dedup-then-tally. (2) **`IndexError` in `parse_rule_resources`** — the `threads: config.get(...)` fallback matcher has no capture group, but the old tail called `tm.group(1)`; restructured so that path never reaches `.group(1)`. (3) **Duplicate `isContainer` JS** left in the template — `build_html.py` only collapsed `loadGraph`; now loops over both (JS last-wins shadowing would silently pick the wrong body on divergence). (4) **Vocab nit** — `generate_report.py` desc said "top binders"; → "top presenters" per the CLAUDE.md presentation-vocabulary rule (it surfaces in the map's side-panel tooltip).
+
+**The bonus catch — the invariant was lying.** Regenerating `graph.json` for the degree fix surfaced *non-degree* churn: `imports` were serialized via `list(set(...))`, so their order was **`PYTHONHASHSEED`-dependent**. The PR's headline "graph.json regenerates identically" invariant was therefore machine/seed-dependent, not actually true. Fixed with `sorted(set(...))`; **verified identical output across two `PYTHONHASHSEED` values**. The bot didn't flag this — it only fell out of doing the regeneration by hand. Confirmed the regenerated graph's **node-id set and edge set are unchanged** (post-merge 335/460); only `degree`, `description`, and `imports` fields differ — all three intended.
+
+**Follow-ups filed, not deferred-silently.** The two carve-outs the bot re-flagged became [Issue #712](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/712) (`verify_render.mjs` hardcodes a machine-specific Playwright path — non-portable / non-CI-runnable) and [Issue #713](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/713) (`test_extract_graph.py` lives under `tools/`, outside `pipeline-pytest`'s collection — the 5-invariant suite the bot praised never runs in CI). Both triaged `role:developer` / Backlog / P2 / S. #713 is the one that bites next: the determinism fix I just made is exactly the kind of regression an uncollected suite wouldn't catch.
+
 ### 19:27 UTC — Editor: PM
 
 #### Arc tooling hardening — Arc column + apply_arc_labels re-sync + recheck parent-skip ([Issue #689](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/689), [PR #710](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/710))
