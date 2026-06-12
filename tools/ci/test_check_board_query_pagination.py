@@ -87,6 +87,15 @@ class TestIsUnpaginatedBoardQuery:
         args = "graphql -f query={ projectV2 { items(first: 50, after: $c) { id } } }"
         assert h.is_unpaginated_board_query(args) is False
 
+    def test_declared_but_unused_after_variable_still_denied(self):
+        # `$after:String` is a variable *declaration*, not cursor usage — the
+        # `(?<!\$)` lookbehind keeps it from masking a genuinely unpaginated query.
+        args = (
+            "graphql -f query=query($after:String){ projectV2 { "
+            "items(first: 100) { nodes { id } } } }"
+        )
+        assert h.is_unpaginated_board_query(args) is True
+
     def test_per_issue_projectitems_allowed(self):
         # no `projectV2` token → not a whole-board scan
         assert h.is_unpaginated_board_query(h.api_args(_PER_ISSUE)) is False

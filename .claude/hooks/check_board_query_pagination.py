@@ -52,7 +52,11 @@ _API_PREFIX = ("gh", "api")
 # An `items(first: …)` connection, tolerant of whitespace/newlines in the query.
 _ITEMS_FIRST_RE = re.compile(r"items\s*\(\s*first\s*:", re.IGNORECASE)
 # Any of these reads as a real cursor loop → the query is paginated → allow.
-_PAGINATION_RE = re.compile(r"hasNextPage|endCursor|\bafter\s*:", re.IGNORECASE)
+# The `(?<!\$)` lookbehind makes the `after:` arm match cursor *usage*
+# (`items(first:N, after: $c)`) but NOT a variable *declaration* (`$after:String`)
+# — so a query that declares `$after` yet never wires it into items() is correctly
+# still treated as unpaginated. hasNextPage/endCursor cover the common cursor loop.
+_PAGINATION_RE = re.compile(r"hasNextPage|endCursor|(?<!\$)\bafter\s*:", re.IGNORECASE)
 
 
 # --- pure helpers (unit-tested, no I/O) ---
