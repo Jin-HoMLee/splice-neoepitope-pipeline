@@ -1,1 +1,7 @@
-Apply the [Team standup protocol](feedback_team_standup.md) — Full standup rules: confirm with user, re-raise own Pending >1 day, archive own Done >3 days (move, never delete)
+Scan the two team-coordination channels and surface anything addressed to or relevant to your role; confirm with the user before acting on any request.
+
+1. **Board pings** — comments `**To:** <your role>` on your `role:*` Issues + recent comment activity: `python3 scripts/board_open_items.py --role <role> --status "In progress"` (then `"Ready for review"`, `"In review"`).
+2. **Open Discussions** — Team Coordination category (open = needs attention):
+   `gh api graphql -f query='{ repository(owner:"Jin-HoMLee", name:"splice-neoepitope-pipeline"){ discussions(first:30, categoryId:"DIC_kwDORwn9EM4C-Jo6", states:[OPEN]){ totalCount nodes{ number title author{login} } } } }'`
+
+Bring any pending item to the user, summarize what it asks, and act only after confirmation. Close a Discussion / board thread when its ask is satisfied (open = live). Full protocol: `shared/feedback_team_coordination.md`.
