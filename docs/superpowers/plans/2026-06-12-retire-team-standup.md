@@ -50,7 +50,7 @@
 - `shared/feedback_morning_routine.md` — Phase 2 two-channel check + Step −1 actionability split
 - `pm/feedback_morning_routine.md`, `scientist/feedback_morning_routine.md`, `scientist/feedback_morning_routine_format.md`, `developer/feedback_morning_routine.md` — role-scoped two-channel check
 - `pm/MEMORY.md`, `scientist/MEMORY.md`, `developer/MEMORY.md` — update standup-derived inline rules / index links
-- ~14 Bucket-C1 files — incidental-prose sweep (rubric in Task 10)
+- `shared/feedback_personas_governance.md` — handoff mechanic (the one Bucket-C file kept; rest of the sweep is **carved** to a follow-up Issue — Task 9 banner + Task 13 Step 3)
 - `shared/team_standup.md` + `shared/team_standup_archive/` → `shared/_retired/` (move, after drain)
 - `shared/_retired/README.md` — **NEW** pointer ("coordination moved to board + Discussions")
 
@@ -250,10 +250,19 @@ Expected: hits only where they name the **retired-file as history** (e.g. the `_
 ### Task 5: Update role MEMORY.md standup-derived rules (Bucket E)
 
 **Files:**
+- Modify: `<personas>/shared/feedback_personas_governance.md` (~lines 16, 17, 23, 26, 30 — the coupled exception kept from the carved sweep)
 - Modify: `<personas>/scientist/MEMORY.md` (line ~22)
 - Modify: `<personas>/developer/MEMORY.md` (lines ~17, 19 — verify)
 - Modify: `<personas>/pm/MEMORY.md` (line ~37)
 - Modify: `<personas>/pm/project_memory_md_slimming.md` (lines ~63, 73, 112)
+
+- [ ] **Step 1b: `feedback_personas_governance.md` — the handoff mechanic (coupled exception)**
+
+This is the one Bucket-C file kept in the main PR (the rest of the sweep is carved — Task 9 banner). The migration's own handoff (Task 15) routes the "Memory edits — for MM to commit" flag to a **board comment**, which only makes sense if the governance rule says so. Edit:
+- The **edit-commit matrix** row `| \`team_standup.md\` + archives | append-only (all roles) | MM only |` → change to `| \`_retired/\` standup archives | frozen history — no edits/appends | MM only |` (the file is retired; nothing is appended anymore).
+- The **handoff instruction** "add a **'Memory edits — for MM to commit'** bullet to your standup / lab-notebook entry" → "post a **'Memory edits — for MM to commit'** comment on the tracking Issue (board) / add it to your lab-notebook entry" (the board is the new handoff sink; standup is gone).
+- "file a request (issue / standup)" (the "another role's memory" row, ~line 16/30) → "file a request (issue / `[REQUEST]` Discussion)".
+- Leave the historical incident references intact (e.g. the 2026-05-29 stranding lineage).
 
 - [ ] **Step 1: scientist/MEMORY.md — the "flip your post" inline rule**
 
@@ -364,6 +373,8 @@ Expected: no live-instruction hits.
 ## Phase 4 — Incidental-prose sweep (Bucket C)
 
 ### Task 9: Sweep the C1 live-instructional references
+
+> **⚠️ CARVED to a follow-up Issue (decision 2026-06-12).** This whole task is deferred out of the main migration PR to keep its review surface tight — filed as the 3rd carve-off Issue in Task 13 Step 3, which links back to this section for the file list + rubric. **One exception stays in the main PR:** `feedback_personas_governance.md` (handled in Task 5 Step 1b below), because the migration's own handoff (Task 15) depends on its routing being updated — leaving it would make the migration contradict its own governance. During the deferred window the corpus carries dangling "post to standup" references in the ~13 remaining C1 files; that's the accepted tradeoff, tracked by the sweep Issue. **Subagents executing this plan: SKIP Task 9** — it is reference material for the follow-up Issue, not main-PR work.
 
 **Files (C1 — live instructions; ~14 files):**
 - `<personas>/shared/feedback_best_next_issue.md` (~41, 45, 47, 53 — "Check standup messages")
@@ -538,7 +549,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
 (The plan doc + spec are already committed on this branch from the planning session; this commit adds only the command.)
 
-### Task 13: File the two carve-off Issues (P5)
+### Task 13: File the three carve-off Issues (P5)
 
 - [ ] **Step 1: Dispatch-digest follow-up Issue**
 
@@ -548,13 +559,17 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 `gh issue create` for the out-of-scope spin-off: actually wire `blockedBy` on the dependency graph (currently unused — 0 open `is:blocked` at pivot). `role:pm`, priority rationale, `arc:board-governance`.
 
-- [ ] **Step 3: Note both Issue numbers in the `#569` handoff comment (Task 15).**
+- [ ] **Step 3: Incidental-prose sweep Issue (the carved Phase 4)**
+
+`gh issue create` for the deferred Bucket-C1 sweep (~13 files still referencing the retired standup as a live channel). Body: link this plan's **Task 9** for the exact file list + the substitution rubric + the C1/C2 live-vs-historical test; note `feedback_personas_governance.md` was already handled in the main PR. `role:pm`, a `**Priority rationale:**` line (P2 — corpus-consistency cleanup, non-blocking; the new protocol file already exists so the dangling refs have a valid target), `arc:board-governance`. Reference `Jin-HoMLee/splice-neoepitope-pipeline#569` in prose (neutral, non-closing).
+
+- [ ] **Step 4: Note all three Issue numbers in the `#569` handoff comment (Task 15).**
 
 ### Task 14: Final cross-surface verification
 
-- [ ] **Step 1: Corpus consistency gate (personas repo)**
+- [ ] **Step 1: Corpus consistency gate (personas repo) — scoped to the main-PR surface**
 
-Run the Task 9 Step 3 grep across the whole personas repo. Expected: empty (no live `standup` instruction outside frozen history).
+Run the Task 9 Step 3 grep across the personas repo. Because the incidental sweep is **carved**, the expected output is **not empty** — it should contain only the ~13 deferred Bucket-C1 files (tracked by the Task 13 Step 3 Issue). **There must be ZERO hits** in the core/morning-routine/governance/MEMORY surface — i.e. `feedback_team_coordination.md`, `feedback_standby_trigger.md`, `feedback_personas_governance.md`, `shared/MEMORY.md`, all `feedback_morning_routine*.md`, and the role `MEMORY.md` files. Confirm the remaining hits are exactly the deferred set and nothing from the main-PR files.
 
 - [ ] **Step 2: Link-resolution gate**
 
@@ -608,7 +623,7 @@ The pipeline-repo PR (spec + plan + `/standup` command) carries `Closes #569` an
 - §7 deliverable & ownership → Orientation + Task 12 (pipeline) + Task 15 (personas/MM) ✓
 
 **Coverage beyond the spec (discovered during planning — flagged):**
-- The spec's "Files affected" named the core files but not the **27 incidental-prose files** — leaving them would dangle references to a deleted file. Added as Phase 4 (Task 9) with the C1/C2 live-vs-historical test. **This widens the personas PR's review surface;** if MM prefers, Task 9 can carve to an immediate follow-up cleanup Issue (default: same PR, for corpus consistency).
+- The spec's "Files affected" named the core files but not the **27 incidental-prose files** — leaving them would dangle references to a deleted file. **Decision (2026-06-12): carved to a follow-up Issue** (Task 13 Step 3) to keep the main PR's review surface tight, with one coupled exception kept (`feedback_personas_governance.md`, Task 5 Step 1b) because the migration's own handoff depends on it. Task 9 retains the file list + rubric as reference material for the follow-up. Accepted tradeoff: a temporary window of dangling "post to standup" refs in the ~13 deferred files, tracked by the Issue.
 - The spec under-specified the **`/standup` command** (pipeline repo) and **standby-trigger** (personas repo) — both break on file retirement. Added Task 12 + Task 3. This makes the migration **3-surface**, not the "single MM PR" the spec loosely implied — corrected in Orientation.
 - Cross-repo `#569` closing mechanics (personas PR can't `Closes`) — corrected in Orientation + Task 15.
 
