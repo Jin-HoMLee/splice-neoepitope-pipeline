@@ -3,7 +3,7 @@
 **Issue:** [#569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) (`role:pm`, `arc:board-governance`, `arc-phase:active`)
 **Date:** 2026-06-12
 **Author:** PM
-**Status:** Design — pending implementation plan
+**Status:** Design — plan landed (PR #724)
 
 ## Problem
 

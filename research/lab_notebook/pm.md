@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-12
+
+### 18:35 UTC — Editor: PM
+
+#### Retire `team_standup.md` → board comments + Discussions — pipeline-repo half landed ([Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569), [PR #724](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/724))
+
+**Context.** `team_standup.md` (the flat-markdown async message board in the personas repo's `shared/`) had already self-migrated off — a 2026-05-30 PM data check showed coordination traffic had collapsed ~10× onto board Issue comments + Discussions on its own. [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) formalizes the retirement: a routing rule (work-item message → board Issue comment on project board 9; issue-less async → a Team Coordination Discussions thread) + graduated immutability + the cross-repo retirement sequence. The change splits across two repos — this PR is the **pipeline-repo half** (design spec, implementation plan, rewritten `/standup` command); the protocol keystone (`shared/feedback_team_coordination.md`) + memory rewrites are the personas half, MM-committed.
+
+**Cross-repo sequencing — resolved.** This PR was deliberately **merge-last**: `/standup` references the personas protocol file, which had to exist on personas `main` first. MM landed both personas PRs ([PR #35](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/35) protocol + memory; [PR #36](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/36) the [#723](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/723) incidental-prose sweep) at 2026-06-12 18:04–18:05 UTC. Verified `shared/feedback_team_coordination.md` exists on personas `main` before proceeding — dependency satisfied, Test plan box 3 ticked.
+
+**Review.** `@claude review` (held until both halves landed, so the bot saw the full cross-repo picture) returned **two minor non-blocking findings + one already-covered observation**. Both fixed: (1) spec header `**Status:** Design — pending implementation plan` was point-in-time stale (the plan landed in this same PR) → `Design — plan landed (PR #724)`; (2) the `/standup` Discussions query used `first:30` unpaginated → added a `<!-- NOTE: paginate if open threads exceed 30 -->` maintainer comment (fine at 4-role scale; `totalCount` surfaces the count to check). The observation (Task 10 drain of 14 live Pending messages) is personas-side and covered transitively by the landed personas PR.
+
+**Follow-ups (carved, not deferred-silently).** The incidental-prose sweep is [Issue #723](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/723) (now landed via personas PR #36); siblings [#721](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/721)/[#722](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/722) track the remaining tail. Closes [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569).
+
+---
+
 ## 2026-06-11
 
 ### 20:40 UTC — Editor: PM
