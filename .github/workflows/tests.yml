@@ -77,8 +77,10 @@ jobs:
         # Collection scope: every tools/<dir>/ with a test suite must be listed
         # here explicitly — pytest does NOT recurse into tools/ as a whole, so a
         # new tools/<x>/ test home is silently skipped until added below.
-        # Separate invocations so each dir uses its own pytest.ini (marker
-        # registration); tools/news is the morning-news poller (Issue #639);
+        # Separate invocations so each dir is collected in isolation — tools/ci
+        # and tools/news carry their own pytest.ini for marker registration
+        # (tools/project_map has none; isolation still keeps collection scopes
+        # clean). tools/news is the morning-news poller (Issue #639);
         # tools/project_map is the project-map atlas extractor (Issue #713 —
         # the 5-invariant suite was CI-invisible under tools/, regressions
         # ungated). project_map's extractor is stdlib-only and walks the
