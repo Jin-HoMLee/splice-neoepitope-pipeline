@@ -6,6 +6,39 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-12 — STAR sensitivity-flag benchmark sweep shipped ([PR #720](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/720) closes [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411))
+
+### 17:11 UTC — Editor: Developer
+
+**Headline:** Landed `scripts/star_flag_sweep.sh` — the deferred Nature-recipe STAR sensitivity flags benchmarked one-at-a-time on patient_002 tumor, CPU-only on the warm prod VM. [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) is scoped to the **measurement**; the adopt/reject interpretation is delegated to [Issue #719](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/719) (Scientist) and the config change to [Issue #725](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/725) (Developer, blocked on #719).
+
+**The 8-variant run** (baseline = production STAR config; patient_002 tumor):
+
+| variant | total SJ | Δtotal | novel | Δnovel | uniq-supported | Δuniq | multi-loci % |
+|---|---|---|---|---|---|---|---|
+| baseline | 258163 | — | 531 | — | 247591 | — | 3.21 |
+| matchNmin_0.33 | 258163 | 0 | 531 | 0 | 247591 | 0 | 3.21 |
+| scoreMin_0.33 | 258338 | +175 | 540 | +9 | 247736 | +145 | 3.21 |
+| multimap_20 | 259086 | +923 | 626 | +95 | 247570 | −21 | 3.25 |
+| intronMax_500k | 258104 | −59 | 503 | −28 | 247619 | +28 | 3.22 |
+| matesGap_1M | 258937 | +774 | 553 | +22 | 248229 | +638 | 3.27 |
+| sjOverhang_1 | 272360 | +14197 | 532 | +1 | 253663 | +6072 | 3.73 |
+| noGTF_index | 244604 | −13559 | 1195 | (n/c) | 233367 | −14224 | 3.21 |
+
+Raw artifacts (per-variant `SJ.out.tab` + `Log.final.out`, `sweep_metrics.tsv`, `summary_table.md`) in GCS at `gs://splice-neoepitope-project/experiments/issue_411_star_flag_sweep/`.
+
+**Reading the numbers** (deferred to #719 for the formal call, but the dev-side observations that motivated the precision-weighted framing):
+- Ranking on **uniq-supported** (≥1 unique read = confident-recall proxy) rather than raw novel count changes the picture. `sjOverhang_1` is the biggest mover (+6072 uniq) but at a precision cost — multi-loci % jumps 3.21→3.73. `matesGap_1M` is the cleanest gain (+638 uniq, multi-loci near-flat). `multimap_20`'s headline +95 novel is **uniq −21** — i.e. the extra junctions are multi-mapper-only; exactly the precision concern #719 adjudicates.
+- `matchNmin_0.33` was **byte-identical to baseline** — matchNmin and scoreMin are ANDed and both default 0.66, so lowering matchNmin alone is inert (scoreMin stays binding). Worth a *combined* permissive variant in #719, not the single knob.
+- `noGTF_index` `novel` is **not comparable** to the GTF variants: under `--twopassMode Basic` with no GTF, STAR rebuilds the sjdb from 1st-pass discoveries, so col-6 "annotated" = "found in pass 1", not "in GENCODE". The honest read is total + uniq both drop sharply — removing the GTF reduces sensitivity.
+
+**Process notes:**
+- The sweep is idempotent + fault-tolerant (per-variant SKIP on a complete run, index-reuse sentinels, `REUSE_BASELINE_DIR` to skip re-aligning the prod baseline, atomic FASTQ download). The overnight run was interrupted after 7 variants; it resumed and completed only the missing `noGTF_index` on relaunch. Two prior fixes got it unattended-clean: `--http1.1` + retries for B2's HTTP/2 flakiness, and dropping `--sjdbOverhang` from the no-GTF index build (STAR rejects >0 overhang without annotations).
+- **Bot review** (`@claude review`) approved-to-merge with 1 Medium + 4 minor. Applied 4 in `fb7fc77`: an `align.done` completion sentinel so a SIGKILL-truncated `SJ.out.tab` isn't mistaken for a complete run on resume (the bot's literal guard would have broken `REUSE_BASELINE_DIR`, which stages a baseline with no sentinel — fixed by touching it there too); `noGTF_index` TSV flag-column label; `novel` column in the emitted table; an intent comment on the GTF-index hard-abort. Declined the `trap`-override nit (only EXIT trap, one-shot branch — no current bug).
+- **Close-out structure:** #411 re-scoped to benchmark-only (7 sensitivity flags ticked; the BAM-emission item marked out-of-scope — not a sensitivity flag, no downstream BAM consumer). The adopt decision is split across #719 (interpretation) and #725 (config change), with #725 natively `blocked_by` #719 via GitHub's dependency graph (prose-only "blocked on" creates no machine edge — caught and fixed this session).
+
+---
+
 ## 2026-06-11 — Flatten `predictions/` wrapper dir merged: tool-named sibling folders + doc-sync ([PR #650](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650) closes [Issue #435](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/435))
 
 ### 16:05 UTC — Editor: Developer
