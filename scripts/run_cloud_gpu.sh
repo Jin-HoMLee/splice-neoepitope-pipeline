@@ -464,8 +464,14 @@ while true; do
         log "  Pipeline finished (100% done detected in log)."
         break
     fi
+    # Issue #669: anchor failure detection on Snakemake's real failure signatures,
+    # not a bare 'Error' substring. A bare 'Error' matched benign log content —
+    # non-fatal tool stderr (tee'd in via 2>&1), conda/solver messages, INFO prose
+    # mentioning "error" — aborting healthy runs. 'Error in rule <name>:' marks a
+    # failed job; 'Exiting because a job execution failed' is Snakemake's terminal
+    # failure line. Both are emitted only on a genuine failure.
     FAILED="$(ssh_cmd "${PIPELINE_VM}" --command \
-        "grep -c 'Error\|Exiting because' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
+        "grep -cE 'Error in rule |Exiting because a job execution failed' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
     if [[ "${FAILED}" -ge 1 ]]; then
         echo "ERROR: Pipeline appears to have failed. Check pipeline.log on ${PIPELINE_VM}." >&2

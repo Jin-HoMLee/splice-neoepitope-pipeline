@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-12 — STAR sensitivity-flag benchmark sweep shipped ([PR #720](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/720) closes [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411))
 
+### 17:52 UTC — Editor: Developer — cloud poller false-positive fix ([PR #727](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/727) closes [Issue #669](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/669))
+
+**Headline:** Fixed `run_cloud_gpu.sh`'s completion poller false-positiving on any `Error` substring in `pipeline.log`. The detector was `grep -c 'Error\|Exiting because'` — a bare, case-sensitive substring that matched benign log content (non-fatal tool stderr tee'd in via `2>&1`, conda/solver messages, Snakemake INFO prose), `exit 1`ing a healthy run and stopping the VM (wasted launch).
+
+**Fix:** anchor on Snakemake's real failure signatures — `grep -cE 'Error in rule |Exiting because a job execution failed'`. `Error in rule <name>:` marks a failed job; `Exiting because a job execution failed` is the terminal failure line. Both are emitted only on genuine failure, so the symmetric risk (missing a real failure) is preserved.
+
+**Verification:** no chr22 integration run needed — this is a bash poller one-liner, not a Snakemake rule. Local fixture test: 5 benign `Error` substrings (conda/solver, INFO, recoverable tool stderr, `ErrorCorrectionModel`, samtools header) now match **0** (were ≥1); both genuine Snakemake failure lines still match **1**. `bash -n` clean; CI green (4/4).
+
+**Theme:** companion to [Issue #664](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/664) (open) — same poller-robustness arc (`arc:cloud-reproducibility`). Merged as trivial (XS, fixture-proven) without a bot review.
+
+---
+
 ### 17:11 UTC — Editor: Developer
 
 **Headline:** Landed `scripts/star_flag_sweep.sh` — the deferred Nature-recipe STAR sensitivity flags benchmarked one-at-a-time on patient_002 tumor, CPU-only on the warm prod VM. [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411) is scoped to the **measurement**; the adopt/reject interpretation is delegated to [Issue #719](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/719) (Scientist) and the config change to [Issue #725](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/725) (Developer, blocked on #719).
