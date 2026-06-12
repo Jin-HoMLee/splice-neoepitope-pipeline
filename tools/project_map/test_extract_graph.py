@@ -2,6 +2,15 @@
 
 Run with the project's pytest venv:
     workflow/tests/.venv/bin/python -m pytest tools/project_map/test_extract_graph.py -v
+
+CI: collected by the `ci-tools-pytest` job in `.github/workflows/tests.yml`
+(Issue #713). `build_graph()` walks the committed tree without consulting
+`.gitignore`, so a *clean* checkout is the canonical run environment — a local
+clone with populated gitignored artifacts (`references/`, `logs/`, `data/`,
+`results/`, …) can inflate the `project` group and trip
+`test_resource_blob_is_gone`. If that test fails locally but the others pass,
+re-run against a pristine tree (`git worktree add --detach <tmp> HEAD`) — CI is
+authoritative.
 """
 import importlib.util
 import pathlib

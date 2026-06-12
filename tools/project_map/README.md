@@ -46,6 +46,15 @@ workflow/tests/.venv/bin/python -m pytest tools/project_map/test_extract_graph.p
 node tools/project_map/verify_render.mjs "$(pwd)/tools/project_map/project_map.html"
 ```
 
+The data-model suite is collected in CI by the `ci-tools-pytest` job
+(`.github/workflows/tests.yml`, Issue #713) and runs on every PR. `build_graph()`
+walks the committed tree without consulting `.gitignore`, so a clean checkout is
+the canonical run environment: a local clone with populated gitignored artifacts
+(`references/`, `logs/`, `data/`, `results/`) can inflate the `project` group and
+trip `test_resource_blob_is_gone`. CI (a fresh checkout) is authoritative; locally,
+re-run against `git worktree add --detach <tmp> HEAD` if that one test fails alone.
+(The `verify_render.mjs` render check is not yet CI-wired — Issue #712.)
+
 ## Regenerate
 
 Run from anywhere (the scripts resolve paths relative to themselves):
