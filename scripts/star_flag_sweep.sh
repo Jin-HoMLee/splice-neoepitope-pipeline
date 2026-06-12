@@ -118,6 +118,9 @@ else
     GTF_FILE="$(mktemp)"; trap 'rm -f "$GTF_FILE"' EXIT
     gunzip -c "$GTF" > "$GTF_FILE"
   fi
+  # Abort (not skip) on failure is intentional here, unlike Step 4's no-GTF index:
+  # without the GTF index there is no sweep at all, so a hard `set -e` abort is the
+  # correct failure mode rather than the fault-tolerant `if STAR ...` skip pattern.
   STAR --runMode genomeGenerate --runThreadN "$THREADS" \
        --genomeDir "$INDEX_DIR" --genomeFastaFiles "$GENOME" \
        --sjdbGTFfile "$GTF_FILE" --sjdbOverhang 100
@@ -133,8 +136,13 @@ run_variant() {
   local sjtab="${prefix}SJ.out.tab"
   local logfinal="${prefix}Log.final.out"
 
-  if [[ -s "$sjtab" ]]; then
-    log "SKIP ${label} (SJ.out.tab already present)"
+  # Resume only on a COMPLETE run: STAR writes SJ.out.tab incrementally (not an
+  # atomic rename-on-finish), so a SIGKILL mid-alignment can leave a partial,
+  # non-empty SJ.out.tab. The align.done sentinel (touched only after STAR exits 0,
+  # and staged alongside a reused baseline below) distinguishes complete from
+  # truncated, so a resume never computes metrics off a half-written file.
+  if [[ -s "$sjtab" && -f "${outdir}/align.done" ]]; then
+    log "SKIP ${label} (complete run already present)"
   else
     mkdir -p "$outdir"
     log "RUN  ${label}   extra: ${extra[*]:-<none>}"
@@ -148,6 +156,7 @@ run_variant() {
          --outFileNamePrefix "$prefix" \
          "${BASELINE_FLAGS[@]}" "${extra[@]}"; then
       t1=$(date +%s); echo $((t1 - t0)) > "${outdir}/runtime_s.txt"
+      touch "${outdir}/align.done"   # completion sentinel (see resume guard above)
     else
       log "!! ${label} FAILED (STAR nonzero) — skipping this variant, continuing sweep"
       return 0
@@ -165,7 +174,11 @@ run_variant() {
   uniq=$(awk '$7>0' "$sjtab" | wc -l)
   multi=$(grep "% of reads mapped to multiple loci" "$logfinal" | awk '{print $NF}' | tr -d '%')
   toomany=$(grep "% of reads mapped to too many loci" "$logfinal" | awk '{print $NF}' | tr -d '%')
-  flagstr="${extra[*]:-<baseline>}"
+  if [[ "$label" == "noGTF_index" ]]; then
+    flagstr="--sjdbGTFfile removed (no-GTF index)"   # not an align flag; an index change
+  else
+    flagstr="${extra[*]:-<baseline>}"
+  fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$label" "$flagstr" "$total" "$annot" "$novel" "$pct" "$uniq" "${multi:-NA}" "${toomany:-NA}" "$secs" \
     >> "$RESULTS_TSV"
@@ -184,6 +197,7 @@ if [[ -n "${REUSE_BASELINE_DIR:-}" ]]; then
     cp -f "${REUSE_BASELINE_DIR}/star_SJ.out.tab"    "${OUTROOT}/baseline/star_SJ.out.tab"
     cp -f "${REUSE_BASELINE_DIR}/star_Log.final.out" "${OUTROOT}/baseline/star_Log.final.out"
     echo "reused" > "${OUTROOT}/baseline/runtime_s.txt"
+    touch "${OUTROOT}/baseline/align.done"   # staged run is complete → satisfy the resume guard
   else
     log "!! REUSE_BASELINE_DIR set but artifacts missing — falling back to a fresh baseline run"
   fi
@@ -229,8 +243,8 @@ echo
 column -t -s $'\t' "$RESULTS_TSV"
 echo
 {
-  echo "| variant | total SJ | %annot | uniq-supported | multi-loci % | too-many % | runtime s |"
-  echo "|---|---|---|---|---|---|---|"
+  echo "| variant | total SJ | novel | %annot | uniq-supported | multi-loci % | too-many % | runtime s |"
+  echo "|---|---|---|---|---|---|---|---|"
   tail -n +2 "$RESULTS_TSV" | awk -F'\t' \
-    '{printf "| %s | %s | %s | %s | %s | %s | %s |\n",$1,$3,$6,$7,$8,$9,$10}'
+    '{printf "| %s | %s | %s | %s | %s | %s | %s | %s |\n",$1,$3,$5,$6,$7,$8,$9,$10}'
 } | tee "${OUTROOT}/summary_table.md"
