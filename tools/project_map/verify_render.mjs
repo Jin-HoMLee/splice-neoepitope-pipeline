@@ -1,12 +1,38 @@
 // Offline render check for the collapsible atlas.
-//   node verify_render.mjs <abs path to project_map.html>
+//   cd tools/project_map && npm install && node verify_render.mjs "$PWD/project_map.html"
 // Verifies: no network, no console errors, sparse collapsed default, expansion
 // grows the node count, focus dims non-neighbours, search reveals a match.
-// Playwright path is machine-specific — if absent, find via:
-//   find ~/.npm/_npx -path '*node_modules/playwright' -type d
-import pw from '/Users/jin-holee/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/index.js';
+//
+// Playwright resolution (portable — no machine-specific path; Issue #712):
+//   1. PLAYWRIGHT_PATH env var, if set — an existing playwright(-core) package
+//      *directory* (e.g. a global or npx-cache install). Resolved via the
+//      package's own exports map, so the inner entry filename never matters.
+//   2. otherwise a bare `playwright-core` import — resolved from this dir's
+//      node_modules after `npm install` (package.json pins it).
+// playwright-core (no bundled browsers) suffices because we launch *system*
+// Chrome via channel:'chrome' below — no browser download needed.
 import { pathToFileURL } from 'node:url';
-const { chromium } = pw;
+import { createRequire } from 'node:module';
+
+async function loadChromium() {
+  const override = process.env.PLAYWRIGHT_PATH;
+  if (override) {
+    // createRequire honors the target package's exports/main, so this works
+    // whether the package's entry is index.js (CJS) or index.mjs (ESM).
+    const require = createRequire(pathToFileURL(override + '/').href);
+    return require(override).chromium;
+  }
+  try {
+    return (await import('playwright-core')).chromium;
+  } catch {
+    console.error(
+      'Could not resolve Playwright. From a fresh clone:\n' +
+      '  cd tools/project_map && npm install && node verify_render.mjs "$PWD/project_map.html"\n' +
+      'or set PLAYWRIGHT_PATH to an existing playwright(-core) install directory.');
+    process.exit(3);
+  }
+}
+const chromium = await loadChromium();
 
 const url = pathToFileURL(process.argv[2]).href;
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
