@@ -203,9 +203,12 @@ if [[ -f "${NOGTF_INDEX_DIR}/index.done" || -f "${NOGTF_INDEX_DIR}/SAindex" ]]; 
 else
   log "Building no-GTF STAR index → $NOGTF_INDEX_DIR (separate from prod cache)"
   mkdir -p "$NOGTF_INDEX_DIR"
+  # No --sjdbOverhang here: STAR rejects >0 overhang when generating a genome
+  # without annotations (--sjdbGTFfile / --sjdbFileChrStartEnd). Overhang only
+  # has meaning relative to an annotated splice-junction database, which this
+  # index deliberately omits.
   if STAR --runMode genomeGenerate --runThreadN "$THREADS" \
-       --genomeDir "$NOGTF_INDEX_DIR" --genomeFastaFiles "$GENOME" \
-       --sjdbOverhang 100; then
+       --genomeDir "$NOGTF_INDEX_DIR" --genomeFastaFiles "$GENOME"; then
     touch "${NOGTF_INDEX_DIR}/index.done"
   else
     log "!! no-GTF index build FAILED — skipping noGTF_index variant"
