@@ -17,10 +17,20 @@ import { createRequire } from 'node:module';
 async function loadChromium() {
   const override = process.env.PLAYWRIGHT_PATH;
   if (override) {
-    // createRequire honors the target package's exports/main, so this works
-    // whether the package's entry is index.js (CJS) or index.mjs (ESM).
-    const require = createRequire(pathToFileURL(override + '/').href);
-    return require(override).chromium;
+    // createRequire resolves the target package via its exports/main. It is a
+    // CommonJS require, so it loads the package's CJS entry (playwright-core
+    // ships one); it cannot load an ESM-only package.
+    try {
+      const require = createRequire(pathToFileURL(override + '/').href);
+      const { chromium } = require(override);
+      if (!chromium) throw new Error('package has no "chromium" export');
+      return chromium;
+    } catch (e) {
+      console.error(
+        `PLAYWRIGHT_PATH="${override}" failed to resolve: ${e.message}\n` +
+        'Point it at a playwright(-core) package directory.');
+      process.exit(3);
+    }
   }
   try {
     return (await import('playwright-core')).chromium;

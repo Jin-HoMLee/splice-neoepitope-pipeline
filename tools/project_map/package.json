@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "playwright-core": "^1.60.0"
+  },
+  "engines": {
+    "node": ">=16"
   }
 }
