@@ -1,0 +1,16 @@
+{
+  "name": "project-map-render-check",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline render check for the project-map atlas (tools/project_map). Dev-only test harness; not part of the shipped self-contained project_map.html.",
+  "type": "module",
+  "scripts": {
+    "verify": "node verify_render.mjs \"$PWD/project_map.html\""
+  },
+  "devDependencies": {
+    "playwright-core": "^1.60.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

@@ -36,14 +36,15 @@ not 300 "lives-in-this-folder" lines.
 | `vendor/d3.v7.min.js` | Pinned D3 v7.9.0, inlined at build time. |
 | `test_extract_graph.py` | Pytest unit + invariant tests for the extractor. |
 | `verify_render.mjs` | Offline Playwright render check (collapsible behaviour, no network). |
+| `package.json` | Pins `playwright-core` for the render check (dev-only; `node_modules/` gitignored). |
 
 ## Test
 
 ```bash
 # data model (classification, cross-links, issue tags, invariants)
 workflow/tests/.venv/bin/python -m pytest tools/project_map/test_extract_graph.py -v
-# rendering (offline, system Chrome via Playwright)
-node tools/project_map/verify_render.mjs "$(pwd)/tools/project_map/project_map.html"
+# rendering (offline, system Chrome via Playwright) — from a fresh clone:
+cd tools/project_map && npm install && node verify_render.mjs "$PWD/project_map.html"
 ```
 
 The data-model suite is collected in CI by the `ci-tools-pytest` job
@@ -53,7 +54,16 @@ the canonical run environment: a local clone with populated gitignored artifacts
 (`references/`, `logs/`, `data/`, `results/`) can inflate the `project` group and
 trip `test_resource_blob_is_gone`. CI (a fresh checkout) is authoritative; locally,
 re-run against `git worktree add --detach <tmp> HEAD` if that one test fails alone.
-(The `verify_render.mjs` render check is not yet CI-wired — Issue #712.)
+
+The `verify_render.mjs` render check is a **local-only pre-merge check**, run with
+the one-liner above (Issue #712). It is intentionally *not* CI-wired: it drives a
+real browser through D3's force simulation and asserts on post-settle node counts
+via fixed `waitForTimeout`s, which is inherently timing-flaky on a shared CI
+runner, and it needs system Chrome (`channel: 'chrome'`). Run it locally whenever
+you touch the D3/CSS/interaction code in `project_map.html`. Playwright resolves
+portably — `npm install` here pins `playwright-core` (a stable lib, no bundled
+browser download since we launch system Chrome), or point `PLAYWRIGHT_PATH` at an
+existing playwright(-core) install directory to reuse one.
 
 ## Regenerate
 

@@ -308,3 +308,8 @@ CLAUDE.local.md
 
 # Morning-news poller — per-role version watermark state (Issue #639)
 tools/news/watermark_*.yaml
+
+# Project-map render check (Issue #712) — node deps for the dev-only Playwright
+# harness. package.json is committed (pins playwright-core); the install tree isn't.
+tools/project_map/node_modules/
+tools/project_map/package-lock.json
