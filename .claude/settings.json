@@ -16,6 +16,12 @@
             "command": ".claude/hooks/check_gh_issue_develop_parent.py",
             "if": "Bash(gh issue develop *)",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/check_board_query_pagination.py",
+            "if": "Bash(gh api *)",
+            "timeout": 5
           }
         ]
       }
