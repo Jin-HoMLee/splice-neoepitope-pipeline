@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-13
+
+### 21:11 UTC — Editor: PM
+
+#### Rename `/standup` skill → `/coordination` + broaden ping scan to all open statuses ([Issue #740](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/740) / [PR #741](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/741))
+
+**Why the rename.** The `.claude/commands/standup.md` skill was misnamed: a *stand-up* is a synchronous ceremony, but this skill is an **asynchronous coordination-channel scan** (board `**To:** <role>` comments + open Team Coordination Discussions). The name overlapped with the `team_standup.md` *file* retired by [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) — a different thing — and caused a live mix-up this session. Renamed `standup.md → coordination.md` (git-tracked → propagates to all three clones on next pull; no alias kept).
+
+**The scan-scope fix (the substantive bit).** Step 1 previously scanned only `In progress` / `Ready for review` / `In review`. But a `**To:** <role>` ping can land on an Issue in *any* status — a triage question on Backlog, a commitment question on Ready, a heads-up on No-Status — so the 3-status filter silently dropped those. Replaced the three `--status` calls with one `board_open_items.py --role <role> --sort-updated` (all open statuses, freshest first; Closed/Done excluded as resolved — open-only chosen over a recently-closed sweep to bound noise).
+
+**Companion memory changes (personas repo, MM-committed).** Retired the **unused** stand-by trigger (`shared/feedback_standby_trigger.md` + the `shared/MEMORY.md` bullet + stray `/loop 4m /standup` refs) — confirmed unused by the user; its removal is what eliminates the last *automated* `/standup` invocation, making the no-alias rename safe ([claude-personas#41](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/issues/41)). Behavior note: *"keep an eye out" / "stay on stand-by"* phrases no longer auto-fire a watcher; the skill is run manually now.
+
+**Two side-quests this session.** (1) Migrated the ref-linking rule to `shared/` + extended it to **Discussions** (always URL-link `[Discussion #N](…/discussions/N)`, per user) — [claude-personas#40](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/issues/40). (2) Caught + corrected an **MM-handoff mis-routing**: I first filed the handoff as a project-repo Discussion, but Discussions are disabled on the personas repo and aren't native to MM's cwd — refiled [Discussion #739](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/739) as personas-repo Issues and saved a `reference_mm_handoff_channel.md` memory.
+
+**Review.** `@claude review` returned **LGTM, no findings** — independently verified `--sort-updated` exists (`board_open_items.py:317`), the no-`--status` all-statuses behavior, the `normalize()` Done/Closed exclusion (lines 124-140), and wording clarity. Closes [Issue #740](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/740).
+
+---
+
 ## 2026-06-12
 
 ### 18:35 UTC — Editor: PM
