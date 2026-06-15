@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-15
+
+### 14:30 UTC — Editor: Scientist
+
+#### [PR #714](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/714) seeds the open splice-immunogenicity registry — closes [Issue #732](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/732) (seed leaf of [parent Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)).
+
+**What shipped.** Landed `research/experiments/issue_680_splice_immunogenicity_registry/` — the first openly-assembled, provenance-tracked registry of splice-junction-derived cancer neoantigens with **experimentally measured** T-cell immunogenicity (`registry.tsv`, 23 rows: 18 functional-scorable positives across 5 HLA alleles / 4 splice mechanisms, 2 sequence-unpublished GNAS/RPL22, 1 presentation-prevalence, 2 negatives incl. the lone true splice hard-negative `VELEDHVML`). Each row dual-gate-verified (genuinely splice-derived **and** a functional T-cell assay on that exact peptide), each gate adversarially checked by a 3-vote skeptic panel. Honest framing carried throughout: a **stress-test probe, not a powered benchmark** — only ~tens of such peptides exist field-wide (the four major DBs have no splice category; TESLA excluded splice isoforms).
+
+**This session's contribution.** (1) Resolved the 2026-06-12 bot code-review: its sole merge-blocker (stale README "draft" status) fixed in `f145531`, which also DRAFT→SEED and annotated restricting-allele ambiguity (loaded A\*11:01 vs predicted B\*40:01) on the three Fisher/CoREST rows. (2) Standing splice-immunogenicity watch caught a new dual-gate-passing source — **Li et al. 2025 TEtrans** (bioRxiv `10.1101/2025.03.01.640928`; exon-TE spliced transcripts, ELISPOT + HLA-A\*02:01 killing in 2 gastric-cancer patients) — Zotero `IJ55K4WH`, flagged as a registry-addition candidate. (3) Registry-hygiene pass: re-homed deferred follow-ups stranded as parent-#680 comments to the open leaf sub-issues that actually pull them — registry-addition candidates (TEtrans, Manoharan IR-CRC, Merlotti exon-TE) → [Issue #733](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733), scorer data-quality fixes → [Issue #736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736), labeling/allele rules → [Issue #735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735) — parent comments trimmed to pointers.
+
+**Verification.** For the TEtrans call, read the full preprint PDF rather than trusting the abstract snippet — which flipped my initial "deferred-tier (MS-only)" verdict to "registry candidate," since the full text carries IFN-γ ELISPOT + antigen-specific K562-HLA-A\*02:01 cytotoxicity + an in-vivo mouse vaccine that the abstract undersold. DOI-dedup done by exact DOI-set match (the `q=` keyword search is unreliable for DOI). Registry rows themselves unchanged this session — the TEtrans entry stays a *candidate* pending two checks (minimal-epitope sequence; junction-spanning vs within-TE-ORF).
+
+**Process / meta.** The re-homing surfaced a generalizable rule (user-confirmed): **follow-ups must live where queries pull them — new Issue/sub-Issue > comment on a staying-open Issue > Discussion; never a closing/parent issue or docs alone (docs = read-only mirror nothing queries).** Captured in shared memory (`feedback_followup_tracking_homes.md` + an Always-in-effect bullet), flagged for MM to commit. Deferred items (slide deck + scoring notebook) stay out of this PR — a deck presents findings that don't exist until the scoring probe runs post-[Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681).
+
 ## 2026-06-10
 
 ### 19:47 UTC — Editor: Scientist
