@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-15 — closure-audit reason-awareness + two Issue-lifecycle guardrails ([PR #744](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/744) closes [Issue #743](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/743))
+
+### 14:44 UTC — Editor: Developer
+
+**Trigger chain (one morning, started from a warm-up pick).** The morning warm-up surfaced [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) (patient_002 re-run) at board `Ready`/`P1`. A freshness check before starting it showed it was stale on three axes: internally contradictory ACs (HISAT2 primary vs STAR-appended after the [PR #410](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/410) prod-aligner switch), explicitly superseded by [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) (whose blocker [Issue #629](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/629) had since closed), and orphaned (parent [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) already closed COMPLETED). Closed #378 as superseded/`not_planned` via a closing comment (descoped → comment, not a PR) — which exposed the bug fixed here.
+
+**The bug.** The closure-audit bot (`tools/ci/closure_audit.py`, `audit_issue`) fires on `issues: [closed]` and ran all three checks (AC / priority-rationale / lab-notebook) **regardless of close reason** — it never fetched `stateReason`. So the `not_planned` close of #378 drew a false-positive gap comment (`8/8 AC unticked` + missing notebook entry), both expected for descoped work that ships no code.
+
+**The fix (hybrid, user-chosen over two alternatives).** (1) `fetch_issue` now requests `stateReason`; `audit_issue` skips **only** the lab-notebook check when `NOT_PLANNED` — a descoped close's durable record is the closing comment, not a notebook entry. AC + priority-rationale checks still run. (2) New **AC-annotation convention**: on a superseded close, edit each `- [ ]` → its disposition (`- [superseded]`/`- [n/a]`/`- [deferred]`). Verified the `_UNTICKED` regex matches only a single-space `- [ ]`, so annotated forms pass cleanly *and* the annotation self-documents each AC. Applied retroactively to #378 (8/8 → `- [superseded]`). Scope is contained to the issue path: `not_planned` is unreachable via PR merge (those close COMPLETED), so `audit_pr`/`audit_pr_pre_merge` untouched.
+
+**Verification.** TDD: wrote the `not_planned`-skip test red first, then implemented to green. 42 tests pass (`workflow/tests/.venv/bin/python -m pytest tools/ci/test_closure_audit.py`) — incl. two added after `@claude review` to pin contracts (regex ignores annotated boxes; `not_planned` still flags a genuine `- [ ]`). No chr22 integration run needed (CI-tooling change, not a Snakemake rule). Bot review: no blockers.
+
+**Process memory (for MM to commit; personas repo).** Two new shared feedback rules captured from this session, both Issue-lifecycle guardrails surfaced by the user: `feedback_issue_freshness_check.md` (verify an Issue is current *before starting* it — board Status reflects triage time, not actionability) and `feedback_stall_after_filing_issue.md` (after `gh issue create`, confirm before `gh issue develop`/coding — filing ≠ committing to work now). Plus the AC-annotation convention added to `feedback_closure_ritual.md`. Both guardrails caught real slips this morning (started #378 on a stale pick; jumped straight from filing #743 into implementing it).
+
+---
+
 ## 2026-06-12 — STAR sensitivity-flag benchmark sweep shipped ([PR #720](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/720) closes [Issue #411](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/411))
 
 ### 19:10 UTC — Editor: Developer — portable Playwright path for the project-map render check ([PR #729](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/729) closes [Issue #712](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/712))
