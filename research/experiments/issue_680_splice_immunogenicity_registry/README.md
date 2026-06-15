@@ -1,6 +1,6 @@
-# Open splice-neoepitope → measured T-cell immunogenicity registry (DRAFT)
+# Open splice-neoepitope → measured T-cell immunogenicity registry (SEED)
 
-**Issue:** [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) · **Status:** draft for review (not yet board-committed or branched) · **Snapshot:** 2026-06-11
+**Issue:** [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) · **Status:** registered seed — branched + board-committed (milestone `i5 - S3 - Data Preparation`); scoring probe deferred (post-#681) · **Snapshot:** 2026-06-11
 
 ## What this is
 
@@ -53,6 +53,7 @@ SNAF: Li et al. 2024, *Sci Transl Med* (eade2886). IRIS: Pan et al., *PNAS*. RCA
 
 ## Next steps
 
-- Board-commit #680 (Backlog→Ready, PM-coordinated) → branch → land this folder.
+- ~~Board-commit #680 (Backlog→Ready, PM-coordinated) → branch → land this folder.~~ **Done** (milestone `i5 - S3 - Data Preparation`).
+- Scoring-probe data-quality follow-ups (recorded on #680): canonicalize `splice_mechanism`; machine-readable HLA-resolution flag (2- vs 4-digit); resolve FMDDYIFV 8/9-mer at source; split medium-unverified IRIS rows into a `candidate` sub-tier.
 - #681 immunopeptidome mining → MS-presented tier + decoy negative construction.
 - Pre-publication: systematic completeness sweep + the CEDAR/IEDB free-text mine (deferred).
