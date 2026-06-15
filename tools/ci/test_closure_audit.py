@@ -348,6 +348,101 @@ def test_collect_notebook_gaps_skips_empty_role_sets():
     ) == []
 
 
+# --- #743: not_planned (superseded) closes skip only the lab-notebook check ---
+
+
+_ANNOTATED_BODY = (
+    "- [superseded] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n"
+)
+
+
+def _run_audit_issue(monkeypatch, *, state_reason, labels, notebook_text, body=None):
+    """Drive audit_issue with a controlled issue + notebook; capture any post.
+
+    Default body has its AC boxes annotated to a disposition (`- [superseded]`)
+    so the AC check passes, and carries a Priority-rationale line — isolating the
+    lab-notebook check as the only thing that could post a gap. The notebook
+    text deliberately omits the Issue ref, so the notebook check WOULD fail if
+    it ran. Pass `body` to exercise the AC check (e.g. with a real `- [ ]`).
+    Returns the posted comment body, or None if nothing was posted.
+    """
+    issue = {
+        "number": 743,
+        "body": _ANNOTATED_BODY if body is None else body,
+        "labels": [{"name": lbl} for lbl in labels],
+        "comments": [],
+        "closedAt": "2026-06-15T14:00:00Z",
+        "stateReason": state_reason,
+    }
+    monkeypatch.setattr(ca, "fetch_issue", lambda n: issue)
+    monkeypatch.setattr(ca, "_load_notebook", lambda role: notebook_text)
+    posted = {}
+    monkeypatch.setattr(
+        ca, "post_comment", lambda target, n, body: posted.update(body=body)
+    )
+    ca.audit_issue(743)
+    return posted.get("body")
+
+
+def test_audit_issue_not_planned_skips_notebook_check(monkeypatch):
+    """not_planned close + role label + notebook w/o ref → no notebook gap posted.
+
+    AC boxes are annotated (pass) and a rationale is present, so with the
+    notebook check skipped there are no gaps at all → nothing is posted.
+    """
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="NOT_PLANNED",
+        labels=["role:developer"],
+        notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
+    )
+    assert body is None
+
+
+def test_audit_issue_completed_still_flags_missing_notebook(monkeypatch):
+    """Regression: COMPLETED close with no notebook ref still posts a notebook gap."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="COMPLETED",
+        labels=["role:developer"],
+        notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
+    )
+    assert body is not None and "Lab notebook" in body
+
+
+def test_audit_issue_null_reason_still_flags_missing_notebook(monkeypatch):
+    """Defensive: a null/absent stateReason behaves like COMPLETED (check runs)."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason=None,
+        labels=["role:developer"],
+        notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
+    )
+    assert body is not None and "Lab notebook" in body
+
+
+def test_unticked_regex_ignores_annotated_boxes():
+    """The AC-annotation convention (#743) relies on _UNTICKED matching ONLY a
+    single-space `- [ ]` — annotated dispositions must pass the AC check."""
+    for form in ("- [superseded] x\n", "- [n/a] x\n", "- [deferred] x\n"):
+        assert ca._UNTICKED.findall(form) == [], f"regex wrongly matched: {form!r}"
+    assert ca._UNTICKED.findall("- [ ] x\n"), "regex must still match a real `- [ ]`"
+
+
+def test_audit_issue_not_planned_still_flags_unticked_ac(monkeypatch):
+    """not_planned skips ONLY the notebook check — a genuinely unticked AC
+    (left as `- [ ]`, not annotated) is still flagged. Guards the skip's scope."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="NOT_PLANNED",
+        labels=["role:developer"],
+        notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
+        body="- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
+    )
+    assert body is not None and "AC checkboxes" in body
+    assert "Lab notebook" not in body  # notebook check still skipped
+
+
 def test_format_comment_clean_state():
     out = ca.format_comment("PR #1", [], [], [])
     assert "all clear" in out.lower()

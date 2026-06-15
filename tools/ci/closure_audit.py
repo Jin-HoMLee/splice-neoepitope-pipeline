@@ -14,6 +14,12 @@ routine single-PR-closes-single-Issue skip that #483 declared optional, so the
 bot stops coercing entries the lab-notebook rule says are unnecessary. The AC
 and Priority-rationale checks are unaffected by the marker.
 
+On the issue path, the lab-notebook check is also skipped when the Issue closed
+as `not_planned` (descoped / superseded): such a close ships no work and routes
+through a closing comment, not a notebook entry (closure ritual, #743). The AC
+and Priority-rationale checks still run — superseded ACs are annotated to their
+disposition (e.g. `- [superseded]`) rather than left as `- [ ]`.
+
 Usage (called by .github/workflows/closure-audit.yml):
     python closure_audit.py --event-type {pr|issue} --number <N>
 """
@@ -243,7 +249,7 @@ def fetch_pr(n: int, repo: str | None = None) -> dict:
 def fetch_issue(n: int, repo: str | None = None) -> dict:
     return json.loads(_gh(
         "issue", "view", str(n),
-        "--json", "number,body,labels,comments,closedAt",
+        "--json", "number,body,labels,comments,closedAt,stateReason",
         repo=repo,
     ))
 
@@ -353,11 +359,16 @@ def audit_issue(n: int) -> None:
     if d := check_priority_rationale(body):
         pr_gaps.append((n, d))
 
-    labels = [lbl["name"] for lbl in issue.get("labels", [])]
-    role_sets = resolve_roles([labels])
-    all_roles = {r for rs in role_sets for r in rs}
-    notebooks = {r: _load_notebook(r) for r in all_roles}
-    nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
+    # A not_planned (descoped / superseded) close ships no work, so it routes
+    # through a closing comment, not a lab-notebook entry (closure ritual, #743).
+    # Skip ONLY the notebook check — AC + priority-rationale still run (the AC
+    # boxes are annotated to their disposition, e.g. `- [superseded]`).
+    if (issue.get("stateReason") or "").upper() != "NOT_PLANNED":
+        labels = [lbl["name"] for lbl in issue.get("labels", [])]
+        role_sets = resolve_roles([labels])
+        all_roles = {r for rs in role_sets for r in rs}
+        notebooks = {r: _load_notebook(r) for r in all_roles}
+        nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
 
     if ac_gaps or pr_gaps or nb_gaps:
         post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))
