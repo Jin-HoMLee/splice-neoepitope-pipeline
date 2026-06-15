@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-15
+
+### 17:53 UTC — Editor: PM
+
+#### Morning routine → parent-blindness mechanism, #594 commitment-lag, #527 restructure, pm-i6 catch-all diagnosis
+
+**Session shape.** A morning-routine session that turned into a governance/hygiene deep-dive off the Service-Delivery-Review milestone-health sub-beat. No project-repo code shipped; deliverables are board state, three new tracking Issues, four memory rules (MM to commit), and this entry.
+
+**Parent-blindness in the weekly sweep → [Issue #742](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/742) + a new rung-3 rule.** My Monday full-board triage sweep flagged parent epics ([Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547), [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)) for "Size unset" + "aging WIP" — both correct-by-design (parents carry no Size; Status mirrors a child). Root cause: a hand-rolled JSON filter over `board_open_items.py --json`, which exposes no parenthood signal. Filed #742 to make the script `is_parent`-aware (deterministic-first). Per the user generalizing it, established a standing rule: **every rung-3 mechanism Issue pairs with a transient, self-cleaning stopgap memory bullet** (`⏳ STOPGAP (remove when #N lands)`, stripped in the landing PR).
+
+**[Issue #594](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/594) — commitment-lag after unblock.** Sat parked in Backlog 4 days after its blocker cleared ([Sub-Issue #211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)/[Sub-Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) closed 2026-06-11) because nothing re-pulled it — and it had zero native `blockedBy` edges, so no audit caught the clear. Committed P1 → [i2-S3](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/3) (ships tomorrow). Filed [Issue #745](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/745) for the general fix (near-deadline commit/re-prioritize sweep); de-duped against the pre-existing [Issue #722](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/722) blockedBy-backfill and set the native dependency edge.
+
+**[Issue #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527) — "clean win to close" was wrong (the double-check earned its keep).** I'd called it closeable on its 4 native sub-issues all COMPLETED. The user asked for a full double-check: the body's AC checklist had 10 sub-items — Sub 9 (validation gate, pending 2026-06-29 by design) + Sub 10 (orphan + sibling-tracked part) not done. It's a **deliberate-hold epic.** Backfilled 3 native sub-issues ([Sub-Issue #746](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/746) closed, [Sub-Issue #747](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/747), [Sub-Issue #748](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/748)), moved bloat to comments, fixed Sub 9's invalid `[~]` checkbox (it was evading the closure-audit `- [ ]` scan), aligned all 7 sub-issue titles to `Sub X of #527`, and linked Subs 5-7 to their out-of-order delivery vehicle ([Sub-Issue #567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567)/[PR #568](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/568)). New rule in `feedback_parent_sub_issues.md`: **parent body sub-list must be 1:1 with filed native sub-issues + `Sub X` titles**.
+
+**pm-i6 is a catch-all milestone, not a bounded iteration (the key methodology read).** [pm-i6](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/33) carries 24 issues over ~3 weeks because "PM Tooling, Memory & Methodology" is a **never-ending theme** — it can't naturally close, so work keeps landing in it. Fix = the three-axis model already rolled out: the *theme* belongs on an `arc:` label (these items already carry `arc:memory-methodology` / `arc:board-governance`); the *milestone* should be a tight stage pass. **Carve plan (parked):** close pm-i6 by carrying #527 forward (holds to the 2026-06-29 validation gate) + carving the [Issue #538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) slimming/hooks family forward; let the arc carry continuity. Lesson: don't let a milestone double as a perpetual theme.
+
+**Replenishment.** Triaged 12 intake items to Backlog — the #680 open-benchmark family (#732-737; `role:scientist` + P1 inherited, sizes PM-estimated, scientist pinged to confirm sizes + assign an arc since #680 is un-arced) + standalone PM/Sci/Dev items. Posted [Discussion #750](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/750) asking Dev to reconcile [Issue #726](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/726) ↔ [Issue #730](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/730) (overlapping closure-audit AC scoping).
+
+**Honesty note.** I claimed "everything's captured" at wind-down; the user challenged it and was right — this entry + the pm-i6 reasoning were the gap. Logged as a reminder that "everything captured" is a claim to verify, not assert.
+
+---
+
 ## 2026-06-13
 
 ### 21:11 UTC — Editor: PM
