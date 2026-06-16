@@ -137,6 +137,11 @@ def test_main_apply_wires_only_needs_wiring(monkeypatch, capsys):
     rc, _ = _run_main(monkeypatch, capsys, ["--apply"], [(745, 722)], _records())
     assert rc == 0 and wired == [(745, 722)]
 
+def test_main_explicit_report_flag(monkeypatch, capsys):
+    # The documented `--report` flag must be accepted and behave like the default.
+    rc, out = _run_main(monkeypatch, capsys, ["--report"], [(745, 722)], _records())
+    assert rc == 0 and "needs-wiring" in out
+
 
 # --- markdown-aware parsing (real-world body formats; live-smoke regression) ---
 

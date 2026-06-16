@@ -191,6 +191,8 @@ def _scan(issue_number=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue", type=int, help="restrict scan to a single dependent issue")
+    parser.add_argument("--report", action="store_true",
+                        help="print the drift table (default action; explicit form)")
     parser.add_argument("--check", action="store_true", help="exit 2 if any needs-wiring drift")
     parser.add_argument("--apply", action="store_true", help="wire the needs-wiring edges")
     parser.add_argument("--only", type=int, nargs="*", default=None,
