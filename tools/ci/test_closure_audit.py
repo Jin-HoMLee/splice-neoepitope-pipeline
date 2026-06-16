@@ -195,7 +195,8 @@ def test_skip_lab_notebook_does_not_match_unrelated_html_comment():
 
 
 def test_ac_deferral_comment_unblocks_unticked():
-    body = "- [x] one\n- [ ] two\n"
+    # Boxes under a real AC heading (check_ac is AC-section-scoped, #726).
+    body = "## Acceptance criteria\n- [x] one\n- [ ] two\n"
     assert ca.check_ac(body, comments=[]) is not None
     assert ca.check_ac(
         body,
@@ -204,12 +205,49 @@ def test_ac_deferral_comment_unblocks_unticked():
 
 
 def test_ac_all_ticked_no_gap():
-    assert ca.check_ac("- [x] one\n- [x] two\n", comments=[]) is None
+    # AC heading present so this exercises the all-ticked path, not the
+    # no-AC-section path (check_ac is AC-section-scoped, #726).
+    assert ca.check_ac("## Acceptance criteria\n- [x] one\n- [x] two\n", comments=[]) is None
 
 
 def test_ac_no_checkboxes_no_gap():
     """Legacy bodies with plain bullets have no boxes to fail on."""
     assert ca.check_ac("- one\n- two\n", comments=[]) is None
+
+
+def test_check_ac_ignores_unticked_boxes_outside_ac_section():
+    """#726/#411: a fully-ticked AC section + an unticked NON-AC checklist
+    (`## Flags to evaluate`) must NOT produce an AC gap. check_ac scopes to the
+    AC section, matching the pre-merge gate's `unticked_under`."""
+    body = (
+        "## Acceptance criteria\n"
+        "- [x] real ac one\n"
+        "- [x] real ac two\n\n"
+        "## Flags to evaluate\n"
+        "- [x] flag a\n"
+        "- [ ] flag b (out of scope)\n"
+    )
+    assert ca.check_ac(body, comments=[]) is None
+
+
+def test_check_ac_count_scoped_to_ac_section():
+    """A genuine unticked AC box is still flagged, and the count is scoped to
+    the AC section (non-AC checklist boxes are excluded from the ratio)."""
+    body = (
+        "## Acceptance criteria\n- [x] done\n- [ ] not done\n\n"
+        "## Tasks\n- [ ] noise one\n- [ ] noise two\n"
+    )
+    msg = ca.check_ac(body, comments=[])
+    assert msg is not None
+    assert "1/2" in msg  # 1 unticked of 2 AC boxes — Tasks excluded (not 1/4)
+
+
+def test_check_ac_no_ac_section_with_stray_boxes_no_gap():
+    """#726: with no `## Acceptance criteria` section, unticked boxes elsewhere
+    are NOT an AC gap (the merge-time #730 lint surfaces those advisorily).
+    Removes the whole-body false-positive that flagged non-AC checklists."""
+    body = "## Plan (phased)\n- [ ] P1\n- [x] P2\n"
+    assert ca.check_ac(body, comments=[]) is None
 
 
 def test_priority_rationale_present_no_gap():
@@ -437,7 +475,7 @@ def test_audit_issue_not_planned_still_flags_unticked_ac(monkeypatch):
         state_reason="NOT_PLANNED",
         labels=["role:developer"],
         notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
-        body="- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
+        body="## Acceptance criteria\n- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
     )
     assert body is not None and "AC checkboxes" in body
     assert "Lab notebook" not in body  # notebook check still skipped
