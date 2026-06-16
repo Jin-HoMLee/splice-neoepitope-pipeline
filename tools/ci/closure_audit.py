@@ -33,6 +33,7 @@ import subprocess
 import sys
 from collections.abc import Collection
 from pathlib import Path
+from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMMENT_MARKER = "<!-- closure-audit -->"
@@ -64,6 +65,87 @@ def check_ac(body: str, comments: list[str]) -> str | None:
     if any("❎" in c and "deferred" in c.lower() for c in comments):
         return None
     return f"{unticked}/{unticked + ticked} unticked, no deferral comment found"
+
+
+# A markdown `## ` heading (exactly two hashes — `### ` and deeper are sub-
+# headings, not section boundaries, mirroring audit_and_merge.sh's `^## ` awk).
+_H2 = re.compile(r"^##[ \t]+(.+?)\s*$")
+# An `## Acceptance criteria` heading (case-insensitive; trailing content
+# tolerated), mirroring the bash gate's `^## Acceptance criteria([[:space:]]|$)`.
+_AC_HEADING = re.compile(r"acceptance criteria(\s|$)", re.IGNORECASE)
+
+
+class AcBoxScan(NamedTuple):
+    """Checkbox census of an Issue body, partitioned by AC-section membership.
+
+    Shared scan used by the #730 stray-box lint (warns when gating-looking boxes
+    live outside an Acceptance-criteria section) and reused by the #726 scoping
+    of check_ac to the AC section. `stray_*` covers `- [ ]`/`- [x]` boxes NOT
+    under an `## Acceptance criteria` heading; `ac_*` covers those that are.
+    """
+
+    has_ac_section: bool
+    ac_unticked: int
+    ac_total: int
+    stray_unticked: int
+    stray_headings: list[str]
+
+
+def scan_ac_boxes(body: str) -> AcBoxScan:
+    """Partition a body's `- [ ]`/`- [x]` boxes into AC-section vs stray.
+
+    Walks lines tracking the current `## ` heading; a checkbox is an AC box when
+    its enclosing heading matches `Acceptance criteria`, else stray. Boxes before
+    any heading are stray under the label `(top of body)`. `stray_headings` lists
+    the distinct headings carrying ≥1 *unticked* stray box, in first-seen order.
+    """
+    in_ac = False
+    has_ac = False
+    cur_heading = "(top of body)"
+    ac_unticked = ac_total = stray_unticked = 0
+    stray_headings: list[str] = []
+
+    for line in body.splitlines():
+        m = _H2.match(line)
+        if m:
+            cur_heading = m.group(1)
+            in_ac = bool(_AC_HEADING.match(cur_heading))
+            has_ac = has_ac or in_ac
+            continue
+        unticked = bool(_UNTICKED.match(line))
+        ticked = bool(_TICKED.match(line))
+        if not (unticked or ticked):
+            continue
+        if in_ac:
+            ac_total += 1
+            ac_unticked += int(unticked)
+        elif unticked:
+            stray_unticked += 1
+            if cur_heading not in stray_headings:
+                stray_headings.append(cur_heading)
+
+    return AcBoxScan(has_ac, ac_unticked, ac_total, stray_unticked, stray_headings)
+
+
+def check_stray_ac_boxes(body: str) -> str | None:
+    """Non-blocking lint (#730): warn when unticked boxes live outside an AC
+    section that doesn't exist.
+
+    Returns None when an `## Acceptance criteria` section is present (the blocking
+    AC gate owns those boxes) or when there are no stray unticked boxes. Otherwise
+    returns a warning naming the count + non-AC heading(s), prompting the author
+    to move any deliverable-gating boxes under a canonical heading.
+    """
+    scan = scan_ac_boxes(body)
+    if scan.has_ac_section or scan.stray_unticked == 0:
+        return None
+    headings = ", ".join(f"'{h}'" for h in scan.stray_headings)
+    return (
+        f"{scan.stray_unticked} unticked checkbox(es) under {headings} but no "
+        f"'## Acceptance criteria' section. If any are deliverable-gating, move "
+        f"them under a canonical '## Acceptance criteria' heading so the closure "
+        f"gate enforces them (non-AC checklists are intentionally exempt)."
+    )
 
 
 def check_priority_rationale(body: str) -> str | None:
@@ -342,6 +424,28 @@ def audit_pr_pre_merge(
     return collect_notebook_gaps(
         role_sets, today, n, notebooks, also_accept=issue_numbers
     )
+
+
+def collect_stray_ac_warnings(
+    n: int, repo: str | None = None
+) -> list[tuple[int, str]]:
+    """Stray-AC-box warnings for PR #n's linked Issues (Issue #730).
+
+    For each Issue in closingIssuesReferences, run the non-blocking
+    check_stray_ac_boxes lint and collect `(issue_number, warning)` for any that
+    have unticked boxes outside a (missing) `## Acceptance criteria` section.
+    Single-sources the lint for both the merge-time gate (ac_section_lint.py) and
+    its tests, mirroring audit_pr_pre_merge's shape. `repo` is forwarded to the gh
+    I/O layer so the gate composes with audit_and_merge.sh's REPO override (#607).
+    """
+    pr = fetch_pr(n, repo=repo)
+    refs = pr.get("closingIssuesReferences") or []
+    warnings: list[tuple[int, str]] = []
+    for r in refs:
+        issue = fetch_issue(r["number"], repo=repo)
+        if msg := check_stray_ac_boxes(issue.get("body") or ""):
+            warnings.append((issue["number"], msg))
+    return warnings
 
 
 def audit_issue(n: int) -> None:
