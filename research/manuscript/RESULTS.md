@@ -160,7 +160,7 @@ stronger tumor-exclusivity claim than patient_002's WES-only normal.
 TCRdock was run on SQIPRTHSY / HLA-C\*07:01, the top GPS-ranked candidate, on a GCP
 Spot GPU VM (NVIDIA P100, 16 GB VRAM). The predicted TCR–peptide–MHC ternary complex
 structure was successfully generated (`pdb_available: true` in `report.tsv`) and is
-available in `results/patient_001/predictions/tcrdock/`, rendered interactively using
+available in `results/patient_001/tcrdock/`, rendered interactively using
 Mol\* 4.x in the pipeline HTML report with chain labels A=MHC, B=peptide, C=TCR-α,
 D=TCR-β.
 
@@ -298,7 +298,7 @@ absent from healthy osteoblasts or mesenchymal stem cells.
 
 TCRdock was run on FADLRPLLL / HLA-C\*01:02, the top GPS-ranked candidate.
 The predicted TCR–peptide–MHC ternary complex structure was successfully generated
-and is available in `results/patient_002/predictions/tcrdock/`.
+and is available in `results/patient_002/tcrdock/`.
 
 *Structural interpretation (pLDDT, CDR3 contacts) to be added after Developer
 review of the PDB output.*
