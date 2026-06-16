@@ -205,7 +205,9 @@ def test_ac_deferral_comment_unblocks_unticked():
 
 
 def test_ac_all_ticked_no_gap():
-    assert ca.check_ac("- [x] one\n- [x] two\n", comments=[]) is None
+    # AC heading present so this exercises the all-ticked path, not the
+    # no-AC-section path (check_ac is AC-section-scoped, #726).
+    assert ca.check_ac("## Acceptance criteria\n- [x] one\n- [x] two\n", comments=[]) is None
 
 
 def test_ac_no_checkboxes_no_gap():
