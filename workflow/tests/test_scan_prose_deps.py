@@ -175,3 +175,21 @@ def test_parse_narrative_gap_not_caught_documented_limitation():
     # the tool/hardware lines above. These are surfaced by the human review gate instead.
     body = "Depends on the assembled registry ([Issue #732](https://example/732))."
     assert spd.parse_dependencies(737, body) == []
+
+
+def test_classify_self_ref():
+    # The defensive self-ref arm (unreachable via reconcile, but present in classify).
+    r = spd.classify(745, 745, blocker_meta={"state": "open", "is_pr": False}, existing=set())
+    assert r == "self-ref"
+
+
+def test_main_apply_only_subsets_by_dependent(monkeypatch, capsys):
+    # --only restricts --apply to the named dependents among the needs-wiring set.
+    wired = []
+    monkeypatch.setattr(spd, "wire", lambda recs: wired.extend((r["dependent"], r["blocker"]) for r in recs) or [])
+    two_needs = [
+        {"dependent": 745, "blocker": 722, "state": "open", "action": "needs-wiring"},
+        {"dependent": 705, "blocker": 626, "state": "open", "action": "needs-wiring"},
+    ]
+    rc, _ = _run_main(monkeypatch, capsys, ["--apply", "--only", "745"], [(745, 722), (705, 626)], two_needs)
+    assert rc == 0 and wired == [(745, 722)]  # only 745 wired, 705 excluded by --only

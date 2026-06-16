@@ -20,6 +20,7 @@ import subprocess
 import sys
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
+REPO_OWNER, REPO_NAME = REPO.split("/")
 
 
 def gh(*args, parse_json=True):
@@ -72,6 +73,9 @@ def parse_dependencies(number, body):
     (e.g. "depends on the registry from #732") is NOT caught — strict adjacency
     is deliberate to avoid false-matching tool/hardware deps ("requires
     NetMHCpan-4.0"). Such cases are surfaced via the human review gate, not here.
+    Two more exotic gaps: a link title with multiple issue refs (e.g. "[#5 and #6](url)")
+    keeps only the first #N after link-unwrap; and a blocker phrase embedded inside a
+    link title (e.g. "[depends on #722](url)") is stripped by link-unwrap and missed.
     Blocker open/closed and PR-vs-issue filtering happen later, in reconcile()."""
     if not body:
         return []
@@ -108,7 +112,7 @@ def native_blockers(number):
     an empty set if the issue has no blockedBy node (defensive — a malformed or
     empty response should not crash a full-board scan)."""
     q = (
-        'query { repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") {'
+        f'query {{ repository(owner: "{REPO_OWNER}", name: "{REPO_NAME}") {{'
         f"  issue(number: {number}) {{ blockedBy(first: 50) {{ nodes {{ number }} }} }}"
         "}}"
     )
@@ -148,6 +152,7 @@ def reconcile(pairs):
 
 
 _ACTION_ORDER = ["needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
+_ACTION_RANK = {a: i for i, a in enumerate(_ACTION_ORDER)}
 
 
 def render_report(records):
@@ -155,7 +160,7 @@ def render_report(records):
         return "scan_prose_deps: no prose-dependency drift found.\n"
     lines = [f"{'DEPENDENT':>9}  {'BLOCKER':>7}  {'STATE':<7}  ACTION",
              "-" * 44]
-    key = lambda r: (_ACTION_ORDER.index(r["action"]), r["dependent"], r["blocker"])
+    key = lambda r: (_ACTION_RANK.get(r["action"], len(_ACTION_ORDER)), r["dependent"], r["blocker"])
     for r in sorted(records, key=key):
         lines.append(f"#{r['dependent']:<8} #{r['blocker']:<6} {r['state']:<7}  {r['action']}")
     return "\n".join(lines) + "\n"
@@ -177,9 +182,13 @@ def wire(records):
 
 
 def _scan(issue_number=None):
-    """Fetch -> parse -> reconcile. Single-issue if issue_number given."""
+    """Fetch -> parse -> reconcile. Single-issue if issue_number given.
+
+    Single-issue scope fetches that issue directly (the hot path for the
+    DoR / best-next per-candidate check) rather than listing the whole board."""
     if issue_number is not None:
-        issues = [i for i in fetch_open_issues() if i["number"] == issue_number]
+        obj = gh("api", f"repos/{REPO}/issues/{issue_number}")
+        issues = [{"number": obj["number"], "body": obj.get("body")}]
     else:
         issues = fetch_open_issues()
     pairs = []
@@ -198,6 +207,8 @@ def main():
     parser.add_argument("--only", type=int, nargs="*", default=None,
                         help="with --apply: wire only these dependent issue numbers")
     args = parser.parse_args()
+    if args.only is not None and not args.apply:
+        parser.error("--only requires --apply")
 
     records = _scan(args.issue)
     needs = [r for r in records if r["action"] == "needs-wiring"]
