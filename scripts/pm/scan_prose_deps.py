@@ -52,15 +52,30 @@ BLOCKER_RE = re.compile(
 )
 
 
+def _normalize(text):
+    """Strip markdown that breaks blocker-phrase -> #N adjacency.
+
+    Unwraps issue-ref markdown links ([Issue #719](url) -> #719) and removes
+    emphasis/code markers (* `) so a bolded or linked dependency still matches
+    BLOCKER_RE. Underscores are left intact (they appear in identifiers)."""
+    text = re.sub(r"\[[^\]]*?#(\d+)[^\]]*?\]\([^)]*\)", r"#\1", text)  # unwrap links first
+    text = re.sub(r"[*`]", "", text)                                    # then strip emphasis
+    return text
+
+
 def parse_dependencies(number, body):
     """Return sorted, deduped (dependent, blocker) pairs from one issue body.
 
-    Pure: no I/O. Matches only the blocker-phrase allowlist; drops self-references.
-    Blocker open/closed and PR-vs-issue filtering happen later, in reconcile().
-    """
+    Pure: no I/O. Normalizes markdown (emphasis + issue-ref links) then matches
+    the blocker-phrase allowlist with strict adjacency; drops self-references.
+    KNOWN LIMITATION: a multi-word narrative gap between the phrase and #N
+    (e.g. "depends on the registry from #732") is NOT caught — strict adjacency
+    is deliberate to avoid false-matching tool/hardware deps ("requires
+    NetMHCpan-4.0"). Such cases are surfaced via the human review gate, not here.
+    Blocker open/closed and PR-vs-issue filtering happen later, in reconcile()."""
     if not body:
         return []
-    blockers = {int(m.group(1)) for m in BLOCKER_RE.finditer(body)}
+    blockers = {int(m.group(1)) for m in BLOCKER_RE.finditer(_normalize(body))}
     blockers.discard(number)  # self-reference
     return [(number, b) for b in sorted(blockers)]
 

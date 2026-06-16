@@ -136,3 +136,37 @@ def test_main_apply_wires_only_needs_wiring(monkeypatch, capsys):
     monkeypatch.setattr(spd, "wire", lambda recs: wired.extend((r["dependent"], r["blocker"]) for r in recs) or [])
     rc, _ = _run_main(monkeypatch, capsys, ["--apply"], [(745, 722)], _records())
     assert rc == 0 and wired == [(745, 722)]
+
+
+# --- markdown-aware parsing (real-world body formats; live-smoke regression) ---
+
+def test_parse_bold_phrase():
+    # "This Issue **depends on** #722" — bold markers between phrase and #N
+    assert spd.parse_dependencies(745, "This Issue **depends on** #722 rather than folding.") == [(745, 722)]
+
+def test_parse_markdown_link_ref():
+    # "Blocked on [Issue #719](url)" — issue ref as a markdown link
+    body = "Blocked on [Issue #719](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/719)."
+    assert spd.parse_dependencies(725, body) == [(725, 719)]
+
+def test_parse_bold_plus_link():
+    # "Blocked by** [Issue #629](url)" — both bold and link
+    body = "Blocked by** [Issue #629](https://github.com/x/y/issues/629) — htslib drift."
+    assert spd.parse_dependencies(636, body) == [(636, 629)]
+
+def test_parse_short_link_form():
+    # "[#42](url)" link form
+    assert spd.parse_dependencies(1, "depends on [#42](https://example/42)") == [(1, 42)]
+
+def test_parse_tool_deps_still_ignored():
+    # NON-issue deps must stay filtered (no #N after the phrase)
+    assert spd.parse_dependencies(566, "requires NetMHCpan-4.0 + netMHCstabpan licenses") == []
+    assert spd.parse_dependencies(708, "depends on paid-commercial tools (netMHCpan, netMHCstabpan)") == []
+    assert spd.parse_dependencies(601, "blocked on P100: needs bf16 which Pascal lacks") == []
+
+def test_parse_narrative_gap_not_caught_documented_limitation():
+    # KNOWN LIMITATION (documented): a multi-word gap between phrase and #N is NOT caught.
+    # Strict post-normalization adjacency is deliberate — loosening it would false-match
+    # the tool/hardware lines above. These are surfaced by the human review gate instead.
+    body = "Depends on the assembled registry ([Issue #732](https://example/732))."
+    assert spd.parse_dependencies(737, body) == []
