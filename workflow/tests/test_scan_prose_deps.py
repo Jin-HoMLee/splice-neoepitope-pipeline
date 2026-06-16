@@ -16,3 +16,42 @@ import scan_prose_deps as spd  # noqa: E402
 
 def test_repo_constant():
     assert spd.REPO == "Jin-HoMLee/splice-neoepitope-pipeline"
+
+
+@pytest.mark.parametrize("phrase", [
+    "depends on #722", "blocked by #722", "blocked on #722",
+    "blocked-by:722", "gated on #722", "requires #722",
+])
+def test_parse_allowlist_phrases_match(phrase):
+    body = f"Some context. This {phrase} to proceed."
+    assert spd.parse_dependencies(745, body) == [(745, 722)]
+
+
+@pytest.mark.parametrize("phrase", [
+    "informs #722", "consumes #722", "relates to #722", "related to #722",
+    "follow-up to #722", "supersedes #722", "superseded by #722",
+    "see #722", "cf. #722", "fixes #722",
+])
+def test_parse_narrative_phrases_excluded(phrase):
+    # Narrative cross-refs are *why*-context, never blockers — must yield nothing.
+    body = f"This PR {phrase}."
+    assert spd.parse_dependencies(745, body) == []
+
+
+def test_parse_multiple_blockers_deduped_and_sorted():
+    body = "Depends on #708 and blocked by #707. Also depends on #708 again."
+    assert spd.parse_dependencies(709, body) == [(709, 707), (709, 708)]
+
+
+def test_parse_self_reference_dropped():
+    body = "This depends on #745 (itself, nonsensically)."
+    assert spd.parse_dependencies(745, body) == []
+
+
+def test_parse_empty_or_none_body():
+    assert spd.parse_dependencies(1, "") == []
+    assert spd.parse_dependencies(1, None) == []
+
+
+def test_parse_case_insensitive():
+    assert spd.parse_dependencies(2, "DEPENDS ON #5") == [(2, 5)]

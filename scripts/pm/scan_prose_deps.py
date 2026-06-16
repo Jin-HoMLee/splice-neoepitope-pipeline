@@ -35,3 +35,31 @@ def fetch_open_issues():
         "issue", "list", "--repo", REPO, "--state", "open", "--limit", "1000",
         "--json", "number,title,body,state",
     )
+
+
+# Blocker-phrase allowlist — deliberately narrow: only verbs that mean "this is
+# blocked until #M". Narrative verbs (informs/consumes/relates to/see/fixes/...)
+# are NOT listed, so they never match — that IS the exclude mechanism (a narrow
+# allowlist), proven by test_parse_narrative_phrases_excluded.
+# Note: blocked-by: allows optional # (e.g. "blocked-by:722" or "blocked-by:#722");
+# others require # to avoid false matches like "requires 5 steps".
+BLOCKER_RE = re.compile(
+    r"(?:"
+    r"(?:depends on|blocked by|blocked on|gated on|requires)\s*#"
+    r"|blocked-by:?\s*#?"
+    r")(\d+)",
+    re.IGNORECASE,
+)
+
+
+def parse_dependencies(number, body):
+    """Return sorted, deduped (dependent, blocker) pairs from one issue body.
+
+    Pure: no I/O. Matches only the blocker-phrase allowlist; drops self-references.
+    Blocker open/closed and PR-vs-issue filtering happen later, in reconcile().
+    """
+    if not body:
+        return []
+    blockers = {int(m.group(1)) for m in BLOCKER_RE.finditer(body)}
+    blockers.discard(number)  # self-reference
+    return [(number, b) for b in sorted(blockers)]
