@@ -478,6 +478,16 @@ def test_scan_ac_boxes_flags_stray_boxes_under_non_ac_heading():
     assert scan.stray_headings == ["Plan (phased)"]
 
 
+def test_scan_ac_boxes_stray_boxes_before_any_heading():
+    """Boxes before any `## ` heading are stray under the `(top of body)`
+    sentinel — guards the cur_heading initialisation (PR #761 review)."""
+    body = "- [ ] orphan box\n- [x] done\n\n## Context\nprose\n"
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.stray_unticked == 1
+    assert scan.stray_headings == ["(top of body)"]
+
+
 def test_scan_ac_boxes_no_checkboxes_anywhere():
     body = "## Context\njust prose, no boxes at all\n"
     scan = ca.scan_ac_boxes(body)
