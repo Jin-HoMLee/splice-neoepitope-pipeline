@@ -55,3 +55,41 @@ def test_parse_empty_or_none_body():
 
 def test_parse_case_insensitive():
     assert spd.parse_dependencies(2, "DEPENDS ON #5") == [(2, 5)]
+
+
+def test_classify_needs_wiring():
+    r = spd.classify(745, 722, blocker_meta={"state": "open", "is_pr": False}, existing=set())
+    assert r == "needs-wiring"
+
+def test_classify_already_wired():
+    r = spd.classify(745, 722, blocker_meta={"state": "open", "is_pr": False}, existing={722})
+    assert r == "already-wired"
+
+def test_classify_closed_blocker():
+    r = spd.classify(594, 211, blocker_meta={"state": "closed", "is_pr": False}, existing=set())
+    assert r == "closed-blocker"
+
+def test_classify_un_wireable_pr():
+    r = spd.classify(680, 714, blocker_meta={"state": "open", "is_pr": True}, existing=set())
+    assert r == "un-wireable-pr"
+
+
+def test_reconcile_classifies_each_pair(monkeypatch):
+    meta = {
+        722: {"state": "open", "is_pr": False},   # needs-wiring
+        211: {"state": "closed", "is_pr": False}, # closed-blocker
+        714: {"state": "open", "is_pr": True},    # un-wireable-pr
+        708: {"state": "open", "is_pr": False},   # already-wired (in existing)
+    }
+    monkeypatch.setattr(spd, "issue_meta", lambda n: meta[n])
+    monkeypatch.setattr(spd, "native_blockers", lambda n: {708} if n == 709 else set())
+
+    pairs = [(745, 722), (594, 211), (680, 714), (709, 708)]
+    records = spd.reconcile(pairs)
+    actions = {(r["dependent"], r["blocker"]): r["action"] for r in records}
+    assert actions == {
+        (745, 722): "needs-wiring",
+        (594, 211): "closed-blocker",
+        (680, 714): "un-wireable-pr",
+        (709, 708): "already-wired",
+    }
