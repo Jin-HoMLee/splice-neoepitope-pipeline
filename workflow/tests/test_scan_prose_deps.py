@@ -93,3 +93,46 @@ def test_reconcile_classifies_each_pair(monkeypatch):
         (680, 714): "un-wireable-pr",
         (709, 708): "already-wired",
     }
+
+
+def _records():
+    return [
+        {"dependent": 745, "blocker": 722, "state": "open", "action": "needs-wiring"},
+        {"dependent": 594, "blocker": 211, "state": "closed", "action": "closed-blocker"},
+    ]
+
+def test_render_report_lists_each_record():
+    out = spd.render_report(_records())
+    assert "745" in out and "722" in out and "needs-wiring" in out
+    assert "594" in out and "closed-blocker" in out
+
+def test_render_report_empty():
+    assert "no prose-dependency drift" in spd.render_report([]).lower()
+
+def _run_main(monkeypatch, capsys, argv, pairs, records):
+    monkeypatch.setattr(spd, "fetch_open_issues",
+                        lambda: [{"number": 745, "title": "x", "body": "depends on #722", "state": "OPEN"}])
+    monkeypatch.setattr(spd, "parse_dependencies", lambda n, b: pairs)
+    monkeypatch.setattr(spd, "reconcile", lambda p: records)
+    monkeypatch.setattr(sys, "argv", ["scan_prose_deps.py", *argv])
+    rc = spd.main()
+    return rc, capsys.readouterr().out
+
+def test_main_report_default_exit_zero(monkeypatch, capsys):
+    rc, out = _run_main(monkeypatch, capsys, [], [(745, 722)], _records())
+    assert rc == 0 and "needs-wiring" in out
+
+def test_main_check_exits_2_on_drift(monkeypatch, capsys):
+    rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722)], _records())
+    assert rc == 2
+
+def test_main_check_exits_0_when_clean(monkeypatch, capsys):
+    clean = [{"dependent": 594, "blocker": 211, "state": "closed", "action": "closed-blocker"}]
+    rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(594, 211)], clean)
+    assert rc == 0
+
+def test_main_apply_wires_only_needs_wiring(monkeypatch, capsys):
+    wired = []
+    monkeypatch.setattr(spd, "wire", lambda recs: wired.extend((r["dependent"], r["blocker"]) for r in recs) or [])
+    rc, _ = _run_main(monkeypatch, capsys, ["--apply"], [(745, 722)], _records())
+    assert rc == 0 and wired == [(745, 722)]

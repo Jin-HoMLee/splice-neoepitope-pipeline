@@ -68,7 +68,7 @@ def parse_dependencies(number, body):
 def classify(dependent, blocker, *, blocker_meta, existing):
     """Classify one (dependent, blocker) pair. Pure given resolved inputs."""
     if dependent == blocker:
-        return "self-ref"
+        return "self-ref"  # unreachable via reconcile (parse drops self-refs); defensive
     if blocker in existing:
         return "already-wired"
     if blocker_meta["state"] == "closed":
@@ -86,14 +86,20 @@ def issue_meta(number):
 
 
 def native_blockers(number):
-    """Set of issue numbers this issue is already natively blockedBy."""
+    """Set of issue numbers this issue is already natively blockedBy.
+
+    Uses the GraphQL blockedBy edge (GitHub enforces a max of 50 blockers per
+    direction per issue, so first:50 is a true ceiling, not a sample). Returns
+    an empty set if the issue has no blockedBy node (defensive — a malformed or
+    empty response should not crash a full-board scan)."""
     q = (
         'query { repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") {'
         f"  issue(number: {number}) {{ blockedBy(first: 50) {{ nodes {{ number }} }} }}"
         "}}"
     )
     data = gh("api", "graphql", "-f", f"query={q}")
-    nodes = data["data"]["repository"]["issue"]["blockedBy"]["nodes"]
+    issue = (data.get("data", {}).get("repository", {}) or {}).get("issue") or {}
+    nodes = (issue.get("blockedBy") or {}).get("nodes") or []
     return {n["number"] for n in nodes}
 
 
@@ -124,3 +130,74 @@ def reconcile(pairs):
             "action": action,
         })
     return records
+
+
+_ACTION_ORDER = ["needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
+
+
+def render_report(records):
+    if not records:
+        return "scan_prose_deps: no prose-dependency drift found.\n"
+    lines = [f"{'DEPENDENT':>9}  {'BLOCKER':>7}  {'STATE':<7}  ACTION",
+             "-" * 44]
+    key = lambda r: (_ACTION_ORDER.index(r["action"]), r["dependent"], r["blocker"])
+    for r in sorted(records, key=key):
+        lines.append(f"#{r['dependent']:<8} #{r['blocker']:<6} {r['state']:<7}  {r['action']}")
+    return "\n".join(lines) + "\n"
+
+
+def wire(records):
+    """POST a native blockedBy edge for each record (must be needs-wiring).
+    Uses the REST dependencies endpoint, which takes the blocker's numeric DB id."""
+    wired = []
+    for r in records:
+        dependent, blocker = r["dependent"], r["blocker"]
+        blocker_db_id = gh("api", f"repos/{REPO}/issues/{blocker}", parse_json=True)["id"]
+        gh("api", "--method", "POST",
+           f"repos/{REPO}/issues/{dependent}/dependencies/blocked_by",
+           "-F", f"issue_id={blocker_db_id}", parse_json=False)
+        print(f"  wired: #{dependent} blocked_by #{blocker}")
+        wired.append((dependent, blocker))
+    return wired
+
+
+def _scan(issue_number=None):
+    """Fetch -> parse -> reconcile. Single-issue if issue_number given."""
+    if issue_number is not None:
+        issues = [i for i in fetch_open_issues() if i["number"] == issue_number]
+    else:
+        issues = fetch_open_issues()
+    pairs = []
+    for i in issues:
+        pairs.extend(parse_dependencies(i["number"], i.get("body")))
+    return reconcile(pairs)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--issue", type=int, help="restrict scan to a single dependent issue")
+    parser.add_argument("--check", action="store_true", help="exit 2 if any needs-wiring drift")
+    parser.add_argument("--apply", action="store_true", help="wire the needs-wiring edges")
+    parser.add_argument("--only", type=int, nargs="*", default=None,
+                        help="with --apply: wire only these dependent issue numbers")
+    args = parser.parse_args()
+
+    records = _scan(args.issue)
+    needs = [r for r in records if r["action"] == "needs-wiring"]
+
+    if args.apply:
+        subset = needs if args.only is None else [r for r in needs if r["dependent"] in args.only]
+        if not subset:
+            print("scan_prose_deps: nothing to wire.")
+            return 0
+        wire(subset)
+        return 0
+
+    print(render_report(records), end="")
+    if args.check:
+        return 2 if needs else 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
