@@ -88,10 +88,10 @@ These three call-sites are *documented* now; whether they invoke the script lite
 
 ## 11. Acceptance criteria (mapped from the Issue)
 
-- [ ] Existing open prose dependency chains reflected as native `blockedBy` edges (§7 steps 1-3).
-- [ ] `is:blocked` / blockedBy audit returns the real blocked set (§7 step 4).
-- [ ] Convention documented — scanner cross-ref'd into `feedback_dependency_tracking.md`; the three call-sites named (§10).
-- [ ] `scripts/pm/scan_prose_deps.py` lands with the four modes (§6) and parse-layer pytest coverage (§9).
+- [x] Existing open prose dependency chains reflected as native `blockedBy` edges (§7 steps 1-3). — backfill found them already reflected (already-wired); the lone `needs-wiring` candidate was a reviewed false positive, so zero edges needed wiring.
+- [x] `is:blocked` / blockedBy audit returns the real blocked set (§7 step 4). — verified via `is:blocked` alone (12) + GraphQL ground truth; surfaced that the `is:open is:blocked` combo is broken (returns 0).
+- [x] Convention documented — scanner cross-ref'd into `feedback_dependency_tracking.md`; the call-sites named; query guidance corrected (§10). _(memory edit, for MM to commit)_
+- [x] `scripts/pm/scan_prose_deps.py` lands with the four modes (§6) and parse-layer pytest coverage (§9). — 41 tests, markdown-aware parsing, code-review polish applied.
 
 ## 12. Open questions for the plan
 
