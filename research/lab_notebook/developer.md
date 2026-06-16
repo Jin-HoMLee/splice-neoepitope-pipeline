@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-16 — closure gate lints gating boxes outside an AC section ([PR #761](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/761) closes [Issue #730](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/730))
+
+### 19:57 UTC — Editor: Developer
+
+**Why.** The closure gate's AC check (`audit_and_merge.sh`, gate 2) blocks only on unticked `- [ ]` boxes *under* a `## Acceptance criteria` heading. An Issue whose gating boxes sit under a different heading therefore has 0 boxes "under Acceptance criteria" → the check counts nothing → silent pass. [PR #724](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/724) merged [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) this way (gating boxes under `## Plan (phased)`). Root cause is a **terminology deviation, not a parser gap** — broadening the gate to also read `Plan`/`Tasks`/`Checklist` would false-block the *non-gating* boxes those sections routinely carry, making the gate non-deterministic.
+
+**The fix.** Keep the gate keyed to one canonical AC heading; close the hole with a **non-blocking lint**. New shared pure helper `closure_audit.scan_ac_boxes(body)` partitions a body's checkboxes into AC-section vs stray; `check_stray_ac_boxes` warns when unticked boxes exist with no AC section (silent when an AC section is present — the blocking gate owns it); `collect_stray_ac_warnings(pr)` orchestrates over a PR's linked Issues (REPO-aware, [#607](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/607) parity). Thin CLI `tools/ci/ac_section_lint.py` always exits 0 and fails open, mirroring `stray_closers.py` / `lab_notebook_gate.py`; `audit_and_merge.sh` wires it after the blocking checks and never lets it set `FAILED`. `scan_ac_boxes` is deliberately the helper the **sequenced follow-up [Issue #726](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/726)** scopes `check_ac` onto — the #730→#726 order was PM-ratified in [Discussion #750](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/750) (#726-first would re-open #730's silent no-op).
+
+**Verification.** TDD throughout — every function had a failing test first (watched red, then green). `pytest tools/ci/` 291 → 310 (+19). Bot review: **LGTM, no blockers**; added one test it flagged (boxes before any `## ` heading → `(top of body)` sentinel). Declined its other note (success-echo omission) — the bot agreed it's reasonable since the lint is advisory-only. No chr22 integration run needed (CI-tooling change, not a Snakemake rule). CI green 4/4.
+
+**Process memory (for MM to commit; personas repo).** The shared-memory half of AC1 — the Issue-authoring convention "deliverable-gating checkboxes live under a canonical `## Acceptance criteria` heading; non-AC checklists are exempt" — belongs in `shared/feedback_issue_creation_canonical_sections.md` / `shared/feedback_closure_ritual.md`. CLAUDE.md carries the committed copy in this PR; the shared-memory addition is flagged for MM.
+
+---
+
 ## 2026-06-15 — closure-audit reason-awareness + two Issue-lifecycle guardrails ([PR #744](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/744) closes [Issue #743](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/743))
 
 ### 14:44 UTC — Editor: Developer

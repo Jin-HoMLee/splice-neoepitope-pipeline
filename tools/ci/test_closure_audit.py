@@ -443,6 +443,103 @@ def test_audit_issue_not_planned_still_flags_unticked_ac(monkeypatch):
     assert "Lab notebook" not in body  # notebook check still skipped
 
 
+# --- #730: stray-AC-box lint (gating boxes outside an "Acceptance criteria" section) ---
+
+
+def test_scan_ac_boxes_classifies_ac_section_boxes():
+    """Boxes under `## Acceptance criteria` are counted as AC, not stray."""
+    body = (
+        "## Acceptance criteria\n"
+        "- [ ] one\n"
+        "- [x] two\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is True
+    assert scan.ac_unticked == 1
+    assert scan.ac_total == 2
+    assert scan.stray_unticked == 0
+    assert scan.stray_headings == []
+
+
+def test_scan_ac_boxes_flags_stray_boxes_under_non_ac_heading():
+    """The #569 shape: gating boxes under `## Plan (phased)`, no AC section."""
+    body = (
+        "## Context\nsome prose\n\n"
+        "## Plan (phased)\n"
+        "- [ ] P1 do a thing\n"
+        "- [x] P2 done\n"
+        "- [ ] P3 another\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.ac_unticked == 0
+    assert scan.ac_total == 0
+    assert scan.stray_unticked == 2
+    assert scan.stray_headings == ["Plan (phased)"]
+
+
+def test_scan_ac_boxes_stray_boxes_before_any_heading():
+    """Boxes before any `## ` heading are stray under the `(top of body)`
+    sentinel — guards the cur_heading initialisation (PR #761 review)."""
+    body = "- [ ] orphan box\n- [x] done\n\n## Context\nprose\n"
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.stray_unticked == 1
+    assert scan.stray_headings == ["(top of body)"]
+
+
+def test_scan_ac_boxes_no_checkboxes_anywhere():
+    body = "## Context\njust prose, no boxes at all\n"
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.ac_total == 0
+    assert scan.stray_unticked == 0
+    assert scan.stray_headings == []
+
+
+def test_scan_ac_boxes_counts_both_ac_and_stray():
+    """AC section present AND stray boxes elsewhere — both tracked separately."""
+    body = (
+        "## Plan\n- [ ] stray\n\n"
+        "## Acceptance criteria\n- [ ] ac one\n- [x] ac two\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is True
+    assert scan.ac_unticked == 1
+    assert scan.ac_total == 2
+    assert scan.stray_unticked == 1
+    assert scan.stray_headings == ["Plan"]
+
+
+def test_check_stray_ac_boxes_warns_on_stray_boxes_without_ac_section():
+    """No AC section + unticked boxes elsewhere → warning naming count + heading."""
+    body = (
+        "## Plan (phased)\n"
+        "- [ ] P1\n"
+        "- [ ] P2\n"
+    )
+    msg = ca.check_stray_ac_boxes(body)
+    assert msg is not None
+    assert "2" in msg                     # count of stray unticked boxes
+    assert "Plan (phased)" in msg         # the non-AC heading
+    assert "Acceptance criteria" in msg   # prompts the canonical-heading convention
+
+
+def test_check_stray_ac_boxes_silent_when_ac_section_present():
+    """An AC section present → the blocking AC gate owns it; lint stays silent
+    even if there are unticked boxes under another heading."""
+    body = (
+        "## Plan\n- [ ] stray\n\n"
+        "## Acceptance criteria\n- [ ] real ac\n"
+    )
+    assert ca.check_stray_ac_boxes(body) is None
+
+
+def test_check_stray_ac_boxes_silent_when_no_checkboxes():
+    body = "## Context\nprose only, nothing to gate\n"
+    assert ca.check_stray_ac_boxes(body) is None
+
+
 def test_format_comment_clean_state():
     out = ca.format_comment("PR #1", [], [], [])
     assert "all clear" in out.lower()
