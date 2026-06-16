@@ -58,13 +58,22 @@ _SKIP_LAB_NOTEBOOK = re.compile(r"<!--\s*skip-lab-notebook\b[^>]*-->", re.IGNORE
 
 
 def check_ac(body: str, comments: list[str]) -> str | None:
-    unticked = len(_UNTICKED.findall(body))
-    ticked = len(_TICKED.findall(body))
-    if unticked == 0:
+    """Gap when the `## Acceptance criteria` section has unticked boxes.
+
+    Scoped to the AC section via scan_ac_boxes (Issue #726), mirroring the
+    pre-merge gate's `unticked_under "Acceptance criteria"` so the two gates
+    agree on what an AC checkbox is. Boxes under other headings (a non-AC
+    `## Flags to evaluate` / `## Tasks` checklist) are NOT AC gaps — those are
+    surfaced advisorily by the merge-time stray-box lint (check_stray_ac_boxes,
+    Issue #730), not flagged here. Previously this scanned the whole body and
+    false-flagged any non-AC checklist (Issue #411 via PR #720).
+    """
+    scan = scan_ac_boxes(body)
+    if scan.ac_unticked == 0:
         return None
     if any("❎" in c and "deferred" in c.lower() for c in comments):
         return None
-    return f"{unticked}/{unticked + ticked} unticked, no deferral comment found"
+    return f"{scan.ac_unticked}/{scan.ac_total} unticked, no deferral comment found"
 
 
 # A markdown `## ` heading (exactly two hashes — `### ` and deeper are sub-
