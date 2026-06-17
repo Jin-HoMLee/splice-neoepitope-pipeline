@@ -199,8 +199,9 @@ def test_main_json_emits_flat_array(monkeypatch, capsys):
     assert isinstance(parsed, list)      # not an envelope object
     assert len(parsed) == 2              # what `jq length` would report
     assert {it["number"] for it in parsed} == {1, 2}
-    # additive timestamp keys reach the JSON output (the PR-body additive-field claim)
-    assert all(k in parsed[0] for k in ("created_at", "updated_at", "closed_at"))
+    # additive keys reach the JSON output (the PR-body additive-field claim):
+    # timestamps (Issue #642) + is_parent (Issue #742)
+    assert all(k in parsed[0] for k in ("created_at", "updated_at", "closed_at", "is_parent"))
 
 
 def test_main_default_no_flags_uses_sort_key(monkeypatch, capsys):
@@ -326,3 +327,15 @@ def test_exclude_parents_filters_out_parents(monkeypatch, capsys):
     _, out = _run_main(monkeypatch, capsys, ["--exclude-parents", "--json"], raw)
     nums = [it["number"] for it in json.loads(out)]
     assert nums == [2]  # the parent (#1) is dropped, the leaf (#2) stays
+
+
+def test_format_table_parent_kind_keeps_column_alignment():
+    # "Issue/P" is 7 chars and must not overflow the Kind column and shift the
+    # # column out from under its header (the first kind value to exceed the
+    # old 5-char budget; "Issue"=5 fit, drafts are "PR/D"=4).
+    parent = boi.normalize(_board_item(547, sub_total=4))
+    lines = boi.format_table([parent], now=NOW).splitlines()
+    header, row = lines[0], lines[2]  # 0=header, 1=separator, 2=data
+    assert "Issue/P" in row
+    # the issue number sits exactly under the '#' header label
+    assert row.index("547") == header.index("#")

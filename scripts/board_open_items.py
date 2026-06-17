@@ -287,9 +287,12 @@ def format_table(
     # only --json exposes it). Issue #689.
     arc_hdr = f"{'Arc':<18} {'Ph':<7} " if arc_columns else ""
     arc_sep = f"{'-' * 18} {'-' * 7} " if arc_columns else ""
+    # Kind column is 8 wide to fit the longest marker "Issue/P" (parent); plain
+    # "Issue" / draft "PR/D" are shorter. A narrower budget overflows and shifts
+    # every column to its right out from under its header.
     lines = [
-        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<5} {'#':<5} {arc_hdr}Title",
-        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 5} {'-' * 5} {arc_sep}{'-' * 60}",
+        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<8} {'#':<5} {arc_hdr}Title",
+        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 5} {arc_sep}{'-' * 60}",
     ]
     for it in items:
         role = (it["role"] or "(none)").removeprefix("role:")[:16]
@@ -306,7 +309,7 @@ def format_table(
             arc_cell = ""
         lines.append(
             f"{it['status']:<17} {it['priority'] or '?':<3} {it['size'] or '?':<3} "
-            f"{age:<5} {role:<17} {kind:<5} {it['number']:<5} {arc_cell}{title}"
+            f"{age:<5} {role:<17} {kind:<8} {it['number']:<5} {arc_cell}{title}"
         )
     return "\n".join(lines) + "\n"
 
