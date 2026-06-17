@@ -1,0 +1,85 @@
+# data_manifest.yaml — calibration cohort tables for the immunogenicity-calibration epic
+#
+# Schema v1 — PINNED by Issue #707 (first artifact set in this epic crosses the
+# >100 MB git-exclusion threshold; CLAUDE.md "Size guidance").
+#
+# Raw tables are NOT committed to git: NeoRanking is LICR (Ludwig Institute for
+# Cancer Research) copyright with no OSS license — consume for training/calibration
+# only, do NOT redistribute. Tables are fetched per-clone (or on the GPU VM) into a
+# gitignored path and mirrored to GCS; this manifest carries only paths + checksums
+# + fetch commands so the data is reproducible without redistributing it.
+
+schema_version: 1
+issue: 707                       # data-acquisition sub-issue
+parent_epic: 547                 # KDE + centered-isotonic calibration epic
+gcs_prefix: gs://splice-neoepitope-project/experiments/issue_547/
+local_path: research/experiments/issue_547_immunogenicity_calibration/data/   # gitignored (root .gitignore `data/`); per-clone / on-VM
+
+datasets:
+  - name: neoranking
+    role: primary                # calibration training cohort
+    citation: "Müller M. et al., Immunity 2023; doi:10.1016/j.immuni.2023.09.002"
+    code: https://github.com/bassanilab/NeoRanking
+    license: "LICR (Ludwig Institute for Cancer Research) copyright — no OSS license; no redistribution"
+    # ⚠️ SOURCE-OF-TRUTH NOTE: the NeoRanking *README* mislabels its figshare links —
+    # it points the data-table names at the CLASSIFIER records. The authoritative links
+    # below are from the *paper's* "Data and Code Availability" statement (Müller 2023,
+    # read from the Zotero PDF, attachment 96V52NKW). The README links a000.../3c27...
+    # are the trained LR/XGBoost CLASSIFIERS (the *_clf model zips), NOT the data.
+    #
+    # Cohort composition: CONFIRMED from the paper AND from the downloaded tables (2026-06-17):
+    #   Mutation-level (Mutation_data_org.txt): NCI 112 pt (dbGaP phs001003.v1.p1)
+    #     + TESLA 8 pt (Synapse syn21048999) + HiTIDE/in-house 11 pt (EGA EGAS00001007101)
+    #     = 131 patients. NO Bjerregaard. Immunogenic (response_type==CD8) = 213 mutations.
+    #   Neo-peptide-level (Neopep_data_org.txt): NCI 80 + TESLA 8 + HiTIDE 11 = 99 patients
+    #     (32 NCI pt have no testable 8-12mer); immunogenic (CD8) = 178 neo-peptides
+    #     — matches the paper's "~178 immunogenic neo-peptides".
+    #   #592's "~165 pos / 74 pt / +Bjerregaard" is NeoGuider-benchmark framing — diverges.
+    cohorts: "mutation-level 131 pt (NCI 112 + TESLA 8 + HiTIDE 11), 213 CD8; neo-pep-level 99 pt (NCI 80 + TESLA 8 + HiTIDE 11), 178 CD8 — paper+data confirmed; no Bjerregaard"
+    # Label encoding (response_type), neo-peptide table: not_tested 1,364,625 / negative 422,907 / CD8 178.
+    #   POSITIVE = "CD8" (confirmed CD8+ T-cell response). NEGATIVE = "negative" (assayed, no response).
+    #   not_tested = candidate never immuno-assayed (EXCLUDE from calibration — neither pos nor neg).
+    # Peptide lengths (mutant_seq): 8mer 297,537 / 9mer 337,905 / 10mer 377,640 / 11mer 417,204 / 12mer 357,424
+    #   — all within MHCflurry's 8-15 supported range. Join coverage: 0 missing mutant_seq, 0 missing mutant_best_alleles.
+    files:
+      - filename: Neopep_data_org.txt        # paper: "Combined data matrix neo-pep" (feature values + immunogenicity annotations); 1,787,710 rows × 57 cols, TSV
+        figshare_share: https://figshare.com/s/147e67dde683fb769908
+        fetch: "download from the figshare data link above (NOT the a000... classifier record); unzip Neopep_data_org.txt.zip"
+        sha256: 7bb920ad717491ea6f8300a420913c789aeea7da99712b41a7ffef8eb84fd3d8
+        size_bytes: 715165507
+      - filename: Mutation_data_org.txt       # paper: "Combined data matrix mut-seq"; 48,306 rows × 59 cols, TSV
+        figshare_share: https://figshare.com/s/2462b62bb6630fe2d257
+        fetch: "download from the figshare data link above (NOT the 3c27... classifier record); unzip Mutation_data_org.txt.zip"
+        sha256: 00e59ab81b72bef09bdfbb75f11b5338785e32eb427fd5903f1a1375190abe74
+        size_bytes: 20582134
+      - filename: HLA_allotypes.txt           # paper: "HLA allotypes for all patients"; 150 patients, TSV (Patient \t comma-sep alleles)
+        figshare_share: https://figshare.com/s/35361871fdad4d1754d7
+        fetch: "download from its own figshare record (per paper Data Availability)"
+        sha256: 790644a3aa15c0abb7e5e1e8b9436950ff52668779093907ae1c3e99172b6740
+        size_bytes: 7518
+    # Reference-only figshare records (downloaded already / optional):
+    classifier_neopep_share: https://figshare.com/s/a000b0990465ab3e9d33   # trained neo-pep LR/XGBoost (Classifier_neopeptide.zip — in data/)
+    classifier_mut_share: https://figshare.com/s/3c27fa3b705a74bdfa10      # trained mutation LR/XGBoost (Classifiers_mutation.zip — in data/)
+    ipmsdb_share: https://figshare.com/s/4f551e68e44d9cbf9ccd              # ipMSDB peptide feature DB (optional)
+
+  - name: improve_borch
+    role: augment            # NOT blocking — calibrator (#708) proceeds on neoranking primary; this enlarges the negative/positive pool later
+    status: access_path_documented   # download deferred to the open-egress VM (figshare/Frontiers pages are JS-gated behind the local sandbox proxy)
+    citation: "Borch A. et al., Front. Immunol. 2024; doi:10.3389/fimmu.2024.1360281"
+    cohort: "17,520 candidates / 467 immunogenic (IMPROVE training set)"
+    license: "Frontiers is OA (CC-BY); confirm supplementary data-availability terms on download"
+    access_path:
+      - "Paper Data Availability Statement: doi.org/10.3389/fimmu.2024.1360281 — the IMPROVE training table is in the article's Supplementary Material + the project repo."
+      - "Code/repo: github.com/mnielLab/IMPROVE (Nielsen lab). Training data shipped with the repo / Frontiers supplementary."
+    files:
+      - filename: PENDING        # resolve exact supplementary filename when fetched on the VM
+        source: "Frontiers supplementary (10.3389/fimmu.2024.1360281) or github.com/mnielLab/IMPROVE"
+        fetch: "on the open-egress VM: clone IMPROVE repo / pull Frontiers supplementary; then sha256sum + size into this manifest"
+        sha256: PENDING
+        size_bytes: PENDING
+
+# Status (2026-06-17): NeoRanking primary FULLY in hand — 3 tables downloaded, unzipped,
+# checksummed (sha256 + size above), schema confirmed, cohort composition reconciled
+# (mutation 131 pt / neo-pep 99 pt; 178 CD8 neo-peptides), all rows join-ready
+# (peptide + HLA present). Tables mirrored to gs://splice-neoepitope-project/experiments/issue_547/.
+# IMPROVE/Borch augment: access path documented (not blocking); byte-download deferred to VM.
