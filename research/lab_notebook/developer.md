@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-17 — board_open_items.py is parent-aware ([PR #768](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/768) closes [Issue #742](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/742))
+
+### Editor: Developer
+
+**Why.** The PM weekly triage + flow-health sweeps read `scripts/board_open_items.py --json`, which exposed no parenthood signal. So parent/epic Issues drew false-positive flags for conditions that are correct-by-design: a parent carries no Size (it rolls up from sub-issues), and its board Status *mirrors* a child, reading as independent "aging WIP" drift. Surfaced 2026-06-15 when the morning sweep flagged parents [#547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) and [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680). A memory note doesn't fire at sweep-time; the signal is computable, so the tool computes it (deterministic-first / mechanism-over-memory).
+
+**The fix.** The `... on Issue` GraphQL fragment now requests `subIssuesSummary { total }`; `normalize()` derives `is_parent` (`total > 0`), mirroring the parenthood derivation already in `.claude/hooks/check_gh_issue_develop_parent.py`. The PR fragment is untouched (PRs have no sub-issues → `is_parent` False structurally, enforced at the query layer not by defensive code). `--json` carries `is_parent` (additive key); the table marks parents `Issue/P` in the Kind column (mirrors the `/D` draft marker; mutually exclusive — a parent is always an Issue, never a draft); `--exclude-parents` drops parents at the source so the sweeps can filter without `jq`. Scope is the *signal* + filter — wiring the PM sweeps to call `--exclude-parents` is a deferred consumer follow-up (AC note on #742).
+
+**Verification.** TDD throughout (RED watched before each GREEN): 8 new tests in `workflow/tests/test_board_open_items.py` (the CI-gated home — the pre-existing `scripts/tests/test_board_open_items_arc.py` is *not* CI-collected, a separate latent gap left untouched). Live smoke test on board #9: #547/#680 flag `is_parent=true`; `--exclude-parents` dropped 9 parents (113→104) with zero leaks; #547 confirmed Size-unset (the targeted false-positive). Full `workflow/tests/` suite green (529→ +8); arc suite 9 green. Bot review **LGTM, no blockers** — addressed two notes: widened the Kind column to 8 (its `"Issue/D"` rationale was wrong — `Issue/D` can't occur, so `Issue/P` is the *first* overflow and this PR introduced it; added a column-alignment regression test), and asserted `is_parent` in the JSON-contract test. Declined a third (leaf-row lookup fragility — robust in practice). No chr22 integration run needed (board-tooling change, not a Snakemake rule).
+
+---
+
 ## 2026-06-16 — closure gate lints gating boxes outside an AC section ([PR #761](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/761) closes [Issue #730](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/730))
 
 ### 20:37 UTC — Editor: Developer — scope post-merge `check_ac` to the AC section ([PR #763](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/763) closes [Issue #726](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/726))
