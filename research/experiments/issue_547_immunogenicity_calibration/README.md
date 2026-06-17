@@ -27,8 +27,8 @@ Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribut
 | Checksums + sizes | ✅ sha256 + byte sizes in `data_manifest.yaml` |
 | Schema + join-feasibility doc | ✅ see "Schema & join feasibility" below |
 | GCS mirror (>100 MB) | ✅ `gs://splice-neoepitope-project/experiments/issue_547/` |
-| Cohort-composition reconcile vs #592 | ✅ paper+data confirmed: mutation 131 pt / neo-pep 99 pt, 178 CD8 neo-peptides, **no Bjerregaard** — #592 correcting note drafted (pending post) |
-| IMPROVE/Borch augment | 📄 access path documented (not blocking; byte-download deferred to VM) |
+| Cohort-composition reconcile vs #592 | ✅ paper+data confirmed: mutation 131 pt / neo-pep 99 pt, 178 CD8 neo-peptides, **no Bjerregaard** — #592 correcting note posted |
+| IMPROVE/Borch augment | ✅ downloaded — CV training table (17,520 / 467) + CEDAR benchmark from `SRHgroup/IMPROVE_paper` (the repo named in the paper's Data Availability Statement) |
 
 ## Schema & join feasibility (NeoRanking, confirmed from the downloaded tables 2026-06-17)
 
@@ -64,6 +64,28 @@ directly scoreable by `Class1PresentationPredictor` (peptide + allele → `prese
 `presentation_percentile`), which is exactly the input the calibrator (#708) maps to an immunogenicity
 log-odds. Per-patient genotype scoring can use the ≤6 alleles from `HLA_allotypes.txt`.
 
+### IMPROVE / Borch augment (`data/improve_borch/`, confirmed 2026-06-17)
+
+Source: `github.com/SRHgroup/IMPROVE_paper` @ `c670942` (the repo named in the paper's **Data
+Availability Statement** — Hadrup group, DTU; *not* `mnielLab`). Two TSVs copied; the larger
+`data.zip`/`results.zip` bundles stay in the repo (reproducible via `git clone`).
+
+| file | rows | cols | grain |
+|---|---|---|---|
+| `In_house_neoepitope_for_CV.tsv` | 17,520 | 3 | the training set — one row per candidate peptide |
+| `Neoepitopes_CEDAR_benchmark_data.tsv` | 2,436 | 3 | external CEDAR held-out benchmark (548 positive) |
+
+Schema (both): `Mut_peptide` · `HLA_allele` · `response`. **`response` is BINARY: 1 = immunogenic,
+0 = not** (17,053 neg / 467 pos in the CV table — matches the paper's "17,520 / 467"). No `not_tested`
+class, unlike NeoRanking. Lengths 8–11mers (8:515 · 9:10,561 · 10:4,716 · 11:1,728), all in range;
+0 missing peptide/HLA → fully scoreable.
+
+**Join nuance:** IMPROVE HLA is `HLA-A01:01` (no asterisk); NeoRanking is `A*01:01`. Both must be
+normalized to MHCflurry's canonical `HLA-A*01:01` before scoring. Pooling the two cohorts also means
+reconciling the 3-way (`CD8`/`negative`/`not_tested`) vs binary (`1`/`0`) label encodings — the
+calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanking `CD8`→1,
+`negative`→0, drop `not_tested`; IMPROVE is already in that form.
+
 ## Outputs index
 
 - `data_manifest.yaml` — **pinned schema v1** (Issue #707): paths + checksums + fetch commands + license. Raw tables are **not** committed (LICR copyright, no redistribution).
@@ -79,7 +101,7 @@ log-odds. Per-patient genotype scoring can use the ≤6 alleles from `HLA_alloty
 | HiTIDE (in-house) | 11 | 11 | 30 / 41 | EGA `EGAS00001007101` |
 | **total** | **131** | **99** | **213 / 178** | — |
 
-So #592 **diverges**: it's **131 patients, not 74**, and the cohorts are NCI + TESLA + HiTIDE — **no Bjerregaard** (that + the "74 pt / ~165 pos" framing is the **NeoGuider** 7-cohort benchmark bleeding in). Now **confirmed from the downloaded tables** (2026-06-17): mutation-level 131 patients / 213 immunogenic mutations; neo-peptide-level 99 patients (32 NCI patients have no testable 8–12mer) / **178 immunogenic neo-peptides** — matching the paper's "~178". A single consolidated correcting note for #592 is drafted (AC #5; pending post).
+So #592 **diverges**: it's **131 patients, not 74**, and the cohorts are NCI + TESLA + HiTIDE — **no Bjerregaard** (that + the "74 pt / ~165 pos" framing is the **NeoGuider** 7-cohort benchmark bleeding in). Now **confirmed from the downloaded tables** (2026-06-17): mutation-level 131 patients / 213 immunogenic mutations; neo-peptide-level 99 patients (32 NCI patients have no testable 8–12mer) / **178 immunogenic neo-peptides** — matching the paper's "~178". A single consolidated correcting note was posted on #592 (AC #5).
 
 ## Download (browser route — into `data/`)
 
