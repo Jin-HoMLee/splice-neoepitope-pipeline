@@ -14,6 +14,8 @@ issue: 707                       # data-acquisition sub-issue
 parent_epic: 547                 # KDE + centered-isotonic calibration epic
 gcs_prefix: gs://splice-neoepitope-project/experiments/issue_547/
 local_path: research/experiments/issue_547_immunogenicity_calibration/data/   # gitignored (root .gitignore `data/`); per-clone / on-VM
+# Each dataset lives under its own subdir (per-dataset `local_subdir`), mirrored 1:1 under gcs_prefix:
+#   neoranking/  (primary)  +  improve_borch/  (augment)  — both locally and in GCS.
 
 datasets:
   - name: neoranking
@@ -41,6 +43,7 @@ datasets:
     #   not_tested = candidate never immuno-assayed (EXCLUDE from calibration — neither pos nor neg).
     # Peptide lengths (mutant_seq): 8mer 297,537 / 9mer 337,905 / 10mer 377,640 / 11mer 417,204 / 12mer 357,424
     #   — all within MHCflurry's 8-15 supported range. Join coverage: 0 missing mutant_seq, 0 missing mutant_best_alleles.
+    local_subdir: neoranking/        # under the gitignored data/ path; mirrored to gcs_prefix + neoranking/
     files:
       - filename: Neopep_data_org.txt        # paper: "Combined data matrix neo-pep" (feature values + immunogenicity annotations); 1,787,710 rows × 57 cols, TSV
         figshare_share: https://figshare.com/s/147e67dde683fb769908

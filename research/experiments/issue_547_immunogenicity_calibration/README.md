@@ -13,10 +13,12 @@ issue_547_immunogenicity_calibration/
 ├── README.md            # this file (committed)
 ├── data_manifest.yaml   # pinned schema v1 — paths + checksums + fetch cmds + license (committed)
 ├── data/                # raw cohort tables — GITIGNORED (root .gitignore `data/`); not on fresh clones
+│   ├── neoranking/      #   primary: Neopep + Mutation + HLA_allotypes (+ source .zip)
+│   └── improve_borch/   #   augment: In_house_neoepitope_for_CV + CEDAR benchmark
 └── (later) notebook.ipynb + outputs/   # the #708 calibrator analysis
 ```
 
-Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribution) and the tables are large. `data/` is gitignored repo-wide; recreate it with `mkdir -p data/` after clone and fetch per `data_manifest.yaml`.
+Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribution) and the tables are large. `data/` is gitignored repo-wide; recreate it with `mkdir -p data/{neoranking,improve_borch}` after clone and fetch per `data_manifest.yaml`. The GCS mirror at `gs://…/experiments/issue_547/` uses the **same two subdirs** (`neoranking/` + `improve_borch/`).
 
 ## Status (2026-06-17)
 
@@ -103,7 +105,9 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 
 So #592 **diverges**: it's **131 patients, not 74**, and the cohorts are NCI + TESLA + HiTIDE — **no Bjerregaard** (that + the "74 pt / ~165 pos" framing is the **NeoGuider** 7-cohort benchmark bleeding in). Now **confirmed from the downloaded tables** (2026-06-17): mutation-level 131 patients / 213 immunogenic mutations; neo-peptide-level 99 patients (32 NCI patients have no testable 8–12mer) / **178 immunogenic neo-peptides** — matching the paper's "~178". A single consolidated correcting note was posted on #592 (AC #5).
 
-## Download (browser route — into `data/`)
+## Download
+
+### NeoRanking primary → `data/neoranking/` (browser route)
 
 **⚠️ The NeoRanking README mislabels its figshare links** — it points the data-table names at the *classifier* records. Use the links from the **paper's** Data and Code Availability statement (Müller 2023, attachment `96V52NKW`) instead:
 
@@ -113,14 +117,24 @@ So #592 **diverges**: it's **131 patients, not 74**, and the cohorts are NCI + T
 | mutation → `Mutation_data_org.txt` | [2462b62bb6630fe2d257](https://figshare.com/s/2462b62bb6630fe2d257) |
 | `HLA_allotypes.txt` | [35361871fdad4d1754d7](https://figshare.com/s/35361871fdad4d1754d7) |
 
-Then (run from this folder):
+### IMPROVE augment → `data/improve_borch/` (git clone)
+
+Source from the **paper's** Data Availability Statement (Borch 2024, Frontiers full text): `github.com/SRHgroup/IMPROVE_paper` (Hadrup group, DTU) — **not** `mnielLab`.
 
 ```bash
-sha256sum data/Neopep_data_org.txt data/Mutation_data_org.txt data/HLA_allotypes.txt   # → fill PENDING in manifest
-gsutil cp data/*.txt gs://splice-neoepitope-project/experiments/issue_547/
+git clone --depth 1 https://github.com/SRHgroup/IMPROVE_paper.git
+cp IMPROVE_paper/neoepitope_tabels/{In_house_neoepitope_for_CV,Neoepitopes_CEDAR_benchmark_data}.tsv data/improve_borch/
 ```
 
-The `Classifier_neopeptide.zip` / `Classifiers_mutation.zip` already in `data/` came from the README's `a000…`/`3c27…` links — those are the trained NCI-train LR/XGBoost **classifiers**, not data tables (kept for potential #708 figure-repro).
+### Verify + mirror (run from this folder)
+
+```bash
+sha256sum data/neoranking/*.txt data/improve_borch/*.tsv          # → match the manifest
+gsutil -m cp data/neoranking/*.txt    gs://splice-neoepitope-project/experiments/issue_547/neoranking/
+gsutil    cp data/improve_borch/*.tsv gs://splice-neoepitope-project/experiments/issue_547/improve_borch/
+```
+
+The `Classifier_neopeptide.zip` / `Classifiers_mutation.zip` from the NeoRanking README's `a000…`/`3c27…` links are the trained NCI-train LR/XGBoost **classifiers**, not data tables (kept out of `data/` here; fetch only if reproducing #708 figures).
 
 ## Cross-experiment deps
 
