@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-17
+
+### 15:37 UTC — Editor: PM
+
+#### Phases-as-sub-issue heuristic ([Issue #731](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/731) / [PR #770](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/770)) — and where cross-repo board conventions should live
+
+**What shipped.** The decomposition smell-to-check: an Issue whose internal phases map to **distinct PRs / roles / commit-points** is under-decomposed → file one sub-issue per phase, convert the parent to a structural epic. Explicitly a **heuristic, not a hard gate** (trigger = *independent shippability*, not "has phases"). Worked precedent is [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) (P0–P5 in one Issue that shed P5→#721 + the prose sweep→#723 organically — proof the phases were sub-issue-shaped). Full rule in `shared/feedback_parent_sub_issues.md` + commitment-side smell-check in `shared/feedback_board_hygiene.md` (DoR + sweep checklist); MM to commit the memory edits. CLAUDE.md carries a **pointer-line only**.
+
+**The pointer-line was a design decision, not laziness.** Picking #731 as the morning warm-up surfaced a bigger question from the user: CLAUDE.md is bloating, and #731 changes *cross-repo* board conventions — is CLAUDE.md even the right home? The read: a **cross-repo project board is correct** (user/org-level GitHub Projects are built to span repos — not a bad-practice smell). What *is* a smell is documenting cross-repo *process* conventions in a **repo-local, auto-loaded-only-here** `CLAUDE.md`: (a) locality mismatch — invisible when a session is in the personas repo, where the convention still applies; (b) duplication → drift (the commitment act was already described in both CLAUDE.md and `feedback_board_hygiene.md`); (c) charter mismatch — process governance isn't a "codebase fact not derivable from code." The `shared/` memory layer already travels cross-repo (symlinked into every clone). So #731's CLAUDE.md touch became a pointer-line, and I carved [Issue #769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) for the real fix — extract the board-governance block out of CLAUDE.md to a canonical cross-repo home. Filing #769 instead of growing the block is itself the #731 heuristic applied to #731: keep the small thing small, carve the refactor.
+
+**Dogfood note.** #731 itself was the coherence bug [Issue #765](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/765) guards against — `arc-phase:later` (parked) while sitting at Ready + milestoned (one of the ~4 drift cases on the post-it). Fixed it `later → active` (we're working it now), the *opposite* resolution to this morning's #594 (genuinely parked → un-committed). Same rule, direction set by intent.
+
+---
+
 ## 2026-06-16
 
 ### 20:59 UTC — Editor: PM
