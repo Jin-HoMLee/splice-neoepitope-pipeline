@@ -329,6 +329,8 @@ The GitHub project board (user project #9, "JH M Lee Lab") runs **late-commitmen
 
 **Milestone is the commitment signal, NOT a triage field.** A freshly-triaged issue — including a new sub-issue — enters Backlog with no milestone and takes one individually at its own `Backlog → Ready` commitment. Sub-issues do **not** inherit a parent's milestone; the parent milestone is a roadmap anchor (see `.claude/memory/shared/feedback_parent_sub_issues.md` §Inheritance).
 
+**Phases-as-sub-issues smell (heuristic, not a gate):** at triage / `Backlog → Ready`, an Issue whose internal phases map to distinct PRs / roles / commit-points is under-decomposed — file a sub-issue per phase and convert the parent to a structural epic. Trigger = *independent shippability*, not "has phases". Full rule + [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) precedent: `.claude/memory/shared/feedback_parent_sub_issues.md` → "Phases-as-sub-issues".
+
 Left-side transitions: **intake-triage** (`No Status → Backlog`) → **commitment** (`Backlog → Ready`, PM-coordinated) → **pull** (`Ready → In progress`). The **right side** (`In progress → Ready for review → In review → Done`) is unchanged. Giving `Ready` a distinct job structurally kills the JIT-Ready anti-pattern: you cannot reach In progress without first crossing the commitment act.
 
 Full rules: `.claude/memory/shared/feedback_board_hygiene.md` (sweep cadence, DoR, commitment-act mechanics) and `.claude/memory/feedback_milestones.md` (milestone naming, the capacity decision tree).
