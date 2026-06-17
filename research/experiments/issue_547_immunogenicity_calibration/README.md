@@ -66,6 +66,11 @@ directly scoreable by `Class1PresentationPredictor` (peptide + allele → `prese
 `presentation_percentile`), which is exactly the input the calibrator (#708) maps to an immunogenicity
 log-odds. Per-patient genotype scoring can use the ≤6 alleles from `HLA_allotypes.txt`.
 
+**HLA coverage (verified 2026-06-17).** `HLA_allotypes.txt` lists **150** patients vs **131** in the
+data tables — but the 131 (mutation ∪ neo-pep) are a **strict subset** of the 150: every patient with
+mutations/peptides has an HLA genotype (0 missing), so full-genotype scoring is safe for all of them.
+The 19 surplus are HLA-only patients with no rows in either data table → drop silently on join.
+
 ### IMPROVE / Borch augment (`data/improve_borch/`, confirmed 2026-06-17)
 
 Source: `github.com/SRHgroup/IMPROVE_paper` @ `c670942` (the repo named in the paper's **Data

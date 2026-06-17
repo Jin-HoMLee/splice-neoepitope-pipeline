@@ -59,6 +59,11 @@ datasets:
         figshare_share: https://figshare.com/s/35361871fdad4d1754d7
         fetch: "download from its own figshare record (per paper Data Availability)"
         sha256: 790644a3aa15c0abb7e5e1e8b9436950ff52668779093907ae1c3e99172b6740
+        # JOIN NOTE (verified 2026-06-17): 150 patients here vs 131 in the data tables.
+        # The 131 data-table patients (mutation ∪ neo-pep) are a STRICT SUBSET of the 150 —
+        # i.e. every patient with mutations/peptides HAS an HLA genotype (0 missing), so
+        # full-genotype scoring is safe for all of them. The 19 surplus are HLA-only patients
+        # absent from both data tables → no matching peptide rows; drop silently on join.
         size_bytes: 7518
     # Reference-only figshare records (downloaded already / optional):
     classifier_neopep_share: https://figshare.com/s/a000b0990465ab3e9d33   # trained neo-pep LR/XGBoost (Classifier_neopeptide.zip — in data/)
