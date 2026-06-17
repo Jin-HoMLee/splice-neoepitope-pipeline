@@ -27,25 +27,36 @@ NOW = datetime(2026, 6, 4, 12, 0, 0, tzinfo=timezone.utc)
 
 def _board_item(number, *, updated="2026-06-04T00:00:00Z",
                 created="2026-05-01T00:00:00Z", closed=None, role="role:pm",
-                status="Ready", priority=None, size=None):
-    """A minimal ProjectV2 board node shaped like the GraphQL response."""
+                status="Ready", priority=None, size=None, sub_total=None,
+                typename="Issue", is_draft=False):
+    """A minimal ProjectV2 board node shaped like the GraphQL response.
+
+    `sub_total=None` omits the `subIssuesSummary` block entirely (mimics a node
+    the query didn't return one for — e.g. a PR); an int injects
+    `subIssuesSummary { total: <n> }` like the Issue fragment does.
+    """
     field_values = [{"name": status, "field": {"name": "Status"}}]
     if priority:
         field_values.append({"name": priority, "field": {"name": "Priority"}})
     if size:
         field_values.append({"name": size, "field": {"name": "Size"}})
+    content = {
+        "__typename": typename,
+        "number": number,
+        "title": f"issue {number}",
+        "state": "OPEN",
+        "url": f"https://example/{number}",
+        "createdAt": created,
+        "updatedAt": updated,
+        "closedAt": closed,
+        "labels": {"nodes": [{"name": role}]},
+    }
+    if typename == "PullRequest":
+        content["isDraft"] = is_draft
+    if sub_total is not None:
+        content["subIssuesSummary"] = {"total": sub_total}
     return {
-        "content": {
-            "__typename": "Issue",
-            "number": number,
-            "title": f"issue {number}",
-            "state": "OPEN",
-            "url": f"https://example/{number}",
-            "createdAt": created,
-            "updatedAt": updated,
-            "closedAt": closed,
-            "labels": {"nodes": [{"name": role}]},
-        },
+        "content": content,
         "fieldValues": {"nodes": field_values},
     }
 
@@ -188,8 +199,9 @@ def test_main_json_emits_flat_array(monkeypatch, capsys):
     assert isinstance(parsed, list)      # not an envelope object
     assert len(parsed) == 2              # what `jq length` would report
     assert {it["number"] for it in parsed} == {1, 2}
-    # additive timestamp keys reach the JSON output (the PR-body additive-field claim)
-    assert all(k in parsed[0] for k in ("created_at", "updated_at", "closed_at"))
+    # additive keys reach the JSON output (the PR-body additive-field claim):
+    # timestamps (Issue #642) + is_parent (Issue #742)
+    assert all(k in parsed[0] for k in ("created_at", "updated_at", "closed_at", "is_parent"))
 
 
 def test_main_default_no_flags_uses_sort_key(monkeypatch, capsys):
@@ -264,3 +276,66 @@ def test_format_table_now_defaults_to_real_clock():
     table = boi.format_table(items)  # no now= → exercises the None branch
     assert "Age" in table.splitlines()[0]
     assert "issue 1" in table
+
+
+# --- parent-awareness (Issue #742) -----------------------------------------
+
+def test_normalize_is_parent_true_when_subissues():
+    n = boi.normalize(_board_item(742, sub_total=3))
+    assert n["is_parent"] is True
+
+
+def test_normalize_is_parent_false_when_zero_subissues():
+    n = boi.normalize(_board_item(742, sub_total=0))
+    assert n["is_parent"] is False
+
+
+def test_normalize_is_parent_false_when_summary_absent():
+    # a node with no subIssuesSummary block (e.g. the query returned none) → leaf
+    n = boi.normalize(_board_item(742, sub_total=None))
+    assert n["is_parent"] is False
+
+
+def test_normalize_pr_is_not_parent():
+    # PRs have no sub-issues; the PR fragment carries no subIssuesSummary
+    n = boi.normalize(_board_item(742, typename="PullRequest", role="role:pm"))
+    assert n["kind"] == "PR"
+    assert n["is_parent"] is False
+
+
+def test_main_json_carries_is_parent(monkeypatch, capsys):
+    raw = [_board_item(1, sub_total=2), _board_item(2, sub_total=0)]
+    _, out = _run_main(monkeypatch, capsys, ["--json"], raw)
+    parsed = {it["number"]: it for it in json.loads(out)}
+    assert parsed[1]["is_parent"] is True
+    assert parsed[2]["is_parent"] is False
+
+
+def test_format_table_marks_parent_in_kind():
+    parent = boi.normalize(_board_item(1, sub_total=4))
+    leaf = boi.normalize(_board_item(2, sub_total=0))
+    table = boi.format_table([parent, leaf], now=NOW)
+    # parent's Kind cell carries the /P marker, mirroring the /D draft convention
+    assert "Issue/P" in table
+    # the leaf row stays a plain "Issue" (no stray /P)
+    leaf_row = [ln for ln in table.splitlines() if ln.strip().endswith("issue 2")][0]
+    assert "/P" not in leaf_row
+
+
+def test_exclude_parents_filters_out_parents(monkeypatch, capsys):
+    raw = [_board_item(1, sub_total=3), _board_item(2, sub_total=0)]
+    _, out = _run_main(monkeypatch, capsys, ["--exclude-parents", "--json"], raw)
+    nums = [it["number"] for it in json.loads(out)]
+    assert nums == [2]  # the parent (#1) is dropped, the leaf (#2) stays
+
+
+def test_format_table_parent_kind_keeps_column_alignment():
+    # "Issue/P" is 7 chars and must not overflow the Kind column and shift the
+    # # column out from under its header (the first kind value to exceed the
+    # old 5-char budget; "Issue"=5 fit, drafts are "PR/D"=4).
+    parent = boi.normalize(_board_item(547, sub_total=4))
+    lines = boi.format_table([parent], now=NOW).splitlines()
+    header, row = lines[0], lines[2]  # 0=header, 1=separator, 2=data
+    assert "Issue/P" in row
+    # the issue number sits exactly under the '#' header label
+    assert row.index("547") == header.index("#")
