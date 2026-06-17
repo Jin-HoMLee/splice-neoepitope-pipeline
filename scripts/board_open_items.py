@@ -21,6 +21,7 @@ Usage:
   scripts/board_open_items.py --status Ready --priority P1
   scripts/board_open_items.py --sort-updated --role scientist   # recent momentum
   scripts/board_open_items.py --stale-days 21                    # dormancy sweep
+  scripts/board_open_items.py --exclude-parents                  # drop epics (Size/flow sweeps)
   scripts/board_open_items.py --json | jq '.[] | select(.size == "S")'
 """
 from __future__ import annotations
@@ -47,6 +48,7 @@ query($owner: String!, $number: Int!, $after: String) {
             ... on Issue {
               number title state url
               createdAt updatedAt closedAt
+              subIssuesSummary { total }
               labels(first: 20) { nodes { name } }
             }
             ... on PullRequest {
@@ -151,12 +153,18 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
         None,
     )
+    # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
+    # no summary for) have no subIssuesSummary block → treated as a leaf. Mirrors
+    # `.claude/hooks/check_gh_issue_develop_parent.py` (total > 0 → parent).
+    sub_summary = content.get("subIssuesSummary") or {}
+    is_parent = (sub_summary.get("total") or 0) > 0
     return {
         "number": content.get("number"),
         "title": content.get("title", ""),
         "url": content.get("url", ""),
         "kind": "PR" if content.get("__typename") == "PullRequest" else "Issue",
         "is_draft": content.get("isDraft", False),
+        "is_parent": is_parent,
         "state": state,
         "status": status or "No Status",
         "priority": priority,
@@ -285,7 +293,9 @@ def format_table(
     ]
     for it in items:
         role = (it["role"] or "(none)").removeprefix("role:")[:16]
-        kind = it["kind"] + ("/D" if it["is_draft"] else "")
+        # "/D" = draft PR; "/P" = parent/epic Issue (mutually exclusive — a parent
+        # is always an Issue, never a draft).
+        kind = it["kind"] + ("/D" if it["is_draft"] else "") + ("/P" if it["is_parent"] else "")
         title = (it["title"] or "")[:60]
         age = age_label(it.get("updated_at"), now)
         if arc_columns:
@@ -310,6 +320,11 @@ def main() -> int:
     p.add_argument("--arc", help='Filter by arc label (e.g. "scoring-tcr-pmhc" or "arc:scoring-tcr-pmhc")')
     p.add_argument("--arc-phase", dest="arc_phase", choices=["active", "next", "later"],
                    help="Filter by arc focus phase")
+    p.add_argument("--exclude-parents", dest="exclude_parents", action="store_true",
+                   help="Drop parent/epic issues (>=1 sub-issue) from the result. "
+                        "Parents carry no Size and mirror a child's Status, so the PM "
+                        "triage/flow sweeps flag them as false drift; this filters them "
+                        "out at the source (Issue #742).")
     p.add_argument("--arc-columns", dest="arc_columns", action="store_true",
                    help="Add Arc + phase columns to the table (slug after 'arc:'); "
                         "useful with --arc-phase active to see each issue's arc "
@@ -329,6 +344,8 @@ def main() -> int:
     raw = fetch_all_items()
     normalized = [n for it in raw if (n := normalize(it)) is not None]
     filtered = [it for it in normalized if matches_filter(it, args)]
+    if args.exclude_parents:
+        filtered = [it for it in filtered if not it["is_parent"]]
     if args.sort_updated or args.stale_days is not None:
         filtered = apply_recency(
             filtered, sort_updated=args.sort_updated, stale_days=args.stale_days, now=now
