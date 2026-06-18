@@ -252,16 +252,42 @@ def save_watermark(path, data):
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
-def run(basket, watermark, *, check_tracked=True, fetcher=fetch_latest, tracker=find_tracking_issue):
+# Top-level basket sections the poller actually fetches. `watch` is excluded on
+# purpose -- it is a name-only footer reminder, never polled (see tools.yaml).
+POLLED_SECTIONS = ("software", "reference_data", "pm_tooling")
+
+
+def select_tools(basket, role):
+    """Return the polled tools (``POLLED_SECTIONS``) visible to ``role``.
+
+    Each tool may carry a ``roles:`` list (Issue #755). The rules:
+      * ``role is None`` -> every polled tool, no filtering (back-compat).
+      * a tool with no ``roles:`` key -> visible to ALL roles (fail-open; an
+        untagged dep is never silently dropped from a poll).
+      * otherwise -> visible only when ``role`` is in the tool's ``roles`` list.
+
+    This is what stops a ``--role pm`` poll from surfacing Developer-scope deltas
+    while still letting PM poll its own thin ``pm_tooling`` basket.
+    """
+    tools = []
+    for section in POLLED_SECTIONS:
+        tools.extend(basket.get(section, []))
+    if role is None:
+        return tools
+    return [t for t in tools if t.get("roles") is None or role in t["roles"]]
+
+
+def run(basket, watermark, *, role=None, check_tracked=True, fetcher=fetch_latest, tracker=find_tracking_issue):
     """Process the basket against the watermark. Returns (surfaced, updated_watermark).
 
     ``surfaced`` is the list of records to show the user (genuine deltas + watch
-    notes). The watermark dict is updated in place and also returned.
+    notes). The watermark dict is updated in place and also returned. When
+    ``role`` is given, only tools tagged for that role are polled (Issue #755).
     """
     wm_tools = watermark.setdefault("tools", {})
     surfaced = []
 
-    for tool in basket.get("software", []) + basket.get("reference_data", []):
+    for tool in select_tools(basket, role):
         name = tool["tool"]
         latest = fetcher(tool)
         rec = compute_delta(tool, latest, wm_tools.get(name))
@@ -312,7 +338,7 @@ def main(argv=None):
     wm_path = args.watermark or watermark_path(args.role)
     watermark = load_watermark(wm_path)
 
-    surfaced, watermark = run(basket, watermark, check_tracked=not args.no_check_tracked)
+    surfaced, watermark = run(basket, watermark, role=args.role, check_tracked=not args.no_check_tracked)
     watermark["last_briefing"] = date.today().isoformat()
 
     if args.json:
