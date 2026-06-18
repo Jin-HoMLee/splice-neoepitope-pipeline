@@ -2,7 +2,7 @@
 
 Run from repo root:
     conda activate splice-neoepitope-alphagenome
-    python research/slides/issue_393_alphagenome_chr22_poc/figures/_regenerate_figures.py
+    python research/experiments/issue_393_alphagenome_chr22_poc/figures/_regenerate_figures.py
 
 Outputs (next to this script):
     pr_curve.png            — Precision-Recall curve + AP + baseline

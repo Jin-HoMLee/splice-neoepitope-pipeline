@@ -250,10 +250,15 @@ research/experiments/issue_224_alphagenome_exp1/outputs/*.parquet
 # Quarto slide-deck build artefacts — regenerable via `quarto render`
 research/slides/**/*.html
 research/slides/**/*.pdf
-# Same build artefacts for decks co-located under research/experiments/ (post-#455 migration)
+# Same build artefacts for decks co-located under research/experiments/ (post-#455 migration);
+# mirrors the 6-pattern block used for slides/ evals/ decisions/ (*_files/ is broader than
+# slides_files/ — Quarto names the support dir after the .qmd, e.g. talk_files/).
 research/experiments/**/*.html
 research/experiments/**/*.pdf
-research/experiments/**/slides_files/
+research/experiments/**/*_files/
+research/experiments/**/.quarto/
+research/experiments/**/slides.tex
+research/experiments/**/slides.log
 research/slides/**/*_files/
 research/slides/**/.quarto/
 research/slides/**/slides.tex
