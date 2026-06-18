@@ -240,18 +240,18 @@ def build_scored_cohort(
     predictor = Class1PresentationPredictor.load()
     logger.info("MHCflurry predictor loaded.")
 
-    # Build per-row allele lists
-    row_alleles = []
-    for _, row in df_sub.iterrows():
-        if row["patient"] is not None and row["patient"] in genotypes:
-            row_alleles.append(genotypes[row["patient"]])
-        else:
-            row_alleles.append([row["allele"]])
-
-    # Collect the full peptide set needed per unique allele
+    # Single pass: build per-row allele lists AND the allele→peptide map together.
+    # pd.notna guards against NaN patient IDs (IMPROVE rows set patient=None,
+    # which becomes NaN after pd.concat — "is not None" misses that case).
     from collections import defaultdict
+    row_alleles = []
     allele_peptides: dict = defaultdict(set)
-    for (_, row), alleles in zip(df_sub.iterrows(), row_alleles):
+    for _, row in df_sub.iterrows():
+        if pd.notna(row["patient"]) and row["patient"] in genotypes:
+            alleles = genotypes[row["patient"]]
+        else:
+            alleles = [row["allele"]]
+        row_alleles.append(alleles)
         for a in alleles:
             allele_peptides[a].add(row["peptide"])
 
