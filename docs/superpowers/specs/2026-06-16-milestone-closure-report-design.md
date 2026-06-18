@@ -1,7 +1,7 @@
 # Milestone Closure Report — Design Spec
 
 - **Issue:** [Issue #752](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752)
-- **Status:** Design — approved 2026-06-16; pending implementation plan
+- **Status:** Implemented 2026-06-18 (`scripts/pm/milestone_report.py` + template + tests; piloted on pm-i6). §11 open questions resolved below.
 - **Author:** PM
 - **Arc:** `arc:board-governance`
 
@@ -106,8 +106,13 @@ Explicitly **excluded** (YAGNI): cumulative-flow / burn-down charts, cycle-time 
 
 **Out of scope (YAGNI):** flow charts, a hard close-gate, a separate seminar deck (the experiment/eval/decision deck conventions already cover talks), a live-hosted dashboard, GitHub Pages publishing, status-transition timing metrics.
 
-## 11. Open questions for the implementation plan
+## 11. Open questions for the implementation plan — RESOLVED (2026-06-18)
 
-- Exact slug-sanitization rule for milestone names → report filename.
-- Whether the narrative auto-seed converts markdown→HTML with an existing dependency already in the env (e.g. `markdown`/`jinja2`) or a minimal inline converter, to avoid adding a new dep to the `snakemake` env.
-- Markdown→HTML for the sidecar: which env runs the script (likely `snakemake` conda or a small `scripts/pm` venv) — pin in the plan.
+- **Slug rule:** lowercase, collapse every non-alphanumeric run to a single hyphen, strip leading/trailing hyphens (`slugify()`). Matches the `pm-i6-pm-tooling-memory-methodology-ii` example.
+- **Markdown→HTML dependency:** use the `markdown` library (no new dep invented). It + `jinja2` are **lazy-imported inside the render/aggregation layers** so the metrics pure-functions stay importable in the bare `ci-tools-pytest` env (pytest + pyyaml only). Pinned in `scripts/pm/requirements.txt`.
+- **Run env:** a Python carrying `jinja2` + `markdown` (the pyenv default has both; or `pip install -r scripts/pm/requirements.txt`). **Not** the `snakemake` conda env — `markdown` is absent there and that env stays pristine (CLAUDE.md "Python environments"). Metrics tests run wherever `ci-tools-pytest` runs (`tools/ci/test_milestone_report.py`, the `recheck_milestone.py` test-home precedent).
+
+### Implementation notes
+
+- Sidecar auto-seed is a **compact one-line-per-entry digest** of in-window lab-notebook entries (date + headline), not verbatim bodies — the sidecar is for a human to expand. (A verbatim dump produced a 222 KB sidecar on the pm-i6 pilot; the digest is ~7 KB.)
+- Board Status/Priority/Size enrichment reuses `scripts/board_open_items.py` and is **best-effort** — the report degrades to label-only data if the helper is unavailable.

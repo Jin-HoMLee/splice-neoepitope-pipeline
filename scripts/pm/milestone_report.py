@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Generate a self-contained HTML milestone closure report.
+
+Per-milestone artifact produced *before* a milestone closes, serving three
+layered audiences (PM retrospective · lab seminar · portfolio showcase) from one
+file. Authored via the author-editor-critic triad — see the design spec at
+``docs/superpowers/specs/2026-06-16-milestone-closure-report-design.md`` and
+Issue #752.
+
+Four layers (this module):
+  1. Data        — pull every issue in the milestone (open + closed) from board #9
+                   + ``gh issue list --milestone`` + per-issue labels/timestamps.
+  2. Metrics     — pure, unit-tested functions over the data structs (no I/O).
+  3. Aggregation — seed a first-draft narrative from lab-notebook + closing
+                   comments into an author-owned ``<slug>.narrative.md`` sidecar.
+  4. Render      — Jinja2 -> one self-contained HTML file (inline CSS).
+
+Layers 3 and 4 lazy-import ``markdown`` / ``jinja2`` so the metrics functions
+stay importable in the bare ``ci-tools-pytest`` env (pytest + pyyaml only).
+
+Usage:
+  scripts/pm/milestone_report.py "pm-i6 - PM Tooling & Memory Methodology II"
+  scripts/pm/milestone_report.py "<milestone>" --out-dir docs/pm/milestone_reports
+  scripts/pm/milestone_report.py "<milestone>" --dry-run   # print metrics, no write
+"""
+
+import argparse
+import json
+import re
+import statistics
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
+
+OWNER = "Jin-HoMLee"
+REPO = "splice-neoepitope-pipeline"
+PROJECT_NUMBER = 9
+DEFAULT_OUT_DIR = Path("docs/pm/milestone_reports")
+HERE = Path(__file__).resolve().parent
+TEMPLATE_PATH = HERE / "templates" / "milestone_report.html.j2"
+
+
+# --- slug -------------------------------------------------------------------
+
+def slugify(name: str) -> str:
+    """Sanitize a milestone name into a filename slug.
+
+    Lowercase, collapse every non-alphanumeric run to a single hyphen, strip
+    leading/trailing hyphens. ``"pm-i6 - PM Tooling & Memory Methodology II"``
+    -> ``"pm-i6-pm-tooling-memory-methodology-ii"``.
+    """
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+# --- time helpers (pure) ----------------------------------------------------
+
+def parse_iso(ts: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO-8601 timestamp (``...Z`` accepted); None-safe."""
+    if not ts:
+        return None
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+# --- metrics layer (pure, unit-tested) --------------------------------------
+
+def closed_issues(issues: list[dict]) -> list[dict]:
+    return [i for i in issues if i.get("state") == "CLOSED"]
+
+
+def cycle_time_days(issue: dict) -> Optional[float]:
+    """(closed_at - created_at) in days for a closed issue; None otherwise."""
+    if issue.get("state") != "CLOSED":
+        return None
+    created = parse_iso(issue.get("created_at"))
+    closed = parse_iso(issue.get("closed_at"))
+    if not created or not closed:
+        return None
+    return (closed - created).total_seconds() / 86400.0
+
+
+def cycle_times(issues: list[dict]) -> list[float]:
+    return [t for t in (cycle_time_days(i) for i in issues) if t is not None]
+
+
+def avg_cycle_time(issues: list[dict]) -> Optional[float]:
+    ts = cycle_times(issues)
+    return statistics.fmean(ts) if ts else None
+
+
+def median_cycle_time(issues: list[dict]) -> Optional[float]:
+    ts = cycle_times(issues)
+    return statistics.median(ts) if ts else None
+
+
+def per_role_counts(issues: list[dict]) -> dict[str, int]:
+    """Closed-issue counts grouped by ``role:*`` (multi-role issues count once
+    per role)."""
+    counts: dict[str, int] = {}
+    for issue in closed_issues(issues):
+        for role in issue.get("roles", []):
+            if role.startswith("role:"):
+                counts[role] = counts.get(role, 0) + 1
+    return counts
+
+
+def milestone_duration_days(
+    issues: list[dict],
+    milestone_closed_at: Optional[str],
+    milestone_created_at: Optional[str] = None,
+) -> Optional[float]:
+    """Earliest issue ``created_at`` (or milestone creation, if no issues) to the
+    milestone ``closed_at``, in days. None when either endpoint is unknowable."""
+    end = parse_iso(milestone_closed_at)
+    if not end:
+        return None
+    created = [parse_iso(i.get("created_at")) for i in issues if i.get("created_at")]
+    created = [c for c in created if c]
+    start = min(created) if created else parse_iso(milestone_created_at)
+    if not start:
+        return None
+    return (end - start).total_seconds() / 86400.0
+
+
+def throughput_per_week(n_closed: int, duration_days: Optional[float]) -> Optional[float]:
+    """Closed issues per week; None when duration is zero/unknown (guarded)."""
+    if not duration_days or duration_days <= 0:
+        return None
+    return n_closed / (duration_days / 7.0)
+
+
+def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
+    """Assemble the headline metrics block from the data layer."""
+    closed = closed_issues(issues)
+    duration = milestone_duration_days(
+        issues, milestone.get("closed_at"), milestone.get("created_at")
+    )
+    return {
+        "n_total": len(issues),
+        "n_closed": len(closed),
+        "n_carried_forward": len(issues) - len(closed),
+        "duration_days": duration,
+        "throughput_per_week": throughput_per_week(len(closed), duration),
+        "avg_cycle_time_days": avg_cycle_time(issues),
+        "median_cycle_time_days": median_cycle_time(issues),
+        "per_role_counts": per_role_counts(issues),
+    }
+
+
+# --- data layer (gh / board #9) ---------------------------------------------
+
+def _gh(args: list[str]) -> str:
+    return subprocess.run(
+        ["gh", *args], check=True, capture_output=True, text=True
+    ).stdout
+
+
+def fetch_milestone(name: str) -> dict:
+    """Resolve a milestone by full name -> {title, created_at, closed_at, state}."""
+    raw = _gh([
+        "api", f"repos/{OWNER}/{REPO}/milestones",
+        "--paginate", "-X", "GET", "-f", "state=all",
+    ])
+    for ms in json.loads(raw):
+        if ms.get("title") == name:
+            return {
+                "title": ms["title"],
+                "number": ms["number"],
+                "state": ms.get("state"),
+                "created_at": ms.get("created_at"),
+                "closed_at": ms.get("closed_at"),
+                "due_on": ms.get("due_on"),
+                "description": ms.get("description"),
+            }
+    raise SystemExit(f"milestone not found: {name!r}")
+
+
+def _board_fields_by_number() -> dict[int, dict]:
+    """Best-effort map issue number -> board Status/Priority/Size/arc.
+
+    Reuses scripts/board_open_items.py (the paginated helper). Returns {} if the
+    helper is unavailable or errors — the report degrades to label-only data.
+    """
+    try:
+        sys.path.insert(0, str(HERE.parent))
+        import board_open_items as boi  # type: ignore
+        items = boi.fetch_all_items()
+        out: dict[int, dict] = {}
+        for raw in items:
+            norm = boi.normalize(raw)
+            if norm and norm.get("number"):
+                out[int(norm["number"])] = norm
+        return out
+    except Exception as exc:  # pragma: no cover - best-effort enrichment
+        print(f"  (board enrichment unavailable: {exc})", file=sys.stderr)
+        return {}
+
+
+def fetch_milestone_issues(name: str) -> list[dict]:
+    """All issues in the milestone (open + closed), normalized for the report."""
+    raw = _gh([
+        "issue", "list", "--repo", f"{OWNER}/{REPO}",
+        "--milestone", name, "--state", "all", "--limit", "1000",
+        "--json", "number,title,state,labels,createdAt,closedAt,url",
+    ])
+    board = _board_fields_by_number()
+    issues = []
+    for it in json.loads(raw):
+        labels = [lbl["name"] for lbl in it.get("labels", [])]
+        num = it["number"]
+        b = board.get(num, {})
+        issues.append({
+            "number": num,
+            "title": it["title"],
+            "url": it.get("url"),
+            "state": it["state"].upper(),
+            "created_at": it.get("createdAt"),
+            "closed_at": it.get("closedAt"),
+            "roles": [l for l in labels if l.startswith("role:")],
+            "arcs": [l for l in labels if l.startswith("arc:")],
+            "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
+            "priority": b.get("priority") or "—",
+            "size": b.get("size") or "—",
+        })
+    return issues
+
+
+# --- aggregation layer (narrative auto-seed) --------------------------------
+
+_SEED_HEADLINE_MAX = 180
+
+
+def _first_prose_line(body: str) -> str:
+    """The first human-prose line of an entry body — skips blank lines, markdown
+    bullet/heading markers, and HTML comments. Used to digest an entry to one line."""
+    for line in body.strip().splitlines():
+        stripped = line.strip().lstrip("#*->").strip()
+        if stripped and not stripped.startswith("<!--"):
+            return stripped
+    return ""
+
+
+def _lab_notebook_seed(roles: set[str], window: tuple[Optional[datetime], Optional[datetime]]) -> str:
+    """Best-effort: digest lab-notebook entries dated within the milestone window
+    for the involved roles into one pointer bullet each (date + headline), NOT
+    verbatim bodies — the sidecar is meant for a human to expand. '' if none."""
+    start, end = window
+    bullets: list[str] = []
+    for role in sorted(roles):
+        short = role.split(":", 1)[-1]
+        nb = Path("research/lab_notebook") / f"{short}.md"
+        if not nb.exists():
+            continue
+        text = nb.read_text(encoding="utf-8", errors="replace")
+        # Entries are "## <YYYY-MM-DD>" headed; digest those inside the window.
+        for m in re.finditer(r"^## (\d{4}-\d{2}-\d{2})\b(.*?)(?=^## \d{4}-\d{2}-\d{2}\b|\Z)",
+                             text, flags=re.DOTALL | re.MULTILINE):
+            day = parse_iso(m.group(1) + "T00:00:00Z")
+            if (start and day and day < start) or (end and day and day > end):
+                continue
+            headline = _first_prose_line(m.group(2))
+            if len(headline) > _SEED_HEADLINE_MAX:
+                headline = headline[: _SEED_HEADLINE_MAX - 1].rstrip() + "…"
+            bullets.append(f"- **{m.group(1)}** ({short}): {headline}")
+    return "\n".join(bullets)
+
+
+def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
+    """First-draft narrative markdown for the author-owned sidecar."""
+    roles = {r for i in issues for r in i.get("roles", [])}
+    window = (parse_iso(milestone.get("created_at")), parse_iso(milestone.get("closed_at")))
+    seed = _lab_notebook_seed(roles, window)
+    closed = closed_issues(issues)
+    carried = [i for i in issues if i.get("state") != "CLOSED"]
+
+    lines = [
+        f"<!-- Author-owned narrative for {milestone['title']}. Sections 3/4/5 only.",
+        "     The script regenerates the HTML from this file + fresh board data;",
+        "     it never overwrites this sidecar once it exists. -->",
+        "",
+        "## Deliverables (Review layer)",
+        "",
+        "<!-- Lead role: what shipped, grouped by deliverable. Auto-seed below. -->",
+        "",
+    ]
+    lines += [f"- #{i['number']} {i['title']}" for i in closed] or ["- _(none closed)_"]
+    lines += ["", "### Auto-seed (lab-notebook + closing comments)", ""]
+    lines += [seed or "<!-- no auto-seed found; author from scratch -->"]
+    lines += [
+        "",
+        "## Carried-forward & routing",
+        "",
+        "<!-- PM: issues that didn't close + where they went (carve / arc) + the",
+        "     closure-routing decision (a/b/c/d). -->",
+        "",
+    ]
+    lines += [f"- #{i['number']} {i['title']} — _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
+    lines += [
+        "",
+        "## Retrospective (process/health)",
+        "",
+        "<!-- PM: was it healthy? what to improve? WIP/aging observations. -->",
+        "",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+# --- render layer (jinja2; lazy import) -------------------------------------
+
+def _md_to_html(md_text: str) -> str:
+    import markdown  # lazy
+    return markdown.markdown(md_text, extensions=["tables", "fenced_code"])
+
+
+def render_html(milestone: dict, issues: list[dict], metrics: dict, narrative_md: str) -> str:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape  # lazy
+
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATE_PATH.parent)),
+        autoescape=select_autoescape(["html", "j2"]),
+    )
+    env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "—"
+    template = env.get_template(TEMPLATE_PATH.name)
+    return template.render(
+        milestone=milestone,
+        issues=issues,
+        closed=closed_issues(issues),
+        carried=[i for i in issues if i.get("state") != "CLOSED"],
+        metrics=metrics,
+        narrative_html=_md_to_html(narrative_md),
+        generated_at=milestone.get("closed_at") or milestone.get("due_on") or "",
+    )
+
+
+def _fmt(v: Optional[float], unit: str = "") -> str:
+    return "—" if v is None else f"{v:.1f}{unit}"
+
+
+def print_metrics(milestone: dict, metrics: dict) -> None:
+    print(f"Milestone: {milestone['title']}  [{milestone.get('state')}]")
+    print(f"  total / closed / carried-forward : "
+          f"{metrics['n_total']} / {metrics['n_closed']} / {metrics['n_carried_forward']}")
+    print(f"  duration (days)                  : {_fmt(metrics['duration_days'])}")
+    print(f"  throughput (closed/week)         : {_fmt(metrics['throughput_per_week'])}")
+    print(f"  cycle time avg / median (days)   : "
+          f"{_fmt(metrics['avg_cycle_time_days'])} / {_fmt(metrics['median_cycle_time_days'])}")
+    print(f"  per-role (closed)                : {metrics['per_role_counts']}")
+
+
+# --- orchestration ----------------------------------------------------------
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Generate a milestone closure report.")
+    ap.add_argument("milestone", help="full milestone name (e.g. 'pm-i6 - PM Tooling & Memory Methodology II')")
+    ap.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    ap.add_argument("--dry-run", action="store_true", help="print metrics only; write nothing")
+    args = ap.parse_args()
+
+    milestone = fetch_milestone(args.milestone)
+    issues = fetch_milestone_issues(args.milestone)
+    metrics = compute_metrics(issues, milestone)
+
+    print_metrics(milestone, metrics)
+    if args.dry_run:
+        return 0
+
+    slug = slugify(args.milestone)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    sidecar = args.out_dir / f"{slug}.narrative.md"
+    if not sidecar.exists():  # never overwrite author edits
+        sidecar.write_text(seed_narrative(milestone, issues, metrics), encoding="utf-8")
+        print(f"  seeded narrative -> {sidecar}")
+    else:
+        print(f"  narrative exists (preserved) -> {sidecar}")
+
+    html = render_html(milestone, issues, metrics, sidecar.read_text(encoding="utf-8"))
+    html_path = args.out_dir / f"{slug}.html"
+    html_path.write_text(html, encoding="utf-8")
+    print(f"  rendered report  -> {html_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

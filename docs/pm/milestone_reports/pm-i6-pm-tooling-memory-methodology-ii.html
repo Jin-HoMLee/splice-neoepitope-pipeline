@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milestone closure report — pm-i6 - PM Tooling, Memory &amp; Methodology II</title>
+<style>
+  :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
+          --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  header.report { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: .75rem; margin: 1rem 0; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+  .card .n { font-size: 1.5rem; font-weight: 600; }
+  .card .l { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .rolebar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .pill { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+          padding: .15rem .6rem; font-size: .82rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0; }
+  th, td { text-align: left; padding: .4rem .55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+  tr.closed td:first-child { color: var(--ok); }
+  tr.open td:first-child { color: var(--warn); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .narrative { margin-top: .5rem; }
+  .narrative table th { text-transform: none; }
+  code { background: var(--soft); padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report">
+    <h1>pm-i6 - PM Tooling, Memory &amp; Methodology II</h1>
+    <div class="sub">
+      Milestone #33 · state <strong>closed</strong>
+      · opened 2026-05-27
+      · closed 2026-06-16
+      · 26 days
+    </div>
+  </header>
+
+  <!-- Section 2: At-a-glance (script-generated) -->
+  <h2>At a glance</h2>
+  <div class="cards">
+    <div class="card"><div class="n">21</div><div class="l">Closed</div></div>
+    <div class="card"><div class="n">0</div><div class="l">Carried forward</div></div>
+    <div class="card"><div class="n">5.7</div><div class="l">Closed / week</div></div>
+    <div class="card"><div class="n">1.9</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">0.8</div><div class="l">Median cycle (days)</div></div>
+  </div>
+  <div class="rolebar">
+    
+      <span class="pill">role:pm · <strong>19</strong></span>
+    
+      <span class="pill">role:memory_manager · <strong>8</strong></span>
+    
+      <span class="pill">role:developer · <strong>4</strong></span>
+    
+  </div>
+
+  <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
+  <div class="narrative">
+    <!-- Author-owned narrative for pm-i6 - PM Tooling, Memory & Methodology II. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+<h2>Deliverables (Review layer)</h2>
+<!-- Lead role: what shipped, grouped by deliverable. Auto-seed below. -->
+
+<ul>
+<li>
+<h1>696 Project map atlas — interactive whole-project D3 visualization (tools/project_map/)</h1>
+</li>
+<li>
+<h1>642 feat(pm): thread issue timestamps into board_open_items.py (+ dormancy --stale-days sweep)</h1>
+</li>
+<li>
+<h1>633 research(pm): board governance review — parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits</h1>
+</li>
+<li>
+<h1>623 feat(roles): Sub 3+4 of #527 — personas-repo MM workspace (CLAUDE.md + .claude/ + memory_manager/)</h1>
+</li>
+<li>
+<h1>618 chore(pm): dock — proves-out review for recheck_milestone hook (PM-local standing + capacity right-sizing)</h1>
+</li>
+<li>
+<h1>587 Phase 1: late-commitment conventions rewrite (5 files)</h1>
+</li>
+<li>
+<h1>584 docs: CLAUDE.md board-governance section — late-commitment model</h1>
+</li>
+<li>
+<h1>583 chore: retime residual milestone-at-triage refs (best_next_issue / dependency_tracking / shared MEMORY)</h1>
+</li>
+<li>
+<h1>582 feat: late-commitment morning-routine split + Ready-queue replenishment nudge</h1>
+</li>
+<li>
+<h1>581 design: sub-issue milestone inheritance under late commitment</h1>
+</li>
+<li>
+<h1>580 design: board status governance — migrate the left side to late-commitment Kanban (phased)</h1>
+</li>
+<li>
+<h1>577 fix(ci): TestLiveIntegrationSmoke docstring says "skipped by default" but live tests run in ci-tools-pytest</h1>
+</li>
+<li>
+<h1>569 migrate team coordination off team_standup.md → GitHub board + Discussions (retire the file)</h1>
+</li>
+<li>
+<h1>567 design: Sub 5-7 of #527 — personas-repo governance (edit boundaries + MM-owned commit lifecycle)</h1>
+</li>
+<li>
+<h1>561 fix(hooks): post_gh_pr_create misses <code>gh pr create</code> after a VAR=value prefix</h1>
+</li>
+<li>
+<h1>550 infra: PostToolUse hook on gh pr create — automate project-add + Ready-for-review Status flip</h1>
+</li>
+<li>
+<h1>549 infra: PreToolUse hook on gh issue develop — refuse parent-Issue targets</h1>
+</li>
+<li>
+<h1>548 pm: session arc tracker 2026-05-28 — memory-slim epic carve lab notebook PR</h1>
+</li>
+<li>
+<h1>530 feat(roles): Sub 2 of #527 — write + commit MM rollout implementation plan</h1>
+</li>
+<li>
+<h1>528 design: Sub 1 of #527 — write + commit Memory Manager design doc</h1>
+</li>
+<li>
+<h1>454 chore(pm): promote target-date sync hook from settings.local.json -&gt; settings.json</h1>
+</li>
+</ul>
+<h3>Auto-seed (lab-notebook + closing comments)</h3>
+<ul>
+<li><strong>2026-06-15</strong> (developer): — closure-audit reason-awareness + two Issue-lifecycle guardrails (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/744">PR #744</a> closes [Issue #743](https://github.…</li>
+<li><strong>2026-06-12</strong> (developer): — STAR sensitivity-flag benchmark sweep shipped (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/720">PR #720</a> closes [Issue #411](https://github.com/Jin-HoMLee/spl…</li>
+<li><strong>2026-06-11</strong> (developer): — Flatten <code>predictions/</code> wrapper dir merged: tool-named sibling folders + doc-sync (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/650">PR #650</a> closes [Issue #435…</li>
+<li><strong>2026-06-11</strong> (developer): — STAR annotated-flag cross-check merged: conflict resolution + merge-seam test (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/649">PR #649</a> closes [Issue #375](h…</li>
+<li><strong>2026-06-11</strong> (developer): — Cloud re-run robustness merged: pre-run snapshot + stale-log clear (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666">PR #666</a> closes [Issue #658](https://gith…</li>
+<li><strong>2026-06-11</strong> (developer): — GTEx pan-tissue filter merged: sole-filter unit test + sign-off (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653">PR #653</a> closes [Issue #212](https://github.…</li>
+<li><strong>2026-06-10</strong> (developer): — DataCite fallback for arXiv DOIs in zotero_add.py (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648">PR #648</a> closes [Issue #641](https://github.com/Jin-HoMLee…</li>
+<li><strong>2026-06-04</strong> (developer): — Cloud re-run robustness + CI conda env-solve guard (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/666">PR #666</a> closes [Issue #658](https://github.com/Jin-HoMLe…</li>
+<li><strong>2026-06-04</strong> (developer): — STAR env re-broke overnight from upstream bioconda churn; pinned DOWN to 2.7.10b (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/661">PR #661</a> closes [Issue #629…</li>
+<li><strong>2026-06-03</strong> (developer): — Integrate the GTEx pan-tissue filter into filter_junctions (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/653">PR #653</a> closes [Issue #212](https://github.com/J…</li>
+<li><strong>2026-06-03</strong> (developer): — GTEx pan-tissue novel-junction blacklist (Snaptron gtexv2) (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/598">PR #598</a> closes [Issue #211](https://github.com/J…</li>
+<li><strong>2026-06-03</strong> (developer): — star.yaml conda prerelease-ordering trap (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/645">PR #645</a> closes [Issue #629](https://github.com/Jin-HoMLee/splice-n…</li>
+<li><strong>2026-06-03</strong> (developer): — dependency release-feed poller + pure-delta version watermark (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/640">PR #640</a> closes [Issue #639](https://github.co…</li>
+<li><strong>2026-06-01</strong> (developer): — REPO passthrough for the pre-merge lab-notebook gate (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/615">PR #615</a> closes [Issue #607](https://github.com/Jin-HoM…</li>
+<li><strong>2026-05-31</strong> (developer): — bot-review-offer pre-merge gate (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/600">PR #600</a> closes [Issue #443](https://github.com/Jin-HoMLee/splice-neoepitope…</li>
+<li><strong>2026-05-31</strong> (developer): — TestLiveIntegrationSmoke skip contract (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/589">PR #589</a> closes [Issue #577](https://github.com/Jin-HoMLee/splice-neo…</li>
+<li><strong>2026-05-31</strong> (developer): — surface pre-cap presenter total for the strong-presenter truncation notice (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/579">PR #579</a> closes [Issue #226](http…</li>
+<li><strong>2026-05-30</strong> (developer): — post_gh_pr_create matches <code>gh pr create</code> after a <code>VAR=value</code> prefix (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/575">PR #575</a> closes [Issue #561](https://git…</li>
+<li><strong>2026-05-29</strong> (developer): 21:30 UTC — Editor: Developer</li>
+<li><strong>2026-05-28</strong> (developer): 20:38 UTC — Editor: Developer</li>
+<li><strong>2026-06-15</strong> (pm): 17:53 UTC — Editor: PM</li>
+<li><strong>2026-06-13</strong> (pm): 21:11 UTC — Editor: PM</li>
+<li><strong>2026-06-12</strong> (pm): 18:35 UTC — Editor: PM</li>
+<li><strong>2026-06-11</strong> (pm): 20:40 UTC — Editor: PM</li>
+<li><strong>2026-06-10</strong> (pm): 18:21 UTC — Editor: PM</li>
+<li><strong>2026-06-05</strong> (pm): 15:14 UTC — Editor: PM</li>
+<li><strong>2026-06-04</strong> (pm): 20:31 UTC — Editor: PM</li>
+<li><strong>2026-06-03</strong> (pm): 13:42 UTC — Editor: PM</li>
+<li><strong>2026-06-01</strong> (pm): 15:36 UTC — Editor: PM</li>
+<li><strong>2026-05-31</strong> (pm): 23:45 UTC — Editor: PM</li>
+<li><strong>2026-05-30</strong> (pm): 15:20 UTC — Editor: PM</li>
+<li><strong>2026-05-29</strong> (pm): 22:16 UTC — Editor: PM</li>
+<li><strong>2026-05-28</strong> (pm): 19:38 UTC — Editor: PM</li>
+</ul>
+<h2>Carried-forward &amp; routing</h2>
+<!-- PM: issues that didn't close + where they went (carve / arc) + the
+     closure-routing decision (a/b/c/d). -->
+
+<ul>
+<li><em>(none carried forward)</em></li>
+</ul>
+<h2>Retrospective (process/health)</h2>
+<!-- PM: was it healthy? what to improve? WIP/aging observations. -->
+  </div>
+
+  <!-- Section 6: Inventory appendix (script-generated) -->
+  <h2>Inventory appendix</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Role</th><th>Size</th><th>Pri</th><th>Closed</th></tr></thead>
+    <tbody>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/696">#696</a></td>
+        <td>Project map atlas — interactive whole-project D3 visualization (tools/project_map/)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-11</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642">#642</a></td>
+        <td>feat(pm): thread issue timestamps into board_open_items.py (+ dormancy --stale-days sweep)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-04</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633">#633</a></td>
+        <td>research(pm): board governance review — parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-05</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/623">#623</a></td>
+        <td>feat(roles): Sub 3+4 of #527 — personas-repo MM workspace (CLAUDE.md + .claude/ + memory_manager/)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-01</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/618">#618</a></td>
+        <td>chore(pm): dock — proves-out review for recheck_milestone hook (PM-local standing + capacity right-sizing)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-03</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/587">#587</a></td>
+        <td>Phase 1: late-commitment conventions rewrite (5 files)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584">#584</a></td>
+        <td>docs: CLAUDE.md board-governance section — late-commitment model</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/583">#583</a></td>
+        <td>chore: retime residual milestone-at-triage refs (best_next_issue / dependency_tracking / shared MEMORY)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582">#582</a></td>
+        <td>feat: late-commitment morning-routine split + Ready-queue replenishment nudge</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581">#581</a></td>
+        <td>design: sub-issue milestone inheritance under late commitment</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580">#580</a></td>
+        <td>design: board status governance — migrate the left side to late-commitment Kanban (phased)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/577">#577</a></td>
+        <td>fix(ci): TestLiveIntegrationSmoke docstring says &#34;skipped by default&#34; but live tests run in ci-tools-pytest</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569">#569</a></td>
+        <td>migrate team coordination off team_standup.md → GitHub board + Discussions (retire the file)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-12</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567">#567</a></td>
+        <td>design: Sub 5-7 of #527 — personas-repo governance (edit boundaries + MM-owned commit lifecycle)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-30</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561">#561</a></td>
+        <td>fix(hooks): post_gh_pr_create misses `gh pr create` after a VAR=value prefix</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-30</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550">#550</a></td>
+        <td>infra: PostToolUse hook on gh pr create — automate project-add + Ready-for-review Status flip</td>
+        <td>Done</td>
+        <td>developer, pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-29</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549">#549</a></td>
+        <td>infra: PreToolUse hook on gh issue develop — refuse parent-Issue targets</td>
+        <td>Done</td>
+        <td>developer, pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-29</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/548">#548</a></td>
+        <td>pm: session arc tracker 2026-05-28 — memory-slim epic carve lab notebook PR</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-29</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/530">#530</a></td>
+        <td>feat(roles): Sub 2 of #527 — write + commit MM rollout implementation plan</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-28</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/528">#528</a></td>
+        <td>design: Sub 1 of #527 — write + commit Memory Manager design doc</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-27</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454">#454</a></td>
+        <td>chore(pm): promote target-date sync hook from settings.local.json -&gt; settings.json</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-01</td>
+      </tr>
+      
+    </tbody>
+  </table>
+
+  <footer>
+    Generated by <code>scripts/pm/milestone_report.py</code> · author-editor-critic closure report
+    (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752">Issue #752</a>).
+    Data sections + this appendix are script-generated; the narrative above is author-owned
+    (<code>pm-i6 - PM Tooling, Memory &amp; Methodology II</code> sidecar).
+  </footer>
+
+</div>
+</body>
+</html>
