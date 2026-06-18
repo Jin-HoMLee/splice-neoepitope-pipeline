@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-18 — role-scope the dependency poller basket ([PR #773](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/773) closes [Issue #755](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/755))
+
+### Editor: Developer
+
+**Why.** `tools/news/poll_releases.py --role <role>` used `--role` *only* to pick the watermark file — `run()` polled the entire `software + reference_data` basket regardless of role. So a `--role pm` poll surfaced Developer-scope deltas (the trigger was snakemake 9.22→9.23 leaking to a PM poll on 2026-06-16). `tools.yaml` had no role concept at all.
+
+**The fix.** A `roles:` list on every polled entry (`software → [developer]`; `reference_data → [developer, scientist]` so neither role loses a signal it gets today — a dep is both a dev-config and a science-data concern). New pure `select_tools(basket, role)` + a `POLLED_SECTIONS` constant filter the basket by role; an entry with **no** `roles:` key stays visible to all roles (**fail-open** — never silently drop a dep), and `role=None` preserves the unfiltered back-compat path. `main()` now threads `--role` into `run()` (the one-line omission that *was* the bug). **AC3 (PM-poller fork)** resolved as a thin pollable PM basket: a new `pm_tooling:` section holding the `gh` CLI (`cli/cli`, `roles: [pm]`), so the poller stays useful for `--role pm` and "poller-first for every role" stays literally true — Beat 1 memory needed no edit. PM's broader un-enumerable news scope is the discovery half rebuilt under [Issue #766](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/766); `pm_tooling` is just the pollable slice (a GitHub-changelog RSS `feed_type` would be the next step, out of scope here).
+
+**Verification.** TDD throughout (RED watched before each GREEN): 8 new tests in `tools/news/test_poll_releases.py` — the fail-open contract, the exact issue bug (`--role pm` surfaces no Developer deps), `pm_tooling` polled for pm and *not* for developer, plus two live-contract guards on the real YAML (every polled entry role-tagged; a PM poll over the shipped basket sees only `gh-cli`, disjoint from `software`). Suite 25→33. Live smoke: `--role pm` surfaces zero Developer deps; `--role developer` unchanged; `gh-cli` fetched + baseline-seeded cleanly (2.95.0). Bot review **Approve with minor notes** — fixed a stale `watch:` comment that named "software + reference_data only" after `pm_tooling` joined `POLLED_SECTIONS` (`8e399a4`); declined the role-unscoped watch-footer note (global candidate-to-adopt reminder by design, scope beyond this fix — noted as a follow-up if PM flags it). No chr22 integration run (news-tooling change, not a Snakemake rule). CI 4/4 green.
+
+---
+
 ## 2026-06-17 — board_open_items.py is parent-aware ([PR #768](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/768) closes [Issue #742](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/742))
 
 ### Editor: Developer
