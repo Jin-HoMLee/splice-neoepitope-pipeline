@@ -391,6 +391,17 @@ class TestGhRetry:
         rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
         assert sleeps == [7.0]          # used the Retry-After hint, not exp backoff
 
+    def test_caps_excessive_retry_after(self):
+        # GitHub can legally emit a large Retry-After during sustained degradation;
+        # an uncapped hint would stall the nightly job. Cap it (Issue #711 review).
+        runner = self._runner_seq([
+            self._result(1, stderr="HTTP 403: rate limited\nRetry-After: 3600"),
+            self._result(0, stdout="[]"),
+        ])
+        sleeps = []
+        rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert sleeps == [rm.GH_RETRY_AFTER_CAP_SECONDS]   # 3600 clamped to the ceiling
+
     def test_exhausts_attempts_then_raises(self):
         runner = self._runner_seq(
             [self._result(1, stderr="HTTP 503: server error")] * rm.GH_MAX_ATTEMPTS
@@ -633,7 +644,11 @@ class TestRecheckHermeticIntegration:
         "elif args[:2] == ['issue', 'list']:\n"
         "    sys.stdout.write(os.environ.get('FAKE_ISSUE_LIST', '[]'))\n"
         "else:\n"
-        "    sys.stdout.write('{}')\n"
+        # Fail LOUD on an unmatched call shape: if the real script grows a new gh
+        # call, an empty '{}' would let the test pass with wrong data (Issue #711
+        # review). exit 1 surfaces the gap instead of silently masking it.
+        "    sys.stderr.write('FAKE_GH: unmatched gh call: %r\\n' % (args,))\n"
+        "    sys.exit(1)\n"
         "sys.exit(0)\n"
     )
 

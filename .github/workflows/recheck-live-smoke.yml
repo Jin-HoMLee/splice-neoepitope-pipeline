@@ -17,6 +17,11 @@ on:
 jobs:
   live-recheck-smoke:
     runs-on: ubuntu-latest
+    # Bound an unattended nightly job: the per-milestone timeout=60 in the live
+    # test caps individual calls, but a hung run shouldn't burn Actions minutes
+    # (Issue #711 review). Worst case (~40 calls + capped backoff) is well under
+    # this ceiling.
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v6

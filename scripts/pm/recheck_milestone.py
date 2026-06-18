@@ -131,7 +131,12 @@ def compute_layered_due_date(
 
 
 GH_MAX_ATTEMPTS = 4
+assert GH_MAX_ATTEMPTS >= 1, "gh() runs the loop at least once; a terminal raise needs a result"
 GH_BACKOFF_BASE_SECONDS = 2.0
+# Clamp a Retry-After hint: GitHub can legally emit a large value (e.g. 3600s)
+# during sustained degradation, which would otherwise stall the nightly live job
+# for that whole duration before raising (Issue #711 review).
+GH_RETRY_AFTER_CAP_SECONDS = 120.0
 
 # Deterministic client errors that won't fix themselves on retry — a bad request
 # stays bad. Everything else (5xx, 403/secondary-rate-limit, network/timeout, an
@@ -176,7 +181,7 @@ def gh(*args: str, parse_json: bool = True, _runner=subprocess.run, _sleep=time.
             delay = _retry_after_seconds(result.stderr)
             if delay is None:
                 delay = GH_BACKOFF_BASE_SECONDS * (2 ** attempt)
-            _sleep(delay)
+            _sleep(min(delay, GH_RETRY_AFTER_CAP_SECONDS))
     raise subprocess.CalledProcessError(
         result.returncode, cmd, output=result.stdout, stderr=result.stderr
     )
