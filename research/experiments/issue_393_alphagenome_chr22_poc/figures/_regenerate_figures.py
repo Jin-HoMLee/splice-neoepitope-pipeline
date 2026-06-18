@@ -2,14 +2,14 @@
 
 Run from repo root:
     conda activate splice-neoepitope-alphagenome
-    python research/slides/issue_393_alphagenome_chr22_poc/figures/_regenerate_figures.py
+    python research/experiments/issue_393_alphagenome_chr22_poc/figures/_regenerate_figures.py
 
 Outputs (next to this script):
     pr_curve.png            — Precision-Recall curve + AP + baseline
     prf1_vs_threshold.png   — Precision / Recall / F1 vs threshold τ
     bootstrap_f1.png        — Bootstrap F1 histogram + 95% CI band
 
-Logic mirrors `research/notebooks/issue_224_alphagenome_exp1_patient_001.ipynb`
+Logic mirrors `research/experiments/issue_224_alphagenome_exp1/notebook.ipynb`
 §1–§5 verbatim — same data sources, same universe construction, same AP/bootstrap
 semantics (sklearn AP convention; F1-at-fixed-τ positives-only bootstrap).
 
@@ -30,7 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 OUT_DIR = Path(__file__).resolve().parent
 MATCHED_NORMAL_TSV = REPO_ROOT / "results" / "patient_001_test" / "alignment" / "SRR9143065_test" / "junctions.tsv"
 GENCODE_GTF = REPO_ROOT / "resources" / "test" / "chr22.gtf.gz"
-AG_PARQUET = REPO_ROOT / "research" / "notebooks" / "issue_224_alphagenome_exp1_outputs" / "chr22_stomach_predicted_junctions.parquet"
+AG_PARQUET = REPO_ROOT / "research" / "experiments" / "issue_224_alphagenome_exp1" / "outputs" / "chr22_stomach_predicted_junctions.parquet"
 TARGET_CHROM = "chr22"
 
 

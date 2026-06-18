@@ -22,7 +22,7 @@ format:
 # Tracked as a follow-up; HTML reveal.js is the primary delivery for lab seminar.
 # For a PDF handout right now, open slides.html in Chrome and "Print → Save as PDF".
 bibliography: refs.bib
-csl: ../nature.csl
+csl: ../../slides/nature.csl
 execute:
   echo: false
   warning: false

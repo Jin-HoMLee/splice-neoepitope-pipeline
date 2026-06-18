@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-18
+
+### 14:46 UTC — Editor: Scientist
+
+#### [PR #775](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/775) migrates per-Issue notebooks + slides into the `research/experiments/` convention — closes [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).
+
+**What shipped.** Moved the three pre-convention per-Issue artifacts from the parallel `research/notebooks/` + `research/slides/` layouts into the single-folder-per-Issue convention established by [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225): `issue_224_alphagenome_exp1/` (notebook + 17 MB AG parquet + new README), `issue_299_kwok_psr_gtex_validation/` (notebook + new README + `outputs/` slot), `issue_393_alphagenome_chr22_poc/` (slide deck co-located + new README). All as **git renames** (history preserved). Rewired every cross-experiment `AG_PARQUET` reference (the #225 notebook/README/regenerator + the #393 regenerator) to the new `issue_224_alphagenome_exp1/outputs/` path, and re-depthed the #224 notebook's repo-root markdown links (`../../` → `../../../`) for the extra directory level. CLAUDE.md migration notes flipped to past tense.
+
+**Data-policy call (status-quo-preserving).** The 17 MB AlphaGenome parquet is API-derived with **no regenerator script**, so committing it would be permanent dead weight — kept out of git (`.gitignore` extended to its new path), as before the move. The unstated commit-vs-ignore rule for `experiments/*/outputs/` (this parquet stays out; #225's regenerable Snaptron parquet is committed) is routed to follow-up [Issue #774](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/774) rather than decided ad hoc here.
+
+**Two consistency catches folded in (user-approved scope).** (1) Wrote the missing #393 deck README (the convention expects one). (2) Untracked issue_225's committed rendered deck (`slides.html` + `slides_files/`, 48 vendored reveal.js files) so co-located decks uniformly follow the documented *"regenerable via quarto render"* gitignore intent — files kept on disk per the keep-render-artifacts rule.
+
+**Review (the `@claude` pass on #775).** Two real findings fixed: a stale docstring usage-path in the #393 regenerator (line 5 still showed the old `research/slides/` path — docstring-only, runtime `parents[4]` was already correct), and a `.gitignore` gap (the experiments block carried only `*.html`/`*.pdf`/`slides_files/` vs the 6-pattern block siblings use — added `*_files/`, `.quarto/`, `slides.tex`, `slides.log`; `*_files/` is broader since Quarto names the support dir after the `.qmd`). One review note — a working-tree CLAUDE.md "revert" — was a **CI-sandbox artifact**, not real: local tree clean, HEAD carries the correct edits. **Verified before merge:** all 3 notebooks parse, both regenerators `py_compile`, the #393 deck renders clean on quarto 1.9.37 (csl resolves), no stale *live* path refs (only frozen `docs/superpowers/` + immutable lab-notebook retain old paths), and the new ignore patterns catch the leak dirs without touching tracked `figures/`/`outputs/`.
+
 ## 2026-06-17
 
 ### 15:30 UTC — Editor: Scientist
