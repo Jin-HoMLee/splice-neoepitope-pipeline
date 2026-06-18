@@ -46,10 +46,32 @@ open-Issue annotation lookup), `--json` (machine-readable), `--watermark PATH`,
 ## How it works
 
 1. **`tools.yaml`** — the basket: each dependency with its `feed_type`
-   (`pypi` / `github` / `bioconda` / `pytorch_cu126` / `manual`) and any guards.
+   (`pypi` / `github` / `bioconda` / `pytorch_cu126` / `manual`), a `roles:` tag,
+   and any guards. Polled sections: `software`, `reference_data`, `pm_tooling`
+   (`watch` is a name-only footer reminder, never polled).
 2. **`watermark_<role>.yaml`** (gitignored) — `{tool: last_version}` + `last_briefing`.
-3. **`poll_releases.py`** — fetch latest per feed → diff against the watermark →
-   surface only changed tools → write the watermark back.
+3. **`poll_releases.py`** — select the tools tagged for `--role` → fetch latest
+   per feed → diff against the watermark → surface only changed tools → write the
+   watermark back.
+
+### Role scoping (Issue #755)
+
+`--role` filters the **basket**, not just the watermark file: a poll only fetches
+tools whose `roles:` list contains that role.
+
+| Role | Sees | Sourced from |
+|------|------|--------------|
+| `developer` | the full pipeline-software basket + the reference-data feeds | `software` (`[developer]`) + `reference_data` (`[developer, scientist]`) |
+| `scientist` | the reference-data feeds (GENCODE, VDJdb, …) | `reference_data` (`[developer, scientist]`) |
+| `pm` | `gh` CLI only | `pm_tooling` (`[pm]`) |
+
+This is the fix for the bug where `--role pm` surfaced **Developer-scope** deltas
+(e.g. snakemake) because `--role` only chose the watermark file and `run()` polled
+the entire basket regardless. An entry with **no** `roles:` key is visible to every
+role (**fail-open** — an untagged dep is never silently dropped). PM's broader,
+un-enumerable news scope (GitHub Projects features / methodology) is the discovery
+half rebuilt under [Issue #766](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/766);
+`pm_tooling` is just the thin *pollable* slice.
 
 ### Pure-delta semantics
 

@@ -12,6 +12,14 @@
 #   pytorch_cu126  -> the cu126 wheel channel (NOT plain PyPI — see torch guard)
 #   manual         -> no machine feed; listed for human watch only
 #
+# roles: (Issue #755) — which role(s) a poll surfaces this tool to.
+#   `poll_releases.py --role <role>` polls only the tools whose `roles:` list
+#   contains <role>. This stops a `--role pm` poll from surfacing Developer-scope
+#   deltas. An entry with NO `roles:` key is visible to every role (fail-open — an
+#   untagged dep is never silently dropped). software -> [developer]; the
+#   reference_data feeds carry [developer, scientist] (a dev-config concern AND a
+#   science-data concern, so neither role loses a signal it gets today).
+#
 # guards (optional per-tool keys):
 #   frozen: true       -> never flag (intentionally pinned; e.g. Docker AlphaFold-era stack)
 #   watch_only: true   -> surface as a *watch* note, never an actionable bump (regression risk)
@@ -20,66 +28,78 @@
 software:
   - tool: snakemake
     current_pin: ">=8.0,<9"
+    roles: [developer]
     feed_type: pypi
     feed: snakemake
     note: "9.x is the next-major risk; eval done in Issue #200 (closed)."
 
   - tool: hisat2
     current_pin: ">=2.2.1"
+    roles: [developer]
     feed_type: github
     feed: DaehwanKimLab/hisat2
 
   - tool: regtools
     current_pin: ">=1.0.0"
+    roles: [developer]
     feed_type: github
     feed: griffithlab/regtools
     note: "Drives the samtools/libdeflate conflict (TODO #237)."
 
   - tool: STAR
     current_pin: ">=2.7.11"
+    roles: [developer]
     feed_type: github
     feed: alexdobin/STAR
 
   - tool: samtools
     current_pin: ">=1.18 (conda) / 1.13 (apt VM)"
+    roles: [developer]
     feed_type: github
     feed: samtools/samtools
     note: "Held low by the regtools/libdeflate>=1.26 conflict (TODO #237)."
 
   - tool: bedtools
     current_pin: ">=2.31"
+    roles: [developer]
     feed_type: github
     feed: arq5x/bedtools2
 
   - tool: OptiType
     current_pin: "=1.3.5"
+    roles: [developer]
     feed_type: github
     feed: FRED-2/OptiType
 
   - tool: mhcflurry
     current_pin: ">=2.0"
+    roles: [developer]
     feed_type: pypi
     feed: mhcflurry
     note: "Pulls torch + TF; presentation predictor."
 
   - tool: torch
     current_pin: "==2.12.0+cu126"
+    roles: [developer]
     feed_type: pytorch_cu126
     feed: cu126
     note: "Pascal/P100 SM 6.0 compat. The cu126 wheel channel is load-bearing; a bare PyPI poll always shows a newer non-Pascal build. Preserve the +cu126 local-version tag."
 
   - tool: alphagenome
     current_pin: ">=0.6,<0.7"
+    roles: [developer]
     feed_type: pypi
     feed: alphagenome
 
   - tool: stitchr
     current_pin: ">=1.1.0"
+    roles: [developer]
     feed_type: pypi
     feed: stitchr
 
   - tool: IMGTgeneDL
     current_pin: ">=0.6.1"
+    roles: [developer]
     feed_type: pypi
     feed: IMGTgeneDL
     max_version: "0.6.1"
@@ -87,6 +107,7 @@ software:
 
   - tool: snakevision
     current_pin: "==1.1.0"
+    roles: [developer]
     feed_type: pypi
     feed: snakevision
     note: "Dev DAG tooling (scripts/setup_local.sh)."
@@ -94,6 +115,7 @@ software:
   # --- Frozen: pinned together for AlphaFold-2.3.2-era compat in the Docker image ---
   - tool: TCRdock
     current_pin: "v2.0.0"
+    roles: [developer]
     feed_type: github
     feed: phbradley/TCRdock
     frozen: true
@@ -101,6 +123,7 @@ software:
 
   - tool: jax
     current_pin: "==0.3.25"
+    roles: [developer]
     feed_type: pypi
     feed: jax
     frozen: true
@@ -109,6 +132,7 @@ software:
   # --- Human-watch only: newer images are a P100 regression risk, not a bump target ---
   - tool: gcp_dlvm_image
     current_pin: "pytorch-latest-cu124-v20250327-ubuntu-2204 (driver 550.90.07)"
+    roles: [developer]
     feed_type: manual
     feed: "https://cloud.google.com/deep-learning-vm/docs/release-notes"
     note: >-
@@ -121,7 +145,9 @@ software:
 # NAME-ONLY: the poller never polls this section (run() iterates software +
 # reference_data only). Only the `tool:` name is read — rendered in the briefing
 # footer as a muted reminder. The `note:` is human prose; do not add feed_type/feed
-# here (it would imply polling that does not happen).
+# here (it would imply polling that does not happen). No `roles:` needed — the
+# footer watch-list is not role-scoped (select_tools only filters software +
+# reference_data).
 watch:
   - tool: uv
     note: "Test+research venv adoption tracked in Issue #570 (open)."
@@ -129,20 +155,40 @@ watch:
     note: "Linting-adoption decision has no Issue home yet; deferred (see Issue #639 out-of-scope)."
 
 # Reference DATA feeds (different cadence than software; releases still matter).
+# roles: [developer, scientist] — a dev maintains the config pin; a scientist
+# cares about the data release itself.
 reference_data:
   - tool: gencode
     current_pin: "v47"
+    roles: [developer, scientist]
     feed_type: manual
     feed: "https://www.gencodegenes.org/human/releases.html"
   - tool: vdjdb
     current_pin: "release 2026-05-16"
+    roles: [developer, scientist]
     feed_type: github
     feed: antigenomics/vdjdb-db
   - tool: hisat2_prebuilt_index
     current_pin: "hg38_tran"
+    roles: [developer, scientist]
     feed_type: manual
     feed: "genome-idx.s3.amazonaws.com"
   - tool: snaptron_gtexv2
     current_pin: "gtexv2"
+    roles: [developer, scientist]
     feed_type: manual
     feed: "https://snaptron.cs.jhu.edu"
+
+# PM-scope tooling (Issue #755, AC3). PM's news is mostly the un-enumerable
+# long-tail (GitHub Projects features / methodology) that the discovery half
+# (Issue #766) rebuilds — but the `gh` CLI is a genuinely pollable PM dep, so
+# the poller stays useful (and "poller-first for every role" stays literally
+# true) for `--role pm`. A useful GitHub-changelog feed would need an RSS/Atom
+# feed_type (out of scope here); add it under #766 if wanted.
+pm_tooling:
+  - tool: gh-cli
+    current_pin: "(unpinned; dev/CI convenience tool)"
+    roles: [pm]
+    feed_type: github
+    feed: cli/cli
+    note: "GitHub CLI — PM's pollable surface for board/Projects tooling changes."

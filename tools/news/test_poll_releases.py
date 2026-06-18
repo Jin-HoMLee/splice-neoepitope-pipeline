@@ -106,6 +106,74 @@ def test_parse_cu126_index_empty():
 
 
 # --------------------------------------------------------------------------- #
+# role scoping (Issue #755) — the basket is filtered by --role
+# --------------------------------------------------------------------------- #
+def test_select_tools_filters_by_role():
+    basket = {
+        "software": [
+            {"tool": "snakemake", "roles": ["developer"]},
+            {"tool": "vdjdb", "roles": ["developer", "scientist"]},
+        ],
+        "reference_data": [
+            {"tool": "gencode", "roles": ["scientist"]},
+        ],
+    }
+    assert [t["tool"] for t in pr.select_tools(basket, "developer")] == ["snakemake", "vdjdb"]
+    assert [t["tool"] for t in pr.select_tools(basket, "scientist")] == ["vdjdb", "gencode"]
+    assert pr.select_tools(basket, "pm") == []
+
+
+def test_select_tools_untagged_is_visible_to_all_roles():
+    """Fail-open: an entry with no roles: key is never silently dropped."""
+    basket = {"software": [{"tool": "legacy"}]}
+    assert [t["tool"] for t in pr.select_tools(basket, "pm")] == ["legacy"]
+    assert [t["tool"] for t in pr.select_tools(basket, "developer")] == ["legacy"]
+
+
+def test_select_tools_role_none_returns_all():
+    basket = {"software": [{"tool": "a", "roles": ["developer"]}],
+              "reference_data": [{"tool": "b", "roles": ["scientist"]}]}
+    assert [t["tool"] for t in pr.select_tools(basket, None)] == ["a", "b"]
+
+
+def test_run_role_pm_returns_no_developer_deps():
+    """AC: a PM poll must not surface a Developer-scope delta (the #755 bug)."""
+    basket = {"software": [
+        {"tool": "snakemake", "feed_type": "pypi", "feed": "snakemake", "roles": ["developer"]},
+    ]}
+    # A genuine delta exists (9.21 -> 9.22); without role-scoping it would surface.
+    wm = {"tools": {"snakemake": "9.21.0"}}
+    surfaced, _ = pr.run(basket, wm, role="pm", check_tracked=False, fetcher=_fetcher({"snakemake": "9.22.0"}))
+    assert surfaced == []
+
+
+def test_pm_tooling_section_is_polled_for_pm_role():
+    """PM gets its own thin pollable basket (Issue #755, AC3) — and it never leaks to dev."""
+    basket = {"pm_tooling": [
+        {"tool": "gh-cli", "feed_type": "github", "feed": "cli/cli", "roles": ["pm"]},
+    ]}
+    surfaced, _ = pr.run(basket, {"tools": {"gh-cli": "2.40.0"}}, role="pm",
+                         check_tracked=False, fetcher=_fetcher({"gh-cli": "2.41.0"}))
+    assert [r["tool"] for r in surfaced] == ["gh-cli"]
+    dev, _ = pr.run(basket, {"tools": {"gh-cli": "2.40.0"}}, role="developer",
+                    check_tracked=False, fetcher=_fetcher({"gh-cli": "2.41.0"}))
+    assert dev == []
+
+
+def test_run_role_scopes_to_matching_tools():
+    basket = {
+        "software": [{"tool": "snakemake", "feed_type": "pypi", "feed": "snakemake", "roles": ["developer"]}],
+        "reference_data": [{"tool": "gencode", "feed_type": "github", "feed": "x", "roles": ["scientist"]}],
+    }
+    wm = {"tools": {"snakemake": "9.21.0", "gencode": "v47"}}
+    versions = {"snakemake": "9.22.0", "gencode": "v48"}
+    dev, _ = pr.run(basket, dict(tools=dict(wm["tools"])), role="developer", check_tracked=False, fetcher=_fetcher(versions))
+    sci, _ = pr.run(basket, dict(tools=dict(wm["tools"])), role="scientist", check_tracked=False, fetcher=_fetcher(versions))
+    assert [r["tool"] for r in dev] == ["snakemake"]
+    assert [r["tool"] for r in sci] == ["gencode"]
+
+
+# --------------------------------------------------------------------------- #
 # run() — end-to-end with injected fetcher + tracker
 # --------------------------------------------------------------------------- #
 def _fetcher(versions):
@@ -261,3 +329,27 @@ def test_basket_file_parses_and_has_known_guards():
     assert by_name["gcp_dlvm_image"]["feed_type"] == "manual"
     assert "watch_only" not in by_name["gcp_dlvm_image"]
     assert by_name["torch"]["feed_type"] == "pytorch_cu126"
+
+
+def test_basket_file_every_polled_entry_is_role_tagged():
+    """Issue #755: every polled entry carries a roles: list."""
+    pytest.importorskip("yaml")
+    basket = pr.load_basket()
+    for section in pr.POLLED_SECTIONS:
+        for tool in basket.get(section, []):
+            assert isinstance(tool.get("roles"), list) and tool["roles"], \
+                f"{tool['tool']} ({section}) is missing a roles: tag"
+    # software is Developer-scope; reference_data is shared dev+scientist.
+    assert all("developer" in t["roles"] for t in basket["software"])
+    assert all(set(t["roles"]) == {"developer", "scientist"} for t in basket["reference_data"])
+    assert all(t["roles"] == ["pm"] for t in basket["pm_tooling"])
+
+
+def test_real_basket_pm_poll_sees_only_pm_tooling():
+    """The bug the Issue fixes: a PM poll surfaces no Developer deps — only pm_tooling."""
+    pytest.importorskip("yaml")
+    basket = pr.load_basket()
+    pm_tools = {t["tool"] for t in pr.select_tools(basket, "pm")}
+    dev_tools = {t["tool"] for t in basket["software"]}
+    assert pm_tools == {"gh-cli"}
+    assert pm_tools.isdisjoint(dev_tools)
