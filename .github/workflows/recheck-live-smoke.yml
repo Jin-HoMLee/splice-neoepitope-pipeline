@@ -1,0 +1,45 @@
+name: Live recheck smoke (nightly)
+
+# Issue #711: the live recheck integration smoke
+# (TestLiveIntegrationSmoke, @pytest.mark.live) is split OFF the per-PR
+# ci-tools-pytest job so a transient GitHub-API blip can never red a PR. It runs
+# here instead — nightly and NON-BLOCKING (a scheduled workflow, not a required
+# check, so it gates nothing). A real failure surfaces in the Actions tab for
+# follow-up; per-PR integration coverage is provided hermetically by
+# TestRecheckHermeticIntegration (recorded gh fixtures, no live calls).
+
+on:
+  schedule:
+    # ~04:37 UTC daily (off the top of the hour to avoid Actions cron congestion).
+    - cron: "37 4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  live-recheck-smoke:
+    runs-on: ubuntu-latest
+    # Bound an unattended nightly job: the per-milestone timeout=60 in the live
+    # test caps individual calls, but a hung run shouldn't burn Actions minutes
+    # (Issue #711 review). Worst case (~40 calls + capped backoff) is well under
+    # this ceiling.
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest pyyaml
+
+      - name: Run live recheck smoke
+        # Selects ONLY the @pytest.mark.live suite. The gh()-level retry with
+        # backoff (Issue #711 D4) absorbs transient blips on this live path; the
+        # REQUIRES_LIVE_GH guard skips cleanly if the project scope is absent.
+        run: pytest tools/ci/ -v -m live
+        env:
+          # PAT with `read:project` scope — live tests resolve project items via
+          # GraphQL, which the default repo-scoped GITHUB_TOKEN cannot read.
+          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}

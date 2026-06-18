@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import date, datetime, timedelta
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
@@ -129,9 +130,61 @@ def compute_layered_due_date(
     return (proposed, note)
 
 
-def gh(*args: str, parse_json: bool = True) -> object:
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout) if parse_json else result.stdout
+GH_MAX_ATTEMPTS = 4
+assert GH_MAX_ATTEMPTS >= 1, "gh() runs the loop at least once; a terminal raise needs a result"
+GH_BACKOFF_BASE_SECONDS = 2.0
+# Clamp a Retry-After hint: GitHub can legally emit a large value (e.g. 3600s)
+# during sustained degradation, which would otherwise stall the nightly live job
+# for that whole duration before raising (Issue #711 review).
+GH_RETRY_AFTER_CAP_SECONDS = 120.0
+
+# Deterministic client errors that won't fix themselves on retry — a bad request
+# stays bad. Everything else (5xx, 403/secondary-rate-limit, network/timeout, an
+# empty-stderr crash) is treated as transient and retried. We fail TOWARD retrying:
+# the goal is de-flaking the live recheck smoke against transient GitHub-API blips
+# (Issue #711 D4), and over-retrying a genuine bad arg only wastes a bounded few
+# seconds, whereas under-retrying a transient blip reds the whole job.
+_DETERMINISTIC_HTTP_RE = re.compile(r"HTTP (400|401|404|410|422)\b")
+_RETRY_AFTER_RE = re.compile(r"retry[- ]after[:\s]+(\d+)", re.IGNORECASE)
+
+
+def _is_transient_gh_error(stderr: str) -> bool:
+    return not _DETERMINISTIC_HTTP_RE.search(stderr or "")
+
+
+def _retry_after_seconds(stderr: str) -> float | None:
+    m = _RETRY_AFTER_RE.search(stderr or "")
+    return float(m.group(1)) if m else None
+
+
+def gh(*args: str, parse_json: bool = True, _runner=subprocess.run, _sleep=time.sleep) -> object:
+    """Run ``gh`` with retry + exponential backoff on transient failures (Issue #711 D4).
+
+    GitHub secondary rate limits and transient 5xx / replication-lag errors surface
+    as a non-zero ``gh`` exit unrelated to the request. The live recheck smoke makes
+    ~35-40 calls per CI run, so a single such blip would otherwise red the shared
+    ``ci-tools-pytest`` job. Transient non-zero exits are retried up to
+    ``GH_MAX_ATTEMPTS`` with exponential backoff, honoring a ``Retry-After`` hint
+    when GitHub provides one. A deterministic 4xx is not retried, and a terminal
+    failure raises ``CalledProcessError`` — preserving the ``check=True`` contract
+    callers depend on. ``_runner`` / ``_sleep`` are injection seams for tests.
+    """
+    cmd = ["gh", *args]
+    result = None
+    for attempt in range(GH_MAX_ATTEMPTS):
+        result = _runner(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            return json.loads(result.stdout) if parse_json else result.stdout
+        if not _is_transient_gh_error(result.stderr):
+            break
+        if attempt < GH_MAX_ATTEMPTS - 1:
+            delay = _retry_after_seconds(result.stderr)
+            if delay is None:
+                delay = GH_BACKOFF_BASE_SECONDS * (2 ** attempt)
+            _sleep(min(delay, GH_RETRY_AFTER_CAP_SECONDS))
+    raise subprocess.CalledProcessError(
+        result.returncode, cmd, output=result.stdout, stderr=result.stderr
+    )
 
 
 def milestone_for_issue(issue_number: int) -> int | None:
@@ -155,12 +208,34 @@ def open_issues_in_milestone(milestone_title: str) -> list[int]:
     return [issue["number"] for issue in data]
 
 
-def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
+def sizes_and_parents_for_issues(
+    issue_numbers: list[int],
+) -> tuple[dict[int, str | None], set[int]]:
+    """One GraphQL round-trip returning ``(sizes, parents)`` for ``issue_numbers``.
+
+    Folds what used to be two separate aliased GraphQL queries (``sizes_for_issues``
+    + ``parent_numbers``) into a single call: each ``i{n}`` alias now fetches both
+    the project Size field value AND ``subIssuesSummary.total`` (Issue #711). This
+    halves the GraphQL surface per recheck — material because the live smoke test
+    rechecks every open milestone, and one transient ``gh`` non-zero on any call
+    reds the shared ``ci-tools-pytest`` job.
+
+    - ``sizes[n]`` — the issue's Size on PROJECT_NUMBER (``None`` if unset / on a
+      different board).
+    - ``parents`` — the subset that are parent epics (``subIssuesSummary.total > 0``).
+      Parents carry no Size by convention — size rolls up from their sub-issues
+      (shared/feedback_parent_sub_issues.md). compute_recheck excludes them from
+      both the capacity sum and the unsized-check, so a milestone holding a parent
+      as a roadmap anchor doesn't emit a spurious, un-clearable [UNSIZED] flag
+      (Issue #689 — sizing the parent to clear it would itself violate the
+      no-size convention).
+    """
     if not issue_numbers:
-        return {}
+        return {}, set()
     owner, name = REPO.split("/")
     aliases = " ".join(
         f'i{n}: issue(number: {n}) {{ '
+        f'subIssuesSummary {{ total }} '
         f'projectItems(first: 5) {{ nodes {{ project {{ number }} '
         f'fieldValues(first: 20) {{ nodes {{ '
         f'... on ProjectV2ItemFieldSingleSelectValue {{ name field {{ ... on ProjectV2SingleSelectField {{ name }} }} }} '
@@ -171,8 +246,12 @@ def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
     data = gh("api", "graphql", "-f", f"query={query}")
     repo = data["data"]["repository"]
     sizes: dict[int, str | None] = {}
+    parents: set[int] = set()
     for n in issue_numbers:
         node = repo.get(f"i{n}") or {}
+        total = (node.get("subIssuesSummary") or {}).get("total") or 0
+        if total > 0:
+            parents.add(n)
         size: str | None = None
         for pi in node.get("projectItems", {}).get("nodes", []):
             if (pi.get("project") or {}).get("number") != PROJECT_NUMBER:
@@ -181,36 +260,7 @@ def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
                 if (fv.get("field") or {}).get("name") == "Size":
                     size = fv.get("name")
         sizes[n] = size
-    return sizes
-
-
-def parent_numbers(issue_numbers: list[int]) -> set[int]:
-    """Subset of issue_numbers that are parent epics (subIssuesSummary.total > 0).
-
-    Parents carry no Size by convention — size rolls up from their sub-issues
-    (shared/feedback_parent_sub_issues.md). compute_recheck excludes them from
-    both the capacity sum and the unsized-check, so a milestone holding a parent
-    as a roadmap anchor doesn't emit a spurious, un-clearable [UNSIZED] flag
-    (Issue #689 — sizing the parent to clear it would itself violate the
-    no-size convention).
-    """
-    if not issue_numbers:
-        return set()
-    owner, name = REPO.split("/")
-    aliases = " ".join(
-        f"i{n}: issue(number: {n}) {{ subIssuesSummary {{ total }} }}"
-        for n in issue_numbers
-    )
-    query = f'query {{ repository(owner: "{owner}", name: "{name}") {{ {aliases} }} }}'
-    data = gh("api", "graphql", "-f", f"query={query}")
-    repo = data["data"]["repository"]
-    parents: set[int] = set()
-    for n in issue_numbers:
-        node = repo.get(f"i{n}") or {}
-        total = (node.get("subIssuesSummary") or {}).get("total") or 0
-        if total > 0:
-            parents.add(n)
-    return parents
+    return sizes, parents
 
 
 def compute_recheck(milestone_number: int) -> int:
@@ -223,8 +273,7 @@ def compute_recheck(milestone_number: int) -> int:
     )
 
     issue_numbers = open_issues_in_milestone(title)
-    sizes = sizes_for_issues(issue_numbers)
-    parents = parent_numbers(issue_numbers)
+    sizes, parents = sizes_and_parents_for_issues(issue_numbers)
 
     print(f"Milestone: {title}")
     print(f"Current due_on: {current_due_date or '—'}")

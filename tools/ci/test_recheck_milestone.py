@@ -1,5 +1,7 @@
 """Unit tests for scripts/pm/recheck_milestone.py."""
 
+import json
+import os
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -253,6 +255,177 @@ class TestComputeLayeredDueDate:
         assert "standalone S7" in note
 
 
+class TestSizesAndParentsFold:
+    """sizes_and_parents_for_issues folds the former sizes_for_issues +
+    parent_numbers calls into ONE GraphQL round-trip (Issue #711 A1).
+
+    Each i{n} alias fetches both the project Size field value AND
+    subIssuesSummary.total, so a recheck makes one GraphQL call for size +
+    parent-status instead of two. Behaviour (the parsed sizes dict + parents
+    set) must be identical to the two predecessors.
+    """
+
+    def _canned(self, monkeypatch):
+        """Patch rm.gh to record calls and return a combined size+subIssue
+        response for issues 1 (M, leaf), 2 (parent), 3 (unsized leaf)."""
+        calls = []
+
+        def fake_gh(*args, **kwargs):
+            calls.append(args)
+            return {
+                "data": {
+                    "repository": {
+                        "i1": {
+                            "subIssuesSummary": {"total": 0},
+                            "projectItems": {"nodes": [
+                                {"project": {"number": rm.PROJECT_NUMBER},
+                                 "fieldValues": {"nodes": [
+                                     {"name": "M", "field": {"name": "Size"}}]}}]},
+                        },
+                        "i2": {
+                            "subIssuesSummary": {"total": 3},
+                            "projectItems": {"nodes": []},
+                        },
+                        "i3": {
+                            "subIssuesSummary": {"total": 0},
+                            "projectItems": {"nodes": [
+                                {"project": {"number": rm.PROJECT_NUMBER},
+                                 "fieldValues": {"nodes": []}}]},
+                        },
+                    }
+                }
+            }
+
+        monkeypatch.setattr(rm, "gh", fake_gh)
+        return calls
+
+    def test_single_graphql_call_for_size_and_parent(self, monkeypatch):
+        calls = self._canned(monkeypatch)
+        sizes, parents = rm.sizes_and_parents_for_issues([1, 2, 3])
+        # The whole point of the fold: ONE gh call, and it is a graphql query.
+        assert len(calls) == 1
+        assert "graphql" in calls[0]
+
+    def test_sizes_and_parents_parsed_correctly(self, monkeypatch):
+        self._canned(monkeypatch)
+        sizes, parents = rm.sizes_and_parents_for_issues([1, 2, 3])
+        assert sizes == {1: "M", 2: None, 3: None}
+        assert parents == {2}
+
+    def test_size_ignored_from_other_projects(self, monkeypatch):
+        # A Size field value on a DIFFERENT project board must not leak through.
+        def fake_gh(*args, **kwargs):
+            return {"data": {"repository": {"i1": {
+                "subIssuesSummary": {"total": 0},
+                "projectItems": {"nodes": [
+                    {"project": {"number": rm.PROJECT_NUMBER + 1},
+                     "fieldValues": {"nodes": [
+                         {"name": "L", "field": {"name": "Size"}}]}}]},
+            }}}}
+        monkeypatch.setattr(rm, "gh", fake_gh)
+        sizes, parents = rm.sizes_and_parents_for_issues([1])
+        assert sizes == {1: None}
+        assert parents == set()
+
+    def test_empty_input_makes_no_call(self, monkeypatch):
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail("no gh call for empty input"))
+        sizes, parents = rm.sizes_and_parents_for_issues([])
+        assert sizes == {}
+        assert parents == set()
+
+
+class TestGhRetry:
+    """gh() retries transient non-zero exits with backoff, honoring Retry-After
+    (Issue #711 D4).
+
+    GitHub secondary-rate-limit 403s, transient 5xx, and replication-lag errors
+    surface as a non-zero ``gh`` exit unrelated to the request. The live recheck
+    smoke makes ~35-40 calls per run, so one such blip would otherwise red the
+    job. Deterministic 4xx (404/422/…) must NOT be retried, and the prior
+    check=True contract (raise on terminal failure) is preserved.
+    """
+
+    @staticmethod
+    def _result(returncode, stdout="", stderr=""):
+        return subprocess.CompletedProcess(["gh"], returncode, stdout, stderr)
+
+    def _runner_seq(self, results):
+        """A fake subprocess.run yielding the given results in order; records calls."""
+        seq = list(results)
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            return seq[len(calls) - 1]
+
+        run.calls = calls
+        return run
+
+    def test_retries_transient_then_succeeds(self):
+        runner = self._runner_seq([
+            self._result(1, stderr="HTTP 403: You have exceeded a secondary rate limit"),
+            self._result(0, stdout='{"ok": true}'),
+        ])
+        sleeps = []
+        out = rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert out == {"ok": True}
+        assert len(runner.calls) == 2   # retried once
+        assert len(sleeps) == 1         # backed off once
+
+    def test_no_retry_on_deterministic_404(self):
+        runner = self._runner_seq([
+            self._result(1, stderr="gh: Not Found (HTTP 404)"),
+        ])
+        sleeps = []
+        with pytest.raises(subprocess.CalledProcessError):
+            rm.gh("api", "missing", _runner=runner, _sleep=sleeps.append)
+        assert len(runner.calls) == 1   # NOT retried
+        assert sleeps == []
+
+    def test_honors_retry_after_header(self):
+        runner = self._runner_seq([
+            self._result(1, stderr="HTTP 403: rate limited\nRetry-After: 7"),
+            self._result(0, stdout="[]"),
+        ])
+        sleeps = []
+        rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert sleeps == [7.0]          # used the Retry-After hint, not exp backoff
+
+    def test_caps_excessive_retry_after(self):
+        # GitHub can legally emit a large Retry-After during sustained degradation;
+        # an uncapped hint would stall the nightly job. Cap it (Issue #711 review).
+        runner = self._runner_seq([
+            self._result(1, stderr="HTTP 403: rate limited\nRetry-After: 3600"),
+            self._result(0, stdout="[]"),
+        ])
+        sleeps = []
+        rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert sleeps == [rm.GH_RETRY_AFTER_CAP_SECONDS]   # 3600 clamped to the ceiling
+
+    def test_exhausts_attempts_then_raises(self):
+        runner = self._runner_seq(
+            [self._result(1, stderr="HTTP 503: server error")] * rm.GH_MAX_ATTEMPTS
+        )
+        sleeps = []
+        with pytest.raises(subprocess.CalledProcessError):
+            rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert len(runner.calls) == rm.GH_MAX_ATTEMPTS
+        assert len(sleeps) == rm.GH_MAX_ATTEMPTS - 1  # no sleep after the last attempt
+
+    def test_success_first_try_no_sleep(self):
+        runner = self._runner_seq([self._result(0, stdout='{"a": 1}')])
+        sleeps = []
+        out = rm.gh("api", "x", _runner=runner, _sleep=sleeps.append)
+        assert out == {"a": 1}
+        assert len(runner.calls) == 1
+        assert sleeps == []
+
+    def test_parse_json_false_returns_raw_stdout(self):
+        runner = self._runner_seq([self._result(0, stdout="raw text")])
+        out = rm.gh("api", "x", parse_json=False, _runner=runner, _sleep=lambda _: None)
+        assert out == "raw text"
+
+
 class TestComputeRecheckUnsizedGuard:
     """compute_recheck must flag [UNSIZED] whenever ANY open issue lacks a Size —
     not only when total remaining capacity is exactly 0 (Issue #618 AC2).
@@ -267,8 +440,8 @@ class TestComputeRecheckUnsizedGuard:
     def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents=()):
         monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
         monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
-        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
-        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
+        monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                            lambda ns: (dict(sizes), set(parents)))
 
     def test_mixed_sized_and_unsized_flags_unsized_not_update(self, monkeypatch, capsys):
         self._patch_board(
@@ -358,8 +531,8 @@ class TestComputeRecheckParentSkip:
     def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents):
         monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
         monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
-        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
-        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
+        monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                            lambda ns: (dict(sizes), set(parents)))
 
     def _freeze_today(self, monkeypatch, fake_today):
         class _FakeDate(date):
@@ -429,20 +602,148 @@ class TestComputeRecheckParentSkip:
         assert "1 open issue(s) missing Size" in out  # only #540, not the parent #538
 
 
+# --- Live-vs-hermetic integration split (Issue #711) -----------------------
+# The recheck integration is checked TWO ways, by design:
+#   * TestRecheckHermeticIntegration (below) — runs on every PR in
+#     ``ci-tools-pytest``. A fake ``gh`` on PATH returns recorded JSON for each
+#     of the script's calls (milestone meta / issue list / folded size+parent
+#     GraphQL / all-milestones list), so the end-to-end script is exercised
+#     deterministically with ZERO live API calls. Fixtures are inline canned
+#     JSON (no committed files) keyed by the script's call shape — see
+#     ``_FAKE_GH`` and ``_run_recheck_hermetic`` below.
+#   * TestLiveIntegrationSmoke (further down) — ``@pytest.mark.live``, run
+#     NIGHTLY and non-blocking (.github/workflows/recheck-live-smoke.yml), and
+#     deselected from the per-PR job via ``-m "not live"``. A real GitHub-API
+#     blip can no longer red a PR or poison the hermetic unit signal; the
+#     gh()-level retry (Issue #711 D4) absorbs transient blips on that path.
+
+
+class TestRecheckHermeticIntegration:
+    """Deterministic end-to-end recheck via a fake ``gh`` on PATH (Issue #711 C3).
+
+    Mirrors the recorded-gh pattern from scripts/tests/test_apply_arc_labels_resync.py
+    (PR #710): a stub ``gh`` returns canned JSON per call shape, so the real
+    ``recheck_milestone.py`` runs full end-to-end with no live calls. Replaces the
+    flaky live smoke on the per-PR hot path while keeping integration coverage.
+    """
+
+    # A stub gh that dispatches on argv to the matching canned-JSON env var.
+    # graphql is checked before the generic `api` branch (the graphql call is
+    # also `gh api ...`); --paginate distinguishes the all-milestones list from
+    # the per-milestone meta fetch.
+    _FAKE_GH = (
+        "#!/usr/bin/env python3\n"
+        "import os, sys\n"
+        "args = sys.argv[1:]\n"
+        "if 'graphql' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GRAPHQL', '{}'))\n"
+        "elif args[:1] == ['api'] and '--paginate' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_ALL_MS', '[]'))\n"
+        "elif args[:1] == ['api']:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_MS_META', '{}'))\n"
+        "elif args[:2] == ['issue', 'list']:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_ISSUE_LIST', '[]'))\n"
+        "else:\n"
+        # Fail LOUD on an unmatched call shape: if the real script grows a new gh
+        # call, an empty '{}' would let the test pass with wrong data (Issue #711
+        # review). exit 1 surfaces the gap instead of silently masking it.
+        "    sys.stderr.write('FAKE_GH: unmatched gh call: %r\\n' % (args,))\n"
+        "    sys.exit(1)\n"
+        "sys.exit(0)\n"
+    )
+
+    def _run_recheck_hermetic(self, tmp_path, *, ms_meta, issue_list, graphql, all_ms):
+        gh = tmp_path / "gh"
+        gh.write_text(self._FAKE_GH)
+        gh.chmod(0o755)
+        env = dict(os.environ)
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
+        env["FAKE_MS_META"] = json.dumps(ms_meta)
+        env["FAKE_ISSUE_LIST"] = json.dumps(issue_list)
+        env["FAKE_GRAPHQL"] = json.dumps(graphql)
+        env["FAKE_ALL_MS"] = json.dumps(all_ms)
+        return subprocess.run(
+            ["python3", "scripts/pm/recheck_milestone.py", "--milestone", "999"],
+            env=env, capture_output=True, text=True, timeout=30,
+        )
+
+    @staticmethod
+    def _gql_node(*, size=None, parent_total=0):
+        field_values = (
+            [{"name": size, "field": {"name": "Size"}}] if size is not None else []
+        )
+        return {
+            "subIssuesSummary": {"total": parent_total},
+            "projectItems": {"nodes": [
+                {"project": {"number": rm.PROJECT_NUMBER},
+                 "fieldValues": {"nodes": field_values}}]},
+        }
+
+    def test_sized_milestone_emits_well_formed_report(self, tmp_path):
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "i3 - S5 - Modeling - Hermetic", "due_on": "2026-05-10T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(size="M"),
+                "i2": self._gql_node(size="L"),
+            }}},
+            all_ms=[{"number": 999, "title": "i3 - S5 - Modeling - Hermetic",
+                     "state": "open", "due_on": "2026-05-10T00:00:00Z"}],
+        )
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "Proposed due_on:" in result.stdout
+
+    def test_unsized_leaf_emits_unsized(self, tmp_path):
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "pm-i6 - PM Tooling", "due_on": "2026-07-02T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(size="S"),
+                "i2": self._gql_node(size=None),   # unsized leaf
+            }}},
+            all_ms=[],
+        )
+        assert result.returncode == 2
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "[UNSIZED]" in result.stdout
+
+    def test_parent_excluded_from_unsized(self, tmp_path):
+        # Parent epic (subIssues>0, no Size) must not trip [UNSIZED] (Issue #689),
+        # exercised through the real script with the folded GraphQL response.
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "pm-i6 - PM Tooling", "due_on": "2026-07-02T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(parent_total=3),    # parent epic, unsized
+                "i2": self._gql_node(size="S"),          # sized leaf
+            }}},
+            all_ms=[{"number": 999, "title": "pm-i6 - PM Tooling",
+                     "state": "open", "due_on": "2026-07-02T00:00:00Z"}],
+        )
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "[UNSIZED]" not in result.stdout
+        assert "parent epic — excluded" in result.stdout
+
+
 @pytest.mark.live
 @REQUIRES_LIVE_GH
 class TestLiveIntegrationSmoke:
-    """Live integration smoke test (Issue #506; skip contract fixed in #577).
+    """Live integration smoke test (Issue #506; skip contract fixed in #577;
+    split off the per-PR hot path in #711).
 
-    Runs whenever ``gh`` can read Projects v2 — which is the case inside
-    ``ci-tools-pytest`` (the ``GH_PROJECT_TOKEN`` secret) and any local env with
-    a ``read:project``-scoped login — so it executes on every CI sweep rather
-    than being deselected. The ``@pytest.mark.live`` marker is informational:
-    nothing filters it out (no ``-m "not live"`` in ``pytest.ini``). When the
-    scope is unavailable — a fork PR without the secret, or an unscoped local
-    env — the ``@REQUIRES_LIVE_GH`` guard SKIPS it gracefully instead of erroring
-    on the first ``gh`` call (``open_milestone_numbers()`` runs ``rm.gh(...,
-    check=True)``, which would otherwise raise).
+    Runs NIGHTLY and NON-BLOCKING via .github/workflows/recheck-live-smoke.yml,
+    NOT on every PR: the per-PR ``ci-tools-pytest`` job now passes ``-m "not
+    live"`` so a transient GitHub-API blip can't red a PR or poison the hermetic
+    unit signal (Issue #711). Deterministic per-PR integration coverage lives in
+    ``TestRecheckHermeticIntegration`` (recorded gh fixtures, no live calls); the
+    gh()-level retry (Issue #711 D4) absorbs transient blips on this live path.
+    When the project scope is unavailable — a fork PR without the secret, or an
+    unscoped local env — the ``@REQUIRES_LIVE_GH`` guard SKIPS it gracefully
+    instead of erroring on the first ``gh`` call (``open_milestone_numbers()``
+    runs ``rm.gh(...)``, which would otherwise raise).
 
     Property-based (Issue #506). Asserts the recheck integration produces a
     well-formed recommendation for *every* open milestone, instead of pinning a
