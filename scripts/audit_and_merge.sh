@@ -14,6 +14,10 @@
 # offered on the PR before merging (interactive prompt, or block + --skip-review-offer
 # carve-out when non-interactive).
 #
+# A NON-BLOCKING lint (Issue #730) also warns when a linked Issue has unticked
+# boxes outside an `## Acceptance criteria` section (gating boxes under the wrong
+# heading silently bypass check 2) — advisory only, never blocks.
+#
 # Why: declarative rules of the form "always include X" reliably drift across
 # session boundaries even when inlined into shared MEMORY.md. The gate enforces
 # at the moment of action (`gh pr merge`), so the rule cannot be forgotten
@@ -164,6 +168,20 @@ elif ! NB_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/lab_notebook_gat
     FAILED=1
 elif [[ -n "$NB_OUT" ]]; then
     printf '%s\n' "$NB_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
+fi
+
+# Lint (Issue #730): NON-BLOCKING warning when a linked Issue has unticked boxes
+# but no `## Acceptance criteria` section — the gating boxes live under another
+# heading (e.g. `## Plan (phased)`, PR #569/#724), so the blocking AC check above
+# counts 0 boxes and passes silently. This advisory names the count + non-AC
+# heading(s) so the operator can confirm none are deliverable-gating. It NEVER
+# sets FAILED (the right fix is moving boxes under the canonical heading, not
+# blocking the merge); the gate stays deterministic on one canonical AC heading.
+# Fails open (its own exit 0) on a gh/interpreter error.
+if [[ -z "$PYTHON" ]]; then
+    echo "⚠ stray-AC-box lint skipped (no python on PATH)." >&2
+else
+    REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/ac_section_lint.py" "$PR" >&2 || true
 fi
 
 [[ "$FAILED" -eq 1 ]] && exit 1

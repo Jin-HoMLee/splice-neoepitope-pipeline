@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-18
+
+### 14:46 UTC — Editor: Scientist
+
+#### [PR #775](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/775) migrates per-Issue notebooks + slides into the `research/experiments/` convention — closes [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).
+
+**What shipped.** Moved the three pre-convention per-Issue artifacts from the parallel `research/notebooks/` + `research/slides/` layouts into the single-folder-per-Issue convention established by [#225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/225): `issue_224_alphagenome_exp1/` (notebook + 17 MB AG parquet + new README), `issue_299_kwok_psr_gtex_validation/` (notebook + new README + `outputs/` slot), `issue_393_alphagenome_chr22_poc/` (slide deck co-located + new README). All as **git renames** (history preserved). Rewired every cross-experiment `AG_PARQUET` reference (the #225 notebook/README/regenerator + the #393 regenerator) to the new `issue_224_alphagenome_exp1/outputs/` path, and re-depthed the #224 notebook's repo-root markdown links (`../../` → `../../../`) for the extra directory level. CLAUDE.md migration notes flipped to past tense.
+
+**Data-policy call (status-quo-preserving).** The 17 MB AlphaGenome parquet is API-derived with **no regenerator script**, so committing it would be permanent dead weight — kept out of git (`.gitignore` extended to its new path), as before the move. The unstated commit-vs-ignore rule for `experiments/*/outputs/` (this parquet stays out; #225's regenerable Snaptron parquet is committed) is routed to follow-up [Issue #774](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/774) rather than decided ad hoc here.
+
+**Two consistency catches folded in (user-approved scope).** (1) Wrote the missing #393 deck README (the convention expects one). (2) Untracked issue_225's committed rendered deck (`slides.html` + `slides_files/`, 48 vendored reveal.js files) so co-located decks uniformly follow the documented *"regenerable via quarto render"* gitignore intent — files kept on disk per the keep-render-artifacts rule.
+
+**Review (the `@claude` pass on #775).** Two real findings fixed: a stale docstring usage-path in the #393 regenerator (line 5 still showed the old `research/slides/` path — docstring-only, runtime `parents[4]` was already correct), and a `.gitignore` gap (the experiments block carried only `*.html`/`*.pdf`/`slides_files/` vs the 6-pattern block siblings use — added `*_files/`, `.quarto/`, `slides.tex`, `slides.log`; `*_files/` is broader since Quarto names the support dir after the `.qmd`). One review note — a working-tree CLAUDE.md "revert" — was a **CI-sandbox artifact**, not real: local tree clean, HEAD carries the correct edits. **Verified before merge:** all 3 notebooks parse, both regenerators `py_compile`, the #393 deck renders clean on quarto 1.9.37 (csl resolves), no stale *live* path refs (only frozen `docs/superpowers/` + immutable lab-notebook retain old paths), and the new ignore patterns catch the leak dirs without touching tracked `figures/`/`outputs/`.
+
+## 2026-06-17
+
+### 15:30 UTC — Editor: Scientist
+
+#### [PR #772](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/772) acquires the NeoRanking + IMPROVE immunogenicity calibration cohorts — closes [Issue #707](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/707) (data-acquisition leaf of the [#547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) calibration epic).
+
+**What shipped.** `research/experiments/issue_547_immunogenicity_calibration/` (epic-keyed) now carries the labelled training cohorts chosen in [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592), with `README.md` + `data_manifest.yaml` committed and the raw tables gitignored + GCS-mirrored (LICR copyright + >100 MB). **NeoRanking primary** (Müller 2023): `Neopep_data_org.txt` (1,787,710 rows × 57 cols, 8–12mers), `Mutation_data_org.txt`, `HLA_allotypes.txt`. **IMPROVE augment** (Borch 2024): `In_house_neoepitope_for_CV.tsv` (17,520 rows) + a CEDAR benchmark. All sha256'd + size-pinned; mirrored to `gs://splice-neoepitope-project/experiments/issue_547/{neoranking,improve_borch}/`.
+
+**Schema + join feasibility (the de-risking result).** NeoRanking label = `response_type` {**CD8 = 178** immunogenic / negative = 422,907 / not_tested = 1,364,625 (exclude)}; IMPROVE label = binary `response` {1 = 467 / 0 = 17,053}. Both cohorts: peptides all in MHCflurry's 8–15 range, **0 missing peptide or HLA** → every assayed row is directly `Class1PresentationPredictor`-scoreable, which is exactly the calibrator (#708) input. Two pooling nuances documented for #708: HLA `HLA-A01:01` (IMPROVE) vs `A*01:01` (NeoRanking) → normalize to `HLA-A*01:01`; and 3-way vs binary label reconcile (NeoRanking CD8→1, negative→0, drop not_tested; IMPROVE already binary).
+
+**Cohort reconcile — the [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) correction (AC #5).** Confirmed from the paper **and** the downloaded tables: NeoRanking is **131 patients** (NCI 112 + TESLA 8 + HiTIDE 11) at mutation level / 99 at neo-pep level, **178 immunogenic neo-peptides**, and **no Bjerregaard**. #592's "+Bjerregaard / 74 pt / ~165 pos" was NeoGuider-7-cohort-benchmark bleed. [Correcting note posted](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592#issuecomment-4732075479).
+
+**Verification / meta — primary-source slip, caught pre-merge.** The IMPROVE source I first wrote into the manifest (`github.com/mnielLab/IMPROVE`) was a **guess from memory, and wrong — that repo does not exist**. It only surfaced because the user asked to actually attempt the clone. The authoritative route was the paper's own Data Availability Statement (read from the Frontiers full text → `github.com/SRHgroup/IMPROVE_paper`, Hadrup group), which is real and ships the data. This is the third primary-source slip this week (cf. the figshare-README mislabel on this same issue, and the patient_002 config/manifest staleness) — the recurring failure mode is *answering "where does X live" from recall instead of the authoritative artifact*. The discipline that did hold: every numeric claim (178 CD8, 131 patients, 17,520/467) was tallied from the downloaded bytes, not asserted; the IMPROVE "17,520 / 467" matched the paper exactly once fetched. Promote candidate flagged for the next consolidation pass.
+
 ## 2026-06-15
 
 ### 14:30 UTC — Editor: Scientist

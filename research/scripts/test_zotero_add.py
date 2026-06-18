@@ -334,3 +334,51 @@ def test_crossref_non_404_http_error_still_exits_without_datacite(monkeypatch):
     import pytest
     with pytest.raises(SystemExit):
         zotero_add.main()
+
+
+def test_crossref_urlerror_exits_clean_not_traceback(monkeypatch):
+    """A bare URLError (DNS/connection/TLS) from CrossRef must exit with a clear
+    message, not propagate as a raw traceback (Issue #702). It is not a 404, so
+    DataCite must not be queried."""
+    def _crossref_urlerror(doi):
+        raise urllib.error.URLError("Name or service not known")
+
+    def _datacite_should_not_be_called(doi):
+        raise AssertionError("DataCite must not be queried on a CrossRef network error")
+
+    monkeypatch.setattr(zotero_add, "fetch_crossref", _crossref_urlerror)
+    monkeypatch.setattr(zotero_add, "fetch_datacite", _datacite_should_not_be_called)
+    monkeypatch.setattr(zotero_add, "fetch_pubmed", lambda doi: (None, None, None))
+    monkeypatch.setenv("ZOTERO_USER_ID", "0000")
+    monkeypatch.setenv("ZOTERO_API_KEY", "key")
+    monkeypatch.setattr(sys, "argv", ["zotero_add.py", "10.1093/x", "--dry-run"])
+
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        zotero_add.main()
+    msg = str(exc.value)
+    assert "CrossRef" in msg
+    assert "Name or service not known" in msg
+    assert "Traceback" not in msg
+
+
+def test_datacite_urlerror_on_fallback_exits_clean_not_traceback(monkeypatch):
+    """On the CrossRef-404 → DataCite fallback, a URLError from DataCite must also
+    exit cleanly, not as a raw traceback (Issue #702)."""
+    def _datacite_urlerror(doi):
+        raise urllib.error.URLError("Connection refused")
+
+    monkeypatch.setattr(zotero_add, "fetch_crossref", _make_http_404)  # forces the fallback
+    monkeypatch.setattr(zotero_add, "fetch_datacite", _datacite_urlerror)
+    monkeypatch.setattr(zotero_add, "fetch_pubmed", lambda doi: (None, None, None))
+    monkeypatch.setenv("ZOTERO_USER_ID", "0000")
+    monkeypatch.setenv("ZOTERO_API_KEY", "key")
+    monkeypatch.setattr(sys, "argv", ["zotero_add.py", "10.48550/arXiv.2512.06592", "--dry-run"])
+
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        zotero_add.main()
+    msg = str(exc.value)
+    assert "DataCite" in msg
+    assert "Connection refused" in msg
+    assert "Traceback" not in msg

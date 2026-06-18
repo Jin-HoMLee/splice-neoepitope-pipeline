@@ -16,6 +16,7 @@ ARC_LABELS=(
   "arc:cloud-reproducibility|1D4ED8|Arc: cloud execution & reproducibility (Batch, run registry, GPU, run_cloud_gpu.sh)"
   "arc:memory-methodology|7C3AED|Arc: memory & methodology (MEMORY.md slimming/audit, MM role, persona framing)"
   "arc:board-governance|9D174D|Arc: board governance & enforcement (Kanban governance, hooks/guards, PM-tooling evals)"
+  "arc:immunogenicity-benchmark|DB2777|Arc: splice-neoantigen immunogenicity benchmark (registry, labels, scoring harness)"
 )
 PHASE_LABELS=(
   "arc-phase:active|2DA44E|Arc focus: actively pulled now (cap 3)"

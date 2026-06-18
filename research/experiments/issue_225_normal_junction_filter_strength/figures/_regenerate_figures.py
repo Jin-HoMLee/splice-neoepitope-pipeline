@@ -33,7 +33,7 @@ FIGURES_DIR = Path(__file__).resolve().parent
 TARGET_CHROM = "chr22"
 
 MATCHED_NORMAL_TSV = REPO_ROOT / "results" / "patient_001_test" / "alignment" / "SRR9143065_test" / "junctions.tsv"
-AG_PARQUET = REPO_ROOT / "research" / "notebooks" / "issue_224_alphagenome_exp1_outputs" / "chr22_stomach_predicted_junctions.parquet"
+AG_PARQUET = REPO_ROOT / "research" / "experiments" / "issue_224_alphagenome_exp1" / "outputs" / "chr22_stomach_predicted_junctions.parquet"
 GENCODE_GTF = REPO_ROOT / "resources" / "test" / "chr22.gtf.gz"
 
 

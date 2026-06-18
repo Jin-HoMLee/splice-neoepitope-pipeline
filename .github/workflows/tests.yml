@@ -85,8 +85,14 @@ jobs:
         # the 5-invariant suite was CI-invisible under tools/, regressions
         # ungated). project_map's extractor is stdlib-only and walks the
         # committed tree, so a clean CI checkout is the canonical run env.
+        #
+        # `-m "not live"` deselects the live-API smoke (Issue #711): a transient
+        # GitHub-API blip must not red this per-PR job (or poison the hermetic
+        # unit signal sharing it). The live recheck smoke now runs nightly +
+        # non-blocking via recheck-live-smoke.yml; per-PR integration is covered
+        # hermetically by TestRecheckHermeticIntegration (recorded gh fixtures).
         run: |
-          pytest tools/ci/ -v
+          pytest tools/ci/ -v -m "not live"
           pytest tools/news/ -v
           pytest tools/project_map/ -v
         env:

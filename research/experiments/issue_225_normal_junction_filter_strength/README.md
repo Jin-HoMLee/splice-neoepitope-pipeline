@@ -13,7 +13,7 @@ Quantify the marginal filtering value of AlphaGenome on patient_001's chr22 tumo
 
 - **Tumor:** `results/patient_001_test/alignment/SRR9143066_test/junctions.tsv` (produced by test pipeline; not tracked in git)
 - **Matched-normal:** `results/patient_001_test/alignment/SRR9143065_test/junctions.tsv` (produced for #224)
-- **AlphaGenome predictions:** `research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet` *(cross-experiment dep — single consumer)*
+- **AlphaGenome predictions:** `research/experiments/issue_224_alphagenome_exp1/outputs/chr22_stomach_predicted_junctions.parquet` *(cross-experiment dep — single consumer)*
 - **GTEx panel:** built fresh from Snaptron hg38 GTEx v2 endpoint; cached locally
 
 ## Outputs
@@ -26,7 +26,7 @@ Quantify the marginal filtering value of AlphaGenome on patient_001's chr22 tumo
 
 ## Cross-experiment deps
 
-- Reads `research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet` (single consumer; explicit path reference per the cross-experiment-sharing convention in CLAUDE.md).
+- Reads `research/experiments/issue_224_alphagenome_exp1/outputs/chr22_stomach_predicted_junctions.parquet` (single consumer; explicit path reference per the cross-experiment-sharing convention in CLAUDE.md).
 
 ## Caveats
 

@@ -243,10 +243,22 @@ results/
 # Research-notebook outputs — exploratory artefacts, re-derivable from notebooks
 # (e.g. research/notebooks/issue_224_alphagenome_exp1_outputs/chr22_stomach_predicted_junctions.parquet)
 research/notebooks/*_outputs/
+# AlphaGenome chr22 sweep parquet (17 MB, API-derived) — kept out of git after the
+# research/experiments/ migration (#455); regenerate via the #224 notebook §4 sweep cell.
+research/experiments/issue_224_alphagenome_exp1/outputs/*.parquet
 
 # Quarto slide-deck build artefacts — regenerable via `quarto render`
 research/slides/**/*.html
 research/slides/**/*.pdf
+# Same build artefacts for decks co-located under research/experiments/ (post-#455 migration);
+# mirrors the 6-pattern block used for slides/ evals/ decisions/ (*_files/ is broader than
+# slides_files/ — Quarto names the support dir after the .qmd, e.g. talk_files/).
+research/experiments/**/*.html
+research/experiments/**/*.pdf
+research/experiments/**/*_files/
+research/experiments/**/.quarto/
+research/experiments/**/slides.tex
+research/experiments/**/slides.log
 research/slides/**/*_files/
 research/slides/**/.quarto/
 research/slides/**/slides.tex

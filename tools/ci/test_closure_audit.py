@@ -195,7 +195,8 @@ def test_skip_lab_notebook_does_not_match_unrelated_html_comment():
 
 
 def test_ac_deferral_comment_unblocks_unticked():
-    body = "- [x] one\n- [ ] two\n"
+    # Boxes under a real AC heading (check_ac is AC-section-scoped, #726).
+    body = "## Acceptance criteria\n- [x] one\n- [ ] two\n"
     assert ca.check_ac(body, comments=[]) is not None
     assert ca.check_ac(
         body,
@@ -204,12 +205,49 @@ def test_ac_deferral_comment_unblocks_unticked():
 
 
 def test_ac_all_ticked_no_gap():
-    assert ca.check_ac("- [x] one\n- [x] two\n", comments=[]) is None
+    # AC heading present so this exercises the all-ticked path, not the
+    # no-AC-section path (check_ac is AC-section-scoped, #726).
+    assert ca.check_ac("## Acceptance criteria\n- [x] one\n- [x] two\n", comments=[]) is None
 
 
 def test_ac_no_checkboxes_no_gap():
     """Legacy bodies with plain bullets have no boxes to fail on."""
     assert ca.check_ac("- one\n- two\n", comments=[]) is None
+
+
+def test_check_ac_ignores_unticked_boxes_outside_ac_section():
+    """#726/#411: a fully-ticked AC section + an unticked NON-AC checklist
+    (`## Flags to evaluate`) must NOT produce an AC gap. check_ac scopes to the
+    AC section, matching the pre-merge gate's `unticked_under`."""
+    body = (
+        "## Acceptance criteria\n"
+        "- [x] real ac one\n"
+        "- [x] real ac two\n\n"
+        "## Flags to evaluate\n"
+        "- [x] flag a\n"
+        "- [ ] flag b (out of scope)\n"
+    )
+    assert ca.check_ac(body, comments=[]) is None
+
+
+def test_check_ac_count_scoped_to_ac_section():
+    """A genuine unticked AC box is still flagged, and the count is scoped to
+    the AC section (non-AC checklist boxes are excluded from the ratio)."""
+    body = (
+        "## Acceptance criteria\n- [x] done\n- [ ] not done\n\n"
+        "## Tasks\n- [ ] noise one\n- [ ] noise two\n"
+    )
+    msg = ca.check_ac(body, comments=[])
+    assert msg is not None
+    assert "1/2" in msg  # 1 unticked of 2 AC boxes — Tasks excluded (not 1/4)
+
+
+def test_check_ac_no_ac_section_with_stray_boxes_no_gap():
+    """#726: with no `## Acceptance criteria` section, unticked boxes elsewhere
+    are NOT an AC gap (the merge-time #730 lint surfaces those advisorily).
+    Removes the whole-body false-positive that flagged non-AC checklists."""
+    body = "## Plan (phased)\n- [ ] P1\n- [x] P2\n"
+    assert ca.check_ac(body, comments=[]) is None
 
 
 def test_priority_rationale_present_no_gap():
@@ -437,10 +475,107 @@ def test_audit_issue_not_planned_still_flags_unticked_ac(monkeypatch):
         state_reason="NOT_PLANNED",
         labels=["role:developer"],
         notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
-        body="- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
+        body="## Acceptance criteria\n- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
     )
     assert body is not None and "AC checkboxes" in body
     assert "Lab notebook" not in body  # notebook check still skipped
+
+
+# --- #730: stray-AC-box lint (gating boxes outside an "Acceptance criteria" section) ---
+
+
+def test_scan_ac_boxes_classifies_ac_section_boxes():
+    """Boxes under `## Acceptance criteria` are counted as AC, not stray."""
+    body = (
+        "## Acceptance criteria\n"
+        "- [ ] one\n"
+        "- [x] two\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is True
+    assert scan.ac_unticked == 1
+    assert scan.ac_total == 2
+    assert scan.stray_unticked == 0
+    assert scan.stray_headings == []
+
+
+def test_scan_ac_boxes_flags_stray_boxes_under_non_ac_heading():
+    """The #569 shape: gating boxes under `## Plan (phased)`, no AC section."""
+    body = (
+        "## Context\nsome prose\n\n"
+        "## Plan (phased)\n"
+        "- [ ] P1 do a thing\n"
+        "- [x] P2 done\n"
+        "- [ ] P3 another\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.ac_unticked == 0
+    assert scan.ac_total == 0
+    assert scan.stray_unticked == 2
+    assert scan.stray_headings == ["Plan (phased)"]
+
+
+def test_scan_ac_boxes_stray_boxes_before_any_heading():
+    """Boxes before any `## ` heading are stray under the `(top of body)`
+    sentinel — guards the cur_heading initialisation (PR #761 review)."""
+    body = "- [ ] orphan box\n- [x] done\n\n## Context\nprose\n"
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.stray_unticked == 1
+    assert scan.stray_headings == ["(top of body)"]
+
+
+def test_scan_ac_boxes_no_checkboxes_anywhere():
+    body = "## Context\njust prose, no boxes at all\n"
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is False
+    assert scan.ac_total == 0
+    assert scan.stray_unticked == 0
+    assert scan.stray_headings == []
+
+
+def test_scan_ac_boxes_counts_both_ac_and_stray():
+    """AC section present AND stray boxes elsewhere — both tracked separately."""
+    body = (
+        "## Plan\n- [ ] stray\n\n"
+        "## Acceptance criteria\n- [ ] ac one\n- [x] ac two\n"
+    )
+    scan = ca.scan_ac_boxes(body)
+    assert scan.has_ac_section is True
+    assert scan.ac_unticked == 1
+    assert scan.ac_total == 2
+    assert scan.stray_unticked == 1
+    assert scan.stray_headings == ["Plan"]
+
+
+def test_check_stray_ac_boxes_warns_on_stray_boxes_without_ac_section():
+    """No AC section + unticked boxes elsewhere → warning naming count + heading."""
+    body = (
+        "## Plan (phased)\n"
+        "- [ ] P1\n"
+        "- [ ] P2\n"
+    )
+    msg = ca.check_stray_ac_boxes(body)
+    assert msg is not None
+    assert "2" in msg                     # count of stray unticked boxes
+    assert "Plan (phased)" in msg         # the non-AC heading
+    assert "Acceptance criteria" in msg   # prompts the canonical-heading convention
+
+
+def test_check_stray_ac_boxes_silent_when_ac_section_present():
+    """An AC section present → the blocking AC gate owns it; lint stays silent
+    even if there are unticked boxes under another heading."""
+    body = (
+        "## Plan\n- [ ] stray\n\n"
+        "## Acceptance criteria\n- [ ] real ac\n"
+    )
+    assert ca.check_stray_ac_boxes(body) is None
+
+
+def test_check_stray_ac_boxes_silent_when_no_checkboxes():
+    body = "## Context\nprose only, nothing to gate\n"
+    assert ca.check_stray_ac_boxes(body) is None
 
 
 def test_format_comment_clean_state():

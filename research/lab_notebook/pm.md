@@ -28,6 +28,36 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-17
+
+### 15:37 UTC — Editor: PM
+
+#### Phases-as-sub-issue heuristic ([Issue #731](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/731) / [PR #770](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/770)) — and where cross-repo board conventions should live
+
+**What shipped.** The decomposition smell-to-check: an Issue whose internal phases map to **distinct PRs / roles / commit-points** is under-decomposed → file one sub-issue per phase, convert the parent to a structural epic. Explicitly a **heuristic, not a hard gate** (trigger = *independent shippability*, not "has phases"). Worked precedent is [Issue #569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) (P0–P5 in one Issue that shed P5→#721 + the prose sweep→#723 organically — proof the phases were sub-issue-shaped). Full rule in `shared/feedback_parent_sub_issues.md` + commitment-side smell-check in `shared/feedback_board_hygiene.md` (DoR + sweep checklist); MM to commit the memory edits. CLAUDE.md carries a **pointer-line only**.
+
+**The pointer-line was a design decision, not laziness.** Picking #731 as the morning warm-up surfaced a bigger question from the user: CLAUDE.md is bloating, and #731 changes *cross-repo* board conventions — is CLAUDE.md even the right home? The read: a **cross-repo project board is correct** (user/org-level GitHub Projects are built to span repos — not a bad-practice smell). What *is* a smell is documenting cross-repo *process* conventions in a **repo-local, auto-loaded-only-here** `CLAUDE.md`: (a) locality mismatch — invisible when a session is in the personas repo, where the convention still applies; (b) duplication → drift (the commitment act was already described in both CLAUDE.md and `feedback_board_hygiene.md`); (c) charter mismatch — process governance isn't a "codebase fact not derivable from code." The `shared/` memory layer already travels cross-repo (symlinked into every clone). So #731's CLAUDE.md touch became a pointer-line, and I carved [Issue #769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) for the real fix — extract the board-governance block out of CLAUDE.md to a canonical cross-repo home. Filing #769 instead of growing the block is itself the #731 heuristic applied to #731: keep the small thing small, carve the refactor.
+
+**Dogfood note.** #731 itself was the coherence bug [Issue #765](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/765) guards against — `arc-phase:later` (parked) while sitting at Ready + milestoned (one of the ~4 drift cases on the post-it). Fixed it `later → active` (we're working it now), the *opposite* resolution to this morning's #594 (genuinely parked → un-committed). Same rule, direction set by intent.
+
+---
+
+## 2026-06-16
+
+### 20:59 UTC — Editor: PM
+
+#### Prose-dependency reconciler ([Issue #722](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/722) / [PR #764](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/764)) — and the `is:open is:blocked` query is broken
+
+**What shipped.** `scripts/pm/scan_prose_deps.py` — a prose↔native dependency reconciler (fetch → parse → reconcile → act; four modes `--report`/`--apply`/`--check`/`--issue N`; 39 pytest cases). Built subagent-driven (fresh implementer + two-stage review per task). The parse layer is markdown-aware (unwraps `[Issue #N](url)` links, strips `**` emphasis) on a narrow blocker-phrase allowlist, then strict phrase→#N adjacency — recall-limited by design (narrative-gap deps like "depends on the registry from #732" are not auto-caught; the human review gate fills them).
+
+**The backfill found the graph already clean — wired nothing.** The one `needs-wiring` candidate (#705→#626) was a **reviewed false positive**: #705's body says "*#538–542* blocked on #626" (context about MM-slimming work), not #705 itself. All real open deps were already natively wired (#416→#413, #725→#719, #745→#722, #736→#681/#735). The team has been following the "set the edge at creation" convention, so #722's value is the reusable scanner (drift-detection + the DoR/best-next blocked-check tool), and it verified the graph rather than repairing it.
+
+**The real finding — and the correction to this morning's #745 story.** Live testing revealed `gh search issues "is:open is:blocked"` (and any `is:blocked` + open-filter combo) **silently returns 0 even for genuinely-wired blocked issues** — a GitHub-search bug. Bare `is:blocked` works (12); GraphQL `blockedBy` is authoritative. This overturns the morning diagnosis: #745 was demoted as "prose-only, zero native edge," but its timeline shows a `blocked_by_added` event on **2026-06-15** — the edge existed. The morning miss was really (a) *no* blocked-check at the commitment act, and (b) a post-hoc `is:open is:blocked` returning 0, misread as "no edge." Corrected six memory rules (DoR, best-next, MEMORY.md inline, dependency-tracking query block + operator caveat, morning-routine ×2) to lead with "verify with a query that WORKS" — `is:blocked` alone / GraphQL — and demote the prose-scan to a secondary backstop. (MM to commit the memory edits.)
+
+**Process note.** The live smoke test (Task 5) earned its keep twice: it caught the markdown-blind parser (clean `depends on #N` tests passed, but real bodies use `**depends on** #722` and `[Issue #N](url)`) *and* surfaced the `is:open is:blocked` bug. Unit tests on curated fixtures could not have found either — the integration run against the real board did. Mirrors the standing "run the chr22 integration before merge for new rules" lesson, one tier up.
+
+---
+
 ## 2026-06-15
 
 ### 17:53 UTC — Editor: PM
