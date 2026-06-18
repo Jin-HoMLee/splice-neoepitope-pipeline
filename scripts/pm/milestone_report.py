@@ -37,8 +37,9 @@ from typing import Any, Optional
 OWNER = "Jin-HoMLee"
 REPO = "splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
-DEFAULT_OUT_DIR = Path("docs/pm/milestone_reports")
 HERE = Path(__file__).resolve().parent
+REPO_ROOT = HERE.parent.parent  # scripts/pm -> scripts -> repo root
+DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "pm" / "milestone_reports"
 TEMPLATE_PATH = HERE / "templates" / "milestone_report.html.j2"
 
 
@@ -151,18 +152,36 @@ def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
 # --- data layer (gh / board #9) ---------------------------------------------
 
 def _gh(args: list[str]) -> str:
-    return subprocess.run(
-        ["gh", *args], check=True, capture_output=True, text=True
-    ).stdout
+    try:
+        return subprocess.run(
+            ["gh", *args], check=True, capture_output=True, text=True
+        ).stdout
+    except subprocess.CalledProcessError as exc:
+        # Surface gh's own error text (auth/network/unknown-resource) instead of
+        # the opaque CalledProcessError the caller would otherwise see.
+        if exc.stderr:
+            print(exc.stderr.rstrip(), file=sys.stderr)
+        raise
 
 
 def fetch_milestone(name: str) -> dict:
-    """Resolve a milestone by full name -> {title, created_at, closed_at, state}."""
+    """Resolve a milestone by full name -> {title, created_at, closed_at, state}.
+
+    Uses ``--jq '.[]'`` so ``--paginate`` emits NDJSON (one object per line)
+    across pages — concatenated REST array pages are NOT valid JSON, so a bare
+    ``json.loads`` over a multi-page ``--paginate`` body crashes once the repo
+    exceeds one page of milestones.
+    """
     raw = _gh([
         "api", f"repos/{OWNER}/{REPO}/milestones",
-        "--paginate", "-X", "GET", "-f", "state=all",
+        "--paginate", "-X", "GET", "-f", "state=all", "-f", "per_page=100",
+        "--jq", ".[]",
     ])
-    for ms in json.loads(raw):
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        ms = json.loads(line)
         if ms.get("title") == name:
             return {
                 "title": ms["title"],
@@ -183,7 +202,9 @@ def _board_fields_by_number() -> dict[int, dict]:
     helper is unavailable or errors — the report degrades to label-only data.
     """
     try:
-        sys.path.insert(0, str(HERE.parent))
+        scripts_dir = str(HERE.parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
         import board_open_items as boi  # type: ignore
         items = boi.fetch_all_items()
         out: dict[int, dict] = {}
@@ -229,15 +250,22 @@ def fetch_milestone_issues(name: str) -> list[dict]:
 # --- aggregation layer (narrative auto-seed) --------------------------------
 
 _SEED_HEADLINE_MAX = 180
+# Byline/timestamp sub-headers to skip when digesting an entry — e.g. the PM
+# notebook's "### HH:MM UTC — Editor: PM" line, which is metadata, not content.
+_BYLINE_RE = re.compile(r"^\d{1,2}:\d{2}\b|\b(editor|author|role)\s*:", re.IGNORECASE)
 
 
 def _first_prose_line(body: str) -> str:
     """The first human-prose line of an entry body — skips blank lines, markdown
-    bullet/heading markers, and HTML comments. Used to digest an entry to one line."""
+    bullet/heading markers, HTML comments, and byline/timestamp sub-headers
+    (so the digest picks the descriptive title, not "Editor: PM"). One line."""
     for line in body.strip().splitlines():
         stripped = line.strip().lstrip("#*->").strip()
-        if stripped and not stripped.startswith("<!--"):
-            return stripped
+        if not stripped or stripped.startswith("<!--"):
+            continue
+        if _BYLINE_RE.search(stripped):
+            continue
+        return stripped
     return ""
 
 
@@ -249,7 +277,7 @@ def _lab_notebook_seed(roles: set[str], window: tuple[Optional[datetime], Option
     bullets: list[str] = []
     for role in sorted(roles):
         short = role.split(":", 1)[-1]
-        nb = Path("research/lab_notebook") / f"{short}.md"
+        nb = REPO_ROOT / "research" / "lab_notebook" / f"{short}.md"
         if not nb.exists():
             continue
         text = nb.read_text(encoding="utf-8", errors="replace")
@@ -322,12 +350,16 @@ def render_html(milestone: dict, issues: list[dict], metrics: dict, narrative_md
     )
     env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "—"
     template = env.get_template(TEMPLATE_PATH.name)
+    # Milestone-level arc(s) = the distinct arc labels across its issues (arc is
+    # a per-issue label under the three-axis model, not a milestone property).
+    arcs = sorted({a for i in issues for a in i.get("arcs", [])})
     return template.render(
         milestone=milestone,
         issues=issues,
         closed=closed_issues(issues),
         carried=[i for i in issues if i.get("state") != "CLOSED"],
         metrics=metrics,
+        arcs=arcs,
         narrative_html=_md_to_html(narrative_md),
         generated_at=milestone.get("closed_at") or milestone.get("due_on") or "",
     )

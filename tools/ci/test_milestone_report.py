@@ -120,3 +120,46 @@ class TestDurationThroughput:
     def test_throughput_zero_duration_guarded(self):
         assert mr.throughput_per_week(3, 0.0) is None
         assert mr.throughput_per_week(3, None) is None
+
+
+# --- compute_metrics (integration round-trip) -------------------------------
+
+class TestComputeMetrics:
+    def test_dict_shape_and_values(self):
+        m = mr.compute_metrics(
+            SAMPLE,
+            {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
+        )
+        assert m["n_total"] == 4
+        assert m["n_closed"] == 3
+        assert m["n_carried_forward"] == 1
+        assert m["duration_days"] == 7.0
+        assert m["throughput_per_week"] == pytest.approx(3.0)
+        assert m["avg_cycle_time_days"] == pytest.approx(4.0)
+        assert m["median_cycle_time_days"] == pytest.approx(4.0)
+        assert m["per_role_counts"] == {"role:scientist": 2, "role:developer": 2}
+
+    def test_empty_milestone_degrades(self):
+        m = mr.compute_metrics([], {"created_at": None, "closed_at": None})
+        assert m["n_total"] == m["n_closed"] == m["n_carried_forward"] == 0
+        assert m["duration_days"] is None
+        assert m["throughput_per_week"] is None
+        assert m["avg_cycle_time_days"] is None
+        assert m["per_role_counts"] == {}
+
+
+# --- narrative seed digest --------------------------------------------------
+
+class TestFirstProseLine:
+    def test_skips_byline_and_timestamp_subheader(self):
+        # PM notebook shape: date -> "### HH:MM UTC — Editor: PM" -> "#### <title>"
+        body = "\n### 17:53 UTC — Editor: PM\n\n#### Morning routine → governance deep-dive\n\n**Session.** ..."
+        assert mr._first_prose_line(body) == "Morning routine → governance deep-dive"
+
+    def test_plain_prose_first_line(self):
+        # Developer notebook shape: prose immediately under the date header.
+        assert mr._first_prose_line("Refactored the config loader and added tests.") \
+            == "Refactored the config loader and added tests."
+
+    def test_skips_html_comment(self):
+        assert mr._first_prose_line("<!-- note -->\nReal content here.") == "Real content here."
