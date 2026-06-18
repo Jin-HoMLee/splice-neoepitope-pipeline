@@ -1,0 +1,65 @@
+name: Annotate-flag canary
+
+# CI canary for Issue #377: cross-check the home-rolled `annotated` flag
+# (filter_junctions._parse_junction_id + GENCODE reference membership) against
+# `regtools junctions annotate`'s `known_junction` flag, on a hermetic synthetic
+# fixture. A coordinate-semantics desync between the two — the Issue #370 bug
+# class (anchor outers vs. intron donor/acceptor) — makes the flags disagree and
+# fails this job loudly instead of silently shipping wrong predictions.
+#
+# Path-filtered: runs only on PRs that touch the junction coordinate/annotation
+# logic or the canary's own moving parts. A separate workflow (not a job in
+# tests.yml) so the path filter gates THIS check without throttling the
+# unconditional pytest / dry-run / conda-solve jobs.
+
+on:
+  push:
+    branches: [main]
+    paths: &paths
+      - workflow/rules/alignment.smk
+      - workflow/scripts/bed12_to_junctions.py
+      - workflow/scripts/star_sj_to_junctions.py
+      - workflow/scripts/filter_junctions.py
+      - workflow/scripts/build_reference_junctions.py
+      - workflow/scripts/crosscheck_annotate_flag.py
+      - resources/test/annotate_canary/**
+      - .github/workflows/annotate-canary.yml
+  pull_request:
+    branches: [main]
+    paths: *paths
+
+jobs:
+  annotate-flag-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Miniforge (conda, bioconda/conda-forge, strict)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge,bioconda
+          channel-priority: strict
+
+      - name: Install regtools
+        shell: bash -el {0}
+        run: conda install -y "regtools>=1.0.0"
+
+      - name: Cross-check home-rolled annotated flag vs. regtools annotate
+        shell: bash -el {0}
+        run: |
+          set -euo pipefail
+          FIX=resources/test/annotate_canary
+          # Build the reference junction BED from the SAME GTF the home-rolled
+          # flag treats as truth (DRY — one annotation source, no committed
+          # derived file to drift). regtools annotates the same GTF independently.
+          python workflow/scripts/build_reference_junctions.py \
+            --gtf "$FIX/annotation.gtf" \
+            --output "$RUNNER_TEMP/reference_junctions.bed"
+          python workflow/scripts/crosscheck_annotate_flag.py \
+            --bed12 "$FIX/junctions.bed12" \
+            --reference-fasta "$FIX/genome.fa" \
+            --gtf "$FIX/annotation.gtf" \
+            --reference-bed "$RUNNER_TEMP/reference_junctions.bed" \
+            --threshold 0.99
