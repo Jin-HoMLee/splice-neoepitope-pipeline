@@ -260,7 +260,7 @@ def _first_prose_line(body: str) -> str:
     bullet/heading markers, HTML comments, and byline/timestamp sub-headers
     (so the digest picks the descriptive title, not "Editor: PM"). One line."""
     for line in body.strip().splitlines():
-        stripped = line.strip().lstrip("#*->").strip()
+        stripped = line.strip().lstrip("#*->–— ").strip()
         if not stripped or stripped.startswith("<!--"):
             continue
         if _BYLINE_RE.search(stripped):
@@ -309,11 +309,14 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "",
         "## Deliverables (Review layer)",
         "",
-        "<!-- Lead role: what shipped, grouped by deliverable. Auto-seed below. -->",
+        "<!-- Lead role: what shipped, grouped by deliverable, with PR + slide links.",
+        f"     The {len(closed)} closed issues are listed in full in the Inventory appendix",
+        "     below — narrate the highlights here, don't re-list them. -->",
+        "",
+        "_Seeded from the lead role's lab-notebook entries in the milestone window — "
+        "replace with the deliverables narrative._",
         "",
     ]
-    lines += [f"- [#{i['number']}]({i['url']}) {i['title']}" for i in closed] or ["- _(none closed)_"]
-    lines += ["", "### Auto-seed (lab-notebook + closing comments)", ""]
     lines += [seed or "<!-- no auto-seed found; author from scratch -->"]
     lines += [
         "",

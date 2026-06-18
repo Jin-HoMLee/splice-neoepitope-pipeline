@@ -171,13 +171,22 @@ class TestSeedNarrative:
         {"number": 6, "title": "open thing", "url": "http://x/6", "state": "OPEN", "roles": []},
     ]
 
-    def test_issues_emitted_as_links_not_bare_hash(self):
-        # Python-Markdown parses a leading "#N" (e.g. "- #5 …") as an <h1>, which
-        # blows up the rendered font size. Issues must be emitted as md links so
-        # the "#" never sits at list-item-content start.
-        md = mr.seed_narrative(
+    def _seed(self):
+        return mr.seed_narrative(
             {"title": "m", "created_at": None, "closed_at": None}, self.ISSUES, {}
         )
+
+    def test_issues_emitted_as_links_not_bare_hash(self):
+        # Python-Markdown parses a leading "#N" (e.g. "- #6 …") as an <h1>, which
+        # blows up the rendered font size. Issues must be emitted as md links so
+        # the "#" never sits at list-item-content start.
+        md = self._seed()
         assert not any(line.startswith("- #") for line in md.splitlines())
-        assert "[#5](http://x/5)" in md   # closed -> Deliverables
-        assert "[#6](http://x/6)" in md   # open   -> Carried-forward
+        assert "[#6](http://x/6)" in md   # open -> Carried-forward, as a link
+
+    def test_deliverables_seed_does_not_relist_closed(self):
+        # Slimmed seed: closed issues live in the Inventory appendix, not
+        # re-listed in the Deliverables narrative (avoids duplicating the table).
+        deliverables = self._seed().split("## Carried-forward")[0]
+        assert "#5" not in deliverables          # closed #5 not re-listed
+        assert "Inventory appendix" in deliverables  # points there instead
