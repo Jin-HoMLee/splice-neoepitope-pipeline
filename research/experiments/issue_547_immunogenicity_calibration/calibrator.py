@@ -11,7 +11,9 @@ def centered_isotonic(x, y_iso, w):
     whose x is the weight-centroid of the pooled level-set points; keep the
     isotonic y. Returns sorted (centre_x, centre_y).
     """
-    x = np.asarray(x, float); y_iso = np.asarray(y_iso, float); w = np.asarray(w, float)
+    x = np.asarray(x, float)
+    y_iso = np.asarray(y_iso, float)
+    w = np.asarray(w, float)
     order = np.argsort(x)
     x, y_iso, w = x[order], y_iso[order], w[order]
     cx, cy = [], []
