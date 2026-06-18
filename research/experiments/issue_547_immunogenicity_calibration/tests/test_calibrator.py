@@ -38,3 +38,15 @@ def test_prior_uses_true_counts_not_subsample():
     # rarer true prior => uniformly lower log-odds intercept
     g = np.linspace(0.2, 0.8, 50)
     assert np.all(cal_true.transform(g) < cal_sub.transform(g))
+
+def test_fit_cohorts_empty_list_round_trips():
+    """fit(..., fit_cohorts=[]) must store [] not None (fix #2)."""
+    scores, labels = _synthetic()
+    cal = PresentationCalibrator().fit(scores, labels, fit_cohorts=[])
+    assert cal.fit_cohorts_ == []
+
+def test_transform_raises_before_fit():
+    """transform() on an unfitted calibrator must raise RuntimeError (fix #3)."""
+    cal = PresentationCalibrator()
+    with pytest.raises(RuntimeError):
+        cal.transform([0.5])

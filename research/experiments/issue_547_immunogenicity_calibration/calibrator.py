@@ -51,7 +51,7 @@ def adaptive_kde(samples):
     f_pilot = np.clip(pilot(s), _EPS, None)
     g = np.exp(np.mean(np.log(f_pilot)))
     lam = np.sqrt(g / f_pilot)                 # per-sample local factor
-    std = np.std(s, ddof=1) if len(s) > 1 else 1.0
+    std = np.std(s) if len(s) > 1 else 1.0
     bw = pilot.factor * std * lam              # per-sample bandwidth
     bw = np.clip(bw, _EPS, None)
 
@@ -96,9 +96,11 @@ class PresentationCalibrator:
         iso = IsotonicRegression(increasing=True, out_of_bounds="clip")
         y_iso = iso.fit_transform(grid, raw, sample_weight=w)
         self.cx_, self.cy_ = centered_isotonic(grid, y_iso, w)
-        self.fit_cohorts_ = list(fit_cohorts) if fit_cohorts else None
+        self.fit_cohorts_ = list(fit_cohorts) if fit_cohorts is not None else None
         return self
 
     def transform(self, scores):
+        if not hasattr(self, "cx_"):
+            raise RuntimeError("PresentationCalibrator must be fit before transform()")
         scores = np.atleast_1d(np.asarray(scores, float))
         return np.interp(scores, self.cx_, self.cy_)  # np.interp clips to endpoints
