@@ -1,0 +1,10 @@
+# Runtime deps for scripts/pm/milestone_report.py (Issue #752).
+#
+# Both are lazy-imported inside the render/aggregation layers so the metrics
+# pure-functions stay importable in the bare ci-tools-pytest env (pytest + pyyaml
+# only). Run the report under a Python that has these — e.g. the pyenv default,
+# or `python -m venv .venv && .venv/bin/pip install -r scripts/pm/requirements.txt`.
+# Deliberately NOT added to the `snakemake` conda env (markdown is absent there;
+# we keep that env pristine — see CLAUDE.md "Python environments").
+jinja2>=3.1
+markdown>=3.4

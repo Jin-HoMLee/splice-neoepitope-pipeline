@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-18
+
+### 17:52 UTC — Editor: PM
+
+#### Milestone closure report shipped — [Issue #752](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752) / [PR #779](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/779)
+
+**What shipped.** `scripts/pm/milestone_report.py` — a per-milestone self-contained HTML closure report (PM-retrospective · lab-seminar · portfolio audiences from one file), produced *before* a milestone closes via the **author-editor-critic** triad (lead role authors Deliverables → PM edits + Retrospective/routing → `@-claude review` is the critic). Four layers: data (board number 9 + `gh` joins) → metrics (pure, unit-tested) → aggregation (lab-notebook auto-seed into an author-owned `.narrative.md` sidecar) → render (Jinja2 → inline-CSS HTML). Plus `docs/pm/milestone_reports/README.md` (the convention), `scripts/pm/requirements.txt`, and the pm-i6 pilot fixture. Implemented off the [2026-06-16 design spec](../../docs/superpowers/specs/2026-06-16-milestone-closure-report-design.md).
+
+**Design calls (spec §11).** `jinja2`+`markdown` are **lazy-imported** inside the render/aggregation layers so the metrics pure-functions import in the bare `ci-tools-pytest` env (pytest+pyyaml only) — verified green in CI. Deps pinned in `scripts/pm/requirements.txt`, deliberately *not* added to the `snakemake` env (markdown absent there; keep it pristine). Tests live in `tools/ci/test_milestone_report.py` (the `recheck_milestone.py` test-home precedent). Slug = lowercase + non-alphanumeric runs → hyphen.
+
+**Caught by the build.** Auto-seed first dumped lab-notebook entries *verbatim* → a 222 KB sidecar; fixed to a one-line-per-entry digest (~7 KB). Then `_first_prose_line` digested the PM byline ("Editor: PM") instead of the title — fixed to skip byline/timestamp sub-headers.
+
+**Bot review** ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/779#issuecomment-4744462985)) flagged 8 findings, all addressed: two real ones — a latent `gh api --paginate` + `json.loads` crash past one page of milestones (→ NDJSON via `--jq '.[]'`), and a computed-but-unrendered `generated_at` (→ footer date) — plus stderr surfacing, a `sys.path` guard, repo-root path anchoring, header arc(s), and a `compute_metrics` round-trip test.
+
+**Robustness + polish.** Validated against 4 more recently-closed milestones (stage naming, 0-issue edge case, scientist/dev/pm role mixes, 2→21 issue counts) — graceful in both metrics and render. User review of the rendered pm-i6 report caught (a) `- #N` list items being parsed as Markdown `<h1>` by Python-Markdown's space-optional ATX rule → emit `[#N](url)` links instead (regression-tested), and (b) the Deliverables seed duplicating the Inventory appendix → slimmed to the auto-seed digest + an inventory pointer. Tests 18 → 25.
+
+**Side hygiene.** [Issue #158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/158) (closed, in i4-S5) was missing a `role:*` label — surfaced by the report's per-role count undercounting it; added `role:developer`.
+
+**Personas-side companions (flagged for MM).** The morning-routine milestone-health beat (1c) close-path step + a new `feedback_milestone_closure_report.md` + a MEMORY.md index line — drafted into the PM working copies, land via MM's git-status scan.
+
+---
+
 ## 2026-06-17
 
 ### 15:37 UTC — Editor: PM

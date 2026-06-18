@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milestone closure report — {{ milestone.title }}</title>
+<style>
+  :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
+          --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  header.report { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: .75rem; margin: 1rem 0; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+  .card .n { font-size: 1.5rem; font-weight: 600; }
+  .card .l { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .rolebar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .pill { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+          padding: .15rem .6rem; font-size: .82rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0; }
+  th, td { text-align: left; padding: .4rem .55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+  tr.closed td:first-child { color: var(--ok); }
+  tr.open td:first-child { color: var(--warn); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .narrative { margin-top: .5rem; }
+  .narrative table th { text-transform: none; }
+  code { background: var(--soft); padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report">
+    <h1>{{ milestone.title }}</h1>
+    <div class="sub">
+      Milestone #{{ milestone.number }} · state <strong>{{ milestone.state }}</strong>
+      {% if milestone.created_at %}· opened {{ milestone.created_at[:10] }}{% endif %}
+      {% if milestone.closed_at %}· closed {{ milestone.closed_at[:10] }}{% endif %}
+      {% if metrics.duration_days is not none %}· {{ "%.0f"|format(metrics.duration_days) }} days{% endif %}
+      {% if arcs %}· {{ arcs|join(", ") }}{% endif %}
+    </div>
+  </header>
+
+  <!-- Section 2: At-a-glance (script-generated) -->
+  <h2>At a glance</h2>
+  <div class="cards">
+    <div class="card"><div class="n">{{ metrics.n_closed }}</div><div class="l">Closed</div></div>
+    <div class="card"><div class="n">{{ metrics.n_carried_forward }}</div><div class="l">Carried forward</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "—" }}</div><div class="l">Closed / week</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.avg_cycle_time_days) if metrics.avg_cycle_time_days is not none else "—" }}</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.median_cycle_time_days) if metrics.median_cycle_time_days is not none else "—" }}</div><div class="l">Median cycle (days)</div></div>
+  </div>
+  <div class="rolebar">
+    {% for role, count in metrics.per_role_counts.items() %}
+      <span class="pill">{{ role }} · <strong>{{ count }}</strong></span>
+    {% else %}
+      <span class="sub">no role-tagged closed issues</span>
+    {% endfor %}
+  </div>
+
+  <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
+  <div class="narrative">
+    {{ narrative_html|safe }}
+  </div>
+
+  <!-- Section 6: Inventory appendix (script-generated) -->
+  <h2>Inventory appendix</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Role</th><th>Size</th><th>Pri</th><th>Closed</th></tr></thead>
+    <tbody>
+      {% for i in issues %}
+      <tr class="{{ 'closed' if i.state == 'CLOSED' else 'open' }}">
+        <td><a href="{{ i.url }}">#{{ i.number }}</a></td>
+        <td>{{ i.title }}</td>
+        <td>{{ i.status }}</td>
+        <td>{{ i.roles|join(", ")|replace("role:", "") or "—" }}</td>
+        <td>{{ i.size }}</td>
+        <td>{{ i.priority }}</td>
+        <td>{{ i.closed_at[:10] if i.closed_at else "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <footer>
+    Generated by <code>scripts/pm/milestone_report.py</code>{% if generated_at %} · as of {{ generated_at[:10] }}{% endif %} · author-editor-critic closure report
+    (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752">Issue #752</a>).
+    Data sections + this appendix are script-generated; the narrative above is author-owned
+    (<code>{{ milestone.title }}</code> sidecar).
+  </footer>
+
+</div>
+</body>
+</html>
