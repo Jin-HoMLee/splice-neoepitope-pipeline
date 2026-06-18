@@ -325,3 +325,6 @@ tools/news/watermark_*.yaml
 # harness. package.json is committed (pins playwright-core); the install tree isn't.
 tools/project_map/node_modules/
 tools/project_map/package-lock.json
+
+# regtools auto-generates the FASTA index for the annotate-flag canary fixture
+resources/test/annotate_canary/*.fai
