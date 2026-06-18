@@ -163,3 +163,21 @@ class TestFirstProseLine:
 
     def test_skips_html_comment(self):
         assert mr._first_prose_line("<!-- note -->\nReal content here.") == "Real content here."
+
+
+class TestSeedNarrative:
+    ISSUES = [
+        {"number": 5, "title": "do a thing", "url": "http://x/5", "state": "CLOSED", "roles": []},
+        {"number": 6, "title": "open thing", "url": "http://x/6", "state": "OPEN", "roles": []},
+    ]
+
+    def test_issues_emitted_as_links_not_bare_hash(self):
+        # Python-Markdown parses a leading "#N" (e.g. "- #5 …") as an <h1>, which
+        # blows up the rendered font size. Issues must be emitted as md links so
+        # the "#" never sits at list-item-content start.
+        md = mr.seed_narrative(
+            {"title": "m", "created_at": None, "closed_at": None}, self.ISSUES, {}
+        )
+        assert not any(line.startswith("- #") for line in md.splitlines())
+        assert "[#5](http://x/5)" in md   # closed -> Deliverables
+        assert "[#6](http://x/6)" in md   # open   -> Carried-forward

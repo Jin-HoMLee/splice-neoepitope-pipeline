@@ -6,27 +6,27 @@
 
 <!-- Lead role: what shipped, grouped by deliverable. Auto-seed below. -->
 
-- #696 Project map atlas — interactive whole-project D3 visualization (tools/project_map/)
-- #642 feat(pm): thread issue timestamps into board_open_items.py (+ dormancy --stale-days sweep)
-- #633 research(pm): board governance review — parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits
-- #623 feat(roles): Sub 3+4 of #527 — personas-repo MM workspace (CLAUDE.md + .claude/ + memory_manager/)
-- #618 chore(pm): dock — proves-out review for recheck_milestone hook (PM-local standing + capacity right-sizing)
-- #587 Phase 1: late-commitment conventions rewrite (5 files)
-- #584 docs: CLAUDE.md board-governance section — late-commitment model
-- #583 chore: retime residual milestone-at-triage refs (best_next_issue / dependency_tracking / shared MEMORY)
-- #582 feat: late-commitment morning-routine split + Ready-queue replenishment nudge
-- #581 design: sub-issue milestone inheritance under late commitment
-- #580 design: board status governance — migrate the left side to late-commitment Kanban (phased)
-- #577 fix(ci): TestLiveIntegrationSmoke docstring says "skipped by default" but live tests run in ci-tools-pytest
-- #569 migrate team coordination off team_standup.md → GitHub board + Discussions (retire the file)
-- #567 design: Sub 5-7 of #527 — personas-repo governance (edit boundaries + MM-owned commit lifecycle)
-- #561 fix(hooks): post_gh_pr_create misses `gh pr create` after a VAR=value prefix
-- #550 infra: PostToolUse hook on gh pr create — automate project-add + Ready-for-review Status flip
-- #549 infra: PreToolUse hook on gh issue develop — refuse parent-Issue targets
-- #548 pm: session arc tracker 2026-05-28 — memory-slim epic carve lab notebook PR
-- #530 feat(roles): Sub 2 of #527 — write + commit MM rollout implementation plan
-- #528 design: Sub 1 of #527 — write + commit Memory Manager design doc
-- #454 chore(pm): promote target-date sync hook from settings.local.json -> settings.json
+- [#696](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/696) Project map atlas — interactive whole-project D3 visualization (tools/project_map/)
+- [#642](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/642) feat(pm): thread issue timestamps into board_open_items.py (+ dormancy --stale-days sweep)
+- [#633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) research(pm): board governance review — parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits
+- [#623](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/623) feat(roles): Sub 3+4 of #527 — personas-repo MM workspace (CLAUDE.md + .claude/ + memory_manager/)
+- [#618](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/618) chore(pm): dock — proves-out review for recheck_milestone hook (PM-local standing + capacity right-sizing)
+- [#587](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/587) Phase 1: late-commitment conventions rewrite (5 files)
+- [#584](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/584) docs: CLAUDE.md board-governance section — late-commitment model
+- [#583](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/583) chore: retime residual milestone-at-triage refs (best_next_issue / dependency_tracking / shared MEMORY)
+- [#582](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/582) feat: late-commitment morning-routine split + Ready-queue replenishment nudge
+- [#581](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/581) design: sub-issue milestone inheritance under late commitment
+- [#580](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/580) design: board status governance — migrate the left side to late-commitment Kanban (phased)
+- [#577](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/577) fix(ci): TestLiveIntegrationSmoke docstring says "skipped by default" but live tests run in ci-tools-pytest
+- [#569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569) migrate team coordination off team_standup.md → GitHub board + Discussions (retire the file)
+- [#567](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/567) design: Sub 5-7 of #527 — personas-repo governance (edit boundaries + MM-owned commit lifecycle)
+- [#561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561) fix(hooks): post_gh_pr_create misses `gh pr create` after a VAR=value prefix
+- [#550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550) infra: PostToolUse hook on gh pr create — automate project-add + Ready-for-review Status flip
+- [#549](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549) infra: PreToolUse hook on gh issue develop — refuse parent-Issue targets
+- [#548](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/548) pm: session arc tracker 2026-05-28 — memory-slim epic carve lab notebook PR
+- [#530](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/530) feat(roles): Sub 2 of #527 — write + commit MM rollout implementation plan
+- [#528](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/528) design: Sub 1 of #527 — write + commit Memory Manager design doc
+- [#454](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/454) chore(pm): promote target-date sync hook from settings.local.json -> settings.json
 
 ### Auto-seed (lab-notebook + closing comments)
 

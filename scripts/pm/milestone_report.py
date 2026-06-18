@@ -312,7 +312,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "<!-- Lead role: what shipped, grouped by deliverable. Auto-seed below. -->",
         "",
     ]
-    lines += [f"- #{i['number']} {i['title']}" for i in closed] or ["- _(none closed)_"]
+    lines += [f"- [#{i['number']}]({i['url']}) {i['title']}" for i in closed] or ["- _(none closed)_"]
     lines += ["", "### Auto-seed (lab-notebook + closing comments)", ""]
     lines += [seed or "<!-- no auto-seed found; author from scratch -->"]
     lines += [
@@ -323,7 +323,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "     closure-routing decision (a/b/c/d). -->",
         "",
     ]
-    lines += [f"- #{i['number']} {i['title']} — _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
+    lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
     lines += [
         "",
         "## Retrospective (process/health)",
