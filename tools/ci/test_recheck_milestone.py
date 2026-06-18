@@ -716,17 +716,19 @@ class TestRecheckHermeticIntegration:
 @pytest.mark.live
 @REQUIRES_LIVE_GH
 class TestLiveIntegrationSmoke:
-    """Live integration smoke test (Issue #506; skip contract fixed in #577).
+    """Live integration smoke test (Issue #506; skip contract fixed in #577;
+    split off the per-PR hot path in #711).
 
-    Runs whenever ``gh`` can read Projects v2 — which is the case inside
-    ``ci-tools-pytest`` (the ``GH_PROJECT_TOKEN`` secret) and any local env with
-    a ``read:project``-scoped login — so it executes on every CI sweep rather
-    than being deselected. The ``@pytest.mark.live`` marker is informational:
-    nothing filters it out (no ``-m "not live"`` in ``pytest.ini``). When the
-    scope is unavailable — a fork PR without the secret, or an unscoped local
-    env — the ``@REQUIRES_LIVE_GH`` guard SKIPS it gracefully instead of erroring
-    on the first ``gh`` call (``open_milestone_numbers()`` runs ``rm.gh(...,
-    check=True)``, which would otherwise raise).
+    Runs NIGHTLY and NON-BLOCKING via .github/workflows/recheck-live-smoke.yml,
+    NOT on every PR: the per-PR ``ci-tools-pytest`` job now passes ``-m "not
+    live"`` so a transient GitHub-API blip can't red a PR or poison the hermetic
+    unit signal (Issue #711). Deterministic per-PR integration coverage lives in
+    ``TestRecheckHermeticIntegration`` (recorded gh fixtures, no live calls); the
+    gh()-level retry (Issue #711 D4) absorbs transient blips on this live path.
+    When the project scope is unavailable — a fork PR without the secret, or an
+    unscoped local env — the ``@REQUIRES_LIVE_GH`` guard SKIPS it gracefully
+    instead of erroring on the first ``gh`` call (``open_milestone_numbers()``
+    runs ``rm.gh(...)``, which would otherwise raise).
 
     Property-based (Issue #506). Asserts the recheck integration produces a
     well-formed recommendation for *every* open milestone, instead of pinning a
