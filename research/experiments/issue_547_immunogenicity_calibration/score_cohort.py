@@ -303,3 +303,17 @@ def build_scored_cohort(
     # ------------------------------------------------------------------
     df_sub.to_parquet(output_parquet, index=False)
     logger.info("Scored cohort written to %s", output_parquet)
+
+
+if __name__ == "__main__":
+    # Reproducible entry point: scores the combined cohort and writes the parquet
+    # (+ companion .true_counts.csv) under outputs/. Run with the mhcflurry env:
+    #   conda run -n mhcflurry-scoring python score_cohort.py
+    # (or the env's python directly). Paths are resolved relative to this file so
+    # the command works from any cwd.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    _here = Path(__file__).resolve().parent
+    build_scored_cohort(
+        data_dir=_here / "data",
+        output_parquet=_here / "outputs" / "scored_cohort_subsample.parquet",
+    )
