@@ -142,12 +142,12 @@ software:
       (no watch_only needed; that guard is for *pollable* watch-only tools).
 
 # Candidate-to-adopt tools (NOT current deps) — the recurring 'revisit if we adopt' items.
-# NAME-ONLY: the poller never polls this section (run() iterates software +
-# reference_data only). Only the `tool:` name is read — rendered in the briefing
-# footer as a muted reminder. The `note:` is human prose; do not add feed_type/feed
-# here (it would imply polling that does not happen). No `roles:` needed — the
-# footer watch-list is not role-scoped (select_tools only filters software +
-# reference_data).
+# NAME-ONLY: the poller never polls this section — `watch` is excluded from
+# POLLED_SECTIONS (which is software + reference_data + pm_tooling). Only the
+# `tool:` name is read — rendered in the briefing footer as a muted reminder. The
+# `note:` is human prose; do not add feed_type/feed here (it would imply polling
+# that does not happen). No `roles:` needed — the footer watch-list is not
+# role-scoped (select_tools only filters the POLLED_SECTIONS).
 watch:
   - tool: uv
     note: "Test+research venv adoption tracked in Issue #570 (open)."
