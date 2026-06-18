@@ -1,0 +1,35 @@
+{
+  "_provenance": "FALLBACK: R and the cir package were unavailable at fixture-generation time. cir_x/cir_y values are hand-computed from first principles: each test case has y already strictly non-decreasing so PAVA makes no pooling moves; the only CIR step is collapsing each flat level-set to its weight-centroid x, retaining the plateau y. Verified by manual arithmetic. Regenerate with Rscript generate_cir_fixtures.R once R + cir are available to replace with live oracle values.",
+  "r_version": "manual_fallback",
+  "cir_version": "manual_fallback",
+  "cases": {
+    "onf_example": {
+      "x": [1, 2, 3, 4, 5, 6],
+      "y": [0.1, 0.2, 0.2, 0.2, 0.5, 0.9],
+      "w": [10, 10, 10, 10, 10, 10],
+      "cir_x": [1.0, 3.0, 5.0, 6.0],
+      "cir_y": [0.1, 0.2, 0.5, 0.9]
+    },
+    "multi_levelset": {
+      "x": [1, 2, 3, 4, 5, 6, 7, 8],
+      "y": [0.1, 0.1, 0.1, 0.4, 0.4, 0.7, 0.7, 0.7],
+      "w": [5, 8, 3, 10, 6, 4, 9, 2],
+      "cir_x": [1.875, 4.375, 6.8666666667],
+      "cir_y": [0.1, 0.4, 0.7]
+    },
+    "boundary_plateau": {
+      "x": [1, 2, 3, 4, 5],
+      "y": [0.3, 0.3, 0.3, 0.6, 0.9],
+      "w": [7, 7, 7, 7, 7],
+      "cir_x": [2.0, 4.0, 5.0],
+      "cir_y": [0.3, 0.6, 0.9]
+    },
+    "no_collapse": {
+      "x": [1, 2, 3, 4],
+      "y": [0.1, 0.3, 0.6, 0.9],
+      "w": [4, 4, 4, 4],
+      "cir_x": [1.0, 2.0, 3.0, 4.0],
+      "cir_y": [0.1, 0.3, 0.6, 0.9]
+    }
+  }
+}
