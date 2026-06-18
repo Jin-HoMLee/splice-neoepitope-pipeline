@@ -8,18 +8,10 @@ import time. This lets the formula/HLA unit tests run under research/.venv
 (Python 3.14, no mhcflurry).
 """
 import logging
-import math
 import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# HLA locus weights (A/B = full, C = half)
-# ---------------------------------------------------------------------------
-_LOCUS_WEIGHT = {"A": 1.0, "B": 1.0, "C": 0.5}
-_DEFAULT_WEIGHT = 1.0   # fallback for any unlisted locus
-
 
 def normalize_hla(allele: str) -> str:
     """Normalise an HLA allele string to the canonical MHCflurry form ``HLA-X*GG:FF``.
@@ -46,37 +38,30 @@ def normalize_hla(allele: str) -> str:
     return s
 
 
-def _locus_weight(canonical_allele: str) -> float:
-    """Return the per-locus HLA weight for a canonical allele string."""
-    m = re.match(r"^HLA-([A-Z])", canonical_allele)
-    if m:
-        return _LOCUS_WEIGHT.get(m.group(1), _DEFAULT_WEIGHT)
-    return _DEFAULT_WEIGHT
-
-
-def genotype_score(per_allele: dict) -> float:
-    """Compute the genotype presentation score from per-allele MHCflurry scores.
-
-    Formula: log(1 + sum(w_i * s_i))
-
-    where w_i is the locus weight (A=1.0, B=1.0, C=0.5) and s_i is the
-    presentation_score for allele i.
+def genotype_score(per_allele: dict, hla_c_weight: float = 0.5) -> float:
+    """genotype_presentation_score = 1 - prod(1 - w_i * p_i); w_i = hla_c_weight for HLA-C else 1.0.
+    Mirrors workflow/scripts/run_mhcflurry.py.
 
     Parameters
     ----------
     per_allele : dict[str, float]
         Mapping of canonical allele string → MHCflurry presentation_score.
         Keys should be in ``HLA-X*GG:FF`` form (as returned by normalize_hla).
+    hla_c_weight : float
+        Weight applied to HLA-C alleles (default 0.5). All other loci use 1.0.
 
     Returns
     -------
     float
-        genotype_presentation_score (non-negative; 0.0 for empty dict).
+        genotype_presentation_score in [0, 1]; 0.0 for empty dict.
     """
     if not per_allele:
         return 0.0
-    weighted_sum = sum(_locus_weight(a) * s for a, s in per_allele.items())
-    return math.log1p(weighted_sum)
+    product = 1.0
+    for allele, p in per_allele.items():
+        w = hla_c_weight if allele.startswith("HLA-C") else 1.0
+        product *= (1.0 - w * float(p))
+    return round(1.0 - product, 6)
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +200,7 @@ def build_scored_cohort(
         .size()
         .reset_index(name="count")
     )
-    counts_path = str(output_parquet) + ".true_counts.csv"
+    counts_path = output_parquet.parent / (output_parquet.name + ".true_counts.csv")
     true_counts.to_csv(counts_path, index=False)
     logger.info("True counts written to %s", counts_path)
 
@@ -225,7 +210,6 @@ def build_scored_cohort(
     positives = df[df["label"] == 1].copy()
     negatives = df[df["label"] == 0].copy()
 
-    neg_cohort_counts = negatives["cohort"].value_counts()
     total_neg = len(negatives)
     n_neg_actual = min(n_neg, total_neg)
 
@@ -251,45 +235,64 @@ def build_scored_cohort(
     genotypes = _hla_genotypes(data_dir)
 
     # ------------------------------------------------------------------
-    # 5. Score each row
+    # 5. Score each row — batched: one predict() call per unique allele
     # ------------------------------------------------------------------
     predictor = Class1PresentationPredictor.load()
     logger.info("MHCflurry predictor loaded.")
 
+    # Build per-row allele lists
+    row_alleles = []
+    for _, row in df_sub.iterrows():
+        if row["patient"] is not None and row["patient"] in genotypes:
+            row_alleles.append(genotypes[row["patient"]])
+        else:
+            row_alleles.append([row["allele"]])
+
+    # Collect the full peptide set needed per unique allele
+    from collections import defaultdict
+    allele_peptides: dict = defaultdict(set)
+    for (_, row), alleles in zip(df_sub.iterrows(), row_alleles):
+        for a in alleles:
+            allele_peptides[a].add(row["peptide"])
+
+    # One predict() call per unique allele
+    allele_peptide_score: dict = {}  # (allele, peptide) -> score
+    unique_alleles = sorted(allele_peptides)
+    logger.info("Batching MHCflurry: %d unique alleles", len(unique_alleles))
+    for idx, allele in enumerate(unique_alleles, 1):
+        peptides_for_allele = sorted(allele_peptides[allele])
+        try:
+            result = predictor.predict(
+                peptides=peptides_for_allele,
+                alleles={allele: [allele]},
+                verbose=0,
+            )
+            scores = dict(zip(result["peptide"], result["presentation_score"]))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("predict failed for allele=%s: %s", allele, exc)
+            scores = {p: 0.0 for p in peptides_for_allele}
+        for peptide, score in scores.items():
+            allele_peptide_score[(allele, peptide)] = float(score)
+        if idx % 50 == 0 or idx == len(unique_alleles):
+            logger.info("  scored allele %d / %d", idx, len(unique_alleles))
+
+    # Assemble per-row results from the lookup
     presentation_scores = []
     genotype_scores = []
-
-    for i, row in df_sub.iterrows():
+    for row_idx, (_, row) in enumerate(df_sub.iterrows()):
+        alleles = row_alleles[row_idx]
         peptide = row["peptide"]
-        # Determine alleles to score against
-        if row["patient"] is not None and row["patient"] in genotypes:
-            alleles = genotypes[row["patient"]]
-        else:
-            # IMPROVE / patients without genotype: use single allele from row
-            alleles = [row["allele"]]
-
-        # Per-allele scoring: one predict() call per allele
-        per_allele = {}
-        for a in alleles:
-            try:
-                result = predictor.predict(
-                    peptides=[peptide],
-                    alleles={a: [a]},
-                    verbose=0,
-                )
-                score = float(result["presentation_score"].iloc[0])
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("predict failed for peptide=%s allele=%s: %s", peptide, a, exc)
-                score = 0.0
-            per_allele[a] = score
-
+        per_allele = {
+            a: allele_peptide_score.get((a, peptide), 0.0)
+            for a in alleles
+        }
         gs = genotype_score(per_allele)
         best_ps = max(per_allele.values()) if per_allele else 0.0
         presentation_scores.append(best_ps)
         genotype_scores.append(gs)
 
-        if (i + 1) % 5000 == 0:
-            logger.info("  scored %d / %d rows", i + 1, len(df_sub))
+        if (row_idx + 1) % 5000 == 0:
+            logger.info("  assembled %d / %d rows", row_idx + 1, len(df_sub))
 
     df_sub = df_sub.copy()
     df_sub["presentation_score"] = presentation_scores
