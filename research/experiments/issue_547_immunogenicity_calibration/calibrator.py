@@ -1,6 +1,7 @@
 """Immunogenicity calibrator: KDE -> density-ratio + prior -> isotonic ->
 centered isotonic (Oron & Flournoy 2017). Reimplemented from the NeoGuider
 paper (Wei et al. 2026); no NeoGuider code vendored."""
+import joblib
 import numpy as np
 from scipy.stats import gaussian_kde
 from sklearn.isotonic import IsotonicRegression
@@ -66,6 +67,8 @@ def adaptive_kde(samples):
 class PresentationCalibrator:
     """Calibrate genotype_presentation_score -> calibrated_immunogenicity_log_odds."""
 
+    CALIBRATOR_VERSION = "v1"
+
     def __init__(self, kde_mode="adaptive", n_grid=512):
         if kde_mode not in ("adaptive", "fixed"):
             raise ValueError("kde_mode must be 'adaptive' or 'fixed'")
@@ -104,3 +107,20 @@ class PresentationCalibrator:
             raise RuntimeError("PresentationCalibrator must be fit before transform()")
         scores = np.atleast_1d(np.asarray(scores, float))
         return np.interp(scores, self.cx_, self.cy_)  # np.interp clips to endpoints
+
+    def save(self, path):
+        joblib.dump({
+            "cx": self.cx_, "cy": self.cy_, "prior": self.prior_,
+            "score_range": self.score_range_, "kde_mode": self.kde_mode,
+            "fit_cohorts": self.fit_cohorts_, "version": self.CALIBRATOR_VERSION,
+        }, path)
+
+    @classmethod
+    def load(cls, path):
+        d = joblib.load(path)
+        obj = cls(kde_mode=d["kde_mode"])
+        obj.cx_, obj.cy_ = d["cx"], d["cy"]
+        obj.prior_ = d["prior"]
+        obj.score_range_ = tuple(d["score_range"])
+        obj.fit_cohorts_ = d["fit_cohorts"]
+        return obj

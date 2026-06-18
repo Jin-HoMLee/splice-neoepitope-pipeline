@@ -50,3 +50,14 @@ def test_transform_raises_before_fit():
     cal = PresentationCalibrator()
     with pytest.raises(RuntimeError):
         cal.transform([0.5])
+
+def test_save_load_roundtrip(tmp_path):
+    scores, labels = _synthetic()
+    cal = PresentationCalibrator().fit(scores, labels, fit_cohorts=["NCI", "TESLA"])
+    p = tmp_path / "cal.joblib"
+    cal.save(p)
+    cal2 = PresentationCalibrator.load(p)
+    g = np.linspace(0, 1, 100)
+    np.testing.assert_allclose(cal.transform(g), cal2.transform(g))
+    assert cal2.prior_ == cal.prior_
+    assert cal2.fit_cohorts_ == ["NCI", "TESLA"]
