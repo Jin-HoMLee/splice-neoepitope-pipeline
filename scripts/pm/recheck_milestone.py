@@ -155,12 +155,34 @@ def open_issues_in_milestone(milestone_title: str) -> list[int]:
     return [issue["number"] for issue in data]
 
 
-def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
+def sizes_and_parents_for_issues(
+    issue_numbers: list[int],
+) -> tuple[dict[int, str | None], set[int]]:
+    """One GraphQL round-trip returning ``(sizes, parents)`` for ``issue_numbers``.
+
+    Folds what used to be two separate aliased GraphQL queries (``sizes_for_issues``
+    + ``parent_numbers``) into a single call: each ``i{n}`` alias now fetches both
+    the project Size field value AND ``subIssuesSummary.total`` (Issue #711). This
+    halves the GraphQL surface per recheck — material because the live smoke test
+    rechecks every open milestone, and one transient ``gh`` non-zero on any call
+    reds the shared ``ci-tools-pytest`` job.
+
+    - ``sizes[n]`` — the issue's Size on PROJECT_NUMBER (``None`` if unset / on a
+      different board).
+    - ``parents`` — the subset that are parent epics (``subIssuesSummary.total > 0``).
+      Parents carry no Size by convention — size rolls up from their sub-issues
+      (shared/feedback_parent_sub_issues.md). compute_recheck excludes them from
+      both the capacity sum and the unsized-check, so a milestone holding a parent
+      as a roadmap anchor doesn't emit a spurious, un-clearable [UNSIZED] flag
+      (Issue #689 — sizing the parent to clear it would itself violate the
+      no-size convention).
+    """
     if not issue_numbers:
-        return {}
+        return {}, set()
     owner, name = REPO.split("/")
     aliases = " ".join(
         f'i{n}: issue(number: {n}) {{ '
+        f'subIssuesSummary {{ total }} '
         f'projectItems(first: 5) {{ nodes {{ project {{ number }} '
         f'fieldValues(first: 20) {{ nodes {{ '
         f'... on ProjectV2ItemFieldSingleSelectValue {{ name field {{ ... on ProjectV2SingleSelectField {{ name }} }} }} '
@@ -171,8 +193,12 @@ def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
     data = gh("api", "graphql", "-f", f"query={query}")
     repo = data["data"]["repository"]
     sizes: dict[int, str | None] = {}
+    parents: set[int] = set()
     for n in issue_numbers:
         node = repo.get(f"i{n}") or {}
+        total = (node.get("subIssuesSummary") or {}).get("total") or 0
+        if total > 0:
+            parents.add(n)
         size: str | None = None
         for pi in node.get("projectItems", {}).get("nodes", []):
             if (pi.get("project") or {}).get("number") != PROJECT_NUMBER:
@@ -181,36 +207,7 @@ def sizes_for_issues(issue_numbers: list[int]) -> dict[int, str | None]:
                 if (fv.get("field") or {}).get("name") == "Size":
                     size = fv.get("name")
         sizes[n] = size
-    return sizes
-
-
-def parent_numbers(issue_numbers: list[int]) -> set[int]:
-    """Subset of issue_numbers that are parent epics (subIssuesSummary.total > 0).
-
-    Parents carry no Size by convention — size rolls up from their sub-issues
-    (shared/feedback_parent_sub_issues.md). compute_recheck excludes them from
-    both the capacity sum and the unsized-check, so a milestone holding a parent
-    as a roadmap anchor doesn't emit a spurious, un-clearable [UNSIZED] flag
-    (Issue #689 — sizing the parent to clear it would itself violate the
-    no-size convention).
-    """
-    if not issue_numbers:
-        return set()
-    owner, name = REPO.split("/")
-    aliases = " ".join(
-        f"i{n}: issue(number: {n}) {{ subIssuesSummary {{ total }} }}"
-        for n in issue_numbers
-    )
-    query = f'query {{ repository(owner: "{owner}", name: "{name}") {{ {aliases} }} }}'
-    data = gh("api", "graphql", "-f", f"query={query}")
-    repo = data["data"]["repository"]
-    parents: set[int] = set()
-    for n in issue_numbers:
-        node = repo.get(f"i{n}") or {}
-        total = (node.get("subIssuesSummary") or {}).get("total") or 0
-        if total > 0:
-            parents.add(n)
-    return parents
+    return sizes, parents
 
 
 def compute_recheck(milestone_number: int) -> int:
@@ -223,8 +220,7 @@ def compute_recheck(milestone_number: int) -> int:
     )
 
     issue_numbers = open_issues_in_milestone(title)
-    sizes = sizes_for_issues(issue_numbers)
-    parents = parent_numbers(issue_numbers)
+    sizes, parents = sizes_and_parents_for_issues(issue_numbers)
 
     print(f"Milestone: {title}")
     print(f"Current due_on: {current_due_date or '—'}")

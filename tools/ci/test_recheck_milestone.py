@@ -253,6 +253,85 @@ class TestComputeLayeredDueDate:
         assert "standalone S7" in note
 
 
+class TestSizesAndParentsFold:
+    """sizes_and_parents_for_issues folds the former sizes_for_issues +
+    parent_numbers calls into ONE GraphQL round-trip (Issue #711 A1).
+
+    Each i{n} alias fetches both the project Size field value AND
+    subIssuesSummary.total, so a recheck makes one GraphQL call for size +
+    parent-status instead of two. Behaviour (the parsed sizes dict + parents
+    set) must be identical to the two predecessors.
+    """
+
+    def _canned(self, monkeypatch):
+        """Patch rm.gh to record calls and return a combined size+subIssue
+        response for issues 1 (M, leaf), 2 (parent), 3 (unsized leaf)."""
+        calls = []
+
+        def fake_gh(*args, **kwargs):
+            calls.append(args)
+            return {
+                "data": {
+                    "repository": {
+                        "i1": {
+                            "subIssuesSummary": {"total": 0},
+                            "projectItems": {"nodes": [
+                                {"project": {"number": rm.PROJECT_NUMBER},
+                                 "fieldValues": {"nodes": [
+                                     {"name": "M", "field": {"name": "Size"}}]}}]},
+                        },
+                        "i2": {
+                            "subIssuesSummary": {"total": 3},
+                            "projectItems": {"nodes": []},
+                        },
+                        "i3": {
+                            "subIssuesSummary": {"total": 0},
+                            "projectItems": {"nodes": [
+                                {"project": {"number": rm.PROJECT_NUMBER},
+                                 "fieldValues": {"nodes": []}}]},
+                        },
+                    }
+                }
+            }
+
+        monkeypatch.setattr(rm, "gh", fake_gh)
+        return calls
+
+    def test_single_graphql_call_for_size_and_parent(self, monkeypatch):
+        calls = self._canned(monkeypatch)
+        sizes, parents = rm.sizes_and_parents_for_issues([1, 2, 3])
+        # The whole point of the fold: ONE gh call, and it is a graphql query.
+        assert len(calls) == 1
+        assert "graphql" in calls[0]
+
+    def test_sizes_and_parents_parsed_correctly(self, monkeypatch):
+        self._canned(monkeypatch)
+        sizes, parents = rm.sizes_and_parents_for_issues([1, 2, 3])
+        assert sizes == {1: "M", 2: None, 3: None}
+        assert parents == {2}
+
+    def test_size_ignored_from_other_projects(self, monkeypatch):
+        # A Size field value on a DIFFERENT project board must not leak through.
+        def fake_gh(*args, **kwargs):
+            return {"data": {"repository": {"i1": {
+                "subIssuesSummary": {"total": 0},
+                "projectItems": {"nodes": [
+                    {"project": {"number": rm.PROJECT_NUMBER + 1},
+                     "fieldValues": {"nodes": [
+                         {"name": "L", "field": {"name": "Size"}}]}}]},
+            }}}}
+        monkeypatch.setattr(rm, "gh", fake_gh)
+        sizes, parents = rm.sizes_and_parents_for_issues([1])
+        assert sizes == {1: None}
+        assert parents == set()
+
+    def test_empty_input_makes_no_call(self, monkeypatch):
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: pytest.fail("no gh call for empty input"))
+        sizes, parents = rm.sizes_and_parents_for_issues([])
+        assert sizes == {}
+        assert parents == set()
+
+
 class TestComputeRecheckUnsizedGuard:
     """compute_recheck must flag [UNSIZED] whenever ANY open issue lacks a Size —
     not only when total remaining capacity is exactly 0 (Issue #618 AC2).
@@ -267,8 +346,8 @@ class TestComputeRecheckUnsizedGuard:
     def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents=()):
         monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
         monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
-        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
-        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
+        monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                            lambda ns: (dict(sizes), set(parents)))
 
     def test_mixed_sized_and_unsized_flags_unsized_not_update(self, monkeypatch, capsys):
         self._patch_board(
@@ -358,8 +437,8 @@ class TestComputeRecheckParentSkip:
     def _patch_board(self, monkeypatch, *, title, due_on, issues, sizes, parents):
         monkeypatch.setattr(rm, "milestone_meta", lambda n: {"title": title, "due_on": due_on})
         monkeypatch.setattr(rm, "open_issues_in_milestone", lambda t: list(issues))
-        monkeypatch.setattr(rm, "sizes_for_issues", lambda ns: dict(sizes))
-        monkeypatch.setattr(rm, "parent_numbers", lambda ns: set(parents))
+        monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                            lambda ns: (dict(sizes), set(parents)))
 
     def _freeze_today(self, monkeypatch, fake_today):
         class _FakeDate(date):
