@@ -1,5 +1,7 @@
 """Unit tests for scripts/pm/recheck_milestone.py."""
 
+import json
+import os
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -587,6 +589,128 @@ class TestComputeRecheckParentSkip:
         assert rc == 2
         assert "[UNSIZED]" in out
         assert "1 open issue(s) missing Size" in out  # only #540, not the parent #538
+
+
+# --- Live-vs-hermetic integration split (Issue #711) -----------------------
+# The recheck integration is checked TWO ways, by design:
+#   * TestRecheckHermeticIntegration (below) — runs on every PR in
+#     ``ci-tools-pytest``. A fake ``gh`` on PATH returns recorded JSON for each
+#     of the script's calls (milestone meta / issue list / folded size+parent
+#     GraphQL / all-milestones list), so the end-to-end script is exercised
+#     deterministically with ZERO live API calls. Fixtures are inline canned
+#     JSON (no committed files) keyed by the script's call shape — see
+#     ``_FAKE_GH`` and ``_run_recheck_hermetic`` below.
+#   * TestLiveIntegrationSmoke (further down) — ``@pytest.mark.live``, run
+#     NIGHTLY and non-blocking (.github/workflows/recheck-live-smoke.yml), and
+#     deselected from the per-PR job via ``-m "not live"``. A real GitHub-API
+#     blip can no longer red a PR or poison the hermetic unit signal; the
+#     gh()-level retry (Issue #711 D4) absorbs transient blips on that path.
+
+
+class TestRecheckHermeticIntegration:
+    """Deterministic end-to-end recheck via a fake ``gh`` on PATH (Issue #711 C3).
+
+    Mirrors the recorded-gh pattern from scripts/tests/test_apply_arc_labels_resync.py
+    (PR #710): a stub ``gh`` returns canned JSON per call shape, so the real
+    ``recheck_milestone.py`` runs full end-to-end with no live calls. Replaces the
+    flaky live smoke on the per-PR hot path while keeping integration coverage.
+    """
+
+    # A stub gh that dispatches on argv to the matching canned-JSON env var.
+    # graphql is checked before the generic `api` branch (the graphql call is
+    # also `gh api ...`); --paginate distinguishes the all-milestones list from
+    # the per-milestone meta fetch.
+    _FAKE_GH = (
+        "#!/usr/bin/env python3\n"
+        "import os, sys\n"
+        "args = sys.argv[1:]\n"
+        "if 'graphql' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_GRAPHQL', '{}'))\n"
+        "elif args[:1] == ['api'] and '--paginate' in args:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_ALL_MS', '[]'))\n"
+        "elif args[:1] == ['api']:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_MS_META', '{}'))\n"
+        "elif args[:2] == ['issue', 'list']:\n"
+        "    sys.stdout.write(os.environ.get('FAKE_ISSUE_LIST', '[]'))\n"
+        "else:\n"
+        "    sys.stdout.write('{}')\n"
+        "sys.exit(0)\n"
+    )
+
+    def _run_recheck_hermetic(self, tmp_path, *, ms_meta, issue_list, graphql, all_ms):
+        gh = tmp_path / "gh"
+        gh.write_text(self._FAKE_GH)
+        gh.chmod(0o755)
+        env = dict(os.environ)
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
+        env["FAKE_MS_META"] = json.dumps(ms_meta)
+        env["FAKE_ISSUE_LIST"] = json.dumps(issue_list)
+        env["FAKE_GRAPHQL"] = json.dumps(graphql)
+        env["FAKE_ALL_MS"] = json.dumps(all_ms)
+        return subprocess.run(
+            ["python3", "scripts/pm/recheck_milestone.py", "--milestone", "999"],
+            env=env, capture_output=True, text=True, timeout=30,
+        )
+
+    @staticmethod
+    def _gql_node(*, size=None, parent_total=0):
+        field_values = (
+            [{"name": size, "field": {"name": "Size"}}] if size is not None else []
+        )
+        return {
+            "subIssuesSummary": {"total": parent_total},
+            "projectItems": {"nodes": [
+                {"project": {"number": rm.PROJECT_NUMBER},
+                 "fieldValues": {"nodes": field_values}}]},
+        }
+
+    def test_sized_milestone_emits_well_formed_report(self, tmp_path):
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "i3 - S5 - Modeling - Hermetic", "due_on": "2026-05-10T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(size="M"),
+                "i2": self._gql_node(size="L"),
+            }}},
+            all_ms=[{"number": 999, "title": "i3 - S5 - Modeling - Hermetic",
+                     "state": "open", "due_on": "2026-05-10T00:00:00Z"}],
+        )
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "Proposed due_on:" in result.stdout
+
+    def test_unsized_leaf_emits_unsized(self, tmp_path):
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "pm-i6 - PM Tooling", "due_on": "2026-07-02T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(size="S"),
+                "i2": self._gql_node(size=None),   # unsized leaf
+            }}},
+            all_ms=[],
+        )
+        assert result.returncode == 2
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "[UNSIZED]" in result.stdout
+
+    def test_parent_excluded_from_unsized(self, tmp_path):
+        # Parent epic (subIssues>0, no Size) must not trip [UNSIZED] (Issue #689),
+        # exercised through the real script with the folded GraphQL response.
+        result = self._run_recheck_hermetic(
+            tmp_path,
+            ms_meta={"title": "pm-i6 - PM Tooling", "due_on": "2026-07-02T00:00:00Z"},
+            issue_list=[{"number": 1}, {"number": 2}],
+            graphql={"data": {"repository": {
+                "i1": self._gql_node(parent_total=3),    # parent epic, unsized
+                "i2": self._gql_node(size="S"),          # sized leaf
+            }}},
+            all_ms=[{"number": 999, "title": "pm-i6 - PM Tooling",
+                     "state": "open", "due_on": "2026-07-02T00:00:00Z"}],
+        )
+        assert is_well_formed_recheck(result.returncode, result.stdout), result.stderr
+        assert "[UNSIZED]" not in result.stdout
+        assert "parent epic — excluded" in result.stdout
 
 
 @pytest.mark.live
