@@ -60,7 +60,13 @@ GENE_SPECS = [
 ]
 GENE_GAP = 600              # intergenic gap between genes
 ANCHORS = (25, 50, 75, 100, 147)
-NOVEL_ACCEPTOR_SHIFT = 777  # push the acceptor off annotation -> novel pair
+# Push the acceptor off annotation so the donor-acceptor *pair* is not an
+# annotated intron. Chosen to exceed the largest intron length (max GENE_SPECS
+# intron 300) + the largest anchor (147) so the shifted acceptor cannot coincide
+# with an annotated boundary of the same gene. If you change GENE_SPECS, keep
+# this above the new max intron length — and rely on _self_verify's both-flags
+# assertion, which fails regeneration if a "novel" junction silently scores known.
+NOVEL_ACCEPTOR_SHIFT = 777
 
 
 def _build_genes():
@@ -156,14 +162,26 @@ def _self_verify(fa, gtf, bed12):
     with tempfile.TemporaryDirectory() as td:
         ref_bed = Path(td) / "reference_junctions.bed"
         write_bed(extract_junctions(gtf), ref_bed)
-        rc = cc.main([
-            "--bed12", str(bed12), "--reference-fasta", str(fa),
-            "--gtf", str(gtf), "--reference-bed", str(ref_bed),
-            "--regtools-bin", regtools,
-        ])
-    if rc != 0:
-        raise SystemExit("Self-verify FAILED — fixture does not cross-check clean.")
-    print("Self-verify OK: fixture cross-checks at 100% agreement.")
+        flags = cc.parse_regtools_annotate(
+            cc.run_regtools_annotate(bed12, fa, gtf, regtools)
+        )
+        # Both flag directions must be present, else the canary only exercises
+        # the annotated case — e.g. if a "novel" junction's shifted acceptor
+        # accidentally landed on an annotated boundary (regtools would score it 1).
+        present = set(flags.values())
+        if present != {0, 1}:
+            raise SystemExit(
+                f"Self-verify FAILED — fixture must contain both known(1) and "
+                f"novel(0) junctions; regtools scored only {present}."
+            )
+        result = cc.crosscheck(flags, cc.compute_homerolled(bed12, ref_bed))
+    if result.n_compared == 0 or result.agreement < 0.99 or result.coverage < 0.99:
+        raise SystemExit(
+            f"Self-verify FAILED — agreement={result.agreement:.3f} "
+            f"coverage={result.coverage:.3f} compared={result.n_compared}."
+        )
+    print(f"Self-verify OK: {result.n_compared} junctions, both flag directions, "
+          f"100% agreement.")
 
 
 if __name__ == "__main__":

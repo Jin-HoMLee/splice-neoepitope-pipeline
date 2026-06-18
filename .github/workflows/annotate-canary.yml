@@ -44,7 +44,12 @@ jobs:
 
       - name: Install regtools
         shell: bash -el {0}
-        run: conda install -y "regtools>=1.0.0"
+        # Bound below 2.0: the coordinate contract this canary asserts (annotate
+        # `start` = donor 0-based, `end` = acceptor-exclusive + 1, `known_junction`
+        # column) was pinned on regtools 1.0.0. Header-based column resolution
+        # absorbs a minor-version column reorder, but a hypothetical 2.0 changing
+        # the `end` semantics should be an explicit re-pin, not a silent surprise.
+        run: conda install -y "regtools>=1.0.0,<2"
 
       - name: Cross-check home-rolled annotated flag vs. regtools annotate
         shell: bash -el {0}

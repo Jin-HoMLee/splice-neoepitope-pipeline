@@ -67,6 +67,13 @@ class TestParseRegtoolsAnnotate:
     def test_empty_input_returns_empty(self):
         assert parse_regtools_annotate([_HEADER]) == {}
 
+    def test_fallback_columns_when_no_header(self):
+        # No header line -> the parser falls back to documented fixed positions
+        # (chrom 0, start 1, end 2, strand 5, known_junction 13). Guards against
+        # _FALLBACK_COLS silently drifting from the real regtools layout.
+        flags = parse_regtools_annotate([_row("chr22", 500, 901, "-", 1)])
+        assert flags == {("chr22", 500, 900, "-"): 1}
+
 
 class TestHomerolledFlags:
     def test_membership_drives_flag(self):
