@@ -426,8 +426,17 @@ def main():
                 source = "datacite"
             except urllib.error.HTTPError as e2:
                 sys.exit(f"DOI not found on CrossRef or DataCite: {e2.code} {e2.reason}")
+            except urllib.error.URLError as e2:
+                # DNS / connection / TLS failure reaching DataCite — clean message,
+                # not a raw traceback (Issue #702). HTTPError is caught above first.
+                sys.exit(f"Network error reaching DataCite: {e2.reason}")
         else:
             sys.exit(f"CrossRef lookup failed: {e.code} {e.reason}")
+    except urllib.error.URLError as e:
+        # A bare URLError (DNS / connection / TLS) is not a 404 — do not fall back;
+        # exit with a clear message instead of propagating a traceback (Issue #702).
+        # Ordered after `except HTTPError` since HTTPError subclasses URLError.
+        sys.exit(f"Network error reaching CrossRef: {e.reason}")
 
     print("Fetching supplementary data from PubMed...")
     pubmed_date, pubmed_abstract, pmid = fetch_pubmed(args.doi)
