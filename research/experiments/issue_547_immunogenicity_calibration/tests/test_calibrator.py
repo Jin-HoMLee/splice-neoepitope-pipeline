@@ -53,7 +53,7 @@ def test_transform_raises_before_fit():
 
 def test_save_load_roundtrip(tmp_path):
     scores, labels = _synthetic()
-    cal = PresentationCalibrator().fit(scores, labels, fit_cohorts=["NCI", "TESLA"])
+    cal = PresentationCalibrator(n_grid=256).fit(scores, labels, fit_cohorts=["NCI", "TESLA"])
     p = tmp_path / "cal.joblib"
     cal.save(p)
     cal2 = PresentationCalibrator.load(p)
@@ -61,3 +61,4 @@ def test_save_load_roundtrip(tmp_path):
     np.testing.assert_allclose(cal.transform(g), cal2.transform(g))
     assert cal2.prior_ == cal.prior_
     assert cal2.fit_cohorts_ == ["NCI", "TESLA"]
+    assert cal2.n_grid == cal.n_grid  # n_grid is serialised + restored, not reset to default

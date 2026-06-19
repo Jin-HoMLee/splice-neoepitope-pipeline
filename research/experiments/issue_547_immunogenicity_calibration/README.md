@@ -192,8 +192,9 @@ Two separate Python environments are required because MHCflurry (TensorFlow/PyTo
 **Step 1 — Score cohorts (one-time; `mhcflurry-scoring` conda env)**
 
 ```bash
-# From this folder
-conda run -n mhcflurry-scoring python score_cohort.py
+# From this folder. Use `conda activate` (NOT `conda run`, which buffers stdout and
+# hides the per-allele progress logs during the 30+ min run — see CLAUDE.md).
+conda activate mhcflurry-scoring && python score_cohort.py
 # Writes: outputs/scored_cohort_subsample.parquet  (GITIGNORED)
 #         outputs/scored_cohort_subsample.parquet.true_counts.csv
 ```

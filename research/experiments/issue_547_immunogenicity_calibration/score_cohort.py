@@ -21,6 +21,10 @@ def normalize_hla(allele: str) -> str:
     - ``HLA-A01:01``    → ``HLA-A*01:01``   (HLA-prefix but missing star)
     - ``HLA-A*01:01``   → ``HLA-A*01:01``   (already canonical, no-op)
     - ``C*07:02``       → ``HLA-C*07:02``   (C locus, bare)
+
+    Only single-character Class I gene names (A, B, C) are handled. Multi-character loci
+    (e.g. Class II ``DRB1``) match none of the patterns and are returned **unchanged** —
+    safe for the current all-Class-I cohorts, but would need extending for Class II reuse.
     """
     s = allele.strip()
     # Already canonical
@@ -61,6 +65,8 @@ def genotype_score(per_allele: dict, hla_c_weight: float = 0.5) -> float:
     for allele, p in per_allele.items():
         w = hla_c_weight if allele.startswith("HLA-C") else 1.0
         product *= (1.0 - w * float(p))
+    # round to 6 dp for stable parquet diffs in this precompute; the production
+    # run_mhcflurry.py this mirrors does NOT round (offset <1e-6, scores in [0, 1]).
     return round(1.0 - product, 6)
 
 
@@ -83,7 +89,10 @@ def _load_neoranking(data_dir: Path):
                                "mutant_seq", "mutant_best_alleles"])
     # Keep only labelled rows
     df = df[df["response_type"].isin(["CD8", "negative"])].copy()
-    # Use the best allele for each peptide (first allele in comma-sep list)
+    # Best allele per peptide (first in the comma-sep list). NOTE: for NeoRanking this
+    # `allele` column is a FALLBACK only — build_scored_cohort scores each row via the full
+    # per-patient HLA genotype. The single-allele proxy is the genuine path only for IMPROVE
+    # rows (no patient genotype), so this asymmetry is intentional.
     df["allele"] = df["mutant_best_alleles"].str.split(",").str[0].str.strip()
     df["allele"] = df["allele"].apply(normalize_hla)
     df["label"] = (df["response_type"] == "CD8").astype(int)
@@ -215,6 +224,8 @@ def build_scored_cohort(
 
     rng = np.random.default_rng(seed)
     sampled_neg_parts = []
+    # Per-cohort round() can make the parts sum to n_neg_actual ± a couple (classic
+    # integer-rounding drift); harmless at this scale — don't add a strict sum==n_neg assert.
     for cohort, cohort_neg in negatives.groupby("cohort"):
         frac = len(cohort_neg) / total_neg
         n_cohort = max(1, round(n_neg_actual * frac))
@@ -276,7 +287,9 @@ def build_scored_cohort(
         if idx % 50 == 0 or idx == len(unique_alleles):
             logger.info("  scored allele %d / %d", idx, len(unique_alleles))
 
-    # Assemble per-row results from the lookup
+    # Assemble per-row results from the lookup. NOTE: row_alleles[row_idx] was built in
+    # this same df_sub.iterrows() order above — the two loops are coupled by position, so
+    # df_sub must not be reordered/mutated between them.
     presentation_scores = []
     genotype_scores = []
     for row_idx, (_, row) in enumerate(df_sub.iterrows()):
@@ -308,9 +321,10 @@ def build_scored_cohort(
 if __name__ == "__main__":
     # Reproducible entry point: scores the combined cohort and writes the parquet
     # (+ companion .true_counts.csv) under outputs/. Run with the mhcflurry env:
-    #   conda run -n mhcflurry-scoring python score_cohort.py
-    # (or the env's python directly). Paths are resolved relative to this file so
-    # the command works from any cwd.
+    #   conda activate mhcflurry-scoring && python score_cohort.py
+    # (Do NOT use `conda run` — it buffers stdout and hides the per-allele progress
+    # logs during a 30+ min run; see CLAUDE.md.) Paths are resolved relative to this
+    # file so the command works from any cwd.
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     _here = Path(__file__).resolve().parent
     build_scored_cohort(

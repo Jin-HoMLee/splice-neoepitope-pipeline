@@ -23,7 +23,10 @@ def centered_isotonic(x, y_iso, w):
     i, n = 0, len(x)
     while i < n:
         j = i
-        while j + 1 < n and np.isclose(y_iso[j + 1], y_iso[i]):
+        # atol-only comparison: PAVA level-sets share an *identical* value, so match on
+        # absolute equality. The np.isclose default (rtol=1e-5) could merge two genuinely
+        # distinct adjacent levels that happen to be within 1e-5 relative.
+        while j + 1 < n and np.isclose(y_iso[j + 1], y_iso[i], rtol=0, atol=1e-10):
             j += 1
         sl = slice(i, j + 1)
         wsum = w[sl].sum()
@@ -112,13 +115,16 @@ class PresentationCalibrator:
         joblib.dump({
             "cx": self.cx_, "cy": self.cy_, "prior": self.prior_,
             "score_range": self.score_range_, "kde_mode": self.kde_mode,
+            "n_grid": self.n_grid,
             "fit_cohorts": self.fit_cohorts_, "version": self.CALIBRATOR_VERSION,
         }, path)
 
     @classmethod
     def load(cls, path):
         d = joblib.load(path)
-        obj = cls(kde_mode=d["kde_mode"])
+        # n_grid: default 512 for artifacts saved before it was serialised (transform()
+        # uses only cx_/cy_, so older artifacts round-trip identically).
+        obj = cls(kde_mode=d["kde_mode"], n_grid=d.get("n_grid", 512))
         obj.cx_, obj.cy_ = d["cx"], d["cy"]
         obj.prior_ = d["prior"]
         obj.score_range_ = tuple(d["score_range"])
