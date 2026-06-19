@@ -271,4 +271,4 @@ MERGE_ARGS=("$MERGE_TYPE")
 [[ -n "$DELETE_FLAG" ]] && MERGE_ARGS+=("$DELETE_FLAG")
 gh pr merge "$PR" --repo "$REPO" "${MERGE_ARGS[@]}"
 
-echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present, no stray closing-keyword, lab-notebook entry verified)."
+echo "✓ PR #${PR} merged (${TEST_PLAN_TOTAL} test-plan boxes ticked, ${AC_TOTAL} AC boxes ticked + ${PR_RATIONALE_OK}/${LINKED_COUNT} priority rationales present, no stray closing-keyword, cross-repo AC verified, lab-notebook entry verified)."

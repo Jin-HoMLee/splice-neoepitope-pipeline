@@ -641,6 +641,14 @@ class TestParseCrossRepoAcTargets:
             (PROJ, 409),
         ]
 
+    def test_multiple_targets_one_closing_line(self):
+        # two distinct cross-repo refs sharing one closing-keyword line are both found
+        body = f"Closes {PROJ}#665 and {PROJ}#409 in a single line"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [
+            (PROJ, 665),
+            (PROJ, 409),
+        ]
+
     def test_bare_same_repo_hash_not_matched(self):
         # `#665` with no owner/repo prefix is same-repo (native) — never matched
         body = "Closes #665"
@@ -699,6 +707,14 @@ class TestCollectCrossRepoAcGaps:
         monkeypatch.setattr(ca, "fetch_issue", fake_issue)
         ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO)
         assert seen["repo"] == PROJ
+
+    def test_cross_repo_issue_without_ac_section_no_gap(self, monkeypatch):
+        # a target with no `## Acceptance criteria` section has 0 unticked AC boxes,
+        # so it passes cleanly — consistent with same-repo check_ac behavior
+        pr_body = f"Closes {PROJ}#665"
+        issue = {"number": 665, "body": "Plain body, no AC heading.\n", "comments": []}
+        self._io(monkeypatch, pr_body, {(PROJ, 665): issue})
+        assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
 
     def test_no_targets_no_fetch_no_gap(self, monkeypatch):
         monkeypatch.setattr(ca, "fetch_pr", lambda n, repo=None: {"body": "no closers here"})
