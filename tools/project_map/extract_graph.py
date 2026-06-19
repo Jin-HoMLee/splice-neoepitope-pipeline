@@ -11,6 +11,7 @@ Usage:
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,6 +27,36 @@ SELF_EXCLUDE_DIRS = {"tools/project_map/vendor"}
 
 def slug(name):
     return name.replace("/", "__").replace(".", "_").replace("-", "_")
+
+
+def git_tracked_paths():
+    """Return ``(tracked_files, tracked_dirs)`` from ``git ls-files``.
+
+    Discovery is restricted to the git-tracked set so gitignored runtime/data
+    dirs (``references/``, ``results/``, ``logs/``, ``data/``, ``indices/``)
+    never enter the atlas — making it reproducible across working-tree states
+    rather than dependent on whether the pipeline has been run locally (#780).
+    git naturally respects ``.gitignore``, so this is a single source of truth.
+
+    Both sets hold repo-root-relative, forward-slash paths. ``tracked_dirs`` is
+    every ancestor directory of a tracked file (so the walk can keep a dir that
+    only contains tracked files deeper down).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "ls-files", "-z"],
+            capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        raise RuntimeError(
+            "project_map's extractor requires a git working tree "
+            "(`git ls-files` failed); run it from inside the repo.") from exc
+    tracked_files = {p for p in out.split("\0") if p}
+    tracked_dirs = set()
+    for path in tracked_files:
+        parts = path.split("/")
+        for i in range(1, len(parts)):
+            tracked_dirs.add("/".join(parts[:i]))
+    return tracked_files, tracked_dirs
 
 
 ISSUE_RE = re.compile(r'(?:^|/)issue_(\d+)')
@@ -751,6 +782,10 @@ def build_graph():
     # "resource" — its substring checks expect a leading slash the relative path
     # lacks — so the `ftype == "env"` dedup guard never fired.)
     file_nodes = {n["id"]: True for n in nodes}
+    # Restrict discovery to the git-tracked tree so gitignored runtime/data dirs
+    # never enter the atlas — the map is then identical between a clean checkout
+    # and a clone that has run the pipeline (#780).
+    tracked_files, tracked_dirs = git_tracked_paths()
     for root, dirs, files in os.walk(PROJECT_ROOT):
         # Prune build artifacts: __pycache__, VCS/env dirs, and Quarto's rendered
         # slide output (`*_files/` holds a vendored reveal.js copy — pure noise; the
@@ -759,11 +794,19 @@ def build_graph():
             "__pycache__", ".snakemake", ".git", ".venv", "node_modules")
             and not d.endswith("_files")]
         rel_root = os.path.relpath(root, PROJECT_ROOT)
+        # Descend only into dirs that contain a tracked file (drops references/,
+        # results/, logs/, data/, indices/ and any other gitignored dir).
+        dirs[:] = [d for d in dirs
+                   if (d if rel_root == "." else f"{rel_root}/{d}") in tracked_dirs]
         if rel_root == ".":
             continue
         if rel_root in SELF_EXCLUDE_DIRS:
             dirs[:] = []  # don't descend into vendored deps
             continue
+        # Keep only tracked files, so the dir node's `size` and the file loop are
+        # both reproducible w.r.t. git rather than the local working tree.
+        files = [f for f in files
+                 if os.path.join(rel_root, f).replace(os.sep, "/") in tracked_files]
         dir_id = slug(rel_root)
         if dir_id in file_nodes:
             continue
