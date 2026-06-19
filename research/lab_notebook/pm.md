@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-19
 
+### 15:18 UTC — Editor: PM
+
+#### Epic/parent Status model decided + migrated — [Issue #776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776) / [PR #793](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/793)
+
+**The decision.** How does a parent/epic carry Status on board number 9? Two parents were found mis-stated in a single 2026-06-18 sweep — [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) (open parent showing *In review* while all children sat in Backlog = forward-drift) and [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232) (closed parent stuck at *Ready for review* = stale-terminal). Root cause: a parent carries a single **stored, draggable** Status that nothing keeps synced to its children. Verdict (user-confirmed): **Pattern A** — eliminate the drift class, don't police it — implemented as **A2**: park parents in a dedicated **`Epic`** Status option and read progress off GitHub's **native sub-issue bar**.
+
+**Why A2 over the "faithful Jira port" (A1).** The decisive property is *drift-proofness by construction*. A1 (a dedicated stored "Epic status" field) reintroduces a stored value that can re-drift unless auto-derived — at which point it's just the progress bar with extra steps. The native sub-issue bar is **computed** from child completion, never stored, so it *cannot* drift; and it's native (no custom field to build/maintain — consistent with the prefer-native posture from the [Issue #715](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/715) eval and the agentic-workflows cost read earlier today). Tradeoff accepted: parents lose To-Do/In-Progress/Done granularity (completion-% only), fine at our low parent count. Rejected Pattern B (derived-mirror + re-mirror sweep) because a sweep keeps *policing* drift and inherits the [Issue #406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406) read-back lag we already fight.
+
+**Migration executed this session.** Added the `Epic` Status option **via the UI, not the API** — a single-select field-schema replace risks regenerating option IDs across all 700+ board items; verified post-add that existing option IDs were untouched. Parked the 8 open parents (`#126 #416 #527 #538 #539 #547 #678 #680`, all already in Backlog) into `Epic`; all 8 verified. Hook code rework (drop the `recheck_parent_status` child→parent mirror for parents) filed as [Issue #794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794) — documented the expectation now, deferred the code per deferral-tracking (a tracked open item, not a comment on a closed one).
+
+**Bot review** ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/793#issuecomment-4752260263)) approved with two minor doc points, both valid + applied: (1) the CLAUDE.md hook note said "a sequenced follow-up" without naming #794 — linked it; (2) `recheck_parent_status` vs `recheck_dispatch.py` ambiguity — verified in code they're distinct (`scripts/pm/recheck_parent_status.py` is a check *dispatched by* the `recheck_dispatch.py` hook) and reworded to say so rather than imply one hook.
+
+**Process note — drove the decision, not just recorded it.** This is a research-decision Issue but **not** a Quarto decision-deck tier item: that tier is for *science/methods* calls gating science work; #776 is internal process governance (cf. #580, #693), so it lands in Issue + CLAUDE.md + memory, no deck. Coupling captured for the next pull: parents now parked in `Epic` + roadmap visibility on the `arc:` label means the milestone-pin-on-parent anchor is no longer load-bearing — direct input to [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question A. (Shared-memory half — the `feedback_board_hygiene.md` parent-status section + sweep line — staged for MM via the git-status scan.)
+
+---
+
 ### 10:55 UTC — Editor: PM
 
 #### Friday morning routine — two user catches that each exposed a mis-scoped rule

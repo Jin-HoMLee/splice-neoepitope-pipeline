@@ -337,6 +337,20 @@ Left-side transitions: **intake-triage** (`No Status → Backlog`) → **commitm
 
 Full rules: `.claude/memory/shared/feedback_board_hygiene.md` (sweep cadence, DoR, commitment-act mechanics) and `.claude/memory/feedback_milestones.md` (milestone naming, the capacity decision tree).
 
+### Parent/epic Status — the "Epic" park (Pattern A2)
+
+Parents/epics do **not** flow through the leaf workflow columns. They sit in a dedicated **`Epic`** Status option, and their real progress is read off GitHub's **native sub-issue progress bar** (completion %, auto-derived from children). Decided in [Issue #776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776) (2026-06-19) — **Pattern A** (eliminate the drift class, don't police it) + implementation **A2** (park + native bar, not a custom "Epic status" field).
+
+**Why:** a parent given a single draggable Status drifts silently whenever its children move without it — forward-drift (parent ahead of children, e.g. [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)) or stale-terminal (closed/done parent stranded mid-column, e.g. [Issue #232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/232)). A2 removes the draggable Status from parents entirely, so parent state **cannot disagree** with children. The progress bar is *computed*, never stored — drift-proof by construction — and native (no custom field to maintain). Tradeoff accepted: parents lose To-Do/In-Progress/Done granularity (completion-% only), fine at our low parent count. (Rejected: Pattern B derived-mirror + re-mirror sweep — keeps policing drift and inherits the [Issue #406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406) read-back lag; A1 dedicated Epic-status field — a *stored* field that can re-drift unless auto-derived, plus custom-field maintenance.)
+
+**Operating rules:**
+- A parent (`subIssuesSummary.total > 0`) belongs in Status **`Epic`** while open; on completion it closes → **Done** (closed parents are terminal, never re-parked).
+- Read parent progress from the **native sub-issue bar**, not the Status field. A full bar on an open parent (e.g. all children done) signals ready-to-close.
+- The `recheck_parent_status` check (one of the checks dispatched by the `recheck_dispatch.py` hook) **drops its child→parent Status mirror for parents** (they no longer mirror a leaf state); it narrows to leaf-only. Tracked as [Issue #794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794).
+- Coupling: with parents parked in `Epic` and roadmap visibility carried by the `arc:` label, the milestone-pin-on-parent anchor is no longer load-bearing — feeds [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question A.
+
+Full rule: `.claude/memory/shared/feedback_board_hygiene.md` (parent-status governance section).
+
 ## Three-axis work model (stage / arc / due-date)
 
 Work on board #9 is structured along **three orthogonal axes**, each carried by the object that fits it (de-overloading landed by [Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693)):
