@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-19
 
+### 22:18 UTC — Editor: PM
+
+#### Proves-out dock concluded PM-local — `recheck_parent_status` shared-promotion mooted by today's A2 epic-park — [Issue #617](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/617)
+
+Pulled [#617](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/617) (the proves-out dock for the `recheck_parent_status` hook) to In progress. The dock's job: once the check accrues **K=3 fires**, decide whether to promote it `scope: "pm" → "shared"` so Sci/Dev sessions also run it. `check_hook_health.sh` showed **6 fires** (4 distinct parents) — gate met, review in scope.
+
+**Operator review (the fires are real signal, not noise):** [#86](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/86) (×2, a closed Sci/Dev parent with 5 sub-issues) + [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) (open, 7 sub-issues) are genuine parent-rollup catches; #582/#708 show 0 sub-issues now (ambiguous). Notably the #86 fire is *exactly* the cross-role-actionability evidence the proves-out wanted — under the **old** model this would have leaned shared.
+
+**But the premise was overtaken by events.** This morning's A2 epic-park ([#776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776)/[PR #793](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/793)) parks parents in `Epic` Status with native-bar progress, so a parent **no longer mirrors** a children-collective Status — and [#794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794) retires the child→parent mirror that *these 6 fires prove*. So the K=3 evidence is accrued against **behaviour being removed**; flipping to shared now would push an about-to-be-gutted check to all roles. **Decision: keep `scope: "pm"`.** The forward question (scope of the *residual* narrowed check — esp. if it gains cross-role Epic-park-drift enforcement, which leans shared) is **carried to #794** as a tracked AC checkbox per the deferred-action carrier rule (adopted earlier today, [#690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690)-C) — a closed Issue is not a backlog. No code ships from the dock: the flip is declined, the narrowing is #794's work.
+
+**Lesson:** a proves-out gate can be *numerically* met while its *premise* has been invalidated by adjacent work landed in the same window — check whether the behaviour under evaluation still exists before acting on the fire count. The honest outcome was a recorded decision + clean re-sequencing, not a forced scope flip. Closed #617 completed (decision-only, comment-first close — no PR).
+
+---
+
 ### 16:43 UTC — Editor: PM
 
 #### Board governance — 3 sub-questions settled (anchor retire / deferral-tracking / WIP cap) — [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) / [PR #796](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/796)
