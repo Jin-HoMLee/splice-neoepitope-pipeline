@@ -28,10 +28,15 @@ issue_547_immunogenicity_calibration/
 │   └── conftest.py
 ├── outputs/                   # calibration artifacts + diagnostics (see Outputs index below)
 │   ├── calibrator_v1.joblib           # deliverable artifact (committed)
-│   ├── pr_reliability.png             # PR curve + reliability diagram (committed)
-│   ├── monotonicity.png               # calibrated score vs immunogenicity rate (committed)
+│   ├── pr_reliability.png             # logit-scale calibration panels (45° + Cox fit) (committed)
 │   ├── shift_gap.png                  # LOCO vs within-cohort gap (committed)
-│   ├── kde_compare.png                # adaptive vs fixed KDE density overlay (committed)
+│   ├── kde_compare.png                # adaptive vs fixed KDE (logit-scale reliability) (committed)
+│   ├── method_fitted.png              # the actual fitted pipeline on our pooled cohorts (KDE→ratio+prior→isotonic→CIR→transform) (committed)
+│   ├── concept_presentation_funnel.png         # teaching schematic: presentation ≠ immunogenicity (committed)
+│   ├── concept_discrimination_vs_calibration.png  # teaching schematic: the two eval axes (committed)
+│   ├── panel_anatomy.png              # teaching schematic: how to read a calibration panel (committed)
+│   ├── conclusion_scorecard.png       # conclusion: per-cohort discrimination × calibration verdict (committed)
+│   ├── conclusion_ladder.png          # conclusion: evidence ladder (within → LOCO → splice = untested) (committed)
 │   ├── scored_cohort_subsample.parquet        # GITIGNORED — LICR-derived subsample
 │   └── scored_cohort_subsample.parquet.true_counts.csv  # prior counts per cohort (committed)
 └── data/                      # raw cohort tables — GITIGNORED; not on fresh clones
@@ -55,10 +60,6 @@ Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribut
 | MHCflurry scoring (`score_cohort.py`) | ✅ all 4 cohorts scored; `scored_cohort_subsample.parquet` + `.true_counts.csv` in `outputs/` |
 | Calibrator build (`calibrator.py` + `notebook.ipynb`) | ✅ `calibrator_v1.joblib` in `outputs/`; LOCO + within-cohort validation done — see "Validation result" below |
 | Unit tests | ✅ `tests/` — centered-isotonic vs R oracle, calibrator round-trip, score formula |
-
-## Cross-experiment deps
-
-- **`notebook.ipynb` "Method, visualized" section** embeds 5 illustrative method schematics read from **`research/evals/issue_258_neoguider/figures/`** (the NeoGuider tool-primer deck): `kde_densities.png`, `density_ratio.png`, `imbalance_prior.png`, `isotonic_vs_cir.png`, `calibrated_curve.png`. These are **referenced, not copied** (per the cross-experiment sharing rule); the notebook cell points at the canonical `#258` path and embeds the images on execution. They are *illustrative* (synthetic example data), not our fitted cohorts, and are regeneratable via that folder's `figures/_regenerate_figures.py`. If those figures move/rename, update the path in the notebook's method-figures cell.
 
 ## Schema & join feasibility (NeoRanking, confirmed from the downloaded tables 2026-06-17)
 
@@ -126,10 +127,15 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 - `data_manifest.yaml` — **pinned schema v1** (Issue #707): paths + checksums + fetch commands + license. Raw tables are **not** committed (LICR copyright, no redistribution).
 - `outputs/calibrator_v1.joblib` — **deliverable artifact** (Issue #708): `PresentationCalibrator` fit with adaptive KDE mode, prior log-odds −6.525 (derived from `true_counts.csv` pooled across all 4 cohorts), trained on NCI + TESLA + HiTIDE + IMPROVE. Consumed by [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) (Snakemake wiring). Load: `PresentationCalibrator.load("outputs/calibrator_v1.joblib")`.
 - `outputs/scored_cohort_subsample.parquet.true_counts.csv` — per-cohort true positive and true negative counts used to compute the base-rate prior (committed; the `.parquet` itself is gitignored as LICR-derived).
-- `outputs/pr_reliability.png` — precision-recall curve + reliability (calibration) diagram across held-out folds.
-- `outputs/monotonicity.png` — calibrated score vs immunogenicity rate per decile bin, confirming isotonic monotonicity.
+- `outputs/pr_reliability.png` — per-cohort **logit-scale calibration plot**: predicted log-odds (x) vs empirical logit of the observed rate (y, +0.5-corrected on the Kish-effective-n scale), with Wilson CIs, the 45° perfect-calibration diagonal, and the fitted **Cox recalibration** line. Headline numbers are the **Cox slope** (≈1 = well-calibrated spread; <1 = over-confident) and **intercept** (calibration-in-the-large / base-rate offset). Calibration is a held-out *diagnostic* on the SNV cohorts, not a deployment probability claim (#592); discrimination lives in the AUPRC-lift + top-k tables. The empirical curve is not expected to be monotone (sampling noise, not miscalibration); the monotonicity guarantee is structural (isotonic step, grid-checked at final fit).
 - `outputs/shift_gap.png` — LOCO vs within-cohort validation gap: visualises the cross-lab/assay transfer drop (the "proxy caveat" gap).
-- `outputs/kde_compare.png` — adaptive vs fixed-bandwidth KDE density overlay on positive/negative score distributions; confirms adaptive mode captures multi-modal positive peak better.
+- `outputs/kde_compare.png` — adaptive vs fixed-bandwidth KDE, logit-scale reliability for NCI + IMPROVE; confirms the two modes are indistinguishable on the large cohorts.
+- `outputs/method_fitted.png` — the **actual fitted pipeline** on our four pooled SNV cohorts (not a schematic): (1) class-conditional adaptive-KDE densities, (2) log density-ratio → base-rate prior shift, (3) isotonic → centered isotonic, (4) the fitted lookup curve `transform()` applies at inference. Replaces the earlier synthetic NeoGuider schematics; regenerated by the notebook's "Method, on our data" cell.
+- `outputs/concept_presentation_funnel.png` — teaching schematic (illustrative, not data): presentation ⊃ immunogenic — why the presentation score's power is capped.
+- `outputs/concept_discrimination_vs_calibration.png` — teaching schematic: the two evaluation axes — discrimination (separate the classes) vs calibration (are the numbers right).
+- `outputs/panel_anatomy.png` — teaching schematic: how to read one calibration panel (45° = perfect, Cox-fit tilt = slope, offset = intercept) + four archetypes.
+- `outputs/conclusion_scorecard.png` — conclusion visual: per-cohort verdict, discrimination (AUPRC lift) × calibration (Cox slope), bubble ∝ n positives; numbers pulled live from the result tables.
+- `outputs/conclusion_ladder.png` — conclusion visual: the evidence ladder — within-cohort → LOCO (cross-SNV-cohort) → splice-junction (untested extrapolation, #680) — showing where the evidence runs out.
 
 ## Cohort-composition reconcile (primary-source confirmed)
 
