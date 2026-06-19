@@ -346,7 +346,7 @@ Parents/epics do **not** flow through the leaf workflow columns. They sit in a d
 **Operating rules:**
 - A parent (`subIssuesSummary.total > 0`) belongs in Status **`Epic`** while open; on completion it closes → **Done** (closed parents are terminal, never re-parked).
 - Read parent progress from the **native sub-issue bar**, not the Status field. A full bar on an open parent (e.g. all children done) signals ready-to-close.
-- The `recheck_parent_status` hook's child→parent Status mirror is **dropped for parents** (they no longer mirror a leaf state); the hook narrows to leaf-only. Tracked as a sequenced follow-up.
+- The `recheck_parent_status` check (one of the checks dispatched by the `recheck_dispatch.py` hook) **drops its child→parent Status mirror for parents** (they no longer mirror a leaf state); it narrows to leaf-only. Tracked as [Issue #794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794).
 - Coupling: with parents parked in `Epic` and roadmap visibility carried by the `arc:` label, the milestone-pin-on-parent anchor is no longer load-bearing — feeds [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question A.
 
 Full rule: `.claude/memory/shared/feedback_board_hygiene.md` (parent-status governance section).
