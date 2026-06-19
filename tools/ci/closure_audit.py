@@ -157,6 +157,65 @@ def check_stray_ac_boxes(body: str) -> str | None:
     )
 
 
+# --- #665: cross-repo closing forward-links ---
+
+# GitHub's closing keywords (close/fix/resolve + their inflections), as whole
+# words, case-insensitive. A line carrying one is read as a closing-intent line.
+_CLOSING_KEYWORD = re.compile(r"\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\b", re.IGNORECASE)
+# A cross-repo Issue reference, `owner/repo#N`. The owner/repo segments mirror
+# GitHub's allowed chars (alnum, `-`, `_`, `.`); `#` then the issue number.
+_CROSS_REPO_SHORT = re.compile(
+    r"\b([A-Za-z0-9][\w.-]*)/([A-Za-z0-9][\w.-]*)#(\d+)\b"
+)
+# The full-URL form, `https://github.com/owner/repo/issues/N`.
+_CROSS_REPO_URL = re.compile(
+    r"https?://github\.com/([\w.-]+)/([\w.-]+)/issues/(\d+)"
+)
+
+
+def parse_cross_repo_ac_targets(
+    pr_body: str | None, this_repo: str | None
+) -> list[tuple[str, int]]:
+    """Cross-repo Issues a PR intends to close, as `(owner/repo, number)`.
+
+    GitHub's `closingIssuesReferences` spans only the same repo, so a cross-repo
+    close — e.g. a personas-repo PR closing a project-repo Issue — is expressed
+    textually in the PR body. This finds, per line, a closing keyword
+    (`close`/`fix`/`resolve` + inflections) co-occurring with a cross-repo Issue
+    reference in `owner/repo#N` or full-URL form, and returns each distinct
+    target. References to `this_repo` (the PR's own repo) are excluded — native
+    `closingIssuesReferences` already covers same-repo, and the same-repo AC gate
+    in audit_and_merge.sh audits those. A bare `#N` (no `owner/repo`) is
+    inherently same-repo and never matches.
+
+    The keyword↔reference association is line-scoped: it accepts both the GitHub
+    form (`Closes owner/repo#N`) and the project's link+keyword form
+    (`[Issue #N](url) (closes)`), at the cost of matching a non-closing line that
+    merely co-mentions a closing word and a cross-repo ref (conservative — an
+    extra target whose ACs are ticked passes anyway). To reference a cross-repo
+    Issue without gating on it, keep the closing keyword off that line. Deduped,
+    first-seen order. Returns [] for an empty body.
+    """
+    targets: list[tuple[str, int]] = []
+    seen: set[tuple[str, int]] = set()
+    this = this_repo.lower() if this_repo else None
+    for line in (pr_body or "").splitlines():
+        if not _CLOSING_KEYWORD.search(line):
+            continue
+        for rx in (_CROSS_REPO_SHORT, _CROSS_REPO_URL):
+            for m in rx.finditer(line):
+                slug = f"{m.group(1)}/{m.group(2)}"
+                num = int(m.group(3))
+                if this and slug.lower() == this:
+                    continue  # same-repo → native references cover it
+                key = (slug.lower(), num)
+                if key in seen:
+                    continue
+                seen.add(key)
+                targets.append((slug, num))
+    return targets
+
+
 def check_priority_rationale(body: str) -> str | None:
     if "priority rationale" in body.lower():
         return None
@@ -455,6 +514,36 @@ def collect_stray_ac_warnings(
         if msg := check_stray_ac_boxes(issue.get("body") or ""):
             warnings.append((issue["number"], msg))
     return warnings
+
+
+def collect_cross_repo_ac_gaps(
+    n: int, repo: str | None = None
+) -> list[tuple[str, str]]:
+    """Blocking AC gaps for PR #n's cross-repo closing targets (Issue #665).
+
+    The same-repo AC gate in audit_and_merge.sh keys off native
+    `closingIssuesReferences`, which GitHub only populates within one repo — so a
+    cross-repo close (a personas-repo PR closing a project-repo Issue) gets no AC
+    gate at all. This parses the PR body for cross-repo closing forward-links
+    (parse_cross_repo_ac_targets) and audits each target Issue's Acceptance
+    criteria via the same check_ac the same-repo gate's logic mirrors, returning
+    `(owner/repo#N, gap)` for any with unticked AC boxes.
+
+    `repo` is the PR's own repo (the REPO override, #607); its own forward-links
+    are excluded as same-repo. Each cross-repo target is fetched from *its* repo
+    via fetch_issue(..., repo=owner/repo). Returns [] when there are no cross-repo
+    closing targets or all their ACs are ticked.
+    """
+    pr = fetch_pr(n, repo=repo)
+    targets = parse_cross_repo_ac_targets(pr.get("body") or "", repo)
+    gaps: list[tuple[str, str]] = []
+    for slug, num in targets:
+        issue = fetch_issue(num, repo=slug)
+        body = issue.get("body") or ""
+        cmts = [c.get("body", "") for c in issue.get("comments", [])]
+        if d := check_ac(body, cmts):
+            gaps.append((f"{slug}#{num}", d))
+    return gaps
 
 
 def audit_issue(n: int) -> None:

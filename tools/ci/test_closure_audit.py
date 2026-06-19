@@ -590,3 +590,137 @@ def test_format_comment_lists_only_failing_categories():
     assert "Issue #2" in out
     assert "Priority rationale" not in out
     assert "Lab notebook" not in out
+
+
+# --- #665: cross-repo closing forward-link AC coverage ---
+
+
+THIS_REPO = "Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
+PROJ = "Jin-HoMLee/splice-neoepitope-pipeline"
+
+
+class TestParseCrossRepoAcTargets:
+    def test_shorthand_owner_repo_hash(self):
+        body = f"Closes {PROJ}#665 — cross-repo coverage fix."
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [(PROJ, 665)]
+
+    def test_full_issue_url(self):
+        body = f"Fixes https://github.com/{PROJ}/issues/409 in this PR."
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [(PROJ, 409)]
+
+    def test_link_form_keyword_in_parens(self):
+        # project convention: [Issue #N](url) (keyword) — keyword AFTER the link
+        body = f"[Issue #665](https://github.com/{PROJ}/issues/665) (closes)"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [(PROJ, 665)]
+
+    def test_excludes_same_repo_shorthand(self):
+        # a forward-link to the PR's OWN repo is covered by native references
+        body = f"Closes {THIS_REPO}#12 and {PROJ}#665"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [(PROJ, 665)]
+
+    def test_same_repo_case_insensitive_exclusion(self):
+        body = f"Closes {THIS_REPO.upper()}#12"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == []
+
+    def test_no_closing_keyword_on_line_ignored(self):
+        # a bare cross-repo mention without a closing keyword is not a close intent
+        body = f"See {PROJ}#665 for context (related, not closing)."
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == []
+
+    def test_dedupes_repeated_target(self):
+        body = (
+            f"Closes {PROJ}#665.\n"
+            f"Resolves https://github.com/{PROJ}/issues/665 too."
+        )
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [(PROJ, 665)]
+
+    def test_multiple_distinct_targets_order_preserved(self):
+        body = f"Closes {PROJ}#665\nFixes {PROJ}#409"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [
+            (PROJ, 665),
+            (PROJ, 409),
+        ]
+
+    def test_multiple_targets_one_closing_line(self):
+        # two distinct cross-repo refs sharing one closing-keyword line are both found
+        body = f"Closes {PROJ}#665 and {PROJ}#409 in a single line"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == [
+            (PROJ, 665),
+            (PROJ, 409),
+        ]
+
+    def test_bare_same_repo_hash_not_matched(self):
+        # `#665` with no owner/repo prefix is same-repo (native) — never matched
+        body = "Closes #665"
+        assert ca.parse_cross_repo_ac_targets(body, THIS_REPO) == []
+
+    def test_empty_body(self):
+        assert ca.parse_cross_repo_ac_targets("", THIS_REPO) == []
+
+    def test_none_this_repo_includes_all_crossrepo_forms(self):
+        # when the PR's own repo is unknown, don't drop anything (conservative)
+        body = f"Closes {PROJ}#665"
+        assert ca.parse_cross_repo_ac_targets(body, None) == [(PROJ, 665)]
+
+
+class TestCollectCrossRepoAcGaps:
+    def _io(self, monkeypatch, pr_body, issues_by_key):
+        monkeypatch.setattr(
+            ca, "fetch_pr", lambda n, repo=None: {"body": pr_body}
+        )
+        monkeypatch.setattr(
+            ca, "fetch_issue",
+            lambda n, repo=None: issues_by_key[(repo, n)],
+        )
+
+    def test_unticked_cross_repo_ac_is_a_gap(self, monkeypatch):
+        pr_body = f"Closes {PROJ}#665"
+        issue = {
+            "number": 665,
+            "body": "## Acceptance criteria\n- [ ] not done\n",
+            "comments": [],
+        }
+        self._io(monkeypatch, pr_body, {(PROJ, 665): issue})
+        gaps = ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO)
+        assert len(gaps) == 1
+        assert gaps[0][0] == f"{PROJ}#665"
+
+    def test_ticked_cross_repo_ac_no_gap(self, monkeypatch):
+        pr_body = f"Closes {PROJ}#665"
+        issue = {
+            "number": 665,
+            "body": "## Acceptance criteria\n- [x] done\n",
+            "comments": [],
+        }
+        self._io(monkeypatch, pr_body, {(PROJ, 665): issue})
+        assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
+
+    def test_fetches_target_from_its_own_repo(self, monkeypatch):
+        # the cross-repo issue must be fetched with --repo <target>, not the PR repo
+        seen = {}
+        monkeypatch.setattr(ca, "fetch_pr", lambda n, repo=None: {"body": f"Closes {PROJ}#665"})
+
+        def fake_issue(n, repo=None):
+            seen["repo"] = repo
+            return {"number": n, "body": "## Acceptance criteria\n- [x] ok\n", "comments": []}
+
+        monkeypatch.setattr(ca, "fetch_issue", fake_issue)
+        ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO)
+        assert seen["repo"] == PROJ
+
+    def test_cross_repo_issue_without_ac_section_no_gap(self, monkeypatch):
+        # a target with no `## Acceptance criteria` section has 0 unticked AC boxes,
+        # so it passes cleanly — consistent with same-repo check_ac behavior
+        pr_body = f"Closes {PROJ}#665"
+        issue = {"number": 665, "body": "Plain body, no AC heading.\n", "comments": []}
+        self._io(monkeypatch, pr_body, {(PROJ, 665): issue})
+        assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
+
+    def test_no_targets_no_fetch_no_gap(self, monkeypatch):
+        monkeypatch.setattr(ca, "fetch_pr", lambda n, repo=None: {"body": "no closers here"})
+
+        def boom(*a, **k):
+            raise AssertionError("fetch_issue must not be called with no targets")
+
+        monkeypatch.setattr(ca, "fetch_issue", boom)
+        assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
