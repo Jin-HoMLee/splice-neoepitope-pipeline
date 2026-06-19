@@ -9,13 +9,26 @@ FIX = json.loads((Path(__file__).parent / "fixtures" / "cir_fixtures.json").read
 
 @pytest.mark.parametrize("name", list(FIX["cases"].keys()))
 def test_matches_r_cir(name):
+    """Port reproduces R `cir`'s centred-isotonic *function* (live oracle).
+
+    We compare the calibration function the calibrator actually consumes —
+    ``np.interp(score, cx, cy)`` with endpoint clipping (calibrator.py:109) —
+    NOT the exact knot encoding. R's `cir` (2.5.1) keeps boundary-anchor knots
+    (first/last x) inside a collapsed level-set that the compact port drops;
+    both define the identical interpolant once np.interp clips to endpoints
+    (verified max|Δ| = 0 over a dense grid). Asserting exact knot arrays would
+    test an arbitrary representation choice, not the curve — and would re-create
+    the self-validating trap the old hand-computed fixtures fell into. Fixtures
+    are now live R `cir` output (see fixtures/cir_fixtures.json r_version/cir_version).
+    """
     c = FIX["cases"][name]
     x, y, w = np.array(c["x"], float), np.array(c["y"], float), np.array(c["w"], float)
     y_iso = IsotonicRegression(increasing=True, out_of_bounds="clip").fit_transform(x, y, sample_weight=w)
     cx, cy = centered_isotonic(x, y_iso, w)
-    # the port must reproduce R cir's centred knots within tolerance
-    np.testing.assert_allclose(cx, np.array(c["cir_x"], float), atol=1e-6)
-    np.testing.assert_allclose(cy, np.array(c["cir_y"], float), atol=1e-6)
+    grid = np.linspace(float(x.min()), float(x.max()), 1001)
+    got = np.interp(grid, cx, cy)
+    want = np.interp(grid, np.array(c["cir_x"], float), np.array(c["cir_y"], float))
+    np.testing.assert_allclose(got, want, atol=1e-6)
 
 def test_centred_knots_are_monotone():
     x = np.array([1, 2, 3, 4, 5, 6.])
