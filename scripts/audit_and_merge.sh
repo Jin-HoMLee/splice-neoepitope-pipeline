@@ -4,6 +4,10 @@
 # Closure-ritual gate before `gh pr merge`. Refuses to merge if any of:
 #   1. `- [ ]` remains on the PR body Test plan, OR
 #   2. `- [ ]` remains under any linked Issue's Acceptance criteria, OR
+#   2b. A cross-repo closing forward-link in the PR body (`owner/repo#N`, the
+#      Memory Manager's personas-PR→project-Issue case that native
+#      closingIssuesReferences can't express) points at an Issue with unticked
+#      Acceptance criteria (Issue #665), OR
 #   3. Any linked Issue is missing a `**Priority rationale:**` line, OR
 #   4. The would-be squash body (PR title + body + commit messages) contains a
 #      closing keyword (`close|fix|resolve` + `#N`) targeting an Issue OUTSIDE
@@ -29,8 +33,10 @@
 # after PR #543 auto-closed epic Issue #538 via a commit-body keyword that the
 # closingIssuesReferences API does not surface. Lab-notebook gate (5) added via
 # Issue #409 to move the post-hoc closure-audit notebook check to merge time
-# (prevention over post-merge cleanup comment). Bot-review-offer gate (6) added
-# via Issue #443 after PR #441 + PR #442 merged without the review offer.
+# (prevention over post-merge cleanup comment). Cross-repo AC gate (2b) added via
+# Issue #665 after the same-repo-only check left personas-PR→project-Issue closes
+# entirely ungated. Bot-review-offer gate (6) added via Issue #443 after
+# PR #441 + PR #442 merged without the review offer.
 #
 # Usage:
 #   bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delete-branch|--no-delete-branch]
@@ -168,6 +174,24 @@ elif ! NB_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/lab_notebook_gat
     FAILED=1
 elif [[ -n "$NB_OUT" ]]; then
     printf '%s\n' "$NB_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
+fi
+
+# Gate 2b: cross-repo AC coverage (Issue #665, gap 2). The same-repo AC check
+# above keys off native closingIssuesReferences, which GitHub only populates
+# within one repo — so a cross-repo close (a personas-repo PR closing a
+# project-repo Issue, the Memory Manager's workflow) gets no AC gate at all. This
+# parses the PR body for cross-repo closing forward-links and audits each target
+# Issue's Acceptance criteria from its own repo, blocking on any unticked box.
+# Single-sourced via tools/ci/cross_repo_ac_gate.py (a thin wrapper around
+# closure_audit.collect_cross_repo_ac_gaps). Exits 1 on a real gap, 0 when clear,
+# and fails OPEN (exit 0 + warning) on a gh error — a hiccup never blocks a merge.
+if [[ -z "$PYTHON" ]]; then
+    echo "⚠ cross-repo AC check skipped (no python on PATH)." >&2
+elif ! XR_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/cross_repo_ac_gate.py" "$PR" 2>&1); then
+    printf '%s\n' "$XR_OUT" >&2
+    FAILED=1
+elif [[ -n "$XR_OUT" ]]; then
+    printf '%s\n' "$XR_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
 fi
 
 # Lint (Issue #730): NON-BLOCKING warning when a linked Issue has unticked boxes
