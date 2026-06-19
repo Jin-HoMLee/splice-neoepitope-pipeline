@@ -373,9 +373,9 @@ Work on board #9 is structured along **three orthogonal axes**, each carried by 
 
 ## WIP limits — In-progress overload guard (per-role, advisory)
 
-The Ready queue is guarded against *starvation* (per-role floor-5 / cap-15, [Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754)) but had **no guard against `In progress` *overload*** until [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question D (2026-06-19).
+The Ready queue is guarded against *starvation* (per-role floor-5 / cap-15, [Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754); full rule in shared memory `feedback_ready_queue_floor_gate.md` / `feedback_board_hygiene.md`) but had **no guard against `In progress` *overload*** until [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question D (2026-06-19).
 
-**Rule:** **per-role advisory WIP cap of 3 on `In progress`** (PM / Sci / Dev each; MM excluded). More than 3 In-progress items carrying a single role's `role:` label = a flag, **not** a hard block — surfaced in the **Daily Stand-up WIP-awareness beat** (this just gives that existing beat a concrete trigger number). Classify by the item's `role:` *implementer* label, not by who filed it (same convention as the #754 Ready floor).
+**Rule:** **per-role advisory WIP cap of 3 on `In progress`** (PM / Sci / Dev each; **MM** = Memory Manager, the memory-commit role — excluded because it implements no board-tracked work, same reason it's out of the #754 Ready count). More than 3 In-progress items carrying a single role's `role:` label = a flag, **not** a hard block — surfaced in the **Daily Stand-up WIP-awareness beat** (this just gives that existing beat a concrete trigger number). Classify by the item's `role:` *implementer* label, not by who filed it (same convention as the #754 Ready floor).
 
 **Why these parameters** (matches standard Kanban: "2–3 items per person, per-person WIP is the right starting point, tune from flow data"):
 - **per-role, not per-column** — roles are the throughput unit here; consistent with the #754 per-role Ready gate and the arc `active`-slate cap (3).
