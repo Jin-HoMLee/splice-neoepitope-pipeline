@@ -82,9 +82,11 @@ jobs:
         # (tools/project_map has none; isolation still keeps collection scopes
         # clean). tools/news is the morning-news poller (Issue #639);
         # tools/project_map is the project-map atlas extractor (Issue #713 —
-        # the 5-invariant suite was CI-invisible under tools/, regressions
-        # ungated). project_map's extractor is stdlib-only and walks the
-        # committed tree, so a clean CI checkout is the canonical run env.
+        # the invariant suite was CI-invisible under tools/, regressions
+        # ungated). project_map's extractor discovers files via `git ls-files`
+        # (Issue #780), so the atlas is reproducible across working-tree states
+        # (a populated local clone matches a clean checkout); it needs git on
+        # PATH, which the actions/checkout step provides.
         #
         # `-m "not live"` deselects the live-API smoke (Issue #711): a transient
         # GitHub-API blip must not red this per-PR job (or poison the hermetic
