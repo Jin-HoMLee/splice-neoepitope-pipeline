@@ -22,6 +22,12 @@
             "command": ".claude/hooks/check_board_query_pagination.py",
             "if": "Bash(gh api *)",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/check_parent_status_precondition.py",
+            "if": "Bash(gh api *)",
+            "timeout": 15
           }
         ]
       }
