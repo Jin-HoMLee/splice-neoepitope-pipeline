@@ -6,6 +6,35 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-19
+
+### 23:16 UTC — Editor: Scientist
+
+#### [PR #786](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/786) ships the immunogenicity calibrator (KDE + centered isotonic + LOCO validation) — closes [Issue #708](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/708) (core ML deliverable of the [#547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) calibration epic).
+
+**What shipped.** A standalone `PresentationCalibrator` (`calibrator.py`) reimplementing NeoGuider's rank-calibration *from the paper* (Wei et al., *Genome Medicine* 2026 — **not** vendored; the repo is AGPL + non-commercial and depends on paid tools we don't use): adaptive KDE of immunogenic-vs-non `genotype_presentation_score` densities → log density-ratio + true-base-rate prior → isotonic → **centered isotonic** (Oron & Flournoy 2017) → a monotone `calibrated_immunogenicity_log_odds`. The centered-isotonic port is **validated vs the live R `cir` 2.5.1 oracle** (functional equivalence over a 1001-pt grid, not a knot encoding). Serialized artifact `outputs/calibrator_v1.joblib` for the [#709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) Snakemake wiring. 24/24 unit tests.
+
+**Per-cohort calibration diagnostics (LOCO — leave-one-cohort-out on the four SNV cohorts).** Discrimination as prevalence-relative AUPRC lift + Cox calibration slope/intercept on the logit scale:
+
+| cohort | prevalence | AUPRC | lift | Cox slope | Cox intercept |
+|---|---|---|---|---|---|
+| NCI | 0.000245 | 0.027 | ~111× | 2.03 | −0.49 |
+| TESLA | 0.046 | 0.201 | ~4.4× | 1.48 | 3.57 |
+| HiTIDE | 0.026 | 0.071 | ~2.7× | 0.23 | −2.41 |
+| IMPROVE | 0.027 | 0.032 | ~1.2× | 0.02 | −3.48 |
+
+**Read.** Discrimination tracks the input score — strong on NCI/TESLA, ~absent on IMPROVE (slope ≈ 0 = correctly **flat**, not fabricated confidence). No cohort sits at the ideal slope 1; NCI/TESLA are *under*-confident (slope > 1, the safe direction). The large intercepts are mostly a LOCO artifact (each held-out cohort is scored with a deliberately mismatched prior); the deployed artifact uses the *pooled* prior. Within-cohort AUPRC > LOCO (TESLA 0.50 → 0.20; HiTIDE 0.20 → 0.07) = the cross-lab/assay transfer cost, not a calibration defect.
+
+**Methodology call — dropped empirical-curve monotonicity, added logit-scale Cox calibration.** AC#4's "log-odds monotonicity" was originally checking whether the *binned reliability curve* is monotone — a non-standard metric (binned reliability curves are **not** expected monotone; their dips are sampling noise — Dimitriadis/Gneiting/Jordan, PNAS 2021), and my first proposed CI-aware fix was *also* the wrong test (CI-overlap ≠ a difference test). Web-verified both, then **removed** the metric (Path B). Monotonicity is instead enforced **structurally** by the isotonic step and grid-checked at the final fit (0 violations on a 20-pt grid). Reliability plots upgraded to the **logit scale** (empirical-logit observed rate, +0.5 on the Kish effective-n, vs predicted log-odds) so perfect calibration = the 45° diagonal, with the Cox fit overlaid + slope/intercept per cohort.
+
+**Self-explaining visual layer (audience = lab collaborator who knows immunology, not the calibrator internals).** Built a teaching arc so the notebook reads on its own: presentation≠immunogenicity funnel · discrimination-vs-calibration · calibration-panel anatomy · **"Method, on our data"** (the actual fitted KDE → ratio+prior → isotonic → CIR → transform on our pooled cohorts, replacing synthetic schematics) · **"how AUPRC is built"** (ranking → precision/recall → area, real PR curves TESLA vs IMPROVE) · **fixed-vs-adaptive KDE** (same pooled data both ways — densities + resulting maps) · conclusion scorecard + evidence ladder. All figures regenerate from the notebook; numbers pulled live from the result tables.
+
+**⚠️ Proxy caveat (must travel with any result citation).** All four training cohorts are **SNV point-mutation** neoantigens. LOCO tests cross-lab/assay shift — the best available stand-in — but is **not** a test of point-mutation → splice transfer. The output is a **ranking prior, not a validated probability** (hence the `log_odds` name + the [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592) conservative-under-call framing); real splice-junction performance is unproven and gated on the scarce functionally-validated splice neoantigens tracked in [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
+
+**Review (the `@claude` pass on #786).** Verdict: solid; one must-fix + design notes + nits, all valid and addressed. **Must-fix:** README Step 1 + `score_cohort.py` `__main__` recommended `conda run -n mhcflurry-scoring`, which buffers stdout and hides the per-allele progress logs (CLAUDE.md) → switched to `conda activate … && python`. **Core:** `centered_isotonic` plateau match tightened to absolute equality (`np.isclose rtol=0, atol=1e-10`; the default rtol=1e-5 could merge genuinely distinct adjacent levels) — **verified zero-impact** (identical 401 knots, LOCO numbers unchanged, 24/24); `save`/`load` now serialise + restore `n_grid` (backward-compatible, default 512). **Nits** folded as clarifying comments (normalize_hla Class-II passthrough, the local `round(.,6)`, the fallback `allele` column, the subsample rounding drift, the position-coupled assembly loops).
+
+**Verified before merge.** 24/24 unit tests under `research/.venv`; notebook re-executes clean (0 error outputs, 41 cells); LOCO numbers byte-identical after the core tolerance change (the only re-rendered figure is `shift_gap.png` — the unseeded within-cohort 5-fold CV split — noted as a reproducibility follow-up); `calibrator_v1.joblib` reloads and round-trips with the new `n_grid` field; both touched `.py` files `py_compile` clean.
+
 ## 2026-06-18
 
 ### 14:46 UTC — Editor: Scientist

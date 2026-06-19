@@ -10,17 +10,45 @@ Folder is **epic-keyed** (`issue_547`, not `issue_707`) because the cohort data 
 
 ```
 issue_547_immunogenicity_calibration/
-├── README.md            # this file (committed)
-├── data_manifest.yaml   # pinned schema v1 — paths + checksums + fetch cmds + license (committed)
-├── data/                # raw cohort tables — GITIGNORED (root .gitignore `data/`); not on fresh clones
-│   ├── neoranking/      #   primary: Neopep + Mutation + HLA_allotypes (+ source .zip)
-│   └── improve_borch/   #   augment: In_house_neoepitope_for_CV + CEDAR benchmark
-└── (later) notebook.ipynb + outputs/   # the #708 calibrator analysis
+├── README.md                  # this file (committed)
+├── data_manifest.yaml         # pinned schema v1 — paths + checksums + fetch cmds + license (committed)
+├── calibrator.py              # PresentationCalibrator (adaptive+fixed KDE → density-ratio + true-base-rate
+│                              #   prior → isotonic → centered isotonic) + centered_isotonic();
+│                              #   .fit / .transform / .save / .load (committed)
+├── score_cohort.py            # MHCflurry precompute (run with `mhcflurry-scoring` conda env):
+│                              #   genotype_score, normalize_hla, build_scored_cohort; has __main__ (committed)
+├── notebook.ipynb             # LOCO + within-cohort k-fold validation + diagnostics + final artifact fit (committed)
+├── tests/                     # unit tests (committed)
+│   ├── test_centered_isotonic.py  # vs frozen R cir package fixtures
+│   ├── test_calibrator.py         # fit/transform/save/load round-trip + prior injection
+│   ├── test_score_formula.py      # genotype_score + normalize_hla
+│   ├── generate_cir_fixtures.R    # R oracle script that produced fixtures/cir_fixtures.json
+│   ├── fixtures/
+│   │   └── cir_fixtures.json      # frozen R oracle outputs (committed)
+│   └── conftest.py
+├── outputs/                   # calibration artifacts + diagnostics (see Outputs index below)
+│   ├── calibrator_v1.joblib           # deliverable artifact (committed)
+│   ├── pr_reliability.png             # logit-scale calibration panels (45° + Cox fit) (committed)
+│   ├── shift_gap.png                  # LOCO vs within-cohort gap (committed)
+│   ├── kde_compare.png                # adaptive vs fixed KDE (logit-scale reliability) (committed)
+│   ├── kde_fit_compare.png            # adaptive vs fixed KDE — densities + resulting calibration map on pooled data (committed)
+│   ├── method_fitted.png              # the actual fitted pipeline on our pooled cohorts (KDE→ratio+prior→isotonic→CIR→transform) (committed)
+│   ├── auprc_explained.png            # teaching: how AUPRC is built (ranking→precision/recall→area), real PR curves TESLA vs IMPROVE (committed)
+│   ├── concept_presentation_funnel.png         # teaching schematic: presentation ≠ immunogenicity (committed)
+│   ├── concept_discrimination_vs_calibration.png  # teaching schematic: the two eval axes (committed)
+│   ├── panel_anatomy.png              # teaching schematic: how to read a calibration panel (committed)
+│   ├── conclusion_scorecard.png       # conclusion: per-cohort discrimination × calibration verdict (committed)
+│   ├── conclusion_ladder.png          # conclusion: evidence ladder (within → LOCO → splice = untested) (committed)
+│   ├── scored_cohort_subsample.parquet        # GITIGNORED — LICR-derived subsample
+│   └── scored_cohort_subsample.parquet.true_counts.csv  # prior counts per cohort (committed)
+└── data/                      # raw cohort tables — GITIGNORED; not on fresh clones
+    ├── neoranking/            #   primary: Neopep + Mutation + HLA_allotypes (+ source .zip)
+    └── improve_borch/         #   augment: In_house_neoepitope_for_CV + CEDAR benchmark
 ```
 
 Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribution) and the tables are large. `data/` is gitignored repo-wide; recreate it with `mkdir -p data/{neoranking,improve_borch}` after clone and fetch per `data_manifest.yaml`. The GCS mirror at `gs://…/experiments/issue_547/` uses the **same two subdirs** (`neoranking/` + `improve_borch/`).
 
-## Status (2026-06-17)
+## Status (2026-06-18)
 
 | Step | State |
 |------|-------|
@@ -31,6 +59,9 @@ Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribut
 | GCS mirror (>100 MB) | ✅ `gs://splice-neoepitope-project/experiments/issue_547/` |
 | Cohort-composition reconcile vs #592 | ✅ paper+data confirmed: mutation 131 pt / neo-pep 99 pt, 178 CD8 neo-peptides, **no Bjerregaard** — #592 correcting note posted |
 | IMPROVE/Borch augment | ✅ downloaded — CV training table (17,520 / 467) + CEDAR benchmark from `SRHgroup/IMPROVE_paper` (the repo named in the paper's Data Availability Statement) |
+| MHCflurry scoring (`score_cohort.py`) | ✅ all 4 cohorts scored; `scored_cohort_subsample.parquet` + `.true_counts.csv` in `outputs/` |
+| Calibrator build (`calibrator.py` + `notebook.ipynb`) | ✅ `calibrator_v1.joblib` in `outputs/`; LOCO + within-cohort validation done — see "Validation result" below |
+| Unit tests | ✅ `tests/` — centered-isotonic vs R oracle, calibrator round-trip, score formula |
 
 ## Schema & join feasibility (NeoRanking, confirmed from the downloaded tables 2026-06-17)
 
@@ -96,6 +127,19 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 ## Outputs index
 
 - `data_manifest.yaml` — **pinned schema v1** (Issue #707): paths + checksums + fetch commands + license. Raw tables are **not** committed (LICR copyright, no redistribution).
+- `outputs/calibrator_v1.joblib` — **deliverable artifact** (Issue #708): `PresentationCalibrator` fit with adaptive KDE mode, prior log-odds −6.525 (derived from `true_counts.csv` pooled across all 4 cohorts), trained on NCI + TESLA + HiTIDE + IMPROVE. Consumed by [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) (Snakemake wiring). Load: `PresentationCalibrator.load("outputs/calibrator_v1.joblib")`.
+- `outputs/scored_cohort_subsample.parquet.true_counts.csv` — per-cohort true positive and true negative counts used to compute the base-rate prior (committed; the `.parquet` itself is gitignored as LICR-derived).
+- `outputs/pr_reliability.png` — per-cohort **logit-scale calibration plot**: predicted log-odds (x) vs empirical logit of the observed rate (y, +0.5-corrected on the Kish-effective-n scale), with Wilson CIs, the 45° perfect-calibration diagonal, and the fitted **Cox recalibration** line. Headline numbers are the **Cox slope** (≈1 = well-calibrated spread; <1 = over-confident) and **intercept** (calibration-in-the-large / base-rate offset). Calibration is a held-out *diagnostic* on the SNV cohorts, not a deployment probability claim (#592); discrimination lives in the AUPRC-lift + top-k tables. The empirical curve is not expected to be monotone (sampling noise, not miscalibration); the monotonicity guarantee is structural (isotonic step, grid-checked at final fit).
+- `outputs/shift_gap.png` — LOCO vs within-cohort validation gap: visualises the cross-lab/assay transfer drop (the "proxy caveat" gap).
+- `outputs/kde_compare.png` — adaptive vs fixed-bandwidth KDE, logit-scale reliability for NCI + IMPROVE; confirms the two modes are indistinguishable on the large cohorts.
+- `outputs/kde_fit_compare.png` — the **same pooled data fitted both ways**: (left) class-conditional densities under fixed (Scott) vs adaptive (Abramson) KDE; (right) the resulting calibration maps. Shows what "adaptive" changes (wider kernels in the data-sparse tail, smoother map) and why the ranking/AUPRC barely moves (both maps monotone, track closely).
+- `outputs/method_fitted.png` — the **actual fitted pipeline** on our four pooled SNV cohorts (not a schematic): (1) class-conditional adaptive-KDE densities, (2) log density-ratio → base-rate prior shift, (3) isotonic → centered isotonic, (4) the fitted lookup curve `transform()` applies at inference. Replaces the earlier synthetic NeoGuider schematics; regenerated by the notebook's "Method, on our data" cell.
+- `outputs/auprc_explained.png` — teaching figure: **how AUPRC is built**, on real LOCO predictions. Left: ranking → threshold sweep → precision/recall (TESLA candidates). Right: the precision–recall curves whose **area = AUPRC**, with the prevalence baseline, contrasting TESLA (signal, ~4× lift) vs IMPROVE (near-random, ~1× lift). Numbers reproduce the LOCO/lift tables exactly.
+- `outputs/concept_presentation_funnel.png` — teaching schematic (illustrative, not data): presentation ⊃ immunogenic — why the presentation score's power is capped.
+- `outputs/concept_discrimination_vs_calibration.png` — teaching schematic: the two evaluation axes — discrimination (separate the classes) vs calibration (are the numbers right).
+- `outputs/panel_anatomy.png` — teaching schematic: how to read one calibration panel (45° = perfect, Cox-fit tilt = slope, offset = intercept) + four archetypes.
+- `outputs/conclusion_scorecard.png` — conclusion visual: per-cohort verdict, discrimination (AUPRC lift) × calibration (Cox slope), bubble ∝ n positives; numbers pulled live from the result tables.
+- `outputs/conclusion_ladder.png` — conclusion visual: the evidence ladder — within-cohort → LOCO (cross-SNV-cohort) → splice-junction (untested extrapolation, #680) — showing where the evidence runs out.
 
 ## Cohort-composition reconcile (primary-source confirmed)
 
@@ -140,6 +184,51 @@ gsutil    cp data/improve_borch/*.tsv gs://splice-neoepitope-project/experiments
 ```
 
 The `Classifier_neopeptide.zip` / `Classifiers_mutation.zip` from the NeoRanking README's `a000…`/`3c27…` links are the trained NCI-train LR/XGBoost **classifiers**, not data tables (kept out of `data/` here; fetch only if reproducing #708 figures).
+
+## How to reproduce
+
+Two separate Python environments are required because MHCflurry (TensorFlow/PyTorch) has no Python 3.14 wheels.
+
+**Step 1 — Score cohorts (one-time; `mhcflurry-scoring` conda env)**
+
+```bash
+# From this folder. Use `conda activate` (NOT `conda run`, which buffers stdout and
+# hides the per-allele progress logs during the 30+ min run — see CLAUDE.md).
+conda activate mhcflurry-scoring && python score_cohort.py
+# Writes: outputs/scored_cohort_subsample.parquet  (GITIGNORED)
+#         outputs/scored_cohort_subsample.parquet.true_counts.csv
+```
+
+The `mhcflurry-scoring` env hosts MHCflurry 2.x + its model weights. The scored parquet is the clean handoff to the calibrator — no MHCflurry dependency past this point.
+
+**Step 2 — Run tests (`research/.venv`, Python 3.14)**
+
+```bash
+cd research/experiments/issue_547_immunogenicity_calibration
+../../../research/.venv/bin/python -m pytest tests/ -v
+```
+
+**Step 3 — Execute the notebook (`research/.venv`, Python 3.14)**
+
+```bash
+../../../research/.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebook.ipynb
+# Writes: outputs/calibrator_v1.joblib  outputs/*.png
+```
+
+## Validation result
+
+**LOCO (leave-one-cohort-out) prevalence-relative lift** — primary cross-lab/assay transfer metric:
+
+| cohort left out | LOCO lift |
+|---|---|
+| NCI | ~111× |
+| TESLA | ~4.4× |
+| HiTIDE | ~2.7× |
+| IMPROVE | ~1.2× (near baseline) |
+
+NCI is the strongest discriminator; IMPROVE shows essentially no lift above the prevalence baseline (1×).
+
+**Proxy caveat:** all four cohorts are **SNV point-mutation neoantigens**. LOCO tests cross-lab/assay generalization as a stand-in for cross-antigen-type generalization; LOCO success does **not** validate performance on splice-junction-derived neoantigens. That transfer gap is a known open question — see [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) and the design spec at [`docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md`](../../../docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md).
 
 ## Cross-experiment deps
 
