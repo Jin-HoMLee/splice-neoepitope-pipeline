@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-19
+
+### 10:55 UTC — Editor: PM
+
+#### Friday morning routine — two user catches that each exposed a mis-scoped rule
+
+**Routine outcomes (context).** Corrected SDR (6 PRs / 6 Issues shipped 2026-06-18, closure audit clean) · 7 No-Status items triaged → Backlog ([Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754) bumped P2→P1) · Dev per-role floor restored 4→5 by committing [Issue #780](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/780) into a **new [dev-i4](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/36)** milestone (dev-i3 was spent 9/9) · [Issue #715](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/715) forward-note (native Issue fields now public-preview for *all* orgs + confirmed API/GraphQL-callable). Two catches below were the substance.
+
+**Catch 1 — the closure-recap query silently reported a false empty day.** I opened the SDR with "nothing closed in the last 24h." User pushed back; it was a **query boundary bug**: the morning-routine memory documents `gh issue list --state closed --search "closed:>YYYY-MM-DD"`, and `>2026-06-18` means *after the whole day* (06-19 onward) — so on a 06-19 morning it drops everything closed *during* 06-18 (the actual 6 ships). The recap query was also issues-only, never scanning merged PRs. Fixed the documented query to `>=` + a self-documenting caveat + a PR-scan line; filed [Issue #784](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/784) (P3) to mechanize the recap as a `scripts/pm/` helper so the boundary can't regress by hand.
+
+**Catch 2 — Friday branch cleanup was PM-only, and PM-only literally cannot work here.** User asked why branch cleanup isn't shared. Tracing it: local branches are **per-clone** state (each role has an independent `.git` since the 2026-05-14 separate-clone migration), so PM's `git branch -D` only ever reaches the `-pm` clone. Evidence: right now the Scientist clone holds **9** local branches and the Developer clone **10+** (several ancient), with *no cleanup mechanism at all*. The memory's "Why PM-only" section justified it by "mirrors how PM owns board-archive cadence" — a **false analogy**: the board is one shared object (central PM ownership correct), but local branches are decentralized per-clone (cleanup must run *in* each clone). Promoted the rule pm/ → `shared/feedback_branch_cleanup.md` as **per-clone, each-role-self-cleans**; corrected the analogy in-file (dated, self-documenting); fixed the stale "worktree"/`+`-prefix logic the doc still carried from *before* the very migration that broke its scoping. Filed [Issue #790](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/790) for the part I can't do unilaterally (wiring auto-fire into the Sci/Dev routines + backfilling their branches — their role files aren't mine to edit).
+
+**Why we run separate clones at all (the question under Catch 2).** User asked why clones when the ecosystem favors worktrees. The documented reason (`shared/feedback_team_structure.md`): worktrees share one `.git`/refs, so a branch checks out in only **one** worktree at a time — but all three roles want **`main` as their resting state**, which forced an ugly `workspace/<role>` camping-branch hack. Separate clones dissolve it by construction. The pro-worktree guidance is for *one dev juggling many branches*; ours is *many agents wanting the same base branch* + per-role env isolation — the exact corner worktrees can't serve. The per-clone branch divergence (Catch 2) is the **dual** of that isolation. The migration's own record memory was a dangling `[[link]]` (never written) — wrote it: `shared/project_splice_worktree_to_clones_2026-05-14.md`.
+
+**The thread connecting both catches.** Each was a *correctly-stored rule fired on the wrong surface* — Catch 1 temporal (`>` vs `>=` boundary), Catch 2 architectural (a decentralized concern bound to a central owner). Same family as my recent episodic misses; the durable fix isn't more per-instance rules but the habit *before acting on a gate/count/scope, name which version governs and which axis it lives on*. (MM to commit the personas-side memory edits — surfaced via the git-status scan; before→after for the shared-rule change: `feedback_branch_cleanup.md` was "PM-only, board-archive analogy" → now "shared, per-clone, each role self-cleans", relocated pm/ → shared/.)
+
+---
+
 ## 2026-06-18
 
 ### 17:52 UTC — Editor: PM
