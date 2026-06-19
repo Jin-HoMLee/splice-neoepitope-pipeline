@@ -49,11 +49,11 @@ cd tools/project_map && npm install && node verify_render.mjs "$PWD/project_map.
 
 The data-model suite is collected in CI by the `ci-tools-pytest` job
 (`.github/workflows/tests.yml`, Issue #713) and runs on every PR. `build_graph()`
-walks the committed tree without consulting `.gitignore`, so a clean checkout is
-the canonical run environment: a local clone with populated gitignored artifacts
-(`references/`, `logs/`, `data/`, `results/`) can inflate the `project` group and
-trip `test_resource_blob_is_gone`. CI (a fresh checkout) is authoritative; locally,
-re-run against `git worktree add --detach <tmp> HEAD` if that one test fails alone.
+discovers files via `git ls-files` (Issue #780), so the atlas is reproducible
+across working-tree states: a local clone with populated gitignored artifacts
+(`references/`, `logs/`, `data/`, `results/`, `indices/`) produces the identical
+graph as a clean checkout, and the suite passes whether or not the pipeline has
+been run locally. Running the extractor requires a git working tree.
 
 The `verify_render.mjs` render check is a **local-only pre-merge check**, run with
 the one-liner above (Issue #712). It is intentionally *not* CI-wired: it drives a
