@@ -56,6 +56,10 @@ Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribut
 | Calibrator build (`calibrator.py` + `notebook.ipynb`) | ✅ `calibrator_v1.joblib` in `outputs/`; LOCO + within-cohort validation done — see "Validation result" below |
 | Unit tests | ✅ `tests/` — centered-isotonic vs R oracle, calibrator round-trip, score formula |
 
+## Cross-experiment deps
+
+- **`notebook.ipynb` "Method, visualized" section** embeds 5 illustrative method schematics read from **`research/evals/issue_258_neoguider/figures/`** (the NeoGuider tool-primer deck): `kde_densities.png`, `density_ratio.png`, `imbalance_prior.png`, `isotonic_vs_cir.png`, `calibrated_curve.png`. These are **referenced, not copied** (per the cross-experiment sharing rule); the notebook cell points at the canonical `#258` path and embeds the images on execution. They are *illustrative* (synthetic example data), not our fitted cohorts, and are regeneratable via that folder's `figures/_regenerate_figures.py`. If those figures move/rename, update the path in the notebook's method-figures cell.
+
 ## Schema & join feasibility (NeoRanking, confirmed from the downloaded tables 2026-06-17)
 
 Two parallel TSVs, same patient cohort at two granularities; both keyed on `patient` + the
