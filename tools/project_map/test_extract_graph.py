@@ -13,6 +13,9 @@ requires a git working tree.)
 """
 import importlib.util
 import pathlib
+import subprocess
+
+import pytest
 
 _spec = importlib.util.spec_from_file_location(
     "extract_graph", pathlib.Path(__file__).parent / "extract_graph.py")
@@ -73,12 +76,28 @@ def test_resource_blob_is_gone():
         assert frac < 0.40, f"group '{grp}' is {frac:.0%} unclassified 'resource'"
 
 
+def test_git_tracked_paths_surfaces_git_stderr(monkeypatch):
+    """When `git ls-files` fails, the raised error includes git's own stderr so
+    an exotic failure (e.g. a corrupt index) is diagnosable, not just the generic
+    'not a git working tree' hint (#788 review)."""
+    def _boom(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            returncode=128, cmd=["git", "ls-files"],
+            stderr="fatal: not a git repository (or any of the parent directories)")
+    monkeypatch.setattr(eg.subprocess, "run", _boom)
+    with pytest.raises(RuntimeError, match="not a git repository"):
+        eg.git_tracked_paths()
+
+
 def test_gitignored_runtime_dirs_contribute_no_nodes():
     """Regression for #780: discovery must exclude gitignored runtime/data dirs
     (`references/`, `results/`, `logs/`, `data/`, `indices/`) so the atlas is
     identical between a clean checkout and a clone that has run the pipeline.
     All five are fully gitignored (zero tracked files), so a git-tracked walk
-    must emit no node — dir or file — rooted under any of them."""
+    must emit no node — dir or file — rooted under any of them. The set is
+    illustrative, not exhaustive: the underlying `git ls-files` filter excludes
+    *any* gitignored path by construction; these are the known offenders from
+    the bug report."""
     g = eg.build_graph()
     gitignored_roots = {"references", "results", "logs", "data", "indices"}
     offenders = []

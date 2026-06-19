@@ -47,9 +47,11 @@ def git_tracked_paths():
             ["git", "-C", str(PROJECT_ROOT), "ls-files", "-z"],
             capture_output=True, text=True, check=True).stdout
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        stderr_hint = (getattr(exc, "stderr", "") or "").strip()
         raise RuntimeError(
             "project_map's extractor requires a git working tree "
-            "(`git ls-files` failed); run it from inside the repo.") from exc
+            "(`git ls-files` failed); run it from inside the repo."
+            + (f"\ngit stderr: {stderr_hint}" if stderr_hint else "")) from exc
     tracked_files = {p for p in out.split("\0") if p}
     tracked_dirs = set()
     for path in tracked_files:
