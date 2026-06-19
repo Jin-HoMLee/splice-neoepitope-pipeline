@@ -347,7 +347,7 @@ Parents/epics do **not** flow through the leaf workflow columns. They sit in a d
 - A parent (`subIssuesSummary.total > 0`) belongs in Status **`Epic`** while open; on completion it closes → **Done** (closed parents are terminal, never re-parked).
 - Read parent progress from the **native sub-issue bar**, not the Status field. A full bar on an open parent (e.g. all children done) signals ready-to-close.
 - The `recheck_parent_status` check (one of the checks dispatched by the `recheck_dispatch.py` hook) **drops its child→parent Status mirror for parents** (they no longer mirror a leaf state); it narrows to leaf-only. Tracked as [Issue #794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794).
-- Coupling: with parents parked in `Epic` and roadmap visibility carried by the `arc:` label, the milestone-pin-on-parent anchor is no longer load-bearing — feeds [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question A.
+- Coupling: with parents parked in `Epic` and roadmap visibility carried by the `arc:` label, the milestone-pin-on-parent anchor was no longer load-bearing → **[Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question A retired it** (2026-06-19): **parents/epics go un-milestoned.** Milestones are dated stage/time slices on **leaves** (set at `Backlog → Ready`); an epic's cross-iteration roadmap visibility rides its `arc:` label (+ an arc-grouped Project view), never a milestone pin. Matches standard epic practice — epics span sprints and never enter one; their leaves do. Migration: stripped the pins from the 3 then-anchored parents (#416, #547, #680; all arc-covered) + cleared their board Target date. **Sweep rule:** an open parent carrying a milestone is now drift — strip it (after confirming an `arc:` label carries visibility).
 
 Full rule: `.claude/memory/shared/feedback_board_hygiene.md` (parent-status governance section).
 
@@ -370,6 +370,17 @@ Work on board #9 is structured along **three orthogonal axes**, each carried by 
 - The lifecycle **stage** `S<N>` is occasionally called an "iteration" loosely — it is a *phase*, not a time-box.
 
 **Time-boxing decision ([Issue #693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693), 2026-06-10): Target date, not the Iteration field.** The chronological clock lives in milestone `due_on` → the board **Target date** field (auto-synced by `recheck_dispatch.py`). The native Projects **Iteration field is declined** — it encodes fixed Scrum-cadence sprints, which clashes with our **Kanban/flow** model (late-commitment Ready queue + WIP limits, no sprints) *and* with the variable-length `i<N>` lifecycle passes. The **Roadmap view** plots off **Target date**; **Start date is left unused** (empty on all items). Pointing the Roadmap's date field at Target date is a **manual UI step** — ProjectV2's API can't mutate view config. **Revisit** only if sprint swimlanes / `@current` auto-roll / velocity Insights are ever wanted — none are used today. Optional future nicety: populate **Start date** for roadmap *duration bars* (start→deadline) — a deliberate date-field choice, still not the Iteration field.
+
+## WIP limits — In-progress overload guard (per-role, advisory)
+
+The Ready queue is guarded against *starvation* (per-role floor-5 / cap-15, [Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754); full rule in shared memory `feedback_ready_queue_floor_gate.md` / `feedback_board_hygiene.md`) but had **no guard against `In progress` *overload*** until [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) sub-question D (2026-06-19).
+
+**Rule:** **per-role advisory WIP cap of 3 on `In progress`** (PM / Sci / Dev each; **MM** = Memory Manager, the memory-commit role — excluded because it implements no board-tracked work, same reason it's out of the #754 Ready count). More than 3 In-progress items carrying a single role's `role:` label = a flag, **not** a hard block — surfaced in the **Daily Stand-up WIP-awareness beat** (this just gives that existing beat a concrete trigger number). Classify by the item's `role:` *implementer* label, not by who filed it (same convention as the #754 Ready floor).
+
+**Why these parameters** (matches standard Kanban: "2–3 items per person, per-person WIP is the right starting point, tune from flow data"):
+- **per-role, not per-column** — roles are the throughput unit here; consistent with the #754 per-role Ready gate and the arc `active`-slate cap (3).
+- **cap 3** — top of the standard 2–3/person band; one actively-worked + slack for items blocked pre-PR (work moves *out* of In-progress into the separate `Ready for review` / `In review` columns, so In-progress holds only pre-PR active work). **Tunable** — start here, tighten toward 2 if In-progress fragmentation shows up; we have no flow data yet.
+- **advisory, not blocking** — the major tools (Azure Boards, Jira) implement WIP as a *visual warning when exceeded*, not a pull-stop; advisory matches our house style of keeping guards advisory until a defect recurs ≥2× (then escalate per the mechanism-over-memory ladder).
 
 ## GitHub Safety Wrappers
 

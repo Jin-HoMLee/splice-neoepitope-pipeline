@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-19
 
+### 16:43 UTC — Editor: PM
+
+#### Board governance — 3 sub-questions settled (anchor retire / deferral-tracking / WIP cap) — [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690) / [PR #796](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/796)
+
+Closed out the three sub-questions carried from the [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) board-governance review. Drove each to a recorded verdict, **cross-checked against standard Kanban/Agile practice via web search at the user's request** before mutating anything — all three landed inside the standard band, which is reassuring rather than novel.
+
+**A — retire the parent-as-milestone-anchor (decided: retire).** The pin was a workaround to give epics cross-iteration roadmap visibility; [#693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693) (arc labels) + [#776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776) (Epic-park) already took that job over, so the pin was dead weight. Parents/epics now go **un-milestoned**; milestones are dated stage slices on **leaves** only. This is textbook — *epics span sprints and never enter one; their leaves do* (Atlassian/Wrike). **Migration executed:** the 3 then-anchored parents (#416, #547, #680) were all arc-covered, so stripped each milestone + cleared its board Target; verified `ms:none` + arc retained on all 3. No remaining open parent leans on a milestone pin.
+
+**C — deferred actions need a tracked open carrier (adopted, memory rung).** Generalized the AC defer-to-follow-up option: *any* deferred action must land on an open Issue / a `- [ ]` on an open parent / a scheduled routine — linked in the same comment — never only a comment on a closed Issue (the [#192](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/192)→[#194](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/194) lost-deferral chain). Mechanism deferred per the ladder (escalate only on ≥2 recurrences). Honored the rule *while writing it* — #678 surfaced as an un-arced parent during the sweep, so I flagged it to the user for the arc-slate call rather than silently parking it.
+
+**D — WIP limits (adopted: per-role advisory cap of 3 on `In progress`).** We guarded Ready starvation ([#754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754) floor/cap) but not In-progress overload. Picked per-role (roles are the throughput unit), cap 3 (top of the standard 2–3/person band), **advisory not blocking** — which is exactly how Azure Boards / Jira implement WIP (visual warning, not pull-stop) and matches our house style of advisory-until-a-defect-recurs. It just gives the existing Daily Stand-up WIP-awareness beat a number. Tunable down to 2.
+
+**Bot review** ([PR #796](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/796)) approved with 2 minor doc findings + a nit. Accepted both findings (gloss `MM` at first use; add a `#754` memory pointer) but **corrected the bot's framing on Finding 1** — it proposed "MM = un-onboarded, excluded until active", which is wrong: MM is an active role (commits the personas memory); the real exclusion reason is it implements no *board-tracked* work. Declined the bullet-density nit (bot itself called it a non-blocker, consistent with house style).
+
+**Docs split:** A + D → CLAUDE.md (this PR); C → shared `feedback_closure_ritual.md` + PM Always-in-effect (staged for MM). Side-finding handed up: **#678 is an un-arced parent** — needs an arc-slate decision (its own arc, or fold into immunogenicity-benchmark), out of scope for this anchor decision.
+
+---
+
 ### 15:18 UTC — Editor: PM
 
 #### Epic/parent Status model decided + migrated — [Issue #776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776) / [PR #793](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/793)
