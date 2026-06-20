@@ -98,10 +98,14 @@ def test_threshold_prompt_no_dock(tmp_path, monkeypatch):
 
 
 def test_is_fire_target_sync_check():
-    """target_sync_check predicate: empty string / None-like is no-fire; any text is fire."""
+    """target_sync_check predicate: empty is no-fire; a manual-param warning is a fire;
+    a successful auto-sync confirmation is NOT a fire (Route A #782 — the mechanism working
+    as intended must not inflate the fire-log / trip the promotion prompt)."""
     import recheck_dispatch
     assert recheck_dispatch._is_fire("target_sync_check", "") is False
-    assert recheck_dispatch._is_fire("target_sync_check", "any warning text") is True
+    assert recheck_dispatch._is_fire("target_sync_check", "[target re-sync needed — move on #11]") is True
+    assert recheck_dispatch._is_fire("target_sync_check", '[target auto-synced — #11 → milestone "i5", Target 2026-07-15]') is False
+    assert recheck_dispatch._is_fire("target_sync_check", "[target auto-synced — #11 demilestoned, Target cleared]") is False
 
 
 def test_is_fire_recheck_milestone_no_change_paths():
@@ -169,3 +173,182 @@ def test_in_scope_unknown_hook_fails_open(monkeypatch):
     monkeypatch.setattr(rd, "HOOK_CONFIG", {"scopeless": {"threshold": 1, "dock": None}})
     assert rd._in_scope("scopeless") is True       # no scope key → always in scope
     assert rd._in_scope("never_configured") is True  # unknown name → always in scope
+
+
+# ---------------------------------------------------------------------------
+# Target-date auto-apply — Route A (Issue #782)
+# ---------------------------------------------------------------------------
+
+def _stub_getters(monkeypatch, *, ms_title, ms_due_on, target_date, item_id):
+    """Stub get_issue_milestone / get_issue_target_date so apply_target_sync is offline."""
+    import recheck_dispatch as rd
+    monkeypatch.setattr(rd, "get_issue_milestone", lambda issue: (ms_title, ms_due_on))
+    monkeypatch.setattr(rd, "get_issue_target_date", lambda issue: (target_date, item_id))
+
+
+def test_apply_target_sync_updates_when_out_of_sync(monkeypatch):
+    """Out-of-sync milestoned issue → executes the update mutation, returns a confirmation."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5 - S3", ms_due_on="2026-07-15",
+                  target_date="2026-06-30", item_id="PVTI_x")
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date",
+                        lambda item_id, due_on: calls.append((item_id, due_on)) or True)
+    out = rd.apply_target_sync(782)
+    assert calls == [("PVTI_x", "2026-07-15")]       # mutated with the new due_on
+    assert out is not None
+    assert "auto-synced" in out
+    assert "2026-07-15" in out
+
+
+def test_apply_target_sync_noop_when_already_synced(monkeypatch):
+    """Target already == due_on → None, no mutation (idempotent)."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5", ms_due_on="2026-07-15",
+                  target_date="2026-07-15", item_id="PVTI_x")
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date", lambda *a: calls.append(a) or True)
+    assert rd.apply_target_sync(782) is None
+    assert calls == []
+
+
+def test_apply_target_sync_clears_on_demilestone(monkeypatch):
+    """Un-milestoned but Target still set → clear mutation (due_on=None)."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title=None, ms_due_on=None,
+                  target_date="2026-06-30", item_id="PVTI_x")
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date",
+                        lambda item_id, due_on: calls.append((item_id, due_on)) or True)
+    out = rd.apply_target_sync(782)
+    assert calls == [("PVTI_x", None)]               # cleared
+    assert out is not None
+    assert ("cleared" in out.lower()) or ("demilestone" in out.lower())
+
+
+def test_apply_target_sync_not_on_board(monkeypatch):
+    """Issue not on project board (item_id None) → None, no mutation."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5", ms_due_on="2026-07-15",
+                  target_date=None, item_id=None)
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date", lambda *a: calls.append(a) or True)
+    assert rd.apply_target_sync(782) is None
+    assert calls == []
+
+
+def test_apply_target_sync_fails_open_to_manual_surface(monkeypatch):
+    """Mutation failure → falls back to target_sync_check's manual-param warning (nothing lost)."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5 - S3", ms_due_on="2026-07-15",
+                  target_date="2026-06-30", item_id="PVTI_x")
+    monkeypatch.setattr(rd, "_mutate_target_date", lambda *a: False)
+    out = rd.apply_target_sync(782)
+    assert out is not None
+    assert "re-sync needed" in out                   # the manual surface, unchanged
+    assert "updateProjectV2ItemFieldValue" in out
+
+
+def test_mutate_target_date_success(monkeypatch):
+    """_mutate_target_date → True on a clean gh api graphql response."""
+    import recheck_dispatch as rd
+
+    class R:
+        returncode = 0
+        stdout = '{"data":{"updateProjectV2ItemFieldValue":{"projectV2Item":{"id":"x"}}}}'
+        stderr = ""
+    monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: R())
+    assert rd._mutate_target_date("PVTI_x", "2026-07-15") is True
+
+
+def test_mutate_target_date_clear_success(monkeypatch):
+    """_mutate_target_date(item_id, None) → exercises the clearProjectV2ItemFieldValue branch
+    at function level (the demilestone path is otherwise only tested with the mutation patched out)."""
+    import recheck_dispatch as rd
+
+    seen = {}
+
+    class R:
+        returncode = 0
+        stdout = '{"data":{"clearProjectV2ItemFieldValue":{"projectV2Item":{"id":"x"}}}}'
+        stderr = ""
+
+    def fake_run(args, **k):
+        seen["query"] = args[args.index("-f") + 1]
+        return R()
+    monkeypatch.setattr(rd.subprocess, "run", fake_run)
+    assert rd._mutate_target_date("PVTI_x", None) is True
+    assert "clearProjectV2ItemFieldValue" in seen["query"]   # took the clear branch, not update
+
+
+def test_mutate_target_date_rejects_malformed_item_id(monkeypatch):
+    """A pathological item_id never reaches the GraphQL string — guarded to fail-open (False)."""
+    import recheck_dispatch as rd
+    called = []
+    monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: called.append(a))
+    assert rd._mutate_target_date('PVTI_x" injected', "2026-07-15") is False
+    assert rd._mutate_target_date("not-an-id", "2026-07-15") is False
+    assert called == []                                      # never built/fired a mutation
+
+
+def test_apply_target_sync_milestoned_no_due_date(monkeypatch):
+    """Milestoned but the milestone has no due_on → clear Target (intentional policy:
+    Target tracks due_on, and an undated milestone has none). Assert the clear is issued."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5 - S3", ms_due_on=None,
+                  target_date="2026-06-30", item_id="PVTI_x")
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date",
+                        lambda item_id, due_on: calls.append((item_id, due_on)) or True)
+    out = rd.apply_target_sync(782)
+    assert calls == [("PVTI_x", None)]                       # cleared because due_on is None
+    assert out is not None
+    assert "auto-synced" in out
+
+
+def test_mutate_target_date_graphql_error_is_failure(monkeypatch):
+    """A GraphQL `errors` payload (e.g. insufficient scope) → False → triggers fail-open."""
+    import recheck_dispatch as rd
+
+    class R:
+        returncode = 0
+        stdout = '{"errors":[{"message":"insufficient scope"}]}'
+        stderr = "insufficient scope"
+    monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: R())
+    assert rd._mutate_target_date("PVTI_x", "2026-07-15") is False
+
+
+def test_mutate_target_date_nonzero_returncode_is_failure(monkeypatch):
+    """Non-zero gh exit (HTTP error) → False."""
+    import recheck_dispatch as rd
+
+    class R:
+        returncode = 1
+        stdout = ""
+        stderr = "HTTP 401"
+    monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: R())
+    assert rd._mutate_target_date("PVTI_x", "2026-07-15") is False
+
+
+def test_dispatch_target_sync_covers_all_batched_moves(monkeypatch):
+    """Batched `gh issue edit N --milestone && ...` → apply_target_sync runs for EVERY issue (AC3)."""
+    import recheck_dispatch as rd
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"shared"})    # isolate: PM capacity check off
+    seen = []
+    monkeypatch.setattr(rd, "apply_target_sync", lambda issue: seen.append(issue) or None)
+    cmd = ('gh issue edit 11 --milestone "i5 - S3" && '
+           'gh issue edit 22 --milestone "i5 - S3" && '
+           'gh issue edit 33 --milestone "i5 - S3"')
+    rd.dispatch(cmd)
+    assert seen == [11, 22, 33]
+
+
+def test_dispatch_target_sync_dedups_repeated_issue(monkeypatch):
+    """Same issue edited twice in one command → apply_target_sync called once."""
+    import recheck_dispatch as rd
+    monkeypatch.setattr(rd, "ACTIVE_SCOPES", {"shared"})
+    seen = []
+    monkeypatch.setattr(rd, "apply_target_sync", lambda issue: seen.append(issue) or None)
+    cmd = 'gh issue edit 11 --milestone "A" && gh issue edit 11 --milestone "B"'
+    rd.dispatch(cmd)
+    assert seen == [11]

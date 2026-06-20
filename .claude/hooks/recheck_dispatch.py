@@ -154,7 +154,11 @@ _NO_FIRE_SENTINELS = {
 def _is_fire(hook_name: str, output: str) -> bool:
     """Return True if this output represents a real warning (not 'no change' / not 'no action needed')."""
     if hook_name == "target_sync_check":
-        return bool(output)  # function returns None when no fire; bool() is explicit for clarity
+        # Only the manual-param fallback ("[target re-sync needed …]") is a real fire — it
+        # means the auto-mutation failed and a human must finish the sync. A successful
+        # auto-sync confirmation ("[target auto-synced …]", Route A #782) is the mechanism
+        # working as intended, NOT a promotion signal, so it must not inflate the fire-log.
+        return bool(output) and not output.startswith("[target auto-synced")
     sentinels = _NO_FIRE_SENTINELS.get(hook_name)
     if sentinels is None:
         return False
@@ -331,6 +335,81 @@ def target_sync_check(issue: int) -> str | None:
     return None
 
 
+def _mutate_target_date(item_id: str, due_on: str | None) -> bool:
+    """Execute the Target-date mutation on project #9. `due_on=None` clears it.
+
+    Returns True on success, False on ANY failure (non-zero gh exit, GraphQL
+    `errors` payload, timeout, or `gh` missing). The False path is the fail-open
+    trigger: the caller (apply_target_sync) falls back to surfacing the manual
+    mutation params, so a token/scope/network problem never loses the sync.
+    """
+    if not re.match(r"PVTI_[A-Za-z0-9_-]+$", item_id):
+        return False  # malformed id → fail-open rather than build a malformed mutation string
+    if due_on:
+        query = (
+            'mutation { updateProjectV2ItemFieldValue(input:{'
+            f'projectId:"{PROJECT_ID}", itemId:"{item_id}", fieldId:"{TARGET_DATE_FIELD_ID}", '
+            f'value:{{date:"{due_on}"}}'
+            '}){ projectV2Item{ id } } }'
+        )
+    else:
+        query = (
+            'mutation { clearProjectV2ItemFieldValue(input:{'
+            f'projectId:"{PROJECT_ID}", itemId:"{item_id}", fieldId:"{TARGET_DATE_FIELD_ID}"'
+            '}){ projectV2Item{ id } } }'
+        )
+    try:
+        result = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={query}"],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+    if result.returncode != 0:
+        return False
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return False
+    return "errors" not in data
+
+
+def apply_target_sync(issue: int) -> str | None:
+    """Auto-apply the Target-date sync for `issue` (Route A, Issue #782).
+
+    Executes the deterministic derivation Target = current-milestone `due_on`
+    (or CLEARS Target when the issue is un-milestoned), so the previously-manual
+    follow-up step can't slip. Returns:
+      - a confirmation line on a successful mutation (surfaced so the move is visible);
+      - the manual-param warning from target_sync_check() on mutation failure (fail-open);
+      - None when no sync is needed (already in sync / not on the board).
+
+    Only this deterministic Target derivation is auto-applied. The capacity
+    recheck stays advisory (a PM judgment surface) and is never auto-mutated.
+    """
+    ms_title, ms_due_on = get_issue_milestone(issue)
+    target_date, item_id = get_issue_target_date(issue)
+
+    if item_id is None:
+        return None  # not on the project board — nothing to sync
+
+    if ms_title:
+        if target_date == ms_due_on:
+            return None  # already in sync — idempotent no-op
+        if _mutate_target_date(item_id, ms_due_on):
+            shown = ms_due_on or "(cleared — milestone has no due date)"
+            return f'[target auto-synced — #{issue} → milestone "{ms_title}", Target {shown}]'
+        return target_sync_check(issue)  # fail-open: surface manual params, unchanged
+
+    if target_date is not None:
+        # un-milestoned but Target still set → clear it
+        if _mutate_target_date(item_id, None):
+            return f"[target auto-synced — #{issue} demilestoned, Target cleared]"
+        return target_sync_check(issue)  # fail-open
+
+    return None
+
+
 def prior_milestones_for_issue(issue: int) -> list[int]:
     """Return milestone numbers from the 2 most recent milestoned/demilestoned events."""
     result = subprocess.run(
@@ -394,8 +473,19 @@ def dispatch(cmd: str) -> list[str]:
                         f"{run_recheck('--milestone', str(ms))}",
                         outputs,
                     )
-        if _in_scope("target_sync_check"):
-            sync_warn = target_sync_check(issue)
+    # Target-date auto-sync (Route A, Issue #782): a dedicated finditer loop so
+    # EVERY issue in a batched `gh issue edit N --milestone … && …` is synced,
+    # not just the first match (the batch-miss that triggered #782). The capacity
+    # recheck above intentionally stays first-match + advisory; only this
+    # deterministic Target derivation auto-applies.
+    if _in_scope("target_sync_check"):
+        seen_for_sync: set[int] = set()
+        for mv in PATTERN_MOVE.finditer(cmd):
+            issue = int(mv.group(1))
+            if issue in seen_for_sync:
+                continue
+            seen_for_sync.add(issue)
+            sync_warn = apply_target_sync(issue)
             if sync_warn:
                 _wrap_warning("target_sync_check", issue, sync_warn, outputs)
 
