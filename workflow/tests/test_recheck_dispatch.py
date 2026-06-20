@@ -98,10 +98,14 @@ def test_threshold_prompt_no_dock(tmp_path, monkeypatch):
 
 
 def test_is_fire_target_sync_check():
-    """target_sync_check predicate: empty string / None-like is no-fire; any text is fire."""
+    """target_sync_check predicate: empty is no-fire; a manual-param warning is a fire;
+    a successful auto-sync confirmation is NOT a fire (Route A #782 — the mechanism working
+    as intended must not inflate the fire-log / trip the promotion prompt)."""
     import recheck_dispatch
     assert recheck_dispatch._is_fire("target_sync_check", "") is False
-    assert recheck_dispatch._is_fire("target_sync_check", "any warning text") is True
+    assert recheck_dispatch._is_fire("target_sync_check", "[target re-sync needed — move on #11]") is True
+    assert recheck_dispatch._is_fire("target_sync_check", '[target auto-synced — #11 → milestone "i5", Target 2026-07-15]') is False
+    assert recheck_dispatch._is_fire("target_sync_check", "[target auto-synced — #11 demilestoned, Target cleared]") is False
 
 
 def test_is_fire_recheck_milestone_no_change_paths():
@@ -255,6 +259,51 @@ def test_mutate_target_date_success(monkeypatch):
         stderr = ""
     monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: R())
     assert rd._mutate_target_date("PVTI_x", "2026-07-15") is True
+
+
+def test_mutate_target_date_clear_success(monkeypatch):
+    """_mutate_target_date(item_id, None) → exercises the clearProjectV2ItemFieldValue branch
+    at function level (the demilestone path is otherwise only tested with the mutation patched out)."""
+    import recheck_dispatch as rd
+
+    seen = {}
+
+    class R:
+        returncode = 0
+        stdout = '{"data":{"clearProjectV2ItemFieldValue":{"projectV2Item":{"id":"x"}}}}'
+        stderr = ""
+
+    def fake_run(args, **k):
+        seen["query"] = args[args.index("-f") + 1]
+        return R()
+    monkeypatch.setattr(rd.subprocess, "run", fake_run)
+    assert rd._mutate_target_date("PVTI_x", None) is True
+    assert "clearProjectV2ItemFieldValue" in seen["query"]   # took the clear branch, not update
+
+
+def test_mutate_target_date_rejects_malformed_item_id(monkeypatch):
+    """A pathological item_id never reaches the GraphQL string — guarded to fail-open (False)."""
+    import recheck_dispatch as rd
+    called = []
+    monkeypatch.setattr(rd.subprocess, "run", lambda *a, **k: called.append(a))
+    assert rd._mutate_target_date('PVTI_x" injected', "2026-07-15") is False
+    assert rd._mutate_target_date("not-an-id", "2026-07-15") is False
+    assert called == []                                      # never built/fired a mutation
+
+
+def test_apply_target_sync_milestoned_no_due_date(monkeypatch):
+    """Milestoned but the milestone has no due_on → clear Target (intentional policy:
+    Target tracks due_on, and an undated milestone has none). Assert the clear is issued."""
+    import recheck_dispatch as rd
+    _stub_getters(monkeypatch, ms_title="i5 - S3", ms_due_on=None,
+                  target_date="2026-06-30", item_id="PVTI_x")
+    calls = []
+    monkeypatch.setattr(rd, "_mutate_target_date",
+                        lambda item_id, due_on: calls.append((item_id, due_on)) or True)
+    out = rd.apply_target_sync(782)
+    assert calls == [("PVTI_x", None)]                       # cleared because due_on is None
+    assert out is not None
+    assert "auto-synced" in out
 
 
 def test_mutate_target_date_graphql_error_is_failure(monkeypatch):

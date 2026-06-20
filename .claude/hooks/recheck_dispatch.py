@@ -154,7 +154,11 @@ _NO_FIRE_SENTINELS = {
 def _is_fire(hook_name: str, output: str) -> bool:
     """Return True if this output represents a real warning (not 'no change' / not 'no action needed')."""
     if hook_name == "target_sync_check":
-        return bool(output)  # function returns None when no fire; bool() is explicit for clarity
+        # Only the manual-param fallback ("[target re-sync needed …]") is a real fire — it
+        # means the auto-mutation failed and a human must finish the sync. A successful
+        # auto-sync confirmation ("[target auto-synced …]", Route A #782) is the mechanism
+        # working as intended, NOT a promotion signal, so it must not inflate the fire-log.
+        return bool(output) and not output.startswith("[target auto-synced")
     sentinels = _NO_FIRE_SENTINELS.get(hook_name)
     if sentinels is None:
         return False
@@ -339,6 +343,8 @@ def _mutate_target_date(item_id: str, due_on: str | None) -> bool:
     trigger: the caller (apply_target_sync) falls back to surfacing the manual
     mutation params, so a token/scope/network problem never loses the sync.
     """
+    if not re.match(r"PVTI_[A-Za-z0-9_-]+$", item_id):
+        return False  # malformed id → fail-open rather than build a malformed mutation string
     if due_on:
         query = (
             'mutation { updateProjectV2ItemFieldValue(input:{'
