@@ -121,6 +121,23 @@ class TestDriftClassification:
                                     has_not_planned=True)
         assert result == rps.NOT_PLANNED_REVIEW
 
+    def test_epic_parent_with_backlog_only_children_is_not_drift(self):
+        # Completeness guard: Epic + no-progress (Backlog) children. Never broke
+        # (rank Epic == rank Backlog == 0), but documents the parked-no-progress case.
+        children = [{"number": 100, "status": "Backlog"}]
+        result = rps.classify_drift(parent_status="Epic", open_children=children)
+        assert result is None
+
+    def test_epic_parent_with_mixed_children_is_not_drift(self):
+        # Belt-and-suspenders: collective_state() takes the max rank (In progress
+        # here), which the pre-fix code flagged as BACKWARD DRIFT. The Epic guard
+        # suppresses regardless of how the collective is computed.
+        children = [{"number": 100, "status": "Backlog"},
+                    {"number": 101, "status": "In progress"}]
+        assert rps.collective_state(children) == "In progress"   # max-rank, would have drifted
+        result = rps.classify_drift(parent_status="Epic", open_children=children)
+        assert result is None
+
 
 from unittest.mock import patch
 
