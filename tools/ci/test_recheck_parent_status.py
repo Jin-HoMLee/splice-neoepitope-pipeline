@@ -93,6 +93,34 @@ class TestDriftClassification:
         result = rps.classify_drift(parent_status="Ready", open_children=children)
         assert result is None
 
+    # --- A2 epic-park (#776 / #794) -------------------------------------------
+    # A parent parked in the off-ladder `Epic` Status no longer mirrors its
+    # children's collective ladder rank. Because `Epic` is unranked, the old code
+    # read it as rank-0 (Backlog) and spuriously flagged BACKWARD DRIFT against any
+    # active child — fighting the park. Suppress the ladder mirror for Epic parents.
+    def test_epic_parent_with_in_progress_child_is_not_drift(self):
+        children = [{"number": 100, "status": "In progress"}]
+        result = rps.classify_drift(parent_status="Epic", open_children=children)
+        assert result is None
+
+    def test_epic_parent_with_in_review_child_is_not_drift(self):
+        children = [{"number": 100, "status": "In review"}]
+        result = rps.classify_drift(parent_status="Epic", open_children=children)
+        assert result is None
+
+    def test_epic_parent_all_children_closed_still_flags_completion(self):
+        # Preserved: A2 closes a completed parent to Done, so "all closed but not
+        # Done" is still a close-the-parent signal — it is NOT a leaf-status mirror.
+        result = rps.classify_drift(parent_status="Epic", open_children=[])
+        assert result == "COMPLETION DRIFT"
+
+    def test_epic_parent_all_closed_with_not_planned_child_still_reviews(self):
+        # Preserved: the #632 scope-verification flag is not a status mirror, so it
+        # must survive the A2 narrowing.
+        result = rps.classify_drift(parent_status="Epic", open_children=[],
+                                    has_not_planned=True)
+        assert result == rps.NOT_PLANNED_REVIEW
+
 
 from unittest.mock import patch
 
