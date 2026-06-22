@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-22 — migration runbook: GCP→RunPod+R2, decision-grade plan ([PR #836](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/836) closes [Issue #835](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/835))
+
+### 21:40 UTC — Editor: Developer — two research passes, #1 risk retired, doc-only deliverable
+
+**Why.** The GCP trial cliff (~2026-07-03) + self-funded infra make a provider migration the real cost lever (the #834 SPOT bridge only trims the GCP runway). `docs/migration_runbook.md` captures a *verified* target stack so the cutover is execution-ready the instant accounts exist — doc-only; signup + data exit + cutover are operator-gated future work (a migration epic with per-phase sub-issues if committed).
+
+**The research arc (two passes).** Pass 1 (broad): RunPod + Cloudflare R2 beat GCP for the *bursty* per-patient pattern — per-second billing (idle costs nothing) + zero egress dominate the headline $/hr; a modern GPU also deletes the P100/Pascal driver-pin saga. Pass 2 (operational fit, the make-or-break pass): I was confident on *direction* but not *fit*, so I dug into the gaps a migration actually dies on. **The #1 risk was RAM, not VRAM:** OptiType peaks ~36 GB RAM (the reason for `n1-highmem-8`/52 GB — grounded in `run_cloud_gpu.sh:42`), and a naive cheap GPU pod (24–32 GB) would OOM. **Retired:** RunPod L4 bundles **50 GB RAM** / 12 vCPU / 24 GB VRAM @ $0.39/hr (Secure), clearing it with 14 GB headroom — no GPU-tier step-up needed. AlphaFold's ~600–800-res complex fits 24 GB safely (already runs on the 16 GB P100). Storage = hybrid: Network Volume (~$14/mo, survives preemption, DC-pinned) for the static core + R2 (~$3/mo, zero egress) for bulk; split AlphaFold params out of the 25 GB image onto the volume to beat cold-start. ~$25/mo vs GCP's ~$75–80/mo. Two aggregator-only phantom prices (RunPod T4/A10) verified absent from the catalog and dropped.
+
+**Lesson carried.** When asked "more research or confident?", I split *strategic* confidence (high — direction is robust) from *operational* confidence (gaps that gate the **go** button), and ran a second targeted pass rather than overselling. The blocker turned out false, but it was the right thing to verify before committing the operator's time/money to a data exit.
+
+**Verification + review.** Doc figures all sourced from the two passes (official `runpod.io` / `developers.cloudflare.com`); the same verified outcome is mirrored in project memory [[gcp-trial-expiry-self-funded-infra]]. Bot review (`@claude review`) **verified the central claim against the codebase** (the OptiType 36 GB rationale at `run_cloud_gpu.sh:42`, the two-distinct-CUDA-pins point, the cost arithmetic) — all findings non-blocking; addressed 4 in `4050e30`: README index entry (discoverability, the one it recommended pre-merge), a pre-#834-baseline clarifying note on the cost table, an R2 multipart unit fix (64 MiB × 10,000 = ~625 GiB not 640), and naming the `neoepitope-orchestrator` e2-micro in the decommission step (it retires with the detached-mode pattern). Doc-only — no tests/integration run.
+
 ## 2026-06-22 — GCP cost bridge: SPOT provisioning toggle + pd-balanced boot disk ([PR #834](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/834) closes [Issue #833](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/833))
 
 ### 21:10 UTC — Editor: Developer — bridge PR ahead of the trial cliff; migration is the real lever
