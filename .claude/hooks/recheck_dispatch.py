@@ -85,7 +85,7 @@ HOOK_CONFIG: dict[str, dict] = {
     #        "pm"     → PM-local only (settings.local.json).
     "target_sync_check":     {"threshold": 3, "dock": 454, "scope": "shared"},   # re-sync actionable by whoever moved the milestone (any role)
     "recheck_milestone":     {"threshold": 3, "dock": 618, "scope": "pm"},      # PM-local by design (dock #618); capacity rebalance is PM-coordinated + fires on every close → noise for Sci/Dev
-    "recheck_parent_status": {"threshold": 3, "dock": 617, "scope": "pm"},      # shared-leaning but unproven (2/3); dock #617 — flip scope to "shared" to promote once proven
+    "recheck_parent_status": {"threshold": 3, "dock": 617, "scope": "pm"},      # keep PM-local: #617 proves-out concluded PM-local (A2 mooted the shared-promotion); its fires measured the child→parent mirror that #794 retired, so they can't justify promoting the narrowed residual — reassess scope against the residual once fresh fires accrue
 }
 
 

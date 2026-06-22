@@ -36,6 +36,12 @@ def rank(status: str | None) -> int:
 
 LADDER_INVERSE = {v: k for k, v in STATUS_LADDER.items()}
 
+# The dedicated parked Status for parents/epics under the A2 epic-park model
+# (Issue #776). It is deliberately OFF the workflow ladder above — a parent in
+# `Epic` is not making a leaf-ladder progress claim, so drift classification must
+# not compare it against children's collective rank (Issue #794).
+EPIC_STATUS = "Epic"
+
 # Softer flag emitted in place of a bare COMPLETION DRIFT when a parent's only
 # remaining children are all closed but ≥1 was closed NOT_PLANNED — that scope
 # was deferred, not delivered, so a confident rollup-close suggestion would be
@@ -72,12 +78,21 @@ def classify_drift(
     """
     p_rank = rank(parent_status)
     if not open_children:
-        # All children closed; parent should be Done.
+        # All children closed; parent should be Done. Under A2 a completed parent
+        # still closes → Done, so this close-the-parent signal is preserved for an
+        # Epic-parked parent too (it is not a leaf-status mirror).
         if p_rank == STATUS_LADDER["Done"]:
             return None
         # A NOT_PLANNED child means the completion claim is unverified; downgrade
         # the bare COMPLETION DRIFT to a verify prompt (Issue #632).
         return NOT_PLANNED_REVIEW if has_not_planned else "COMPLETION DRIFT"
+    if parent_status == EPIC_STATUS:
+        # A2 epic-park (#776 / #794): a parent parked in the off-ladder `Epic`
+        # Status no longer mirrors its children's collective ladder rank — progress
+        # is read off GitHub's native sub-issue bar instead. Suppress the ladder
+        # mirror so the park is not fought: `Epic` is unranked (rank 0), so without
+        # this guard any active child would spuriously read as BACKWARD DRIFT.
+        return None
     c_rank = rank(collective_state(open_children))
     if p_rank > c_rank and p_rank >= STATUS_LADDER["In progress"]:
         # Only flag when the parent is making a falsifiable progress claim (In progress
