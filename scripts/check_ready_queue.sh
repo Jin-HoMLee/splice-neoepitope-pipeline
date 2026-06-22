@@ -6,8 +6,11 @@
 #     "minimum order point" that prevents role-starvation. Memory Manager is
 #     EXCLUDED (memory-curation pulls cross-repo / opportunistically, not from
 #     a maintained board Ready buffer).
-#   - TOTAL CAP (default 15 = 3 roles x 5) — a WIP limit on the commitment
-#     buffer so Ready doesn't over-deepen and inflate lead time.
+#   - TOTAL CAP (default 18 = floor x 3 roles + 3 headroom) — a WIP limit on
+#     the commitment buffer so Ready doesn't over-deepen and inflate lead time.
+#     The headroom above the summed floors (15) leaves a reachable "healthy"
+#     band (total 15-17 = all floors met, under cap). A zero-headroom cap=15
+#     could only ever read REPLENISH or CAP, never healthy (#754 review).
 #
 # The floor is a replenish *trigger*, not a force-commit quota: below floor
 # for a role, pull that role's highest-priority DoR-ready Backlog; if fewer
@@ -26,20 +29,22 @@
 #
 # Env:
 #   READY_QUEUE_FLOOR      override per-role floor (default 5)
-#   READY_QUEUE_CAP        override total cap (default 15)
+#   READY_QUEUE_CAP        override total cap (default 18)
 #   READY_QUEUE_JSON_FILE  read the Ready-items JSON array from this file
 #                          instead of calling board_open_items.py (test seam)
 #
 # Exit codes:
 #   0 — healthy (every role at/above floor AND total below cap)
 #   2 — needs attention (a role below floor, or total at/over cap)
+#       Both conditions share exit 2 — distinguish via stdout:
+#       `[REPLENISH <role>: K < F]` (commit more) vs `[CAP] …` (hold).
 #   1 — usage / runtime error
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLOOR="${READY_QUEUE_FLOOR:-5}"
-CAP="${READY_QUEUE_CAP:-15}"
+CAP="${READY_QUEUE_CAP:-18}"
 
 # Roles subject to the per-role floor. MM is intentionally excluded (#754).
 FLOOR_ROLES=(pm scientist developer)
@@ -49,7 +54,7 @@ while [[ $# -gt 0 ]]; do
         --floor) [[ -n "${2:-}" ]] || { echo "--floor requires a value" >&2; exit 1; }; FLOOR="$2"; shift 2 ;;
         --cap)   [[ -n "${2:-}" ]] || { echo "--cap requires a value" >&2; exit 1; }; CAP="$2"; shift 2 ;;
         -h|--help)
-            sed -n '2,40p' "$0" | sed 's|^# \{0,1\}||'
+            awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"
             exit 0
             ;;
         *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -86,7 +91,10 @@ breakdown=""
 # (a role:pm + role:memory_manager item counts toward pm), so we test label
 # membership rather than a single role field.
 for role in "${FLOOR_ROLES[@]}"; do
-    count="$(printf '%s' "$READY_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')"
+    count="$(printf '%s' "$READY_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')" || {
+        echo "error: could not count Ready items for role:$role" >&2
+        exit 1
+    }
     breakdown+="${role}=${count} "
     if [[ "$count" -lt "$FLOOR" ]]; then
         echo "[REPLENISH ${role}: ${count} < ${FLOOR}] — pull ${role}'s highest-priority DoR-ready Backlog (see shared/feedback_board_hygiene.md)."
@@ -100,9 +108,12 @@ if [[ "$TOTAL" -ge "$CAP" ]]; then
     needs_attention=1
 fi
 
+# Always print the full per-role breakdown so every run is self-documenting
+# (not just the healthy path) — roles at/above floor are otherwise silent.
 if [[ "$needs_attention" -eq 1 ]]; then
+    echo "Ready by role: ${breakdown%% } — total ${TOTAL} (floor ${FLOOR}/role, cap ${CAP}) — needs attention."
     exit 2
 fi
 
-echo "Ready queue: healthy — per-role floor met (${breakdown%% }), total ${TOTAL} (floor ${FLOOR}/role, cap ${CAP})."
+echo "Ready by role: ${breakdown%% } — total ${TOTAL} (floor ${FLOOR}/role, cap ${CAP}) — healthy."
 exit 0

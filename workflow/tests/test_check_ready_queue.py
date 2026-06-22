@@ -25,14 +25,14 @@ def _item(number, *roles, status="Ready"):
             "labels": [f"role:{r}" for r in roles]}
 
 
-def _run(items):
+def _run(items, *args):
     """Run the script with a JSON fixture injected via READY_QUEUE_JSON_FILE."""
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         json.dump(items, f)
         path = f.name
     try:
         env = {**os.environ, "READY_QUEUE_JSON_FILE": path}
-        return subprocess.run(["bash", str(SCRIPT)], env=env,
+        return subprocess.run(["bash", str(SCRIPT), *args], env=env,
                               capture_output=True, text=True)
     finally:
         os.unlink(path)
@@ -60,12 +60,22 @@ def test_all_roles_at_floor_under_cap_is_healthy():
 
 
 def test_total_at_cap_flags_cap_and_exit_2():
-    # Disjoint: pm=5, sci=5, dev=5 -> no floor breach, but total=15 == cap
-    items = _spread("pm", 5, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+    # Disjoint pm=6/sci=6/dev=6 -> no floor breach, but total=18 == cap
+    items = _spread("pm", 6, 100) + _spread("scientist", 6, 200) + _spread("developer", 6, 300)
     r = _run(items)
-    assert "[CAP] Ready at 15 (>= 15)" in r.stdout, r.stdout
+    assert "[CAP] Ready at 18 (>= 18)" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_floors_met_under_cap_is_the_healthy_band():
+    # 5/5/5 disjoint = 15: every floor met AND under cap 18 -> reachable healthy
+    # band. This case was the degenerate CAP-at-floor under the old cap=15.
+    items = _spread("pm", 5, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+    r = _run(items)
+    assert "healthy" in r.stdout, r.stdout
+    assert "[CAP]" not in r.stdout and "[REPLENISH" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
 
 
 def test_memory_manager_excluded_from_floor():
@@ -85,3 +95,40 @@ def test_multiple_roles_below_floor_each_reported():
     assert "[REPLENISH pm: 1 < 5]" in r.stdout, r.stdout
     assert "[REPLENISH scientist: 0 < 5]" in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_empty_ready_replenishes_all_three():
+    r = _run([])
+    for role in ("pm", "scientist", "developer"):
+        assert f"[REPLENISH {role}: 0 < 5]" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_floor_flag_lowers_threshold():
+    # PM=2 would breach the default floor 5, but --floor 2 makes it healthy
+    items = _spread("pm", 2, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+    r = _run(items, "--floor", "2")
+    assert "[REPLENISH" not in r.stdout, r.stdout
+    assert "[CAP]" not in r.stdout, r.stdout  # total 12 < cap 15
+    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+
+
+def test_invalid_floor_exits_1():
+    r = _run([], "--floor", "abc")
+    assert r.returncode == 1, (r.returncode, r.stdout, r.stderr)
+    assert "floor must be" in r.stderr, r.stderr
+
+
+def test_breakdown_printed_on_unhealthy_path():
+    # Roles at/above floor are otherwise silent; the breakdown makes every run self-documenting
+    items = _spread("pm", 2, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+    r = _run(items)
+    assert "Ready by role:" in r.stdout, r.stdout
+    assert "pm=2" in r.stdout and "scientist=5" in r.stdout and "developer=5" in r.stdout, r.stdout
+
+
+def test_help_has_no_code_leak():
+    r = subprocess.run(["bash", str(SCRIPT), "--help"], capture_output=True, text=True)
+    assert r.returncode == 0, (r.returncode, r.stderr)
+    assert "set -euo pipefail" not in r.stdout, r.stdout
+    assert "SCRIPT_DIR=" not in r.stdout, r.stdout
