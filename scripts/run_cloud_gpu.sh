@@ -25,7 +25,7 @@
 #
 # Usage:
 #   bash scripts/run_cloud_gpu.sh --samples config/samples/patient_002.tsv \
-#       [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach] [--keep-vm]
+#       [--mode test|prod] [--branch <branch>] [--zone <zone>] [--detach] [--keep-vm] [--on-demand]
 #
 # After the run, download the report:
 #   gcloud storage cp -r gs://splice-neoepitope-project/results/<patient_id>/reports ./report
@@ -63,6 +63,11 @@ SAMPLES=""
 DETACH=false
 KEEP_VM=false
 CLOUD_INTERNAL=false
+# Provisioning model for the pipeline VM, applied at CREATE time only (immutable
+# afterwards). SPOT (default) is ~60-70% cheaper but preemptible; --on-demand
+# forces STANDARD if SPOT P100 capacity is unavailable. An already-created VM
+# keeps its original model — delete + re-run to switch.
+PROVISIONING_MODEL="SPOT"
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -75,10 +80,11 @@ while [[ $# -gt 0 ]]; do
         --samples) SAMPLES="${2:?--samples requires a path}";   shift 2 ;;
         --detach)  DETACH=true;                                  shift ;;
         --keep-vm) KEEP_VM=true;                                 shift ;;
+        --on-demand) PROVISIONING_MODEL="STANDARD";              shift ;;
         --_cloud-internal) CLOUD_INTERNAL=true;                  shift ;;
         *)
             echo "Unknown argument: $1" >&2
-            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>] [--samples <path>] [--detach] [--keep-vm]" >&2
+            echo "Usage: $0 [--mode test|prod] [--branch <branch>] [--zone <zone>] [--samples <path>] [--detach] [--keep-vm] [--on-demand]" >&2
             exit 1 ;;
     esac
 done
@@ -151,6 +157,7 @@ log "  Config:  ${CONFIG_FILE}"
 log "  Bucket:  gs://${GCS_BUCKET}"
 [[ "${DETACH}" == true ]] && log "  Detach:  yes (orchestrator: ${ORCH_VM})"
 [[ "${KEEP_VM}" == true ]] && log "  Keep VM: yes (VM will NOT be stopped on exit — remember to stop manually)"
+log "  Provision: ${PROVISIONING_MODEL} (applied only when CREATING the VM; existing VMs keep their original model)"
 log "================================================================"
 
 # ===========================================================================
@@ -212,6 +219,7 @@ tmux new-session -d -s orchestrator "
         --zone ${ZONE} \\
         --_cloud-internal \\
         $([[ "${KEEP_VM}" == true ]] && echo "--keep-vm") \\
+        $([[ "${PROVISIONING_MODEL}" == "STANDARD" ]] && echo "--on-demand") \\
         2>&1 | tee orchestrator.log
     gcloud storage cp orchestrator.log "gs://${GCS_BUCKET}/logs/orchestrator.log" 2>/dev/null || true
     echo 'Orchestrator finished — shutting down.'
@@ -314,9 +322,25 @@ VM_STATUS="$(vm_status "${PIPELINE_VM}")"
 FRESH_BOOT=false
 if [[ "${VM_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${PIPELINE_VM}..."
+    # Provisioning model is fixed at create, so warn only on a REAL mismatch
+    # between the requested model and the existing VM's actual model (in either
+    # direction) — not a static heuristic. Empty actual (older API) → no note.
+    ACTUAL_MODEL="$(gcloud compute instances describe "${PIPELINE_VM}" --zone="${ZONE}" --format="value(scheduling.provisioningModel)" 2>/dev/null || true)"
+    if [[ -n "${ACTUAL_MODEL}" && "${ACTUAL_MODEL}" != "${PROVISIONING_MODEL}" ]]; then
+        log "  Note: existing VM is ${ACTUAL_MODEL}, not the requested ${PROVISIONING_MODEL} (immutable post-create). To switch, delete + re-run: gcloud compute instances delete ${PIPELINE_VM} --zone=${ZONE} --quiet"
+    fi
     gcloud compute instances start "${PIPELINE_VM}" --zone="${ZONE}"
 elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
-    log "Pipeline VM ${PIPELINE_VM} not found — creating it..."
+    log "Pipeline VM ${PIPELINE_VM} not found — creating it (provisioning: ${PROVISIONING_MODEL})..."
+    # Provisioning model is set here and is immutable for the VM's lifetime.
+    # SPOT adds --instance-termination-action=STOP so a preemption STOPS the VM
+    # (preserving the boot disk + in-flight results); the next run resumes via
+    # `instances start` + snakemake --rerun-incomplete. Empty array on STANDARD;
+    # the ${arr[@]+...} guard keeps the empty case safe under `set -u` (bash 3.2).
+    SCHEDULING_ARGS=()
+    if [[ "${PROVISIONING_MODEL}" == "SPOT" ]]; then
+        SCHEDULING_ARGS=(--provisioning-model=SPOT --instance-termination-action=STOP)
+    fi
     gcloud compute instances create "${PIPELINE_VM}" \
         --zone="${ZONE}" \
         --machine-type="${MACHINE_TYPE}" \
@@ -325,9 +349,10 @@ elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
         --image="${IMAGE_NAME}" \
         --image-project="${IMAGE_PROJECT}" \
         --boot-disk-size="${DISK_SIZE}" \
-        --boot-disk-type=pd-ssd \
+        --boot-disk-type=pd-balanced \
         --scopes=cloud-platform \
-        --metadata=enable-oslogin=FALSE,install-nvidia-driver=True
+        --metadata=enable-oslogin=FALSE,install-nvidia-driver=True \
+        ${SCHEDULING_ARGS[@]+"${SCHEDULING_ARGS[@]}"}
     log "  VM created. Driver install runs on first boot (~2 min)."
     FRESH_BOOT=true
 else
@@ -457,6 +482,18 @@ log "Polling pipeline.log for completion..."
 log "  Monitor with:"
 log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
 while true; do
+    # SPOT preemption guard: --instance-termination-action=STOP sends a preempted
+    # VM to TERMINATED with the boot disk + partial results intact, but it does NOT
+    # auto-restart — and the snakemake tmux session died with the stopped VM, so
+    # auto-restarting here would leave the poller reading a stale log forever.
+    # Exit cleanly instead; a re-run re-enters the full flow (start -> setup ->
+    # re-launch pipeline) and snakemake --rerun-incomplete resumes from the disk.
+    # vm_status() returns NOT_FOUND (not TERMINATED) on a transient gcloud/network
+    # blip, so this only fires on a genuine stop.
+    if [[ "$(vm_status "${PIPELINE_VM}")" == "TERMINATED" ]]; then
+        echo "ERROR: ${PIPELINE_VM} is TERMINATED mid-run — likely SPOT preemption (boot disk + partial results preserved). Re-run the same command to resume via --rerun-incomplete." >&2
+        exit 1
+    fi
     DONE="$(ssh_cmd "${PIPELINE_VM}" --command \
         "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
