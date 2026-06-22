@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-22
 
+### 16:43 UTC — Editor: PM
+
+#### Off-cycle Ready replenishment — closed the floor gap the new #754 gate surfaced; scientist grooming gap logged
+
+The user asked why only 9 items sat in Ready. Root cause: this morning's Replenishment beat ran its *triage* half (intake → Backlog, route under-triaged) but committed **nothing** Backlog → Ready, and it judged under the **old floor-of-3** (pre-#827) which read "9 ≥ 3, healthy." The floor/cap gate we shipped *later the same session* ([#754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754)/[PR #827](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/827)) correctly flags the under-fill — the gate caught our own routine's miss, which is the point of it.
+
+**Commitment pass (Backlog → Ready), DoR-gated:** ranked each short role's Backlog by priority then arc-phase, ran a blocked-status (`is:blocked` board-wide) + prose-dep check on every lead candidate, committed only the clean ones with milestone + auto-synced Target:
+- **#578** (branch-naming helper) + **#294** (GH Issues search GA eval) — P2/role:pm/arc:active → `pm-i8` (Target 2026-07-15). PM 3→5 ✓.
+- **#445** (PreToolUse hook on news_log) — P2/role:dev/arc:active → `dev-i4` (Target 2026-07-02). Dev 4→5 ✓.
+
+**Scientist Ready gap — "no DoR-ready *P1*" (initially mis-called "nothing committable"; see correction).** Scientist's **P1** pool is unavailable: the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) benchmark family is internally blocked (#735 labeling + #736 scoring-probe natively blocked; #737 sparsity gated on registry assembly), and the next unblocked P1s (#594/#663) are `arc-phase:later` — committing either is a coherence violation (the committed-vs-arc-phase:later STOPGAP), promoting one is an arc-slate call. **Cascade trigger for the P1 family:** #735 depends on registry **leaf B = #734** (4-DB gap + CEDAR/IEDB mine), which is **already in Ready** — so the family unblocks when #734 lands → #735 → #736/#737; no extra pull, just watch #734.
+
+**Correction (logged when the user asked for #681's DoR).** I first accepted sci at 4 on the basis that *nothing* was DoR-ready, mis-tagging [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) as the blocked family's "leaf B (hard negatives)." Wrong on two counts: (a) #681 is a *separate* [#678](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/678) item (best-bet 3, MS-ligandome reanalysis) that #735 only *coordinates with* — leaf B is #734; (b) #681 is itself **DoR-ready** (scope-clear, unblocked, Size M, P2). So per the floor-gate rule (pull *highest-priority DoR-ready*), the right action was to offer #681 as the sci floor-fill — the accurate gap is "no DoR-ready **P1**," not "nothing committable." Carrier corrected on the post-it + this entry. **Lesson:** "X coordinates with #N" in an Issue body is not "X depends on #N" — verify the parent + the actual blocked-by edge before folding a candidate into a blocked family; a mislabeled dependency turned a pullable P2 into a phantom dead-end.
+
+Ready 9→12 (cap 18, healthy headroom). **Lesson:** the triage half of Replenishment (intake → Backlog) is not the commitment half (Backlog → Ready); a deep Backlog (sci=31) can still be *uncommittable* when the priority pool is blocked or arc-parked — "31 items" is not "31 pullable items." Side-finding: the capacity hook flags `pm-i8` as over-dated (6.5d work, due 07-15 → proposes 07-01) — non-urgent milestone-health, deferred.
+
+---
+
 ### 14:38 UTC — Editor: PM
 
 #### Morning routine → mechanized the Ready-queue floor/cap gate — [Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754) / [PR #827](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/827)
