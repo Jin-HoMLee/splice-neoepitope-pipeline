@@ -20,14 +20,15 @@ Keep the personas memory corpus internally consistent and lean: catch inline-vs-
 
 ## 3. Baseline rule
 
-- **First run:** baseline at the merge-base commit `9173558` — audit everything landed since (a run-*date* would skip already-landed commits).
-- **Later runs:** baseline at the **prior run's coverage commit** (the merge commit of the prior run's PR).
+- **First run:** baseline at `9173558` (the audit-migration baseline — the merge-base when the capability migrated; audit everything landed since — a run-*date* would skip already-landed commits).
+- **Later runs:** baseline at the **prior run's main-line landing commit** — the merge/squash commit on `main`, **not** the branch tip. (Personas audit PRs are squash-merged, which orphans the branch tip: it is *not* an ancestor of `main`, so a "branch-tip" baseline points off-history. The landing commit is always on `main` and gap-proof.)
+- **A given run audits** `<prior run's Next-baseline>..<this run's landing commit>`.
 
-**Watermark log:**
+**Watermark log** (main-line commits only):
 
-| Run | Date | Coverage | Next baseline |
+| Run | Date | Audited | Landing (= Next baseline) |
 |---|---|---|---|
-| 1 | 2026-06-22 | `9173558..57676bd` (PR #66, merge `420a2a6`) | **`420a2a6`** |
+| 1 | 2026-06-22 | `9173558..420a2a6` (content cut at branch tip `57676bd`, squash-landed as `420a2a6`; [PR #66](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/66)) | **`420a2a6`** |
 
 Update this table at the end of each run; the bottom "Next baseline" is where the next run starts.
 
@@ -50,7 +51,7 @@ Update this table at the end of each run; the bottom "Next baseline" is where th
 
 ## 6. Worked example — run 1 (2026-06-22)
 
-13-agent `Workflow` over a ~1-month backlog (143 changed operative files). Found **4 drift fixes** (1 contradiction, 2 broken-refs, 1 skip-list/carve-out) + **3 dedups** (each a verbatim restatement of a shared Always-in-effect rule), −18 net always-loaded lines. Adversarial verify killed 1 false positive (a "TodoWrite drift" — the source deliberately retained the term + carried an in-place translation note). Two recommended dedups were **held by judgment** (a shared-promotion that would load an MM-irrelevant rule; a demotion that wasn't actually shared-covered). Carryforwards D2 + NF1 verified moot. Path-ref scan clean. Shipped via [PR #66](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/66) (reviewed: approve + one calibration note, addressed).
+13-agent `Workflow` over a ~1-month backlog (143 changed operative files). Found **4 drift fixes** (2 contradictions — incl. the scientist `@claude review` skip-list that dropped a never-skip carve-out — + 2 broken-refs) + **3 dedups** (each a verbatim restatement of a shared Always-in-effect rule), −18 net always-loaded lines. Adversarial verify killed 1 false positive (a "TodoWrite drift" — the source deliberately retained the term + carried an in-place translation note). Two recommended dedups were **held by judgment** (a shared-promotion that would load an MM-irrelevant rule; a demotion that wasn't actually shared-covered). Carryforwards **D2 + NF1** (iter-7 leftovers inherited from cerebrum's retired routine, listed in [Issue #20](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/20)'s body) verified moot. Path-ref scan clean. Shipped via [PR #66](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/66) (reviewed: approve + one calibration note, addressed).
 
 ## 7. Open items
 
