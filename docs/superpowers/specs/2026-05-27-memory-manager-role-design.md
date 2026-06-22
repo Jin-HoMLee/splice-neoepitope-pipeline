@@ -224,3 +224,5 @@ PM morning routine at +4 weeks measures:
 ## Implementation handoff
 
 Next step: invoke `superpowers:writing-plans` to translate this design into a step-by-step implementation plan with review checkpoints. Plan will sequence Phases 1-5 across discrete commits/PRs; Phase 6 is observation, not implementation.
+
+**Operational follow-on:** the recurring memory-audit method MM runs is specified in [2026-06-22-mm-memory-audit-method.md](2026-06-22-mm-memory-audit-method.md) (the audit migrated from cerebrum's retired routine — [Issue #20](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/20)).
