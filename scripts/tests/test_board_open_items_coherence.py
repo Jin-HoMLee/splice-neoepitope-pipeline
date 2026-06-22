@@ -28,6 +28,18 @@ def test_in_review_plus_later_is_incoherent():
     assert b.is_arc_phase_incoherent(_norm(status="In review", arc_phase="later")) is True
 
 
+def test_ready_for_review_plus_later_is_incoherent():
+    assert b.is_arc_phase_incoherent(_norm(status="Ready for review", arc_phase="later")) is True
+
+
+# --- off-ladder Epic (un-milestoned parents) is never committed → never flagged ---
+# The load-bearing carve-out: epics sit in Epic Status and go un-milestoned by
+# design (#690/#776), so they are not "committed" even when parked at later.
+# This locks it in — if "Epic" ever leaks into COMMITTED_STATUSES, this fails.
+def test_epic_status_unmilestoned_later_is_coherent():
+    assert b.is_arc_phase_incoherent(_norm(status="Epic", arc_phase="later")) is False
+
+
 # --- committed-by-milestone (even while Backlog) + parked arc → incoherent ---
 def test_milestoned_backlog_plus_later_is_incoherent():
     assert (

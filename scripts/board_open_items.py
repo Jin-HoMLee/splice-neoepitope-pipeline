@@ -187,6 +187,9 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "is_parent": is_parent,
         "state": state,
         "status": status or "No Status",
+        # Issues only — the PullRequest GraphQL fragment doesn't fetch milestone,
+        # so a PR is "committed" via Status alone (it's always in a committed
+        # status anyway). None for both real `"milestone": null` and an omitted key.
         "milestone": (content.get("milestone") or {}).get("title"),
         "priority": priority,
         "size": size,
