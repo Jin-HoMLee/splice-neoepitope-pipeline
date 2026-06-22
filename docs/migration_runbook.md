@@ -32,6 +32,8 @@ Companion bridge work on the existing GCP path (Spot toggle + `pd-balanced` disk
 
 The hybrid's $14 Network Volume buys instant bursts (no per-run re-download) and preemption safety; the static core stays mounted. Pure-R2 is cheaper but adds a 200 GB pull to every run start. **Recommendation: hybrid.**
 
+> The GCP row shows the **pre-#834** `pd-ssd` steady-state being *replaced* (the historical baseline). Post-bridge, #834's `pd-balanced` cuts that disk line to ~$20/mo for 200 GB — still above RunPod's ~$17 hybrid storage, and the always-allocated-while-stopped problem persists either way; the migration removes it.
+
 ## 3. Phased checklist (~11 days)
 
 ### Days 1–2 — Data exit (hard-deadline item; do first)
@@ -54,6 +56,7 @@ The hybrid's $14 Network Volume buys instant bursts (no per-run re-download) and
 
 ### Days 10–11 — Cutover + decommission
 - [ ] Point the orchestration + docs at RunPod + R2; branch or retire the GCP-specific zone/driver-pin logic in `run_cloud_gpu.sh`.
+- [ ] **Delete the `neoepitope-orchestrator` e2-micro too.** It exists only to start/manage the pipeline VM in GCP detached mode — RunPod's per-second billing + API makes that pattern obsolete, so the orchestrator *retires* (not migrates). Easy to leave it quietly billing otherwise.
 - [ ] Final `rclone check` GCS↔R2. **Tear down GCP VMs + delete the bucket before the trial suspends** (a suspended-but-not-deleted bucket can still incur charges once billing flips).
 - [ ] Keep one cold backup until ≥1 real patient run succeeds on the new stack.
 
@@ -70,7 +73,7 @@ rclone config
 
 # Copy. --s3-chunk-size 64M is REQUIRED: a 200 GB object at the 5 MiB
 # default part size = ~40,000 parts > R2's 10,000-part multipart cap.
-# 64 MiB × 10,000 = 640 GiB ceiling — comfortable.
+# 64 MiB × 10,000 = ~625 GiB ceiling — comfortable.
 rclone copy gcs:splice-neoepitope-project r2:splice-neoepitope-project \
   --s3-chunk-size 64M --transfers 16 --checkers 32 --progress
 
