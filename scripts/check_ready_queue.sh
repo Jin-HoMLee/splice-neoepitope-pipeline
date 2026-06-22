@@ -1,64 +1,108 @@
 #!/usr/bin/env bash
 # scripts/check_ready_queue.sh
 #
-# Surfaces a starved Ready queue: counts open issues at board Status
-# `Ready` (the committed pull-queue) and emits a [REPLENISH] nudge when
-# the count falls below THRESHOLD. Intended for the PM morning-routine
-# "Ready-queue replenishment" phase (Phase 2.8).
+# Surfaces an unhealthy Ready queue using a two-part gate (Issue #754):
+#   - PER-ROLE FLOOR (default 5) for PM / Scientist / Developer — a Kanban
+#     "minimum order point" that prevents role-starvation. Memory Manager is
+#     EXCLUDED (memory-curation pulls cross-repo / opportunistically, not from
+#     a maintained board Ready buffer).
+#   - TOTAL CAP (default 15 = 3 roles x 5) — a WIP limit on the commitment
+#     buffer so Ready doesn't over-deepen and inflate lead time.
 #
-# Why: under late-commitment Kanban the failure mode shifts from a bloated
-# Backlog to a starved Ready queue — too few committed, refined items for
-# Dev/Sci to pull. Phase 2.6 (check_milestone_health.sh) watches milestone
-# deadlines; this is its mirror, watching committed pull-queue depth. The
-# nudge pulls a Backlog -> Ready commitment sweep forward off the bi-weekly
-# cadence (see shared/feedback_board_hygiene.md).
+# The floor is a replenish *trigger*, not a force-commit quota: below floor
+# for a role, pull that role's highest-priority DoR-ready Backlog; if fewer
+# than the floor are DoR-ready, commit what's ready and flag a grooming gap —
+# never force low-value work into Ready just to hit the number. The cap is a
+# soft WIP limit: at/over cap, hold new commitments.
+#
+# Replaces the prior single count-only floor-of-3, which was blind to per-role
+# distribution and priority mix (it skipped a warranted commitment on
+# 2026-06-16 while PM had 0 / Dev had 1 pullable Ready item).
+#
+# Intended for the PM morning-routine Replenishment beat (commitment half).
 #
 # Usage:
-#   bash scripts/check_ready_queue.sh [--threshold <count>]
+#   bash scripts/check_ready_queue.sh [--floor <count>] [--cap <count>]
 #
 # Env:
-#   READY_QUEUE_THRESHOLD  override default threshold (3)
+#   READY_QUEUE_FLOOR      override per-role floor (default 5)
+#   READY_QUEUE_CAP        override total cap (default 15)
+#   READY_QUEUE_JSON_FILE  read the Ready-items JSON array from this file
+#                          instead of calling board_open_items.py (test seam)
 #
 # Exit codes:
-#   0 — Ready queue healthy (count >= threshold)
-#   2 — Ready queue below threshold (replenishment nudge)
+#   0 — healthy (every role at/above floor AND total below cap)
+#   2 — needs attention (a role below floor, or total at/over cap)
 #   1 — usage / runtime error
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-THRESHOLD="${READY_QUEUE_THRESHOLD:-3}"
+FLOOR="${READY_QUEUE_FLOOR:-5}"
+CAP="${READY_QUEUE_CAP:-15}"
+
+# Roles subject to the per-role floor. MM is intentionally excluded (#754).
+FLOOR_ROLES=(pm scientist developer)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --threshold) [[ -n "${2:-}" ]] || { echo "--threshold requires a value" >&2; exit 1; }; THRESHOLD="$2"; shift 2 ;;
+        --floor) [[ -n "${2:-}" ]] || { echo "--floor requires a value" >&2; exit 1; }; FLOOR="$2"; shift 2 ;;
+        --cap)   [[ -n "${2:-}" ]] || { echo "--cap requires a value" >&2; exit 1; }; CAP="$2"; shift 2 ;;
         -h|--help)
-            sed -n '2,25p' "$0" | sed 's|^# \{0,1\}||'
+            sed -n '2,40p' "$0" | sed 's|^# \{0,1\}||'
             exit 0
             ;;
         *) echo "unknown arg: $1" >&2; exit 1 ;;
     esac
 done
 
-[[ "$THRESHOLD" =~ ^[0-9]+$ ]] || { echo "threshold must be a non-negative integer, got: $THRESHOLD" >&2; exit 1; }
+[[ "$FLOOR" =~ ^[0-9]+$ ]] || { echo "floor must be a non-negative integer, got: $FLOOR" >&2; exit 1; }
+[[ "$CAP" =~ ^[0-9]+$ ]]   || { echo "cap must be a non-negative integer, got: $CAP" >&2; exit 1; }
 
-# board_open_items.py paginates the ProjectV2 board (#9) and filters to open
-# items at Status=Ready; its progress chatter goes to stderr (dropped here),
-# the JSON array to stdout.
-READY_JSON="$(python3 "$SCRIPT_DIR/board_open_items.py" --status Ready --json 2>/dev/null)" || {
-    echo "error: board_open_items.py failed (gh auth / network?)" >&2
-    exit 1
-}
+# Source the Ready-items JSON: a fixture file (test seam) when set, else the
+# live board via board_open_items.py (progress chatter on stderr is dropped;
+# the JSON array lands on stdout).
+if [[ -n "${READY_QUEUE_JSON_FILE:-}" ]]; then
+    READY_JSON="$(cat "$READY_QUEUE_JSON_FILE")" || {
+        echo "error: could not read READY_QUEUE_JSON_FILE=$READY_QUEUE_JSON_FILE" >&2
+        exit 1
+    }
+else
+    READY_JSON="$(python3 "$SCRIPT_DIR/board_open_items.py" --status Ready --json 2>/dev/null)" || {
+        echo "error: board_open_items.py failed (gh auth / network?)" >&2
+        exit 1
+    }
+fi
 
-COUNT="$(printf '%s' "$READY_JSON" | jq 'length' 2>/dev/null)" || {
+TOTAL="$(printf '%s' "$READY_JSON" | jq 'length' 2>/dev/null)" || {
     echo "error: could not parse Ready-queue JSON" >&2
     exit 1
 }
 
-if [[ "$COUNT" -lt "$THRESHOLD" ]]; then
-    echo "[REPLENISH] Ready queue at ${COUNT} (< threshold ${THRESHOLD}) — pull a Backlog → Ready commitment sweep (see shared/feedback_board_hygiene.md)."
+needs_attention=0
+breakdown=""
+
+# Per-role floor check. An item counts toward every role label it carries
+# (a role:pm + role:memory_manager item counts toward pm), so we test label
+# membership rather than a single role field.
+for role in "${FLOOR_ROLES[@]}"; do
+    count="$(printf '%s' "$READY_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')"
+    breakdown+="${role}=${count} "
+    if [[ "$count" -lt "$FLOOR" ]]; then
+        echo "[REPLENISH ${role}: ${count} < ${FLOOR}] — pull ${role}'s highest-priority DoR-ready Backlog (see shared/feedback_board_hygiene.md)."
+        needs_attention=1
+    fi
+done
+
+# Total cap check (soft WIP limit on the commitment buffer).
+if [[ "$TOTAL" -ge "$CAP" ]]; then
+    echo "[CAP] Ready at ${TOTAL} (>= ${CAP}) — hold new commitments; the Ready buffer is at its WIP limit."
+    needs_attention=1
+fi
+
+if [[ "$needs_attention" -eq 1 ]]; then
     exit 2
 fi
 
-echo "Ready queue: healthy — ${COUNT} committed items ready to pull (threshold ${THRESHOLD})."
+echo "Ready queue: healthy — per-role floor met (${breakdown%% }), total ${TOTAL} (floor ${FLOOR}/role, cap ${CAP})."
 exit 0
