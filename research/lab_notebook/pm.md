@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-22
+
+### 14:38 UTC — Editor: PM
+
+#### Morning routine → mechanized the Ready-queue floor/cap gate — [Issue #754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754) / [PR #827](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/827)
+
+Full morning routine, then pulled the day's warm-up ([#754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754)) to In progress and shipped it to review. Two threads worth recording — a method fix the user surfaced, and the #754 implementation + its review.
+
+**Recap-window method fix (user-caught).** The morning recap/closure-audit window was anchored on a reflexive "yesterday" / the latest `episodes/` filename. The user pushed on *how* I knew "last session = 06-21" — and the episode filename is unreliable: `2026-06-21-0118.md` is the **tail of a cross-midnight 06-20 session**, not a 06-21 routine, so it doesn't mark when the board was last checked. Web-checked the best practice (incremental-processing **watermark + overlap/idempotency**); the durable fix is a hook-written last-run marker ([Issue #820](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/820), filed). Interim: anchor on a **conservative 7-day floor + dedup** (idempotent scan never misses a weekend/absence gap) — corrected the routine memory accordingly, and re-ran today's scan at the wide floor, which caught [#794](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/794)/[PR #816](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/816) merging mid-session that the narrow query missed. **Lesson:** a side-channel that *correlates* with "last check" (episode stamp) is not the same as *recording* it — when correctness depends on a high-water mark, persist the mark, don't infer it.
+
+**#754 — per-role floor-5 / cap-18 gate.** Replaced the count-only floor-of-3 in `check_ready_queue.sh` (blind to per-role distribution — it read "healthy, 10 ≥ 3" while every role sat below floor, the 06-16 + 06-18 incidents) with a two-part gate: per-role floor 5 (PM/Sci/Dev, MM excluded) + total cap. TDD throughout (RED-verified, mutation-checked the MM-exclusion test actually bites); live smoke confirmed it surfaces the real starvation the old script hid.
+
+The **bot review caught a genuine design flaw**: `cap = 3 × floor = 15` is zero-headroom — with single-role items, meeting every floor *is* hitting the cap, so exit-0/"healthy" is mathematically unreachable. Took it to the user as a design decision (it changed my own #754 spec); chose **cap → 18** (summed floors 15 + 3 headroom) so a reachable healthy band (15–17) exists. Added `test_floors_met_under_cap_is_the_healthy_band` as the regression guard — it would have failed under cap=15. Also made `--help` robust (awk-until-first-non-comment, killing the hardcoded-line-range fragility the reviewer flagged) + per-role jq guard + unconditional breakdown. **Lesson:** a clean-looking derivation (`3 roles × 5`) can encode a degenerate gate — a health check that can't structurally return "healthy" in normal operation is the smell; the WIP limit must exceed the summed minimums.
+
+**Also this session:** cleared 4 stale parent Target dates (#538/#527/#539/#126 — un-milestoned epics shouldn't carry a Target per #690-A); closed the perpetually-open `[FYI]` "Team Coordination is live" [Discussion #738](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/738) + refined the coordination rule (an announcement-FYI is resolved on broadcast, close it at the next sweep); triaged 5 No-Status items into Backlog + routed 11 under-triaged Backlog items to [#814](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/814); filed [#824](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/824) (Signals — `gh` CLI native dependencies eval). Memory edits (recap-window, FYI-close, #754 cap→18 across Beat 3b / floor-gate / MEMORY.md / post-it) staged in the personas repo for MM.
+
+---
+
 ## 2026-06-19
 
 ### 22:18 UTC — Editor: PM
