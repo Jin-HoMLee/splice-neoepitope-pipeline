@@ -322,7 +322,13 @@ VM_STATUS="$(vm_status "${PIPELINE_VM}")"
 FRESH_BOOT=false
 if [[ "${VM_STATUS}" == "TERMINATED" ]]; then
     log "Starting ${PIPELINE_VM}..."
-    [[ "${PROVISIONING_MODEL}" == "SPOT" ]] && log "  Note: provisioning model is fixed at creation — this existing VM keeps its original model. To run on SPOT, delete it first: gcloud compute instances delete ${PIPELINE_VM} --zone=${ZONE} --quiet"
+    # Provisioning model is fixed at create, so warn only on a REAL mismatch
+    # between the requested model and the existing VM's actual model (in either
+    # direction) — not a static heuristic. Empty actual (older API) → no note.
+    ACTUAL_MODEL="$(gcloud compute instances describe "${PIPELINE_VM}" --zone="${ZONE}" --format="value(scheduling.provisioningModel)" 2>/dev/null || true)"
+    if [[ -n "${ACTUAL_MODEL}" && "${ACTUAL_MODEL}" != "${PROVISIONING_MODEL}" ]]; then
+        log "  Note: existing VM is ${ACTUAL_MODEL}, not the requested ${PROVISIONING_MODEL} (immutable post-create). To switch, delete + re-run: gcloud compute instances delete ${PIPELINE_VM} --zone=${ZONE} --quiet"
+    fi
     gcloud compute instances start "${PIPELINE_VM}" --zone="${ZONE}"
 elif [[ "${VM_STATUS}" == "NOT_FOUND" ]]; then
     log "Pipeline VM ${PIPELINE_VM} not found — creating it (provisioning: ${PROVISIONING_MODEL})..."
@@ -476,6 +482,18 @@ log "Polling pipeline.log for completion..."
 log "  Monitor with:"
 log "    gcloud compute ssh ${PIPELINE_VM} --zone=${ZONE} --tunnel-through-iap -- tail -f splice-neoepitope-pipeline/pipeline.log"
 while true; do
+    # SPOT preemption guard: --instance-termination-action=STOP sends a preempted
+    # VM to TERMINATED with the boot disk + partial results intact, but it does NOT
+    # auto-restart — and the snakemake tmux session died with the stopped VM, so
+    # auto-restarting here would leave the poller reading a stale log forever.
+    # Exit cleanly instead; a re-run re-enters the full flow (start -> setup ->
+    # re-launch pipeline) and snakemake --rerun-incomplete resumes from the disk.
+    # vm_status() returns NOT_FOUND (not TERMINATED) on a transient gcloud/network
+    # blip, so this only fires on a genuine stop.
+    if [[ "$(vm_status "${PIPELINE_VM}")" == "TERMINATED" ]]; then
+        echo "ERROR: ${PIPELINE_VM} is TERMINATED mid-run — likely SPOT preemption (boot disk + partial results preserved). Re-run the same command to resume via --rerun-incomplete." >&2
+        exit 1
+    fi
     DONE="$(ssh_cmd "${PIPELINE_VM}" --command \
         "grep -cE 'steps \(100%\) done|Nothing to be done' \$HOME/splice-neoepitope-pipeline/pipeline.log 2>/dev/null || echo 0" \
         2>/dev/null | tail -1)"
