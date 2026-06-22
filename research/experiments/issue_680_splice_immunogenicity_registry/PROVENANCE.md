@@ -31,7 +31,7 @@ File: `LX6DMXTL` · all `agent-local`
 - **`CLLPPALFL`** RHOT2 / A\*02:01 — **Fig S1B** *"RHOT2 #5 (CLLPPALFL)"*; MS spectrum Fig 2C; Fig 7E.
 - **`RLLAAVLEA`** c16orf70 / A\*02:01 — **Fig 2H** (MS + label *"RLLAAVLEA"*); Fig S1B *"C16orf70 (RLLAAVLEA)"*.
 - **`LVAKWLLTI`** ATG3 / A\*02:01 — **Fig S2F** *"LVAKWLLTI"*; Fig S1B *"ATG3 (LVAKWLLTI)"*.
-- **`FMDDYIFV`** MYO1F / A\*02:01 — **Fig S2H** *"FMDDYIFV/FMDDYIFVP"*; Fig S1B/S3B context *"MYO1F (RFMDDYIFV)"*. ⚠️ confirm exact tested length (8-mer vs R-extended).
+- **`FMDDYIFV`** MYO1F / A\*02:01 — **8-mer, confirmed (#733 AC#4).** Fig S2I legend (verbatim, from ft-cache): *"…the MYO1F peptide (FMDDYIFV). (J) FACS plot…"* — the functionally-assayed peptide is the 8-mer; the `RFMDDYIFV` in Fig S1B/S3B was the source-region label, not the tested peptide.
 
 ## Xiong et al. 2025 — RCAN1-4, glioblastoma
 File: `JJZL6D84` · `agent-local`
@@ -59,6 +59,30 @@ all `agent-web` (web read of the paper + **Dataset S3c**)
 File: `EA2NMFNZ` (main + Extended Data)
 
 - **GNAS** & **RPL22** / A\*02:01 — functionally validated across **Fig 4b–h, Fig 5d (MS), Extended Data Fig 6e/f (MS) + 6i (NJ aa-sequence track, generic schematic), Extended Data Fig 9b (alanine scan)** — but exact 9-mers are **not legible** (MS peak plots; 6i illustrative). RPL22 region ≈ `…LALDVLQGYSL…` (illustrative, do not log). Recoverable only via author contact / raw MS. Recorded as validated, non-scorable.
+
+## Manoharan et al. 2026 — intron-retention neoantigens, colorectal cancer (#733 AC#1)
+Zotero `ZAT8678F` (no local PDF) · open access **PMC13096189** · all `agent-web` (two independent PMC reads of Table 1 + Results/Fig 3 agreed on all 11 seqs/genes/alleles)
+Provenance note: all functional readouts are **healthy-donor moDC-primed in-vitro-sensitized T cells, NOT patient T cells** → positives `medium` (IVS-grade); negatives are *soft* (`candidate-negative`).
+
+Table 1 "Selected 9-mer peptides for in vitro validation" (IR1–IR11). **3 immunogenic** (IR3/IR7/IR9), **8 tested-negative**:
+- **`ILAFIAPLK`** CHD7 / A\*11:01 — IR3, immunogenic (ELISpot + tetramer across 2 donors).
+- **`RQDPAPQQV`** FERMT3 / A\*02:01 — IR7, immunogenic (tetramer 2.56% + GZMB reporter + CD137). **Restricted on A\*02:01** (functional validation on A\*02:01 aAPCs only; A\*24:07 listed in Table 1 but not functionally used).
+- **`AVLHGRLFL`** TPCN2 / A\*02:06 — IR9, immunogenic (IFN-γ ELISpot + GZMB + CD137).
+- Tested-negative (no T-cell response, healthy-donor IVS): `LSCSPMMRK`/LRRC8B (A\*11:01, IR1), `QLLGPWVFK`/OPLAH (A\*11:01, IR2), `NLFQVMHIK`/FANCB (A\*11:01, IR4), `AVVAMVTLM`/PLEKHG5 (A\*34:01, IR5), `MWSFIHNNL`/WDR19 (A\*24:07, IR6), `SLPPGLRGT`/RNF123 (A\*02:07, IR8), `TGRGVLCLR`/ITGAM (A\*31:01, IR10), `SLLASSPAR`/CDH24 (A\*11:01; also predicted A\*31:01, IR11).
+
+## Merlotti et al. 2023 — exon-TE (noncanonical splice) junctions, NSCLC (#733 AC#2)
+Zotero `5ZADNVCB` (local main PDF + supp S1–S8) · all `direct` (sequences read first-hand from **Data file S7**; patient reactivity from **Data file S8** Fig 5D/5G + Fig S5C/D; cloned-TCR functional from Fig S4I/J). All **HLA-A\*02:01** (S7 = predicted-A2 in-vitro-assay set), validated in A2⁺ **patient** TILs/PBMC ex vivo.
+
+Sequence source = S7 "Characteristics of predicted pJETs used for in-vitro assays" (ID → sequence). Reactivity tiering = patient tetramer⁺ CD8 across Fig 5D (ex-vivo), 5G (Day-20 TIL), S5C/D (juxta-tumor / draining-LN).
+
+**Folded — TCR-validated (`high`):** `LLGETKVYV`/SRSF7 (SVA_D junction, ID 3228-1), `LLDRFGYHV`/FRG1B (HERVL74 junction, ID 321), `YLWTTFFPL`/SCGB3A2 (HERVH frameshift, ID 704) — each has patient tetramer⁺ **and** cloned-TCR Jurkat-TPR NFAT/NF-κB/AP-1 activation (Fig S4I/J).
+
+**Folded — multi-context patient tetramer⁺ (`medium`, tetramer-DETECTION only):** `SLMQSGSPV`/SBNO2 (299), `AILPKANTV`/DCBLD2 (4111), `YLPYFLKSL`/KYNU (2242), `ILSGYGPCV`/TENM1 (2930-1), `ILANLPPAL`/ATAD3B (1825), `RLLHLESFL`/SLC39A11 (1375), `VLMWTMAHL`/PDE4D (4188).
+
+**NOT folded — single-replicate patient tetramer⁺ candidates (recorded only here; below the scorable bar):** `ILTASITSI`/ERO1LB (3134-2), `AMDGKELSL`/MAST4 (1146), `CLIDEMPEA`/HDGF (3479), `ILPKANTVV`/DCBLD2 (W13; register-shifted vs 4111), `LLHLESFLV`/SLC39A11 (W2; vs 1375), `MLMKTVWQA`/RLN3 (3443), `GLLNISHTA`/CUL4B (2368), `ILHSLVTGV`/ERO1LB (3134-1), `YLQGLPLPL`/FUT8 (1000), `FLGTRVTRV`/COL28A1 (2914). Re-assess on a bar change. (Fig 4D donor-1–6 reactivity is **healthy-donor** screening, not patient — not used for eligibility.)
+
+## Zhao et al. 2025 — AS-derived mRNA-vaccine neoantigens, HCC (#733 AC#3 — registry-eligible, sequence-blocked)
+Zotero `B2MJ776X` (19 local supplements; **main paper PDF not local**). Gate-1 (alternative splicing) + gate-2 (human per-peptide IFN-γ ELISpot / tetramer / 4-1BB on HCC patient TILs, A\*02:01/A\*11:01/A\*24:02) **both pass** — but the 19 supplements reference peptides only by internal ID (pA02-28, pA11-10, …); the amino-acid strings are not present locally (MOESM19 is an ssGSEA gene list, not the peptide table). **No rows folded** — sequences must be recovered from the main text / a peptide-sequence table before entry. Do NOT translate Table-S1 junction coordinates (inference). Tracked in README "Next steps".
 
 ---
 
