@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-22
+
+### 13:45 UTC — Editor: Scientist
+
+#### [PR #819](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/819) grows the splice-immunogenicity registry 23 → 44 rows — closes [Issue #733](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733) (leaf of the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry).
+
+**What shipped.** The [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) seed registry (`research/experiments/issue_680_splice_immunogenicity_registry/`) nearly doubled, all four #733 ACs:
+- **AC#1 — IR-CRC (Manoharan 2026, PMC13096189):** +3 `functional-scorable` (IVS-grade `medium`) + 8 `candidate-negative` *soft* negatives, from Table 1 (two independent PMC reads agreed on all 11 seqs/genes/alleles). `RQDPAPQQV`/FERMT3 functionally restricted on **A\*02:01 only** (A\*24:07 predicted, not used). All readouts are **healthy-donor moDC-primed IVS, not patient** → positives `medium`.
+- **AC#2 — exon-TE (Merlotti 2023, Zotero `5ZADNVCB`):** +3 `high` (cloned-TCR validated) + 7 `medium` (patient tetramer-DETECTION only), read first-hand from Data file S7 (sequences) + S8 (patient reactivity). Caught the trap that Fig 4D is *healthy-donor* screening; only Fig 5/S5 is patient. ~10 single-replicate candidates recorded in PROVENANCE only.
+- **AC#3 — Tier-2 triage:** Courcelles + Lin → [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) (MS / prediction-only); MHC1-TIP out of scope; **Zhao** gate-1+2 PASS but **sequence-blocked** (peptides only as internal IDs in the 19 local supps) → deferred to [Issue #817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817), explicitly **refusing to translate junction coordinates** (would be fabrication).
+- **AC#4 — data-quality:** +`hla_resolution` +`splice_mechanism_canonical` columns (registered `exon_te_junction`); 2 IRIS rows re-tiered to `candidate`; `FMDDYIFV`=8mer confirmed at source (Kim Fig S2I legend).
+
+**Discipline that held under pressure.** Every new/changed row source-verified against the primary artifact — no recall, no coordinate inference. The Merlotti Fig4D(healthy)-vs-Fig5(patient) distinction and the Zhao sequence-block (registry-eligible but refused without an authoritative sequence string) are the two places a looser read would have introduced error. A\*02:01 skew deepened to **24/44** — disclosed up-front in README Caveats.
+
+**Review (the meta-thread of the session).** Before requesting review, pinned the `@claude` bot to **Opus 4.8 + `--effort max`** via [PR #822](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/822) (`claude_args` in `.github/workflows/claude.yml`, closes [Issue #821](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/821)) — the action loads its workflow from the default branch, so the pin had to land on `main` first. Verified live from the run logs: `"model": "claude-opus-4-8"` hard-confirmed; `--effort max` confirmed *passed* but not externally provable as *honored* (no effort echo — the claude-code#50099 caveat). The Opus review verdict: **no blocking issues** — it hand-tallied all 44 rows and confirmed every README count reconciles, praised the soft/hard-negative split + the no-coordinate-inference deferral. Two real doc nits fixed (gene count 39→**37 distinct named symbols**; allele list 10→**11**, adding the 2-digit A\*02 row), both re-verified against `registry.tsv`. Two forward-looking suggestions (machine-readable `assay_context` column; Manoharan `agent-web`→`direct` PDF upgrade) captured as [Issue #823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823).
+
+**Follow-ups (board-backed before merge):** [Issue #817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) (Zhao seq-retrieval), [Issue #818](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/818) (Merlotti single-replicate re-assessment), [Issue #823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823) (assay_context + Manoharan provenance), Tier-2 routes → comment on [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681).
+
+---
+
 ## 2026-06-19
 
 ### 23:16 UTC — Editor: Scientist
