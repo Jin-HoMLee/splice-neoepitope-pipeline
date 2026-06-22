@@ -30,12 +30,12 @@ Free-text `splice_mechanism` is preserved; `splice_mechanism_canonical` normaliz
 
 `alt_5p_ss` (alt 5′ splice site / donor) · `alt_3p_ss` (alt 3′ splice site / acceptor) · `alt_splice_junction` (alternative-splicing junction, sub-event unspecified — IRIS/Kim/Xiong/POSTN) · `intron_retention` · `minor_intron` (U12-type) · `poison_exon` (NMD-targeting cassette) · `neojunction_frameshift` · `neojunction_inframe` · **`exon_te_junction`** (exon–transposable-element junction or TE-induced frameshift — **registered in #733** for the Merlotti set) · `not_splice` (constitutive control) · `ambiguous` (splice-derived, mechanism unresolvable from source — Fisher unnamed-gene peptides).
 
-## Coverage (44 rows, 9 sources, 39 genes)
+## Coverage (44 rows, 9 sources, 37 genes)
 
-- **Alleles (11 distinct):** HLA-A\*02:01 (24), A\*11:01 (9), A\*24:02, **C\*04, C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC). **A\*02:01 skew deepened** to 24/44 — the IR-CRC positives + the entire Merlotti exon-TE set are A\*02:01/A2-predicted (see Caveats).
+- **Alleles (11 distinct `hla` values):** HLA-A\*02:01 (24), A\*11:01 (9), A\*24:02, **C\*04, C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row). **A\*02:01 skew deepened** to 24/44 — the IR-CRC positives + the entire Merlotti exon-TE set are A\*02:01/A2-predicted (see Caveats).
 - **Splice mechanisms:** + `exon_te_junction` (Merlotti, 10) and `intron_retention` (IR-CRC, +8) on top of the seed's alt-5′/alt-3′/minor-intron/poison-exon/neojunction set.
 - **Sources (9):** SNAF (Li 2024), IRIS (Pan), Kim 2025, Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, **Manoharan 2026 (IR-CRC, +11)**, **Merlotti 2023 (NSCLC exon-TE, +10)**.
-- **Genes (39):** seed ~16 + IR-CRC (CHD7, FERMT3, TPCN2, LRRC8B, OPLAH, FANCB, PLEKHG5, WDR19, RNF123, ITGAM, CDH24) + Merlotti (SRSF7, FRG1B, SCGB3A2, SBNO2, DCBLD2, KYNU, TENM1, ATAD3B, SLC39A11, PDE4D).
+- **Genes (37 distinct named symbols):** seed ~16 + IR-CRC (CHD7, FERMT3, TPCN2, LRRC8B, OPLAH, FANCB, PLEKHG5, WDR19, RNF123, ITGAM, CDH24) + Merlotti (SRSF7, FRG1B, SCGB3A2, SBNO2, DCBLD2, KYNU, TENM1, ATAD3B, SLC39A11, PDE4D). (The `gene` column holds 39 distinct *strings* — this 37 excludes the `not-named` Fisher rows and counts RCAN1 once across its two isoform rows.)
 
 ## Caveats
 
