@@ -84,6 +84,17 @@ Sequence source = S7 "Characteristics of predicted pJETs used for in-vitro assay
 ## Zhao et al. 2025 — AS-derived mRNA-vaccine neoantigens, HCC (#733 AC#3 — registry-eligible, sequence-blocked)
 Zotero `B2MJ776X` (19 local supplements; **main paper PDF not local**). Gate-1 (alternative splicing) + gate-2 (human per-peptide IFN-γ ELISpot / tetramer / 4-1BB on HCC patient TILs, A\*02:01/A\*11:01/A\*24:02) **both pass** — but the 19 supplements reference peptides only by internal ID (pA02-28, pA11-10, …); the amino-acid strings are not present locally (MOESM19 is an ssGSEA gene list, not the peptide table). **No rows folded** — sequences must be recovered from the main text / a peptide-sequence table before entry. Do NOT translate Table-S1 junction coordinates (inference). Tracked in README "Next steps".
 
+## Bigot et al. 2021 — SF3B1-mutant uveal melanoma (#734, IEDB free-text recovery)
+Zotero `DJAS2BJ2` (supp tables S1–S9 + methods local; **main-text PDF not local**; Correction `EMSRGMQZ` / PMID 35257149 **has no attachment — unread**). Recovered via the #734 IEDB IQ-API free-text mine (reference 1040678). All **HLA-A\*02:01**.
+
+Sequence source = **local Supplementary Table S2** ("peptides" sheet, the `A2:N` synthesized panel) — read first-hand → `direct`. All 35 IEDB-positive sequences matched S2 verbatim (35/35), so the unread Correction cannot have silently altered them. Source gene = IEDB `r_object_source_molecule_name` (30/35; 5 panel peptides have no gene in IEDB → `not-named`). Splice mechanism = SF3B1-mutant aberrant 3′ splice-site selection (the paper's central finding; supp. methods confirm "endogenous aberrantly spliced" transcripts). Confidence split is **dual-source-grounded**: the 5 with effector function are also the 5 with explicit alternative-mRNA-junction validation in **Supplementary Table S8** (frameshift + predicted NMD) — full table in [`db_audit_734/`](db_audit_734/).
+
+**Folded — effector + S8 junction-validated (`high`, 5):** `LLIRWQHFL`/NF1 (A2:14, frameshift +14 NMD+; TNF-α+activation), `AALPILFQV`/ATP8B2 (A2:17, +20 NMD+; degranulation), `ALLLQLFTL`/USP39 (A2:18, +40 NMD+; IFN-γ+cytotoxicity+granzyme B+CD107), `ALLPGLPAA`/NET1 (A2:26, +22; IFN-γ+cytotoxicity+degranulation), `RLPGVLPRA`/MAPK8IP2 (A2:37, +16; IFN-γ+cytotoxicity+degranulation). Sequences cross-confirmed in JEM 2024 (PMC10986814) by `UM-A2-NN` ID.
+
+**Folded — patient ex-vivo tetramer⁺ only (`medium`, 30):** the rest of the A2:N positives — `FLSSVALAL`/ZDHHC16, `FLPPGGAPV`/VPS51, `MLAAPISGL`/SLC3A2, `GLVETFYFT`/HADHA, `FQVQSLPAA`/OXA1L, `CLFSPQLLV`/not-named, `FMALDDPVI` & `ALDDPVIFL`/SEPSECS, `FLSRKLSSL`/MINDY4, `KLLEDDLLI` & `LLYLGIIKL`/NF1, `TMDVVIPGL`/VARS2, `VLFLTLNEV` & `FLTLNEVFL` & `TLNEVFLIL` & `FLILQVHGT`/ZFYVE27, `FLWCFPFSL`/SOAT1, `SLLPYVFVI`/RNF38, `FLFIGMSQM`/ARIH1, `SLSPALPGA`/SF3A2, `FMDDAKILF`/not-named, `FLFLDTIRT`/MRPS10, `ALDNVDAPL`/UBA1, `RLFPISPET`/NET1, `SLTFLPLYV`/ATP5MC2, `AVAEATAGV`/not-named, `KLMGPEVQV`/SRSF1, `FILKPILFL`/CTDNEP1, `RLGEVRHPV`/not-named, `GLNTFALGL`/not-named. Tetramer-DETECTION only (no per-peptide effector or junction shown in the supplements we hold); splice origin via panel design + IEDB gene.
+
+**NOT folded:** the 4 IEDB-negative panel peptides (`AILPVIADL`/SRSF1, `FLPLYVIPA`, `GVLPRAPGV`, `RLPQGVYPV`) and the 3 controls (Melan-A `ELAGIGILTV`, CMV `NLVPMVATV`, Flu `GILGFVFTL`).
+
 ---
 
 ## Curation chain (how the registry was built)
