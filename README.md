@@ -294,6 +294,7 @@ splice-neoepitope-pipeline/
 │   ├── INTRODUCTION.md               # Biological background and study design
 │   ├── DISCUSSIONS.md                # Design tradeoffs and future directions
 │   ├── google_cloud_guide.md         # GCP setup, cost guide, GPU run instructions
+│   ├── migration_runbook.md          # GCP→RunPod+R2 migration plan (cost, cutover)
 │   ├── installation.md               # Full installation guide
 │   ├── data_preparation.md           # Aligner selection, FASTQ sources, manifest format
 │   ├── configuration.md              # Full config.yaml parameter reference
@@ -332,6 +333,7 @@ And the key tools used:
 | [`docs/data_preparation.md`](docs/data_preparation.md) | Aligner selection, FASTQ sources, sample manifest format |
 | [`docs/configuration.md`](docs/configuration.md) | Full `config/config.yaml` parameter reference |
 | [`docs/google_cloud_guide.md`](docs/google_cloud_guide.md) | GCP setup, cost estimates, GPU VM lifecycle |
+| [`docs/migration_runbook.md`](docs/migration_runbook.md) | GCP→RunPod+R2 migration plan: target stack, cost, cutover checklist |
 | [`docs/INTRODUCTION.md`](docs/INTRODUCTION.md) | Biological background, motivation, and study design |
 | [`docs/DISCUSSIONS.md`](docs/DISCUSSIONS.md) | Design tradeoffs, known limitations, and future directions |
 | [`docs/modernization_notes.md`](docs/modernization_notes.md) | Detailed changes from the 2015 pipeline |

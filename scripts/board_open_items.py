@@ -65,6 +65,10 @@ query($owner: String!, $number: Int!, $after: String) {
                 name
                 field { ... on ProjectV2SingleSelectField { name } }
               }
+              ... on ProjectV2ItemFieldDateValue {
+                date
+                field { ... on ProjectV2FieldCommon { name } }
+              }
             }
           }
         }
@@ -146,7 +150,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     state = content.get("state")
     if state in ("CLOSED", "MERGED"):
         return None
-    status = size = priority = None
+    status = size = priority = target_date = None
     for fv in item["fieldValues"]["nodes"]:
         if not fv:
             continue
@@ -158,6 +162,8 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
             size = fv.get("name")
         elif fname == "Priority":
             priority = fv.get("name")
+        elif fname == "Target date":
+            target_date = fv.get("date")
     if status == "Done":
         return None
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
@@ -193,6 +199,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "milestone": (content.get("milestone") or {}).get("title"),
         "priority": priority,
         "size": size,
+        "target_date": target_date,
         "role": role,
         "arc": arc,
         "arc_phase": arc_phase,

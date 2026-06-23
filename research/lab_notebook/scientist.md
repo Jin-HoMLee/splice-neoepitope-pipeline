@@ -6,6 +6,46 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-23
+
+### 10:53 UTC — Editor: Scientist
+
+#### [PR #849](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/849) — ASNEO cross-check **setup** (option-B decision + turnkey runner) — closes [Issue #566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566); execution carved to [Issue #848](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/848).
+
+**Context.** Warm-up pull on #566 (ASNEO cross-check — our closest published peer, RNA-seq → splice junctions → neoepitopes). Grew into a full setup deliverable + two governance decisions worth recording.
+
+**Decision 1 — MHC path: option B (MHCflurry-swap, layered).** ASNEO ships a bundled (non-redistributable) NetMHCpan/NetCTLpan; our pipeline uses MHCflurry. Chose to **hold the MHC step constant on MHCflurry for both pipelines**: (1) primary = MHC-agnostic call concordance, (2) secondary = ranking via the same MHCflurry predictor, (3) native NetMHCpan demoted to optional supplementary. Rationale: holding the nuisance MHC variable constant **isolates the junction-detection signal** (the thing the cross-check is *for*) instead of confounding it with predictor differences; also open-only, reproducible, consistent with [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679), and removes the NetMHCpan license gate. Implemented by intercepting ASNEO's normal-subtracted candidate peptides (`putative_peptide.txt`, `ASNEO.py:252`) and bypassing the bundled binaries entirely (`apply_optionB_patch.py`, repoints bedtools to PATH so `software.tar.gz` is never extracted → fully open-only).
+
+**Decision 2 — carve setup from execution (single dual-role issue, not a role-split).** With the prep done and reviewable but the *run* VM-bound (STAR=VM-only), closed #566 on the setup deliverable and carved the run → #848 (`close-issue-with-PR` pattern). Jin-Ho pushed on whether to split #848 by role into single-role issues; checked our own heuristic (`feedback_parent_sub_issues.md` "phases-as-sub-issues" → decompose only when 2+ of {distinct PR / role / timing}) **and** the web (vertical-slice principle / horizontal-slicing anti-pattern; single accountable owner). Conclusion: the run→analysis→writeup is **one vertical slice** (only the role axis diverges; one notebook PR, one VM session) → keep it a single **dual-role** issue (Sci = accountable owner, Dev = task-level VM assist), matching the [#636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) shape. Splitting it would *be* the horizontal anti-pattern. #848 paired-with #636 to amortize one VM spin-up.
+
+**Verified-not-asserted (the discipline that mattered).** Every external claim source-checked before it entered a committed file: canonical repo `bm2-lab/ASNEO` (vs the 2019 author mirror), hg19/GRCh37 build, STAR `SJ.out.tab` input, biopython<1.80 (`Bio.SubsMat` at `:11-12`), the candidate-peptide interception point, hg19 chr22 URL (200 OK). Env built + import-validated; patcher tested against the real `ASNEO.py` (applies + compiles).
+
+**Review (`@claude`, Opus 4.8): approve.** 4 findings triaged against the live source (the bot had no egress, so 3 were analytical): #1 outputs/ not gitignored — **valid, fixed**; #2 `len(remain_pep)` NameError — **false positive** (in scope at `:243`); #3 `-o` flag + #4 copy-dest-vs-`rmtree` — **confirmed safe** on the clone, recorded in the README. Nits adopted: pinned numpy/pandas/bedtools (2019-tool reproducibility), `--outSAMtype None`, fail-fast STAR guard. Re-validated all (`4c5ebb7`).
+
+**Forward.** #848 (run + MHCflurry concordance + writeup) awaits a VM session; turnkey via `run_asneo_chr22.sh`. Notebook lands with #848 (experiment dir currently README+env+runner, no notebook yet — by design).
+
+---
+
+### 00:11 UTC — Editor: Scientist
+
+#### [PR #840](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/840) — 4-DB no-splice-category audit + Bigot 2021 fold (registry 44 → 79) — closes [Issue #734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) (leaf of [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)).
+
+**What shipped.** #734 carried the original #680 AC#1 (the DB-category audit) and grew well past it:
+- **AC#1 — the null:** none of CEDAR / IEDB / NEPdb / dbPepNeo2.0 exposes a splice *category* — confirmed per-DB with query evidence (`db_audit_734/FINDINGS.md` §1). Sharpest demo is row-level: deposited splice-neoantigens (IRIS-CLASP1 `SLDGTTTKA`, RCAN1-4 `IFSESETRAKF`) are filed as plain protein "isoforms" — splice origin survives **only** in the free-text reference title, never a structured field. So the data can be present yet unretrievable *as a class*.
+- **AC#2 — free-text recovery:** the IEDB IQ-API reference-title mine (`reference_title ILIKE *splic*` → 35 refs, triaged) recovered **55 net-new functionally-validated candidates** the manual Zotero sweep had missed. Headline reframe, now on the registry README: **category-absence ≠ data-absence** — the obstacle is *schema*, not *data*.
+- **AC#3 — dedup + fold:** Bigot 2021 (SF3B1-mutant uveal melanoma, PMID 33811047) folded — **+35 rows** (5 `high` + 30 `medium`). Remaining ~20 deferred to [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) (each needs its own gate-1 pass).
+- **AC#4 — writeup:** `db_audit_734/FINDINGS.md` (citable null + method) + `recovered_candidates.tsv` (55 candidates with provenance).
+
+**Discipline that held under pressure.** Refused to fold on IEDB's say-so when the paywalled paper blocked gate-1 — asked Jin-Ho for the supplements, folded only once they arrived. Gate-1 (splice-derivation) came from supp Table S8 (alt-mRNA junctions, frameshift+NMD) + the S2 panel design; gate-2 (function) from IEDB effector/tetramer records. Sequences `direct` from local supp Table S2, **cross-confirmed 35/35 vs IEDB** (the 5 `high` triple-confirmed with JEM 2024). That cross-confirmation neutralized the unread-Correction (PMID 35257149) risk, which is disclosed in three places. The 5 `high` carry effector function **+** S8 junction validation → `neojunction_frameshift`; the 30 `medium` are patient ex-vivo tetramer-DETECTION only → `alt_3p_ss` (the more-specific canonical label applied only where junction evidence exists). Honest grading throughout.
+
+**Review (`@claude`, Opus 4.8).** Verdict: **strong, scientifically honest — approve once the lab-notebook entry lands** (this one). The bot hand-tallied all 79 rows + every README count and confirmed they reconcile (tier sums, 59/79 A\*02:01, the 5 `high` = NF1/USP39/NET1/ATP8B2/MAPK8IP2, no duplicate sequences, PROVENANCE↔registry match). One doc nit fixed in the same push: gene count **"61 distinct named symbols" → 60 distinct genes** (61 was the distinct-*string* count; RCAN1 is split across two strings — restored the counted-once nuance). Findings #3 (empty `gene` column in `recovered_candidates.tsv`) + #4 (`source`-string normalization) folded into the [#823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823) data-quality pass.
+
+**Coverage now.** 79 rows, 10 sources, 60 genes; 64 functional-scorable (22 `high` / 42 `medium`). A\*02:01 skew deepened to **59/79** — disclosed up-front in README Caveats and the driver for the [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839) rebalance follow-up.
+
+**Follow-ups (board-backed before merge):** [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) (verify+fold remaining ~20 recovered candidates), [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839) (A\*02:01 rebalance). Both filed under #680.
+
+---
+
 ## 2026-06-22
 
 ### 13:45 UTC — Editor: Scientist

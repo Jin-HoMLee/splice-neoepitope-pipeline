@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-23
+
+### 16:20 UTC — Editor: PM
+
+#### pm-i7 milestone closure report — Board-Governance Tooling — [milestone #34](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/34) / [PR #847](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/847)
+
+Closed the **pm-i7 — Board-Governance Tooling** milestone (#34, 9 issues) and shipped its closure report via the author-editor-critic flow ([Issue #752](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752) tooling). The milestone was a concentrated **mechanism-over-memory** pass: 7 delivered issues that promoted board-governance *rules* into enforced *mechanisms* — a Target-sync hook ([Issue #782](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/782), the one Developer deliverable) and three scripts ([Issue #704](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/704) roadmap-health, [Issue #722](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/722) native `blockedBy` graph, [Issue #752](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752) closure-report) — plus the structural [Issue #690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690)→A2 epic-park decision, the [Issue #731](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/731) phases-as-sub-issue heuristic, and the [Issue #617](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/617) `recheck_parent_status` proves-out.
+
+**The lesson the close surfaced (the meaty part).** The script's headline counted all **9/9 closed as delivered**. A manual close-reason audit — prompted only because the user pressed *"what happened to #533?"* twice — found **2 of the 9 closed `NOT_PLANNED`**: [Issue #499](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/499) (superseded by #776's A2 epic-park; PR #792 unmerged) and [Issue #533](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/533) (YAGNI, superseded by #453). Both were being credited as shipped deliverables in a permanent closure-evidence artifact. Corrected the tally to **7 delivered + 2 descoped**, recorded both descopes under Carried-forward with supersession reasons, and filed [Issue #851](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851) for the generator gap (it should split closed-by-`stateReason`; the inventory `Status` column + at-a-glance cards re-mask the same way and must be covered too). This is the **machine analogue of the parent-rollup close-reason rule** (`feedback_parent_rollup_check_close_reason.md`): a NOT_PLANNED close masks undelivered scope at rollup — a rule I had for *parent epics* but never thought to apply to a *milestone* rollup I was literally running. An aggregate inherits its generator's blind spots; "the script counted it" is not "it was delivered."
+
+**Critic both rounds.** Round 1 caught a wrong #533 location claim (said the code was extracted to `scripts/pm/`; it's still inline at `recheck_dispatch.py:303` — because the refactor was *descoped*, not moved). Round 2 (post-correction) cleared the 7+2 tally, corroborated both descopes from the tree (neither left any artifact), and asked for a close-reason confirm on the two non-artifact deliverables (#722 board-data, #617 a decision) — both verified **CLOSED/COMPLETED** on the live board, so no third masked descope. Closed the milestone *before* merge so the re-rendered artifact stamps `state closed` + true `closed_at` (matching the pm-i6 precedent), then merged.
+
+Cross-role split: **6 PM / 1 Developer** delivered; descopes 1 PM + 1 Dev. Routing: **(c) extend the workstream** — board-governance tooling continues in the live successor **pm-i8 — Board-Governance Tooling II**.
+
+### 00:03 UTC — Editor: PM
+
+#### `scripts/check_roadmap_health.py` — automates the last hand-rolled morning sub-check — [Issue #704](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/704) / [PR #815](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/815)
+
+Shipped the third member of the `check_*_health` family: a Target-date roadmap-overdue sweep that retires the last sub-check of the PM Service Delivery Review (Phase 1d) still run as hand-rolled paged GraphQL each morning. The script lists open board items whose **Target date** is in the past, grouped by `role:*`, most-overdue first (exit `0` clear / `2` overdue / `1` error; `--role`/`--json`/`-h`), reusing `board_open_items`' paginator so the Done-first board never single-page-truncates. Required a purely additive change to `board_open_items.py` to expose the `ProjectV2ItemFieldDateValue` (Target date) field — the flat-array `--json` contract that `check_ready_queue.sh` depends on stays intact and is now test-guarded.
+
+**Signal it earned immediately:** the first live run surfaced 4 genuinely roadmap-overdue items that no session had flagged — the exact silent-drift class the Target-date desync backstop exists to catch. That's the case for mechanizing the sweep rather than trusting a morning eyeball.
+
+**Convention recorded** (in `scripts/README.md`): language-by-data-source for the `check_*` family — a REST-object check is `.sh`+`jq`; a ProjectV2-field/paginated check is `.py` reusing `board_open_items`. The Phase-1d morning-routine memory pointing at the new script lives in the personas repo (via the `.claude/memory` symlink) and is flagged for MM to commit out of band.
+
+**Lesson:** the value of converting a hand-run sweep into a script isn't just ergonomics — it's that a deterministic check catches the cases a tired morning glance skips. The 4 unflagged overdue items were the proof, found on run #1.
+
+---
+
 ## 2026-06-22
 
 ### 16:43 UTC — Editor: PM
