@@ -32,12 +32,12 @@ Free-text `splice_mechanism` is preserved; `splice_mechanism_canonical` normaliz
 
 `alt_5p_ss` (alt 5′ splice site / donor) · `alt_3p_ss` (alt 3′ splice site / acceptor) · `alt_splice_junction` (alternative-splicing junction, sub-event unspecified — IRIS/Kim/Xiong/POSTN) · `intron_retention` · `minor_intron` (U12-type) · `poison_exon` (NMD-targeting cassette) · `neojunction_frameshift` · `neojunction_inframe` · **`exon_te_junction`** (exon–transposable-element junction or TE-induced frameshift — **registered in #733** for the Merlotti set) · `not_splice` (constitutive control) · `ambiguous` (splice-derived, mechanism unresolvable from source — Fisher unnamed-gene peptides).
 
-## Coverage (79 rows, 10 sources, 61 genes)
+## Coverage (79 rows, 10 sources, 60 genes)
 
 - **Alleles (11 distinct `hla` values):** HLA-A\*02:01 (59), A\*11:01 (9), A\*24:02 (2), **C\*04 (2), C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row). **A\*02:01 skew deepened to 59/79** — the entire Bigot 2021 SF3B1-UM panel (+35), the IR-CRC positives, and the entire Merlotti exon-TE set are A\*02:01/A2 (see Caveats; rebalance tracked in a #734 follow-up).
 - **Splice mechanisms:** + `alt_3p_ss` (Bigot SF3B1 aberrant 3′SS, 30) and `neojunction_frameshift` (Bigot S8-junction-validated frameshift+NMD, 5) now dominate alongside `exon_te_junction` (Merlotti, 10) and `intron_retention` (IR-CRC, 12).
 - **Sources (10):** SNAF (Li 2024), IRIS (Pan), Kim 2025, Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, Manoharan 2026 (IR-CRC), Merlotti 2023 (NSCLC exon-TE), **Bigot 2021 (SF3B1 uveal melanoma, +35 — recovered via #734 IEDB free-text mine)**.
-- **Genes (61 distinct named symbols):** + Bigot SF3B1-UM source genes — NF1, USP39, NET1, ATP8B2, MAPK8IP2 (the 5 S8-junction-validated), plus ZFYVE27, SRSF1, SF3A2, SEPSECS, UBA1, CTDNEP1, ARIH1, MRPS10, VPS51, MINDY4, ZDHHC16, SOAT1, OXA1L, HADHA, SLC3A2, RNF38, ATP5MC2, VARS2 (tetramer-only). (5 Bigot tetramer-only peptides have no source gene in IEDB → `not-named`.)
+- **Genes (60 distinct named symbols; 61 distinct strings — RCAN1 is split across `RCAN1 (RCAN1-4)` and `RCAN1 (RCAN1-1 constitutive)`, counted once here):** + Bigot SF3B1-UM source genes — NF1, USP39, NET1, ATP8B2, MAPK8IP2 (the 5 S8-junction-validated), plus ZFYVE27, SRSF1, SF3A2, SEPSECS, UBA1, CTDNEP1, ARIH1, MRPS10, VPS51, MINDY4, ZDHHC16, SOAT1, OXA1L, HADHA, SLC3A2, RNF38, ATP5MC2, VARS2 (tetramer-only). (5 Bigot tetramer-only peptides have no source gene in IEDB → `not-named`.)
 
 ## Caveats
 
