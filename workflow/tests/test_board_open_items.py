@@ -28,18 +28,23 @@ NOW = datetime(2026, 6, 4, 12, 0, 0, tzinfo=timezone.utc)
 def _board_item(number, *, updated="2026-06-04T00:00:00Z",
                 created="2026-05-01T00:00:00Z", closed=None, role="role:pm",
                 status="Ready", priority=None, size=None, sub_total=None,
-                typename="Issue", is_draft=False):
+                target=None, typename="Issue", is_draft=False):
     """A minimal ProjectV2 board node shaped like the GraphQL response.
 
     `sub_total=None` omits the `subIssuesSummary` block entirely (mimics a node
     the query didn't return one for — e.g. a PR); an int injects
     `subIssuesSummary { total: <n> }` like the Issue fragment does.
+
+    `target` injects a Target-date field value (`ProjectV2ItemFieldDateValue`,
+    shaped `{date, field:{name:"Target date"}}`); None omits it (Issue #704).
     """
     field_values = [{"name": status, "field": {"name": "Status"}}]
     if priority:
         field_values.append({"name": priority, "field": {"name": "Priority"}})
     if size:
         field_values.append({"name": size, "field": {"name": "Size"}})
+    if target:
+        field_values.append({"date": target, "field": {"name": "Target date"}})
     content = {
         "__typename": typename,
         "number": number,
@@ -276,6 +281,26 @@ def test_format_table_now_defaults_to_real_clock():
     table = boi.format_table(items)  # no now= → exercises the None branch
     assert "Age" in table.splitlines()[0]
     assert "issue 1" in table
+
+
+# --- Target date extraction (Issue #704) -----------------------------------
+
+def test_normalize_includes_target_date():
+    n = boi.normalize(_board_item(704, target="2026-07-08"))
+    assert n["target_date"] == "2026-07-08"
+
+
+def test_normalize_target_date_none_when_absent():
+    n = boi.normalize(_board_item(704))
+    assert n["target_date"] is None
+
+
+def test_main_json_carries_target_date(monkeypatch, capsys):
+    raw = [_board_item(1, target="2026-07-08"), _board_item(2)]
+    _, out = _run_main(monkeypatch, capsys, ["--json"], raw)
+    parsed = {it["number"]: it for it in json.loads(out)}
+    assert parsed[1]["target_date"] == "2026-07-08"
+    assert parsed[2]["target_date"] is None
 
 
 # --- parent-awareness (Issue #742) -----------------------------------------

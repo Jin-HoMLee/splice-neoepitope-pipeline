@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-23
+
+### 00:03 UTC — Editor: PM
+
+#### `scripts/check_roadmap_health.py` — automates the last hand-rolled morning sub-check — [Issue #704](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/704) / [PR #815](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/815)
+
+Shipped the third member of the `check_*_health` family: a Target-date roadmap-overdue sweep that retires the last sub-check of the PM Service Delivery Review (Phase 1d) still run as hand-rolled paged GraphQL each morning. The script lists open board items whose **Target date** is in the past, grouped by `role:*`, most-overdue first (exit `0` clear / `2` overdue / `1` error; `--role`/`--json`/`-h`), reusing `board_open_items`' paginator so the Done-first board never single-page-truncates. Required a purely additive change to `board_open_items.py` to expose the `ProjectV2ItemFieldDateValue` (Target date) field — the flat-array `--json` contract that `check_ready_queue.sh` depends on stays intact and is now test-guarded.
+
+**Signal it earned immediately:** the first live run surfaced 4 genuinely roadmap-overdue items that no session had flagged — the exact silent-drift class the Target-date desync backstop exists to catch. That's the case for mechanizing the sweep rather than trusting a morning eyeball.
+
+**Convention recorded** (in `scripts/README.md`): language-by-data-source for the `check_*` family — a REST-object check is `.sh`+`jq`; a ProjectV2-field/paginated check is `.py` reusing `board_open_items`. The Phase-1d morning-routine memory pointing at the new script lives in the personas repo (via the `.claude/memory` symlink) and is flagged for MM to commit out of band.
+
+**Lesson:** the value of converting a hand-run sweep into a script isn't just ergonomics — it's that a deterministic check catches the cases a tired morning glance skips. The 4 unflagged overdue items were the proof, found on run #1.
+
+---
+
 ## 2026-06-22
 
 ### 16:43 UTC — Editor: PM
