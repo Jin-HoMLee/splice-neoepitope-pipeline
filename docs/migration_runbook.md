@@ -11,13 +11,14 @@ Companion bridge work on the existing GCP path (Spot toggle + `pd-balanced` disk
 
 | Layer | Choice | Key numbers |
 |-------|--------|-------------|
-| **Compute** | **RunPod GPU Pod — NVIDIA L4, On-Demand Secure Cloud** | **$0.39/hr**, 24 GB VRAM, **50 GB RAM**, 12 vCPU, Ada arch |
+| **Compute** | **RunPod GPU Pod — NVIDIA L4, On-Demand Secure Cloud** | **$0.39/hr**, 24 GB VRAM, **62 GB RAM**, **6 vCPU**, Ada arch |
 | **Static storage** | RunPod **Network Volume** (references + indices + conda envs + AlphaFold params) | **$0.07/GB/mo** (~$14 for 200 GB), survives stop/terminate/preemption, **DC-pinned** |
 | **Bulk / results / cold backup** | **Cloudflare R2** | **$0.015/GB/mo** (~$3 for 200 GB), **zero egress** |
 
 **Why L4 is the pick (not the cheaper RTX 4090):**
-- **The #1 migration risk is retired by RAM, not VRAM.** OptiType (HLA typing) peaks at **~36 GB RAM** — the reason the GCP VM is `n1-highmem-8`/52 GB. A naive "cheap GPU pod" often bundles only 24–32 GB RAM and would OOM. **L4 bundles 50 GB RAM** (14 GB headroom) and 12 vCPU. RTX 4090 also clears it (41 GB / 6 vCPU) but with thin headroom and fewer cores, and on Secure Cloud the 4090 is *more* expensive ($0.69) than the L4.
+- **The #1 migration risk is retired by RAM, not VRAM.** OptiType (HLA typing) peaks at **~36 GB RAM** (external benchmark — not yet measured in-repo; confirm with `/usr/bin/time -v` on the production sample at the #845 smoke test + back-fill a `resources: mem_mb` hint on the rule) — the reason the GCP VM is `n1-highmem-8`/52 GB. The decision is robust to the exact figure: for *any* OptiType peak < 52 GB, the L4's 62 GB strictly reduces the risk. A naive "cheap GPU pod" often bundles only 24–32 GB RAM and would OOM. **L4 (network-volume deploy config) bundles 62 GB RAM** (26 GB headroom — *more* than the old 52 GB VM). RTX 4090 also clears it (41 GB) but with thinner headroom, and on Secure Cloud the 4090 is *more* expensive ($0.69) than the L4. With both at **6 vCPU**, the L4's edge over the 4090 is **RAM + price**, not cores.
 - **24 GB VRAM is safe (not borderline) for AlphaFold/TCRdock.** The ~600–800-residue TCR-pMHC complex is roughly *half* the 16 GB-VRAM ceiling and already runs on the **16 GB P100** — 24 GB is +50% headroom. Ada (CC 8.9) also unlocks bf16 + Pallas (~2× faster than Pascal).
+- **⚠️ 6 vCPU is the one regression vs the old 8-vCPU VM** (and below the 12 vCPU earlier assumed for L4 — corrected at deploy-console check 2026-06-23). The CPU-heavy rules default to **8 threads** (`alignment.smk`: HISAT2 / STAR / `samtools sort`; OptiType to 4). **No correctness risk** — Snakemake clamps a rule's `threads` down to `--cores`, so launching with `--cores $(nproc)` (= 6) transparently runs the threads-8 rules at 6 with no config edit. The cost is wall-time: alignment runs at 6/8 cores (≈ +33% on that stage) plus reduced cross-rule parallelism. **Measure at the #845 smoke test; do not pre-optimize** — if alignment time hurts, the lever is a larger-vCPU pod, not a code change.
 - **Use On-Demand Secure, not Spot/Community,** for patient runs — a ~5-second-warning eviction mid-AlphaFold isn't worth the ~$0.15/hr discount for clinical determinism. Reserve Spot for non-urgent batch reprocessing.
 
 **This migration deletes the P100/Pascal driver-pin saga.** On Ada, current CUDA/torch wheels just work — the CLAUDE.md `python.yaml` `+cu126` pin, the `IMAGE_NAME` DLVM image pin, and the closed-550 driver gymnastics ([#522](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/522)) all become moot on the new stack.
@@ -45,13 +46,17 @@ The hybrid's $14 Network Volume buys instant bursts (no per-run re-download) and
 ### Days 3–5 — Compute port
 - [ ] RunPod account + payment. Pick **L4 / Secure**. Verify the deploy-time rate (the two RunPod pricing pages disagree on L4: $0.39 vs $0.44 = Secure vs Community).
 - [ ] **Slim the Docker image:** move AlphaFold2 params + BLAST DBs *out* of the 25 GB image onto the Network Volume; rebuild image as code + CUDA only (a few GB). RunPod's own example drops a 16 GB-weights cold start from ~3 min → ~20 s this way.
-- [ ] Rebuild the image on **current CUDA/torch** for Ada (drop the Pascal pins). Keep the TCRdock container's internal CUDA 11.8 as-is (self-contained).
+  - [ ] **Required companion code change — `_docker_run` needs a second bind-mount.** `run_tcrdock.py:_docker_run` (≈ line 372) currently mounts **only** `-v {output_dir}:/data`, and `run_prediction.py` is invoked with `--data_dir /opt/TCRdock/alphafold_params` (the **in-image** path, line ≈402). Removing params from the image therefore **breaks the run** unless `_docker_run` also bind-mounts the volume-staged params. Cleanest: mount onto the *same* in-image path so `--data_dir` needs no change — `-v {params_host_dir}:/opt/TCRdock/alphafold_params:ro`. The mount must cover **both** AF params *and* the BLAST DB (`setup_for_alphafold.py` uses BLAST). **BLAST DB install location is unknown from our repo** (`download_blast.py` lives inside the TCRdock clone) → resolve it as a #845 smoke-test verification item, then size the mount/volume accordingly.
+- [ ] Rebuild the image on **current CUDA/torch** for Ada (drop the Pascal pins — `python.yaml`: drop the `--extra-index-url …/cu126` line + the `torch ==2.12.0+cu126` pin → `torch >=2.12`). Keep the TCRdock container's internal CUDA 11.8 as-is (self-contained).
 - [ ] Push to a registry RunPod can pull (GHCR / Docker Hub); create a RunPod **Pod template** (image, `openssh-server`, container-disk sized **above** the unpacked image footprint, Network Volume mounted at `/workspace`).
 
 ### Days 6–9 — Smoke test (the integration-run discipline)
 - [ ] Launch a pod; `nvidia-smi`; confirm `torch.cuda.is_available()` **and** a real kernel dispatch on Ada.
 - [ ] Run **chr22 end-to-end** (`config/test_config.yaml`) in tmux with `--use-conda` — catches the conda-solver / subprocess-CLI / NaN classes that dry-run misses.
 - [ ] Run the MHCflurry `Class1PresentationPredictor.predict()` GPU path on the test patient (the `_has_gpu()` smoke test) + one TCRdock/AlphaFold structure run.
+- [ ] **Confirm the BLAST DB install path** inside the (slimmed) TCRdock container and that the volume mount covers it as well as the AF params — the path is unknown from our repo (`download_blast.py` is in the TCRdock clone). Size the Network Volume accordingly.
+- [ ] **Time the alignment stage on 6 vCPU** (HISAT2 / STAR / `samtools sort`, clamped from threads-8 to `--cores 6`). If wall-time is unacceptable, escalate to a larger-vCPU pod — do **not** change rule thread counts.
+- [ ] **Measure the real OptiType RAM peak** (`/usr/bin/time -v` on the *production* sample, not chr22) to replace the ~36 GB external estimate; back-fill a `resources: mem_mb` hint on the `hla_typing.smk` rule.
 - [ ] Time a representative run → confirm the GPU-hr budget estimate.
 
 ### Days 10–11 — Cutover + decommission
@@ -94,9 +99,21 @@ rclone copy r2:splice-neoepitope-project/references ./references --s3-chunk-size
 ### AlphaFold params on the volume (cold-start fix)
 ```bash
 # One-time: stage params + BLAST DBs onto the Network Volume, not the image.
-# Pod template mounts the volume at /workspace; point TCRdock/AlphaFold at:
-#   --data_dir=/workspace/alphafold_params   (or the equivalent env/flag)
-# Image then carries only code + CUDA (a few GB) → fast cold pulls.
+# Pod template mounts the volume at /workspace; the image then carries only
+# code + CUDA (a few GB) → fast cold pulls.
+#
+# Two ways to wire the path (prefer the first):
+#  (a) Bind-mount the staged params onto the SAME in-image path inside the
+#      TCRdock container, so run_prediction.py's --data_dir is unchanged:
+#        docker run ... -v /workspace/alphafold_params:/opt/TCRdock/alphafold_params:ro ...
+#      (add this -v to run_tcrdock.py:_docker_run — see §3 companion change)
+#  (b) Or repoint the flag: --data_dir=/workspace/alphafold_params
+#      (requires editing the hardcoded path at run_tcrdock.py ≈line 402).
+# The BLAST DB must be staged + mounted too, as a SEPARATE -v at its own
+# in-image path (it does NOT live under alphafold_params, so the mount above
+# does not cover it):
+#        docker run ... -v /workspace/blast_db:/opt/TCRdock/<blast_path>:ro ...
+# Confirm <blast_path> (where download_blast.py installs) at smoke (#845).
 ```
 
 ## 5. Verify-in-console before committing
