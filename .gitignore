@@ -250,6 +250,10 @@ research/experiments/issue_224_alphagenome_exp1/outputs/*.parquet
 # LICR-copyright NeoRanking peptides (no redistribution); regenerate via score_cohort.py.
 # The aggregate calibrator_v1.joblib, true_counts.csv, and diagnostic PNGs ARE committed.
 research/experiments/issue_547_immunogenicity_calibration/outputs/*.parquet
+# Issue #566 ASNEO cross-check run scratch (cloned ASNEO repo, STAR BAM, SJ.out.tab,
+# asneo_out/) written by run_asneo_chr22.sh — heavy + regenerable. Small committed
+# notebook artifacts (concordance tables/figures) live elsewhere under outputs/.
+research/experiments/issue_566_asneo_crosscheck/outputs/chr22_run/
 
 # Quarto slide-deck build artefacts — regenerable via `quarto render`
 research/slides/**/*.html

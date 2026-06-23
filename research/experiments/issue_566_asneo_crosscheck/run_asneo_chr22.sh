@@ -22,6 +22,8 @@ ASNEO_DIR="${WORK}/ASNEO"
 HLA_PLACEHOLDER="HLA-A02:01"             # option B: unused for candidate generation (MHC step bypassed)
 THREADS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
 
+command -v STAR >/dev/null || { echo "ERROR: STAR not on PATH — this runner is VM-bound (STAR=VM-only)."; exit 1; }
+
 mkdir -p "$WORK" "$(dirname "$REF")" "$STAR_IDX"
 
 # 1. hg19 chr22 reference (UCSC; verified 200 OK 2026-06-23) ----------------------
@@ -42,7 +44,7 @@ else echo "[2/5] STAR index present — skip."; fi
 echo "[3/5] Aligning $FASTQ to hg19 chr22..."
 STAR --runMode alignReads --genomeDir "$STAR_IDX" --readFilesIn "$FASTQ" \
      --readFilesCommand zcat --runThreadN "$THREADS" \
-     --outSAMtype BAM Unsorted --outFileNamePrefix "${WORK}/chr22_"
+     --outSAMtype None --outFileNamePrefix "${WORK}/chr22_"   # ASNEO needs only SJ.out.tab (-j); skip the BAM
 SJ="${WORK}/chr22_SJ.out.tab"
 test -s "$SJ" || { echo "ERROR: $SJ not produced"; exit 1; }
 

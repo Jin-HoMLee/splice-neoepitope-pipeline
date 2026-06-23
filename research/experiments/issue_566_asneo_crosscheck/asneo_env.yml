@@ -14,11 +14,14 @@ dependencies:
   - python=3.8
   - biopython=1.79
   - pysam
-  - pandas
-  - numpy
-  - scikit-learn
-  - xgboost
-  - bedtools
+  # Pin era-major numpy/pandas: ASNEO + sj2psi are 2019-vintage; numpy>=1.24 removed
+  # np.int/np.float aliases and pandas>=2.0 removed DataFrame.append — both break old code.
+  # Reproducibility is the whole point of the cross-check, so don't let these float.
+  - numpy<1.24
+  - pandas<2.0
+  - scikit-learn   # only used in ASNEO's ProcessNeo (bypassed under option B) — left unpinned
+  - xgboost        # same — bypassed under option B
+  - bedtools=2.31.1   # the version validated in the README
   - pip
   - pip:
       - sj2psi   # PyPI; ASNEO imports it for the SJ.out.tab PSI step

@@ -32,6 +32,8 @@ Rationale: isolates the junction-detection signal · open-only/reproducible (Apa
 | **Allele-independent under option B** | ASNEO's `-a` HLA arg is consumed *only* by the bypassed netMHCpan/netCTLpan steps → candidate generation needs no real HLA (use a placeholder); real HLA enters only at the downstream MHCflurry step | `ASNEO.py:256,378+` |
 | MHC call sites (bypassed) | netMHCpan `:218`, netCTLpan `:280`, netMHCpan `:290`, pepmatch wild-type-match `:270` (used only in the bypassed `ProcessNeo`) | `ASNEO.py` |
 | `tmp/` is deleted at end | `main()` `shutil.rmtree(path['tdir'])` — so the patch copies `putative_peptide.txt` to the outdir before cleanup | `ASNEO.py:485` |
+| `-o`/`--outdir` flag exists | `parser.add_argument('-o','--outdir', default='result')` — the runner's `-o` is valid (PR #849 review check #3) | `ASNEO.py:28` |
+| Copy dest is **persistent** | `tdir = outdir/tmp` so `rmtree(tdir)` nukes only the `tmp` *subdir*; `neo_sorted` (hence the patch's `dirname(neo_sorted)`) is `outdir` itself → copied `putative_peptide.txt` survives (PR #849 review check #4) | `ASNEO.py:397,458` |
 
 ## Liftover plan — re-align, don't lift coordinates
 
