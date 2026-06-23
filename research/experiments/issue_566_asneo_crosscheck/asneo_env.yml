@@ -1,0 +1,24 @@
+# Conda env for running ASNEO (bm2-lab/ASNEO) as the #566 cross-check peer.
+# ASNEO is dormant since ~2019; deps are pinned to that era.
+# KEY PIN: biopython < 1.80 — ASNEO.py:11-12 imports `Bio.SubsMat` (removed in
+# Biopython 1.80) and `pairwise2` (removed in 1.84). 1.79 is the last compatible release.
+# The bundled NetMHCpan/NetCTLpan/pepmatch binaries (src/software.tar.gz) are NOT
+# installed here — the #566 scope decision (option B) bypasses them; ASNEO's
+# junction-derived peptide candidates (putative_peptide.txt, ASNEO.py:252) are
+# intercepted and scored with MHCflurry downstream instead.
+name: asneo
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.8
+  - biopython=1.79
+  - pysam
+  - pandas
+  - numpy
+  - scikit-learn
+  - xgboost
+  - bedtools
+  - pip
+  - pip:
+      - sj2psi   # PyPI; ASNEO imports it for the SJ.out.tab PSI step
