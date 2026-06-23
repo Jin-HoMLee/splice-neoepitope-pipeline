@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-23
 
+### 10:53 UTC — Editor: Scientist
+
+#### [PR #849](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/849) — ASNEO cross-check **setup** (option-B decision + turnkey runner) — closes [Issue #566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566); execution carved to [Issue #848](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/848).
+
+**Context.** Warm-up pull on #566 (ASNEO cross-check — our closest published peer, RNA-seq → splice junctions → neoepitopes). Grew into a full setup deliverable + two governance decisions worth recording.
+
+**Decision 1 — MHC path: option B (MHCflurry-swap, layered).** ASNEO ships a bundled (non-redistributable) NetMHCpan/NetCTLpan; our pipeline uses MHCflurry. Chose to **hold the MHC step constant on MHCflurry for both pipelines**: (1) primary = MHC-agnostic call concordance, (2) secondary = ranking via the same MHCflurry predictor, (3) native NetMHCpan demoted to optional supplementary. Rationale: holding the nuisance MHC variable constant **isolates the junction-detection signal** (the thing the cross-check is *for*) instead of confounding it with predictor differences; also open-only, reproducible, consistent with [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679), and removes the NetMHCpan license gate. Implemented by intercepting ASNEO's normal-subtracted candidate peptides (`putative_peptide.txt`, `ASNEO.py:252`) and bypassing the bundled binaries entirely (`apply_optionB_patch.py`, repoints bedtools to PATH so `software.tar.gz` is never extracted → fully open-only).
+
+**Decision 2 — carve setup from execution (single dual-role issue, not a role-split).** With the prep done and reviewable but the *run* VM-bound (STAR=VM-only), closed #566 on the setup deliverable and carved the run → #848 (`close-issue-with-PR` pattern). Jin-Ho pushed on whether to split #848 by role into single-role issues; checked our own heuristic (`feedback_parent_sub_issues.md` "phases-as-sub-issues" → decompose only when 2+ of {distinct PR / role / timing}) **and** the web (vertical-slice principle / horizontal-slicing anti-pattern; single accountable owner). Conclusion: the run→analysis→writeup is **one vertical slice** (only the role axis diverges; one notebook PR, one VM session) → keep it a single **dual-role** issue (Sci = accountable owner, Dev = task-level VM assist), matching the [#636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) shape. Splitting it would *be* the horizontal anti-pattern. #848 paired-with #636 to amortize one VM spin-up.
+
+**Verified-not-asserted (the discipline that mattered).** Every external claim source-checked before it entered a committed file: canonical repo `bm2-lab/ASNEO` (vs the 2019 author mirror), hg19/GRCh37 build, STAR `SJ.out.tab` input, biopython<1.80 (`Bio.SubsMat` at `:11-12`), the candidate-peptide interception point, hg19 chr22 URL (200 OK). Env built + import-validated; patcher tested against the real `ASNEO.py` (applies + compiles).
+
+**Review (`@claude`, Opus 4.8): approve.** 4 findings triaged against the live source (the bot had no egress, so 3 were analytical): #1 outputs/ not gitignored — **valid, fixed**; #2 `len(remain_pep)` NameError — **false positive** (in scope at `:243`); #3 `-o` flag + #4 copy-dest-vs-`rmtree` — **confirmed safe** on the clone, recorded in the README. Nits adopted: pinned numpy/pandas/bedtools (2019-tool reproducibility), `--outSAMtype None`, fail-fast STAR guard. Re-validated all (`4c5ebb7`).
+
+**Forward.** #848 (run + MHCflurry concordance + writeup) awaits a VM session; turnkey via `run_asneo_chr22.sh`. Notebook lands with #848 (experiment dir currently README+env+runner, no notebook yet — by design).
+
+---
+
 ### 00:11 UTC — Editor: Scientist
 
 #### [PR #840](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/840) — 4-DB no-splice-category audit + Bigot 2021 fold (registry 44 → 79) — closes [Issue #734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) (leaf of [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)).
