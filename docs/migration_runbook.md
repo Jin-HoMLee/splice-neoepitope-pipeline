@@ -16,7 +16,7 @@ Companion bridge work on the existing GCP path (Spot toggle + `pd-balanced` disk
 | **Bulk / results / cold backup** | **Cloudflare R2** | **$0.015/GB/mo** (~$3 for 200 GB), **zero egress** |
 
 **Why L4 is the pick (not the cheaper RTX 4090):**
-- **The #1 migration risk is retired by RAM, not VRAM.** OptiType (HLA typing) peaks at **~36 GB RAM** — the reason the GCP VM is `n1-highmem-8`/52 GB. A naive "cheap GPU pod" often bundles only 24–32 GB RAM and would OOM. **L4 (network-volume deploy config) bundles 62 GB RAM** (26 GB headroom — *more* than the old 52 GB VM). RTX 4090 also clears it (41 GB) but with thinner headroom, and on Secure Cloud the 4090 is *more* expensive ($0.69) than the L4. With both at **6 vCPU**, the L4's edge over the 4090 is **RAM + price**, not cores.
+- **The #1 migration risk is retired by RAM, not VRAM.** OptiType (HLA typing) peaks at **~36 GB RAM** (external benchmark — not yet measured in-repo; confirm with `/usr/bin/time -v` on the production sample at the #845 smoke test + back-fill a `resources: mem_mb` hint on the rule) — the reason the GCP VM is `n1-highmem-8`/52 GB. The decision is robust to the exact figure: for *any* OptiType peak < 52 GB, the L4's 62 GB strictly reduces the risk. A naive "cheap GPU pod" often bundles only 24–32 GB RAM and would OOM. **L4 (network-volume deploy config) bundles 62 GB RAM** (26 GB headroom — *more* than the old 52 GB VM). RTX 4090 also clears it (41 GB) but with thinner headroom, and on Secure Cloud the 4090 is *more* expensive ($0.69) than the L4. With both at **6 vCPU**, the L4's edge over the 4090 is **RAM + price**, not cores.
 - **24 GB VRAM is safe (not borderline) for AlphaFold/TCRdock.** The ~600–800-residue TCR-pMHC complex is roughly *half* the 16 GB-VRAM ceiling and already runs on the **16 GB P100** — 24 GB is +50% headroom. Ada (CC 8.9) also unlocks bf16 + Pallas (~2× faster than Pascal).
 - **⚠️ 6 vCPU is the one regression vs the old 8-vCPU VM** (and below the 12 vCPU earlier assumed for L4 — corrected at deploy-console check 2026-06-23). The CPU-heavy rules default to **8 threads** (`alignment.smk`: HISAT2 / STAR / `samtools sort`; OptiType to 4). **No correctness risk** — Snakemake clamps a rule's `threads` down to `--cores`, so launching with `--cores $(nproc)` (= 6) transparently runs the threads-8 rules at 6 with no config edit. The cost is wall-time: alignment runs at 6/8 cores (≈ +33% on that stage) plus reduced cross-rule parallelism. **Measure at the #845 smoke test; do not pre-optimize** — if alignment time hurts, the lever is a larger-vCPU pod, not a code change.
 - **Use On-Demand Secure, not Spot/Community,** for patient runs — a ~5-second-warning eviction mid-AlphaFold isn't worth the ~$0.15/hr discount for clinical determinism. Reserve Spot for non-urgent batch reprocessing.
@@ -56,6 +56,7 @@ The hybrid's $14 Network Volume buys instant bursts (no per-run re-download) and
 - [ ] Run the MHCflurry `Class1PresentationPredictor.predict()` GPU path on the test patient (the `_has_gpu()` smoke test) + one TCRdock/AlphaFold structure run.
 - [ ] **Confirm the BLAST DB install path** inside the (slimmed) TCRdock container and that the volume mount covers it as well as the AF params — the path is unknown from our repo (`download_blast.py` is in the TCRdock clone). Size the Network Volume accordingly.
 - [ ] **Time the alignment stage on 6 vCPU** (HISAT2 / STAR / `samtools sort`, clamped from threads-8 to `--cores 6`). If wall-time is unacceptable, escalate to a larger-vCPU pod — do **not** change rule thread counts.
+- [ ] **Measure the real OptiType RAM peak** (`/usr/bin/time -v` on the *production* sample, not chr22) to replace the ~36 GB external estimate; back-fill a `resources: mem_mb` hint on the `hla_typing.smk` rule.
 - [ ] Time a representative run → confirm the GPU-hr budget estimate.
 
 ### Days 10–11 — Cutover + decommission
@@ -108,7 +109,11 @@ rclone copy r2:splice-neoepitope-project/references ./references --s3-chunk-size
 #      (add this -v to run_tcrdock.py:_docker_run — see §3 companion change)
 #  (b) Or repoint the flag: --data_dir=/workspace/alphafold_params
 #      (requires editing the hardcoded path at run_tcrdock.py ≈line 402).
-# The BLAST DB must be staged + mounted too — confirm its install path at smoke (#845).
+# The BLAST DB must be staged + mounted too, as a SEPARATE -v at its own
+# in-image path (it does NOT live under alphafold_params, so the mount above
+# does not cover it):
+#        docker run ... -v /workspace/blast_db:/opt/TCRdock/<blast_path>:ro ...
+# Confirm <blast_path> (where download_blast.py installs) at smoke (#845).
 ```
 
 ## 5. Verify-in-console before committing
