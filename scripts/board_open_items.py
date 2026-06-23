@@ -22,6 +22,7 @@ Usage:
   scripts/board_open_items.py --sort-updated --role scientist   # recent momentum
   scripts/board_open_items.py --stale-days 21                    # dormancy sweep
   scripts/board_open_items.py --exclude-parents                  # drop epics (Size/flow sweeps)
+  scripts/board_open_items.py --check-coherence                  # committed-but-arc-phase:later drift (#765)
   scripts/board_open_items.py --json | jq '.[] | select(.size == "S")'
 """
 from __future__ import annotations
@@ -49,6 +50,7 @@ query($owner: String!, $number: Int!, $after: String) {
               number title state url
               createdAt updatedAt closedAt
               subIssuesSummary { total }
+              milestone { title }
               labels(first: 20) { nodes { name } }
             }
             ... on PullRequest {
@@ -86,6 +88,24 @@ STATUS_ORDER = {
 }
 PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 SIZE_ORDER = {"XS": 0, "S": 1, "M": 2, "L": 3, "XL": 4}
+
+# Statuses at/past the late-commitment Backlog→Ready boundary (CLAUDE.md "Board
+# status governance"). Backlog / No Status are uncommitted; Done is filtered out
+# upstream in normalize().
+COMMITTED_STATUSES = frozenset({"Ready", "Ready for review", "In review", "In progress"})
+
+
+def is_arc_phase_incoherent(it: dict[str, Any]) -> bool:
+    """True iff a *committed* item is parked at arc-phase:later — a contradiction.
+
+    Committed = board Status past the Backlog→Ready boundary OR a milestone
+    assigned (the commitment signal, set at Backlog→Ready). arc-phase:later means
+    "parked, not now", so committed+later is incoherent. Fails open (False) when
+    arc-phase is absent — no arc opinion, no flag. Issue #765.
+    """
+    if it.get("arc_phase") != "later":
+        return False
+    return it.get("status") in COMMITTED_STATUSES or it.get("milestone") is not None
 
 
 def fetch_all_items() -> list[dict[str, Any]]:
@@ -173,6 +193,10 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "is_parent": is_parent,
         "state": state,
         "status": status or "No Status",
+        # Issues only — the PullRequest GraphQL fragment doesn't fetch milestone,
+        # so a PR is "committed" via Status alone (it's always in a committed
+        # status anyway). None for both real `"milestone": null` and an omitted key.
+        "milestone": (content.get("milestone") or {}).get("title"),
         "priority": priority,
         "size": size,
         "target_date": target_date,
@@ -335,6 +359,11 @@ def main() -> int:
                         "Parents carry no Size and mirror a child's Status, so the PM "
                         "triage/flow sweeps flag them as false drift; this filters them "
                         "out at the source (Issue #742).")
+    p.add_argument("--check-coherence", dest="check_coherence", action="store_true",
+                   help="Coherence sweep (Issue #765): keep only items where a committed "
+                        "state (Status past Backlog→Ready, OR a milestone assigned) "
+                        "contradicts arc-phase:later (parked). Fails open on items with no "
+                        "arc-phase. Forces arc columns so the phase is visible.")
     p.add_argument("--arc-columns", dest="arc_columns", action="store_true",
                    help="Add Arc + phase columns to the table (slug after 'arc:'); "
                         "useful with --arc-phase active to see each issue's arc "
@@ -356,6 +385,8 @@ def main() -> int:
     filtered = [it for it in normalized if matches_filter(it, args)]
     if args.exclude_parents:
         filtered = [it for it in filtered if not it["is_parent"]]
+    if args.check_coherence:
+        filtered = [it for it in filtered if is_arc_phase_incoherent(it)]
     if args.sort_updated or args.stale_days is not None:
         filtered = apply_recency(
             filtered, sort_updated=args.sort_updated, stale_days=args.stale_days, now=now
@@ -373,7 +404,9 @@ def main() -> int:
         json.dump(filtered, sys.stdout, indent=2)
         sys.stdout.write("\n")
     else:
-        sys.stdout.write(format_table(filtered, now=now, arc_columns=args.arc_columns))
+        sys.stdout.write(
+            format_table(filtered, now=now, arc_columns=args.arc_columns or args.check_coherence)
+        )
     return 0
 
 

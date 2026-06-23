@@ -38,6 +38,14 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
 
+          # Pin the review-bot model + reasoning effort (forwarded to the Claude Code CLI).
+          # claude-opus-4-8 = latest Opus tier; --effort max = highest reasoning level (Opus-only).
+          # NB: the action loads this workflow from the DEFAULT branch, so changes here only
+          # affect reviews after they land on main. See Issue #821.
+          claude_args: |
+            --model claude-opus-4-8
+            --effort max
+
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
