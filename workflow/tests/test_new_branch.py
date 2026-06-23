@@ -17,7 +17,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "new_branch.sh"
 
 # A stub `gh`: for `api graphql` it cats $NEW_BRANCH_GH_FIXTURE; anything else errors
-# (no non-graphql gh call should happen under --dry-run).
+# (no non-graphql gh call should happen under --dry-run or on a clean error path).
 _GH_STUB = """#!/usr/bin/env bash
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   cat "$NEW_BRANCH_GH_FIXTURE"
@@ -25,6 +25,13 @@ if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
 fi
 echo "stub gh: unexpected call: $*" >&2
 exit 99
+"""
+
+# A stub `git`: no test should reach a real git mutation. Any call is a failure
+# signal (e.g. a swallowed --dry-run falling through to git fetch / checkout -b).
+_GIT_STUB = """#!/usr/bin/env bash
+echo "stub git: unexpected call: $*" >&2
+exit 98
 """
 
 
@@ -43,17 +50,21 @@ def _graphql_json(title, roles, sub_total):
     }
 
 
-def _run(args, *, title="feat(scripts): x", roles=("role:pm",), sub_total=0):
-    """Run new_branch.sh with a stub gh on PATH returning a crafted issue."""
+def _run(args, *, title="feat(scripts): x", roles=("role:pm",), sub_total=0, raw=None):
+    """Run new_branch.sh with stub gh + git on PATH returning a crafted issue.
+
+    raw: if given, the gh-graphql fixture is this literal JSON string (used to
+    inject edge envelopes like a null issue) instead of the built envelope.
+    """
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
-        # stub gh
-        gh = d / "gh"
-        gh.write_text(_GH_STUB)
-        gh.chmod(0o755)
-        # fixture JSON
+        for name, body in (("gh", _GH_STUB), ("git", _GIT_STUB)):
+            p = d / name
+            p.write_text(body)
+            p.chmod(0o755)
         fix = d / "issue.json"
-        fix.write_text(json.dumps(_graphql_json(title, list(roles), sub_total)))
+        fix.write_text(raw if raw is not None
+                       else json.dumps(_graphql_json(title, list(roles), sub_total)))
         env = {
             **os.environ,
             "PATH": f"{d}:{os.environ['PATH']}",
@@ -159,3 +170,67 @@ def test_no_issue_fallback():
     r = _run(["--no-issue", "labnotebook", "pm", "memory-slim", "--dry-run"])
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "labnotebook/pm/memory-slim"
+
+
+# --- Review 🟡#1: an option flag must not swallow the following flag ---------
+
+def test_type_flag_without_value_rejected_no_mutation():
+    # `--type --dry-run`: --dry-run must NOT be consumed as the type value
+    # (that would clear the dry-run guard and attempt a real branch-create).
+    r = _run(["578", "branch-helper", "--type", "--dry-run"], roles=("role:pm",))
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "--type" in r.stderr and "value" in r.stderr.lower()
+    # the git stub exits 98 if a mutation was attempted — it must not have been
+    assert "stub git" not in r.stderr
+
+
+def test_role_flag_without_value_rejected():
+    r = _run(["578", "branch-helper", "--role", "--dry-run"], roles=("role:pm",))
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "--role" in r.stderr and "value" in r.stderr.lower()
+
+
+# --- Review 🟡#2: non-existent issue → clean error, not a raw jq trace -------
+
+def test_nonexistent_issue_clean_error():
+    r = _run(["999999", "branch-helper", "--dry-run"],
+             raw='{"data":{"repository":{"issue":null}}}')
+    assert r.returncode == 1
+    assert "999999" in r.stderr and "not found" in r.stderr.lower()
+    assert "Cannot iterate over null" not in r.stderr  # no raw jq leak
+
+
+# --- Review nit: --no-issue sanitizes type + role ---------------------------
+
+def test_no_issue_sanitizes_type_and_role():
+    r = _run(["--no-issue", "Feat", "PM", "memory-slim", "--dry-run"])
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "feat/pm/memory-slim"
+
+
+def test_no_issue_rejects_type_flag():
+    # --type/--role are meaningless with --no-issue (type+role are positional);
+    # silently consuming them then erroring on "missing slug" is confusing.
+    r = _run(["--no-issue", "--type", "feat", "pm", "memory-slim", "--dry-run"])
+    assert r.returncode == 1
+    assert "--type" in r.stderr and "no-issue" in r.stderr.lower()
+
+
+# --- Spec error-table gaps (lines 80-89) ------------------------------------
+
+def test_non_integer_issue_errors():
+    r = _run(["abc", "branch-helper", "--dry-run"])
+    assert r.returncode == 1
+    assert "integer" in r.stderr.lower()
+
+
+def test_slug_sanitizes_to_empty_errors():
+    r = _run(["578", "→→→", "--dry-run"], roles=("role:pm",))
+    assert r.returncode == 1
+    assert "empty" in r.stderr.lower()
+
+
+def test_no_issue_missing_slug_errors():
+    r = _run(["--no-issue", "labnotebook", "pm", "--dry-run"])
+    assert r.returncode == 1
+    assert "no-issue" in r.stderr.lower() or "slug" in r.stderr.lower()

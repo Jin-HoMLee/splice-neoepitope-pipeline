@@ -50,16 +50,27 @@ fetch_issue() {
         }
       }
     }')
+  # Null-tolerant: a non-existent issue returns issue:null (exit 0) — default to
+  # empty/0 so the caller can detect "not found" instead of jq aborting on null.
   local title roles sub
-  title=$(printf '%s' "$out" | jq -r '.data.repository.issue.title')
-  roles=$(printf '%s' "$out" | jq -r '[.data.repository.issue.labels.nodes[].name | select(startswith("role:")) | ltrimstr("role:")] | join(",")')
-  sub=$(printf '%s' "$out" | jq -r '.data.repository.issue.subIssuesSummary.total')
+  title=$(printf '%s' "$out" | jq -r '.data.repository.issue.title // ""')
+  roles=$(printf '%s' "$out" | jq -r '[((.data.repository.issue.labels.nodes // [])[].name) | select(startswith("role:")) | ltrimstr("role:")] | join(",")')
+  sub=$(printf '%s' "$out" | jq -r '.data.repository.issue.subIssuesSummary.total // 0')
   # \037 (Unit Separator) — non-whitespace so empty fields are preserved by read
   # (a TAB delimiter collapses consecutive separators, eating an empty role field).
   printf '%s\037%s\037%s\n' "$title" "$roles" "$sub"
 }
 
 # --- main --------------------------------------------------------------------
+
+# require_value <flag> <value> -> dies if value is missing or itself a flag,
+# so `--type --dry-run` can't swallow --dry-run (which would clear the dry-run
+# guard and attempt a real branch-create).
+require_value() {
+  case "${2:-}" in
+    ""|-*) die "$1 requires a value" ;;
+  esac
+}
 
 # pick_role <override> <comma-list> -> echoes the single role or dies.
 pick_role() {
@@ -81,26 +92,33 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
     --no-issue) NO_ISSUE=1; shift ;;
-    --type) TYPE_OVERRIDE="${2:-}"; shift 2 ;;
-    --role) ROLE_OVERRIDE="${2:-}"; shift 2 ;;
+    --type) require_value --type "${2:-}"; TYPE_OVERRIDE="$2"; shift 2 ;;
+    --role) require_value --role "${2:-}"; ROLE_OVERRIDE="$2"; shift 2 ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
 done
 
 # --- issueless fallback: --no-issue <type> <role> <slug> --------------------
 if [ "$NO_ISSUE" -eq 1 ]; then
-  TYPE="${POSITIONAL[0]:-}"
-  ROLE="${POSITIONAL[1]:-}"
+  # type+role are positional here; --type/--role would silently shift a slot.
+  [ -z "$TYPE_OVERRIDE" ] && [ -z "$ROLE_OVERRIDE" ] \
+    || die "--type/--role are not valid with --no-issue (type and role are positional)"
+  TYPE_RAW="${POSITIONAL[0]:-}"
+  ROLE_RAW="${POSITIONAL[1]:-}"
   SLUG_RAW="${POSITIONAL[2]:-}"
-  [ -n "$TYPE" ] || die "usage: new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]"
-  [ -n "$ROLE" ] || die "usage: new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]"
-  [ -n "$SLUG_RAW" ] || die "usage: new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]"
+  { [ -n "$TYPE_RAW" ] && [ -n "$ROLE_RAW" ] && [ -n "$SLUG_RAW" ]; } \
+    || die "usage: new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]"
+  # sanitize all three for a canonical, valid git ref (the issue-linked path
+  # gets a lowercased title-type + label-role for free; do the same here).
+  TYPE=$(sanitize_slug "$TYPE_RAW")
+  ROLE=$(sanitize_slug "$ROLE_RAW")
   SLUG=$(sanitize_slug "$SLUG_RAW")
-  [ -n "$SLUG" ] || die "slug is empty after sanitization"
+  { [ -n "$TYPE" ] && [ -n "$ROLE" ] && [ -n "$SLUG" ]; } \
+    || die "type, role, and slug must each be non-empty after sanitization"
   BRANCH="$TYPE/$ROLE/$SLUG"
   if [ "$DRY_RUN" -eq 1 ]; then printf '%s\n' "$BRANCH"; exit 0; fi
   git fetch origin --quiet
-  git checkout -b "$BRANCH"
+  git checkout -b "$BRANCH" origin/main   # fresh base (not local HEAD)
   exit 0
 fi
 
@@ -111,7 +129,11 @@ SLUG_RAW="${POSITIONAL[1]:-}"
 [ -n "$ISSUE" ] || die "usage: new_branch.sh <issue#> <short-slug> [--type T] [--role R] [--dry-run]"
 case "$ISSUE" in (*[!0-9]*|'') die "issue number must be a positive integer";; esac
 
-IFS=$'\037' read -r TITLE ROLES SUBTOTAL < <(fetch_issue "$ISSUE")
+# Explicit capture so a failed fetch or a non-existent issue gives a clean error
+# (not a raw jq trace): a missing issue returns issue:null → empty title here.
+DATA=$(fetch_issue "$ISSUE") || die "could not fetch issue #$ISSUE (gh error?)"
+IFS=$'\037' read -r TITLE ROLES SUBTOTAL <<<"$DATA"
+[ -n "$TITLE" ] || die "issue #$ISSUE not found"
 
 # parent guard (replicates the gh-issue-develop PreToolUse hook, which can't see
 # the nested gh call): refuse epics — branching off them auto-closes the parent.
@@ -139,5 +161,6 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
-git fetch origin --quiet
+# gh issue develop --base main branches server-side from fresh remote main, so
+# no local `git fetch` is needed here (it wouldn't affect the server-side base).
 gh issue develop "$ISSUE" --name "$BRANCH" --base main --checkout
