@@ -1,0 +1,55 @@
+# 4-DB splice-category audit + IEDB free-text recovery (#734)
+
+**Parent:** [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) · **Leaf:** [#734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) (carries the original #680 AC#1) · **Date:** 2026-06-22
+
+**Headline:** None of the four major immunogenicity databases (CEDAR, IEDB, NEPdb, dbPepNeo2.0) exposes a splice category — splice-derived neoantigens are **not separable by schema**. *But* free-text/reference-title mining of IEDB's IQ-API **recovers real, functionally-validated splice-neoantigens** that a manual literature sweep missed. **Category-absence ≠ data-absence.**
+
+---
+
+## 1. The null: no DB has a splice category (AC#1)
+
+Each database classifies neoantigens along axes that have **no place for a generation mechanism** (splice junction / intron retention / aberrant 3′SS / neojunction). Confirmed per-DB with the exact evidence below.
+
+| DB | How it classifies | Splice category? | Evidence |
+|---|---|---|---|
+| **IEDB** | `structure_type` (linear/discontinuous), source antigen (protein/organism), `e_modification` (PTM), disease/host/MHC | **No** | IQ-API (`query-api.iedb.org`) free-text: every splice-*mechanism* keyword in `antigen_description` returns **0** rows — `intron retention`, `neojunction`, `aberrant splic`, `cryptic exon`, `exon skipping`, `retained intron`, `frameshift`. No schema field encodes generation mechanism. |
+| **CEDAR** | 3 mutually-exclusive categories: **Neoantigen / Viral / Germline-Self-Host** | **No** | "Using CEDAR" (PMC12543298): mutation-specific search is explicitly *future work* ("we are working on including the option to search for neoantigens encoded by a specific mutation"); **no API** ("it is not possible to … We plan to provide an API"). `query-api.cedar.iedb.org` does not resolve. |
+| **NEPdb** | Response / tumor type / HLA / gene / year; scope = **"non-synonymous mutations"** | **No** | Front. Immunol. 2021 (10.3389/fimmu.2021.644637) + live `nep.whu.edu.cn`: no mutation-type facet at all; the "non-synonymous mutations" scope is a point-mutation framing that structurally excludes splice. 173 immunogenic positives. |
+| **dbPepNeo2.0** | confidence tiers (LC/MC/HC); source types **SNV / INDEL / fusion / non-coding** | **No** | Front. Immunol. 2022 (10.3389/fimmu.2022.855976): no occurrence of splice/splicing/intron-retention anywhere in tiers, source-type list, or search fields. Closest non-canonical sources = fusion + non-coding. 746 HC class-I. (Live site down at audit; paper-confirmed.) |
+
+**The sharpest demonstration (IEDB, row-level):** splice-neoantigens that *are* deposited are filed as ordinary protein peptides. IRIS-CLASP1 `SLDGTTTKA` → "Cytoplasmic linker associated protein 1"; RCAN1-4 `IFSESETRAKF` → "calcipressin-1 **isoform c** / Isoform 2 of Calcipressin-1". The splice origin survives **only in the free-text reference title** ("…alternative splicing of RCAN1…", "IRIS: … pre-mRNA alternative splicing"), never in a structured field. So even when the data is present, you cannot retrieve splice-neoantigens *as a class*.
+
+## 2. Free-text recovery works (AC#2)
+
+Despite the no-category finding, mining IEDB's IQ-API by **reference title** (`reference_search.reference_title ILIKE *splic*` → 35 references) and by free-text antigen fields surfaces the splice-neoantigen literature. Triaging the 35 splice-titled references:
+
+- **Already in our registry:** RCAN1/Xiong, Kim leukemia, POSTN, IRIS.
+- **Proteasome cis/trans-spliced peptides** (≈12 refs: MHC-I-spliced immunopeptidome, KRAS-G12V spliced epitope, etc.) — a *different* phenomenon (post-translational, not RNA-splicing); correctly **excluded** (cf. the splice-junction-terminology collision).
+- **Non-cancer** (T1D insulin, ALS-FTD TDP-43, lupus spliceosome, HBV, HMSD minor-H antigen, CD20/desmoglein isoforms) — out of scope.
+- **Net-new cancer splice-neoantigens with functional T-cell assays** (the recovery): see `recovered_candidates.tsv`.
+
+**55 net-new functionally-validated candidate peptides** were recovered (gate-2 confirmed by IEDB assay records — tetramer, IFNγ, cytotoxicity, granzyme B, degranulation):
+
+| Source | PMID | Net-new positives |
+|---|---|---|
+| Bigot 2021 — SF3B1-mutant uveal melanoma (*Cancer Discov*) | 33811047 | 35 |
+| Kim mis-splicing leukemias — additional positives beyond our 5 | — | 13 |
+| Long-read alt-splicing, uveal melanoma (*Cancer Immunol Res* 2023) | 37756564 | 4 |
+| Kwok/Nature — GNAS/RPL22 (registry rows currently `functional-nonscorable`/sequence-unpublished) | 39972144 | 2 |
+| POSTN splicing-junction (*Genes Immun* 2025) — 2nd peptide | 40181162 | 1 |
+
+## 3. Dedup + fold (AC#3)
+
+Recovered peptides were deduped against `registry.tsv` (exact sequence). **Bigot 2021 folded this pass** (35 rows: 5 `high` + 30 `medium`) — dual-gate verified (gate-1 = supp. Table S8 alternative-mRNA-junctions + panel design + supp. methods; gate-2 = IEDB effector/tetramer; sequences `direct` from local supp. Table S2, cross-confirmed 35/35 vs IEDB). See `PROVENANCE.md` → "Bigot et al. 2021". The remaining ~20 candidates are deferred to #734 follow-ups (each needs its own primary-source gate-1 pass).
+
+## 4. Why this is a citable result
+
+1. **A documented null with method evidence**, not an assertion: the four canonical immunogenicity DBs cannot surface splice-neoantigens as a class — a real obstacle for anyone trying to assemble a splice-immunogenicity benchmark, and the empirical justification for why this registry had to be hand-built from primary literature.
+2. **A method correction:** the obstacle is *schema*, not *data*. Reference-title / free-text mining recovers the data the categories hide — and caught Bigot 2021, a functionally-validated splice-neoantigen paper the Zotero-centric manual sweep had missed. Any future splice-immunogenicity curation should run this DB-text mine, not rely on category browse.
+
+## Reproduce
+
+- IEDB IQ-API (PostgREST): `https://query-api.iedb.org/` — tables `tcell_search`, `epitope_search`, `reference_search`, `antigen_search`. No auth.
+- Mechanism-keyword null: `tcell_search?antigen_description=ilike.*<kw>*` with `Prefer: count=exact` (read `Content-Range`).
+- Reference-title recall: `reference_search?reference_title=ilike.*splic*`; then `tcell_search?reference_id=eq.<id>` per reference.
+- Candidate extraction + dedup: see `recovered_candidates.tsv` (peptide, gene, hla, measure, assay, in_registry, source_ref, pmid).
