@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-23
 
+### 23:21 UTC — Editor: PM
+
+#### `scripts/new_branch.sh` — canonical branch-name helper — [Issue #578](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/578) / [PR #853](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/853)
+
+Shipped the branch-naming helper that closes the [Issue #578](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/578) drift (5+ competing branch patterns; the `gh issue develop` half auto-slugs the full Issue title into long/mangled names and the `git checkout -b` half drops the role metadata the board/closure automation consume). The fix is a **mechanism, not a memory rule** — `new_branch.sh` derives `type` from the Issue title's Conventional-Commit prefix and `role` from its `role:` label, takes a short human-supplied slug, and **wraps** `gh issue develop` (preserving the Issue↔branch Development-panel link, the one thing a `git checkout -b` replacement would lose). Built TDD off the [approved spec](docs/superpowers/specs/2026-06-22-new-branch-helper-design.md); the parent guard replicates the `gh issue develop` PreToolUse hook the *nested* call can't trigger (refusing epics whose `subIssuesSummary.total > 0`).
+
+**Two real bugs the cycle caught** — neither visible in the happy path:
+- *TDD red→green surfaced one:* a TAB field-delimiter between `fetch_issue`'s 3 outputs **collapsed an empty role field** (TAB is IFS-whitespace, so consecutive separators merge), making a no-role issue silently read `role="0"`. Switched to the `\037` Unit Separator (non-whitespace → empty fields preserved).
+- *The bot review caught the meatier one:* `--type`/`--role` greedily took `${2}` even when the next token was itself a flag, so `… --type --dry-run` **swallowed `--dry-run` as the type value** — clearing the dry-run guard and falling through to a *real* `gh issue develop`. A dry-run silently becoming a branch-create is exactly the foot-gun this tool exists to remove. Fixed with a `require_value` guard (rejects a missing/dash-prefixed value); the regression test asserts the clean error **and** that no git mutation was attempted (stub `git` exits non-zero if reached).
+
+Also from the review (all legitimate): non-existent issue now gives a clean `not found` (null-tolerant jq + explicit capture, no raw `Cannot iterate over null`); `--no-issue` sanitizes type+role and rejects the positional-shadowing `--type`/`--role` flags; dropped a no-op `git fetch` (`gh issue develop --base main` branches server-side from fresh remote main). **12 → 20 pytest cases**, shellcheck clean, live-smoke-tested against the production `gh api graphql` path (incl. the real #538 epic refused with its 6 sub-issues). Bot **approved in spirit** (no blocking findings). CLAUDE.md gained a "Branch naming" subsection (interim until the helper is habitual). **Lesson:** the bot review earned its keep on a *safety* bug TDD's happy-path cases structurally couldn't reach — the dry-run swallow only manifests on a *malformed* invocation, which positive-path tests don't generate; adversarial review and example-based TDD catch different bug classes, and a tool whose whole job is "make the safe path the easy path" especially warrants the adversarial pass.
+
 ### 16:20 UTC — Editor: PM
 
 #### pm-i7 milestone closure report — Board-Governance Tooling — [milestone #34](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/34) / [PR #847](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/847)

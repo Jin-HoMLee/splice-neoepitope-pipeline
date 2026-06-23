@@ -435,6 +435,26 @@ Refuses to run `gh pr merge` if any `- [ ]` remains on the PR body Test plan OR 
 
 **Workaround for a non-closing `#N` reference:** break the keyword→`#N` adjacency — neutral phrasing like "related to Issue #N", or move the keyword away from the token — in the PR body **and** commit messages. See `shared/feedback_hash_numbers.md` (Companion foot-gun section). If the close is genuinely intended, add the Issue to `closingIssuesReferences` (link it in the PR body) so the gate recognizes it.
 
+## Branch naming
+
+Branches follow the canonical `<type>/<role>/issue-<N>-<slug>` pattern (Conventional-Branch format + a `role` segment the board/closure automation consume). Create them with **`scripts/new_branch.sh`** ([Issue #578](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/578)) rather than by hand — raw `gh issue develop` auto-slugs the full Issue title into long/mangled names, and bare `git checkout -b` drops the Development-panel link.
+
+```bash
+scripts/new_branch.sh <issue#> <short-slug> [--type T] [--role R] [--dry-run]
+#   new_branch.sh 578 branch-helper              → feat/pm/issue-578-branch-helper
+#   new_branch.sh 578 branch-helper --type spike → spike/pm/issue-578-branch-helper
+scripts/new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]   # issueless fallback
+```
+
+- **type** derives from the Issue title's Conventional-Commit prefix (`feat(scripts): …` → `feat`); `--type` overrides; no prefix and no `--type` → error (never guessed).
+- **role** comes from the Issue's `role:<x>` label; exactly one → used, multiple → `--role` required, none → `--role` required.
+- **slug** is a **short, human-supplied** kebab descriptor (positional arg), sanitized (lowercase, non-`[a-z0-9-]` dropped); omitting it errors with the Issue title + a suggested invocation — it is never auto-slugged from the title.
+- **Wrap, not replace `gh issue develop`** (recorded decision): the helper feeds `gh issue develop` our canonical `--name`, preserving the Issue↔branch Development-panel link (there is no retroactive link). `--no-issue` is the *only* sanctioned `git checkout -b` path.
+- **Parent guard:** the script refuses an Issue with `subIssuesSummary.total > 0` (epic) — branching off a parent creates a `closingIssuesReferences` edge that auto-closes it on merge. It replicates the `gh issue develop` PreToolUse hook, which can't see the nested `gh` call. Branch off a leaf sub-issue instead.
+- `--dry-run` prints the computed name and exits without any git/gh mutation.
+
+This is the interim convention until the helper is habitual; the underlying "Issue-tracked branches use `gh issue develop`, never `git checkout -b`" rule is enforced by the parent-guard hook above.
+
 ## Merge workflow
 
 For all `gh pr merge` invocations, prefer the closure-ritual gate:
