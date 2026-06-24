@@ -3,7 +3,7 @@
 **Epic:** [#859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859)
 **Pilot:** [#860](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/860)
 **Date:** 2026-06-24
-**Status:** approved design
+**Status:** draft - pending review
 
 ## Problem
 
@@ -46,7 +46,7 @@ The pointer-stub and the `MEMORY.md` index look identical in shape, but they ind
 | Home | Holds | Loaded by | Curator / repo |
 |---|---|---|---|
 | **`AGENTS.md`** (full, or stub -> skill) | Cemented **project** facts and conventions about the codebase | Every agent + human in the repo, **including non-Claude agents** (Codex/Cursor read AGENTS.md) | Project repo, via PR |
-| **`.claude/skills/`** (stub points here) | Bulky, situational project how-to that does not need to be resident | Any agent, on-demand when the task matches the skill description | Project repo, via PR |
+| **`.claude/skills/`** (stub points here) | Bulky, situational project how-to that does not need to be resident | Any **Claude** agent, on-demand when the task matches the skill description (a non-Claude agent has no skill mechanism - it sees only the stub and can read the file path manually) | Project repo, via PR |
 | **shared memory** (`shared/MEMORY.md` + files) | Cross-role conventions still evolving, or experiential "why we decided X" | This project's Claude personas only | Personas repo, via Memory Manager |
 | **role memory** (`<role>/MEMORY.md` + files) | Persona-specific knowledge (e.g. how PM runs the morning routine) | That one role's Claude sessions only | Personas repo, via Memory Manager |
 
@@ -131,6 +131,9 @@ Line counts are from the current file.
 | Board status governance | 34 | ~10-line core rule + cite `feedback_board_hygiene.md` |
 | WIP limits | 11 | ~3-line rule + cite `feedback_board_hygiene.md` |
 
+The trimmed-resident core for each of these must stay **self-sufficient**: an agent (including a non-Claude one that cannot load shared memory) must be able to operate the board from the resident lines alone.
+The shared-memory citation is *extra depth*, not load-bearing - the trim relocates rationale and edge cases, never the operative rule itself.
+
 ### Leave / delete
 
 | Section | Lines | Action |
@@ -189,6 +192,7 @@ Cross-reference the `project_memory_md_slimming` audit so the two slimming effor
 - **Project-skill loading:** `.claude/skills/` is committed and active; verify in the pilot that the skill appears in the skills list after `/reload-plugins` (acceptance criterion), so the mechanism is proven before the other six clusters depend on it.
 - **Content drift during the move:** every PR's diff must account for each moved line (no paraphrasing); the move is verbatim.
 - **Docs back-references to `AGENTS.md` sections:** path references resolve via the symlink; section-anchor links (if any) are checked per PR.
+- **Cross-tool asymmetry of skills vs reference files:** `AGENTS.md` is cross-tool (Codex/Cursor read it), but a `.claude/skills/` skill is a Claude-only mechanism - a non-Claude agent only sees the stub. A `docs/` reference file behind a stub is readable by any agent. So when a cluster is a close call between "skill" and "reference file", **lean to the reference file** for cross-tool reach; reserve skills for genuinely procedural, task-triggered work where the trigger earns its keep. The directory-level fix for this asymmetry (a vendor-neutral `.agents/` config home) is tracked separately in #861, sequenced after this pilot.
 
 ## Verification
 
