@@ -3,7 +3,7 @@
 **Epic:** [#859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859)
 **Pilot:** [#860](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/860)
 **Date:** 2026-06-24
-**Status:** draft - pending review
+**Status:** approved - pilot (#860) implemented
 
 ## Problem
 
