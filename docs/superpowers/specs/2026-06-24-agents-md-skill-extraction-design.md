@@ -193,7 +193,7 @@ Cross-reference the `project_memory_md_slimming` audit so the two slimming effor
 
 ## Verification
 
-- Pilot: `docs/research_artifact_conventions.md` exists with the four section bodies verbatim (byte-identical to the original `AGENTS.md` lines); the 4 sections are gone from `AGENTS.md` and replaced by the stub; the stub link resolves to the new file; `git diff` accounts for every moved line.
+- Pilot: `docs/research_artifact_conventions.md` exists with the four section bodies extracted verbatim - byte-identical to the original `AGENTS.md` lines at extraction (sha256-verified) - with one intentional post-extraction delta: a `../` prefix on 3 relative-link targets (`research/slides/README.md`, `research/evals/issue_218_hermes/`, `research/decisions/issue_592/`), required because the file sits one directory deeper than the repo root, where the original root-relative links would 404. Link text is unchanged. The 4 sections are gone from `AGENTS.md` and replaced by the stub; the stub link resolves to the new file; `git diff` accounts for every moved line.
 - CI green (no code paths touched).
 - Resident-line count of `AGENTS.md` drops by ~56 lines after the pilot, toward the ~180-line end-state target as follow-ups land.
 
