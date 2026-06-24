@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-24
 
+### 20:51 UTC — Editor: PM
+
+#### AGENTS.md slimming pilot: shipped as a reference file (pivoted from a skill mid-PR) — [Issue #860](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/860) / [PR #862](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/862)
+
+First extraction under the [#859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859) AGENTS.md-slimming epic: moved the four research-artifact convention sections (experiment-notebook layout + the 3 Quarto deck tiers) out of always-on AGENTS.md into a discoverable home behind a one-line pointer-stub, cutting the resident file 468 → 414 lines.
+
+The pilot pivoted **mid-PR**.
+It was built (subagent-driven) as the project's first `.claude/skills/` skill, then - before merge - run through `skill-creator`, which together with the spec's own decision rule flagged the content as **reference-shaped, not skill-shaped**: it is pure layout facts + tier definitions + rationale with no procedural steps, and a `docs/` file is cross-tool readable where a `.claude/skills/` skill is Claude-only.
+So it shipped as `docs/research_artifact_conventions.md`; the `.claude/skills/` loading-mechanism validation defers to the first genuinely-procedural candidate (`running-snakemake`).
+
+**Two lessons, both about verifying at the layer that actually matters.**
+First: match content-shape to its home *before* building, not after - a verbatim move into a skill was the wrong vehicle for reference content, and only a pre-merge `skill-creator` pass caught it (cheap here because pre-merge; it would have cemented a bad precedent otherwise).
+Second: a fidelity gate proves exactly what it measures and no more.
+The byte-for-byte (sha256) gate proved *no content was lost* - but said nothing about whether the moved file's **relative links still resolve**, a separate, location-dependent axis it was structurally blind to.
+The verbatim move carried 3 root-relative markdown links one directory deeper, so they 404'd from `docs/`; the bot **re-review** caught it (the earlier skill-version review had missed it too), and it was fixed with a `../` prefix (link text unchanged).
+The `resources/` path staleness the review also flagged is tracked in [#863](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/863).
+
+Bonus operational lesson: a throwaway inline review-poller I wrote used `gh --jq` with jq's `--arg`, which `gh` rejects - so it errored every iteration and timed out instead of catching the review.
+That is the argument for the `awaiting-bot-review` skill now in design: bundle a *tested* poll script, never re-derive fragile inline jq.
+
 ### 13:19 UTC — Editor: PM
 
 #### Adopt `AGENTS.md` as canonical, symlink `CLAUDE.md` → it — [Issue #857](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/857) / [PR #858](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/858)
