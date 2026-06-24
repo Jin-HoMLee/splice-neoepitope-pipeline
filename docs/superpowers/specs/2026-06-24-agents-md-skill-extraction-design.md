@@ -18,9 +18,19 @@ The two stay separate tracks, cross-referenced, not merged (see Boundary rule be
 
 ## Goal
 
-Extract situational, project-scoped how-to content out of `AGENTS.md` into on-demand **project skills** under `.claude/skills/` (committed, so they travel to all three clones exactly like the repo's hooks do).
-For each extracted cluster, leave a one-line **pointer-stub** in `AGENTS.md` so the topic stays discoverable in always-on context even if a skill's own description-trigger does not fire.
-Target end state: resident `AGENTS.md` drops from ~468 lines / ~17.6k tokens to roughly ~180 lines / ~7k tokens (about a 60% cut), with no content lost.
+Move situational, project-scoped content out of always-on `AGENTS.md` into the *right* on-demand home, leaving a one-line **pointer-stub** behind so the topic stays discoverable in resident context.
+The home is not always a skill.
+Per Anthropic guidance (see "Skill vs reference file vs resident" below), the mechanism is a **mix**:
+
+- **Skills** (`.claude/skills/`) for genuinely *procedural*, task-triggered clusters (how to do X).
+- **Reference files** (`docs/`, linked from an `AGENTS.md` stub) for *reference* knowledge read while doing other work (facts, gotchas, rationale).
+- **Resident** for short, always-relevant rules.
+
+All homes are committed to the project repo, so they travel to all three clones like the repo's hooks do.
+Target end state: resident `AGENTS.md` drops from ~468 lines / ~17.6k tokens toward roughly ~180 lines / ~7k tokens (about a 60% cut), with no content lost.
+
+This corrects an earlier version of this spec that proposed extracting everything into seven skills.
+That was a top-down bucket-sort of existing prose, which is the anti-pattern Anthropic warns against; the corrected approach matches content type to home and validates each non-pilot cluster against a real evaluation before building it.
 
 ## Non-goals
 
@@ -55,6 +65,21 @@ Why not migrate shared memory into `AGENTS.md` even though it is cross-role:
 
 The load-bearing, all-agents-must-obey subset has already correctly graduated into `AGENTS.md` (the no-`@claude` rule, branch naming, the merge gate). What remains in shared memory is the not-yet-graduated or experiential remainder.
 
+## Skill vs reference file vs resident (web-verified)
+
+Anthropic's guidance on what belongs in a skill, confirmed against the engineering post and the skill-authoring best-practices doc (sources at the end):
+
+- **Skills are for procedural knowledge** - "a way of doing something that activates based on context." The canonical examples are all task-shaped (processing PDFs, analyzing spreadsheets, filling forms, writing commit messages).
+- **Pure reference facts are not automatically skills.** Reference content belongs in **reference files loaded on demand**. It rides *inside* a task-triggered skill (a `SKILL.md` overview pointing to reference files the agent reads while doing tasks, e.g. the BigQuery example) or lives as a plain linked file. It is not a skill on its own.
+- **Build evaluations first.** Identify a real capability gap by running the task *without* the skill and observing failure, then build the minimal skill to close it. Do not pre-commit skills top-down from an existing document.
+- **Conventions:** gerund-form names (`processing-pdfs`); third-person descriptions stating *what* it does and *when* to use it; `SKILL.md` body under ~500 lines with detail split into reference files; only add context Claude does not already have.
+
+**Decision rule for each cluster:**
+
+1. Is it an explicit task an agent performs, with procedural steps or commands? -> **skill** (validated by an eval).
+2. Is it reference knowledge needed *while editing code or doing other work* (facts, gotchas, rationale)? -> **reference file** in `docs/`, linked from an `AGENTS.md` stub. A file behind an always-on stub triggers more reliably than a skill, because a file-edit is not a task invocation that would fire a skill description.
+3. Is it a short rule relevant to almost everything (e.g. an output-vocabulary convention)? -> **keep resident**.
+
 ## The pointer-stub pattern
 
 When a section is extracted, `AGENTS.md` keeps a one-line stub instead of the full text:
@@ -63,7 +88,7 @@ When a section is extracted, `AGENTS.md` keeps a one-line stub instead of the fu
 
 Rationale: the per-section resident cost drops from tens of lines to ~1, while the topic stays visible in always-on context.
 This neutralizes the main failure mode of on-demand skills: a description-trigger that does not fire would otherwise make the convention silently invisible.
-A stub can point at a **skill** or, for a bloated graduated-summary section, back at a **shared-memory file** (the "trim to pointer" verdict below).
+A stub can point at a **skill** (procedural cluster), a **reference file** in `docs/` (reference knowledge), or, for a bloated graduated-summary section, back at a **shared-memory file** (the "trim to pointer" verdict below).
 
 ## Triage: 28 sections, 4 verdicts
 
@@ -78,18 +103,25 @@ Line counts are from the current file.
 | Branch naming | 20 | reflex; fires at branch-creation, no task-trigger to catch a miss |
 | Merge workflow | 11 | reflex; the `audit_and_merge.sh` gate must stay top-of-mind |
 | Three-axis work model | 20 | core board model all roles reason with |
+| Junction origin classification | ~12 | core tumor-specificity logic; foundational and short, not situational how-to |
+| MHC Presentation Vocabulary | ~13 | naming rule that shapes all prediction prose/code; always-relevant (the textbook resident case), or a short reference file |
 
-### Extract to skill + stub - situational project how-to
+### Extract to skill - procedural, task-triggered (validate each via eval before building)
 
-| Cluster -> skill | Source sections | Lines |
+| Cluster -> skill (gerund name TBD at build) | Source sections | Lines | Status |
+|---|---|---|---|
+| `authoring-research-decks` | Experiment-notebook layout + Slide decks x3 | ~56 | **pilot - confirmed skill** |
+| `running-snakemake` | Snakemake 8 Gotchas + Conda Activation | ~59 | candidate - eval first |
+| `running-the-pipeline` | Infrastructure (cloud GPU) + chr22 test dataset | ~37 | candidate - eval first |
+| (conda-env setup recipe) | the procedural half of Python environments | part of ~47 | candidate - eval first |
+
+### Extract to reference file - reference knowledge read while editing (stub -> `docs/` file)
+
+| Cluster -> reference file | Source sections | Lines |
 |---|---|---|
-| `authoring-research-decks` **(pilot)** | Experiment-notebook layout + Slide decks x3 | ~56 |
-| `running-snakemake` | Snakemake 8 Gotchas + Conda Activation | ~59 |
-| `splice-pipeline-gotchas` | regtools arg-order, regtools BED12, STAR strand, UCSC/ENSEMBL, sra-tools, HISAT2 cache | ~62 |
-| `pipeline-conda-envs` | Known Dependency Issues + Python environments | ~47 |
-| `running-the-pipeline` | Infrastructure (cloud GPU) + chr22 test dataset | ~37 |
-| `pipeline-design-rationale` | Pipeline Design Decisions + Reference/Index layout | ~33 |
-| `neoepitope-output-vocabulary` | MHC Presentation Vocabulary | ~13 |
+| junction-extraction gotchas | regtools arg-order, regtools BED12, STAR strand, UCSC/ENSEMBL, sra-tools, HISAT2 cache | ~62 |
+| conda dependency issues | Known Dependency Issues (the "known issues" half) | part of ~47 |
+| tcrdock/structure rationale | TCRdock-via-Docker + PDB chain relabelling | ~14 |
 
 ### Trim to pointer - graduated summaries bloated into duplicates
 
@@ -143,7 +175,9 @@ The four sections in `AGENTS.md` are replaced by one pointer-stub (text above).
 ## Rollout
 
 1. **Pilot PR (this branch, #860):** create the `authoring-research-decks` skill, replace the 4 sections with the stub, land this spec. Verify the skill loads after `/reload-plugins`.
-2. **Per-cluster follow-up Issues** under epic #859: one PR each for `running-snakemake`, `splice-pipeline-gotchas`, `pipeline-conda-envs`, `running-the-pipeline`, `pipeline-design-rationale`, `neoepitope-output-vocabulary`. Filed once the pilot proves the pattern.
+2. **Per-cluster follow-up Issues** under epic #859, filed once the pilot proves the pattern, each routed by the decision rule:
+   - *Skill candidates* (`running-snakemake`, `running-the-pipeline`, conda-env setup recipe): **build an eval first** - run the task without the skill, confirm a real gap and a reliable trigger - then build only if justified.
+   - *Reference files* (junction-extraction gotchas, conda dependency issues, tcrdock/structure rationale): move to a `docs/` file + `AGENTS.md` stub. No eval needed; these are read-on-reference, not task-triggered.
 3. **Trim pass:** Safety Wrappers / Board governance / WIP to pointers.
 4. **Final:** prune any leftover and confirm the resident-token target (~7k).
 
@@ -161,3 +195,11 @@ Cross-reference the `project_memory_md_slimming` audit so the two slimming effor
 - Pilot: skill file exists with the content verbatim; the 4 sections are gone from `AGENTS.md` and replaced by the stub; `git diff` accounts for every moved line; the skill appears after `/reload-plugins`.
 - CI green (no code paths touched).
 - Resident-line count of `AGENTS.md` drops by ~56 lines after the pilot, toward the ~180-line end-state target as follow-ups land.
+
+## Sources
+
+The skill-vs-reference-vs-resident guidance was verified against:
+
+- Anthropic, "Equipping agents for the real world with Agent Skills" - https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+- Claude Docs, "Skill authoring best practices" - https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+- MindStudio, "Claude Code Skills Architecture: skill.md process vs reference files" - https://www.mindstudio.ai/blog/claude-code-skills-architecture-skill-md-reference-files
