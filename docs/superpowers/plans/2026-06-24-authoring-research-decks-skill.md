@@ -1,5 +1,9 @@
 # authoring-research-decks Skill Pilot Implementation Plan
 
+> **Superseded note (2026-06-24):** this plan built the cluster as a `.claude/skills/` skill.
+> A pre-merge `skill-creator` review reclassified it to a **reference file** (`docs/research_artifact_conventions.md`) because the content is reference-shaped, not procedural.
+> The plan is kept as the build record; the shipped form and rationale are in the spec's "Pilot design" section.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extract the four research-artifact convention sections out of always-on `AGENTS.md` into a first project skill (`.claude/skills/authoring-research-decks/SKILL.md`), leaving a one-line pointer-stub behind, proving the slimming pattern from epic #859.

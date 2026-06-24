@@ -1,12 +1,7 @@
----
-name: authoring-research-decks
-description: >-
-  Conventions for authoring research artifacts in this repo - experiment
-  notebooks (research/experiments/issue_NNN_<short>/ layout, cross-experiment
-  data sharing, size bands) and the three Quarto slide-deck tiers (experiment /
-  eval / research-decision). Use when creating or editing a slide deck, an
-  experiment notebook, or their outputs/ folder.
----
+# Research artifact authoring conventions
+
+Conventions for authoring research artifacts in this repo - experiment notebooks (`research/experiments/issue_NNN_<short>/` layout, cross-experiment data sharing, size bands) and the three Quarto slide-deck tiers (experiment / eval / research-decision).
+Read this when creating or editing a slide deck, an experiment notebook, or their `outputs/` folder.
 
 ## Experiment notebooks live under `research/experiments/`
 

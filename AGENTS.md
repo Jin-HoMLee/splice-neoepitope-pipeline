@@ -49,7 +49,7 @@ TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather tha
 ### PDB chain relabelling
 AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
 
-**Authoring an experiment notebook or Quarto slide deck?** Layout, cross-experiment sharing, size bands, and the 3 deck tiers (experiment / eval / research-decision) live in the `authoring-research-decks` skill.
+**Authoring an experiment notebook or Quarto slide deck?** Layout, cross-experiment sharing, size bands, and the 3 deck tiers (experiment / eval / research-decision) live in [`docs/research_artifact_conventions.md`](docs/research_artifact_conventions.md).
 
 ## MHC Presentation Vocabulary
 

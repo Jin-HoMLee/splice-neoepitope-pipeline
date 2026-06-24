@@ -3,7 +3,7 @@
 **Epic:** [#859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859)
 **Pilot:** [#860](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/860)
 **Date:** 2026-06-24
-**Status:** approved - pilot (#860) implemented
+**Status:** approved - pilot (#860) implemented, then reclassified (skill -> reference file) before merge after a `skill-creator` review - see "Pilot design" below
 
 ## Problem
 
@@ -84,7 +84,7 @@ Anthropic's guidance on what belongs in a skill, confirmed against the engineeri
 
 When a section is extracted, `AGENTS.md` keeps a one-line stub instead of the full text:
 
-> **Authoring an experiment notebook or Quarto slide deck?** Layout, cross-experiment sharing, size bands, and the 3 deck tiers (experiment / eval / research-decision) live in the `authoring-research-decks` skill.
+> **Authoring an experiment notebook or Quarto slide deck?** Layout, cross-experiment sharing, size bands, and the 3 deck tiers (experiment / eval / research-decision) live in [`docs/research_artifact_conventions.md`](docs/research_artifact_conventions.md).
 
 Rationale: the per-section resident cost drops from tens of lines to ~1, while the topic stays visible in always-on context.
 This neutralizes the main failure mode of on-demand skills: a description-trigger that does not fire would otherwise make the convention silently invisible.
@@ -110,15 +110,17 @@ Line counts are from the current file.
 
 | Cluster -> skill (gerund name TBD at build) | Source sections | Lines | Status |
 |---|---|---|---|
-| `authoring-research-decks` | Experiment-notebook layout + Slide decks x3 | ~56 | **pilot - confirmed skill** |
-| `running-snakemake` | Snakemake 8 Gotchas + Conda Activation | ~59 | candidate - eval first |
+| `running-snakemake` | Snakemake 8 Gotchas + Conda Activation | ~59 | candidate - eval first; first skill-mechanism pilot once its eval passes |
 | `running-the-pipeline` | Infrastructure (cloud GPU) + chr22 test dataset | ~37 | candidate - eval first |
 | (conda-env setup recipe) | the procedural half of Python environments | part of ~47 | candidate - eval first |
+
+The `authoring-research-decks` cluster started here as the pilot but was **reclassified to a reference file** before merge (see "Pilot design") - it has no procedural steps, so by the decision rule it is reference-shaped. It now appears in the reference-file table below.
 
 ### Extract to reference file - reference knowledge read while editing (stub -> `docs/` file)
 
 | Cluster -> reference file | Source sections | Lines |
 |---|---|---|
+| research-artifact conventions (**pilot, shipped** -> `docs/research_artifact_conventions.md`) | Experiment-notebook layout + Slide decks x3 | ~56 |
 | junction-extraction gotchas | regtools arg-order, regtools BED12, STAR strand, UCSC/ENSEMBL, sra-tools, HISAT2 cache | ~62 |
 | conda dependency issues | Known Dependency Issues (the "known issues" half) | part of ~47 |
 | tcrdock/structure rationale | TCRdock-via-Docker + PDB chain relabelling | ~14 |
@@ -142,29 +144,21 @@ The shared-memory citation is *extra depth*, not load-bearing - the trim relocat
 
 **Projected result:** ~468 -> ~180 resident lines (~60% cut), every extracted cluster discoverable via its stub.
 
-## Pilot design: `authoring-research-decks`
+## Pilot design: research-artifact conventions (reference file)
 
-Lowest-risk cluster (zero safety-criticality: a missed trigger means a deck authored in a slightly-wrong folder, easy to course-correct), so it validates the pattern before higher-stakes clusters.
+Lowest-risk cluster (zero safety-criticality: a missed reference means a deck authored in a slightly-wrong folder, easy to course-correct), so it validates the extraction pattern before higher-stakes clusters.
+
+**Reclassified skill -> reference file before merge.**
+The pilot was first built as a `.claude/skills/authoring-research-decks/` skill (verbatim move, proven byte-for-byte).
+A pre-merge `skill-creator` review then reconsidered it against the decision rule above and found it **reference-shaped, not skill-shaped**: the body is pure layout facts, tier definitions, and rationale - no procedural steps or commands, which is rule-1's test for a skill.
+Both `skill-creator` ("pure reference facts are not automatically skills") and this spec's own rule-2 ("reference knowledge read while doing other work -> a `docs/` reference file behind a stub") point the same way, and the cross-tool-asymmetry risk below favors the reference file (any agent can read it; a `.claude/skills/` skill is Claude-only).
+So the cluster ships as a reference file:
 
 ```
-.claude/skills/authoring-research-decks/SKILL.md
+docs/research_artifact_conventions.md
 ```
 
-Frontmatter (the `description` is the trigger; skill-creator can later optimize it):
-
-```yaml
----
-name: authoring-research-decks
-description: >-
-  Conventions for authoring research artifacts in this repo - experiment
-  notebooks (research/experiments/issue_NNN_<short>/ layout, cross-experiment
-  data sharing, size bands) and the three Quarto slide-deck tiers (experiment /
-  eval / research-decision). Use when creating or editing a slide deck, an
-  experiment notebook, or their outputs/ folder.
----
-```
-
-Body: the four current `AGENTS.md` sections moved verbatim:
+with the four current `AGENTS.md` sections moved verbatim under a short title + orienting intro:
 
 1. Experiment notebooks live under `research/experiments/` (layout, cross-experiment data sharing, size bands).
 2. Slide decks for experiment Issues.
@@ -173,11 +167,14 @@ Body: the four current `AGENTS.md` sections moved verbatim:
 
 (Render tooling - Quarto, the disabled-PDF / footnotehyper gotcha - travels with section 2 where it currently lives.)
 
-The four sections in `AGENTS.md` are replaced by one pointer-stub (text above).
+The four sections in `AGENTS.md` are replaced by one pointer-stub (text above) pointing at the reference file.
+
+**Consequence for the rollout:** this pilot now validates the **stub -> reference-file** extraction path (the most common home in the triage).
+The **skill-loading mechanism** - whether a `.claude/skills/` skill surfaces and triggers - is no longer exercised here; it is first validated by the earliest *genuinely procedural* candidate (`running-snakemake`) once that clears its eval-first gate.
 
 ## Rollout
 
-1. **Pilot PR (this branch, #860):** create the `authoring-research-decks` skill, replace the 4 sections with the stub, land this spec. Verify the skill loads after `/reload-plugins`.
+1. **Pilot PR (this branch, #860):** extract the 4 sections to `docs/research_artifact_conventions.md` (verbatim section bodies), replace them with the stub, land this spec. (Built first as a skill, then reclassified to a reference file before merge - see "Pilot design".)
 2. **Per-cluster follow-up Issues** under epic #859, filed once the pilot proves the pattern, each routed by the decision rule:
    - *Skill candidates* (`running-snakemake`, `running-the-pipeline`, conda-env setup recipe): **build an eval first** - run the task without the skill, confirm a real gap and a reliable trigger - then build only if justified.
    - *Reference files* (junction-extraction gotchas, conda dependency issues, tcrdock/structure rationale): move to a `docs/` file + `AGENTS.md` stub. No eval needed; these are read-on-reference, not task-triggered.
@@ -189,14 +186,14 @@ Cross-reference the `project_memory_md_slimming` audit so the two slimming effor
 ## Risks and mitigations
 
 - **Trigger-miss (a skill does not surface when needed):** mitigated by the pointer-stub, which keeps the topic visible in resident context unconditionally.
-- **Project-skill loading:** `.claude/skills/` is committed and active; verify in the pilot that the skill appears in the skills list after `/reload-plugins` (acceptance criterion), so the mechanism is proven before the other six clusters depend on it.
+- **Project-skill loading:** the `.claude/skills/` loading mechanism is no longer exercised by this pilot (it ships a reference file, not a skill). It is first validated by the earliest *genuinely procedural* skill candidate (`running-snakemake`), which must verify the skill appears in the skills list after `/reload-plugins` before the remaining skill clusters depend on it.
 - **Content drift during the move:** every PR's diff must account for each moved line (no paraphrasing); the move is verbatim.
 - **Docs back-references to `AGENTS.md` sections:** path references resolve via the symlink; section-anchor links (if any) are checked per PR.
 - **Cross-tool asymmetry of skills vs reference files:** `AGENTS.md` is cross-tool (Codex/Cursor read it), but a `.claude/skills/` skill is a Claude-only mechanism - a non-Claude agent only sees the stub. A `docs/` reference file behind a stub is readable by any agent. So when a cluster is a close call between "skill" and "reference file", **lean to the reference file** for cross-tool reach; reserve skills for genuinely procedural, task-triggered work where the trigger earns its keep. The directory-level fix for this asymmetry (a vendor-neutral `.agents/` config home) is tracked separately in #861, sequenced after this pilot.
 
 ## Verification
 
-- Pilot: skill file exists with the content verbatim; the 4 sections are gone from `AGENTS.md` and replaced by the stub; `git diff` accounts for every moved line; the skill appears after `/reload-plugins`.
+- Pilot: `docs/research_artifact_conventions.md` exists with the four section bodies verbatim (byte-identical to the original `AGENTS.md` lines); the 4 sections are gone from `AGENTS.md` and replaced by the stub; the stub link resolves to the new file; `git diff` accounts for every moved line.
 - CI green (no code paths touched).
 - Resident-line count of `AGENTS.md` drops by ~56 lines after the pilot, toward the ~180-line end-state target as follow-ups land.
 
