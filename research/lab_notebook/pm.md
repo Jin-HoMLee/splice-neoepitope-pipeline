@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-24
+
+### 13:19 UTC — Editor: PM
+
+#### Adopt `AGENTS.md` as canonical, symlink `CLAUDE.md` → it — [Issue #857](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/857) / [PR #858](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/858)
+
+Agent CLIs are converging on a vendor-neutral **`AGENTS.md`** for project instructions (Codex, Cursor, Aider, … read it); Claude Code reads `CLAUDE.md`. Our 70KB of project notes lived only in `CLAUDE.md`, so every non-Claude agent opened the repo blind. Fix: `git mv CLAUDE.md AGENTS.md` (real file) + a **relative git symlink** `CLAUDE.md -> AGENTS.md` — one source of truth, readable by every tool, drift-proof by construction (a copy would drift).
+
+**Two things that made this safe rather than a rename landmine:**
+- The symlink is stored as a real git object (mode `120000`, blob content `AGENTS.md`), so it travels to all three sibling clones on pull — not a local-only filesystem artifact.
+- `git grep CLAUDE.md` across `docs/` is all *path* references (markdown links like `../../../CLAUDE.md`, plan files). Because the symlink **preserves the `CLAUDE.md` path**, every one of them keeps resolving — a plain rename would have broken them. Checked for self-references inside the file first (none), so no in-content rewrites were needed.
+
+**Lesson:** the symlink direction matters — `AGENTS.md` canonical / `CLAUDE.md` symlink (not the reverse) puts the vendor-neutral name as the source of truth while keeping the Claude-specific path alive for back-references. A pure rename to `AGENTS.md` would have been the obvious-but-wrong move (breaks every `docs/` link); the symlink is what makes it non-destructive.
+
 ## 2026-06-23
 
 ### 23:21 UTC — Editor: PM
