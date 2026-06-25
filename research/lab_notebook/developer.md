@@ -6,6 +6,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-25 - GCS→R2 data exit complete + verified ([Issue #854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854), Phase 1 of migration epic [#843](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/843))
+
+### 13:34 UTC - Editor: Developer
+
+**Why.** Phase 1 of the GCP→RunPod+R2 migration (forced by the GCP free-trial expiry ~2026-07-03): get the GCS bucket's data safely onto Cloudflare R2 before any decommission. This is the one phase where a mistake means permanent loss, so it gates every forward phase (#844 compute port, #845 smoke test, #846 cutover/decommission).
+
+**Copy method (two passes).**
+
+- **Live objects — Cloudflare Super Slurper** (GCS→R2). GCS 703 objects / 114,848,126,048 bytes → R2 **675** objects, byte-identical on the overlap. The 28-object gap is **exactly 28 zero-byte objects**, enumerated and classified: 10 empty logs + 16 Snakemake `done` sentinels + 2 already-empty PDFs → **zero data loss** (Super Slurper skips 0-byte keys). Cross-checked two ways (boto3 list vs gsutil) to resolve a first-pass count discrepancy from first principles.
+- **Version history — option B (preserve), custom resumable script.** The bucket had versioning on (1196 total generations vs 703 live); Super Slurper copies live versions only. Decision was **preserve all 493 noncurrent generations** rather than drop them, on the reasoning that the migration shouldn't silently discard recoverable history right before an irreversible bucket teardown. Copied to R2 under `_gcs_version_history/<path>#<generation>` via `~/.r2_migration/copy_versions.py` (boto3 upload + `gsutil cp` per object; resumes by listing existing R2 keys; `sliced_object_download_max_components=1` to dodge a gsutil parallel-sliced-download hang on the large TSVs; 900s per-object timeout backstop). Final run: `copied=277 skipped=216 errors=0` = **493/493**.
+
+**Independent verification (this session).** Re-listed R2 `_gcs_version_history/` directly (boto3, read-only) and diffed against the GCS-derived manifest (`noncurrent_manifest.tsv`), three ways: **count 493=493**, **aggregate bytes 4,830,334,302=4,830,334,302 (4.50 GiB)**, and **per-key 0 missing / 0 extra / 0 size-mismatch**. PASS. (Live-object copy had already been independently byte+count verified in a prior session.)
+
+**Credential cleanup (security — temp migration creds).** GCS service account `r2-migration-ro@…` **deleted** (`gcloud iam service-accounts delete`, confirmed gone after list-lag). Local SA key `~/Downloads/r2_migration_sa_key.json` already absent; scratch R2 secret `~/.r2_migration/r2.env` removed. **R2 API token(s) revoked in Cloudflare by Jin-Ho** — the original copy token + the fresh read-only token minted for this verification — the last live secret of the exit.
+
+**State / next.** #854 ACs all met → closed. Forward phases unblocked: #844 (RunPod L4 compute port) is next, strictly sequential. Non-secret migration artifacts (manifest, copy/verify scripts, log) kept under `~/.r2_migration/` as the local record.
+
+---
+
 ## 2026-06-25 - .claude/ -> .agents/ canonical config dir migration ([PR #865](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/865) closes [Issue #861](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/861))
 
 ### 10:32 UTC - Editor: PM (driving role:developer #861) - rename + symlink-back, per-clone migrator
