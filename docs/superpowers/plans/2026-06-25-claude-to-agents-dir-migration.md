@@ -1,4 +1,4 @@
-# `.claude/` → `.agents/` Canonical Dir Migration — Implementation Plan
+# `.claude/` → `.agents/` Canonical Dir Migration - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,7 +17,7 @@
 - Canonical config dir is `.agents/`; `.claude/` is a committed symlink (git mode 120000) pointing at it.
 - Hook `command` paths in `settings.json` are absolute-canonical: `${CLAUDE_PROJECT_DIR}/.agents/hooks/<file>.py`. The `recheck_dispatch.py --scope shared` arg is preserved verbatim.
 - Never delete or lose `settings.local.json` (per-user permissions) or any clone's `memory` symlink. `hook_fires.jsonl`, `hooks/__pycache__/`, `scheduled_tasks.{lock,json}` are droppable (regenerate).
-- The receiving-clone script reads each clone's role from its *existing* `memory` symlink target — never hardcode a role.
+- The receiving-clone script reads each clone's role from its *existing* `memory` symlink target - never hardcode a role.
 - All commits must go up through a PR; `main` is protected (`pipeline-pytest`, `pipeline-snakemake-dry-run`, squash-merge). Merge via `scripts/audit_and_merge.sh`.
 - ⚠️ Editing `settings.json` silently deactivates all hooks for the *current* session (no hot-reload). Live-hook ACs are verified only in a **fresh session after merge**.
 - Em dash is banned in prose; use a plain dash.
@@ -145,13 +145,13 @@ Expected: `valid json`.
 
 Replace the block currently at lines ~312-323 (the `scheduled_tasks` / `settings.local.json` / `memory` / `hook_fires.jsonl` rules) with:
 ```gitignore
-# Claude Code — transient scheduler state (per-session lock + durable cron jobs)
+# Claude Code - transient scheduler state (per-session lock + durable cron jobs)
 .agents/scheduled_tasks.lock
 .agents/scheduled_tasks.json
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
 
-# Claude Code — per-user local settings (permissions allow-list, absolute paths)
+# Claude Code - per-user local settings (permissions allow-list, absolute paths)
 .agents/settings.local.json
 .claude/settings.local.json
 
@@ -214,7 +214,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Idempotency guard: if .claude is already a symlink (or gone), we're done.
 if [ ! -d .claude ] || [ -L .claude ]; then
-  echo "[migrate] .claude is not a real directory — already migrated. Nothing to do."
+  echo "[migrate] .claude is not a real directory - already migrated. Nothing to do."
   exit 0
 fi
 
@@ -226,7 +226,7 @@ fi
 
 # 1. Save the role-memory symlink target (role-specific; never hardcode).
 if [ ! -L .claude/memory ]; then
-  echo "[migrate] ERROR: .claude/memory is not a symlink — unexpected; aborting." >&2
+  echo "[migrate] ERROR: .claude/memory is not a symlink - unexpected; aborting." >&2
   exit 1
 fi
 MEM_TARGET="$(readlink .claude/memory)"
@@ -236,6 +236,12 @@ echo "[migrate] role detected from memory symlink: $ROLE  (target: $MEM_TARGET)"
 # 2. Preserve settings.local.json; drop the regenerable locals so .claude/ holds
 #    only tracked files (so git can swap the dir for the incoming symlink).
 TMP="$(mktemp -d)"
+recover_on_error() {
+  echo "[migrate] ABORTED mid-migration." >&2
+  echo "[migrate]   - settings.local.json (if it existed) was staged in: $TMP" >&2
+  echo "[migrate]   - re-create the role-memory symlink manually:  ln -s '$MEM_TARGET' .agents/memory   (or .claude/memory if .claude is still a directory)" >&2
+}
+trap recover_on_error ERR
 [ -f .claude/settings.local.json ] && mv .claude/settings.local.json "$TMP/settings.local.json"
 rm -f .claude/memory .claude/hook_fires.jsonl .claude/scheduled_tasks.lock .claude/scheduled_tasks.json
 rm -rf .claude/hooks/__pycache__
@@ -254,15 +260,16 @@ rmdir "$TMP" 2>/dev/null || true
 fail=0
 [ -L .claude ] && [ "$(readlink .claude)" = ".agents" ] || { echo "[verify] FAIL: .claude is not a symlink to .agents" >&2; fail=1; }
 [ -f .claude/settings.json ] || { echo "[verify] FAIL: .claude/settings.json does not resolve" >&2; fail=1; }
-[ -d "$(readlink -f .agents/memory)" ] && [ "$(basename "$(readlink .agents/memory)")" = "$ROLE" ] || { echo "[verify] FAIL: .agents/memory does not resolve to role '$ROLE'" >&2; fail=1; }
+[ -d .agents/memory ] && [ "$(basename "$(readlink .agents/memory)")" = "$ROLE" ] || { echo "[verify] FAIL: .agents/memory does not resolve to role '$ROLE'" >&2; fail=1; }
 ls .agents/hooks/check_at_claude.py >/dev/null 2>&1 || { echo "[verify] FAIL: .agents/hooks not present" >&2; fail=1; }
 [ -z "$(git status --porcelain)" ] || { echo "[verify] FAIL: working tree not clean after migration:" >&2; git status --short >&2; fail=1; }
 
 if [ "$fail" -ne 0 ]; then
-  echo "[migrate] VERIFICATION FAILED — inspect above. Locals may be in $TMP." >&2
+  echo "[migrate] VERIFICATION FAILED - inspect above. Locals may be in $TMP." >&2
   exit 1
 fi
-echo "[migrate] OK — $ROLE clone migrated to .agents/ + .claude symlink; tree clean."
+trap - ERR
+echo "[migrate] OK - $ROLE clone migrated to .agents/ + .claude symlink; tree clean."
 ```
 
 - [ ] **Step 2: Make it executable**
@@ -286,7 +293,7 @@ Run:
 ```bash
 bash scripts/migrate_claude_to_agents.sh
 ```
-Expected: `[migrate] .claude is not a real directory — already migrated. Nothing to do.` and exit 0.
+Expected: `[migrate] .claude is not a real directory - already migrated. Nothing to do.` and exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -313,13 +320,13 @@ git push -u origin chore/developer/issue-861-claude-to-agents-dir
 gh pr create --title "chore(repo): migrate .claude/ -> .agents/ canonical dir + symlink back (#861)" --body "$(cat <<'EOF'
 Closes #861.
 
-Makes `.agents/` the canonical agent-config dir; `.claude/` becomes a committed symlink to it (git mode 120000). Directory-level sibling of the AGENTS.md canonicalization (#857). Organizational/naming change, not new functional portability — see the spec for the honest-scope statement.
+Makes `.agents/` the canonical agent-config dir; `.claude/` becomes a committed symlink to it (git mode 120000). Directory-level sibling of the AGENTS.md canonicalization (#857). Organizational/naming change, not new functional portability - see the spec for the honest-scope statement.
 
 ## What changed
 - `git mv` of the tracked subset (`commands/`, `hooks/`, `settings.json`) `.claude/` -> `.agents/`, plus a committed `.claude -> .agents` symlink.
-- Hook command paths rewritten to `${CLAUDE_PROJECT_DIR}/.agents/hooks/...` so guard *execution* never depends on symlink resolution (discovery of `.claude/settings.json` still rides the symlink — belt and suspenders).
+- Hook command paths rewritten to `${CLAUDE_PROJECT_DIR}/.agents/hooks/...` so guard *execution* never depends on symlink resolution (discovery of `.claude/settings.json` still rides the symlink - belt and suspenders).
 - `.gitignore` repointed to the `.agents/` artifact paths (the `.claude/` forms kept too; both resolve to the same inode).
-- `scripts/migrate_claude_to_agents.sh`: idempotent, self-verifying one-shot migrator the **receiving** clones (base, scientist) run after merge — it relocates the gitignored locals and re-creates each clone's role-memory symlink, working around git's refusal to replace a populated `.claude/` dir with a symlink on pull.
+- `scripts/migrate_claude_to_agents.sh`: idempotent, self-verifying one-shot migrator the **receiving** clones (base, scientist) run after merge - it relocates the gitignored locals and re-creates each clone's role-memory symlink, working around git's refusal to replace a populated `.claude/` dir with a symlink on pull.
 
 ## Per-clone migration runbook
 The tracked rename propagates by pull; the local relocation does not. In **each receiving clone** (base, scientist), after this merges:
@@ -341,7 +348,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 2b: Verify CI is green** — wait for `pipeline-pytest`, `pipeline-snakemake-dry-run`, `pipeline-conda-env-solve` to pass (`gh pr checks --watch`).
+- [ ] **Step 2b: Verify CI is green** - wait for `pipeline-pytest`, `pipeline-snakemake-dry-run`, `pipeline-conda-env-solve` to pass (`gh pr checks --watch`).
 
 - [ ] **Step 3: Offer the bot review**
 
@@ -376,7 +383,7 @@ git push
 ```bash
 bash scripts/audit_and_merge.sh <PR#> --squash --delete-branch
 ```
-Expected: clean audit, then merge. If it blocks on an unticked AC box, resolve per the closure ritual (tick with carrier link or move the box) — do not bypass.
+Expected: clean audit, then merge. If it blocks on an unticked AC box, resolve per the closure ritual (tick with carrier link or move the box) - do not bypass.
 
 ---
 
@@ -391,7 +398,7 @@ cd /Users/jin-holee/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline
 git checkout main
 bash scripts/migrate_claude_to_agents.sh
 ```
-Expected: ends with `[migrate] OK — developer clone migrated ... tree clean.`
+Expected: ends with `[migrate] OK - developer clone migrated ... tree clean.`
 
 - [ ] **Step 2: Migrate the scientist clone**
 
@@ -400,7 +407,7 @@ cd /Users/jin-holee/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline-scientist
 git checkout main
 bash scripts/migrate_claude_to_agents.sh
 ```
-Expected: ends with `[migrate] OK — scientist clone migrated ... tree clean.`
+Expected: ends with `[migrate] OK - scientist clone migrated ... tree clean.`
 
 - [ ] **Step 3: Verify both clones independently**
 
@@ -425,23 +432,23 @@ git checkout main && git pull origin main --ff-only && git status --porcelain &&
 ```
 Expected: `.claude` symlink + `.agents/` intact, clean tree.
 
-- [ ] **Step 2: Docs sweep — find live `.claude/` references**
+- [ ] **Step 2: Docs sweep - find live `.claude/` references**
 
 Run:
 ```bash
 git grep -n "\.claude/" -- AGENTS.md 'docs/*.md' | grep -v 'docs/superpowers/'
 ```
-For each hit, decide: historical record (leave — and it still resolves via the symlink) vs. a forward instruction telling someone to edit/visit a path (update to `.agents/`). Plan/spec docs under `docs/superpowers/` are historical — leave them. Update only live operational prose. Confirm any left-as-`.claude/` path still resolves through the symlink.
+For each hit, decide: historical record (leave - and it still resolves via the symlink) vs. a forward instruction telling someone to edit/visit a path (update to `.agents/`). Plan/spec docs under `docs/superpowers/` are historical - leave them. Update only live operational prose. Confirm any left-as-`.claude/` path still resolves through the symlink.
 
 - [ ] **Step 3: If any doc edits were made, commit them**
 
-Open a tiny follow-up PR (or fold into a docs commit on a fresh branch) — do not push to `main` directly.
+Open a tiny follow-up PR (or fold into a docs commit on a fresh branch) - do not push to `main` directly.
 
 - [ ] **Step 4: Fresh-session live-hook verification (USER / restart required)**
 
 This **cannot** be done in the authoring session (editing `settings.json` killed hooks for it). In a **fresh** Claude Code session in the PM clone:
-- `/hooks` — confirm all three PreToolUse guards (`check_at_claude`, `check_gh_issue_develop_parent`, `check_board_query_pagination`) are listed.
-- `/doctor` — confirm clean.
+- `/hooks` - confirm all three PreToolUse guards (`check_at_claude`, `check_gh_issue_develop_parent`, `check_board_query_pagination`) are listed.
+- `/doctor` - confirm clean.
 - Trace-probe: attempt a blocked pattern (e.g. a `gh issue comment ... --body "@claude foo"` dry intent) and confirm the guard denies it; check `.agents/hook_fires.jsonl` grows.
 
 - [ ] **Step 5: Tick remaining Issue #861 ACs** once Steps 1-4 + Task 5 pass; close-out per the morning-routine closure audit if not already closed by the merge.
@@ -463,4 +470,4 @@ This **cannot** be done in the authoring session (editing `settings.json` killed
 
 **Placeholder scan:** `<PR#>` is a runtime value, not a placeholder. No TBD/TODO/"handle edge cases". Script + JSON + commands are complete. ✓
 
-**Type/name consistency:** `scripts/migrate_claude_to_agents.sh`, `.agents/memory`, `${CLAUDE_PROJECT_DIR}/.agents/hooks/...`, role-from-`readlink` — used identically across tasks. ✓
+**Type/name consistency:** `scripts/migrate_claude_to_agents.sh`, `.agents/memory`, `${CLAUDE_PROJECT_DIR}/.agents/hooks/...`, role-from-`readlink` - used identically across tasks. ✓

@@ -1,10 +1,10 @@
-# `.claude/` → `.agents/` canonical config-dir migration — design
+# `.claude/` → `.agents/` canonical config-dir migration - design
 
 - **Issue:** [#861](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/861)
 - **Date:** 2026-06-25
 - **Author:** PM (driving end-to-end per owner decision)
-- **Status:** design — pending user review before plan
-- **Predecessor:** [#857](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/857) (`AGENTS.md` canonical, `CLAUDE.md` symlink) — this is the directory-level sibling.
+- **Status:** design - pending user review before plan
+- **Predecessor:** [#857](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/857) (`AGENTS.md` canonical, `CLAUDE.md` symlink) - this is the directory-level sibling.
 
 ## 1. Goal & honest scope
 
@@ -12,12 +12,12 @@ Make `.agents/` the canonical project-local agent-config directory and turn `.cl
 This extends the vendor-neutral canonicalization already done for instructions down to the config directory: the source of truth stops carrying the `claude` label, while Claude Code keeps working unchanged through the symlink.
 
 This is an **organizational / naming** change, **not** new functional portability.
-Roughly 80% of the directory's contents (`settings.json`, `hooks/*.py`) are Claude Code's runtime/event model and stay Claude-specific regardless of the folder name — no other tool reads them.
+Roughly 80% of the directory's contents (`settings.json`, `hooks/*.py`) are Claude Code's runtime/event model and stay Claude-specific regardless of the folder name - no other tool reads them.
 The win is a vendor-neutral canonical path plus a spec-aligned home (`.agents/skills/`) for the one genuinely portable surface (skills), matching the project's agnostic-by-intent direction.
 
 **Non-goals:**
 
-- No change to hook *logic* — only their declared command paths.
+- No change to hook *logic* - only their declared command paths.
 - No skills are moved: none exist yet under `.claude/skills/` (the `authoring-research-decks` skill is still only a plan doc). We merely bless `.agents/skills/` as the future home.
 - No attempt to make Codex/Cursor/etc. read our hooks or settings.
 
@@ -31,7 +31,7 @@ All three clones are separate clones (not worktrees), all on `main`, all clean.
 - `hooks/check_at_claude.py`, `hooks/check_board_query_pagination.py`, `hooks/check_gh_issue_develop_parent.py`, `hooks/post_gh_pr_create.py`, `hooks/recheck_dispatch.py`
 - `settings.json`
 
-**Per-clone local, gitignored (does NOT migrate via git — handled per clone):**
+**Per-clone local, gitignored (does NOT migrate via git - handled per clone):**
 
 | File | Nature | Handling on receiving clone |
 |---|---|---|
@@ -53,7 +53,7 @@ Per-clone `memory` symlink targets (the script reads the existing target rather 
 
 ## 3. Why two clones can't just `git pull` it cleanly
 
-Git tracks **commits**, not working-tree appearance. The migration is one tracked commit (the `git mv` rename + the committed `.claude` symlink). When a receiving clone pulls that commit, git must remove the old tracked files from `.claude/` and lay a `.claude` **symlink** in their place — but git **refuses to replace a directory that still holds untracked files** with a symlink. Each receiving clone's `.claude/` still physically holds its own gitignored locals (the `memory` symlink, `settings.local.json`, the fire log, `__pycache__`), so the pull half-applies or aborts.
+Git tracks **commits**, not working-tree appearance. The migration is one tracked commit (the `git mv` rename + the committed `.claude` symlink). When a receiving clone pulls that commit, git must remove the old tracked files from `.claude/` and lay a `.claude` **symlink** in their place - but git **refuses to replace a directory that still holds untracked files** with a symlink. Each receiving clone's `.claude/` still physically holds its own gitignored locals (the `memory` symlink, `settings.local.json`, the fire log, `__pycache__`), so the pull half-applies or aborts.
 
 Pre-renaming locally before the pull does **not** help: a manually-`mv`'d `.agents/` is *untracked*, and the incoming commit wants to create those same paths as *tracked* files, so `git pull` aborts with `The following untracked working tree files would be overwritten by merge`. The only clean sequence is **clear the untracked locals out of `.claude/` → pull (git does the tracked swap) → restore the locals under `.agents/`**.
 
@@ -61,7 +61,7 @@ Pre-renaming locally before the pull does **not** help: a manually-`mv`'d `.agen
 
 Two distinct execution paths, one shared idea (rename + symlink-back):
 
-### 4a. Originating clone (PM) — authored by hand in the PR branch
+### 4a. Originating clone (PM) - authored by hand in the PR branch
 
 1. `git mv .claude/commands .agents/commands`
 2. `git mv .claude/hooks .agents/hooks` (carries the untracked `__pycache__` along physically; still ignored)
@@ -74,15 +74,15 @@ Two distinct execution paths, one shared idea (rename + symlink-back):
 
 The committed objects: the renamed tracked files under `.agents/`, the `.claude` symlink (git mode 120000), and the updated `.gitignore`.
 
-### 4b. Receiving clones (base, scientist) — committed one-shot script
+### 4b. Receiving clones (base, scientist) - committed one-shot script
 
-`scripts/migrate_claude_to_agents.sh` — idempotent + self-verifying. It reads the *existing* clone's role from the current `memory` symlink target, so the same script is correct in every clone.
+`scripts/migrate_claude_to_agents.sh` - idempotent + self-verifying. It reads the *existing* clone's role from the current `memory` symlink target, so the same script is correct in every clone.
 
 Procedure:
 
-1. **Preconditions:** assert inside a git repo with a clean tracked tree; assert `.claude/` is still a real directory (else exit 0 — already migrated, idempotent).
+1. **Preconditions:** assert inside a git repo with a clean tracked tree; assert `.claude/` is still a real directory (else exit 0 - already migrated, idempotent).
 2. **Save state:** read and store the `memory` symlink target; move `settings.local.json` aside to a temp; remove the droppable locals (`hook_fires.jsonl`, `hooks/__pycache__/`, `scheduled_tasks.{lock,json}`) so nothing untracked remains under `.claude/`.
-3. **Pull:** `git pull --ff-only origin main` — git removes the now-only-tracked files from `.claude/` and lays down `.agents/` + the `.claude` symlink.
+3. **Pull:** `git pull --ff-only origin main` - git removes the now-only-tracked files from `.claude/` and lays down `.agents/` + the `.claude` symlink.
 4. **Restore:** move `settings.local.json` into `.agents/`; re-create `.agents/memory -> <saved target>`.
 5. **Verify** (fail loudly on any miss):
    - `.claude` is a symlink resolving to `.agents`;
@@ -108,16 +108,16 @@ Rationale (belt-and-suspenders): guard **execution** then resolves the real `.ag
 
 ## 6. `.gitignore` rewrite
 
-Repoint the per-clone artifact rules to the canonical `.agents/` paths (keep the `.claude/` forms too — harmless, both resolve to the same inode through the symlink, and they protect any clone mid-migration):
+Repoint the per-clone artifact rules to the canonical `.agents/` paths (keep the `.claude/` forms too - harmless, both resolve to the same inode through the symlink, and they protect any clone mid-migration):
 
 ```gitignore
-# Claude Code — transient scheduler state (per-session lock + durable cron jobs)
+# Claude Code - transient scheduler state (per-session lock + durable cron jobs)
 .agents/scheduled_tasks.lock
 .agents/scheduled_tasks.json
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
 
-# Claude Code — per-user local settings (permissions allow-list, absolute paths)
+# Claude Code - per-user local settings (permissions allow-list, absolute paths)
 .agents/settings.local.json
 .claude/settings.local.json
 
@@ -133,10 +133,10 @@ Repoint the per-clone artifact rules to the canonical `.agents/` paths (keep the
 ## 7. Verification & rollout sequence
 
 1. PM clone: author 4a on a branch (`gh issue develop 861` via `scripts/new_branch.sh`), open PR, request `@-claude review`, merge via `scripts/audit_and_merge.sh`.
-2. ⚠️ **Mid-session hook death:** rewriting `settings.json` silently deactivates all hooks for the *current* session (documented gotcha — no hot-reload). So the live-hook ACs are verified in a **fresh session after merge**, not in the authoring session.
+2. ⚠️ **Mid-session hook death:** rewriting `settings.json` silently deactivates all hooks for the *current* session (documented gotcha - no hot-reload). So the live-hook ACs are verified in a **fresh session after merge**, not in the authoring session.
 3. Fresh-session verification (PM clone): `/hooks` shows all three PreToolUse guards; `/doctor` clean; a trace-probe confirms a guard actually fires; `/reload-plugins` then confirm any future `.agents/skills/` discovery path.
 4. Receiving clones: run `scripts/migrate_claude_to_agents.sh` in base + scientist; confirm the script's self-verify passes; spot-check role memory loads and a guard fires in each.
-5. **Docs sweep:** update lingering `.claude/` references in `docs/` / `AGENTS.md` where they should point at `.agents/`; confirm any that stay (symlinked) still resolve. This is the relative-link-breakage class that bit the #860 re-review — verify each, don't assume.
+5. **Docs sweep:** update lingering `.claude/` references in `docs/` / `AGENTS.md` where they should point at `.agents/`; confirm any that stay (symlinked) still resolve. This is the relative-link-breakage class that bit the #860 re-review - verify each, don't assume.
 
 ## 8. Acceptance criteria (from #861, mapped)
 
@@ -155,6 +155,6 @@ Repoint the per-clone artifact rules to the canonical `.agents/` paths (keep the
 |---|---|
 | Half-migrated clone → silently dead guards or broken role memory | Idempotent, self-verifying script that fails loudly; fresh-session `/hooks` + trace-probe check |
 | `git pull` aborts on populated `.claude/` | Script clears untracked locals before pull (§3, §4b) |
-| `${CLAUDE_PROJECT_DIR}` not set in some context | Discovery still works via the `.claude` symlink; execution path is absolute — both belt and suspenders |
+| `${CLAUDE_PROJECT_DIR}` not set in some context | Discovery still works via the `.claude` symlink; execution path is absolute - both belt and suspenders |
 | Doc relative-links break on path change | Explicit per-reference verify in the docs sweep (§7.5) |
 | Local `settings.local.json` lost during swap | Preserved via move-aside → restore; never deleted |
