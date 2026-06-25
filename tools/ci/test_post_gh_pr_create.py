@@ -1,4 +1,4 @@
-"""Tests for `.claude/hooks/post_gh_pr_create.py` (Issue #550).
+"""Tests for `.agents/hooks/post_gh_pr_create.py` (Issue #550).
 
 Pure-function unit tests import the module directly (no network). The fail-open /
 no-op subprocess tests mirror the harness invocation (pipe PostToolUse JSON to
@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HOOKS_DIR = Path(__file__).parent.parent.parent / ".claude" / "hooks"
+HOOKS_DIR = Path(__file__).parent.parent.parent / ".agents" / "hooks"
 HOOK = HOOKS_DIR / "post_gh_pr_create.py"
 sys.path.insert(0, str(HOOKS_DIR))
 

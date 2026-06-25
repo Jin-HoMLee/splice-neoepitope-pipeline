@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Summarize fires logged to .claude/hook_fires.jsonl per hook.
+# Summarize fires logged to .agents/hook_fires.jsonl per hook.
 # Operator-facing tool for hook-promotion decisions (Issue #453).
 set -euo pipefail
 
-LOG_PATH=".claude/hook_fires.jsonl"
+LOG_PATH=".agents/hook_fires.jsonl"
 
 # Helper function to get dock Issue for a hook.
-# Duplicated from HOOK_CONFIG in .claude/hooks/recheck_dispatch.py — keep in sync (3 entries).
+# Duplicated from HOOK_CONFIG in .agents/hooks/recheck_dispatch.py - keep in sync (3 entries).
 get_dock_issue() {
     case "$1" in
         target_sync_check)

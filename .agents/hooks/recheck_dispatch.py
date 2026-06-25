@@ -41,7 +41,7 @@ PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scri
 # Fire-log infrastructure (Issue #453)
 # ---------------------------------------------------------------------------
 
-LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
 
 def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:

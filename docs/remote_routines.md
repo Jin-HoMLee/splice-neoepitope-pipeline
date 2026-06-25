@@ -23,7 +23,7 @@ Empirically probed in the `github-pat` environment (`env_01FffKZvNhx6EVwk7nEqMSk
 | git clone | **shallow**, detached HEAD, served through a `local_proxy` git proxy | the proxy **403s any push to `main`** → push only to **`claude/*`** branches |
 | git identity | preset to `Claude <noreply@anthropic.com>` | commit author is already Claude (so the `Co-Authored-By: Claude …` trailer is technically redundant — **omit the trailer**) |
 | local files | a fresh **single-repo** checkout — **no** per-clone venvs (`workflow/tests/.venv`, `research/.venv`), **no** gitignored data (`indices/`, `references/`, `*_outputs/`), **no** GCP VM, **no** secrets (`ZOTERO_*`, GCS) | VM-bound / data-bound / venv-bound work is out of scope; rebuild only light deps via pip |
-| human-in-loop | **none** — any interactive permission prompt **hangs the run forever** | never write under `.claude/` (the Claude Code ≥2.1.78 protected-dir gate prompts → hang); broaden/enumerate `allowed_tools` so no command prompts |
+| human-in-loop | **none** — any interactive permission prompt **hangs the run forever** | never write under `.agents/` (or its legacy `.claude/` symlink - the Claude Code ≥2.1.78 protected-dir gate keys on the `.claude/` path and prompts → hang); broaden/enumerate `allowed_tools` so no command prompts |
 | observability | the run log / stdout lives **only** in the gated claude.ai session UI — unreachable by `gh`/API/WebFetch | **ferry** any facts you need out to a durable channel (a `## Environment` PR-body section or a `gh pr comment`) *during* the run |
 
 ## Hardened one-shot dispatch — prompt checklist

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-# Make .claude/hooks importable
-_HOOKS_DIR = Path(__file__).resolve().parents[2] / ".claude" / "hooks"
+# Make .agents/hooks importable
+_HOOKS_DIR = Path(__file__).resolve().parents[2] / ".agents" / "hooks"
 sys.path.insert(0, str(_HOOKS_DIR))
 
 
