@@ -8,7 +8,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Idempotency guard: if .claude is already a symlink (or gone), we're done.
 if [ ! -d .claude ] || [ -L .claude ]; then
-  echo "[migrate] .claude is not a real directory — already migrated. Nothing to do."
+  echo "[migrate] .claude is not a real directory - already migrated. Nothing to do."
   exit 0
 fi
 
@@ -20,7 +20,7 @@ fi
 
 # 1. Save the role-memory symlink target (role-specific; never hardcode).
 if [ ! -L .claude/memory ]; then
-  echo "[migrate] ERROR: .claude/memory is not a symlink — unexpected; aborting." >&2
+  echo "[migrate] ERROR: .claude/memory is not a symlink - unexpected; aborting." >&2
   exit 1
 fi
 MEM_TARGET="$(readlink .claude/memory)"
@@ -30,6 +30,12 @@ echo "[migrate] role detected from memory symlink: $ROLE  (target: $MEM_TARGET)"
 # 2. Preserve settings.local.json; drop the regenerable locals so .claude/ holds
 #    only tracked files (so git can swap the dir for the incoming symlink).
 TMP="$(mktemp -d)"
+recover_on_error() {
+  echo "[migrate] ABORTED mid-migration." >&2
+  echo "[migrate]   - settings.local.json (if it existed) was staged in: $TMP" >&2
+  echo "[migrate]   - re-create the role-memory symlink manually:  ln -s '$MEM_TARGET' .agents/memory   (or .claude/memory if .claude is still a directory)" >&2
+}
+trap recover_on_error ERR
 [ -f .claude/settings.local.json ] && mv .claude/settings.local.json "$TMP/settings.local.json"
 rm -f .claude/memory .claude/hook_fires.jsonl .claude/scheduled_tasks.lock .claude/scheduled_tasks.json
 rm -rf .claude/hooks/__pycache__
@@ -48,12 +54,13 @@ rmdir "$TMP" 2>/dev/null || true
 fail=0
 [ -L .claude ] && [ "$(readlink .claude)" = ".agents" ] || { echo "[verify] FAIL: .claude is not a symlink to .agents" >&2; fail=1; }
 [ -f .claude/settings.json ] || { echo "[verify] FAIL: .claude/settings.json does not resolve" >&2; fail=1; }
-[ -d "$(readlink -f .agents/memory)" ] && [ "$(basename "$(readlink .agents/memory)")" = "$ROLE" ] || { echo "[verify] FAIL: .agents/memory does not resolve to role '$ROLE'" >&2; fail=1; }
+[ -d .agents/memory ] && [ "$(basename "$(readlink .agents/memory)")" = "$ROLE" ] || { echo "[verify] FAIL: .agents/memory does not resolve to role '$ROLE'" >&2; fail=1; }
 ls .agents/hooks/check_at_claude.py >/dev/null 2>&1 || { echo "[verify] FAIL: .agents/hooks not present" >&2; fail=1; }
 [ -z "$(git status --porcelain)" ] || { echo "[verify] FAIL: working tree not clean after migration:" >&2; git status --short >&2; fail=1; }
 
 if [ "$fail" -ne 0 ]; then
-  echo "[migrate] VERIFICATION FAILED — inspect above. Locals may be in $TMP." >&2
+  echo "[migrate] VERIFICATION FAILED - inspect above. Locals may be in $TMP." >&2
   exit 1
 fi
-echo "[migrate] OK — $ROLE clone migrated to .agents/ + .claude symlink; tree clean."
+trap - ERR
+echo "[migrate] OK - $ROLE clone migrated to .agents/ + .claude symlink; tree clean."
