@@ -18,6 +18,7 @@ issue_547_immunogenicity_calibration/
 ├── score_cohort.py            # MHCflurry precompute (run with `mhcflurry-scoring` conda env):
 │                              #   genotype_score, normalize_hla, build_scored_cohort; has __main__ (committed)
 ├── notebook.ipynb             # LOCO + within-cohort k-fold validation + diagnostics + final artifact fit (committed)
+├── applicability_notebook.ipynb   # Issue #826 label-free SNV→splice applicability gate (score-support + covariate-shift) (committed)
 ├── tests/                     # unit tests (committed)
 │   ├── test_centered_isotonic.py  # vs frozen R cir package fixtures
 │   ├── test_calibrator.py         # fit/transform/save/load round-trip + prior injection
@@ -140,6 +141,7 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 - `outputs/panel_anatomy.png` — teaching schematic: how to read one calibration panel (45° = perfect, Cox-fit tilt = slope, offset = intercept) + four archetypes.
 - `outputs/conclusion_scorecard.png` — conclusion visual: per-cohort verdict, discrimination (AUPRC lift) × calibration (Cox slope), bubble ∝ n positives; numbers pulled live from the result tables.
 - `outputs/conclusion_ladder.png` — conclusion visual: the evidence ladder — within-cohort → LOCO (cross-SNV-cohort) → splice-junction (untested extrapolation, #680) — showing where the evidence runs out.
+- `outputs/applicability/splice_applicability_support_map.png` — Issue #826 applicability gate (committed): left = splice vs SNV score distributions (overlap 0.92, KS 0.084); right = support map placing splice mass on the calibration curve (21% floor-clipped → flat constant log-odds). Reproduced by `applicability_notebook.ipynb`.
 
 ## Cohort-composition reconcile (primary-source confirmed)
 
@@ -215,6 +217,19 @@ cd research/experiments/issue_547_immunogenicity_calibration
 # Writes: outputs/calibrator_v1.joblib  outputs/*.png
 ```
 
+**Step 4 — Splice applicability gate ([Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826); `research/.venv`, Python 3.14)**
+
+```bash
+# Fetch the splice presentation scores from the production patient runs (GITIGNORED dir).
+mkdir -p data/splice_scores
+for p in patient_001 patient_002; do
+  gsutil cp "gs://splice-neoepitope-project/results/$p/predictions/mhc_presentation.tsv" \
+            "data/splice_scores/${p}_mhc_presentation.tsv"
+done
+../../../research/.venv/bin/jupyter nbconvert --to notebook --execute --inplace applicability_notebook.ipynb
+# Writes: outputs/applicability/splice_applicability_support_map.png
+```
+
 ## Validation result
 
 **LOCO (leave-one-cohort-out) prevalence-relative lift** — primary cross-lab/assay transfer metric:
@@ -228,7 +243,27 @@ cd research/experiments/issue_547_immunogenicity_calibration
 
 NCI is the strongest discriminator; IMPROVE shows essentially no lift above the prevalence baseline (1×).
 
-**Proxy caveat:** all four cohorts are **SNV point-mutation neoantigens**. LOCO tests cross-lab/assay generalization as a stand-in for cross-antigen-type generalization; LOCO success does **not** validate performance on splice-junction-derived neoantigens. That transfer gap is a known open question — see [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) and the design spec at [`docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md`](../../../docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md).
+**Proxy caveat:** all four cohorts are **SNV point-mutation neoantigens**. LOCO tests cross-lab/assay generalization as a stand-in for cross-antigen-type generalization; LOCO success does **not** validate performance on splice-junction-derived neoantigens. That transfer gap is a known open question — see [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) and the design spec at [`docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md`](../../../docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md). The label-free **applicability** assessment of that transfer is below.
+
+## Splice applicability — SNV→splice transfer ([Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826))
+
+The evidence ladder's top rung — *splice = untested* — could not be turned into an *accuracy* validation, because no labelled splice-immunogenicity data exists ([Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680); TESLA excluded splice isoforms).
+[Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826) instead runs the **label-free applicability gate** that *can* run now: does splice presentation-score mass fall where the calibrator actually learned a curve, or out in its flat extrapolation tails?
+Notebook: [`applicability_notebook.ipynb`](applicability_notebook.ipynb); figure: [`outputs/applicability/splice_applicability_support_map.png`](outputs/applicability/splice_applicability_support_map.png).
+Splice scores are the `genotype_presentation_score`s from the production patient runs (patient_001 n=395 + patient_002 n=1761 = **2156**), vs the **50,645** pooled SNV fit-cohort scores.
+
+| Check | Metric | Value | Reading |
+|---|---|---|---|
+| Covariate-shift | overlap coefficient | **0.92** | splice scores overlap the SNV fit distribution almost entirely |
+| Covariate-shift | KS statistic | **0.084** | small max-CDF gap; the two distributions track each other |
+| Score-support | in-support mass `[0.0163, 0.9839]` | **78.4%** | interpolated — real fitted calibration |
+| Score-support | floor-clipped mass (`< cx_[0] ≈ 0.0163`) | **21.4%** | flat constant −9.71 log-odds; near-non-presenters |
+| Score-support | ceil-clipped mass (`> cx_[-1] ≈ 0.9839`) | **0.19%** | negligible |
+
+**Verdict — provisional GO.** The SNV→splice transfer is *in-support*: there is no covariate-shift obstacle (overlap 0.92, KS 0.084 — splice scores live almost exactly where the calibrator was fit) and 78% of splice mass is interpolated.
+The 21% floor-clip is **not** a shift artifact (those low scores exist in the SNV data too) but an extrapolation-flatness one, and it lands on peptides with `genotype_presentation_score < 0.016` — near-non-presenters that a flat low log-odds scores *correctly* (lowest presenters → lowest immunogenicity), so it is benign for ranking rather than misleading.
+This is a **label-free applicability gate, not an accuracy validation** — it certifies the transfer is in-support, *not* that the calibrated values are correct for splice neoepitopes; accuracy remains [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
+**Conditions routed to [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709)** (production wiring): (1) the calibrated column is labeled **provisional** (splice-immunogenicity unvalidated, pending [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680)); (2) floor-clipped rows carry a `calibration_floor_clipped` flag so the flat-extrapolation region stays transparent downstream.
 
 ## Cross-experiment deps
 
