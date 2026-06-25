@@ -1,4 +1,4 @@
-"""Tests for `.claude/hooks/check_board_query_pagination.py` (Issue #717).
+"""Tests for `.agents/hooks/check_board_query_pagination.py` (Issue #717).
 
 Pure-function unit tests import the module directly (no I/O — the guard does no
 `gh`/network calls, only string inspection). Subprocess tests mirror the harness
@@ -15,7 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HOOKS_DIR = Path(__file__).parent.parent.parent / ".claude" / "hooks"
+HOOKS_DIR = Path(__file__).parent.parent.parent / ".agents" / "hooks"
 HOOK = HOOKS_DIR / "check_board_query_pagination.py"
 sys.path.insert(0, str(HOOKS_DIR))
 

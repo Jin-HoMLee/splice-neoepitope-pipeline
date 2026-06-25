@@ -13,8 +13,8 @@ For each match, invokes the relevant script and emits its output as
 
 Scope filter (Issue #454): each check declares a "scope" in HOOK_CONFIG and
 runs only when that scope is active for this invocation (`--scope shared|pm|all`).
-Committed `.claude/settings.json` invokes `--scope shared`; the PM-local
-`.claude/settings.local.json` invokes `--scope pm`. So Scientist/Developer
+Committed `.agents/settings.json` invokes `--scope shared`; the PM-local
+`.agents/settings.local.json` invokes `--scope pm`. So Scientist/Developer
 sessions get only the shared, broadly-actionable checks, while PM-only checks
 (e.g. capacity rechecks) stay local. A flagless invocation runs everything.
 """
@@ -41,7 +41,7 @@ PARENT_STATUS_SCRIPT = str(Path(__file__).resolve().parent.parent.parent / "scri
 # Fire-log infrastructure (Issue #453)
 # ---------------------------------------------------------------------------
 
-LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
 
 def _log_fire(hook_name: str, issue: int | None = None, **metadata) -> None:

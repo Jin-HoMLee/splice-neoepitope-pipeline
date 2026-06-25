@@ -1,4 +1,4 @@
-"""Subprocess tests for `.claude/hooks/check_at_claude.py`.
+"""Subprocess tests for `.agents/hooks/check_at_claude.py`.
 
 Mirrors how the Claude Code harness invokes the hook: pipe PreToolUse JSON to
 stdin, read deny decision from stdout. Exit code is always 0.
@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "check_at_claude.py"
+HOOK = Path(__file__).parent.parent.parent / ".agents" / "hooks" / "check_at_claude.py"
 
 
 def _run(stdin_payload):

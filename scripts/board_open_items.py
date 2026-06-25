@@ -4,7 +4,7 @@
 Wraps the paginated ProjectV2 GraphQL query that the board needs:
   - GraphQL `first: N` is a cap, not a filter; we loop on `pageInfo.hasNextPage`.
   - The board sorts Done items first, so unpaginated single-page queries silently
-    truncate open work. See `.claude/memory/shared/feedback_board_queries.md`.
+    truncate open work. See `.agents/memory/shared/feedback_board_queries.md`.
 
 For queries that only need label + state (no Status/Priority/Size columns),
 prefer `gh issue list --label role:<role> --state open` instead — it's a one-liner
@@ -181,7 +181,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     )
     # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
     # no summary for) have no subIssuesSummary block → treated as a leaf. Mirrors
-    # `.claude/hooks/check_gh_issue_develop_parent.py` (total > 0 → parent).
+    # `.agents/hooks/check_gh_issue_develop_parent.py` (total > 0 → parent).
     sub_summary = content.get("subIssuesSummary") or {}
     is_parent = (sub_summary.get("total") or 0) > 0
     return {

@@ -20,7 +20,7 @@ Reads PostToolUse hook JSON on stdin, parses the PR URL from the tool output,
 then runs the `gh` mutations. Fails OPEN on any parse miss, untracked repo, or
 `gh` error — a board-automation hook must never break the user's flow. On a
 successful set it emits an `additionalContext` confirmation and logs one line to
-`.claude/hook_fires.jsonl` (gitignored) per the fire-log infra (Issue #453).
+`.agents/hook_fires.jsonl` (gitignored) per the fire-log infra (Issue #453).
 
 See Issue #550 for the originating rule.
 """
@@ -50,7 +50,7 @@ TRACKED_REPOS = {
     "claude-personas-splice-neoepitope-pipeline",
 }
 
-LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
 _PR_CREATE_PREFIX = ("gh", "pr", "create")
 _PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens

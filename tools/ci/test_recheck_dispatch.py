@@ -1,4 +1,4 @@
-"""Integration tests for `.claude/hooks/recheck_dispatch.py`.
+"""Integration tests for `.agents/hooks/recheck_dispatch.py`.
 
 Pipes a synthetic PostToolUse JSON payload to the hook and asserts that
 the additionalContext includes the expected `[<recheck-name> — ...]` blocks.
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from _live_gh import REQUIRES_LIVE_GH
 
-HOOK = Path(__file__).parent.parent.parent / ".claude" / "hooks" / "recheck_dispatch.py"
+HOOK = Path(__file__).parent.parent.parent / ".agents" / "hooks" / "recheck_dispatch.py"
 
 
 def _run(cmd: str, *args: str) -> tuple[int, str, str]:

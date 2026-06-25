@@ -9,7 +9,7 @@ the memory rule ("parents have no branches/PRs", Reference-tier in
 memory/shared/feedback_parent_sub_issues.md) didn't load at the gh-develop
 target-pick moment, so this is the mechanism-over-memory escalation.
 
-Sibling of `.claude/hooks/check_at_claude.py` (the @claude mention guard). Reads
+Sibling of `.agents/hooks/check_at_claude.py` (the @claude mention guard). Reads
 PreToolUse hook JSON on stdin, prints a deny decision on stdout when the guard
 fires, exits 0 silently otherwise (the harness treats no-output as allow).
 
@@ -29,7 +29,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".claude" / "hook_fires.jsonl"
+LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
 _PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
 _DEVELOP_PREFIX = ("gh", "issue", "develop")
