@@ -6,6 +6,27 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-25 - .claude/ -> .agents/ canonical config dir migration ([PR #865](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/865) closes [Issue #861](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/861))
+
+### 10:32 UTC - Editor: PM (driving role:developer #861) - rename + symlink-back, per-clone migrator
+
+**Why.** Extends the vendor-neutral canonicalization done for instructions (AGENTS.md canonical, CLAUDE.md symlink - [#857](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/857)) down to the config directory: `.agents/` becomes the canonical agent-config dir, `.claude/` a committed symlink to it (git mode 120000). Honest scope: organizational/naming, **not** new functional portability - ~80% of the dir (`settings.json`, `hooks/*.py`) stays Claude-specific and only rides the symlink.
+
+**Work shipped ([PR #865](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/865)).**
+
+- `git mv` of the tracked subset (`commands/`, `hooks/`, `settings.json`) `.claude/` -> `.agents/`; committed `.claude -> .agents` symlink.
+- Hook command paths rewritten to `${CLAUDE_PROJECT_DIR}/.agents/hooks/...` so guard *execution* resolves the real dir and never rides the symlink (only Claude Code's *discovery* of `.claude/settings.json` does). `recheck_dispatch.py --scope shared` preserved verbatim.
+- `.gitignore` repointed to `.agents/` artifact paths (kept the `.claude/` forms too; same inode via symlink, protects clones mid-migration).
+- `scripts/migrate_claude_to_agents.sh`: idempotent, self-verifying one-shot migrator the two receiving clones (base, scientist) run after merge. Relocates each clone's gitignored locals + re-creates its role-memory symlink, working around git's refusal to replace a populated `.claude/` dir with a symlink on pull (clear untracked locals -> `pull` -> restore under `.agents/`). Hardened after internal review: portable `[ -d .agents/memory ]` check (no macOS-absent `readlink -f`) + an ERR trap printing recovery guidance on a mid-pull failure.
+
+**Process / method.** brainstorming -> spec -> writing-plans -> subagent-driven execution (fresh implementer + reviewer per task; final whole-branch opus review). Internal reviews caught `readlink -f` macOS portability, the missing pull-failure recovery path, and ~40 em dashes in my own design docs - all fixed before the PR. Bot `@claude review`: no blocking issues; 5 non-blocking follow-ups.
+
+**Deferred (tracked).** [Issue #866](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/866) carries the non-blocking follow-ups: latent `.claude/` coupling in the hook fire-log path + CI/test hook-discovery, a migrator `main`-branch guard, and a cosmetic stale-`$TMP` hint. The docs-prose sweep (AGENTS.md / CLAUDE.md) is this PR's post-merge Task 6.
+
+**Verification note.** The live-hook ACs (`/hooks` shows the 3 PreToolUse guards, `/doctor` clean, a trace-probe fire) require a **fresh session after merge** - this session's hooks are its start-time config (editing `settings.json` does not hot-reload). Receiving-clone migration (base, scientist) + per-clone verification done post-merge.
+
+---
+
 ## 2026-06-22 — migration runbook: GCP→RunPod+R2, decision-grade plan ([PR #836](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/836) closes [Issue #835](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/835))
 
 ### 21:40 UTC — Editor: Developer — two research passes, #1 risk retired, doc-only deliverable

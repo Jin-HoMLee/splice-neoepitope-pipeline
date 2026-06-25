@@ -310,16 +310,19 @@ dag.pdf
 CLAUDE.local.md
 
 # Claude Code — transient scheduler state (per-session lock + durable cron jobs)
+.agents/scheduled_tasks.lock
+.agents/scheduled_tasks.json
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
 
 # Claude Code — per-user local settings (permissions allow-list, absolute paths)
+.agents/settings.local.json
 .claude/settings.local.json
 
-# Cross-repo symlink to claude-personas-splice/<role>/ (cwd access to role + shared memory)
-
 # claude-personas role-memory symlink
+/.agents/memory
 /.claude/memory
+.agents/hook_fires.jsonl
 .claude/hook_fires.jsonl
 
 # Remote-tabix index downloaded by the GTEx pan-tissue builder (Issue #211); the builder
