@@ -335,7 +335,7 @@ Mechanisms that fire automatically to enforce GitHub-related discipline rules th
 
 > **⚠️ Hook loading — restart after editing `.claude/settings.json`.** Editing `.claude/settings.json` mid-session **silently deactivates ALL the hooks below** (every PreToolUse + PostToolUse) for the rest of that session — they do **not** hot-reload. So wiring a new hook (or changing one) also kills the *existing* guards (e.g. the `@claude` blocker) until you **restart the session**. Verify what's actually live with `/hooks`. Verified 2026-05-29: the committed `post_gh_pr_create` hook fired in a fresh session (trace probe) but was dead in the session that had edited `settings.json` mid-session — silently causing [PR #560](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/560) + [PR #562](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/562) to miss auto-boarding. Also: hooks fire only on **Claude's tool calls**, not on commands a human runs in a terminal — so a firing test must be driven by a Claude session.
 
-### `@claude` mention guard ([PreToolUse hook](.claude/settings.json))
+### `@claude` mention guard ([PreToolUse hook](.agents/settings.json))
 
 Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `@claude` substring, except the exact canonical review-trigger `--body "@claude review"` (and the single-quoted variant). The hook runs `.claude/hooks/check_at_claude.py` on stdin-piped PreToolUse JSON and emits a `permissionDecision: deny` when the guard fires.
 
@@ -343,7 +343,7 @@ Refuses any `gh (pr|issue) (comment|create)` whose `--body` contains a literal `
 
 **Workaround for non-trigger references:** use `@-claude` (zero-width hyphen between `@` and `claude`). The literal substring `@claude` must not appear.
 
-### `gh issue develop` parent guard ([PreToolUse hook](.claude/settings.json))
+### `gh issue develop` parent guard ([PreToolUse hook](.agents/settings.json))
 
 Refuses any `gh issue develop <N>` (number or issue-URL form) when Issue `N` is a parent/epic — i.e. its `subIssuesSummary.total > 0`. The hook runs `.claude/hooks/check_gh_issue_develop_parent.py` on stdin-piped PreToolUse JSON and emits a `permissionDecision: deny`. It **fails open** on every uncertain path (unparseable command, no issue number, repo unresolvable, `gh`/network error) — only a *confirmed* parent denies — so a hiccup never blocks legitimate `gh issue develop`. Each deny appends one line to `.claude/hook_fires.jsonl` (gitignored, [Issue #453](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/453) fire-log infra).
 
@@ -351,7 +351,7 @@ Refuses any `gh issue develop <N>` (number or issue-URL form) when Issue `N` is 
 
 **Workaround:** branch off a leaf sub-issue instead, or file a closure sub-issue (cf. [Issue #548](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/548)) under the epic and develop off that.
 
-### Board-query pagination guard ([PreToolUse hook](.claude/settings.json))
+### Board-query pagination guard ([PreToolUse hook](.agents/settings.json))
 
 Refuses any command-start `gh api …` invocation whose args contain `projectV2` **and** an `items(first: …)` connection but **no** pagination token (`hasNextPage` / `endCursor` / `after:`). The hook runs `.claude/hooks/check_board_query_pagination.py` on stdin-piped PreToolUse JSON (pure string inspection — no `gh`/network I/O) and emits a `permissionDecision: deny`. It **fails open** on any parse miss or untokenizable command. The two safe patterns pass untouched: the per-issue `issue(number:N){ projectItems … }` lookup (no `projectV2.items`) and `scripts/board_open_items.py` (carries `pageInfo`/`after`; also a python invocation, never inspected). A `gh pr comment`/`gh issue create` whose *body* merely discusses the pattern does not match — only a `gh api` at a command start counts (shlex command-start tokenization). Each deny appends one line to `.claude/hook_fires.jsonl` (gitignored, [Issue #453](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/453) fire-log infra).
 
