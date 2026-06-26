@@ -45,6 +45,10 @@ gene:exon-pair label. A full genomic coordinate requires both donor and acceptor
 Since PROVENANCE quotes only the one-coordinate SNAF event label - not a two-coordinate
 chr:start-end - `event-id` is the conservative assignment.
 
+**Caveat on the 2 `coords` rows (`IPDSQGNDI`, `STESITATL`):** the `coords` grade is correct - the genomic coordinate pair was published in SNAF Data S1, so the no-inference rule holds for the junction annotation.
+But both rows carry `provenance_grade=inferred` with an open `VERIFY` caveat on the **peptide-identity** match (the exact sequence was matched from a 3-letter figure prefix, `IPD` / `STE`, to the unique Data S1 row, not read verbatim).
+The junction coordinate is solid; the peptide-to-coordinate linkage inherits that sequence-identity caveat, so do not over-trust `coords` as fully verified end-to-end until the peptide identity is confirmed against the synthesized-peptide list.
+
 ---
 
 ## 2. Kim et al. 2025 - mis-splicing neoantigens in SF-mutant leukemias

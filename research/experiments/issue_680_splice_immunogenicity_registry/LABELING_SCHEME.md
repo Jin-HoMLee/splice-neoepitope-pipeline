@@ -59,6 +59,10 @@ Example: the 8 IR-CRC 9-mers (Manoharan 2026, `candidate-negative` tier).
 These rows are **retained in `registry.tsv`** (never deleted) but are excluded from the benchmark's scored peptide set.
 The `presentation-prevalence` and `negative-control-not-splice` tiers carry `evidence_strength=na` (not applicable); the `functional-nonscorable` and `candidate` tiers retain their real `strong` or `weak` strength from their assay readout.
 
+**Consumer note (load-bearing for #736):** the scorable positive set is `label == "positive" AND tier == "functional-scorable"`, **not** `label == "positive"` alone.
+A bare `label == "positive"` filter would pull in the `candidate` rows (label unconfirmed) and the `functional-nonscorable` rows (no published sequence to key on), both excluded here.
+The exclusion is carried by `tier`, so a downstream consumer must filter on `tier`, not on `label` alone.
+
 ### `label=untested` (`tier=presentation-prevalence`)
 
 The peptide has MHC-presentation evidence and/or tumor-prevalence / survival signal, but **no functional T-cell assay has been performed**.
@@ -144,6 +148,7 @@ These are real presented peptides with no measured response - not synthetic cons
 They are sourced from the 13 peptides enumerated in the registry `README.md` (SNAF Supp Fig 4 + Supp Fig 7, coordinated via [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)) and materialized as `decoy_negatives/presented_decoys_681.tsv`.
 The absence of a measured response does not mean a response was sought and found absent; these are untested, not tested-negative.
 That distinction makes Tier 2 weaker than Tier 1 as a discrimination signal.
+The `hla` column of the Tier-2 seed is left blank: the source did not publish a per-peptide presenting allele for these 13 peptides, so #736 should not expect one for the Tier-2 set (it is available only for the Tier-1 negatives and for the scorable positives).
 
 ### Tier 3 - Matched synthetic (weakest claim, abundant)
 

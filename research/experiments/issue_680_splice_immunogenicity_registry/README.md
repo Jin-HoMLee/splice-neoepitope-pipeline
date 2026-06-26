@@ -41,7 +41,7 @@ Free-text `splice_mechanism` is preserved; `splice_mechanism_canonical` normaliz
   - `weak` = antigen-specific detection only (tetramer / dextramer).
   - `hard` = splice-derived, MS-presented, and functionally tested negative (gold-standard discrimination negative).
   - `soft` = tested negative in healthy-donor in-vitro sensitization (IVS), categorically weaker than hard.
-  - `na` = not applicable (untested, non-scorable, or fails splice gate).
+  - `na` = not applicable, specifically the `presentation-prevalence` tier (untested) and the `negative-control-not-splice` tier (fails the splice gate). The `functional-nonscorable` and `candidate` tiers are non-scorable too but keep their real `strong`/`weak` strength, not `na`.
   - Full rule definitions: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §2-4.
 - **`label_rationale`** - one-line human-readable rationale for the `evidence_strength` assignment, citing the key readout keyword or the rule that applies.
 - **`junction_id`** - the most specific junction identifier the source published for that peptide: a genomic coordinate pair, a transcript/event identifier, or empty when only gene + mechanism is recoverable.

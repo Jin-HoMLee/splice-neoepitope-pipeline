@@ -3,12 +3,10 @@
 import pandas as pd
 from pathlib import Path
 
+from labeling_constants import EFFECTOR, DETECTION, IVS_MARKER
+
 HERE = Path(__file__).resolve().parent
 REG = HERE / "registry.tsv"
-EFFECTOR = ("ifn", "elispot", "cytotox", "granzyme", "gzmb", "cd107", "cd137",
-            "degranul", "killing", "ldh", "caspase", "incucyte", "tcr", "tnf",
-            "activation", "in vivo")
-DETECTION = ("tetramer", "dextramer", "multimer")
 
 
 def strength(r):
@@ -17,7 +15,8 @@ def strength(r):
     if r["label"] == "untested" or tier in ("presentation-prevalence", "negative-control-not-splice"):
         return "na"
     if r["label"] == "negative":
-        return "soft" if "healthy-donor ivs" in ro or "ivs" in ro else "hard"
+        # IVS context -> soft (failed to prime); otherwise hard (cross-checked by the validator).
+        return "soft" if IVS_MARKER in ro else "hard"
     # positive
     if any(k in ro for k in EFFECTOR):
         return "strong"
