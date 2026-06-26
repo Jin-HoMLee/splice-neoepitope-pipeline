@@ -10,7 +10,9 @@ The flank size is derived from the configured peptide lengths:
 For peptide_lengths = [8, 9, 10] this gives 27 nt symmetric flanks (54 nt contigs).
 
 The script uses ``bedtools getfasta`` to retrieve sequences from the reference
-genome.  Contigs with soft-clipped bases (lower-case nucleotides) are excluded.
+genome.  Lower-case bases (genome repeat soft-masking) are normalized to
+upper-case; contigs are *not* excluded on that basis (these genome-derived
+contigs contain no alignment soft-clips).
 
 Output: FASTA file where each sequence header encodes the junction coordinates.
 
@@ -269,14 +271,21 @@ def assemble_contigs(
             # Take exactly the required number of nucleotides
             up_seq = up_seq[-upstream_nt:]
             dn_seq = dn_seq[:downstream_nt]
-            contig = up_seq + dn_seq
+            # Normalise case BEFORE the soft-clip check. Lower-case in a genome
+            # FASTA is repeat *soft-masking* (e.g. UCSC references), NOT an
+            # alignment soft-clip. These contigs are cut from the reference via
+            # bedtools getfasta, so they never contain alignment soft-clips;
+            # without upper-casing first, a soft-masked reference silently drops
+            # every contig. Production (GENCODE) is upper-case, so this only bit
+            # soft-masked references like the chr22 UCSC test fixture.
+            contig = (up_seq + dn_seq).upper()
 
-            # Exclude contigs with soft-clipped regions
+            # Defensive only: genome-derived contigs have no alignment soft-clips,
+            # so after upper-casing this never fires (kept as a guard + for the
+            # skipped_softclip stat schema).
             if _has_soft_clip(contig):
                 n_skipped_softclip += 1
                 continue
-
-            contig = contig.upper()
             header = (
                 f">{junc_id}|{row['chrom']}:{row['start']}-{row['end']}"
                 f":{row['strand']}|{row['sample_type']}"

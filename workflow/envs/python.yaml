@@ -16,6 +16,14 @@ dependencies:
   - pytest >=8.0
   - pip
   - pip:
+    # Per-platform torch selection (PEP 508 markers). The +cu126 build exists only as
+    # Linux/x86 wheels and is P100/Pascal-specific, so it cannot install on macOS arm64
+    # (no matching wheel -> env build fails). Gating it to Linux lets the env build
+    # locally on Apple silicon (plain PyPI wheel, CPU/MPS) for the $0 keep-alive core,
+    # while preserving the GCP/P100 recipe live-in-file for a funded revival.
+    # The --extra-index-url is harmless on macOS (unused). When a second live GPU target
+    # is funded, promote this to explicit per-target env files. See docs/legacy/gcp_p100_setup.md.
     - --extra-index-url https://download.pytorch.org/whl/cu126
-    - torch ==2.12.0+cu126  # P100 (SM 6.0) compat; PyPI wheels (cu128+) drop Pascal — see CLAUDE.md
+    - torch ==2.12.0+cu126 ; platform_system == "Linux"
+    - torch >=2.12 ; platform_system == "Darwin"
     - mhcflurry >=2.0

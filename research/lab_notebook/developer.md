@@ -6,6 +6,44 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-26 - Cloud cost-out + local CPU keep-alive baseline (GCP decommissioned; 2 latent bugs fixed)
+
+### 14:54 UTC - Editor: Developer
+
+**Why.**
+The infra budget hardened to **$0** (no funds for any paid compute), which invalidated the in-flight GCP→RunPod migration (RunPod is also paid) and forced a pivot to a **keep-alive-until-funded** posture before the GCP free trial lapses ~2026-07-03.
+Goal: stop all spend, preserve the data + the GCP knowledge, and confirm the pipeline still runs for $0 locally.
+
+**Cost-out executed.**
+- **GCP fully decommissioned:** deleted VMs `neoepitope-pipeline` (n1-highmem-8 + 200 GB pd-ssd, the ~$34/mo idle drain) + `neoepitope-orchestrator`, and the 107 GiB GCS bucket. Verified sweep: 0 instances / disks / IPs / snapshots / images / buckets → $0 billable. Data preserved on R2 first (triple-verified in #854); R2 retained (~105 GiB, ~$1.45/mo).
+- **Board wind-down:** epic [#843](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/843) re-scoped to cost-out + closed; [#846](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/846) (decommission) closed; **#844/#845 closed not-planned** (RunPod); **PR [#875](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/875) parked as draft**.
+
+**Keep-alive baseline → surfaced + fixed 2 latent bugs (this PR).**
+Confirming "the CPU-only core runs green" on the Mac was not a rubber-stamp: re-running the chr22 pipeline from scratch (first full local run in a while) exposed two issues that bot review, dry-runs, and unit tests had all structurally missed.
+
+1. **`python.yaml` torch pin broke local env builds (arm64).**
+The env pinned `torch ==2.12.0+cu126` - a Linux-only build that existed solely for the now-decommissioned P100 (Pascal).
+No arm64 wheel → `conda env create` failed outright (`No matching distribution found`).
+**Fix:** per-platform PEP 508 markers - plain `torch >=2.12` on macOS arm64, the `+cu126` pin gated to Linux (preserved for a funded GPU revival). The env now builds locally (CPU/MPS).
+
+2. **`assemble_contigs.py` silently dropped every contig on a soft-masked reference.**
+`_has_soft_clip()` excludes any contig containing lower-case bases as an "alignment soft-clip" - but these contigs are cut from the genome via `bedtools getfasta`, where lower-case means **repeat soft-masking**, not a soft-clip.
+The chr22 fixture (UCSC hg38) is soft-masked, so all 122 tumor-exclusive junctions were skipped → 0 contigs → 0 neoepitopes.
+Original design flaw (present since the initial commit); the code even re-uppercased on the next line.
+**Severity bounded:** verified the **production** GENCODE reference is NOT soft-masked (0 lower-case in a 40 MB source sample), and the 104 GiB of migrated results prove production always assembled fine → **test-fixture-only**, not production data loss. But a real landmine for any soft-masked reference.
+**Fix (TDD):** uppercase the contig before the soft-clip check (the check is now an inert defensive guard) + a regression test (`TestSoftMaskedReferenceAssembles`) monkeypatching the bedtools boundary.
+
+**Docs.** Archived the now-stale GCP/P100 operational sections (VM specs, NVIDIA closed-driver pin, zone history, cu126 rationale) from AGENTS.md/CLAUDE.md into [`docs/legacy/gcp_p100_setup.md`](../../docs/legacy/gcp_p100_setup.md) (revival = checklist, not reconstruction); rewrote the `python.yaml` section to the marker reality.
+
+**Verification.**
+- New env builds on macOS arm64; chr22 pipeline runs 7/7 green.
+- assemble: **122 contigs written** (was 0 written / 122 skipped-softclip) → 5,733 peptides → presentation predictions.
+- Full pytest: **599 passed, 6 skipped, 0 failed** (the 5 integration tests that exposed the empty-output bug flipped green); `test_assemble_contigs.py` 18/18.
+
+**Lesson.** "Re-run the baseline for real" caught a correctness bug that every static check (bot review, `snakemake -n`, unit tests on curated fixtures) was blind to, because the failure only appears when the actual pipeline regenerates `results/` from a soft-masked reference. The stale cached results had masked it.
+
+---
+
 ## 2026-06-25 - GCS→R2 data exit complete + verified ([Issue #854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854), Phase 1 of migration epic [#843](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/843))
 
 ### 13:34 UTC - Editor: Developer

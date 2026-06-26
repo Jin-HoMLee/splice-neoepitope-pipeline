@@ -174,7 +174,7 @@ sequences extracted from the GRCh38 reference genome (via `bedtools getfasta`). 
 size is `3 × (max_peptide_length − 1)` nucleotides on each side; with peptide lengths
 8–10 this gives 27 nt symmetric flanks (54 nt contigs).
 
-Contigs containing soft-clipped (lower-case) bases are excluded.
+Reference soft-masking (lower-case bases marking repeat regions) is normalized to upper-case; contigs are retained regardless of masking.
 
 For each contig, junction-spanning peptides are extracted in all three reading frames
 (offsets 0, 1, 2) and written to a TSV file (`contig_key`, `start_nt`, `peptide`).

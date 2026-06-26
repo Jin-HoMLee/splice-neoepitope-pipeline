@@ -179,3 +179,47 @@ class TestEmptyPipelineEarlyReturns:
         assert fasta_out.exists()
         got = pd.read_csv(stats_out, sep="\t")
         pd.testing.assert_frame_equal(got, self._expected_zero_stats())
+
+
+class TestSoftMaskedReferenceAssembles:
+    """A soft-masked (lower-case) genome reference must NOT cause contigs to be
+    dropped. Lower-case in a genome FASTA is repeat soft-masking, not an
+    alignment soft-clip; contigs here come from ``bedtools getfasta`` on the
+    reference, so they never contain alignment soft-clips. Production (GENCODE)
+    is upper-case, but a UCSC-style soft-masked reference (e.g. the chr22 test
+    fixture) was silently dropping every contig. The assembled contig must be
+    emitted and upper-cased.
+    """
+
+    def _make_tumor_exclusive_junction(self, path):
+        pd.DataFrame({
+            "junction_id": ["chr22:201:300:+"],
+            "chrom": ["chr22"], "start": [200], "end": [300],
+            "strand": ["+"], "junction_origin": ["tumor_exclusive"],
+            "sample_id": ["s1"], "sample_type": ["tumor"],
+        }).to_csv(path, sep="\t", index=False)
+
+    def test_softmasked_sequence_still_emits_uppercase_contig(self, tmp_path, monkeypatch):
+        novel_tsv = tmp_path / "novel.tsv"
+        self._make_tumor_exclusive_junction(novel_tsv)
+
+        # Stub the external bedtools getfasta (unavailable in the test venv) to
+        # emit soft-masked (lower-case) sequence, as a UCSC-masked reference would.
+        def fake_getfasta(bed_path, genome_fasta, out_fa):
+            with open(out_fa, "w") as fh:
+                fh.write(">chr22:201:300:+\n" + "acgt" * 100 + "\n")
+        monkeypatch.setattr("assemble_contigs._run_bedtools_getfasta", fake_getfasta)
+
+        fasta_out = tmp_path / "contigs.fa"
+        assemble_contigs(
+            novel_junctions_tsv=novel_tsv,
+            genome_fasta=tmp_path / "fake.fa",
+            output_fasta=fasta_out,
+            stats_output_path=tmp_path / "stats.tsv",
+        )
+
+        contigs = fasta_out.read_text()
+        assert ">chr22:201:300:+" in contigs, "soft-masked contig was dropped"
+        seq_lines = [ln for ln in contigs.splitlines() if ln and not ln.startswith(">")]
+        assert seq_lines, "no contig sequence emitted"
+        assert all(ln.isupper() for ln in seq_lines), "contig not upper-cased"
