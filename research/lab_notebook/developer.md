@@ -8,6 +8,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26 - Cloud cost-out + local CPU keep-alive baseline (GCP decommissioned; 2 latent bugs fixed)
 
+### 16:51 UTC - Editor: Developer - deterministic last-session watermark hook (#820 / PR #884)
+
+**Why.**
+The morning-routine recap / closure-audit "activity since last check" window was anchored on a reflexive "yesterday" or the latest `episodes/` filename - both unreliable. "Yesterday" silently drops a weekend/absence gap; an episode filename can be a cross-midnight session tail, so neither marks when the board was actually last checked ([#820](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/820)).
+
+**What shipped (write-side, PR [#884](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/884)).**
+A `Stop` hook (`.agents/hooks/write_session_watermark.py`) writes a deterministic high-water mark - `{last_session_end_utc, schema}` - to a gitignored per-clone marker (`.agents/last_session_marker.json`, mirroring `hook_fires.jsonl`) on every turn-end. Atomic write (tempfile + `os.replace`), always exit 0 with no stdout, fail-open on any error.
+
+**Design decision - `Stop` over `SessionEnd`.**
+`Stop` fires every turn-end, so the marker can't go stale on a killed / crashed / left-open session - the exact failure mode the issue removes. `SessionEnd` would reintroduce it. A Stop hook *can* loop (re-fires with `stop_hook_active`), avoided here by never emitting a decision. This is the repo's first `Stop` hook.
+
+**Scope split (decided with the user).**
+The ACs conflated code with cross-persona memory wiring: the read-side convention (consume the marker as the window floor + ~1-day overlap; 7-day fallback when absent) and the interim stopgap strip both live in the **PM persona's own memory store** - a separate clone not mounted in the Developer workspace, so I literally can't edit them from here. Rather than gate a green, reviewed write-side hook on that, we **rescoped #820 to write-side-only (AC1)** and **split the read-side to [#886](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/886)** (role:pm). The write-side starts working on merge; the routine keeps its safe 7-day floor until #886 lands - precision upgrade, not a correctness gap.
+
+**Review.**
+Bot review: "looks good to merge," 6 minor/optional findings. Fixed 3 (broadened the stdin guard to honor the fail-open contract; added a direct-exec/shebang test + atomic-write guarantee tests). Relayed 1 (read-side `schema`-gating + `Z`-suffix parsing) to #886. Skipped 2 with reasons (key name matches issue vocabulary; `0600` marker mode is fine for a per-clone artifact).
+
+**Verification.** `pytest tools/ci/test_write_session_watermark.py` → 14 passed; full `tools/ci/ -m "not live"` → 392 passed; settings.json validates; real-payload smoke writes the marker (exit 0) and it's correctly gitignored. CI green on PR #884.
+
 ### 14:54 UTC - Editor: Developer
 
 **Why.**
