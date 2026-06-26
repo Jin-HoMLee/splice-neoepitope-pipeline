@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 18:40 UTC — Editor: Scientist
+
+#### [PR #893](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/893) — registry `assay_context` column + Manoharan provenance upgrade — closes [Issue #823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823)
+
+**What shipped.** The next registry data-quality pass for the #680 splice-immunogenicity benchmark (leaf under parent #680). Two items the Opus review of the #733 doubling flagged as next-pass.
+
+**1. `assay_context` column (AC#1).** A controlled-vocabulary column (`patient_exvivo | patient_til | healthy_donor_ivs | cloned_tcr | prevalence_only | unspecified | na`) recording *which immunological system* produced each row's functional readout, so a scoring run can weight by assay realism (patient ex-vivo > healthy-donor IVS > engineered TCR) programmatically rather than re-parsing free-text `notes`. This distinction already drives the `high`/`medium` confidence split but previously lived only in prose. Populated for all 79 rows: `patient_exvivo` 42, `unspecified` 17, `healthy_donor_ivs` 11, `cloned_tcr` 4, `patient_til` 3, `prevalence_only` 1, `na` 1. Source-keyed derivation (`derive_assay_context.py`, idempotent), with Merlotti's ex-vivo-vs-TIL split read from per-context `notes`. `validate_registry.py` enforces vocabulary + two biconditional cross-checks (`healthy_donor_ivs`↔IVS-marker, `prevalence_only`↔tier, plus the review-added `na`↔tier mirror); all mutation-tested to fire.
+
+**Design call — honest `unspecified`.** 17 rows (SNAF / Kim / Xiong / Fisher / POSTN / Kwok) record the assay but **not** the T-cell source in held provenance. Per the verify-against-source rule I did not guess patient-vs-donor — marked `unspecified` so a scoring run applies no context weight there. Pinning them is a documented future read-the-methods pass (filed as a thin backlog follow-up).
+
+**2. Manoharan provenance upgrade (AC#2).** The 11 IR-CRC rows were the largest `agent-web` block. The source is open-access (PMC13096189), so rather than a documented dead-end I re-read Table 1 first-hand — all 11 sequences/genes/alleles confirmed verbatim, 11/11, a third independent read agreeing with the two prior. Upgraded `agent-web` → `direct`; PROVENANCE.md updated.
+
+**Review.** `@claude` pass came back clean ("solid, ready to merge, no blocking issues"); it independently re-verified the distribution + the exactly-11 provenance delta + the biconditionals against the committed TSV. Its 4 optional-polish notes were all applied in `3e16f45` (na biconditional, derive-script-owns-column header note, spaced `ex vivo` acceptance, `regex=False` parity). Validator green normal + `-O`; registry diff confirmed = new column + 11 grade upgrades only, peptide order preserved.
+
+---
+
 ### 17:30 UTC — Editor: Scientist
 
 #### [PR #888](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/888) — fix stale `resources/` promotion path in research_artifact_conventions.md — closes [Issue #863](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/863)
