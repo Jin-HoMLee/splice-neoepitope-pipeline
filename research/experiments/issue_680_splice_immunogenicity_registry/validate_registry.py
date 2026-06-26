@@ -63,6 +63,17 @@ def main() -> int:
             print("  -", line, file=sys.stderr)
         return 1
     print(f"PASS: {len(df)} rows valid against the labeling scheme.")
+
+    # decoy seed check
+    DECOY = HERE / "decoy_negatives" / "presented_decoys_681.tsv"
+    if DECOY.exists():
+        dd = pd.read_csv(DECOY, sep="\t", dtype=str).fillna("")
+        assert len(dd) == 13, f"expected 13 presented decoys, got {len(dd)}"
+        assert (dd["decoy_tier"] == "presented-decoy").all(), "bad decoy_tier value"
+        assert dd["peptide"].is_unique, "duplicate decoy peptide"
+        assert dd["peptide"].str.len().between(8, 11).all(), "decoy peptide length out of range"
+        print("PASS: 13 presented decoys valid.")
+
     return 0
 
 
