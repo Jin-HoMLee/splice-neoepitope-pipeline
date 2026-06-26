@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 16:35 UTC - Editor: PM
+
+#### [PR #885](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/885) - milestone_report.py splits closes by stateReason ([Issue #851](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851))
+
+**The masking bug.** `scripts/pm/milestone_report.py` counted every closed issue as delivered, so a milestone with descoped (NOT_PLANNED) closes rendered an inflated "N / N closed" headline.
+pm-i7's "9 / 9 closed" actually hid 2 superseded issues (#499 -> #776, #533 -> #453), caught only by a manual close-reason audit during the pm-i7 report authoring (the gap that filed #851).
+This is the machine analogue of the parent-rollup close-reason rule (`recheck_parent_status`'s `[REVIEW: NOT_PLANNED child]` flag) applied at milestone rollup - the closure report is the durable close-evidence record, so a masked descope there is permanent misinformation.
+
+**Fix.** Split closed issues by stateReason: metrics report `n_delivered` + `n_descoped` separately; per-role counts, throughput, and cycle time all key off delivered (a descoped issue is not shipped work). At-a-glance gets Delivered/Descoped cards; the inventory badges each descoped row; the narrative seeds a "Descoped" stub so the author routes each dropped issue. Verified live on pm-i7: delivered/descoped = 7/2.
+
+**Review catch (the substantive one).** The @-claude review flagged that my `!= NOT_PLANNED` complement swept GitHub's third close reason - DUPLICATE - into delivered, re-creating the exact masking the PR set out to kill.
+Confirmed live: the repo has 1 DUPLICATE-closed issue (#147).
+Switched to an explicit `DESCOPED_REASONS = {NOT_PLANNED, DUPLICATE}` set so a missing reason still falls through to delivered and a future enum value can't land silently; single-sourced via `is_descoped()` for both the metrics split and the badge.
+Also moved cycle-time onto delivered-only (was inconsistently spanning descoped) and renamed the stale `n_closed` param.
+Lesson: when partitioning on an external enum, enumerate the excluded set explicitly rather than complementing one known value - the complement silently absorbs every value you didn't think of.
+
+**TDD.** Metrics layer test-first throughout (7 initial failing tests, then 4 more for the review findings); 32/32 pass in the bare `ci-tools-pytest` env. Render/data layers verified by live pm-i7 dry-run + HTML render per the design spec (not unit-tested).
+
 ### 13:31 UTC — Editor: PM
 
 **i5 - S3 - Data Preparation milestone closed (6/7 delivered); lone open #636 carried forward.**
