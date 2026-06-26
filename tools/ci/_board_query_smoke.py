@@ -82,10 +82,14 @@ def _dig(obj: Any, path: tuple[str, ...]) -> Any:
     return cur
 
 
+_DEFAULT_ITEMS_PATH = ("data", "user", "projectV2", "items")
+
+
 def check_board_query_shape(
     parsed: Any,
     *,
     require_issue_node: bool = True,
+    items_path: tuple[str, ...] = _DEFAULT_ITEMS_PATH,
 ) -> list[str]:
     """Return a list of structural problems with a board GraphQL response.
 
@@ -95,6 +99,10 @@ def check_board_query_shape(
     is present and integer-typed on Issue nodes. Deliberately makes NO assertion
     on specific board data values (counts, titles, which items are present) —
     board state changes hourly.
+
+    ``items_path`` locates the items connection so a registered query with a
+    different envelope (e.g. an org-scoped project) is checked against its own
+    path rather than the board default — the registry's auto-coverage promise.
     """
     problems: list[str] = []
 
@@ -109,10 +117,10 @@ def check_board_query_shape(
         problems.append("missing `data` (response has no top-level data object)")
         return problems
 
-    items = _dig(parsed, ("data", "user", "projectV2", "items"))
+    items = _dig(parsed, items_path)
     if items is None:
         problems.append(
-            "missing items connection at data.user.projectV2.items "
+            f"missing items connection at {'.'.join(items_path)} "
             "(schema drift or wrong query envelope)"
         )
         return problems
@@ -192,6 +200,16 @@ def run_graphql_with_retry(
             return json.loads(result.stdout)
         if result is not None:
             last_stderr = result.stderr
+            # `gh api graphql` exits non-zero when the response carries a GraphQL
+            # `errors` array (the headline drift case: a renamed/removed field),
+            # printing the errors body to stdout. That's deterministic, not
+            # transient — return it so check_board_query_shape reports the drift
+            # with its curated message instead of exhausting retries into a
+            # generic timeout error. Genuine transient failures (TLS/5xx) have no
+            # parseable errors body, so they fall through to the backoff path.
+            errors_body = _parse_errors_body(result.stdout)
+            if errors_body is not None:
+                return errors_body
         if attempt < max_attempts - 1:
             _sleep(base_delay * (2 ** attempt))
 
@@ -199,3 +217,14 @@ def run_graphql_with_retry(
         f"gh api graphql failed after {max_attempts} attempts for "
         f"query '{q.name}': {last_stderr}"
     )
+
+
+def _parse_errors_body(stdout: str) -> dict[str, Any] | None:
+    """Return the parsed body iff stdout is JSON carrying a GraphQL ``errors`` array."""
+    try:
+        body = json.loads(stdout)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(body, dict) and body.get("errors"):
+        return body
+    return None

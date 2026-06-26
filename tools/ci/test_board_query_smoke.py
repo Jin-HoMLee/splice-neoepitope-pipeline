@@ -122,6 +122,28 @@ class TestCheckBoardQueryShape:
         assert bqs.check_board_query_shape(a) == []
         assert bqs.check_board_query_shape(b) == []
 
+    def test_items_path_is_honored_for_other_envelopes(self):
+        # The registry promises new live queries are auto-covered. A query with a
+        # different envelope sets items_path; the checker must walk it, not the
+        # hardcoded board path. Here the items connection sits under
+        # data.organization.projectV2 instead of data.user.projectV2.
+        resp = {
+            "data": {
+                "organization": {
+                    "projectV2": {
+                        "items": {
+                            "pageInfo": {"hasNextPage": False, "endCursor": None},
+                            "nodes": [_issue_node()],
+                        }
+                    }
+                }
+            }
+        }
+        path = ("data", "organization", "projectV2", "items")
+        assert bqs.check_board_query_shape(resp, items_path=path) == []
+        # Default board path can't find it → flagged (proves the path is actually used).
+        assert bqs.check_board_query_shape(resp) != []
+
     def test_require_issue_node_coverage_guard(self):
         # A response with zero Issue nodes never exercises the subIssuesSummary
         # check — a vacuous pass. require_issue_node=True flags it so the live
@@ -208,6 +230,38 @@ class TestRunGraphqlWithRetry:
         bqs.run_graphql_with_retry(self._Q, _runner=runner, _sleep=lambda _: None)
         assert "-F" in seen["cmd"] and "owner=o" in seen["cmd"]
 
+    def test_schema_error_returns_immediately_without_retry(self):
+        # `gh api graphql` exits NON-ZERO when the response carries a GraphQL
+        # `errors` array (the headline drift case: a renamed/removed field), and
+        # prints the errors body to stdout. That's deterministic, not transient —
+        # return it straight to check_board_query_shape (which flags it with the
+        # curated message) instead of retrying 4x and raising a generic timeout.
+        errors_body = '{"errors": [{"message": "Field \'x\' doesn\'t exist"}]}'
+        calls = {"n": 0}
+
+        def runner(cmd):
+            calls["n"] += 1
+            return _FakeProc(1, stdout=errors_body, stderr="gh: Field 'x'...")
+
+        sleeps = []
+        out = bqs.run_graphql_with_retry(
+            self._Q, _runner=runner, _sleep=sleeps.append
+        )
+        assert out == {"errors": [{"message": "Field 'x' doesn't exist"}]}
+        assert calls["n"] == 1  # no retry on a deterministic schema error
+        assert sleeps == []
+
+    def test_nonjson_failure_still_retried(self):
+        # A genuinely transient failure (TLS/5xx) has no parseable errors body on
+        # stdout — keep retrying with backoff.
+        runner = lambda cmd: _FakeProc(1, stdout="", stderr="503 Service Unavailable")
+        sleeps = []
+        with pytest.raises(RuntimeError, match="failed after 4 attempts"):
+            bqs.run_graphql_with_retry(
+                self._Q, _runner=runner, _sleep=sleeps.append
+            )
+        assert sleeps == [1.0, 2.0, 4.0]
+
 
 @REQUIRES_LIVE_GH
 @pytest.mark.live
@@ -226,7 +280,9 @@ class TestBoardQueryLiveSmoke:
         for q in bqs.LIVE_QUERIES:
             parsed = bqs.run_graphql_with_retry(q)
             problems = bqs.check_board_query_shape(
-                parsed, require_issue_node=q.require_issue_node
+                parsed,
+                require_issue_node=q.require_issue_node,
+                items_path=q.items_path,
             )
             if problems:
                 failures.append(f"[{q.name}]\n  " + "\n  ".join(problems))

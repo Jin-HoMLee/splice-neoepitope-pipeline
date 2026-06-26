@@ -23,7 +23,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  live-recheck-smoke:
+  live-api-smoke:
     runs-on: ubuntu-latest
     # Bound an unattended nightly job: the per-milestone timeout=60 in the live
     # test caps individual calls, but a hung run shouldn't burn Actions minutes
