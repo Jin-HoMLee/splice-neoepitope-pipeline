@@ -23,7 +23,7 @@ research/experiments/issue_NNN_<short>/
 1. **Default:** each experiment owns its outputs in `<experiment>/outputs/`.
 2. **Shared between ≥2 experiments → `research/experiments/_shared/`.** Promote an artifact here only when a 2nd consumer materializes (YAGNI; don't pre-share). Filenames carry provenance (`gtex_panel_chr22_snaptron_v1.parquet`, not `gtex_panel.parquet`).
 3. **Cross-experiment read, single consumer → explicit path reference.** Document in the consumer's README under "Cross-experiment deps".
-4. **Promoted to production → `resources/`.** When an artifact becomes a stable pipeline input.
+4. **Promoted to production → `references/` or `indices/`.** When an artifact becomes a stable pipeline input. A downloaded or derived *reference input* (genome / annotation / panel) goes to `references/`; a pipeline-*built alignment index* goes to `indices/`. (The old single `resources/` target was retired in [#63](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/63).)
 
 **Bad practices (any size):** symlinks across experiments, copying artifacts, one experiment writing into another's `outputs/`.
 
