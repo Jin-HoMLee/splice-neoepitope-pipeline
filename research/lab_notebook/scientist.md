@@ -6,6 +6,36 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-26
+
+### 12:07 UTC — Editor: Scientist
+
+#### [PR #873](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873) — re-review came back clean; added the one optional strengthening note, then merged
+
+**Re-review verdict.** The re-requested `@claude` pass (after `af5a94b`) re-approved in spirit: all three prior findings confirmed resolved, the contract re-alignment verified consistent number-for-number across README / notebook verdict / lab-notebook, and the load-bearing claims re-checked against source. No blockers. The bot also volunteered that the stratification bias runs *in our favor* — a plain-random SNV sample would floor-clip slightly more than 13.5% (closer to splice's 21.4%), so the label-stratified subsample understates the agreement.
+
+**Optional strengthening added (the bot's one suggestion).** Tied the two checks together explicitly: the KS statistic (0.084) is essentially the floor-region CDF gap (splice CDF at the floor knot ≈ 0.214 vs SNV ≈ 0.135, gap ≈ 0.079 ≈ KS). So the *only* material covariate difference is the ~8pp extra floor mass, and it lands **exactly in the flat-extrapolation region** that `out_of_calibration_support` already flags (where the calibrated log-odds is constant regardless). This upgrades the verdict from "empirically benign for ranking" to "benign **by construction**." Added the one-liner to both the README verdict and the notebook verdict cell (markdown-only, no number changes); re-executed headless to re-canonicalize serialization — all numbers reproduced unchanged.
+
+---
+
+### 10:45 UTC — Editor: Scientist
+
+#### [PR #873](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873) — addressed `@claude` review on the splice-applicability gate + aligned the verdict to the decided [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) column contract — closes [Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826)
+
+**Context.** PR #873 (the label-free SNV→splice applicability gate for `calibrator_v1`) came back `@claude`-reviewed = "approve in spirit" — science correct, no blockers, all findings minor/enhancement. Addressed the review plus a contract-alignment gap my prospective notes flagged.
+
+**Contract alignment (the load-bearing fix).** The shipped README + notebook verdict had drifted from the contract decided in #826 and already corrected on the [#709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) cross-role comment (live to Developer). Re-aligned both surfaces to three points: (1) the calibrated column is a **provisional SECONDARY** ranking signal — `genotype_presentation_score` stays **primary** (guardrail: splice immunogenicity is unvalidated, so it must not drive primary ranking); (2) flag renamed `calibration_floor_clipped` → **`out_of_calibration_support`**, now covering both floor- *and* ceil-clip (the concept is out-of-support, not just the floor mechanism); (3) the provisional label's discharge condition is [#870](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/870) (validate SNV→splice on measured labels), not a general #680 pointer.
+
+**Bot finding 2 — quantitative floor-clip proof, with an honest correction.** Added the SNV fit-cohort's own floor-clip fraction to the notebook: **13.5%** at the same `cx_[0]=0.0163`. This makes the load-bearing claim reproducible — the flat floor is intrinsic to the fitted curve, not a splice covariate-shift artifact. Notably it is **13.5%, not ≈21.4%** as the reviewer guessed: splice floor-clips modestly more (21.4%), reflecting somewhat more near-non-presenters, but both clearly populate the floor region (no shift obstacle). Wrote it to the data, not to the reviewer's expected equality.
+
+**Clarifying-Q (the SNV reference) — material finding.** The reviewer asked whether `scored_cohort_subsample.parquet` preserves the score marginal. It does **not** strictly: `score_cohort.py:217` keeps all 645 positives + 50,000 cohort-stratified negatives (label-stratified, not plain random). But (a) positives are only **1.27%** of rows, so the marginal is ~98.7% the negative subsample; and (b) this subsample **is the exact data `calibrator_v1` was fit on**, so it is the correct "where did the calibrator see data" reference by construction. Documented transparently in both surfaces rather than claiming a plain random sample.
+
+**Bot findings 1 + 3.** Removed a dead `if EXP.name == "applicability"` branch + its misleading comment (the notebook never lives in an `applicability/` subdir). Added a note that the KS p-value (4.86e-13) is a large-`n` artifact — the KS *statistic* (0.084) + overlap (0.92) are load-bearing, not the p-value. Finding 4 (committed local-path leak in a cell output) left as-is, non-blocking per repo convention.
+
+**Re-execution.** Re-ran the notebook headless (`research/.venv` nbconvert); all numbers reproduced unchanged (78.4 / 21.4 / 0.19, overlap 0.924, KS 0.084) plus the new 13.5% SNV floor-clip. Figure regenerated, content-identical.
+
+---
+
 ## 2026-06-23
 
 ### 10:53 UTC — Editor: Scientist
