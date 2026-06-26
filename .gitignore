@@ -324,6 +324,9 @@ CLAUDE.local.md
 /.claude/memory
 .agents/hook_fires.jsonl
 .claude/hook_fires.jsonl
+# Last-session watermark — deterministic morning-routine window floor (Issue #820)
+.agents/last_session_marker.json
+.claude/last_session_marker.json
 
 # Remote-tabix index downloaded by the GTEx pan-tissue builder (Issue #211); the builder
 # now stages it in a temp dir, but ignore the bare name as belt-and-suspenders.
