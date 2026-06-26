@@ -8,7 +8,8 @@ rule assemble_contigs:
     """For each novel splice junction, extract a contig centred on the junction
     using bedtools getfasta. Flank size is derived from the maximum configured
     peptide length: flank_nt = 3 * (max_length - 1).
-    Contigs that contain soft-clipped regions are excluded.
+    Lower-case bases (genome repeat soft-masking) are normalized to upper-case,
+    not excluded.
     Output: FASTA file of contigs per patient."""
     input:
         novel_junctions=rules.filter_junctions.output.novel_junctions,

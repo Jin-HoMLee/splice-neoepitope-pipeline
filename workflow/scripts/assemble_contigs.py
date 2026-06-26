@@ -10,7 +10,9 @@ The flank size is derived from the configured peptide lengths:
 For peptide_lengths = [8, 9, 10] this gives 27 nt symmetric flanks (54 nt contigs).
 
 The script uses ``bedtools getfasta`` to retrieve sequences from the reference
-genome.  Contigs with soft-clipped bases (lower-case nucleotides) are excluded.
+genome.  Lower-case bases (genome repeat soft-masking) are normalized to
+upper-case; contigs are *not* excluded on that basis (these genome-derived
+contigs contain no alignment soft-clips).
 
 Output: FASTA file where each sequence header encodes the junction coordinates.
 
