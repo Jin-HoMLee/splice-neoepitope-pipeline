@@ -61,8 +61,8 @@ File: `EA2NMFNZ` (main + Extended Data)
 - **GNAS** & **RPL22** / A\*02:01 — functionally validated across **Fig 4b–h, Fig 5d (MS), Extended Data Fig 6e/f (MS) + 6i (NJ aa-sequence track, generic schematic), Extended Data Fig 9b (alanine scan)** — but exact 9-mers are **not legible** (MS peak plots; 6i illustrative). RPL22 region ≈ `…LALDVLQGYSL…` (illustrative, do not log). Recoverable only via author contact / raw MS. Recorded as validated, non-scorable.
 
 ## Manoharan et al. 2026 — intron-retention neoantigens, colorectal cancer (#733 AC#1)
-Zotero `ZAT8678F` (no local PDF) · open access **PMC13096189** · all `agent-web` (two independent PMC reads of Table 1 + Results/Fig 3 agreed on all 11 seqs/genes/alleles)
-Provenance note: all functional readouts are **healthy-donor moDC-primed in-vitro-sensitized T cells, NOT patient T cells** → positives `medium` (IVS-grade); negatives are *soft* (`candidate-negative`).
+Zotero `ZAT8678F` (no local PDF) · open access **PMC13096189** · all `direct` (upgraded from `agent-web` in [#823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823): a third independent first-hand read of Table 1 "Selected 9-mer peptides for in vitro validation" at the open-access PMC source confirmed all 11 sequences/genes/alleles verbatim, **11/11**, agreeing with the two prior PMC reads — the exact table is now captured, discharging the `agent-web` "verify most carefully" caveat). The article is permanently citable at PMC13096189; a local Zotero PDF copy remains optional (open-access source is stable).
+Provenance note: all functional readouts are **healthy-donor moDC-primed in-vitro-sensitized T cells, NOT patient T cells** → positives `medium` (IVS-grade); negatives are *soft* (`candidate-negative`). Captured in the #823 `assay_context` column as `healthy_donor_ivs` (all 11 rows).
 
 Table 1 "Selected 9-mer peptides for in vitro validation" (IR1–IR11). **3 immunogenic** (IR3/IR7/IR9), **8 tested-negative**:
 - **`ILAFIAPLK`** CHD7 / A\*11:01 — IR3, immunogenic (ELISpot + tetramer across 2 donors).

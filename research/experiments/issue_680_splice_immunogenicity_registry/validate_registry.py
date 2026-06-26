@@ -8,12 +8,13 @@ import sys
 import pandas as pd
 from pathlib import Path
 
-from labeling_constants import GRADES, STRENGTHS, EFFECTOR, DETECTION, IVS_MARKER
+from labeling_constants import GRADES, STRENGTHS, ASSAY_CONTEXTS, EFFECTOR, DETECTION, IVS_MARKER
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
 
-REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade"]
+REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade",
+                     "assay_context"]
 
 
 def violations(df: pd.DataFrame) -> list[str]:
@@ -65,6 +66,19 @@ def violations(df: pd.DataFrame) -> list[str]:
             out.append(f"{rid}: {grade} grade with empty junction_id")
         if grade in {"gene-mechanism", "none"} and jid:
             out.append(f"{rid}: {grade} grade with non-empty junction_id")
+        # assay_context (#823): controlled vocabulary + cross-checks
+        ac = r["assay_context"]
+        if ac not in ASSAY_CONTEXTS:
+            out.append(f"{rid}: bad assay_context {ac!r}")
+        # healthy_donor_ivs <-> IVS marker in readout (ties to the #735 IVS rule, both directions)
+        if (IVS_MARKER in ro) != (ac == "healthy_donor_ivs"):
+            out.append(f"{rid}: assay_context {ac!r} inconsistent with IVS marker in readout")
+        # prevalence_only is exactly the presentation-prevalence tier
+        if (ac == "prevalence_only") != (r["tier"] == "presentation-prevalence"):
+            out.append(f"{rid}: prevalence_only must match the presentation-prevalence tier")
+        # na is exactly the negative-control-not-splice tier (mirror of the above)
+        if (ac == "na") != (r["tier"] == "negative-control-not-splice"):
+            out.append(f"{rid}: na assay_context must match the negative-control-not-splice tier")
     return out
 
 

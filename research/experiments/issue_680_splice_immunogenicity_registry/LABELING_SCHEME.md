@@ -96,11 +96,25 @@ The existing `confidence=high/medium` column conflates two orthogonal axes:
 - **Assay type** - what kind of readout was obtained (effector vs detection).
 This axis is now captured explicitly by `evidence_strength` (introduced in this issue, #735).
 - **Provenance context** - whether the assay was run in a patient (ex-vivo), a healthy donor (in-vitro sensitization / IVS), or an engineered / cloned-TCR system.
-This axis will be captured by a new `assay_context` column to be added in [#823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823).
+This axis is now captured by the `assay_context` column, added in [#823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823).
 
 The full decomposition is: `confidence = f(evidence_strength, assay_context)`.
-The `confidence` column is **retained unchanged** until #823 lands; once #823 adds `assay_context`, the `confidence` column becomes fully derivable from the two new axes and can be validated for consistency.
-This issue (#735) introduces `evidence_strength` only; `assay_context` formalization is explicitly out of scope here.
+
+### `assay_context` controlled vocabulary (#823)
+
+Records which immunological system produced the functional readout, so a scoring run can weight rows by assay realism. Assigned **source-keyed** from the first-hand rationale in [`PROVENANCE.md`](PROVENANCE.md) (Merlotti's ex-vivo-vs-TIL split read from per-context `notes`); rule in [`derive_assay_context.py`](derive_assay_context.py), vocabulary + cross-checks enforced by [`validate_registry.py`](validate_registry.py).
+
+| value | meaning |
+|---|---|
+| `patient_exvivo` | patient PBMC/blood ex-vivo tetramer⁺ or functional |
+| `patient_til` | patient tumor-infiltrating (or draining-LN) lymphocytes |
+| `healthy_donor_ivs` | healthy-donor in-vitro-sensitized (IVS) T cells |
+| `cloned_tcr` | engineered/cloned-TCR functional readout (no primary patient/donor detection) |
+| `prevalence_only` | population prevalence / presentation, no per-peptide T-cell assay |
+| `unspecified` | assay reported but T-cell source **not determinable from held provenance** (no guess - verify-against-source rule) |
+| `na` | not applicable (constitutive non-splice control) |
+
+Cross-checks: `healthy_donor_ivs` ⟺ the `IVS` marker in `readout` (ties to §3's IVS rule, both directions); `prevalence_only` ⟺ the `presentation-prevalence` tier. With both axes present, `confidence` is now derivable from `(evidence_strength, assay_context)` and can be validated for consistency in a future pass.
 
 ---
 
