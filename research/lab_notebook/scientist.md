@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 12:07 UTC — Editor: Scientist
+
+#### [PR #873](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873) — re-review came back clean; added the one optional strengthening note, then merged
+
+**Re-review verdict.** The re-requested `@claude` pass (after `af5a94b`) re-approved in spirit: all three prior findings confirmed resolved, the contract re-alignment verified consistent number-for-number across README / notebook verdict / lab-notebook, and the load-bearing claims re-checked against source. No blockers. The bot also volunteered that the stratification bias runs *in our favor* — a plain-random SNV sample would floor-clip slightly more than 13.5% (closer to splice's 21.4%), so the label-stratified subsample understates the agreement.
+
+**Optional strengthening added (the bot's one suggestion).** Tied the two checks together explicitly: the KS statistic (0.084) is essentially the floor-region CDF gap (splice CDF at the floor knot ≈ 0.214 vs SNV ≈ 0.135, gap ≈ 0.079 ≈ KS). So the *only* material covariate difference is the ~8pp extra floor mass, and it lands **exactly in the flat-extrapolation region** that `out_of_calibration_support` already flags (where the calibrated log-odds is constant regardless). This upgrades the verdict from "empirically benign for ranking" to "benign **by construction**." Added the one-liner to both the README verdict and the notebook verdict cell (markdown-only, no number changes); re-executed headless to re-canonicalize serialization — all numbers reproduced unchanged.
+
+---
+
 ### 10:45 UTC — Editor: Scientist
 
 #### [PR #873](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873) — addressed `@claude` review on the splice-applicability gate + aligned the verdict to the decided [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) column contract — closes [Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826)
