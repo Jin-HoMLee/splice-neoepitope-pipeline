@@ -1,12 +1,20 @@
-name: Live recheck smoke (nightly)
+name: Live API smoke (nightly)
 
-# Issue #711: the live recheck integration smoke
-# (TestLiveIntegrationSmoke, @pytest.mark.live) is split OFF the per-PR
-# ci-tools-pytest job so a transient GitHub-API blip can never red a PR. It runs
-# here instead — nightly and NON-BLOCKING (a scheduled workflow, not a required
-# check, so it gates nothing). A real failure surfaces in the Actions tab for
-# follow-up; per-PR integration coverage is provided hermetically by
-# TestRecheckHermeticIntegration (recorded gh fixtures, no live calls).
+# Runs every @pytest.mark.live suite in tools/ci/ against the real GitHub API —
+# split OFF the per-PR ci-tools-pytest job so a transient GitHub-API blip can
+# never red a PR. Nightly and NON-BLOCKING (a scheduled workflow, not a required
+# check, so it gates nothing); a real failure surfaces in the Actions tab for
+# follow-up. Promotion of any of these to a required check is a separate,
+# deliberate decision, not the default.
+#
+# Suites collected here (anything marked `live` under tools/ci/ is auto-included):
+#   - TestLiveIntegrationSmoke (Issue #711): recheck integration runs end-to-end
+#     for every open milestone. Per-PR cover is hermetic (TestRecheckHermeticIntegration,
+#     recorded gh fixtures).
+#   - TestBoardQueryLiveSmoke (Issue #771): the board GraphQL query is schema-valid
+#     against the live Projects API — catches schema drift / a field typo / a
+#     removed field that hand-authored fixtures structurally cannot. Per-PR cover
+#     is the hermetic check_board_query_shape unit suite.
 
 on:
   schedule:
@@ -15,7 +23,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  live-recheck-smoke:
+  live-api-smoke:
     runs-on: ubuntu-latest
     # Bound an unattended nightly job: the per-milestone timeout=60 in the live
     # test caps individual calls, but a hung run shouldn't burn Actions minutes
@@ -34,10 +42,11 @@ jobs:
       - name: Install pytest
         run: python -m pip install --upgrade pip pytest pyyaml
 
-      - name: Run live recheck smoke
-        # Selects ONLY the @pytest.mark.live suite. The gh()-level retry with
-        # backoff (Issue #711 D4) absorbs transient blips on this live path; the
-        # REQUIRES_LIVE_GH guard skips cleanly if the project scope is absent.
+      - name: Run live API smoke
+        # Selects every @pytest.mark.live suite under tools/ci/. Per-suite retry
+        # with backoff (recheck: gh() Issue #711 D4; board query:
+        # run_graphql_with_retry, Issue #771) absorbs transient blips on the live
+        # path; the REQUIRES_LIVE_GH guard skips cleanly if project scope is absent.
         run: pytest tools/ci/ -v -m live
         env:
           # PAT with `read:project` scope — live tests resolve project items via
