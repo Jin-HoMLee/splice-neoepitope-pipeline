@@ -70,6 +70,31 @@ def closed_issues(issues: list[dict]) -> list[dict]:
     return [i for i in issues if i.get("state") == "CLOSED"]
 
 
+def descoped_issues(issues: list[dict]) -> list[dict]:
+    """Closed issues closed as ``NOT_PLANNED`` (descoped / superseded / wontfix).
+
+    These are *not* deliverables — counting them as such inflates the delivered
+    headline and masks dropped scope (the machine analogue of the parent-rollup
+    close-reason rule). Issue #851.
+    """
+    return [
+        i for i in issues
+        if i.get("state") == "CLOSED" and i.get("state_reason") == "NOT_PLANNED"
+    ]
+
+
+def delivered_issues(issues: list[dict]) -> list[dict]:
+    """Closed issues that actually shipped (``stateReason != NOT_PLANNED``).
+
+    A closed issue with no recorded reason is treated as delivered, so legacy
+    data without ``stateReason`` is never silently dropped from the count.
+    """
+    return [
+        i for i in issues
+        if i.get("state") == "CLOSED" and i.get("state_reason") != "NOT_PLANNED"
+    ]
+
+
 def cycle_time_days(issue: dict) -> Optional[float]:
     """(closed_at - created_at) in days for a closed issue; None otherwise."""
     if issue.get("state") != "CLOSED":
@@ -96,10 +121,11 @@ def median_cycle_time(issues: list[dict]) -> Optional[float]:
 
 
 def per_role_counts(issues: list[dict]) -> dict[str, int]:
-    """Closed-issue counts grouped by ``role:*`` (multi-role issues count once
-    per role)."""
+    """Delivered-issue counts grouped by ``role:*`` (multi-role issues count
+    once per role). Descoped (``NOT_PLANNED``) closes are excluded — a dropped
+    issue is not a per-role deliverable (Issue #851)."""
     counts: dict[str, int] = {}
-    for issue in closed_issues(issues):
+    for issue in delivered_issues(issues):
         for role in issue.get("roles", []):
             if role.startswith("role:"):
                 counts[role] = counts.get(role, 0) + 1
@@ -134,15 +160,21 @@ def throughput_per_week(n_closed: int, duration_days: Optional[float]) -> Option
 def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
     """Assemble the headline metrics block from the data layer."""
     closed = closed_issues(issues)
+    delivered = delivered_issues(issues)
+    descoped = descoped_issues(issues)
     duration = milestone_duration_days(
         issues, milestone.get("closed_at"), milestone.get("created_at")
     )
     return {
         "n_total": len(issues),
         "n_closed": len(closed),
+        "n_delivered": len(delivered),
+        "n_descoped": len(descoped),
         "n_carried_forward": len(issues) - len(closed),
         "duration_days": duration,
-        "throughput_per_week": throughput_per_week(len(closed), duration),
+        # Throughput keys off *delivered*, not raw closed — descoped issues are
+        # not shipped work and must not inflate the rate (Issue #851).
+        "throughput_per_week": throughput_per_week(len(delivered), duration),
         "avg_cycle_time_days": avg_cycle_time(issues),
         "median_cycle_time_days": median_cycle_time(issues),
         "per_role_counts": per_role_counts(issues),
@@ -223,7 +255,7 @@ def fetch_milestone_issues(name: str) -> list[dict]:
     raw = _gh([
         "issue", "list", "--repo", f"{OWNER}/{REPO}",
         "--milestone", name, "--state", "all", "--limit", "1000",
-        "--json", "number,title,state,labels,createdAt,closedAt,url",
+        "--json", "number,title,state,stateReason,labels,createdAt,closedAt,url",
     ])
     board = _board_fields_by_number()
     issues = []
@@ -231,11 +263,15 @@ def fetch_milestone_issues(name: str) -> list[dict]:
         labels = [lbl["name"] for lbl in it.get("labels", [])]
         num = it["number"]
         b = board.get(num, {})
+        # stateReason: COMPLETED | NOT_PLANNED | None (open). Upper-cased so the
+        # metrics layer can compare against the canonical NOT_PLANNED token.
+        reason = it.get("stateReason")
         issues.append({
             "number": num,
             "title": it["title"],
             "url": it.get("url"),
             "state": it["state"].upper(),
+            "state_reason": reason.upper() if reason else None,
             "created_at": it.get("createdAt"),
             "closed_at": it.get("closedAt"),
             "roles": [l for l in labels if l.startswith("role:")],
@@ -299,7 +335,8 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
     roles = {r for i in issues for r in i.get("roles", [])}
     window = (parse_iso(milestone.get("created_at")), parse_iso(milestone.get("closed_at")))
     seed = _lab_notebook_seed(roles, window)
-    closed = closed_issues(issues)
+    delivered = delivered_issues(issues)
+    descoped = descoped_issues(issues)
     carried = [i for i in issues if i.get("state") != "CLOSED"]
 
     lines = [
@@ -310,7 +347,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "## Deliverables (Review layer)",
         "",
         "<!-- Lead role: what shipped, grouped by deliverable, with PR + slide links.",
-        f"     The {len(closed)} closed issues are listed in full in the Inventory appendix",
+        f"     The {len(delivered)} delivered issues are listed in the Inventory appendix",
         "     below — narrate the highlights here, don't re-list them. -->",
         "",
         "_Seeded from the lead role's lab-notebook entries in the milestone window — "
@@ -318,6 +355,17 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "",
     ]
     lines += [seed or "<!-- no auto-seed found; author from scratch -->"]
+    if descoped:
+        lines += [
+            "",
+            "## Descoped (closed NOT_PLANNED)",
+            "",
+            "<!-- These closed WITHOUT shipping (superseded / YAGNI / wontfix). They are",
+            "     excluded from the delivered count — record why each was dropped + where",
+            "     the need (if any) was routed, so the descope isn't silently masked. -->",
+            "",
+        ]
+        lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _why descoped: TBD_" for i in descoped]
     lines += [
         "",
         "## Carried-forward & routing",
@@ -376,11 +424,13 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"Milestone: {milestone['title']}  [{milestone.get('state')}]")
     print(f"  total / closed / carried-forward : "
           f"{metrics['n_total']} / {metrics['n_closed']} / {metrics['n_carried_forward']}")
+    print(f"  delivered / descoped (closed)    : "
+          f"{metrics['n_delivered']} / {metrics['n_descoped']}")
     print(f"  duration (days)                  : {_fmt(metrics['duration_days'])}")
-    print(f"  throughput (closed/week)         : {_fmt(metrics['throughput_per_week'])}")
+    print(f"  throughput (delivered/week)      : {_fmt(metrics['throughput_per_week'])}")
     print(f"  cycle time avg / median (days)   : "
           f"{_fmt(metrics['avg_cycle_time_days'])} / {_fmt(metrics['median_cycle_time_days'])}")
-    print(f"  per-role (closed)                : {metrics['per_role_counts']}")
+    print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
 
 
 # --- orchestration ----------------------------------------------------------
