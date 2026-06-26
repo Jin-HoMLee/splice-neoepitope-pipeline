@@ -8,6 +8,14 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 17:30 UTC — Editor: Scientist
+
+#### [PR #888](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/888) — fix stale `resources/` promotion path in research_artifact_conventions.md — closes [Issue #863](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/863)
+
+**What shipped.** Doc-only fix. The cross-experiment data-sharing rules in `docs/research_artifact_conventions.md` pointed promoted experiment artifacts at `resources/`, the production directory retired in #63. Updated the promotion bullet to name the two correct post-#63 destinations - a stable downloaded/derived *reference input* -> `references/`, a pipeline-built *index* -> `indices/` - consistent with AGENTS.md "Reference + Index Layout (nf-core convention)". The fix needed the (tiny) taxonomy call, not a find-replace, which is why it carried its own Issue rather than riding the verbatim-move #862. No code or pipeline impact; all CI green.
+
+---
+
 ### 15:57 UTC — Editor: Scientist
 
 #### [PR #881](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/881) — junction mapping + documented pos/neg labeling scheme for the #680 benchmark — closes [Issue #735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735)
