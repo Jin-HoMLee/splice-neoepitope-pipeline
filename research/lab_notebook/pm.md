@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 17:10 UTC - PM
+
+#### [PR #891](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/891) - surface the active-arc slate in the board #9 README ([Issue #759](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/759))
+
+**The gap.** `scripts/pm/arc_taxonomy.tsv` is the arc-axis source of truth but is buried under `scripts/pm/` and only readable as raw TSV, so the rendered slate (which arcs are `active`/`next`/`later`) dropped out of sight between arc reviews - the Scientist lost track of the file entirely (2026-06-16).
+
+**Decision (surfacing mechanism).** Chose the **board #9 README pin** over a live `render_arcs.py` renderer or a generated `docs/` artifact (the two I recommended). Rationale: arc-phase changes only happen at periodic, PM-coordinated arc reviews, so a hand-maintained refresh folds into a ritual already touching these labels - no new tooling, no drift-prone committed artifact. The TSV stays canonical; the README is the glance-able render. The drift risk that normally argues against a manual mirror is low here precisely because the update cadence is bounded to the review.
+
+**Durability.** To keep the manual pin from silently drifting, the refresh is wired in as **step 5 of the arc-review ritual** (`shared/feedback_arc_review.md`, MM-committed) and the rule + pointer are recorded in `AGENTS.md`. So the pin is refreshed at the same moment the slate actually changes.
+
 ### 16:35 UTC - Editor: PM
 
 #### [PR #885](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/885) - milestone_report.py splits closes by stateReason ([Issue #851](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851))
