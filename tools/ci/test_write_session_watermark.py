@@ -20,6 +20,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 HOOK = Path(__file__).parent.parent.parent / ".agents" / "hooks" / "write_session_watermark.py"
 MARKER_RELPATH = Path(".agents") / "last_session_marker.json"
 ISO_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -95,6 +97,47 @@ class TestSubprocessContract:
         rc, _, _ = _run(_stop_payload(), tmp_path)
         assert rc == 0
         assert (tmp_path / MARKER_RELPATH).exists()
+
+    def test_direct_exec_via_shebang_and_exec_bit(self, tmp_path):
+        # The harness invokes the hook as a bare executable (shebang + exec bit),
+        # not as `python <path>`. Lock that contract in with a real PATH so
+        # `/usr/bin/env python3` in the shebang can resolve.
+        (tmp_path / ".agents").mkdir()
+        import os
+
+        proc = subprocess.run(
+            [str(HOOK)],
+            input=_stop_payload(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": os.environ.get("PATH", "")},
+        )
+        assert proc.returncode == 0
+        assert (tmp_path / MARKER_RELPATH).exists()
+
+
+class TestAtomicWriteGuarantees:
+    def test_no_stray_temp_after_successful_write(self, tmp_path):
+        # The headline guarantee: the tempfile is renamed into place, never left.
+        mod = _load_module()
+        mod.write_watermark(tmp_path)
+        leftover = list((tmp_path / ".agents").glob(".lsm-*"))
+        assert leftover == []
+
+    def test_cleanup_on_replace_failure_and_reraise(self, tmp_path, monkeypatch):
+        # If os.replace fails mid-write, the temp must be unlinked and the error
+        # re-raised (main() then swallows it for fail-open).
+        mod = _load_module()
+
+        def boom(_src, _dst):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(mod.os, "replace", boom)
+        with pytest.raises(OSError):
+            mod.write_watermark(tmp_path)
+        leftover = list((tmp_path / ".agents").glob(".lsm-*"))
+        assert leftover == []
 
 
 class TestWriteWatermark:

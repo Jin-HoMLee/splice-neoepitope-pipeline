@@ -77,7 +77,9 @@ def write_watermark(root, timestamp=None):
 def main():
     try:
         payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
+    except Exception:
+        # Fail open on ANY read/parse error (malformed JSON, OSError on stdin):
+        # an absent payload just falls back to env/cwd root resolution.
         payload = {}
     try:
         write_watermark(_project_root(payload))
