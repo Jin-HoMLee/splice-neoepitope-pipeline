@@ -70,29 +70,39 @@ def closed_issues(issues: list[dict]) -> list[dict]:
     return [i for i in issues if i.get("state") == "CLOSED"]
 
 
+# GitHub's IssueStateReason enum closes that are NOT deliveries: NOT_PLANNED
+# (won't-do / superseded) and DUPLICATE (tracked elsewhere). Defined as an
+# explicit set rather than a "!= COMPLETED" complement so a closed issue with
+# no recorded reason still falls through to *delivered* (legacy data is never
+# dropped), and so a future enum addition doesn't silently land in either bucket
+# without a deliberate edit here. Issue #851 (DUPLICATE gap caught in review).
+DESCOPED_REASONS = frozenset({"NOT_PLANNED", "DUPLICATE"})
+
+
+def is_descoped(issue: dict) -> bool:
+    """True if the issue closed as a descope (``NOT_PLANNED`` / ``DUPLICATE``)
+    rather than a delivery. Single source for both the metrics split and the
+    inventory badge."""
+    return issue.get("state") == "CLOSED" and issue.get("state_reason") in DESCOPED_REASONS
+
+
 def descoped_issues(issues: list[dict]) -> list[dict]:
-    """Closed issues closed as ``NOT_PLANNED`` (descoped / superseded / wontfix).
+    """Closed issues that did NOT ship (descoped / superseded / wontfix / dup).
 
     These are *not* deliverables — counting them as such inflates the delivered
     headline and masks dropped scope (the machine analogue of the parent-rollup
     close-reason rule). Issue #851.
     """
-    return [
-        i for i in issues
-        if i.get("state") == "CLOSED" and i.get("state_reason") == "NOT_PLANNED"
-    ]
+    return [i for i in issues if is_descoped(i)]
 
 
 def delivered_issues(issues: list[dict]) -> list[dict]:
-    """Closed issues that actually shipped (``stateReason != NOT_PLANNED``).
+    """Closed issues that actually shipped (closed, and not a descope reason).
 
     A closed issue with no recorded reason is treated as delivered, so legacy
     data without ``stateReason`` is never silently dropped from the count.
     """
-    return [
-        i for i in issues
-        if i.get("state") == "CLOSED" and i.get("state_reason") != "NOT_PLANNED"
-    ]
+    return [i for i in issues if i.get("state") == "CLOSED" and not is_descoped(i)]
 
 
 def cycle_time_days(issue: dict) -> Optional[float]:
@@ -150,11 +160,11 @@ def milestone_duration_days(
     return (end - start).total_seconds() / 86400.0
 
 
-def throughput_per_week(n_closed: int, duration_days: Optional[float]) -> Optional[float]:
-    """Closed issues per week; None when duration is zero/unknown (guarded)."""
+def throughput_per_week(n_delivered: int, duration_days: Optional[float]) -> Optional[float]:
+    """Delivered issues per week; None when duration is zero/unknown (guarded)."""
     if not duration_days or duration_days <= 0:
         return None
-    return n_closed / (duration_days / 7.0)
+    return n_delivered / (duration_days / 7.0)
 
 
 def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
@@ -172,11 +182,12 @@ def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
         "n_descoped": len(descoped),
         "n_carried_forward": len(issues) - len(closed),
         "duration_days": duration,
-        # Throughput keys off *delivered*, not raw closed — descoped issues are
-        # not shipped work and must not inflate the rate (Issue #851).
+        # Throughput + cycle time key off *delivered*, not raw closed — a
+        # descoped issue is not shipped work, so neither the rate nor the
+        # created→closed cycle should count it (Issue #851).
         "throughput_per_week": throughput_per_week(len(delivered), duration),
-        "avg_cycle_time_days": avg_cycle_time(issues),
-        "median_cycle_time_days": median_cycle_time(issues),
+        "avg_cycle_time_days": avg_cycle_time(delivered),
+        "median_cycle_time_days": median_cycle_time(delivered),
         "per_role_counts": per_role_counts(issues),
     }
 
@@ -266,7 +277,7 @@ def fetch_milestone_issues(name: str) -> list[dict]:
         # stateReason: COMPLETED | NOT_PLANNED | None (open). Upper-cased so the
         # metrics layer can compare against the canonical NOT_PLANNED token.
         reason = it.get("stateReason")
-        issues.append({
+        issue = {
             "number": num,
             "title": it["title"],
             "url": it.get("url"),
@@ -279,7 +290,11 @@ def fetch_milestone_issues(name: str) -> list[dict]:
             "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
             "priority": b.get("priority") or "—",
             "size": b.get("size") or "—",
-        })
+        }
+        # Single-source the descoped flag for the inventory badge (covers
+        # NOT_PLANNED + DUPLICATE without the template hardcoding the set).
+        issue["is_descoped"] = is_descoped(issue)
+        issues.append(issue)
     return issues
 
 

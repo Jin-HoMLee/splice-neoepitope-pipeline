@@ -86,7 +86,7 @@
       <tr class="{{ 'closed' if i.state == 'CLOSED' else 'open' }}">
         <td><a href="{{ i.url }}">#{{ i.number }}</a></td>
         <td>{{ i.title }}</td>
-        <td>{{ i.status }}{% if i.state_reason == "NOT_PLANNED" %}<span class="badge descoped">descoped</span>{% endif %}</td>
+        <td>{{ i.status }}{% if i.is_descoped %}<span class="badge descoped">descoped</span>{% endif %}</td>
         <td>{{ i.roles|join(", ")|replace("role:", "") or "—" }}</td>
         <td>{{ i.size }}</td>
         <td>{{ i.priority }}</td>

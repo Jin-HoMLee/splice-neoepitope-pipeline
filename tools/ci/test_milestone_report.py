@@ -106,27 +106,32 @@ class TestPerRoleCounts:
 
 # --- close-reason split (delivered vs descoped) -----------------------------
 
-# A milestone mixing COMPLETED + NOT_PLANNED closes + one open issue.
+# A milestone mixing COMPLETED + NOT_PLANNED + DUPLICATE closes + one open issue.
+# Descoped = NOT_PLANNED (#2) and DUPLICATE (#5); delivered = #1, #3.
 MIXED = [
     _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z", ["role:scientist"], "COMPLETED"),
     _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z", ["role:developer"], "NOT_PLANNED"),
     _issue(3, "CLOSED", "2026-06-02T00:00:00Z", "2026-06-08T00:00:00Z", ["role:scientist", "role:developer"], "COMPLETED"),
     _issue(4, "OPEN", "2026-06-04T00:00:00Z", None, ["role:pm"]),
+    _issue(5, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-09T00:00:00Z", ["role:developer"], "DUPLICATE"),
 ]
 
 
 class TestCloseReasonSplit:
-    def test_delivered_excludes_not_planned_and_open(self):
+    def test_delivered_excludes_descoped_and_open(self):
+        # NOT_PLANNED (#2), DUPLICATE (#5), and open (#4) all excluded.
         nums = [i["number"] for i in mr.delivered_issues(MIXED)]
         assert nums == [1, 3]
 
-    def test_descoped_is_not_planned_only(self):
-        nums = [i["number"] for i in mr.descoped_issues(MIXED)]
-        assert nums == [2]
+    def test_descoped_includes_not_planned_and_duplicate(self):
+        # DUPLICATE is a descope (tracked elsewhere), not a delivery — must not
+        # be swept into delivered by a bare "!= NOT_PLANNED" complement.
+        nums = sorted(i["number"] for i in mr.descoped_issues(MIXED))
+        assert nums == [2, 5]
 
-    def test_closed_still_counts_both(self):
+    def test_closed_still_counts_all_closed(self):
         # closed_issues stays the union (delivered + descoped), unchanged.
-        assert [i["number"] for i in mr.closed_issues(MIXED)] == [1, 2, 3]
+        assert sorted(i["number"] for i in mr.closed_issues(MIXED)) == [1, 2, 3, 5]
 
     def test_missing_reason_on_closed_is_delivered(self):
         # Legacy/None reason on a closed issue must not be dropped from delivered.
@@ -134,7 +139,7 @@ class TestCloseReasonSplit:
         assert mr.descoped_issues(SAMPLE) == []
 
     def test_per_role_counts_excludes_descoped(self):
-        # #2 (developer) is NOT_PLANNED -> excluded; only #1 sci + #3 sci+dev count.
+        # #2 + #5 (developer) are descoped -> excluded; only #1 sci + #3 sci+dev.
         assert mr.per_role_counts(MIXED) == {"role:scientist": 2, "role:developer": 1}
 
 
@@ -181,17 +186,28 @@ class TestComputeMetrics:
         assert m["per_role_counts"] == {"role:scientist": 2, "role:developer": 2}
 
     def test_split_counts_and_delivered_throughput(self):
-        # MIXED: 2 delivered (#1,#3) + 1 descoped (#2) + 1 open (#4).
+        # MIXED: 2 delivered (#1,#3) + 2 descoped (#2 NOT_PLANNED, #5 DUPLICATE) + 1 open.
         m = mr.compute_metrics(
             MIXED,
             {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
         )
-        assert m["n_closed"] == 3
+        assert m["n_closed"] == 4
         assert m["n_delivered"] == 2
-        assert m["n_descoped"] == 1
+        assert m["n_descoped"] == 2
         # throughput keys off *delivered*, not raw closed: 2 over 7 days.
         assert m["throughput_per_week"] == pytest.approx(2.0)
         assert m["per_role_counts"] == {"role:scientist": 2, "role:developer": 1}
+        # cycle time is over delivered only: #1=2d, #3=6d -> avg/median 4.0.
+        # The descoped #2 (4d) and #5 (8d) must not skew it.
+        assert m["avg_cycle_time_days"] == pytest.approx(4.0)
+        assert m["median_cycle_time_days"] == pytest.approx(4.0)
+
+    def test_partition_invariant(self):
+        # delivered + descoped always exactly partitions closed.
+        m = mr.compute_metrics(
+            MIXED, {"created_at": None, "closed_at": "2026-06-08T00:00:00Z"}
+        )
+        assert m["n_delivered"] + m["n_descoped"] == m["n_closed"]
 
     def test_empty_milestone_degrades(self):
         m = mr.compute_metrics([], {"created_at": None, "closed_at": None})
