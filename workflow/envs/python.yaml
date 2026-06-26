@@ -16,6 +16,7 @@ dependencies:
   - pytest >=8.0
   - pip
   - pip:
-    - --extra-index-url https://download.pytorch.org/whl/cu126
-    - torch ==2.12.0+cu126  # P100 (SM 6.0) compat; PyPI wheels (cu128+) drop Pascal — see CLAUDE.md
+    # Ada (RunPod L4, SM 8.9) is supported by current PyPI CUDA wheels — the P100/Pascal
+    # cu126 pin + extra-index-url is dropped (Issue #844 GCP→RunPod migration).
+    - torch >=2.12
     - mhcflurry >=2.0

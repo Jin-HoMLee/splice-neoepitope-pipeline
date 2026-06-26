@@ -4,8 +4,10 @@ and PDB chain relabeling."""
 import pandas as pd
 
 from run_tcrdock import (
+    _AF_PARAMS_CONTAINER_PATH,
     _normalize_allele_4digit,
     attach_matched_tcrs,
+    build_docker_mount_args,
     build_tcrdock_input,
     collect_outputs,
     relabel_pdb_chains,
@@ -419,3 +421,56 @@ class TestCollectOutputsProvenance:
         assert scores.iloc[0]["panel_status"] == "dmf5_fallback"
         assert scores.iloc[0]["tcr_va"] == _DMF5["va_gene"]
         assert pd.isna(scores.iloc[0]["vdjdb_score"])    # NA score round-trips, no crash
+
+
+class TestDockerMountArgs:
+    """build_docker_mount_args — volume-staged reference mounts (Issue #844 image slimming)."""
+
+    def test_output_only_legacy_in_image(self):
+        """No volume paths → only the output mount (legacy: params/BLAST baked in image)."""
+        mounts = build_docker_mount_args("/tmp/out")
+        assert mounts == ["-v", "/tmp/out:/data"]
+
+    def test_params_mount_on_fixed_in_image_path(self):
+        """params_host_dir → bind-mount onto the fixed in-image path so --data_dir is unchanged."""
+        mounts = build_docker_mount_args("/tmp/out", params_host_dir="/workspace/alphafold_params")
+        assert mounts == [
+            "-v", "/tmp/out:/data",
+            "-v", f"/workspace/alphafold_params:{_AF_PARAMS_CONTAINER_PATH}:ro",
+        ]
+
+    def test_blast_mount_needs_both_host_and_container_path(self):
+        """BLAST mount emitted only when BOTH host dir and the (#845-resolved) container path are set."""
+        both = build_docker_mount_args(
+            "/tmp/out",
+            blast_host_dir="/workspace/blast_db",
+            blast_container_path="/opt/TCRdock/blast_db",
+        )
+        assert "-v" in both and "/workspace/blast_db:/opt/TCRdock/blast_db:ro" in both
+
+        # Either half alone → no BLAST mount (path unknown until #845).
+        host_only = build_docker_mount_args("/tmp/out", blast_host_dir="/workspace/blast_db")
+        assert host_only == ["-v", "/tmp/out:/data"]
+        path_only = build_docker_mount_args("/tmp/out", blast_container_path="/opt/TCRdock/blast_db")
+        assert path_only == ["-v", "/tmp/out:/data"]
+
+    def test_all_mounts_together(self):
+        """AF params + BLAST both staged → output + params + BLAST, output mount first."""
+        mounts = build_docker_mount_args(
+            "/tmp/out",
+            params_host_dir="/workspace/alphafold_params",
+            blast_host_dir="/workspace/blast_db",
+            blast_container_path="/opt/TCRdock/blast_db",
+        )
+        assert mounts == [
+            "-v", "/tmp/out:/data",
+            "-v", f"/workspace/alphafold_params:{_AF_PARAMS_CONTAINER_PATH}:ro",
+            "-v", "/workspace/blast_db:/opt/TCRdock/blast_db:ro",
+        ]
+
+    def test_empty_string_paths_treated_as_unset(self):
+        """Config defaults are empty strings, not None → must be treated as 'no mount'."""
+        mounts = build_docker_mount_args(
+            "/tmp/out", params_host_dir="", blast_host_dir="", blast_container_path="",
+        )
+        assert mounts == ["-v", "/tmp/out:/data"]
