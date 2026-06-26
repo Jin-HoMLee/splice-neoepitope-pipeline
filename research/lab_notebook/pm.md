@@ -6,6 +6,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-26
+
+### 13:31 UTC — Editor: PM
+
+**i5 - S3 - Data Preparation milestone closed (6/7 delivered); lone open #636 carried forward.**
+Closed milestone #24 with 6 of 7 issues delivered.
+The single open member, #636 (STAR cohort re-run patient_001+002 + RESULTS.md refresh), was demoted Ready -> Backlog rather than blocking the close.
+Its prerequisite #629 is already closed, but the work is a STAR GPU run that wants the post-migration RunPod compute (#844), not the GCP VM being decommissioned.
+Wired a native `blocked_by #844` edge on #636, cleared its Target, removed the milestone, and posted an explanatory comment.
+Routing = extend-workstream: the data-prep stage continues in the next iteration, so no carve-forward milestone was opened yet.
+Closure report skipped deliberately - a lightweight 6-item stage close with unambiguous routing, unlike the pm-i7 governance milestone that warranted the full author-editor-critic report.
+
+**Capacity correction: dev-i4 rebalanced to ~1 week after a milestone-budget catch (user-caught).**
+The Ready-floor gate (item-count) fired "replenish dev", but dev-i4 was already carrying ~11d of open committed work (5 Ready M/S items) against the ~5d-per-milestone budget (`feedback_milestones.md:147` - ~5d size-weighted ~= 1 calendar week).
+Item-count and effort disagreed; effort is the truth, so dev was over-committed, not short.
+Reverted a wrong #492 floor-fill (it had no capacity-honest home: i5-S5 was exactly full at 5d, dev-i4 was over), then rebalanced dev-i4 down to #820 + #771 + #812 (~6d ~= 1 week, due 07-02), decommitting #492 + #824 to Backlog for a future dev-i5.
+Also fixed #844's stale board status (In progress -> Done; the issue was actually CLOSED), which had fed an inflated recheck capacity count.
+Logged a watch-item: `recheck_milestone.py` may over-count load by including a closed-but-board-stale member - file a state-not-board-status fix if it recurs.
+
 ## 2026-06-24
 
 ### 20:51 UTC — Editor: PM
