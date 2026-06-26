@@ -57,7 +57,7 @@ Example: the 8 IR-CRC 9-mers (Manoharan 2026, `candidate-negative` tier).
 ## 4. Excluded from the scorable set
 
 These rows are **retained in `registry.tsv`** (never deleted) but are excluded from the benchmark's scored peptide set.
-They carry the `evidence_strength=na` flag where `evidence_strength` is not applicable.
+The `presentation-prevalence` and `negative-control-not-splice` tiers carry `evidence_strength=na` (not applicable); the `functional-nonscorable` and `candidate` tiers retain their real `strong` or `weak` strength from their assay readout.
 
 ### `label=untested` (`tier=presentation-prevalence`)
 

@@ -18,7 +18,7 @@ REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "jun
 # Effector vs detection-only keyword sets used to cross-check positives.
 EFFECTOR = ("ifn", "elispot", "cytotox", "granzyme", "gzmb", "cd107", "cd137",
             "degranul", "killing", "ldh", "caspase", "incucyte", "tcr", "tnf",
-            "stabiliz", "activation", "in vivo")
+            "activation", "in vivo")
 DETECTION = ("tetramer", "dextramer", "multimer")
 
 
@@ -51,6 +51,16 @@ def violations(df: pd.DataFrame) -> list[str]:
         # grade 'none' must record a reason in notes
         if r["junction_mapping_grade"] == "none" and not str(r["notes"]).strip():
             out.append(f"{rid}: grade 'none' with no reason in notes")
+        # positive rows must not resolve to na evidence_strength
+        if r["label"] == "positive" and r["evidence_strength"] == "na":
+            out.append(f"{rid}: positive row resolved to na evidence_strength (needs manual review)")
+        # grade <-> junction_id consistency
+        grade = r["junction_mapping_grade"]
+        jid = str(r["junction_id"]).strip()
+        if grade in {"coords", "event-id"} and not jid:
+            out.append(f"{rid}: {grade} grade with empty junction_id")
+        if grade in {"gene-mechanism", "none"} and jid:
+            out.append(f"{rid}: {grade} grade with non-empty junction_id")
     return out
 
 

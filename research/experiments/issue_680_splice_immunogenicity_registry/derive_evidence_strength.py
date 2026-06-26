@@ -7,7 +7,7 @@ HERE = Path(__file__).resolve().parent
 REG = HERE / "registry.tsv"
 EFFECTOR = ("ifn", "elispot", "cytotox", "granzyme", "gzmb", "cd107", "cd137",
             "degranul", "killing", "ldh", "caspase", "incucyte", "tcr", "tnf",
-            "stabiliz", "activation", "in vivo")
+            "activation", "in vivo")
 DETECTION = ("tetramer", "dextramer", "multimer")
 
 
