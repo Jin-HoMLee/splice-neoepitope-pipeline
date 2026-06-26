@@ -269,14 +269,21 @@ def assemble_contigs(
             # Take exactly the required number of nucleotides
             up_seq = up_seq[-upstream_nt:]
             dn_seq = dn_seq[:downstream_nt]
-            contig = up_seq + dn_seq
+            # Normalise case BEFORE the soft-clip check. Lower-case in a genome
+            # FASTA is repeat *soft-masking* (e.g. UCSC references), NOT an
+            # alignment soft-clip. These contigs are cut from the reference via
+            # bedtools getfasta, so they never contain alignment soft-clips;
+            # without upper-casing first, a soft-masked reference silently drops
+            # every contig. Production (GENCODE) is upper-case, so this only bit
+            # soft-masked references like the chr22 UCSC test fixture.
+            contig = (up_seq + dn_seq).upper()
 
-            # Exclude contigs with soft-clipped regions
+            # Defensive only: genome-derived contigs have no alignment soft-clips,
+            # so after upper-casing this never fires (kept as a guard + for the
+            # skipped_softclip stat schema).
             if _has_soft_clip(contig):
                 n_skipped_softclip += 1
                 continue
-
-            contig = contig.upper()
             header = (
                 f">{junc_id}|{row['chrom']}:{row['start']}-{row['end']}"
                 f":{row['strand']}|{row['sample_type']}"
