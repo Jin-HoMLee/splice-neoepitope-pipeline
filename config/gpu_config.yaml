@@ -19,6 +19,17 @@ tcrdock:
   n_candidates: 1
   docker_image: "tcrdock:latest"  # built by setup_vm.sh
 
+  # Volume-staged reference data (Issue #844 image slimming). On RunPod the AlphaFold
+  # params live on the Network Volume and are bind-mounted into the container instead
+  # of being baked into the ~25 GB image. The SLIMMED image REQUIRES params_host_dir
+  # set; an empty value means params are baked in (legacy / pre-slim image).
+  params_host_dir: "/workspace/alphafold_params"
+  # BLAST DB externalization is deferred to the #845 smoke test: download_blast.py's
+  # install path is internal to the TCRdock clone and unknown from our repo, so until
+  # #845 resolves it BLAST stays baked in the image and both keys stay empty (no mount).
+  blast_host_dir: ""
+  blast_container_path: ""
+
   # Fallback HLA alleles — overridden by HLA typing (#23) when available
   fallback_hla:
     A: "HLA-A*02:01"

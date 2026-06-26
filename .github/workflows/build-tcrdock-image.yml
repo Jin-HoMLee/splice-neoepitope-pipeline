@@ -1,0 +1,77 @@
+name: build-tcrdock-image
+
+# Builds the slimmed TCRdock pipeline image (docker/Dockerfile.pipeline) on a
+# native amd64 runner and pushes it to GHCR, so RunPod can pull it (Issue #844,
+# GCP->RunPod migration). Manual-trigger only: building a multi-GB CUDA image
+# spends Actions minutes and publishes a package, so it never runs on push.
+#
+# The image carries code + CUDA only - the ~16 GB AlphaFold params are staged on
+# the RunPod Network Volume and bind-mounted at run time (see run_tcrdock.py
+# build_docker_mount_args + config/gpu_config.yaml params_host_dir).
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push to GHCR (false = build-only smoke test, no publish)"
+        type: boolean
+        default: true
+      tag:
+        description: "Extra image tag (besides latest + commit SHA)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/jin-homlee/tcrdock-pipeline
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The CUDA 11.8 devel base + conda + jaxlib wheel need headroom beyond the
+      # ~14 GB the hosted runner leaves free; reclaim the preinstalled toolchains.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: ${{ inputs.push }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          tags="${IMAGE}:latest"$'\n'"${IMAGE}:${GITHUB_SHA}"
+          if [ -n "${{ inputs.tag }}" ]; then
+            tags="${tags}"$'\n'"${IMAGE}:${{ inputs.tag }}"
+          fi
+          {
+            echo "tags<<EOF"
+            echo "${tags}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.pipeline
+          platforms: linux/amd64
+          push: ${{ inputs.push }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

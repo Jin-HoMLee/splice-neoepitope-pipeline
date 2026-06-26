@@ -329,10 +329,46 @@ def build_tcrdock_input(
 # TCRdock execution
 # ---------------------------------------------------------------------------
 
+# Fixed in-image path where run_prediction.py expects the AlphaFold params
+# (its --data_dir). Issue #844 moves the params out of the image onto the RunPod
+# Network Volume and bind-mounts them back onto THIS path, so --data_dir is
+# unchanged whether the params are baked (legacy) or volume-staged.
+_AF_PARAMS_CONTAINER_PATH = "/opt/TCRdock/alphafold_params"
+
+
+def build_docker_mount_args(
+    output_dir,
+    params_host_dir: str | None = None,
+    blast_host_dir: str | None = None,
+    blast_container_path: str | None = None,
+) -> list:
+    """Build the ``docker run -v`` mount args for the TCRdock container.
+
+    The output dir is always mounted at ``/data``. When ``params_host_dir`` is set
+    (Issue #844 image slimming), the volume-staged AlphaFold params are bind-mounted
+    onto the fixed in-image path (`_AF_PARAMS_CONTAINER_PATH`) so run_prediction.py's
+    ``--data_dir`` needs no change. The BLAST mount is emitted only when BOTH
+    ``blast_host_dir`` and ``blast_container_path`` are set — the in-image BLAST path
+    is internal to the TCRdock clone and is resolved at the #845 smoke test; until
+    then BLAST stays baked in the image and no BLAST mount is added.
+
+    Empty strings (the config defaults) are treated as unset.
+    """
+    mounts = ["-v", f"{output_dir}:/data"]
+    if params_host_dir:
+        mounts += ["-v", f"{params_host_dir}:{_AF_PARAMS_CONTAINER_PATH}:ro"]
+    if blast_host_dir and blast_container_path:
+        mounts += ["-v", f"{blast_host_dir}:{blast_container_path}:ro"]
+    return mounts
+
+
 def run_tcrdock(
     input_tsv: Path,
     output_dir: Path,
     docker_image: str,
+    params_host_dir: str | None = None,
+    blast_host_dir: str | None = None,
+    blast_container_path: str | None = None,
 ) -> Path:
     """Run TCRdock via Docker and return the output directory.
 
@@ -341,13 +377,21 @@ def run_tcrdock(
     The host only needs Docker with the NVIDIA Container Toolkit.
 
     All TCRdock paths are inside the container at /opt/TCRdock/.
-    Input/output files are passed via a single volume mount: output_dir → /data.
+    Input/output files are passed via the output_dir → /data volume mount; with
+    Issue #844 image slimming the AlphaFold params (and optionally the BLAST DB)
+    are bind-mounted from the RunPod Network Volume instead of being baked in.
 
     Args:
         input_tsv:     TCRdock input TSV (from build_tcrdock_input). Must be
                        inside output_dir (it is, by construction).
         output_dir:    Directory for all intermediate and final outputs.
         docker_image:  Docker image name (e.g. "tcrdock:latest").
+        params_host_dir:      Host dir of volume-staged AlphaFold params, mounted
+                       onto the fixed in-image path. Empty/None → params baked in
+                       the image (legacy).
+        blast_host_dir, blast_container_path: Host dir + in-image path of the
+                       volume-staged BLAST DB. Both required to emit the mount;
+                       the in-image path is resolved at the #845 smoke test.
 
     Returns:
         Path to the output directory.
@@ -366,10 +410,14 @@ def run_tcrdock(
         """Translate a host path inside output_dir to its /data/... equivalent."""
         return "/data/" + str(host_path.relative_to(output_dir))
 
+    mount_args = build_docker_mount_args(
+        output_dir, params_host_dir, blast_host_dir, blast_container_path
+    )
+
     def _docker_run(container_cmd: list, label: str) -> None:
         cmd = [
             "docker", "run", "--rm", "--gpus", "all",
-            "-v", f"{output_dir}:/data",
+            *mount_args,
             docker_image,
         ] + container_cmd
         log.info("Running %s:\n  %s", label, " ".join(cmd))
@@ -393,13 +441,14 @@ def run_tcrdock(
     ], "setup_for_alphafold.py")
 
     # Step 2: run_prediction.py — runs AlphaFold inference.
-    # AlphaFold params and the fine-tuned TCR model are inside the image.
+    # --data_dir is the fixed in-image path; the params reach it either baked into
+    # the image (legacy) or bind-mounted from the Network Volume (Issue #844).
     _docker_run([
         "python", "/opt/TCRdock/run_prediction.py",
         "--targets",           _container_path(setup_dir / "targets.tsv"),
         "--outfile_prefix",    _container_path(output_dir / "tcrdock_out"),
         "--model_names",       "model_2_ptm",
-        "--data_dir",          "/opt/TCRdock/alphafold_params",
+        "--data_dir",          _AF_PARAMS_CONTAINER_PATH,
     ], "run_prediction.py")
 
     log.info("TCRdock completed successfully.")
@@ -591,6 +640,9 @@ def run_structural_validation(
     fallback_tcr: dict | None = None,
     vdjdb_panel: str | Path | None = None,
     presentation_percentile_weak: float = 2.0,
+    params_host_dir: str | None = None,
+    blast_host_dir: str | None = None,
+    blast_container_path: str | None = None,
 ) -> None:
     """Run TCRdock structural validation on top neoepitope candidates.
 
@@ -654,7 +706,12 @@ def run_structural_validation(
     input_tsv = build_tcrdock_input(candidates, fallback_hla, work_dir)
 
     # Step 4: Run TCRdock
-    tcrdock_output_dir = run_tcrdock(input_tsv, work_dir, docker_image)
+    tcrdock_output_dir = run_tcrdock(
+        input_tsv, work_dir, docker_image,
+        params_host_dir=params_host_dir,
+        blast_host_dir=blast_host_dir,
+        blast_container_path=blast_container_path,
+    )
 
     # Step 5: Collect outputs
     collect_outputs(tcrdock_output_dir, candidates, output_pdb, output_scores)
@@ -682,6 +739,11 @@ def _snakemake_main() -> None:
         fallback_tcr=snakemake.params.fallback_tcr,  # type: ignore[name-defined]  # noqa: F821
         vdjdb_panel=vdjdb_panel,
         presentation_percentile_weak=float(snakemake.params.presentation_percentile_weak),  # type: ignore[name-defined]  # noqa: F821
+        # Volume-staged reference mounts (Issue #844). Absent on older configs →
+        # default to "" (no mount, legacy in-image params).
+        params_host_dir=getattr(snakemake.params, "params_host_dir", ""),  # type: ignore[name-defined]  # noqa: F821
+        blast_host_dir=getattr(snakemake.params, "blast_host_dir", ""),  # type: ignore[name-defined]  # noqa: F821
+        blast_container_path=getattr(snakemake.params, "blast_container_path", ""),  # type: ignore[name-defined]  # noqa: F821
     )
 
 
@@ -697,6 +759,14 @@ def _cli_main() -> None:
     parser.add_argument("--vdjdb-panel", default=None,
                         help="Per-patient VDJdb panel TSV (Issue #204). Omit to use the DMF5 fallback TCR.")
     parser.add_argument("--presentation-percentile-weak", type=float, default=2.0)
+    parser.add_argument("--params-host-dir", default="",
+                        help="Host dir of volume-staged AlphaFold params (Issue #844). "
+                             "Empty → params baked in the image (legacy).")
+    parser.add_argument("--blast-host-dir", default="",
+                        help="Host dir of the volume-staged BLAST DB (Issue #844; needs --blast-container-path).")
+    parser.add_argument("--blast-container-path", default="",
+                        help="In-image BLAST DB path (resolved at the #845 smoke test). "
+                             "Empty → BLAST baked in the image.")
     args = parser.parse_args()
 
     run_structural_validation(
@@ -707,6 +777,9 @@ def _cli_main() -> None:
         n_candidates=args.n_candidates,
         vdjdb_panel=args.vdjdb_panel,
         presentation_percentile_weak=args.presentation_percentile_weak,
+        params_host_dir=args.params_host_dir,
+        blast_host_dir=args.blast_host_dir,
+        blast_container_path=args.blast_container_path,
     )
 
 

@@ -42,19 +42,15 @@ RUN chmod -R a+rw /opt/TCRdock
 
 WORKDIR /opt/TCRdock
 
-# Download AlphaFold params (model_2_ptm only) and BLAST.
-# ?dl=1 forces Dropbox to serve the raw file instead of an HTML landing page.
-RUN mkdir -p alphafold_params/params && \
-    wget -q -O alphafold_params/params/params_model_2_ptm.npz \
-        "https://www.dropbox.com/s/e3uz9mwxkmmv35z/params_model_2_ptm.npz?dl=1" && \
-    wget -q -O alphafold_params/params/tcrpmhc_run4_af_mhc_params_891.pkl \
-        "https://www.dropbox.com/s/jph8v1mfni1q4y8/tcrpmhc_run4_af_mhc_params_891.pkl?dl=1" && \
-    for f in alphafold_params/params/params_model_2_ptm.npz \
-             alphafold_params/params/tcrpmhc_run4_af_mhc_params_891.pkl; do \
-        size=$(stat -c%s "$f"); \
-        if [ "$size" -lt 1024 ]; then echo "FAIL: $f is only $size bytes" >&2; exit 1; fi; \
-        if head -c 512 "$f" | grep -qi '<html'; then echo "FAIL: $f is HTML, not a model file" >&2; exit 1; fi; \
-    done && \
-    python download_blast.py
+# AlphaFold params are NO LONGER baked into the image (Issue #844 image slimming):
+# the ~16 GB of weights live on the RunPod Network Volume and are bind-mounted at
+# run time onto /opt/TCRdock/alphafold_params (run_tcrdock.py build_docker_mount_args).
+# This is the bulk of the cold-pull win (RunPod Pods land on a fresh host each burst).
+#
+# BLAST stays baked for now: download_blast.py installs into a path internal to the
+# TCRdock clone (unknown from our repo) and may fetch the blast binary, not just a DB —
+# externalizing it onto the volume is deferred to the #845 smoke test, where the path
+# is confirmed. run_tcrdock.py already supports a BLAST bind-mount once that lands.
+RUN python download_blast.py
 
 WORKDIR /data

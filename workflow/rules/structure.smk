@@ -64,6 +64,11 @@ if _TCRDOCK_ENABLED:
             fallback_hla=config["tcrdock"]["fallback_hla"],
             fallback_tcr=config["tcrdock"]["fallback_tcr"],
             presentation_percentile_weak=config["mhcflurry"]["presentation_percentile_weak"],
+            # Volume-staged reference mounts (Issue #844 image slimming). Empty → no
+            # mount (params/BLAST baked in the image, legacy).
+            params_host_dir=config["tcrdock"].get("params_host_dir", ""),
+            blast_host_dir=config["tcrdock"].get("blast_host_dir", ""),
+            blast_container_path=config["tcrdock"].get("blast_container_path", ""),
         conda:
             "../envs/python.yaml"
         script:
