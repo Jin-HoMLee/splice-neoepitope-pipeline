@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26 - Cloud cost-out + local CPU keep-alive baseline (GCP decommissioned; 2 latent bugs fixed)
 
+### 21:57 UTC - Editor: Developer - live board GraphQL schema-drift smoke (#771 / PR #890)
+
+**Why.**
+The board-query tooling (`scripts/board_open_items.py`, `scripts/pm/recheck_*.py`) builds GraphQL against the GitHub Projects API but is validated only against hand-authored fixtures - and a fixture *is* the assumed response, so it can never disagree with itself. A field typo or upstream schema drift passes `pipeline-pytest` + `ci-tools-pytest` green and only surfaces at runtime. Concrete trigger: the `subIssuesSummary { total }` add in #768 was provable only by a *manual* live smoke - no CI gate could have caught a field typo. This is the GitHub-API-boundary analogue of `feedback_integration_run_for_new_rules.md` (fixtures hide what production contains).
+
+**What shipped (PR [#890](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/890)).**
+A **structure-only live smoke**. `tools/ci/_board_query_smoke.py`: pure `check_board_query_shape()` (no GraphQL `errors`, response parses to shape, `pageInfo` pagination contract intact, `subIssuesSummary { total }` present + int-typed on Issue nodes; **no** data-value assertions), `run_graphql_with_retry()` (capped exponential backoff), and a `LIVE_QUERIES` registry importing the **real** `QUERY`/`OWNER`/`PROJECT_NUMBER` from `board_open_items.py` (single source of truth → a field rename auto-flows in; new queries are one registry entry). `tools/ci/test_board_query_smoke.py`: hermetic unit tests for the checker + retry (per-PR, `-m "not live"`) and one `@pytest.mark.live` smoke (nightly).
+
+**Design decision - reuse the existing nightly live job, zero new workflow.**
+The live-smoke infra already existed (`REQUIRES_LIVE_GH` graceful-skip guard, `@pytest.mark.live` marker, the nightly non-blocking `recheck-live-smoke.yml` running `pytest tools/ci/ -m live`). The new suite is auto-collected by that glob - so it inherits advisory/non-blocking for free (a transient GitHub blip can't red a PR; promotion-to-required left as a separate decision). Generalized the workflow name/comments to "Live API smoke" + renamed the job key.
+
+**Review.**
+Bot review: no blockers, ACs met. Fixed 3 findings in `91d9f7b`. **Finding 1 (medium, the sharp one):** `gh api graphql` exits *non-zero* with the `errors` body on stdout when the response carries a GraphQL `errors` array (the headline drift case) - so my retry wrapper would treat deterministic drift as transient, retry 4×, and raise a generic `RuntimeError` instead of the curated message. Verified empirically (bad-field query → exit 1, errors JSON on stdout), then made `run_graphql_with_retry` short-circuit on a parseable errors body (return immediately, no retry). **Finding 2 (low):** threaded the defined-but-ignored `LiveQuery.items_path` through the checker (latent trap for a second envelope). **Finding 3 (nit):** stale job-key rename. Finding 4 (nit) acknowledged, no change.
+
+**Verification.** `tools/ci/ -m "not live"` → 421 passed (19 new in this suite); `tools/ci/test_board_query_smoke.py -m live` → 1 passed against real board #9 (the query *is* schema-valid right now, checker confirms); workflow YAML validates. Stopped at the merge gate for the human's final check + merge.
+
 ### 16:51 UTC - Editor: Developer - deterministic last-session watermark hook (#820 / PR #884)
 
 **Why.**
