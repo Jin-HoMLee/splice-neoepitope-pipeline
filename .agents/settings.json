@@ -44,6 +44,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/write_session_watermark.py",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
