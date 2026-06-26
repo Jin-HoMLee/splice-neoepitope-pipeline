@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-26
 
+### 15:57 UTC — Editor: Scientist
+
+#### [PR #881](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/881) — junction mapping + documented pos/neg labeling scheme for the #680 benchmark — closes [Issue #735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735)
+
+**What shipped.** The labeling foundation for the open splice-immunogenicity benchmark (#680). Gave the 79-row registry (`research/experiments/issue_680_splice_immunogenicity_registry/`) a documented, citable positive/negative labeling scheme + per-peptide junction annotation. Artifacts: `LABELING_SCHEME.md` (the rule set), four new `registry.tsv` columns (`evidence_strength`, `label_rationale`, `junction_id`, `junction_mapping_grade`), `validate_registry.py` (a schema validator that is the test spine), `derive_evidence_strength.py`, `junction_evidence_by_source.md`, and the materialized 13-row #681 presented-decoy Tier-2 seed.
+
+**Design decisions (brainstormed, spec'd, planned).** Four forks: (1) hybrid formalize-in-place + boundary re-audit (treat the adversarially-verified rows as ground truth); (2) graded positives - `strong` = measured effector function, `weak` = tetramer/dextramer detection-only (preserves all 68 positives in a field-tiny set while encoding the evidence hierarchy); (3) tiered, never-pooled negatives (experimental / #681 presented-decoy / synthetic); (4) tiered junction annotation with a strict no-inference rule. Spec + plan committed under `docs/superpowers/`.
+
+**Key results.** `evidence_strength`: weak 41 / strong 27 / soft 8 / hard 1 / na 2. Junction coverage: gene-mechanism 55 / event-id 18 / none 4 / coords 2 - coordinate-level grounding is a documented minority, **0 fabricated coordinates** (every `coords`/`event-id` traces verbatim to PROVENANCE). Boundary re-audit: 14 rows, **0 label changes** (the scheme codifies existing curation). `confidence` de-conflation documented; `assay_context` correctly deferred to #823, the FASTA harness to #736, the calibrator-accuracy test to #870.
+
+**Build + review.** Executed subagent-driven (6 tasks, each spec+quality reviewed; an Opus whole-branch review = fix-then-merge, no Critical). The `@claude` PR review was a clean approval ("no blocking issues, no correctness bugs"); its 5 optional findings were applied in `390d362` (single-sourced the keyword tuples into `labeling_constants.py`; added negative-subtype validator checks; hardened the decoy check against `python -O` assert-stripping and silent-skip; added the load-bearing scorable-set rule `label==positive AND tier==functional-scorable` for #736). The optional CI-wiring suggestion was routed to follow-up [Issue #883](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/883). Validator both-PASS including under `-O`; counts unchanged across every re-run.
+
+---
+
 ### 12:07 UTC — Editor: Scientist
 
 #### [PR #873](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873) — re-review came back clean; added the one optional strengthening note, then merged
