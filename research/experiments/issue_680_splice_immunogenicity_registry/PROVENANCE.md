@@ -97,6 +97,12 @@ Sequence source = **local Supplementary Table S2** ("peptides" sheet, the `A2:N`
 
 ---
 
+## Junction mapping grades (#735)
+
+The `junction_mapping_grade` column added in [#735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735) grades how specifically each peptide is traceable to its originating junction (`coords > event-id > gene-mechanism > none`).
+Grades are assigned strictly from evidence quoted in this file (PROVENANCE.md); no junction coordinate or identifier is ever inferred from the peptide sequence or a genome reference (no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §6).
+Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence_by_source.md).
+
 ## Curation chain (how the registry was built)
 
 1. Adversarially-verified novelty check (25/25 claims held) — confirmed no prior open splice-immunogenicity benchmark exists.

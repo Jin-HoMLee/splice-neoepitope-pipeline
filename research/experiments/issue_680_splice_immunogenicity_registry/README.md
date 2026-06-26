@@ -32,12 +32,49 @@ Free-text `splice_mechanism` is preserved; `splice_mechanism_canonical` normaliz
 
 `alt_5p_ss` (alt 5′ splice site / donor) · `alt_3p_ss` (alt 3′ splice site / acceptor) · `alt_splice_junction` (alternative-splicing junction, sub-event unspecified — IRIS/Kim/Xiong/POSTN) · `intron_retention` · `minor_intron` (U12-type) · `poison_exon` (NMD-targeting cassette) · `neojunction_frameshift` · `neojunction_inframe` · **`exon_te_junction`** (exon–transposable-element junction or TE-induced frameshift — **registered in #733** for the Merlotti set) · `not_splice` (constitutive control) · `ambiguous` (splice-derived, mechanism unresolvable from source — Fisher unnamed-gene peptides).
 
+### New columns added in #735
+
+[`LABELING_SCHEME.md`](LABELING_SCHEME.md) is the authoritative rule set for the four columns below; link to it, do not duplicate it here.
+
+- **`evidence_strength`** (`strong | weak | hard | soft | na`) - grades the type of experimental evidence for the row's label, de-conflating assay type from provenance context.
+`strong` = measured effector readout (IFN-γ, cytotoxicity, granzyme-B, CD107, 4-1BB, TCR-T activation); `weak` = antigen-specific detection only (tetramer / dextramer); `hard` = splice-derived, MS-presented, and functionally tested negative (gold-standard discrimination negative); `soft` = tested negative in healthy-donor in-vitro sensitization (IVS), categorically weaker than hard; `na` = not applicable (untested, non-scorable, or fails splice gate).
+Full rule definitions: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §2-4.
+- **`label_rationale`** - one-line human-readable rationale for the `evidence_strength` assignment, citing the key readout keyword or the rule that applies.
+- **`junction_id`** - the most specific junction identifier the source published for that peptide: a genomic coordinate pair, a transcript/event identifier, or empty when only gene + mechanism is recoverable.
+Never inferred from peptide sequence or genome reference (no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §6).
+- **`junction_mapping_grade`** (`coords | event-id | gene-mechanism | none`) - grades how specifically the peptide is traceable to its originating junction.
+`coords` = explicit genomic donor/acceptor coordinates published by the source; `event-id` = transcript or splice-event identifier published (not full coordinates); `gene-mechanism` = only gene name and splice mechanism recoverable; `none` = no junction information recoverable (reason in `notes`).
+Full ladder + no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §6.
+Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence_by_source.md).
+
 ## Coverage (79 rows, 10 sources, 60 genes)
 
 - **Alleles (11 distinct `hla` values):** HLA-A\*02:01 (59), A\*11:01 (9), A\*24:02 (2), **C\*04 (2), C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row). **A\*02:01 skew deepened to 59/79** — the entire Bigot 2021 SF3B1-UM panel (+35), the IR-CRC positives, and the entire Merlotti exon-TE set are A\*02:01/A2 (see Caveats; rebalance tracked in a #734 follow-up).
 - **Splice mechanisms:** + `alt_3p_ss` (Bigot SF3B1 aberrant 3′SS, 30) and `neojunction_frameshift` (Bigot S8-junction-validated frameshift+NMD, 5) now dominate alongside `exon_te_junction` (Merlotti, 10) and `intron_retention` (IR-CRC, 12).
 - **Sources (10):** SNAF (Li 2024), IRIS (Pan), Kim 2025, Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, Manoharan 2026 (IR-CRC), Merlotti 2023 (NSCLC exon-TE), **Bigot 2021 (SF3B1 uveal melanoma, +35 — recovered via #734 IEDB free-text mine)**.
 - **Genes (60 distinct named symbols; 61 distinct strings — RCAN1 is split across `RCAN1 (RCAN1-4)` and `RCAN1 (RCAN1-1 constitutive)`, counted once here):** + Bigot SF3B1-UM source genes — NF1, USP39, NET1, ATP8B2, MAPK8IP2 (the 5 S8-junction-validated), plus ZFYVE27, SRSF1, SF3A2, SEPSECS, UBA1, CTDNEP1, ARIH1, MRPS10, VPS51, MINDY4, ZDHHC16, SOAT1, OXA1L, HADHA, SLC3A2, RNF38, ATP5MC2, VARS2 (tetramer-only). (5 Bigot tetramer-only peptides have no source gene in IEDB → `not-named`.)
+
+### Junction-mapping coverage (#735)
+
+Per-row `junction_mapping_grade` tallied across all 79 registry rows (derivable with `research/.venv/bin/python -c "import pandas as pd; d=pd.read_csv('research/experiments/issue_680_splice_immunogenicity_registry/registry.tsv',sep='\t'); print(d['junction_mapping_grade'].value_counts().to_string())"`):
+
+| Grade | Count |
+|---|---|
+| `gene-mechanism` | 55 |
+| `event-id` | 18 |
+| `coords` | 2 |
+| `none` | 4 |
+| **Total** | **79** |
+
+Coordinate-level junction grounding is a small minority (2/79); most rows rest at `event-id` or `gene-mechanism`, mirroring the registry's thin functional-validation base and the field's sparse coordinate-publishing practice.
+Per-source rationale for each grade assignment: [`junction_evidence_by_source.md`](junction_evidence_by_source.md).
+
+### Labeling re-audit (#735)
+
+All 14 boundary rows were audited against the documented labeling scheme ([`LABELING_SCHEME.md`](LABELING_SCHEME.md)) after `evidence_strength` was derived algorithmically.
+The 14 rows cover every non-standard tier: the two `candidate` rows, the two `functional-nonscorable` rows, the one `presentation-prevalence` row, the one `negative-control-not-splice` row, and the eight `candidate-negative` rows.
+**Zero label changes resulted.**
+The scheme codifies the existing adversarially-verified curation exactly; all `evidence_strength` assignments and `label` values matched prior manual decisions for every row.
 
 ## Caveats
 
@@ -51,9 +88,27 @@ Free-text `splice_mechanism` is preserved; `splice_mechanism_canonical` normaliz
 - **Bigot 2021 (SF3B1-UM) confidence split (#734):** 5 with effector function (IFN-γ / cytotoxicity / granzyme B / CD107 / TNF-α) **and** S8 alternative-mRNA-junction validation (frameshift+NMD) → `high` (NF1, USP39, NET1, ATP8B2, MAPK8IP2). The other 30 are **patient ex-vivo tetramer-DETECTION only** → `medium`; their splice origin rests on the A2:N panel design (all SF3B1-aberrant-splicing-predicted) + IEDB source-gene curation, not a per-peptide junction shown in the supplements we hold. Sequences are `direct` from local supplementary **Table S2**, cross-confirmed against IEDB (35/35) and — for the 5 `high` — JEM 2024 (PMC10986814). **The published Correction (PMID 35257149 / CD-22-0009) could not be obtained; its content is unread.** Sequence risk is mitigated by the two/three-way cross-confirmation, but the correction should be reviewed before citing.
 - **A\*02:01 skew (worsened sharply by #734):** **59/79 rows are A\*02:01** — the entire Bigot SF3B1-UM panel (35), the IR-CRC positives, and the entire Merlotti exon-TE set are A2. The HLA-C/allele-diversity story is now a small fraction of the whole; weight scoring analyses accordingly. **Actively rebalancing is a #734 follow-up** (source non-A\*02:01 splice-neoantigens).
 
+## Decoy-negative tiers (#735)
+
+The benchmark's negative set is built from three tiers of decreasing claim strength.
+Tiers must never be pooled as equal (full rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7).
+
+| Tier | n | Claim | Status |
+|---|---|---|---|
+| **Tier 1** - Experimental true-negatives | 9 | Splice-derived + functional T-cell assay + no response measured | Materialized in `registry.tsv` (1 `hard` + 8 `soft`) |
+| **Tier 2** - Presented decoys | 13 | Splice-derived + MHC-presented (immunopeptidomics) + no functional assay performed | Materialized in [`decoy_negatives/presented_decoys_681.tsv`](decoy_negatives/presented_decoys_681.tsv) |
+| **Tier 3** - Matched synthetic | TBD | Length- and allele-matched shuffled / decoy-junction peptides drawn from a non-immunogenic presented background | Generation deferred to the #736 scoring harness (runtime, not a committed artifact) |
+
+**Tier 1** contains the 1 hard-negative (`VELEDHVML`, MS-presented + ELISpot-negative, `evidence_strength=hard`) and the 8 IR-CRC soft-negatives (failed to prime in healthy-donor IVS, `evidence_strength=soft`).
+**Tier 2** is the 13-peptide SNAF MS-presented seed coordinated via [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681); these are real presented splice-junction-derived peptides with no measured response - not tested-negative, but untested.
+**Tier 3** serves as the abundant ranking-denominator floor; its construction algorithm is specified in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7 and generation runs at harness time ([#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736)), not here.
+
+Any score, AUC, or ranked-recall metric **must** report which tier(s) it used; a Tier-1-only result (9 rows) is a materially different claim from a Tier-1+2 result (22 rows).
+
 ## Deferred — MS-presented / immunogenicity-untested tier (→ Issue #681)
 
-13 distinct splice peptides are MHC-presented (immunopeptidomics) but have **no functional T-cell assay** — they fail the functional gate and are NOT in this registry. They belong with #681 (public immunopeptidome mining) and are a natural feeder for the decoy negative set. Source: SNAF Supp Fig 4 (`NQDEDPLEV`/C6orf52, `KGPWYPLSL`/C20orf204, `VAPGEAKNL`/RASA3, `YALANIKWI`/DYNLT5, `KEKLDQLVY`/FBXO7, `TELQRTLSL`/NGLY1) + Supp Fig 7 (`SQTPKSRAL`/PSMF1, `RKLEAPYLL`/MCF2L, `LSWPRSTPM`/CPN1, `VSTGCAVVL`/SERPINE2, `RRLPNPPAV`/RGS12, `IVKRPRSEL`/EXO1, `AVPLLQTNR`/ETV4).
+13 distinct splice peptides are MHC-presented (immunopeptidomics) but have **no functional T-cell assay** — they fail the functional gate and are NOT in this registry.
+These 13 form the Tier-2 decoy-negative seed ([`decoy_negatives/presented_decoys_681.tsv`](decoy_negatives/presented_decoys_681.tsv), materialized in #735) and are coordinated via [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681). They belong with #681 (public immunopeptidome mining) and are a natural feeder for the decoy negative set. Source: SNAF Supp Fig 4 (`NQDEDPLEV`/C6orf52, `KGPWYPLSL`/C20orf204, `VAPGEAKNL`/RASA3, `YALANIKWI`/DYNLT5, `KEKLDQLVY`/FBXO7, `TELQRTLSL`/NGLY1) + Supp Fig 7 (`SQTPKSRAL`/PSMF1, `RKLEAPYLL`/MCF2L, `LSWPRSTPM`/CPN1, `VSTGCAVVL`/SERPINE2, `RRLPNPPAV`/RGS12, `IVKRPRSEL`/EXO1, `AVPLLQTNR`/ETV4).
 
 **#733 Tier-2 triage → #681 (functional gate confirmed absent).** Four library-sweep papers were read for a per-peptide functional T-cell assay; all routed away from the functional registry:
 - **Courcelles 2026** (CRC MSI/MSS, MCP) — splice-derived aeTSAs (intron retention, retroelement junctions) but immunogenicity is *in-silico only* (PRIME/ImmuneApp) → **#681**.
