@@ -1,0 +1,14 @@
+peptide	gene	hla	source	decoy_tier	rationale
+NQDEDPLEV	C6orf52		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+KGPWYPLSL	C20orf204		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+VAPGEAKNL	RASA3		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+YALANIKWI	DYNLT5		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+KEKLDQLVY	FBXO7		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+TELQRTLSL	NGLY1		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+SQTPKSRAL	PSMF1		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+RKLEAPYLL	MCF2L		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+LSWPRSTPM	CPN1		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+VSTGCAVVL	SERPINE2		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+RRLPNPPAV	RGS12		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+IVKRPRSEL	EXO1		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
+AVPLLQTNR	ETV4		SNAF (Li 2024)	presented-decoy	MHC-presented splice-junction-derived peptide, no functional T-cell assay (#681 feeder).
