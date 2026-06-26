@@ -76,6 +76,9 @@ def violations(df: pd.DataFrame) -> list[str]:
         # prevalence_only is exactly the presentation-prevalence tier
         if (ac == "prevalence_only") != (r["tier"] == "presentation-prevalence"):
             out.append(f"{rid}: prevalence_only must match the presentation-prevalence tier")
+        # na is exactly the negative-control-not-splice tier (mirror of the above)
+        if (ac == "na") != (r["tier"] == "negative-control-not-splice"):
+            out.append(f"{rid}: na assay_context must match the negative-control-not-splice tier")
     return out
 
 

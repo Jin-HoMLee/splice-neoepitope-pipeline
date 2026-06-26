@@ -13,6 +13,12 @@ its T-cell source (SNAF / Kim / Xiong / Fisher / POSTN / Kwok) - the
 verify-against-source rule forbids guessing the patient-vs-donor system, and a
 scoring run should apply no context weight to those rows.
 
+This script OWNS the assay_context column: re-running overwrites every value
+from source. So when an `unspecified` row is later pinned (the future
+read-the-methods pass), make the pin by extending the source-keyed logic
+below - never by editing registry.tsv directly, or the next run silently
+reverts it.
+
 Run: research/.venv/bin/python derive_assay_context.py
 """
 import pandas as pd
@@ -43,7 +49,8 @@ def assay_context(r):
         return "patient_exvivo"      # A2+ patient PBMC/TIL ex vivo (S2 panel)
     if "merlotti" in src:
         # ex-vivo blood detection where present; otherwise Day-20 TIL / draining-LN.
-        return "patient_exvivo" if "ex-vivo" in notes else "patient_til"
+        # accept the spaced variant too so a future "ex vivo" doesn't silently fall to TIL.
+        return "patient_exvivo" if ("ex-vivo" in notes or "ex vivo" in notes) else "patient_til"
     if "iris" in src:
         return "cloned_tcr"          # JPTCR engineered-TCR IFN-g / cytotoxicity readout
 
@@ -58,6 +65,6 @@ df.to_csv(REG, sep="\t", index=False)
 
 print(df["assay_context"].value_counts().to_string())
 # sanity: healthy_donor_ivs <-> IVS marker in readout (ties to the #735 IVS rule)
-ivs_rows = df["readout"].str.lower().str.contains(IVS_MARKER)
+ivs_rows = df["readout"].str.lower().str.contains(IVS_MARKER, regex=False)
 mismatch = (ivs_rows != (df["assay_context"] == "healthy_donor_ivs")).sum()
 print("IVS-marker/assay_context mismatches:", int(mismatch))
