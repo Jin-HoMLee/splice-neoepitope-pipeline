@@ -29,6 +29,9 @@
   th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
   tr.closed td:first-child { color: var(--ok); }
   tr.open td:first-child { color: var(--warn); }
+  .badge { display: inline-block; border-radius: 999px; padding: .02rem .45rem; font-size: .72rem;
+           border: 1px solid var(--line); margin-left: .35rem; vertical-align: middle; }
+  .badge.descoped { color: var(--warn); border-color: var(--warn); }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .narrative { margin-top: .5rem; }
@@ -54,9 +57,10 @@
   <!-- Section 2: At-a-glance (script-generated) -->
   <h2>At a glance</h2>
   <div class="cards">
-    <div class="card"><div class="n">{{ metrics.n_closed }}</div><div class="l">Closed</div></div>
+    <div class="card"><div class="n">{{ metrics.n_delivered }}</div><div class="l">Delivered</div></div>
+    {% if metrics.n_descoped %}<div class="card"><div class="n">{{ metrics.n_descoped }}</div><div class="l">Descoped</div></div>{% endif %}
     <div class="card"><div class="n">{{ metrics.n_carried_forward }}</div><div class="l">Carried forward</div></div>
-    <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "—" }}</div><div class="l">Closed / week</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "—" }}</div><div class="l">Delivered / week</div></div>
     <div class="card"><div class="n">{{ "%.1f"|format(metrics.avg_cycle_time_days) if metrics.avg_cycle_time_days is not none else "—" }}</div><div class="l">Avg cycle (days)</div></div>
     <div class="card"><div class="n">{{ "%.1f"|format(metrics.median_cycle_time_days) if metrics.median_cycle_time_days is not none else "—" }}</div><div class="l">Median cycle (days)</div></div>
   </div>
@@ -64,7 +68,7 @@
     {% for role, count in metrics.per_role_counts.items() %}
       <span class="pill">{{ role }} · <strong>{{ count }}</strong></span>
     {% else %}
-      <span class="sub">no role-tagged closed issues</span>
+      <span class="sub">no role-tagged delivered issues</span>
     {% endfor %}
   </div>
 
@@ -82,7 +86,7 @@
       <tr class="{{ 'closed' if i.state == 'CLOSED' else 'open' }}">
         <td><a href="{{ i.url }}">#{{ i.number }}</a></td>
         <td>{{ i.title }}</td>
-        <td>{{ i.status }}</td>
+        <td>{{ i.status }}{% if i.is_descoped %}<span class="badge descoped">descoped</span>{% endif %}</td>
         <td>{{ i.roles|join(", ")|replace("role:", "") or "—" }}</td>
         <td>{{ i.size }}</td>
         <td>{{ i.priority }}</td>
