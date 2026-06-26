@@ -147,6 +147,12 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     content = item.get("content") or {}
     if not content:
         return None
+    # Draft items (e.g. the pinned "📌 Active arc slate" reference card, #759)
+    # are board furniture, not tracked work — they carry no number/role/status
+    # and would otherwise surface as spurious No-Status, role-less rows that
+    # pollute intake/hygiene sweeps. Skip them.
+    if content.get("__typename") == "DraftIssue":
+        return None
     state = content.get("state")
     if state in ("CLOSED", "MERGED"):
         return None
