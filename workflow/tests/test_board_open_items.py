@@ -85,6 +85,19 @@ def test_normalize_includes_timestamps():
     assert out["closed_at"] is None
 
 
+def test_normalize_skips_draft_issue():
+    # The pinned "📌 Active arc slate" reference card (#759) is a DraftIssue:
+    # its `content` carries only `__typename` — no number/state/labels/status —
+    # so normalize() must skip it. Otherwise it flows through with number=None,
+    # surfacing as a spurious No-Status, role-less row in sweeps AND crashing
+    # the table render at `f"{it['number']:<5}"`. Faithful bare-draft shape
+    # (the real API response), not the `_board_item` helper which injects a number.
+    draft = {"content": {"__typename": "DraftIssue"}, "fieldValues": {"nodes": []}}
+    assert boi.normalize(draft) is None
+    # A normal Issue node is still kept (the skip is type-scoped, not a regression).
+    assert boi.normalize(_board_item(1)) is not None
+
+
 # --- age helpers -----------------------------------------------------------
 
 def test_age_days_basic():
