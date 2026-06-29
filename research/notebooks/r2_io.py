@@ -2,8 +2,9 @@
 
 Replaces the decommissioned GCS / ``gsutil`` loader (GCP exit, see Issue #854).
 Reads each per-result TSV from the project R2 bucket over the S3-compatible API
-and caches it locally, so a notebook re-run is offline-fast and reproducible
-end-to-end (run all cells from scratch -> identical figures).
+and caches it locally, so a notebook re-run is cache-backed and offline-tolerant
+(a warm read makes one ETag HEAD when online, and falls back to the cached copy
+offline) and reproducible end-to-end (run all cells from scratch -> identical figures).
 
 Credentials are read from the project-root ``.env`` (gitignored):
 

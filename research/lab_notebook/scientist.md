@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-29
+
+### 17:32 UTC — Editor: Scientist
+
+#### [PR #898](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/898) — regenerate patient_001 results notebook on corrected post-#370 R2 data — closes [Issue #663](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/663)
+
+**What shipped.** Regenerated `research/notebooks/patient_001_results.ipynb` against the corrected 2026-06-23 STAR run and migrated its data layer off the decommissioned GCS (`gsutil`) onto Cloudflare R2 ([#854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)). Completes the patient_001-notebook AC of the #663 integrity audit; the remaining two ACs are carved into [Issue #899](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/899).
+
+**Why a reinterpretation, not a number-swap.** The pre-#370 anchor-outer coordinate bug had inflated `tumor_exclusive` junctions to 27,348; the corrected run yields **8** (141 unannotated → 94 normal_shared + 39 gtex_pantissue_shared + 8), collapsing MHC predictions 1.28M → 395. The headline candidate moved SQIPRTHSY / HLA-C\*07:01 → **SQVTRGLAM / HLA-B\*15:63** (IC50 64.7 nM, GPS 0.9425, 3/6 strong alleles). HLA-C dominance is still recapitulated (12/17 strong presenters HLA-C; C\*03:03 best for 52.9%) but the top-GPS candidate is now HLA-B; GPS is no longer near-ceiling (max 0.9425 vs 0.9999); the GPS-inflation edge case drops to 0; and a new **low-complexity poly-T chr19:39227510 junction** seeds 5 of the top-20 candidates (the FFNV family) — flagged as a possible alignment artifact warranting a complexity filter. Every headline number was verified first-hand against the R2 bytes; a new GTEx pan-tissue funnel stage (39 removed) is reflected in §2 + flagged for METHODS.
+
+**New infrastructure — `research/notebooks/r2_io.py`.** A boto3 R2 reader (creds from project-root `.env`, local cache, ETag-validated) replacing the dead GCS loader, reusable by the patient_002 notebook; `boto3>=1.34` added to `research/requirements.txt`. The data-layer choice (shared committed helper vs inline-per-notebook vs pre-fetched local files) was decided on reproducibility — the notebook runs top-to-bottom from scratch given creds + network.
+
+**Review (two passes).** First `@claude` pass: "solid, careful work" with 6 findings (2 medium, 2 low, 2 nits), all addressed in `373d370` — small-n figure restyling (§6.2 scatter, §6.1 GPS zoom), ETag cache invalidation in `r2_io`, `_load_env` once-flag, zero-strong-presenter guard, §4.2 rot simplification, creds doc note. Re-review (requested specifically because the ETag change was new cache-correctness code): "ready to merge, all six addressed correctly," numbers re-verified.
+
+**One re-review item declined — TOCTOU in the sidecar ETag.** The re-review flagged that `r2_download_cached` writes the `.etag` sidecar from a separate `head_object` after `download_file`, a microscopic window in which an in-place overwrite mid-download could record a new ETag against old bytes. Declined the suggested fix (`get_object` to capture ETag+body atomically): `get_object` buffers the whole body in memory, regressing the generic large-file case (this helper is meant to fetch BAMs ~1 GB) that `download_file` streams to disk. The window requires an in-place overwrite *mid-download*, impossible for our once-per-run single-analyst objects → YAGNI; recorded here rather than filed. Accepted the companion doc nit (module docstring "offline-fast" → "offline-tolerant").
+
+**Process lessons — async-wait monitor arming (now in `shared/feedback_async_waits.md`).** Two monitor mistakes this session: (1) the first review monitor was armed minutes after the trigger with a `since=now` watermark, so it never caught the review that had already landed 13 s after the trigger — fix: arm in the same turn as the trigger + check existing state; (2) the re-review monitor's length/count predicate fired on the Action's `Working…` placeholder (a >400-char checklist posted immediately, then edited in place) — fix: terminal predicate = the `Claude finished` content marker.
+
+---
+
 ## 2026-06-26
 
 ### 18:40 UTC — Editor: Scientist
