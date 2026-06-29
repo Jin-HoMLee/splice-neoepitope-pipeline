@@ -6,6 +6,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-29
+
+### 17:11 UTC — Editor: PM
+
+Morning-routine session (state-only; no code PR). Substantial governance + portfolio work — capturing the meta-decisions and the reasoning, not the play-by-play.
+
+#### MM-role 4-week validation gate ([Issue #747](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/747)) → decision: **KEEP**
+
+The +4-week gate on the Memory Manager role (bootstrapped 2026-06-01) came due today. MM posted objective metrics (sole committer; ~35 sessions; 373 commits / 82% active days; 34 `role:memory_manager` items closed, ~8.5/wk) and — correctly — declined to grade its own continuation (conflict of interest). The input MM can't compute, PM's cognitive-load delta: **net positive** — PM no longer touches the personas git lifecycle, staged-uncommitted edits drain without PM action, cross-role memory consistency is MM-owned; sole cost is a sub-day PM→MM handoff latency. User-confirmed KEEP; recorded on [parent #527](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/527), no fixed next gate (re-review only on a concrete regression signal).
+
+#### Two milestone closures via carve-forward
+
+pm-i8 and dev-i4 both hit their due dates this week with core scope delivered, a forward-looking/deferred tail, and **zero active WIP**. Applied carve-forward (not deadline-extend-for-stalled-work): decommitted the non-startable tail to Backlog — pm-i8: #864 (user-deferred) + #769/#745 (`arc-phase:later`); dev-i4: #812 (deferred Route B) + #183 (per Dev's reply).
+- **pm-i8** held OPEN pending a closure report (convention #752) — filed [#897](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/897) as the report carrier; closes when it merges.
+- **dev-i4** closed lightweight — 8 delivered + 1 descoped (#844 RunPod, deliberately cancelled when RunPod was shelved — verified NOT_PLANNED ≠ masked scope before declaring "substantially delivered") + 2 carried forward. Report skipped per the i5-S3 working-milestone precedent (full report reserved for governance-showcase milestones like pm-i7).
+
+#### Floor-5 replenishment can itself over-commit (web-checked)
+
+The per-role Ready floor was under across all roles — legitimately (Friday's ship + my decommit of deferred work). Cross-checked Kanban replenishment best practice (businessmap / Nave / djaa): an empty queue after a real ship is a flow signal, not a defect; the fix is value-prioritization + more frequent replenishment, **never low-value filler**; commitment must be "grounded in reality, not aspiration." Did **not** force-fill. Committed one genuinely-valuable Sci item ([#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) — advances the #734 registry leaf gating the blocked P1 #736 family) — but it pushed i6-S3 to 8.5d (> ~5d/week budget), demonstrating in real time that a per-role **floor of 5 can drive milestone over-load**. Logged to revisit the floor-5 convention (lean queues favor small input buffers). Resolved the i6-S3 overload honestly by extending its `due_on` → 07-11 (+ re-synced all 3 members' Target).
+
+Clarified (user Q): opening a **new iteration milestone is the wrong tool for stage overflow** — our `i<N>` is a lifecycle *pass*, not a time-box, and "spill into the next box" is a Scrum move foreign to our Kanban/flow model; the right responses are an honest deadline or don't-commit. Opening a successor *is* right for spent role-meta buckets (pm-i9/dev-i5) — a different case.
+
+#### Closure-audit backfill (#837, #790)
+
+The post-merge closure-audit bot flagged that [#837](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/837) (multi-role gate accounting) and [#790](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/790) (Friday-cleanup wiring) — both closed Friday as memory-only meta-decisions — lacked a PM lab-notebook entry; their durable reasoning lived only in per-AC resolution comments + committed memory diffs. Recording to close the gap: **#837** — the multi-role counter was already correct (2026-06-18 was a human misread, no code change); the DoR flip is purely additive (pro-cross-functional/swarming clause). **#790** — Friday-cleanup wired into the shared morning-routine backbone so Dev/Sci auto-fire the per-clone branch sweep.
+
+#### Watermark STOPGAP retargeted, not stripped (near-miss)
+
+[PR #884](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/884) merged the last-session-watermark **write-side** (#820). The post-it watch said "strip the morning-recap STOPGAP when #884 merges" — but verified [#886](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/886) (the **read-side** that makes the recap actually consume the marker) is still OPEN, and its body confirms the routine keeps the conservative 7-day floor until then. So the STOPGAP is still load-bearing; **retargeted** its trigger #820 → #886 rather than stripping. Blindly following "strip in that PR" would have opened a recap gap — verify-before-acting paid off.
+
+Routine triage (in the Issues themselves): intake #887 (epic-with-no-children decomposition flag to Dev) + #896; sized the #803–807 `arc:scoring-tcr-pmhc` cluster; routed the remaining priority/size sweep gap to [#814](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/814).
+
 ## 2026-06-26
 
 ### 17:10 UTC - PM
