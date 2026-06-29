@@ -20,6 +20,7 @@ lives at ``$R2_CACHE_DIR`` (default ``~/.cache/splice-neoepitope-r2``).
 """
 
 import os
+import warnings
 from pathlib import Path
 
 import boto3
@@ -28,6 +29,7 @@ from botocore.config import Config
 
 _R2_KEYS = ("R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
 _client = None
+_env_loaded = False
 
 
 def _find_project_root(start=None):
@@ -46,7 +48,11 @@ def _load_env():
 
     Existing environment values win (``setdefault``), so an already-sourced
     shell environment is respected. Tolerates ``export KEY=VALUE`` and quotes.
+    Runs once per process (cached via ``_env_loaded``).
     """
+    global _env_loaded
+    if _env_loaded:
+        return
     env_path = _find_project_root() / ".env"
     for raw in env_path.read_text().splitlines():
         line = raw.strip()
@@ -62,6 +68,7 @@ def _load_env():
     missing = [k for k in _R2_KEYS if not os.environ.get(k)]
     if missing:
         raise RuntimeError(f"Missing R2 credentials in environment/.env: {missing}")
+    _env_loaded = True
 
 
 def _get_client():
@@ -84,16 +91,45 @@ def _cache_dir():
     )
 
 
+def _remote_etag(bucket, key):
+    """Return the remote object's ETag (quotes stripped), or None on any failure."""
+    try:
+        return _get_client().head_object(Bucket=bucket, Key=key).get("ETag", "").strip('"')
+    except Exception:
+        return None
+
+
+def _cache_is_current(bucket, key, local):
+    """True if the cached file's recorded ETag matches the remote object.
+
+    A missing ``.etag`` sidecar (unknown provenance) is treated as stale so the
+    file is re-downloaded. If the remote HEAD fails (e.g. offline), the cached
+    copy is trusted with a warning rather than erroring — so offline re-runs
+    still work, while an in-place R2 overwrite is caught whenever online.
+    """
+    etag_file = local.with_name(local.name + ".etag")
+    if not etag_file.exists():
+        return False
+    remote = _remote_etag(bucket, key)
+    if remote is None:
+        warnings.warn(f"R2 ETag check failed for {key}; using cached copy (may be stale).")
+        return True
+    return etag_file.read_text().strip() == remote
+
+
 def r2_download_cached(key, *, refresh=False):
     """Download bucket object ``key`` to the local cache; return its local Path.
 
-    Writes to ``<file>.tmp`` then atomically renames, so an interrupted
-    download can never poison the cache.
+    Writes to ``<file>.tmp`` then atomically renames, so an interrupted download
+    can never poison the cache. The cache is validated against the remote ETag
+    (see ``_cache_is_current``): a key whose R2 object was overwritten in place
+    is re-downloaded rather than served stale — the exact failure this notebook
+    set exists to correct.
     """
     _load_env()
     bucket = os.environ["R2_BUCKET"]
     local = _cache_dir() / bucket / key
-    if local.exists() and not refresh:
+    if local.exists() and not refresh and _cache_is_current(bucket, key, local):
         return local
     local.parent.mkdir(parents=True, exist_ok=True)
     tmp = local.with_name(local.name + ".tmp")
@@ -104,6 +140,9 @@ def r2_download_cached(key, *, refresh=False):
         if tmp.exists():
             tmp.unlink()
         raise
+    etag = _remote_etag(bucket, key)
+    if etag is not None:
+        local.with_name(local.name + ".etag").write_text(etag)
     return local
 
 
