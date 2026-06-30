@@ -70,6 +70,24 @@ def test_missing_notebook_file_returns_gap(monkeypatch):
     assert ca.audit_pr_pre_merge(99, DATE)
 
 
+def test_pure_memory_manager_pr_returns_clean(monkeypatch):
+    # #748: a pure role:memory_manager Issue needs no project-repo notebook entry
+    # (MM's record is the personas-repo git log). End-to-end through the gate.
+    _fake_io(monkeypatch, _pr(), {42: _issue(roles=("memory_manager",))}, {})
+    assert ca.audit_pr_pre_merge(99, DATE) == []
+
+
+def test_mixed_memory_manager_pr_still_requires_other_role(monkeypatch):
+    # #748: dev+MM Issue with no developer entry still gaps (strip-role, not skip-PR).
+    _fake_io(
+        monkeypatch,
+        _pr(),
+        {42: _issue(roles=("developer", "memory_manager"))},
+        {"developer": None},
+    )
+    assert ca.audit_pr_pre_merge(99, DATE)
+
+
 def test_file_exempt_returns_clean(monkeypatch):
     # Diff is entirely the lab-notebook itself → no entry required for itself.
     pr = _pr(files=("research/lab_notebook/scientist.md",))
