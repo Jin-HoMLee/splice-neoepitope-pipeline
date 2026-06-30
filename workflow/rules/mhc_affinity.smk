@@ -80,3 +80,38 @@ rule run_mhcflurry:
         "../envs/python.yaml"
     script:
         "../scripts/run_mhcflurry.py"
+
+
+rule apply_calibrator:
+    """Apply the fitted immunogenicity calibrator to genotype_presentation_score.
+
+    Emits two columns onto the presentation TSV (Issue #709):
+      - calibrated_immunogenicity_log_odds — a PROVISIONAL, SECONDARY ranking
+        signal; genotype_presentation_score stays the primary ranker, so this
+        rule only ADDS columns (no re-sort). Provisional status discharged by
+        Issue #870.
+      - out_of_calibration_support — True outside the calibrator's interpolation
+        support [cx[0], cx[-1]] (read from the artifact, not hard-coded).
+
+    Slots post-MHCflurry / pre-TCRdock. Consumed by generate_report (always, so
+    the calibrator runs in the default CPU-only pipeline) and run_tcrdock (when
+    enabled)."""
+    input:
+        presentation_tsv=rules.run_mhcflurry.output.mhc_presentation_tsv,
+        calibrator=config["calibrator"]["artifact"],
+    output:
+        calibrated_tsv=os.path.join(
+            _RES, "{patient_id}", "mhcflurry", "presentation_calibrated.tsv"
+        ),
+    log:
+        os.path.join(_LOGS, "{patient_id}", "mhc_affinity", "calibrate.log"),
+    conda:
+        "../envs/python.yaml"
+    shell:
+        """
+        python workflow/scripts/apply_calibrator.py \\
+            --input {input.presentation_tsv} \\
+            --calibrator {input.calibrator} \\
+            --output {output.calibrated_tsv} \\
+            > {log} 2>&1
+        """

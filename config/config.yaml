@@ -142,6 +142,18 @@ mhcflurry:
   hla_c_weight:                    0.5
 
 # -----------------------------------------------------------------
+# Immunogenicity calibrator (Issue #547 / #709)
+# -----------------------------------------------------------------
+# Applies a fitted centered-isotonic calibrator to genotype_presentation_score,
+# emitting calibrated_immunogenicity_log_odds (a PROVISIONAL, SECONDARY ranking
+# signal — presentation_score stays primary) + out_of_calibration_support. The
+# "provisional" status is discharged by Issue #870 (validate SNV→splice transfer
+# on measured labels); splice accuracy stays open at Issue #680. Artifact is a
+# committed serialized calibrator (centered-isotonic knots).
+calibrator:
+  artifact: "research/experiments/issue_547_immunogenicity_calibration/outputs/calibrator_v1.joblib"
+
+# -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)
 # -----------------------------------------------------------------
 # Disabled by default. All settings live in config/gpu_config.yaml.

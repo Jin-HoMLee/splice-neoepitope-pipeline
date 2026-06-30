@@ -59,8 +59,12 @@ def _generate_report_input(wildcards):
         "filtering_stats": os.path.join(
             _RES, wildcards.patient_id, "reports", "filtering_stats.tsv"
         ),
+        # Calibrated TSV (apply_calibrator) — carries genotype_presentation_score
+        # plus calibrated_immunogenicity_log_odds + out_of_calibration_support.
+        # Consuming it here pulls the calibrator into the default DAG (the report
+        # is a terminal target that always runs, unlike the GPU-gated TCRdock).
         "predictions_tsv": os.path.join(
-            _RES, wildcards.patient_id, "mhcflurry", "presentation.tsv"
+            _RES, wildcards.patient_id, "mhcflurry", "presentation_calibrated.tsv"
         ),
         "contigs_fasta": os.path.join(
             _RES, wildcards.patient_id, "contigs", "contigs.fa"

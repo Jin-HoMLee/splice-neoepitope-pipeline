@@ -48,7 +48,10 @@ if _TCRDOCK_ENABLED:
         """
         input:
             unpack(_vdjdb_panel_input),
-            predictions_tsv=rules.run_mhcflurry.output.mhc_presentation_tsv,
+            # Calibrated TSV (apply_calibrator) — positions the calibrator rule
+            # pre-TCRdock in the DAG (Issue #709). TCRdock ranks by the unchanged
+            # genotype_presentation_score; the added columns are carried through.
+            predictions_tsv=rules.apply_calibrator.output.calibrated_tsv,
         output:
             pdb=os.path.join(
                 _RES, "{patient_id}", "tcrdock", "top_candidate.pdb"
