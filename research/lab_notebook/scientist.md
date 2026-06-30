@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 21:15 UTC — Editor: Scientist
+
+#### [PR #922](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/922) — reorg the issue_680 registry dir into shared-core + `issue_NNN_` analysis subfolders — closes [Issue #914](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/914)
+
+**What shipped.** The `issue_680_*` experiment dir had outgrown the flat single-experiment template (it's an **epic-with-shared-living-artifact** — every sub-issue mutates `registry.tsv` + its docs/tooling). Reorganized into **shared core at top + one `issue_NNN_<short>/` analysis subfolder per sub-issue**: the flat #737 set → `issue_737_sparsity/`, `db_audit_734/` → `issue_734_db_audit/`. Path fixes for the new depth (notebook `EXP` resolves the registry one level up + `OUT` → `issue_737_sparsity/outputs`; `slides.qmd` csl + writeup shared-core links gain `../`; README/PROVENANCE/lab-notebook refs repointed). Convention written into `docs/research_artifact_conventions.md`. `validate_registry.py` PASS; notebook re-executed from the renamed subfolder (counts unchanged: 81 scorable / 94 dual-gate); deck re-rendered.
+
+**Naming made consistent (Jin-Ho's steer).** The three sub-issue folders had drifted into three schemes (`db_audit_734` desc-last, `decoy_negatives` un-numbered, `sparsity_737` desc-last). Settled on **reusing the parent's `issue_NNN_<short>` pattern recursively** — a sub-issue is itself a numbered Issue, and nesting (not a `sub_`/`subissue_` prefix) already signals the parent/child relationship. One naming rule governs the whole `research/experiments/` tree at every depth.
+
+**The `decoy_negatives/` question (the interesting part).** Its file `presented_decoys_681.tsv` looked like it carried #681 scope, which raised "shouldn't it be `issue_681_decoy_negatives/`, or a sibling dir under `research/experiments/`?" Investigated: #680 and #681 are **siblings** under epic #678 (not cross-epic — I'd mislabeled it); the seed was materialized under #735 and is **produced + validated (`validate_registry.py`) + consumed (#737 notebook) entirely within #680 today**, with #681 as its *future* owner. Best practice = **organize by current ownership, not aspirational** (+ YAGNI: don't scaffold #681's home before #681 runs). So `decoy_negatives/` stays descriptive (data artifacts get content names; `issue_NNN_` is for analysis units), and the relocation is tracked as a **migration-trigger AC on [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)** so "promote later" can't rot. Audited all 9 remaining top-level files — all genuinely shared-core (artifact / docs / tooling), none a packable analysis set; #735 and #823 are sub-issues whose deliverables were *shared scaffolding*, which is why they correctly sit at top level.
+
+**Review.** `@-claude review` (issue-closing → never skip-eligible) returned a clean verdict and caught **one** genuine miss: `slides.qmd:119`'s `LABELING_SCHEME.md` link kept its co-located form while the *identical* link in `sparsity_writeup.md` got the `../` — a correct-before/broken-after relative path my old-path grep couldn't match (it 404s in the rendered HTML, but `quarto render` doesn't validate non-resource hyperlinks, so "deck rendered cleanly" hid it). Fixed in caef45b + swept the whole subfolder (slides + writeup + notebook markdown) for sibling misses — none. Incidental find filed as [#923](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/923): the global `splice-neoepitope-research` Jupyter kernelspec points at the dead pre-migration `Documents/GitHub` clone (worked around here with a throwaway temp kernel).
+
+---
+
 ### 16:03 UTC — Editor: Scientist
 
 #### [PR #913](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/913) — promote the 2 IRIS `candidate` rows to `functional-scorable` — closes [Issue #904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)
