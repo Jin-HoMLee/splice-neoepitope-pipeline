@@ -34,28 +34,28 @@ GLNTFALGL		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	NO	ref1040
 KLMGPEVQV		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	NO	ref1040678	33811047	Splicing Patterns in SF3B1-Mutated Uveal Melanoma (Bigot 2021)
 RLGEVRHPV		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	NO	ref1040678	33811047	Splicing Patterns in SF3B1-Mutated Uveal Melanoma (Bigot 2021)
 SLTFLPLYV		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	NO	ref1040678	33811047	Splicing Patterns in SF3B1-Mutated Uveal Melanoma (Bigot 2021)
-SLLLPSFHL	Guanine nucleotide-binding protein G(s) subunit alpha isoforms short (356-364)	HLA-A*02:01	Positive	IFNg release|ELISA	NO	ref1045680	39972144	Tumour-wide RNA splicing aberrations -> public neoantigens (2025)
-GIMDAANFFL		HLA-A*02:01	Positive	IFNg release|ELISA	NO	ref1045680	39972144	Tumour-wide RNA splicing aberrations -> public neoantigens (2025)
-MADAGAMAA		human	Positive	IFNg release|ELISPOT	NO	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023)
-RGAGLGRAL		human	Positive	IFNg release|ELISPOT	NO	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023)
-RQVGEGCRT	septin-6 isoform A (8-16)	human	Positive-Low	IFNg release|ELISPOT	NO	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023)
-KNILNGSRA	unnamed protein product [Homo sapiens] (103-111)	human	Positive	IFNg release|ELISPOT	NO	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023)
-TVYTTKIITK	Periostin (667-676)	HLA-A11	Positive	IFNg release|ELISA	NO	ref1046253	40181162	POSTN splicing junction epitopes (2025)
-YLQPNPGDAL		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-FLWPGLGPS		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
+SLLLPSFHL	Guanine nucleotide-binding protein G(s) subunit alpha isoforms short (356-364)	HLA-A*02:01	Positive	IFNg release|ELISA	folded-upgrade	ref1045680	39972144	Tumour-wide RNA splicing aberrations -> public neoantigens (2025) [#838: NeoA-GNAS; upgraded existing GNAS row NOT-PUBLISHED->scorable]
+GIMDAANFFL	RPL22 (in-frame NEJ; gene unannotated in IEDB)	HLA-A*02:01	Positive	IFNg release|ELISA	folded-upgrade	ref1045680	39972144	Tumour-wide RNA splicing aberrations -> public neoantigens (2025) [#838: NeoA-RPL22, confirmed via RPL22 WT GIMDAANFEQFLQER minus EQ; upgraded existing RPL22 row NOT-PUBLISHED->scorable]
+MADAGAMAA		human	Positive	IFNg release|ELISPOT	folded-nonscorable	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023) [#838: gate-1 from supp Table13; HLA unpublished -> functional-nonscorable]
+RGAGLGRAL		human	Positive	IFNg release|ELISPOT	folded-nonscorable	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023) [#838: gate-1 from supp Table13; HLA unpublished -> functional-nonscorable]
+RQVGEGCRT	septin-6 isoform A (8-16)	human	Positive-Low	IFNg release|ELISPOT	folded-nonscorable	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023) [#838: gate-1 from supp Table13; HLA unpublished -> functional-nonscorable]
+KNILNGSRA	unnamed protein product [Homo sapiens] (103-111)	human	Positive	IFNg release|ELISPOT	folded-nonscorable	ref1043193	37756564	Long-Read Seq alt-splicing shared immunogenic neoepitopes (2023) [#838: gate-1 from supp Table13; HLA unpublished -> functional-nonscorable]
+TVYTTKIITK	Periostin (667-676)	HLA-A11	Positive	IFNg release|ELISA	folded-correction	ref1046253	40181162	POSTN splicing junction epitopes (2025) [#838: IS the validated POSTN-203_A11 epitope; corrected the existing registry row that mis-keyed predicted binder KTEGPTLTK]
+YLQPNPGDAL		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+FLWPGLGPS		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
 CLLPPALFL		HLA-A*02:01	Positive	IFNg release|ELISPOT	yes	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-VLCDQTAQV		HLA-A*02:01	Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-FLWPGLGPSV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-SVAWPWPAV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-AVIQGQFFV		HLA-A*02:01	Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
+VLCDQTAQV		HLA-A*02:01	Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+FLWPGLGPSV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+SVAWPWPAV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+AVIQGQFFV		HLA-A*02:01	Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
 RLLAAVLEA		HLA-A*02:01	Positive	IFNg release|ICS	yes	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-YLSKYLNVNL		HLA-A*02:01	Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
+YLSKYLNVNL		HLA-A*02:01	Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
 RLWGTWVKA		HLA-A*02:01	Positive	IFNg release|ICS	yes	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-FTDGKVYSNV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-SLIRAQEEA		HLA-A*02:01	Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-GLRDKASYV			Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-LLPRVSVWL			Positive	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-NLQALLYQA			Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
-ILGSLTWSC			Positive-Low	IFNg release|ELISPOT	NO	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
+FTDGKVYSNV		HLA-A*02:01	Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+SLIRAQEEA		HLA-A*02:01	Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+GLRDKASYV			Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+LLPRVSVWL			Positive	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+NLQALLYQA			Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
+ILGSLTWSC			Positive-Low	IFNg release|ELISPOT	folded-scorable	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry] [#838: gate-1 from mmc2 (gene+AS event+coords); A*02:01 dextramer mmc5 -> functional-scorable]
 LVAKWLLTI		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	yes	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]
 FMDDYIFV		HLA-A*02:01	Positive	qualitative binding|multimer/tetramer	yes	ref1046844	40273911	Kim mis-splicing SF-mutant leukemias (2025) [partial in registry]

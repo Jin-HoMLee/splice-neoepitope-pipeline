@@ -53,3 +53,52 @@ Recovered peptides were deduped against `registry.tsv` (exact sequence). **Bigot
 - Mechanism-keyword null: `tcell_search?antigen_description=ilike.*<kw>*` with `Prefer: count=exact` (read `Content-Range`).
 - Reference-title recall: `reference_search?reference_title=ilike.*splic*`; then `tcell_search?reference_id=eq.<id>` per reference.
 - Candidate extraction + dedup: see `recovered_candidates.tsv` (peptide, gene, hla, measure, assay, in_registry, source_ref, pmid).
+
+---
+
+## 5. #838 follow-up dispositions (per-source gate-1, 2026-06-30)
+
+Folding the remaining ~20 recovered candidates ([#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838)), each with its own primary-source gate-1 pass. Dispositions diverge from the §2 table framing where the primary source warranted it.
+
+### POSTN — `TVYTTKIITK` is a **correction, not an addition** (§2 framed it as a "2nd peptide")
+
+Primary-source verification (Liu et al., *Genes Immun* 2025, PMID 40181162, Zotero `HMXA22SW`; supp MOESM1–5 + IEDB) overturns the §2 "2nd peptide" framing:
+
+- The supp **functional** assays (S5/S6: IFN-γ ELISA + flow, caspase-3, LDH cytotoxicity) validate a **single** epitope, "POSTN-203_A11".
+- Supp prediction tables (S2/S3, MOESM3/4) tile **both** `KTEGPTLTK` (pos 35–43) and `TVYTTKIITK` (pos 8–17) as *predicted binders* from the **same** POSTN-203 (ENST00000379747) neojunction region — they are not two independent epitopes.
+- **IEDB is decisive:** `tcell_search?linear_sequence=eq.TVYTTKIITK` → **4 Positive A11 rows** (ref1046253); `KTEGPTLTK` → **0 rows** (never assayed).
+- The pre-existing registry row keyed the validated epitope as `KTEGPTLTK` with `provenance_grade=agent-web` and note `…VERIFY` — an **agent-web mis-key** that recorded the top *predicted* A*11:01 binder instead of the *assayed* peptide.
+
+**Action:** corrected the existing functional-scorable row in place (not a new row): `KTEGPTLTK`→`TVYTTKIITK`, `length` 9→10, `provenance_grade` agent-web→`direct`, refreshed provenance (PMID/DOI/Zotero/IEDB). **HLA resolution downgraded 4-digit→2-digit**: the paper types the line only as `A*11+` (SF10281) and IEDB curates `A11`; the 4-digit `A*11:01` appears solely in the binding-prediction tables. `hla` kept at `A*11:01` (predominant A11 allele, needed for scoring) with the caveat noted in the row. **Net registry count unchanged** (correction, not addition). Stakes: this is a `functional-scorable` ground-truth label feeding the #736 benchmark — the wrong sequence would have poisoned it.
+
+### Kwok GNAS + RPL22 — `functional-nonscorable` → `functional-scorable` (sequences recovered + confirmed)
+
+Both rows existed as `NOT-PUBLISHED` / `functional-nonscorable` ("exact 9-mer not published, figures only"). The Kwok IEDB deposit (ref1045680, PMID 39972144) carries the sequences; primary-source verification confirms both gene/junction assignments:
+
+- **GNAS** ← `SLLLPSFHL` (9-mer, A*02:01). IEDB `parent_source_antigen` = "Guanine nucleotide-binding protein G(s) subunit alpha" → **GNAS-confirmed**; gate-1 = NEJ^GNAS frameshift (Kwok). Sequence not legible in the paper figures → recovered from the authors' IEDB deposit. `provenance_grade` unpublished→`direct`.
+- **RPL22** ← `GIMDAANFFL` (**10-mer**, A*02:01). IEDB does **not** structurally annotate its gene (`parent_source_antigen=None`) — so the gene was *not* assignable from the mine alone. Confirmed independently: Kwok names exactly two public NEJ neoantigens (NeoA^GNAS + NeoA^RPL22); GNAS is taken by `SLLLPSFHL`, and `GIMDAANFFL` maps cleanly onto **RPL22 (UniProt P35268)** WT `…G·IMDAANFE·QFLQER…` with the paper's **in-frame 6-nt (EQ) loss** → `GIMDAANF·FLQER` → A*02:01 `GIMDAANFFL`. This **supersedes the prior illustrative `~LALDVLQGYSL`** placeholder. `provenance_grade` unpublished→`direct`.
+
+### Kim mis-splicing leukemias — 13 net-new → `functional-scorable` (the "screening hits" framing was wrong)
+
+§2 / the #838 body cautioned the ~13 remaining Kim candidates "may be screening hits the original curation deliberately excluded." Reading the **Kim supplementary tables** (Zotero item `XB3CPX5P`, not the PDF-attachment key `LX6DMXTL` the registry cites — same dual-key trap as Kwok) overturns that:
+
+- **mmc2 (Supp Table S2)** gives every candidate a specific AS event + parent gene + **genomic junction coordinates** (`se`=skipped exon, `ci`=constitutive intron, `mxe`=mutually exclusive exons, `a5ss`=alt 5′SS per the table legend). → gate-1 confirmed per peptide; `junction_mapping_grade=coords` (the **top** grade — *better*-provenanced than the original 5 rows, which sit at `gene-mechanism`).
+- **mmc5 (Supp Table S5)** shows each has an **A*02:01 dextramer** panel; IEDB records IFN-γ ELISPOT positivity. Per §2.3 **ELISPOT is a `strong` effector readout**, so these are legitimate scorable positives, not weak screening hits.
+- The original curation folded only 5 because only those 5 were legibly named in the *figures*; the other 13 lived in the supp tables, which weren't read at the time.
+
+**Folded 13 as `functional-scorable`** (A*02:01, `evidence_strength=strong`, `provenance=direct`, `junction_mapping_grade=coords`): USF1, AP4B1, EZH2, BIN3, CASP2, SLC20A1 (6× IEDB-`Positive`, `confidence=high`); RHOT2 ×3, NCOA7, LTBR, MAN2C1, SH3GL1 (7× IEDB-`Positive-Low`, `confidence=medium`).
+
+### Long-read UM — 4 → `functional-nonscorable` (HLA-unresolved, *not* "A*02:01")
+
+The #838 body called these "~4 A*02:01 positives." The supp (Table 13, item `6P5JCCIB`) confirms gate-1 — `MADAGAMAA`/`RQVGEGCRT`→SEPTIN6, `KNILNGSRA`→AMZ2P1 (archaemetzincin-2 *pseudogene*), `RGAGLGRAL`→MZT2B (all alt-splicing neojunctions) — **but publishes no per-peptide HLA** (IEDB = `human`; ELISPOT on bulk PBMC). Without an allele key these cannot be scored → folded as `functional-nonscorable` (retained for the validation base, excluded from the scored set). `RGAGLGRAL`/`RQVGEGCRT` are IEDB mixed Negative/Positive(-Low).
+
+### Net effect of #838 on the registry
+
+| Change | Count |
+|---|---|
+| POSTN sequence-corrected (`KTEGPTLTK`→`TVYTTKIITK`) | 1 row fixed |
+| GNAS + RPL22 promoted non-scorable → scorable | 2 rows |
+| Kim net-new folded scorable | +13 rows |
+| UM net-new folded non-scorable | +4 rows |
+
+`functional-scorable`: 64 → **79**. Total registry rows: 79 → **96**. Validator: `PASS: 96 rows valid`.
