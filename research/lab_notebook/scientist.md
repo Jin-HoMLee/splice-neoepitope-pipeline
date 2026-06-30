@@ -8,6 +8,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 15:28 UTC — Editor: Scientist
+
+#### [PR #912](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/912) — quantify splice-immunogenicity ground-truth sparsity + experiment deck — closes [Issue #737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737)
+
+**What shipped.** Carries [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) AC#4: a reproducible quantification of how thin and source-clustered the field's splice-neoantigen functional-validation base is, computed directly from `registry.tsv` (96 rows, **79 scorable dual-gate positives**). Deliverables under `research/experiments/issue_680_splice_immunogenicity_registry/` (experiment-tier convention): `notebook.ipynb` + `outputs/` (3 figures + `sparsity_stats.json`, canonical), `sparsity_writeup.md` (manuscript-ready, → Results/Discussion), `slides.qmd` experiment deck (the #680 seed-PR-deferred deck; 11 slides), `refs.bib`.
+
+**The finding (the publishable point is the scarcity itself).** Three concentration results, each measured by inverse-Simpson effective-N, not just top-share:
+- **Few-study assembly:** 10 studies but top study (Bigot SF3B1-UM) = 44%, top two (+ Kim) = 67% → **effective ≈ 3.7** independent studies.
+- **HLA-A\*02:01 monoculture:** 70/79 (89%) are A\*02:01 → **effective ≈ 1.27 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
+- **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime) vs **19–31** needed for a powered AUC probe (Hanley-McNeil) → field-wide specificity is currently **unmeasurable**. The lone hard negative (`VELEDHVML`) is A\*11:01, so it isn't even in the A2 slice where 100% of positives sit. This bounds the #680 headline metric by construction: a stress-test *probe*, not a powered benchmark.
+
+**Process notes.** DOIs in `refs.bib` verified against Zotero Z38GTJNW + Crossref, not recalled. All 11 deck slides visually verified by headless-Chrome print-to-PDF — caught + fixed a MathJax-in-table dropout (concentration slide) and a panel-spacing overlap where the mechanism y-labels bled into the left panel's bars (slide 6, flagged by Jin-Ho). Per the slides-findings-on-board rule, both forward reagents the deck names are board-backed: non-A\*02:01 positives → [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839); measured true-negatives → newly-filed [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911).
+
+**Review.** `@-claude review` (issue-closing → never skip-eligible) returned ship-ready, independently reproducing every headline statistic from `registry.tsv` by grep. Three optional points all addressed in 341a58c: hardened `concentration()` with an inside-the-helper fillna+assert so all three axes share one NaN guard (no number change; fails loud on a future unmapped category); trimmed 4 uncited `refs.bib` entries; added the A\*11:01-hard-negative sharpening to Result 3. This leaf is intermediary, not the arc closer — the keystone scoring harness ([#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736)) is still open, and finishing #737 spawned #911.
+
+---
+
 ### 12:27 UTC — Editor: Scientist
 
 #### [PR #905](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/905) — fold the #734 IEDB-recovered splice candidates into the registry — closes [Issue #838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838)
