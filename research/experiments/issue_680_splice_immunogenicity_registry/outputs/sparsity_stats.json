@@ -1,0 +1,77 @@
+{
+  "registry_rows_total": 96,
+  "dual_gate_rows": 92,
+  "scorable_positives": 79,
+  "by_study": {
+    "n": 79,
+    "distinct": 10,
+    "top": "Bigot 2021 (SF3B1 UM)",
+    "top_share": 0.443,
+    "top2_share": 0.671,
+    "hhi": 0.272,
+    "effective_n": 3.68,
+    "counts": {
+      "Bigot 2021 (SF3B1 UM)": 35,
+      "Kim 2025 (SF-mutant leukemia)": 18,
+      "Merlotti 2023 (NSCLC exon-TE)": 10,
+      "SNAF (Li 2024)": 5,
+      "Manoharan 2026 (IR-CRC)": 3,
+      "IRIS (Pan/Xing)": 2,
+      "Fisher 2026 (CoREST)": 2,
+      "Kwok 2024 (Nature)": 2,
+      "Xiong 2025 (GBM)": 1,
+      "POSTN-203 study": 1
+    }
+  },
+  "by_allele": {
+    "n": 79,
+    "distinct": 6,
+    "top": "HLA-A*02:01",
+    "top_share": 0.886,
+    "top2_share": 0.937,
+    "hhi": 0.789,
+    "effective_n": 1.27,
+    "counts": {
+      "HLA-A*02:01": 70,
+      "HLA-A*11:01": 4,
+      "HLA-C*04": 2,
+      "HLA-C*08": 1,
+      "HLA-A*24:02": 1,
+      "HLA-A*02:06": 1
+    }
+  },
+  "by_mechanism": {
+    "n": 79,
+    "distinct": 10,
+    "top": "alt_3p_ss",
+    "top_share": 0.405,
+    "top2_share": 0.62,
+    "hhi": 0.239,
+    "effective_n": 4.19,
+    "counts": {
+      "alt_3p_ss": 32,
+      "alt_splice_junction": 17,
+      "exon_te_junction": 10,
+      "neojunction_frameshift": 6,
+      "alt_5p_ss": 4,
+      "intron_retention": 4,
+      "minor_intron": 2,
+      "ambiguous": 2,
+      "poison_exon": 1,
+      "neojunction_inframe": 1
+    }
+  },
+  "negatives": {
+    "hard_true_negative": 1,
+    "soft_negative": 8,
+    "tested_total": 9,
+    "tier2_presented_untested": 13,
+    "usable_decoy_ceiling": 22
+  },
+  "power_n_per_arm": {
+    "0.7": 31,
+    "0.75": 19,
+    "0.8": 13,
+    "0.85": 9
+  }
+}
