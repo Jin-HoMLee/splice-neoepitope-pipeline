@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 16:45 UTC - Editor: PM
+
+#### [PR #916](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/916) - implement #902 facet 2: adopt the all-Kanban model, decouple commitment from milestone (non-closing)
+
+Afternoon session implementing the governance decision reached this morning (#902 facet 2). Capturing the reasoning and the judgment calls, not the play-by-play.
+
+**What shipped.** The commitment act (`Backlog -> Ready`) no longer requires a milestone - the **Status move itself** is the commitment signal. Three work-types now commit three ways: reactive/improvement **flow** (PM/Dev/MM meta-work, exploratory research) commits milestone-free on its `arc:` label (most of the board); **lifecycle** S1-S7 deliverables keep their `i<N> - S<N>` milestone (a goal, not a time-box); **sprints** (GitHub Iteration field) are a reserved tool, none stood up today. `pm-i*`/`dev-i*` role-meta milestones are retired. AGENTS.md carries the doc change (PR #916); 11 personas memory files carry the matching rule edits (staged for MM).
+
+**The deletion-risk that justified a sweep-first approach.** This PR *removes* a load-bearing convention, so the danger wasn't the headline sections - it was the dangling references. A grep-first sweep before editing found the coupling assumed in **8 files beyond the 3 the decision comment named**: the floor gate, `ask_for_help`, both `MEMORY.md` indexes, `parent_sub_issues`, `sub_issue_creation`, `best_next_issue`, and - the one that would have bitten - the **board-hygiene inverse-drift rule**, which flagged "a committed leaf missing a milestone" as drift. Under the new model a flow-Ready item *correctly* has no milestone, so without the fix the daily hygiene sweep would have false-flagged most of the board. Lesson reinforced: when deleting a convention, sweep for what *assumed* it, don't just edit where it's *defined*.
+
+**Two scope judgment calls.** (1) **Split the SDR tooling out** to #915 rather than fold a 485-line `milestone_report.py` repoint into a governance-docs PR - and #915 is itself the first milestone-free flow item, dogfooding the model. (2) **`arc_review.md` left untouched**: the facet-2 comment said it would "absorb the retro," but the later weekly-SDR decision superseded that, so the retrospective home is the SDR, not arc-review. Following the stale instruction would have been the wrong edit.
+
+**dev-i3 retirement - a close-evidence call (user-caught).** I closed the spent `dev-i3` bucket (9/9 done) as part of the retirement, initially without a closure report. The user flagged it. Mixed call: the new convention scopes the closure-report ritual to *lifecycle* milestones (role-meta gets the SDR), and no Dev milestone ever got a report (PM-piloted), and Dev is the rightful author anyway - so a full HTML report would contradict the rule this PR establishes. But the close-evidence *principle* still applies, and the SDR won't backfill dev-i3's 9 issues. Resolution (user-chosen): a **brief retirement record** addressed To:Developer on #902, listing what dev-i3 delivered, rather than a disproportionate full report or a silent close. The general shape: a retired role-meta milestone still deserves a lightweight record, just not the lifecycle ritual.
+
+**Bot review:** LGTM with 4 minor nits - a backwards `above`/`below` cross-ref, a lone en-dash that slipped my em-dash-only sweep (`S1-S7`), the same `cap-15` staleness lingering in `test_check_ready_queue.py` comments (fixed repo-wide per house standard), and a mildly-stale "committed to an iteration" Backlog phrasing. All four addressed.
+
 ### 12:10 UTC — Editor: PM
 
 #### [PR #903](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/903) — pm-i8 closure report + a best-practice reckoning on left-side board mechanics (closes [Issue #897](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/897))
