@@ -1,6 +1,6 @@
 # Open splice-neoepitope → measured T-cell immunogenicity registry
 
-**Issue:** [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) (seed); grown by [#733](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733) (standing-watch + library-sweep additions) and [#734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) (4-DB no-category audit + IEDB free-text recovery) · **Status:** seed (23 rows, 2026-06-11) + #733 pass (→ 44 rows): IR-CRC (Manoharan) + exon-TE (Merlotti) folded; Tier-2 triaged + #734 pass (→ 79 rows): Bigot 2021 SF3B1-UM folded (5 `high` + 30 `medium`); 4-DB no-splice-category finding documented in [`db_audit_734/`](db_audit_734/) + [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) pass (→ 96 rows): POSTN sequence-corrected (`KTEGPTLTK`→`TVYTTKIITK`), GNAS/RPL22 promoted non-scorable→scorable, Kim mis-splicing (+13 scorable, coords-grade) + long-read UM (+4 non-scorable, HLA-unresolved) folded from the #734 IEDB-recovered candidates · **Snapshot:** 2026-06-30
+**Issue:** [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) (seed); grown by [#733](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733) (standing-watch + library-sweep additions) and [#734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) (4-DB no-category audit + IEDB free-text recovery) · **Status:** seed (23 rows, 2026-06-11) + #733 pass (→ 44 rows): IR-CRC (Manoharan) + exon-TE (Merlotti) folded; Tier-2 triaged + #734 pass (→ 79 rows): Bigot 2021 SF3B1-UM folded (5 `high` + 30 `medium`); 4-DB no-splice-category finding documented in [`db_audit_734/`](db_audit_734/) + [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) pass (→ 96 rows): POSTN sequence-corrected (`KTEGPTLTK`→`TVYTTKIITK`), GNAS/RPL22 promoted non-scorable→scorable, Kim mis-splicing (+13 scorable, coords-grade) + long-read UM (+4 non-scorable, HLA-unresolved) folded from the #734 IEDB-recovered candidates + [#904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904) pass (96 rows; scorable 79 → 81): 2 IRIS `candidate` rows (MAN2C1/AP2A1) promoted → `functional-scorable` (coords-grade) after locating the IRIS supplement on the Zotero **parent** item · **Snapshot:** 2026-06-30
 
 ## What this is
 
@@ -12,10 +12,10 @@ A feasibility gate established that only ~tens of such peptides exist field-wide
 
 ## Sparsity analysis (#737)
 
-The scarcity is quantified rigorously in [`sparsity_writeup.md`](sparsity_writeup.md) (manuscript-ready prose), computed by [`notebook.ipynb`](notebook.ipynb) → [`outputs/`](outputs/), and condensed in the experiment deck [`slides.qmd`](slides.qmd). Headline numbers (on the **79 scorable positives**):
+The scarcity is quantified rigorously in [`sparsity_writeup.md`](sparsity_writeup.md) (manuscript-ready prose), computed by [`notebook.ipynb`](notebook.ipynb) → [`outputs/`](outputs/), and condensed in the experiment deck [`slides.qmd`](slides.qmd). Headline numbers (on the **81 scorable positives**):
 
-- **Few-study assembly:** 10 studies, but top study = 44%, top two = 67%, **effective ≈ 3.7** independent studies (inverse-Simpson of the per-study shares).
-- **A\*02:01 monoculture:** 70/79 (89%) are A\*02:01 → **effective ≈ 1.27 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
+- **Few-study assembly:** 10 studies, but top study = 43%, top two = 65%, **effective ≈ 3.8** independent studies (inverse-Simpson of the per-study shares).
+- **A\*02:01 monoculture:** 72/81 (89%) are A\*02:01 → **effective ≈ 1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
 - **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime); a powered AUC probe needs **19-31** negatives (Hanley-McNeil), so field-wide specificity is currently unmeasurable.
 - The two rate-limiting reagents named by the analysis: non-A\*02:01 functionally-validated positives ([#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)) and measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).
 
@@ -25,8 +25,8 @@ The scarcity is quantified rigorously in [`sparsity_writeup.md`](sparsity_writeu
 
 | Tier | n | Meaning |
 |---|---|---|
-| `functional-scorable` | 79 | Splice-derived + functional T-cell assay + exact sequence & allele → directly usable to score a predictor. Confidence sub-graded `high` (30) / `medium` (49) (e.g. healthy-donor IVS, tetramer-detection-only, or `Positive-Low` ELISPOT → `medium`). Includes the #838 Kim mis-splicing fold (+13, A\*02:01, coords-grade junctions). |
-| `candidate` | 2 | `LLLGIAKLLKV`/MAN2C1, `FLSELEPPA`/AP2A1 (IRIS) - positives whose 2nd adversarial-verify pass did not confirm → held below scorable until re-verified (#733 AC#4). |
+| `functional-scorable` | 81 | Splice-derived + functional T-cell assay + exact sequence & allele → directly usable to score a predictor. Confidence sub-graded `high` (32) / `medium` (49) (e.g. healthy-donor IVS, tetramer-detection-only, or `Positive-Low` ELISPOT → `medium`). Includes the #838 Kim mis-splicing fold (+13, A\*02:01, coords-grade junctions) and the #904 IRIS promotion (+2, MAN2C1/AP2A1, coords-grade). |
+| `candidate` | 0 | Was 2 (`LLLGIAKLLKV`/MAN2C1, `FLSELEPPA`/AP2A1, IRIS) - **both promoted → `functional-scorable` in [#904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)** once the IRIS supplement was located on the Zotero parent item; the prior "2nd-verify did not confirm" hold was a supplement-access failure (parent-key trap), not negative evidence. |
 | `candidate-negative` | 8 | IR-CRC (Manoharan) IR-derived 9-mers **tested-negative** in healthy-donor IVS → *soft* negatives (failed to prime ≠ intrinsically non-immunogenic). A decoy-negative seed, categorically weaker than the hard negative. |
 | `functional-nonscorable` | 4 | Functionally validated but not scorable. The 4 long-read-UM peptides (SEPTIN6, AMZ2P1, MZT2B; #838) - splice-confirmed + ELISPOT-positive but **no per-peptide HLA published**, so no allele key. (GNAS/RPL22, previously here, were promoted to `functional-scorable` in #838 once their sequences were recovered from the Kwok IEDB deposit.) |
 | `presentation-prevalence` | 1 | `TEFQTRRAM`/SLC45A2 - a real splice neoantigen with prevalence/survival evidence + predicted binding, but **no functional T-cell assay performed** (distinct from the 5 SNAF IFN-γ-tested peptides) |
@@ -80,13 +80,13 @@ Per-row `junction_mapping_grade` tallied across all 96 registry rows (derivable 
 
 | Grade | Count |
 |---|---|
-| `gene-mechanism` | 59 |
+| `gene-mechanism` | 57 |
 | `event-id` | 18 |
-| `coords` | 15 |
+| `coords` | 17 |
 | `none` | 4 |
 | **Total** | **96** |
 
-Coordinate-level junction grounding jumped from 2 to 15 with the #838 Kim fold - the Kim supp (mmc2) publishes genomic junction coordinates per peptide, the first sizable `coords`-grade source. It is still a minority (15/96); most rows rest at `event-id` or `gene-mechanism`, mirroring the field's sparse coordinate-publishing practice.
+Coordinate-level junction grounding jumped from 2 to 15 with the #838 Kim fold - the Kim supp (mmc2) publishes genomic junction coordinates per peptide, the first sizable `coords`-grade source - and to **17** with the #904 IRIS promotion (Dataset S3 publishes per-peptide junction coordinates). It is still a minority (17/96); most rows rest at `event-id` or `gene-mechanism`, mirroring the field's sparse coordinate-publishing practice.
 Per-source rationale for each grade assignment: [`junction_evidence_by_source.md`](junction_evidence_by_source.md).
 
 ### Labeling re-audit (#735)

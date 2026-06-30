@@ -6,8 +6,8 @@ This file is the canonical prose; the experiment deck ([`slides.qmd`](slides.qmd
 
 ## Summary claim
 
-Across the entire published literature we could assemble exactly **79 splice-junction-derived peptides** with a *measured* T-cell response and the minimum metadata to score them (sequence + HLA restriction + positive functional readout).
-That base is not merely small - it is **concentrated**: two studies supply 67% of it, its mechanism spread is worth ~4 independent categories, and its HLA spread is worth **~1.3 alleles** - effectively a single-allele (HLA-A\*02:01) resource.
+Across the entire published literature we could assemble exactly **81 splice-junction-derived peptides** with a *measured* T-cell response and the minimum metadata to score them (sequence + HLA restriction + positive functional readout).
+That base is not merely small - it is **concentrated**: two studies supply 65% of it, its mechanism spread is worth ~4 independent categories, and its HLA spread is worth **~1.3 alleles** - effectively a single-allele (HLA-A\*02:01) resource.
 The matched negative side is scarcer still: **one** hard true-negative peptide exists field-wide, against the ~19-31 negatives a powered discrimination probe would require.
 The scarcity is therefore not a temporary gap to be closed with more curation effort - it is a **structural property of the field's evidence base**, and it bounds what any benchmark built on this ground truth can claim.
 
@@ -18,21 +18,21 @@ A peptide enters the registry only if it passes two independent gates.
 **Gate 2 (measured immunogenicity):** its T-cell reactivity was assayed functionally (IFN-γ ELISpot, peptide-MHC tetramer, cytotoxicity / granzyme-B / CD107a, or 4-1BB upregulation), *not* predicted in silico.
 Peptides that are MHC-presented by immunopeptidomics but never functionally assayed fail Gate 2 and are held out as a separate untested-decoy tier (see Negative set).
 
-Of 96 registry rows, 92 pass both gates; **79 are scorable** (`tier == functional-scorable`: a published amino-acid sequence, an HLA restriction, and a positive readout).
+Of 96 registry rows, 92 pass both gates; **81 are scorable** (`tier == functional-scorable`: a published amino-acid sequence, an HLA restriction, and a positive readout).
 Concentration is reported three ways per axis: the top contributor's share, the Herfindahl-Hirschman index (HHI = Σpᵢ²), and the **effective number** of contributors (inverse-Simpson, 1/HHI) - the count of *equally-weighted* sources the observed diversity is actually worth.
 
 ## Result 1 - the positive base is a few-study assembly
 
-The 79 scorable positives come from **10 studies**, but the distribution is heavily skewed (Figure 1).
-The single largest source - Bigot et al. 2021, an SF3B1-mutant uveal-melanoma A2:N tetramer panel - contributes 35 peptides (44%); together with Kim et al. 2025 (SF-mutant leukemia, 18 peptides) the **top two studies supply 67%** of the entire field-wide base.
-The effective number of independent studies is **3.7** (HHI = 0.272): ten nominal sources carry the information content of fewer than four.
+The 81 scorable positives come from **10 studies**, but the distribution is heavily skewed (Figure 1).
+The single largest source - Bigot et al. 2021, an SF3B1-mutant uveal-melanoma A2:N tetramer panel - contributes 35 peptides (43%); together with Kim et al. 2025 (SF-mutant leukemia, 18 peptides) the **top two studies supply 65%** of the entire field-wide base.
+The effective number of independent studies is **3.8** (HHI = 0.260): ten nominal sources carry the information content of fewer than four.
 This source-clustering matters because per-study idiosyncrasies - the tumor type, the splicing lesion (SF3B1 hotspot vs. spliceosome-mutant leukemia vs. exon-TE), the assay, and the HLA background - are confounded with the peptides themselves.
 A model that appears to "predict immunogenicity" on this set may instead be learning to recognize the two dominant studies' peptide chemistry.
 
 ## Result 2 - the positive base is an HLA-A\*02:01 monoculture
 
 The HLA skew is the sharpest sparsity signal (Figure 2, left).
-**70 of 79 scorable positives (89%) are restricted to HLA-A\*02:01**; the effective number of alleles is **1.27** (HHI = 0.789).
+**72 of 81 scorable positives (89%) are restricted to HLA-A\*02:01**; the effective number of alleles is **1.26** (HHI = 0.794).
 The remaining nine peptides are spread thinly across A\*11:01 (4), C\*04 (2), and one each of C\*08, A\*24:02, and A\*02:06.
 Every numerically dominant source - the Bigot SF3B1-UM panel, the IR-CRC positives, the Merlotti exon-TE set, and the Kim leukemia fold - is an A2-restricted panel by construction, so the skew compounds rather than averages out.
 Any allele-stratified analysis collapses to an A\*02:01 result; claims of cross-allele generalization are unsupported by the available ground truth.
@@ -47,7 +47,7 @@ Eight further *soft* negatives (Manoharan IR-CRC) failed to prime in healthy-don
 Pooling the 13 Tier-2 presented-but-untested decoys lifts the *usable-decoy* ceiling to 22, but those peptides were never assayed and cannot anchor a specificity estimate.
 
 To size the deficit, a Hanley-McNeil power calculation (detect a true AUC against the 0.5 null, balanced arms, two-sided α = 0.05, 80% power) requires **19 negatives to detect AUC = 0.75 and 31 to detect AUC = 0.70**.
-The positive side clears these thresholds comfortably (79 ≫ 31); the negative side does not approach them.
+The positive side clears these thresholds comfortably (81 ≫ 31); the negative side does not approach them.
 With a single hard true-negative, the false-positive rate of any splice-neoantigen immunogenicity predictor is, at present, **unmeasurable** field-wide - a specificity cannot be estimated from n = 1.
 
 ## Interpretation - a probe, not a powered benchmark
@@ -61,6 +61,6 @@ The scarcity is itself a publishable finding - it quantifies *why* the field has
 
 - **Source-string hygiene.** Two studies (SNAF, IRIS) carry split source strings in `registry.tsv`; they were collapsed to one canonical label each for the study tally, so the distinct-study count is 10 (not the 12 raw strings).
 A future source-key pass is tracked separately; it does not change the concentration conclusion (collapsing *reduces* the apparent study count, strengthening the clustering finding).
-- **The 79 is a floor, not a census.** Sequence-blocked positives (e.g. Zhao 2025, GNAS/RPL22) are gate-passing but excluded pending sequence retrieval; folding them would raise the count modestly but does not relieve the A\*02:01 / negative-set constraints.
+- **The 81 is a floor, not a census.** Sequence-blocked positives (e.g. Zhao 2025) are gate-passing but excluded pending sequence retrieval; folding them would raise the count modestly but does not relieve the A\*02:01 / negative-set constraints.
 - **Soft ≠ tested-negative.** The eight IR-CRC soft negatives must never be pooled with the hard negative as equal-strength true-negatives; the tiering is enforced in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7 and any metric must declare which tier(s) it used.
 - **Power calc is illustrative.** The Hanley-McNeil sizing assumes balanced arms and a single global AUC contrast; it sets the order of magnitude of the negative requirement, not an exact target for a stratified design.
