@@ -6,6 +6,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-30 - Wire calibrated_immunogenicity_log_odds into the pipeline (#709)
+
+### 12:39 UTC - Editor: Developer - calibrator Snakemake wiring (#709 / PR #907)
+
+**What:** Wired the fitted immunogenicity calibrator (`calibrator_v1.joblib`, from the #547/#708 research experiment) into the Snakemake DAG as a new `apply_calibrator` rule, post-MHCflurry / pre-TCRdock. Emits `calibrated_immunogenicity_log_odds` + `out_of_calibration_support` onto the presentation TSV.
+
+**Contract (per Sci's #826 provisional-GO verdict):** secondary signal only — `genotype_presentation_score` stays the primary ranker (rule adds columns, no re-sort); `out_of_calibration_support` flags scores outside the artifact's `[cx[0], cx[-1]]` support (read from the artifact, not hard-coded); provisional status discharged by #870.
+
+**Design calls:**
+- CLI/argparse + `shell:` invocation (not `script:`) — sidesteps the `__future__`/wrapper gotchas, matches the `bed12_to_junctions.py` precedent.
+- Load the joblib knots directly + `np.interp` rather than vendoring the producer class — no research-dir import; the artifact is pure data (no sklearn unpickle), so the rule env needs only joblib+numpy.
+- Repointed **both** `generate_report` (always-run → pulls the rule into the default CPU-only DAG) and `run_tcrdock` (pre-TCRdock positioning). Wiring only into TCRdock would have left the rule dead in the default config (TCRdock off by default) — the key DAG-topology call.
+
+**Verification:** TDD (8 tests red→green); chr22 integration green (5440 rows, 0 NaN, 565/5440 correctly flagged out-of-support at the score extremes; `python` env rebuilt with joblib; report consumed the calibrated TSV); DAG rendered post-MHCflurry/pre-TCRdock; CI 4/4 (incl. `conda-env-solve` on linux-64).
+
+**Bot review (PR #907):** no blocking bugs. Addressed 3 findings (`efe9b06`): non-monotonic-`cx` guard (np.interp is silently wrong on unsorted xp), error-path tests (ValueError/KeyError), dropped a dead `importorskip`. Deferred 2 to coordinated follow-ups: the artifact still lives under `research/experiments/.../outputs/` and is now a mandatory production dep — proper relocation touches the Sci notebook's save path (cross-role) → **#908**; report-HTML surfacing of the new column → **#906**.
+
+---
+
 ## 2026-06-26 - Cloud cost-out + local CPU keep-alive baseline (GCP decommissioned; 2 latent bugs fixed)
 
 ### 21:57 UTC - Editor: Developer - live board GraphQL schema-drift smoke (#771 / PR #890)
