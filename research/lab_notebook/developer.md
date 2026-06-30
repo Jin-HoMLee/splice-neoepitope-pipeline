@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30 - Wire calibrated_immunogenicity_log_odds into the pipeline (#709)
 
+### 14:38 UTC - Editor: Developer - exempt memory_manager from the lab-notebook gate (#748 / PR #909)
+
+**What:** Taught the closure-ritual lab-notebook check the documented Memory Manager exemption. `collect_notebook_gaps` (`closure_audit.py`) now strips a `_NOTEBOOK_EXEMPT_ROLES = {"memory_manager"}` set from each Issue's role set before the gap check, so a pure `role:memory_manager` PR no longer trips "lab notebook file missing".
+
+**Design call:** strip the MM *role*, not skip the *PR* — a mixed dev+MM Issue still requires the developer entry. Single chokepoint (`collect_notebook_gaps`) covers the pre-merge gate, the bash gate, and the post-merge bot in one place; the bot review confirmed the redundant `_load_notebook("memory_manager")` in the callers is harmless and that centralizing here is the better call.
+
+**Best-practice check (before building):** web-cross-checked the exemption itself — the research audit-trail norm requires *a* trail (MM has it via the personas-repo git log), and the ADR practice of co-locating records with the work argues *against* a project-repo MM notebook. Verdict: best-practice-consistent, so enforcing it is sound (not hardening a questionable rule). One refinement parked as an MM heads-up: ensure MM *synthesis*-level decisions land in a narrative home (ADR/episode), since flat commit subjects under-capture longitudinal synthesis.
+
+**Verification:** TDD (3 chokepoint tests + 2 e2e gate tests, red→green); full `tools/ci` suite 428 green. Bot review LGTM, no blocking findings; e2e wiring tests added per its optional suggestion (`0805e42`).
+
 ### 12:39 UTC - Editor: Developer - calibrator Snakemake wiring (#709 / PR #907)
 
 **What:** Wired the fitted immunogenicity calibrator (`calibrator_v1.joblib`, from the #547/#708 research experiment) into the Snakemake DAG as a new `apply_calibrator` rule, post-MHCflurry / pre-TCRdock. Emits `calibrated_immunogenicity_log_odds` + `out_of_calibration_support` onto the presentation TSV.

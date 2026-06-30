@@ -386,6 +386,36 @@ def test_collect_notebook_gaps_skips_empty_role_sets():
     ) == []
 
 
+# --- #748: Memory Manager role is lab-notebook-exempt (its record is the
+# personas-repo git log, not research/lab_notebook/) ---
+
+
+def test_collect_notebook_gaps_exempts_pure_memory_manager():
+    """A pure role:memory_manager Issue needs no project-repo notebook entry."""
+    assert ca.collect_notebook_gaps(
+        [{"memory_manager"}], "2026-06-30", 748, {}
+    ) == []
+
+
+def test_collect_notebook_gaps_mixed_mm_still_requires_other_role():
+    """dev+MM Issue with no dev entry → still a developer gap. The exemption
+    strips only the MM role; it does not exempt the whole Issue."""
+    gaps = ca.collect_notebook_gaps(
+        [{"developer", "memory_manager"}], "2026-06-30", 748, {"developer": None}
+    )
+    assert len(gaps) == 1
+    assert "developer" in gaps[0][0]
+    assert "memory_manager" not in gaps[0][0]
+
+
+def test_collect_notebook_gaps_mixed_mm_satisfied_by_other_role_entry():
+    """dev+MM Issue with a developer entry → no gap (MM contributes nothing)."""
+    dev_text = "## 2026-06-30\n\n### 12:00 UTC — Editor: Developer\nClosed #748.\n"
+    assert ca.collect_notebook_gaps(
+        [{"developer", "memory_manager"}], "2026-06-30", 748, {"developer": dev_text}
+    ) == []
+
+
 # --- #743: not_planned (superseded) closes skip only the lab-notebook check ---
 
 
