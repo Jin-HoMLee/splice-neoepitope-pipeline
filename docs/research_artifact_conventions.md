@@ -18,6 +18,26 @@ research/experiments/issue_NNN_<short>/
 
 **Distinguish from `research/notebooks/`:** that folder holds stable per-patient analyses (`patient_001_results.ipynb`, `patient_002_results.ipynb`) — long-lived, manuscript-supporting. The experiments/ folder holds scoped per-Issue work that lands once and then becomes a frozen reference. The convention is established by #225; existing per-Issue work (`issue_224_*`, `issue_299_*`) was migrated from `research/notebooks/` into `research/experiments/` under [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455).
 
+### Epic with a shared living artifact
+
+The flat `issue_NNN_<short>/` layout above assumes **one experiment per Issue**. An **epic** whose sub-issues all mutate a single living artifact (a registry, a curated dataset) breaks that assumption: the directory is named for the *parent* epic, the shared artifact + its docs + its tooling are co-owned by every sub-issue, and each sub-issue that produces a *distinct analysis set* (its own notebook + outputs + deck) needs its own home so those sets don't pile flat at the top. The convention for this case: **shared core at the top level, one analysis subfolder per sub-issue**. Most sub-issues only edit the shared artifact and produce no subfolder; create a subfolder only for a sub-issue that yields its own analysis set. Established by [Issue #914](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/914) for the #680 splice-immunogenicity registry.
+
+**Subfolder naming: reuse the parent pattern recursively — `issue_NNN_<short>/`.** A sub-issue is itself a numbered Issue, so the same `issue_NNN_<short>` rule applies; the parent/child relationship is carried by *nesting*, not by a separate `sub_`/`subissue_` prefix (which would re-encode what the path already says). Number-after-prefix also keeps subfolders sorting the same way the parent dir reads. One naming rule governs the whole `research/experiments/` tree, at every depth.
+
+```
+research/experiments/issue_NNN_<epic-short>/
+├── registry.tsv  README.md  PROVENANCE.md  ...   # shared living core (every sub-issue mutates)
+├── validate_*.py  derive_*.py  ...               # shared tooling
+├── issue_734_db_audit/                           # one sub-issue's analysis set
+│   ├── notebook.ipynb  outputs/  slides.qmd  refs.bib
+├── issue_737_sparsity/                           # another sub-issue's analysis set
+└── decoy_negatives/                              # shared data artifact (see carve-out)
+```
+
+**Carve-out — data artifacts get descriptive names; `issue_NNN_` is for analysis units.** A folder that *is* a single sub-issue's self-contained analysis (its own notebook/deck/outputs) takes `issue_NNN_<short>/`. A folder holding a **data artifact** — not an analysis — keeps a content-descriptive name, with the data file carrying any issue lineage in *its* name. Example: `decoy_negatives/presented_decoys_681.tsv` is a seed of presented-but-untested peptides whose eventual owner is sibling sub-issue #681 (immunopeptidome mining), but which is **produced, validated, and consumed entirely within this epic today** (materialized under #735, validated by `validate_registry.py`, read by the #737 notebook). Best practice is to **organize by *current* ownership, not aspirational ownership**: the artifact lives with the unit that produces+validates+consumes it now, and is *not* relocated into an `issue_681_*` dir that the not-yet-executed #681 has produced nothing in (YAGNI — don't scaffold a home before the work exists). **Migration trigger:** when #681 actually runs and becomes the authoritative producer of the decoy set, it stands up its own `research/experiments/issue_681_<short>/`, the seed migrates there, and this epic switches to a documented cross-experiment read (see "Cross-experiment data sharing" below). The filename's `_681` already records that future lineage.
+
+A subfolder notebook reads the shared core one level up (`EXP = Path.cwd().parent` when `registry.tsv` isn't local) and writes to its own co-located `outputs/`; a subfolder deck's `csl:`/relative links gain one `../` level vs. a top-level deck.
+
 ### Cross-experiment data sharing
 
 1. **Default:** each experiment owns its outputs in `<experiment>/outputs/`.

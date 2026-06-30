@@ -1,7 +1,7 @@
 # The functional-validation base for splice-junction neoantigens is critically thin and source-clustered
 
 **Draft manuscript section** (destined for Results / Discussion) · Issue [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) · leaf of [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
-All numbers are computed by [`notebook.ipynb`](notebook.ipynb) from [`registry.tsv`](registry.tsv); figures are in [`outputs/`](outputs/).
+All numbers are computed by [`notebook.ipynb`](notebook.ipynb) from [`registry.tsv`](../registry.tsv); figures are in [`outputs/`](outputs/).
 This file is the canonical prose; the experiment deck ([`slides.qmd`](slides.qmd)) condenses it.
 
 ## Summary claim
@@ -62,5 +62,5 @@ The scarcity is itself a publishable finding - it quantifies *why* the field has
 - **Source-string hygiene.** Two studies (SNAF, IRIS) carry split source strings in `registry.tsv`; they were collapsed to one canonical label each for the study tally, so the distinct-study count is 10 (not the 12 raw strings).
 A future source-key pass is tracked separately; it does not change the concentration conclusion (collapsing *reduces* the apparent study count, strengthening the clustering finding).
 - **The 81 is a floor, not a census.** Sequence-blocked positives (e.g. Zhao 2025) are gate-passing but excluded pending sequence retrieval; folding them would raise the count modestly but does not relieve the A\*02:01 / negative-set constraints.
-- **Soft ≠ tested-negative.** The eight IR-CRC soft negatives must never be pooled with the hard negative as equal-strength true-negatives; the tiering is enforced in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7 and any metric must declare which tier(s) it used.
+- **Soft ≠ tested-negative.** The eight IR-CRC soft negatives must never be pooled with the hard negative as equal-strength true-negatives; the tiering is enforced in [`LABELING_SCHEME.md`](../LABELING_SCHEME.md) §7 and any metric must declare which tier(s) it used.
 - **Power calc is illustrative.** The Hanley-McNeil sizing assumes balanced arms and a single global AUC contrast; it sets the order of magnitude of the negative requirement, not an exact target for a stratified design.
