@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milestone closure report — pm-i8 - Board-Governance Tooling II</title>
+<style>
+  :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
+          --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  header.report { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: .75rem; margin: 1rem 0; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+  .card .n { font-size: 1.5rem; font-weight: 600; }
+  .card .l { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .rolebar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .pill { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+          padding: .15rem .6rem; font-size: .82rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0; }
+  th, td { text-align: left; padding: .4rem .55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+  tr.closed td:first-child { color: var(--ok); }
+  tr.open td:first-child { color: var(--warn); }
+  .badge { display: inline-block; border-radius: 999px; padding: .02rem .45rem; font-size: .72rem;
+           border: 1px solid var(--line); margin-left: .35rem; vertical-align: middle; }
+  .badge.descoped { color: var(--warn); border-color: var(--warn); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .narrative { margin-top: .5rem; }
+  .narrative table th { text-transform: none; }
+  code { background: var(--soft); padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report">
+    <h1>pm-i8 - Board-Governance Tooling II</h1>
+    <div class="sub">
+      Milestone #35 · state <strong>open</strong>
+      · opened 2026-06-18
+      
+      
+      · arc:board-governance
+    </div>
+  </header>
+
+  <!-- Section 2: At-a-glance (script-generated) -->
+  <h2>At a glance</h2>
+  <div class="cards">
+    <div class="card"><div class="n">9</div><div class="l">Delivered</div></div>
+    
+    <div class="card"><div class="n">0</div><div class="l">Carried forward</div></div>
+    <div class="card"><div class="n">—</div><div class="l">Delivered / week</div></div>
+    <div class="card"><div class="n">14.3</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">7.2</div><div class="l">Median cycle (days)</div></div>
+  </div>
+  <div class="rolebar">
+    
+      <span class="pill">role:pm · <strong>8</strong></span>
+    
+      <span class="pill">role:memory_manager · <strong>1</strong></span>
+    
+      <span class="pill">role:developer · <strong>1</strong></span>
+    
+  </div>
+
+  <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
+  <div class="narrative">
+    <!-- Author-owned narrative for pm-i8 - Board-Governance Tooling II. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+<h2>Deliverables (Review layer)</h2>
+<blockquote>
+<p><strong>Delivery tally: 9 delivered (all COMPLETED), 0 descoped.</strong> Unlike pm-i7 (which folded 2 <code>NOT_PLANNED</code> closes into its raw headline), every pm-i8 issue shipped real work — and the fix that makes this split machine-honest (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851">Issue #851</a>) shipped <em>inside</em> pm-i8, so this is the first closure report whose "delivered / descoped" line is computed, not hand-audited.</p>
+</blockquote>
+<p>pm-i8 was the direct successor to pm-i7 and kept its character: a <strong>board-governance tooling</strong> pass that converted governance <em>rules</em> into enforced <em>mechanisms</em> and settled the remaining left-side model questions. Highlights by theme (full inventory in the appendix):</p>
+<ul>
+<li>
+<p><strong>The parent/epic Status model — settled and mechanized.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776">Issue #776</a> decided <strong>Pattern A2</strong> (park parents in a dedicated <code>Epic</code> Status, read progress off GitHub's native sub-issue bar) — eliminating the parent-Status drift <em>class</em> rather than policing it. <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/498">Issue #498</a> (Developer) shipped the GitHub Action that mirrors parent project Status from sub-issue lifecycle events, automating the leaf→parent rollup.</p>
+</li>
+<li>
+<p><strong>Commitment &amp; accounting mechanics.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754">Issue #754</a> replaced the count-only replenishment gate with the <strong>per-role floor-5 / cap-18</strong> gate (<code>check_ready_queue.sh</code>); <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/837">Issue #837</a> fixed the per-role counter to handle multi-role committed Issues correctly (fix the <em>counter</em>, not the label — a Scientist-caught premise correction). Together they made the Ready-queue gate role-aware.</p>
+</li>
+<li>
+<p><strong>Closure-evidence integrity.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851">Issue #851</a> closed the masking gap the pm-i7 report itself surfaced — <code>milestone_report.py</code> now splits closed issues by reason, so a <code>NOT_PLANNED</code> close can no longer inflate the delivered count.</p>
+</li>
+<li>
+<p><strong>Branch / arc / cleanup tooling.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/578">Issue #578</a> shipped <code>scripts/new_branch.sh</code>, the canonical branch-name helper (this report's own branch was cut with it); <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/759">Issue #759</a> surfaced the active-arc slate as a pinned board card (the buried <code>arc_taxonomy.tsv</code> made glanceable); <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/790">Issue #790</a> wired the Friday branch-cleanup beat to auto-fire in the Scientist/Developer routines (per-clone self-clean).</p>
+</li>
+<li>
+<p><strong>Search eval.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/294">Issue #294</a> evaluated the GA'd GitHub Issues natural-language search and recorded the query patterns worth adopting.</p>
+</li>
+</ul>
+<h2>Carried-forward &amp; routing</h2>
+<ul>
+<li><strong>Three leaves decommitted to Backlog (2026-06-29), not failed delivery</strong> — pm-i8 was emptied by a deliberate carve-forward when its committable work drained and no active WIP remained:</li>
+<li><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/864">Issue #864</a> (<code>awaiting-bot-review</code> auto-poll skill) — build was user-deferred; re-commits at a future <code>Backlog → Ready</code>.</li>
+<li><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769">Issue #769</a> (extract board-governance conventions out of CLAUDE.md) and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/745">Issue #745</a> (commitment-lag sweep) — both <code>arc:board-governance</code> at <code>arc-phase:later</code>; they re-commit when board-governance bumps back to <code>active</code>.</li>
+<li><strong>Routing decision: (c) extend the workstream — but the successor <em>milestone home</em> is itself under review.</strong> Board-governance is a live, never-closing arc, so the work continues. However, <strong>no <code>pm-i9</code> successor was opened</strong>: the role-meta milestone-home question (does committing role-meta PM work even require a milestone?) is now an open governance item — <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902">Issue #902</a> (filed 2026-06-30), cross-linked to <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693">Issue #693</a>. So the three carried-forward leaves sit <strong>un-milestoned in Backlog</strong> pending that decision, rather than being force-fitted into a new bucket.</li>
+</ul>
+<h2>Retrospective (process/health)</h2>
+<ul>
+<li><strong>Clean delivery, and the integrity fix is self-referential.</strong> 9/9 COMPLETED, 0 descoped — and the one issue that makes that statement <em>trustworthy</em> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851">Issue #851</a>) shipped in this same milestone. pm-i7 surfaced the masking bug; pm-i8 fixed it; this report is the first to benefit. The mechanism-over-memory loop closed on itself.</li>
+<li><strong>Character: mechanism-over-memory, again.</strong> The majority of the 9 promoted a governance <em>rule</em> into an enforced <em>mechanism</em> — a replenishment gate (#754), a counter fix (#837), a branch helper (#578), a parent-Status Action (#498), an arc-slate card (#759), and the close-reason split (#851). The rung-3 escalation path discharged in a concentrated batch, continuing pm-i7's theme.</li>
+<li><strong>A mechanism shipped here already needs calibration — honestly.</strong> The floor-5 gate (#754) drove <strong>two over-commit incidents within days</strong> of shipping (2026-06-29 i6-S3 to 8.5d; 2026-06-30 a false all-roles <code>[REPLENISH]</code> on a quiet board), spawning the revisit <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902">Issue #902</a>. This isn't a failed deliverable — it's evidence that <strong>intuited parameters (floor = 5) need flow-data calibration</strong>, the lesson web-confirmed against lean-queue best practice. A milestone that <em>builds</em> a gate closing the same week the gate's behavior gets a revisit Issue is the system learning at speed, not thrashing.</li>
+<li><strong>Cross-role review caught a premise error.</strong> #837's framing ("multi-role is a violation") was corrected to "multi-role is legitimate — fix the counter, not the label" by the Scientist before it cemented — the establishing case for the <code>feedback_verify_premise_before_mechanizing</code> memory. Cross-role review working as the design intends.</li>
+<li><strong>Cycle time: avg 14.3d / median 7.2d</strong> — median materially healthier than pm-i7's ~11.6d, dominated by Backlog dwell before commitment (late-commitment working as intended, not slow execution).</li>
+<li><strong>Cross-role split (delivered): 8 PM / 1 Developer (#498) / 1 Memory Manager (#759, dual-role).</strong> PM specced the governance; the Developer carried the sub-issue→parent Status Action.</li>
+</ul>
+  </div>
+
+  <!-- Section 6: Inventory appendix (script-generated) -->
+  <h2>Inventory appendix</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Role</th><th>Size</th><th>Pri</th><th>Closed</th></tr></thead>
+    <tbody>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851">#851</a></td>
+        <td>fix(pm): milestone_report.py counts NOT_PLANNED closes as delivered — split closed-by-reason</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-26</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/837">#837</a></td>
+        <td>process(pm): per-role gate accounting for multi-role committed Issues (multi-role is legitimate; fix the counter, not the label)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-26</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/790">#790</a></td>
+        <td>process(roles): wire Friday branch-cleanup auto-fire into Sci/Dev morning routines (per-clone self-clean)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-26</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776">#776</a></td>
+        <td>decision(pm): epic/parent Status model — dedicated &#34;Epic status&#34; (Pattern A) vs derived-mirror (Pattern B)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-19</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/759">#759</a></td>
+        <td>proposal(pm): surface the active arc slate where it&#39;s actually seen (arc_taxonomy.tsv is buried)</td>
+        <td>Done</td>
+        <td>pm, memory_manager</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-26</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754">#754</a></td>
+        <td>process(pm): per-role Ready-queue floor + total cap — replace count-only replenishment gate</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/578">#578</a></td>
+        <td>feat(scripts): branch-naming helper — converge on type/role/issue-N-slug, fix gh issue develop drift</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-23</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/498">#498</a></td>
+        <td>feat(ci): GitHub Action — mirror parent project Status from sub-issue lifecycle events</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-23</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/294">#294</a></td>
+        <td>eval(tooling): improved GitHub Issues search GA — natural-language query patterns</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-22</td>
+      </tr>
+      
+    </tbody>
+  </table>
+
+  <footer>
+    Generated by <code>scripts/pm/milestone_report.py</code> · as of 2026-07-01 · author-editor-critic closure report
+    (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752">Issue #752</a>).
+    Data sections + this appendix are script-generated; the narrative above is author-owned
+    (<code>pm-i8 - Board-Governance Tooling II</code> sidecar).
+  </footer>
+
+</div>
+</body>
+</html>
