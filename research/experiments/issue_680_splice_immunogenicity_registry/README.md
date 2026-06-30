@@ -10,6 +10,15 @@ The first openly-assembled, provenance-tracked registry of **splice-junction-der
 
 A feasibility gate established that only ~tens of such peptides exist field-wide (TESLA explicitly excluded splice isoforms; the four major immunogenicity DBs - CEDAR/IEDB/NEPdb/dbPepNeo2.0 - have **no splice category**, rigorously documented in [`db_audit_734/`](db_audit_734/)). **This is a small, transparently-underpowered stress-test probe**, not a TESLA-scale calibrated benchmark. Its value is being first to assemble an open, sequence-resolved splice-immunogenicity set with documented provenance - and the honest demonstration that the field's functional-validation base is critically thin. Source clustering is real: the entries come from ~a dozen studies, and **72/96 rows are HLA-A\*02:01** (see Caveats).
 
+## Sparsity analysis (#737)
+
+The scarcity is quantified rigorously in [`sparsity_writeup.md`](sparsity_writeup.md) (manuscript-ready prose), computed by [`notebook.ipynb`](notebook.ipynb) → [`outputs/`](outputs/), and condensed in the experiment deck [`slides.qmd`](slides.qmd). Headline numbers (on the **79 scorable positives**):
+
+- **Few-study assembly:** 10 studies, but top study = 44%, top two = 67%, **effective ≈ 3.7** independent studies (inverse-Simpson of the per-study shares).
+- **A\*02:01 monoculture:** 70/79 (89%) are A\*02:01 → **effective ≈ 1.27 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
+- **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime); a powered AUC probe needs **19-31** negatives (Hanley-McNeil), so field-wide specificity is currently unmeasurable.
+- The two rate-limiting reagents named by the analysis: non-A\*02:01 functionally-validated positives ([#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)) and measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).
+
 **Category-absence ≠ data-absence (#734).** The no-splice-category finding holds at the *schema* level - you cannot retrieve splice-neoantigens as a class from any of the four DBs (even deposited ones, e.g. IRIS-CLASP1 and RCAN1-4 in IEDB, are filed as plain protein "isoforms"; the splice origin survives only in the free-text reference title). **But free-text/reference-title mining of IEDB's IQ-API *does* recover real splice-neoantigens the manual literature sweep missed** - most importantly the Bigot 2021 SF3B1-mutant uveal-melanoma panel (+35 rows, folded here). So the DBs hold recoverable splice-immunogenicity data; it is simply uncategorized. The thin-functional-base point still stands: most recovered rows are tetramer-detection-only (`medium`), not effector-confirmed.
 
 ## Tiers (`registry.tsv`)
@@ -151,5 +160,6 @@ SNAF: Li et al. 2024, *Sci Transl Med* (eade2886). IRIS: Pan et al., *PNAS*. RCA
 - ~~**Data-quality pass** ([Issue #823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823)).~~ **Done** - the machine-readable `assay_context` column (see above) is added + populated for all rows, and the 11 Manoharan IR-CRC rows were upgraded `agent-web` → `direct` after a third independent first-hand read of PMC13096189 Table 1 confirmed all 11 sequences verbatim (11/11). Pinning the 34 `unspecified` rows to specific contexts (a read-the-methods pass for SNAF / Kim / Xiong / Fisher; the #838 Kim + UM rows landed `unspecified` pending a T-cell-source read) remains future work.
 - [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) immunopeptidome mining → MS-presented tier (+ the #733 Tier-2 routes, now routed via a comment there) + decoy negative construction.
 - ~~CEDAR/IEDB free-text mine.~~ **Done (#734)** - see [`db_audit_734/`](db_audit_734/) for the 4-DB no-category audit + the recovered-candidate list. Bigot 2021 folded here; the remaining ~20 candidates (long-read UM, POSTN 2nd peptide, Kim extras, Kwok GNAS/RPL22 sequence recovery) + the **A\*02:01 rebalance** are in #734 follow-ups.
+- ~~**Sparsity quantification + writeup + experiment deck** ([Issue #737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737), #680 AC#4).~~ **Done** - [`sparsity_writeup.md`](sparsity_writeup.md) + [`notebook.ipynb`](notebook.ipynb) + [`slides.qmd`](slides.qmd); see "Sparsity analysis (#737)" above.
 - Bigot **Correction (PMID 35257149)** retrieval + review - confirm no peptide/gene change before publication.
 - Pre-publication: systematic completeness sweep.
