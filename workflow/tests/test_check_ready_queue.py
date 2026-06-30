@@ -8,7 +8,7 @@ fixtures and assert the per-role [REPLENISH], [CAP], and exit-code behavior.
 
 Gate (Issue #754):
   - per-role floor 5 for PM / Scientist / Developer (MM excluded)
-  - total cap 15 on the Ready buffer
+  - total cap 18 on the Ready buffer
   - exit 2 if any role below floor OR total at/over cap; else exit 0
 """
 import json
@@ -51,7 +51,7 @@ def test_role_below_floor_emits_per_role_replenish_and_exit_2():
 
 
 def test_all_roles_at_floor_under_cap_is_healthy():
-    # 5 items each carrying all three roles -> pm=sci=dev=5, total=5 (< cap 15)
+    # 5 items each carrying all three roles -> pm=sci=dev=5, total=5 (< cap 18)
     items = [_item(400 + i, "pm", "scientist", "developer") for i in range(5)]
     r = _run(items)
     assert "healthy" in r.stdout, r.stdout
@@ -109,7 +109,7 @@ def test_floor_flag_lowers_threshold():
     items = _spread("pm", 2, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
     r = _run(items, "--floor", "2")
     assert "[REPLENISH" not in r.stdout, r.stdout
-    assert "[CAP]" not in r.stdout, r.stdout  # total 12 < cap 15
+    assert "[CAP]" not in r.stdout, r.stdout  # total 12 < cap 18
     assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
 
 
