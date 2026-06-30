@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 21:30 UTC - Editor: PM
+
+#### [PR #917](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/917) - close out #902: demand-aware Ready floor (facet 1) + coarse-priority semantics (facet 3)
+
+Final two facets of the left-side board-mechanics pass (facet 2 shipped earlier today in #916). The user delegated the *decision* itself - "what is best practice?" for both - so this was a research-then-recommend-then-implement arc, not a pick-from-my-framing one.
+
+**Facet 1 (floor) - demand-aware trigger.** Reworked `check_ready_queue.sh` from a fixed per-role floor-5/cap-18 into a demand-aware replenishment trigger: `[REPLENISH <role>]` fires only when a role is *actually consuming* (>= 1 In progress) AND below the floor (now 3, one WIP slate); an idle role gets a `[quiet <role>]` holding line, not a nudge; cap -> 12. The script now reads one full open-items snapshot and filters Ready/In-progress from it, so the buffer depth and the demand signal come from a single read (test seam renamed `READY_QUEUE_JSON_FILE` -> `BOARD_ITEMS_JSON_FILE`). This kills the false REPLENISH pressure that fired twice on quiet boards (2026-06-29 over-commit, 2026-06-30 all-roles-fire) - the latter reproduced *live* this session (Ready 3, In progress 0). The live smoke after the fix was the proof it works: PM (0/0) -> quiet, Developer (1 Ready, 1 In progress) -> genuine replenish - it distinguishes the idle role from the consuming one, which the old floor-5 could not.
+
+**Facet 3 (priority) - coarse class-of-service, not a fine rank.** The canonical Kanban answer turned out stronger than my initial framing: David Anderson's "Banish Priority and Prioritization" argues priority is a proxy variable, a backlog clustering at one band (ours is ~98% P2/P3) is the documented failure mode, and the prescription is classes of service + dynamic pull over an unordered backlog. So: read P0-P3 coarsely (P0/P1 = expedite, P2/P3 = pool, no sub-rank), let the dynamic selector (arc/freshness/DoR - already how best-next picks) do the real picking, and prune the pool rather than rank it. Rejected forced-ranking (the explicit anti-pattern) and a separate CoS field (overhead at our scale). New AGENTS.md "Priority semantics" section + a dedicated memory.
+
+**Why research-first mattered.** Both facets had a strongly-implied direction from facet 2's reframe, but the user's "what is best practice?" was the right instinct - the priority answer (banish fine priority entirely, classes of service) was more decisive than "accept it's coarse" and named a real pattern, and the floor answer (size from consumption x lead time, demand-pull) confirmed that a *guessed fixed number* was itself the anti-pattern. Grounding the decision changed its shape, not just its confidence.
+
+**Process slip (repeat).** I reintroduced em-dashes in my additions again - same lesson as the #916 session - this time in the script comments and echo strings. Caught it pre-push via a both-repos added-line scan; normalized fully. The recurring failure mode is real; the durable fix is a pre-commit hook, not vigilance.
+
+**Bot review:** clean verdict (static trace matched the reported pass; gh/pytest blocked in its sandbox) + 3 minor optional notes - a thinned jq `2>/dev/null` guard on the new INPROG_JSON line, a header field-list imprecision, and a suggestion to pin the quiet-line wording in a test. All three were cheap quality improvements, so applied all.
+
 ### 16:45 UTC - Editor: PM
 
 #### [PR #916](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/916) - implement #902 facet 2: adopt the all-Kanban model, decouple commitment from milestone (non-closing)
