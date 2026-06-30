@@ -70,6 +70,7 @@ def test_quiet_role_below_floor_does_not_replenish():
     items = _spread("scientist", 3, 200) + _spread("developer", 3, 300)
     r = _run(items)
     assert "[REPLENISH" not in r.stdout, r.stdout
+    assert "[quiet pm: 0 Ready, 0 In progress]" in r.stdout, r.stdout
     assert "healthy" in r.stdout, r.stdout
     assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
 

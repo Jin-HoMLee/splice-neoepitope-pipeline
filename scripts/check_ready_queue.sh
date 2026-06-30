@@ -44,8 +44,9 @@
 #   READY_QUEUE_CAP        override total cap (default 12)
 #   BOARD_ITEMS_JSON_FILE  read the open-items JSON array from this file instead
 #                          of calling board_open_items.py (test seam). The array
-#                          holds {number, status, labels} objects across all
-#                          statuses; the script filters Ready / In progress.
+#                          holds objects with at least `.status` and `.labels`
+#                          across all statuses; the script filters Ready /
+#                          In progress (the test fixtures also carry `.number`).
 #
 # Exit codes:
 #   0 - healthy (no consuming role below floor AND total below cap)
@@ -99,7 +100,7 @@ READY_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Ready")]
     echo "error: could not parse open-items JSON" >&2
     exit 1
 }
-INPROG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "In progress")]')"
+INPROG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "In progress")]' 2>/dev/null)"
 
 TOTAL="$(printf '%s' "$READY_JSON" | jq 'length')"
 
