@@ -116,7 +116,7 @@ Adding more A2 positives to an already-saturated axis does **not** improve the b
 
 - **Source-string hygiene.** SNAF/IRIS carry split source strings; collapsed to 10 canonical studies (collapsing *strengthens* the clustering finding).
 - **81 is a floor.** Sequence-blocked gate-passers (e.g. Zhao 2025) excluded pending retrieval; folding them doesn't relieve the A2 / negative constraints.
-- **Soft ≠ tested-negative.** The 8 IR-CRC soft negatives must never pool with the 1 hard negative as equal strength ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7).
+- **Soft ≠ tested-negative.** The 8 IR-CRC soft negatives must never pool with the 1 hard negative as equal strength ([`LABELING_SCHEME.md`](../LABELING_SCHEME.md) §7).
 - **Power calc is illustrative.** Hanley-McNeil sizing sets the order of magnitude of the negative requirement, not an exact stratified-design target.
 
 All numbers: [`notebook.ipynb`](notebook.ipynb) → [`outputs/`](outputs/); prose: [`sparsity_writeup.md`](sparsity_writeup.md).
