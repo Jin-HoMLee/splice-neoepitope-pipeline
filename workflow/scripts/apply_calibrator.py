@@ -92,6 +92,14 @@ def load_calibrator_knots(calibrator_path: Union[str, Path]) -> Tuple[np.ndarray
             f"malformed calibrator knots in {calibrator_path}: "
             f"cx{cx.shape} cy{cy.shape}"
         )
+    # np.interp requires strictly-increasing xp; on unsorted xp it returns
+    # silently-wrong values (no error). centered_isotonic() produces sorted cx
+    # today, but guard against a malformed/resorted future artifact.
+    if not np.all(np.diff(cx) > 0):
+        raise ValueError(
+            f"calibrator cx knots must be strictly increasing "
+            f"(np.interp requires sorted xp): {calibrator_path}"
+        )
     return cx, cy
 
 

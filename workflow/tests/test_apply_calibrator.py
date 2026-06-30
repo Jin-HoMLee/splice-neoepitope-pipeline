@@ -16,11 +16,12 @@ outside the support `[cx[0], cx[-1]]`. Per the Scientist's #826 contract:
 
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 import pytest
 
-from apply_calibrator import apply_calibrator, calibrate
+from apply_calibrator import apply_calibrator, calibrate, load_calibrator_knots
 
 # A tiny synthetic calibrator: knots chosen so np.interp is hand-checkable.
 #   cx = [0.1, 0.5, 0.9]   cy = [-5.0, -1.0, 0.0]
@@ -69,7 +70,6 @@ def test_calibrate_nan_score_is_flagged_out_of_support():
 # --------------------------------------------------------------------------- #
 @pytest.fixture
 def synthetic_calibrator(tmp_path):
-    joblib = pytest.importorskip("joblib")
     path = tmp_path / "calibrator_v1.joblib"
     joblib.dump({"cx": np.array(_CX), "cy": np.array(_CY), "version": "v1"}, path)
     return path
@@ -122,3 +122,30 @@ def test_apply_calibrator_empty_input_writes_header(synthetic_calibrator, tmp_pa
     assert "calibrated_immunogenicity_log_odds" in res.columns
     assert "out_of_calibration_support" in res.columns
     assert len(res) == 0
+
+
+# --------------------------------------------------------------------------- #
+# Fail-loud guards
+# --------------------------------------------------------------------------- #
+def test_load_calibrator_knots_rejects_shape_mismatch(tmp_path):
+    bad = tmp_path / "bad.joblib"
+    joblib.dump({"cx": np.array([0.1, 0.5]), "cy": np.array([-5.0]), "version": "v1"}, bad)
+    with pytest.raises(ValueError):
+        load_calibrator_knots(bad)
+
+
+def test_load_calibrator_knots_rejects_non_monotonic_cx(tmp_path):
+    # np.interp silently returns wrong values on unsorted xp — guard must reject it.
+    bad = tmp_path / "nonmono.joblib"
+    joblib.dump(
+        {"cx": np.array([0.5, 0.1, 0.9]), "cy": np.array(_CY), "version": "v1"}, bad
+    )
+    with pytest.raises(ValueError):
+        load_calibrator_knots(bad)
+
+
+def test_apply_calibrator_missing_score_col_raises(synthetic_calibrator, tmp_path):
+    bad_tsv = tmp_path / "noscore.tsv"
+    pd.DataFrame({"peptide": ["AAA"]}).to_csv(bad_tsv, sep="\t", index=False)
+    with pytest.raises(KeyError):
+        apply_calibrator(bad_tsv, synthetic_calibrator, tmp_path / "out.tsv")
