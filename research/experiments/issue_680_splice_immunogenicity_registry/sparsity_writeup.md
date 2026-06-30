@@ -18,7 +18,7 @@ A peptide enters the registry only if it passes two independent gates.
 **Gate 2 (measured immunogenicity):** its T-cell reactivity was assayed functionally (IFN-γ ELISpot, peptide-MHC tetramer, cytotoxicity / granzyme-B / CD107a, or 4-1BB upregulation), *not* predicted in silico.
 Peptides that are MHC-presented by immunopeptidomics but never functionally assayed fail Gate 2 and are held out as a separate untested-decoy tier (see Negative set).
 
-Of 96 registry rows, 92 pass both gates; **81 are scorable** (`tier == functional-scorable`: a published amino-acid sequence, an HLA restriction, and a positive readout).
+Of 96 registry rows, 94 pass both gates; **81 are scorable** (`tier == functional-scorable`: a published amino-acid sequence, an HLA restriction, and a positive readout).
 Concentration is reported three ways per axis: the top contributor's share, the Herfindahl-Hirschman index (HHI = Σpᵢ²), and the **effective number** of contributors (inverse-Simpson, 1/HHI) - the count of *equally-weighted* sources the observed diversity is actually worth.
 
 ## Result 1 - the positive base is a few-study assembly

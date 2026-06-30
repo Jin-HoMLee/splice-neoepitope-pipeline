@@ -56,7 +56,7 @@ A peptide enters the registry only if it clears **both**:
 
 . . .
 
-Of **96** registry rows, **92** pass both gates; **81 are scorable** - a published sequence + an HLA restriction + a positive readout.
+Of **96** registry rows, **94** pass both gates; **81 are scorable** - a published sequence + an HLA restriction + a positive readout.
 
 ::: {.callout-tip}
 81 peptides is the entire field-wide positive base. We then ask: how concentrated is it?
