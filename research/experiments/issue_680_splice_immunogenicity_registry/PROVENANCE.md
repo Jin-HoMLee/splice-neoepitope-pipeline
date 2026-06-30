@@ -52,13 +52,13 @@ File: `WLSZLMA4` · `agent-local` · genes not named in source
 
 - **`RSQGWLFLR`**, **`AEHAHRVPL`**, **`VELEDHVML`** *(VELEDHVML is the negative)* — all **Fig 7I** (peptide table), **Fig 7J/K** (ELISpot), **p.15**; context text p.12. Loaded on A\*11:01 APCs (`AEHAHRVPL`/`VELEDHVML` predicted B\*40:01 — restricting allele ambiguous).
 
-## IRIS — Pan et al., *PNAS* ⚠️ NOT in Zotero — verify in supplement
-all `agent-web` (web read of the paper + **Dataset S3c**)
+## IRIS — Pan et al., *PNAS* 2023 (10.1073/pnas.2221116120; Zotero parent `QTGXGQZM`; supp `pnas.2221116120.sd01-03.xlsx` + appendix `sapp.pdf`)
+The supplement **is** in Zotero — it hangs off the **parent** item `QTGXGQZM`, not the cited PDF-attachment key (the parent-key trap; see the callout at top). The prior "⚠️ NOT in Zotero — verify in supplement" note was stale and is corrected here ([#904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)). Functional readout for all four = **IFN-γ ELISA of TCR-transduced PBMCs co-cultured with K562-A2 + exogenous peptide** (appendix Fig S6); TCR clones isolated + screened in Jurkat-NFAT-GFP.
 
-- **`SLDGTTTKA`** CLASP1 / A\*02:01 — TCR JPTCR-238 (IFN-γ ELISA + Incucyte cytotoxicity).
-- **`STMYYLWML`** SCAMP3 / A\*02:01 — TCRs JPTCR-45/47/50/56 (IFN-γ).
-- **`LLLGIAKLLKV`** MAN2C1 / A\*02:01 — TCR JPTCR-13. **Medium** (2nd verifier did not confirm).
-- **`FLSELEPPA`** AP2A1 / A\*02:01 — TCR JPTCR-52. **Medium** (2nd verifier did not confirm).
+- **`SLDGTTTKA`** CLASP1 / A\*02:01 — TCR JPTCR-238 (IFN-γ ELISA + Incucyte cytotoxicity). `agent-web` (not re-graded in #904; supp now located for a future direct upgrade).
+- **`STMYYLWML`** SCAMP3 / A\*02:01 — TCRs JPTCR-45/47/50/56 (IFN-γ). `agent-web` (as above).
+- **`LLLGIAKLLKV`** MAN2C1 / A\*02:01 — TCR JPTCR-13. **Promoted `candidate` → `functional-scorable` (#904), `direct`.** Dataset S3a gives the AS event + junction coords `chr15:-:75655550:75655631:75655089:75656828` (gate-1); S3b/S3c show JPTCR-13 **specifically** recognizes the single epitope (gate-2). `junction_mapping_grade` upgraded `gene-mechanism` → `coords`.
+- **`FLSELEPPA`** AP2A1 / A\*02:01 — TCR JPTCR-52. **Promoted `candidate` → `functional-scorable` (#904), `direct`.** Junction coords `chr19:+:50305790:50305856:50305398:50306205` (gate-1); S3c shows JPTCR-52 specifically recognizes the single epitope (gate-2). `coords`-grade. (The earlier "2nd verifier did not confirm" hold was a *supplement-access* failure, not negative evidence — the parent-key trap; resolved.)
 
 ## POSTN-203 study (Liu et al., *Genes Immun* 2025; PMID 40181162; Zotero `HMXA22SW`) — `direct` (corrected #838)
 - **`TVYTTKIITK`** POSTN-203 (ENST00000379747) / A\*11:01 — the functionally validated **POSTN-203_A11** epitope (supp S5/S6: IFN-γ ELISA + caspase-3/LDH cytotoxicity; IEDB ref1046253, 4× Positive). **Corrected in [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838)** from `KTEGPTLTK`, an `agent-web` mis-key that had recorded the top *predicted* A\*11:01 binder (supp prediction table MOESM4) instead of the assayed peptide — `KTEGPTLTK` is **absent from IEDB**. HLA typed at 2-digit (paper: A\*11+ line SF10281; IEDB: `A11`); `A*11:01` retained as the predominant A11 allele for scoring. (Prior note: "⚠️ NOT in Zotero / verify" — resolved; the paper is Zotero `HMXA22SW`.)

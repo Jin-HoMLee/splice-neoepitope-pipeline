@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 16:03 UTC — Editor: Scientist
+
+#### [PR #913](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/913) — promote the 2 IRIS `candidate` rows to `functional-scorable` — closes [Issue #904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)
+
+**What shipped.** Resolved the standing #733 AC 4 deferral: re-verified `LLLGIAKLLKV`/MAN2C1 + `FLSELEPPA`/AP2A1 against the IRIS supplement (Pan et al. *PNAS* 2023) and promoted both `candidate` → `functional-scorable`. Registry stays 96 rows; **scorable 79 → 81**, candidate 2 → 0, coords-grade 15 → 17. `validate_registry.py` PASS.
+
+**The catch — third instance of the parent-key trap (predicted by the #838 episode).** `PROVENANCE.md` recorded IRIS as "⚠️ NOT in Zotero — verify in supplement," but the supplement **is** in Zotero: it hangs off the **parent** item `QTGXGQZM` (`pnas.2221116120.sd01-03.xlsx` + appendix), not the cited PDF-attachment key. This is exactly the failure the [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) wind-down flagged as a standing risk ("IRIS likely resolvable the same way"). Resolving the parent's children → the supplement was local all along. The earlier "2nd-verify did not confirm" hold was a *supplement-access* failure, **not** negative evidence — a concrete case of the "prohibitive memory ages worst" lesson.
+
+**Verification (both gates, primary source).** Gate-1: Dataset S3a gives the AS event + genomic junction coordinates per peptide (`chr15:-:75655550:…` / `chr19:+:50305790:…`) → `junction_mapping_grade` upgraded `gene-mechanism` → `coords`. Gate-2: S3b/S3c show cloned TCRs JPTCR-13 (MAN2C1) / JPTCR-52 (AP2A1) **specifically** recognize the single epitope; appendix Fig S6 = IFN-γ ELISA of TCR-transduced PBMCs vs peptide-pulsed K562-**A2** (→ A\*02:01, `high` confidence, `direct` provenance). Corrected the stale IRIS `PROVENANCE.md` note.
+
+**Downstream consistency (the part that made a "light" task less light).** Promotion shifted the scorable count #737 reports on, so I refreshed the just-merged #737 sparsity artifacts to keep the experiment dir internally consistent: reproducible notebook re-run → figures + `sparsity_stats.json`; writeup + deck + README counts (effective studies 3.7→3.8, A\*02:01 72/81 (89%), effective alleles 1.27→1.26). Narrative unchanged — two more A\*02:01 rows *reinforce* the monoculture finding. Also dropped a now-wrong "GNAS/RPL22 sequence-blocked" caveat (they were recovered in #838).
+
+**Review.** `@-claude review` (issue-closing) reproduced every headline number against `sparsity_stats.json` and caught **one** genuine partial-update miss: the dual-gate count `92 → 94` (promoting 2 rows into a gate-2 tier; JSON auto-updated, prose on the gate-definition slide left stale — off the count-bearing result slides I'd spot-checked). Fixed in ba3ac39, deck re-rendered + slide 3 re-verified. Noted a folder-structure observation from Jin-Ho: the `issue_680_*` dir has outgrown the flat single-experiment template (shared living core + per-sub-issue analyses); a reorg cleanup is to be filed as a thin arc-labelled Backlog item, sequenced before the #736 keystone.
+
+---
+
 ### 15:28 UTC — Editor: Scientist
 
 #### [PR #912](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/912) — quantify splice-immunogenicity ground-truth sparsity + experiment deck — closes [Issue #737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737)
