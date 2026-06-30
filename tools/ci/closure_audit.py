@@ -45,6 +45,13 @@ _UNTICKED = re.compile(r"^\s*-\s*\[\s\]\s", re.MULTILINE)
 _TICKED = re.compile(r"^\s*-\s*\[[xX]\]\s", re.MULTILINE)
 _EXEMPT_FILES = {"research/glossary.md"}
 _EXEMPT_PREFIX = ("research/lab_notebook/",)
+# Roles that keep no project-repo lab notebook and so are skipped by the
+# notebook check (see #748). The Memory Manager works in the personas (memory)
+# repo, not a project-repo clone — its record is the personas-repo git log
+# (`shared/feedback_lab_notebook.md` MM-exemption clause); there is no
+# `research/lab_notebook/memory_manager.md`. Stripped per-role, so a mixed
+# (e.g. developer + memory_manager) Issue still requires the other role's entry.
+_NOTEBOOK_EXEMPT_ROLES = {"memory_manager"}
 # Routine-ship lab-notebook opt-out (see #555): a PR author may skip the
 # notebook check by placing this marker in the PR body. Honors the routine
 # single-PR-closes-single-Issue skip that #483 declared optional — the bot must
@@ -324,6 +331,10 @@ def collect_notebook_gaps(
     gaps: list[tuple[str, str]] = []
     seen: set[frozenset[str]] = set()
     for roles in role_sets_per_issue:
+        # Drop notebook-exempt roles (e.g. memory_manager, #748) before the
+        # check; a pure-exempt Issue collapses to an empty set and is skipped,
+        # while a mixed Issue still enforces its non-exempt roles' entries.
+        roles = roles - _NOTEBOOK_EXEMPT_ROLES
         if not roles:
             continue
         key = frozenset(roles)
