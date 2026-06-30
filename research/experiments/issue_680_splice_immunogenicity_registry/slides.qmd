@@ -90,7 +90,7 @@ Top study (Bigot SF3B1-UM [@bigot2021sf3b1]) = **44%**; top two (+ Kim leukemia 
 
 ![](outputs/fig_negative_scarcity.png){width="74%"}
 
-**One** hard true-negative exists field-wide [@fisher2026corest]; 8 soft (failed-to-prime [@manoharan2026ircrc]). A powered AUC probe needs **19-31** negatives [@hanley1982roc]. Specificity is, today, **unmeasurable** (n = 1).
+**One** hard true-negative field-wide [@fisher2026corest] - and it's A\*11:01, not even the dominant A2 allele; 8 soft (failed-to-prime [@manoharan2026ircrc]). A powered AUC probe needs **19-31** negatives [@hanley1982roc]. Specificity is, today, **unmeasurable** (n = 1).
 
 ## What it means - a probe, not a powered benchmark
 

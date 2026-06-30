@@ -42,6 +42,7 @@ The mechanism axis is comparatively healthier (Figure 2, right): aberrant 3′ s
 
 Ranking peptides requires negatives, and here the field is at its thinnest (Figure 3).
 Exactly **one** peptide qualifies as a hard true-negative - MHC-presented by immunopeptidomics **and** scored non-reactive in a functional assay (`VELEDHVML`, Fisher et al. 2026).
+Compounding the problem, that lone anchor is HLA-A\*11:01-restricted, **not** A\*02:01 - so it does not even fall in the A\*02:01 slice where 100% of the scorable positives sit, and the false-positive rate *within* the dominant allele is anchored by zero measured negatives.
 Eight further *soft* negatives (Manoharan IR-CRC) failed to prime in healthy-donor in-vitro sensitization - a categorically weaker claim than a measured non-response, because failure to prime naïve donor T cells does not establish that a patient's repertoire cannot respond.
 Pooling the 13 Tier-2 presented-but-untested decoys lifts the *usable-decoy* ceiling to 22, but those peptides were never assayed and cannot anchor a specificity estimate.
 
