@@ -13,7 +13,7 @@ follows the same exit-code contract:
 | Script | Watches | Routine phase |
 |--------|---------|---------------|
 | `check_milestone_health.sh` | open milestone `due_on` clock (overdue / imminent) | milestone health |
-| `check_ready_queue.sh`      | Ready-queue depth (demand-aware, per-role) | replenishment trigger |
+| `check_ready_queue.sh`      | Ready-queue depth (proactive per-role floor) | replenishment trigger |
 | `check_roadmap_health.py`   | per-issue board **Target date** (overdue) | roadmap-overdue sweep |
 
 **Exit-code contract (shared):** `0` all-clear · `2` at least one finding · `1`

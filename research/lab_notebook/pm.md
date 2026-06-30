@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-06-30
 
+### 22:30 UTC - Editor: PM
+
+#### Facet-1 correction (follow-up to PR #917): proactive floor, not a consumption gate
+
+A same-day correction to the facet-1 floor I shipped an hour earlier in #917 - and a good lesson in over-correcting.
+
+**What happened.** #917 reworked the Ready-queue floor from a fixed per-role floor-5 into a *demand-aware* gate: `[REPLENISH]` fired only when a role was actively consuming (>= 1 In progress). I ran it live for the user, and it correctly suppressed the false post-ship nag - but the user pushed back: "before there was always enough in Ready to choose from; now every role waits until we take initiative on each commitment." They were right. The demand gate deleted the **stocked-shelf** benefit - the whole point of a Ready buffer is that when you sit down there's a curated shortlist to pull *without* a fresh commitment decision. Gating on current consumption means an idle role finds an empty shelf.
+
+**The deeper miss.** When the user asked "why did you think floor-5 was too big?", I couldn't actually defend it. Five ready items is a *good* shelf from the consuming side. Re-examining: the best practice I'd cited ("size from consumption x lead time; replenish before runout") describes a **proactive** stocked minimum - which is the user's view, not my consumption gate. And the original over-commitment incident (#902 facet 1's 2026-06-29 case) was a *milestone-budget* problem that facet 2 had already removed. So I'd mis-grounded the whole facet: the real pain was **replenishment throughput** (keeping 15 DoR-ready committed exceeded grooming capacity post-ship), and the floor's sin was firing a nag that couldn't be honestly satisfied, which pressured junk-stuffing.
+
+**The fix.** Restore the proactive floor of 5 (kept stocked ahead of demand), drop the consumption gate, and instead make the **shortfall interpretable**: `[REPLENISH role]` when the role has Backlog candidates (commit DoR-ready ones, never stuff), `[GROOMING-GAP role]` when it has none (intake/groom). In progress is reported as context, not a gate. Honest limit, stated plainly in the script + memory: DoR-readiness ("scope is clear") isn't a field, so the script can't tell an un-groomed backlog from a ready one - it surfaces candidate counts and the human applies DoR. The script now reads Ready/In-progress/Backlog from one snapshot; 14 tests rewritten; shellcheck clean; live smoke shows it prompting all three short roles with candidate counts (the stocked-shelf prompt the user wanted, restored).
+
+**Lessons.** (1) When a fix needs a *web-grounded rationale*, check that the implementation actually matches the citation - mine cited proactive replenishment but implemented a consumption gate. (2) Re-examine whether the problem you're solving still exists after an upstream change - facet 2 had already removed the over-commitment mechanism I was guarding against. (3) Running it live in front of the user surfaced in one minute what review + CI didn't: a design that's *correct* by its own logic but removes a feature the user valued. Behavior-in-context beats spec-correctness.
+
 ### 21:30 UTC - Editor: PM
 
 #### [PR #917](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/917) - close out #902: demand-aware Ready floor (facet 1) + coarse-priority semantics (facet 3)
