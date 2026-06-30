@@ -1,0 +1,124 @@
+"""Tests for apply_calibrator.py — wire the fitted immunogenicity calibrator into
+the pipeline as a post-MHCflurry / pre-TCRdock column.
+
+Issue #709 (https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709).
+
+The calibrator artifact (`calibrator_v1.joblib`) is a serialized dict of centered-
+isotonic knots {cx, cy}. Applying it is `np.interp(score, cx, cy)` — flat-clipped
+outside the support `[cx[0], cx[-1]]`. Per the Scientist's #826 contract:
+
+  * `calibrated_immunogenicity_log_odds` is a **provisional secondary** signal —
+    `genotype_presentation_score` stays primary, so the rule only ADDS columns and
+    must NOT re-sort rows.
+  * `out_of_calibration_support` flags rows outside `[cx[0], cx[-1]]` (both the
+    floor-clip and ceil-clip), where `np.interp` returns a flat constant.
+"""
+
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from apply_calibrator import apply_calibrator, calibrate
+
+# A tiny synthetic calibrator: knots chosen so np.interp is hand-checkable.
+#   cx = [0.1, 0.5, 0.9]   cy = [-5.0, -1.0, 0.0]
+_CX = [0.1, 0.5, 0.9]
+_CY = [-5.0, -1.0, 0.0]
+
+
+# --------------------------------------------------------------------------- #
+# Pure-logic tests (numpy only) — calibrate(scores, cx, cy)
+# --------------------------------------------------------------------------- #
+def test_calibrate_in_support_interpolates():
+    log_odds, oos = calibrate([0.5, 0.3], _CX, _CY)
+    # 0.5 -> exact knot -1.0; 0.3 -> halfway on [0.1,0.5] segment -> -3.0
+    assert log_odds[0] == pytest.approx(-1.0)
+    assert log_odds[1] == pytest.approx(-3.0)
+    assert not oos[0] and not oos[1]
+
+
+def test_calibrate_floor_clip_is_flat_and_flagged():
+    log_odds, oos = calibrate([0.05], _CX, _CY)
+    assert log_odds[0] == pytest.approx(-5.0)  # flat at cy[0]
+    assert bool(oos[0]) is True
+
+
+def test_calibrate_ceil_clip_is_flat_and_flagged():
+    log_odds, oos = calibrate([0.95], _CX, _CY)
+    assert log_odds[0] == pytest.approx(0.0)  # flat at cy[-1]
+    assert bool(oos[0]) is True
+
+
+def test_calibrate_boundary_is_in_support():
+    # Exactly cx[0]/cx[-1] is IN support (flag is strict < / >).
+    _, oos = calibrate([0.1, 0.9], _CX, _CY)
+    assert not oos[0] and not oos[1]
+
+
+def test_calibrate_nan_score_is_flagged_out_of_support():
+    # NaN presentation score must not silently read as in-support (NaN < x is False).
+    log_odds, oos = calibrate([np.nan], _CX, _CY)
+    assert np.isnan(log_odds[0])
+    assert bool(oos[0]) is True
+
+
+# --------------------------------------------------------------------------- #
+# IO round-trip — apply_calibrator(input_tsv, calibrator_path, output_tsv)
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def synthetic_calibrator(tmp_path):
+    joblib = pytest.importorskip("joblib")
+    path = tmp_path / "calibrator_v1.joblib"
+    joblib.dump({"cx": np.array(_CX), "cy": np.array(_CY), "version": "v1"}, path)
+    return path
+
+
+@pytest.fixture
+def presentation_tsv(tmp_path):
+    df = pd.DataFrame(
+        {
+            "peptide": ["AAA", "BBB", "CCC"],
+            "genotype_presentation_score": [0.5, 0.05, 0.95],
+            "presentation_class": ["weak", "non", "strong"],
+        }
+    )
+    path = tmp_path / "presentation.tsv"
+    df.to_csv(path, sep="\t", index=False)
+    return path
+
+
+def test_apply_calibrator_adds_two_columns(synthetic_calibrator, presentation_tsv, tmp_path):
+    out = tmp_path / "presentation_calibrated.tsv"
+    apply_calibrator(presentation_tsv, synthetic_calibrator, out)
+    res = pd.read_csv(out, sep="\t")
+    assert "calibrated_immunogenicity_log_odds" in res.columns
+    assert "out_of_calibration_support" in res.columns
+    # values: 0.5->-1.0 (in), 0.05->-5.0 (floor, oos), 0.95->0.0 (ceil, oos)
+    assert res["calibrated_immunogenicity_log_odds"].tolist() == pytest.approx([-1.0, -5.0, 0.0])
+    assert res["out_of_calibration_support"].tolist() == [False, True, True]
+
+
+def test_apply_calibrator_preserves_original_columns_and_order(
+    synthetic_calibrator, presentation_tsv, tmp_path
+):
+    # Secondary-signal guardrail: original columns + ROW ORDER unchanged (no re-rank).
+    out = tmp_path / "presentation_calibrated.tsv"
+    apply_calibrator(presentation_tsv, synthetic_calibrator, out)
+    res = pd.read_csv(out, sep="\t")
+    assert res["peptide"].tolist() == ["AAA", "BBB", "CCC"]
+    assert res["presentation_class"].tolist() == ["weak", "non", "strong"]
+
+
+def test_apply_calibrator_empty_input_writes_header(synthetic_calibrator, tmp_path):
+    empty = tmp_path / "empty.tsv"
+    pd.DataFrame({"genotype_presentation_score": pd.Series([], dtype=float)}).to_csv(
+        empty, sep="\t", index=False
+    )
+    out = tmp_path / "out.tsv"
+    apply_calibrator(empty, synthetic_calibrator, out)
+    res = pd.read_csv(out, sep="\t")
+    assert "calibrated_immunogenicity_log_odds" in res.columns
+    assert "out_of_calibration_support" in res.columns
+    assert len(res) == 0
