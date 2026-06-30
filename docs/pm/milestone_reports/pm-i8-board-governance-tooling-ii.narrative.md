@@ -20,6 +20,8 @@ pm-i8 was the direct successor to pm-i7 and kept its character: a **board-govern
 
 ## Carried-forward & routing
 
+> **Note on the "Carried forward: 0" card.** The at-a-glance card counts only issues still *open and attached* to pm-i8 (`n_carried_forward = total − closed`); the three leaves below were *detached* (un-milestoned to Backlog on 2026-06-29), so the machine count is `0`. "Carried forward" in this section means *commitment* carried to a future iteration — the human sense the card doesn't capture. pm-i8 is the first report where a deliberate carve-forward makes the two senses diverge.
+
 - **Three leaves decommitted to Backlog (2026-06-29), not failed delivery** — pm-i8 was emptied by a deliberate carve-forward when its committable work drained and no active WIP remained:
   - [Issue #864](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/864) (`awaiting-bot-review` auto-poll skill) — build was user-deferred; re-commits at a future `Backlog → Ready`.
   - [Issue #769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) (extract board-governance conventions out of CLAUDE.md) and [Issue #745](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/745) (commitment-lag sweep) — both `arc:board-governance` at `arc-phase:later`; they re-commit when board-governance bumps back to `active`.

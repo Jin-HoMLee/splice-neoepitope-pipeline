@@ -6,6 +6,27 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-30
+
+### 12:10 UTC — Editor: PM
+
+#### [PR #903](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/903) — pm-i8 closure report + a best-practice reckoning on left-side board mechanics (closes [Issue #897](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/897))
+
+Morning-routine session that turned into a substantive governance pass. Capturing the reasoning, not the play-by-play.
+
+**pm-i8 closed clean — and the integrity fix is self-referential.** 9 delivered / 0 descoped, all verified COMPLETED (no NOT_PLANNED masking). The fix that makes that split *machine-honest* ([Issue #851](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/851)) shipped *inside* pm-i8 — pm-i7 surfaced the masking bug, pm-i8 fixed it, this is the first report to benefit. Routing decision: **(c) extend the workstream**, but with a twist worth recording — I did **not** open a `pm-i9` successor. The three decommitted leaves (#864/#769/#745) sit un-milestoned in Backlog pending the milestone-home question, rather than being force-fitted into a new bucket.
+
+**The reckoning (→ [Issue #902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902)).** The Ready queue was under floor across all roles. Two user challenges ("is the Ready queue fine?", "is this best practice?") drove me to web-check and revise my own proposal mid-stream — the honest output of which is that **three left-side mechanics drifted from Kanban best practice and now fight our own late-commitment model**:
+1. **floor-5** ([#754](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/754)) is an intuited number, not throughput-derived; it drove 2 over-commit incidents in 2 days. Best practice: size the trigger from consumption × lead time, or demote it to a pure signal.
+2. **commitment-requires-a-milestone** is *our* coupling — real Kanban's commitment point needs none. It's what blocks committing ready role-meta work when a `<role>-i<N>` bucket is spent. I pulled back from reflexively opening pm-i9 once I saw this was treating the symptom. Cross-links [#693](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/693).
+3. **priority compression** — tested my "survivorship" hypothesis against Backlog dwell data and it *didn't hold* (one P1 was 18d old). The real story: P2 holds 62% of a 117-item Backlog, so priority gives ~no signal at commitment for 91% of it. Cause = good anti-inflation discipline + idea-rich low-stakes intake + no forced-rank + no pruning. The fix isn't "commit more," it's "decline more" — the Backlog is a curation problem, not a commitment one.
+
+A bonus from the dwell scan: [#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736)'s board Priority had drifted to P1 while its body said P2 — corrected to match the author's rationale (so there's effectively 1 real P1 in Backlog).
+
+**Meta-decision: why the lab notebook isn't redundant with GitHub.** A user challenge on my phrasing ("well-documented in the PR body") exposed that I was testing change-record completeness when the notebook serves a different function. Web-grounded the distinction (Turing Way, PLOS) and added an affirmative principle to `shared/feedback_lab_notebook.md` — change-record (PR, unit-scoped) vs research-record (notebook, longitudinal); the 3 things an entry holds no PR does (synthesis / interpretation / through-line). Memory-only (process principle, not a repo gotcha). Staged for MM.
+
+**Process note.** This very session is a live instance of facets 2 and 3 — I worked #897 (a Backlog role-meta item with no clean milestone home) by direct user direction, which is exactly the coupling #902 questions. The recurring shape across the session (lab-notebook surface, #663 nudge, the #715-not-#234 retarget): *verify the right surface, then state honestly when a premise doesn't hold* — including walking back my own survivorship hypothesis and my own pm-i9 proposal.
+
 ## 2026-06-29
 
 ### 17:11 UTC — Editor: PM
