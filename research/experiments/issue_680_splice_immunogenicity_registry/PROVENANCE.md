@@ -2,6 +2,8 @@
 
 Each sequence is graded by **how it was obtained**, so it can be re-verified manually. Local files are under `~/Zotero/storage/<KEY>/`.
 
+> **⚠️ Zotero key convention — cite the PARENT item key, not the PDF-attachment key.** A paper's supplementary tables hang off the **parent item**, while its main PDF often has its own attachment key. Several rows here cite the *attachment* key (Kwok `EA2NMFNZ` → parent `5ZT8KC8X`; Kim `LX6DMXTL` → parent `XB3CPX5P`), which hides the supplements: a `children` query on the attachment key returns **nothing**, so the supp tables look absent when they're present on the parent. This trap cost real folds twice (Kwok/Kim, recovered in #838) and a stale "NOT in Zotero" note once (IRIS `QTGXGQZM`, [#904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)). **When a source's supp looks missing, resolve the parent item first** (`gh`/curl the attachment key → `.data.parentItem` → query *its* children).
+
 ## Provenance grades
 
 | Grade | Meaning |
