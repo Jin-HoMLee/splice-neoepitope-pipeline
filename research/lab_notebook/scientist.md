@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-06-30
+
+### 12:27 UTC — Editor: Scientist
+
+#### [PR #905](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/905) — fold the #734 IEDB-recovered splice candidates into the registry — closes [Issue #838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838)
+
+**What shipped.** Folded the remaining ~20 #734 IEDB-recovered splice-neoantigen candidates into the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry, each with a primary-source gate-1 pass. Registry **79 → 96 rows** (`functional-scorable` 64 → 79); `validate_registry.py` PASS. Net: 1 sequence-corrected + 2 promoted non-scorable→scorable + 13 new scorable (Kim) + 4 new non-scorable (UM).
+
+**Why this is a research entry, not a routine fold — the issue's framing was wrong on 3 of 4 sources, and verification overturned it each time.** I treated the IEDB free-text mine as a *hypothesis* and checked every sequence/gene/allele against the primary source, not the mine:
+- **POSTN — a correction, not an addition.** The #838 body expected `TVYTTKIITK` as a *2nd* POSTN peptide to add. IEDB is decisive: `TVYTTKIITK` = 4× Positive (the assayed POSTN-203_A11 epitope); the registry's existing `functional-scorable` row keyed **`KTEGPTLTK`**, which is **absent from IEDB** — an `agent-web` mis-key that recorded the top *predicted* A\*11:01 binder (supp MOESM4) instead of the assayed peptide. Corrected in place. A wrong sequence on a scorable ground-truth row would have silently poisoned the #736 benchmark — the highest-value catch of the session. HLA resolution honestly downgraded 4-digit→2-digit (the paper types the line only as A\*11+).
+- **Kim — "screening hits deliberately excluded" was false.** The 13 net-new are all IFN-γ-ELISPOT-only and mostly Positive-Low, which *looked* like screening tier — until the Kim supp tables (mmc2/mmc5) showed each carries a specific AS event + gene + **genomic junction coordinates** + an A\*02:01 dextramer. Per the labeling scheme §2.3 ELISPOT is a `strong` effector readout, so these are legitimate `functional-scorable` rows, *better*-provenanced (`coords` grade) than the original 5. The original curation folded only 5 because it read the figures, not the supp tables.
+- **Long-read UM — not "A\*02:01".** Gate-1 confirmed (SEPTIN6 / AMZ2P1-pseudogene / MZT2B neojunctions) but **no per-peptide HLA is published** (IEDB = `human`; ELISPOT on bulk PBMC) → `functional-nonscorable`, not the A\*02:01 scorable rows the issue assumed.
+- **Kwok GNAS/RPL22 — the one that matched.** Sequences recovered from the authors' IEDB deposit; `GIMDAANFFL`=RPL22 independently confirmed by mapping to UniProt P35268 (in-frame EQ loss → `GIMDAANFFL`). Promoted to scorable.
+
+**The data-access trap (cost real folds, now mechanised).** The registry's `PROVENANCE.md` cites Zotero **PDF-attachment keys** (Kwok `EA2NMFNZ`, Kim `LX6DMXTL`) rather than **parent item keys** (`5ZT8KC8X`, `XB3CPX5P`). A `children` query on an attachment key returns **0**, so a paper's supplements look *absent* when they're present on the parent. This nearly made me defer the entire Kim fold to a follow-up Issue — until the user pointed out the supp tables were in Zotero. A whole-library sweep (`find … -iname "*mmc*" -o -iname "*.xlsx"` → resolve each storage key's `.data.parentItem`) then mapped every available supplement and surfaced a **third** instance: IRIS, where `PROVENANCE.md` says "NOT in Zotero" but the supplement (`QTGXGQZM`) is present — its 2 `candidate` rows can likely be resolved the same way. Captured as: a `PROVENANCE.md` convention callout, a role-memory reference (`reference_zotero_parent_vs_attachment_key`), and a new "always ask the human before declaring a file missing" feedback rule the user requested.
+
+**Follow-ups filed.** [Issue #904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904) (IRIS candidate re-verify, linked under #680). Zhao 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) confirmed = *Harnessing AS for off-the-shelf mRNA vaccines* (Cell Research, DOI 10.1038/s41422-025-01199-0, Zotero `B2MJ776X`) — supplements present but sequence-less; blocked on the main-text peptide table, not supplements. Two un-folded splice sources with local functional supp noted for a future pass (`RUF4UMX2`, `984I79KG`).
+
+**Review status at time of writing.** `@claude review` requested on PR #905 (issue-closing → never skip-eligible); review in flight. Merge gated on it + the closure ritual (#838 ACs ticked).
+
+---
+
 ## 2026-06-29
 
 ### 17:32 UTC — Editor: Scientist

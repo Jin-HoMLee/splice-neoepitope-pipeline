@@ -2,6 +2,8 @@
 
 Each sequence is graded by **how it was obtained**, so it can be re-verified manually. Local files are under `~/Zotero/storage/<KEY>/`.
 
+> **⚠️ Zotero key convention — cite the PARENT item key, not the PDF-attachment key.** A paper's supplementary tables hang off the **parent item**, while its main PDF often has its own attachment key. Several rows here cite the *attachment* key (Kwok `EA2NMFNZ` → parent `5ZT8KC8X`; Kim `LX6DMXTL` → parent `XB3CPX5P`), which hides the supplements: a `children` query on the attachment key returns **nothing**, so the supp tables look absent when they're present on the parent. This trap cost real folds twice (Kwok/Kim, recovered in #838) and a stale "NOT in Zotero" note once (IRIS `QTGXGQZM`, [#904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904)). **When a source's supp looks missing, resolve the parent item first** (`gh`/curl the attachment key → `.data.parentItem` → query *its* children).
+
 ## Provenance grades
 
 | Grade | Meaning |
@@ -25,13 +27,19 @@ Files: `A46YTSYY` (main PDF), `7SLW6B96` (sm.pdf), `WK4DHT6M` (Data S1–S15 .xl
 - **`TEFQTRRAM`** SLC45A2 / A\*02 *(presentation/prevalence — NOT functionally tested)* — `direct`. Main text verbatim: *"SLC45A2 (TEFQTRRAM) was detected in 212 of 472 patients from the TCGA SKCM cohort and was correlated with poor overall survival"*; sm.pdf Supp Fig 5B label *"SLC45A2 TEFQTRRAM"*.
 
 ## Kim et al. 2025 — mis-splicing neoantigens, SF-mutant leukemias
-File: `LX6DMXTL` · all `agent-local`
+Parent item `XB3CPX5P` (DOI 10.1016/j.cell.2025.03.047); the registry/figures cite the **PDF-attachment key `LX6DMXTL`** — the supp tables `mmc1–5` hang off the **parent**, the dual-key trap that hid them on the first pass (same as Kwok `EA2NMFNZ`/`5ZT8KC8X`).
 
+The original 5 (figures, `agent-local`):
 - **`RLWGTWVKA`** CLK3 / A\*02:01 — **Fig S1B** *"CLK3 #1 (RLWGTWVKA)"*; MS Fig 3G / S4A; Fig S3A.
 - **`CLLPPALFL`** RHOT2 / A\*02:01 — **Fig S1B** *"RHOT2 #5 (CLLPPALFL)"*; MS spectrum Fig 2C; Fig 7E.
 - **`RLLAAVLEA`** c16orf70 / A\*02:01 — **Fig 2H** (MS + label *"RLLAAVLEA"*); Fig S1B *"C16orf70 (RLLAAVLEA)"*.
 - **`LVAKWLLTI`** ATG3 / A\*02:01 — **Fig S2F** *"LVAKWLLTI"*; Fig S1B *"ATG3 (LVAKWLLTI)"*.
 - **`FMDDYIFV`** MYO1F / A\*02:01 — **8-mer, confirmed (#733 AC#4).** Fig S2I legend (verbatim, from ft-cache): *"…the MYO1F peptide (FMDDYIFV). (J) FACS plot…"* — the functionally-assayed peptide is the 8-mer; the `RFMDDYIFV` in Fig S1B/S3B was the source-region label, not the tested peptide.
+
+### #838 fold — 13 net-new from the supp tables (`direct`, **coords**-grade)
+Gate-1 + gene + **genomic junction coordinates** from **mmc2 (Supp Table S2)** ("Candidate immunogenic peptides … predicted to bind HLA-A\*02:01"); A\*02:01 **dextramer** panel from **mmc5 (Supp Table S5)**; IFN-γ ELISPOT positivity from IEDB **ref1046844**. All A\*02:01, `evidence_strength=strong` (ELISPOT is effector per LABELING_SCHEME §2.3), `junction_mapping_grade=coords`. Event codes per the mmc2 legend: `se`=skipped exon, `ci`=constitutive intron, `mxe`=mutually exclusive exons, `a5ss`=alt 5′SS. This corrects the #734-body assumption that these were "screening hits deliberately excluded" — the original curation simply hadn't read the supp tables (only the figures, which named 5).
+- **`high`** (IEDB Positive): `AVIQGQFFV`/USF1 (a5ss), `GLRDKASYV`/AP4B1 (mxe), `LLPRVSVWL`/EZH2 (se), `SLIRAQEEA`/BIN3 (se), `VLCDQTAQV`/CASP2 (ci), `YLSKYLNVNL`/SLC20A1 (ci).
+- **`medium`** (IEDB Positive-Low): `FLWPGLGPS` + `FLWPGLGPSV` + `ILGSLTWSC`/RHOT2 (ci), `FTDGKVYSNV`/NCOA7 (ci), `NLQALLYQA`/LTBR (se), `SVAWPWPAV`/MAN2C1 (se), `YLQPNPGDAL`/SH3GL1 (se).
 
 ## Xiong et al. 2025 — RCAN1-4, glioblastoma
 File: `JJZL6D84` · `agent-local`
@@ -52,13 +60,12 @@ all `agent-web` (web read of the paper + **Dataset S3c**)
 - **`LLLGIAKLLKV`** MAN2C1 / A\*02:01 — TCR JPTCR-13. **Medium** (2nd verifier did not confirm).
 - **`FLSELEPPA`** AP2A1 / A\*02:01 — TCR JPTCR-52. **Medium** (2nd verifier did not confirm).
 
-## POSTN-203 study ⚠️ NOT in Zotero — verify
-- **`KTEGPTLTK`** POSTN-203 (ENST00000379747) / A\*11:01 — `agent-web`; extraction agent flagged `partial`. Lowest certainty; verify against the source directly.
+## POSTN-203 study (Liu et al., *Genes Immun* 2025; PMID 40181162; Zotero `HMXA22SW`) — `direct` (corrected #838)
+- **`TVYTTKIITK`** POSTN-203 (ENST00000379747) / A\*11:01 — the functionally validated **POSTN-203_A11** epitope (supp S5/S6: IFN-γ ELISA + caspase-3/LDH cytotoxicity; IEDB ref1046253, 4× Positive). **Corrected in [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838)** from `KTEGPTLTK`, an `agent-web` mis-key that had recorded the top *predicted* A\*11:01 binder (supp prediction table MOESM4) instead of the assayed peptide — `KTEGPTLTK` is **absent from IEDB**. HLA typed at 2-digit (paper: A\*11+ line SF10281; IEDB: `A11`); `A*11:01` retained as the predominant A11 allele for scoring. (Prior note: "⚠️ NOT in Zotero / verify" — resolved; the paper is Zotero `HMXA22SW`.)
 
-## Kwok et al. 2024/2025, *Nature* (s41586-024-08552-0) — `unpublished`
-File: `EA2NMFNZ` (main + Extended Data)
+## Kwok et al. 2025, *Nature* (s41586-024-08552-0; PMID 39972144; Zotero item `5ZT8KC8X`, PDF `EA2NMFNZ`) — `direct` (recovered #838)
 
-- **GNAS** & **RPL22** / A\*02:01 — functionally validated across **Fig 4b–h, Fig 5d (MS), Extended Data Fig 6e/f (MS) + 6i (NJ aa-sequence track, generic schematic), Extended Data Fig 9b (alanine scan)** — but exact 9-mers are **not legible** (MS peak plots; 6i illustrative). RPL22 region ≈ `…LALDVLQGYSL…` (illustrative, do not log). Recoverable only via author contact / raw MS. Recorded as validated, non-scorable.
+- **GNAS `SLLLPSFHL`** & **RPL22 `GIMDAANFFL`** / A\*02:01 — the two public NEJ-derived neoantigens (NeoA-GNAS frameshift + NeoA-RPL22 in-frame). Functionally validated across **Fig 4b–h, Fig 5d (MS), Extended Data Fig 6e/f + 9b** — exact 9/10-mers **not legible in the paper figures**, but recovered from the authors' **IEDB deposit ref1045680** in [#838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838): `SLLLPSFHL` is IEDB-annotated as GNAS; `GIMDAANFFL` (gene-unannotated in IEDB) confirmed = RPL22 by mapping onto UniProt **P35268** WT `GIMDAANF·EQ·FLQER` with the paper's in-frame 6-nt (EQ) loss → `GIMDAANFFL`. **Promoted non-scorable → `functional-scorable`.** Supersedes the prior illustrative `~LALDVLQGYSL` placeholder (do not use).
 
 ## Manoharan et al. 2026 — intron-retention neoantigens, colorectal cancer (#733 AC#1)
 Zotero `ZAT8678F` (no local PDF) · open access **PMC13096189** · all `direct` (upgraded from `agent-web` in [#823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823): a third independent first-hand read of Table 1 "Selected 9-mer peptides for in vitro validation" at the open-access PMC source confirmed all 11 sequences/genes/alleles verbatim, **11/11**, agreeing with the two prior PMC reads — the exact table is now captured, discharging the `agent-web` "verify most carefully" caveat). The article is permanently citable at PMC13096189; a local Zotero PDF copy remains optional (open-access source is stable).
@@ -94,6 +101,11 @@ Sequence source = **local Supplementary Table S2** ("peptides" sheet, the `A2:N`
 **Folded — patient ex-vivo tetramer⁺ only (`medium`, 30):** the rest of the A2:N positives — `FLSSVALAL`/ZDHHC16, `FLPPGGAPV`/VPS51, `MLAAPISGL`/SLC3A2, `GLVETFYFT`/HADHA, `FQVQSLPAA`/OXA1L, `CLFSPQLLV`/not-named, `FMALDDPVI` & `ALDDPVIFL`/SEPSECS, `FLSRKLSSL`/MINDY4, `KLLEDDLLI` & `LLYLGIIKL`/NF1, `TMDVVIPGL`/VARS2, `VLFLTLNEV` & `FLTLNEVFL` & `TLNEVFLIL` & `FLILQVHGT`/ZFYVE27, `FLWCFPFSL`/SOAT1, `SLLPYVFVI`/RNF38, `FLFIGMSQM`/ARIH1, `SLSPALPGA`/SF3A2, `FMDDAKILF`/not-named, `FLFLDTIRT`/MRPS10, `ALDNVDAPL`/UBA1, `RLFPISPET`/NET1, `SLTFLPLYV`/ATP5MC2, `AVAEATAGV`/not-named, `KLMGPEVQV`/SRSF1, `FILKPILFL`/CTDNEP1, `RLGEVRHPV`/not-named, `GLNTFALGL`/not-named. Tetramer-DETECTION only (no per-peptide effector or junction shown in the supplements we hold); splice origin via panel design + IEDB gene.
 
 **NOT folded:** the 4 IEDB-negative panel peptides (`AILPVIADL`/SRSF1, `FLPLYVIPA`, `GVLPRAPGV`, `RLPQGVYPV`) and the 3 controls (Melan-A `ELAGIGILTV`, CMV `NLVPMVATV`, Flu `GILGFVFTL`).
+
+## Long-read uveal melanoma — Cancer Immunol Res 2023 (#838, IEDB free-text recovery)
+PMID 37756564; DOI 10.1158/2326-6066.cir-23-0083; Zotero `6P5JCCIB` (supp figures `GBXC9V2P`, supp tables `SNAB6XA5`). IEDB ref1043193. `direct` but **`functional-nonscorable`**.
+
+- **`MADAGAMAA`** & **`RQVGEGCRT`** / SEPTIN6, **`KNILNGSRA`** / AMZ2P1 (archaemetzincin-2 *pseudogene 1*), **`RGAGLGRAL`** / MZT2B — alt-splicing neojunctions; gene + neojunction-ORF context from **supp Table 13** ("Sequence information for SEPTIN6, AMZ2P1 and MZT2B"; the long ORFs `MADAGAMAATDIARQVGEGCRT` / `…SVKNILNGSRATVKHISIA` / `…CPRGAGLGRALHGAAPRMGQRL`). Gate-1 confirmed. **No per-peptide HLA published** (IEDB = `human`; IFN-γ ELISPOT on bulk PBMC) → no allele key → non-scorable (retained for the validation base). `RGAGLGRAL` and `RQVGEGCRT` are IEDB mixed Negative/Positive(-Low).
 
 ---
 
