@@ -21,7 +21,7 @@ Where a brief cites a `tasks/*.output` path or a `wf_*` / `w*` run ID, that is p
 - `run1_registry_enrichment_2026-06-30.md` - the 16 confirmed registry-ready rows, 4 needs-human-access PDFs, rejects, completeness critique.
 - `run2_scoring_design_2026-06-30.md` - judged design ranking, recommended design, forbidden-claims manifest, 7 open questions, 11 implementation steps.
 - `run3_predictor_landscape_2026-07-01.md` - ranked baseline set, splice-admissibility + availability table (19 predictors), methodology implications, decision forks.
-- `run3_predictor_dossiers.json` - raw structured dossiers behind run #3 (per-predictor inputs, score semantics, availability, verify verdicts).
+- `run3_predictor_dossiers.json` - raw structured dossiers behind run #3 (per-predictor inputs, score semantics, availability, verify verdicts). **Partial / salvaged artifact:** run #3 hit the usage limit mid-run, so `brief` is `null`, the 5 benchmark papers are folded into the `dossiers` array (not a separate key), `n_predictors_deepdived: 25` is the raw pre-dedup count (vs 19 deduped in the run3 markdown table), and most `_verdict`s are `null` (verify pass truncated); one verdict string carries a serialization tag-leak. The hand-synthesized run3 markdown is the authoritative read - this JSON is provenance.
 - `workflow_scripts/` - the Workflow orchestration scripts for runs #2 and #3 (method transparency; paths inside are session-specific).
 
 ## Where each run feeds on the board

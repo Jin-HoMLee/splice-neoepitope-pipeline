@@ -4,7 +4,7 @@
 **Raw output (durable):** `tasks/wxq6ep3w3.output` (session f1a362d9-5aad-4b03-ac35-0ff07b9e3ae4)
 **Scale:** 36 agents, ~3.0M subagent tokens, 547 tool uses, ~48 min.
 **Pipeline:** 6 discovery lenses -> consolidate/dedup -> adversarial dual-gate verify -> synthesize.
-**Counts:** 56 raw -> 28 consolidated -> **16 CONFIRM_ADD**, 4 NEEDS_SOURCE_ACCESS, 10 REJECT.
+**Counts:** 56 raw -> 28 consolidated -> **16 CONFIRM_ADD**, 4 NEEDS_SOURCE_ACCESS, 10 REJECT. (Funnel is approximate: the three verify buckets sum to 30, not the 28 consolidated - a 2-row discrepancy at the consolidation/verify boundary; treat the counts as indicative, not exact.)
 
 ## Honest headline
 
