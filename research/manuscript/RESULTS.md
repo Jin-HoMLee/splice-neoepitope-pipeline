@@ -11,8 +11,14 @@
 Matched tumor/normal RNA-seq pair from a gastric cancer patient. SRR9143066 (Primary
 Tumor, gastric cancer surgical section) and SRR9143065 (Solid Tissue Normal, adjacent
 stomach tissue). Illumina HiSeq 3000, single-end. Obtained from the European Nucleotide
-Archive (ENA). Processed with HISAT2 alignment on GCP. Numbers below are from the valid
-post-#148 run (HISAT2 chr-naming bugfix).
+Archive (ENA). Processed with **STAR** (2-pass), the production default aligner, on the
+2026-06-23 cohort run. The numbers below supersede an earlier HISAT2-path draft and reflect
+two corrections: the switch to STAR, and the fix of the [#370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370)
+anchor-outer coordinate bug that had inflated the earlier HISAT2 junction counts by orders of
+magnitude (the pre-#370 draft reported 27,348 tumor-exclusive junctions; see the corrected
+funnel below). A GTEx pan-tissue population-normal filter stage
+([#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)/[#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
+is now applied after the matched-normal subtraction.
 
 ### HLA Typing
 
@@ -34,81 +40,85 @@ available for patient_002).
 
 ### Junction Filtering
 
-| Stage | Count | % of total extracted |
-|-------|-------|----------------------|
-| Total junctions extracted (tumor) | 146,647 | 100.0% |
-| Annotated (GENCODE v47, discarded) | 116,618 | 79.5% |
-| Unannotated | 30,029 | 20.5% |
-| Normal-shared (filtered out) | 2,681 | 1.8% |
-| **Tumor-exclusive candidates** | **27,348** | **18.6%** |
+| Stage | Count | Passing |
+|-------|-------|---------|
+| Raw junctions extracted (tumor) | 131,321 | 100.0% |
+| Removed - insufficient read support | 99,918 | - |
+| Passing read-support filter | 31,403 | 23.9% |
+| Annotated (GENCODE v47, discarded) | 31,262 | - |
+| Unannotated | 141 | 0.11% |
+| Normal-shared (matched normal, filtered) | 94 | - |
+| GTEx pan-tissue shared (filtered) | 39 | - |
+| **Tumor-exclusive candidates** | **8** | **0.006%** |
 
-Of all extracted junctions, 79.5% were annotated in GENCODE v47 and discarded. A
-further 1.8% were unannotated but present in the matched normal (germline or
-tissue-specific splicing), leaving 18.6% of extracted junctions as tumor-exclusive
-neoepitope candidates. Read support across `tumor_exclusive` junctions: min 16,
-median 26, mean 49, max 82,098 — substantially shallower than patient_002 (min 174,
-median 425, mean 953).
+After the read-support filter, 31,262 of the 31,403 surviving junctions were annotated in
+GENCODE v47 and discarded, leaving 141 unannotated junctions. Of those, 94 were present in
+the matched Solid Tissue Normal (germline or tissue-specific splicing) and a further 39 were
+seen in the GTEx pan-tissue population normal, leaving **8 tumor-exclusive candidates**. This
+supersedes the pre-#370 draft's 27,348 - a ~3,400x inflation that was an artifact of the
+anchor-outer coordinate bug ([#370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370):
+shifted coordinates failed exact GENCODE matching, so annotated junctions silently leaked
+through the discard filter), not biology.
 
-The unannotated, normal-shared, and tumor-exclusive counts are read from `report.tsv`.
-The total-extracted and annotated-discarded rows are derived from the line count of
-`alignment/SRR9143066/raw_junctions.tsv` (post-#148 run); these will be added directly to
-`report.tsv` once [Issue #104](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/104) lands.
+Read support across the 8 `tumor_exclusive` junctions: min 20, median 28, mean 61, max 173.
+These are shallower than patient_002's tumor-exclusive set (min 164, median 373), but that
+comparison is confounded by a different tumor and a materially weaker matched normal for
+patient_002 (see the patient_002 matched-normal caveat below).
+
+Counts are read from `junctions/junction_filter_stats.tsv` on Cloudflare R2 (the 2026-06-23
+STAR run).
 
 ### Peptide Translation
 
 Junction-spanning peptides were extracted from contigs assembled at each
 tumor-exclusive junction, across all three reading frames, with the
 complete-codon junction-spanning filter applied. `peptide_lengths: [8, 9, 10]`
-(PR #99), flank size derived automatically as `3 × (max_length − 1) = 27 nt` per side.
+(PR #99), flank size derived automatically as `3 x (max_length - 1) = 27 nt` per side.
+Across the 8 tumor-exclusive junctions, 418 peptides were translated; 23 were excluded
+(incomplete codons / stop-interrupted frames), leaving **395 novel peptides**:
 
 | Length | Count |
 |--------|-------|
-| 8-mer | 382,792 |
-| 9-mer | 430,178 |
-| 10-mer | 473,522 |
-| **Total** | **1,286,492** |
-| **Unique sequences** | **1,260,074** |
+| 8-mer | 113 |
+| 9-mer | 133 |
+| 10-mer | 149 |
+| **Total novel** | **395** |
+| **Unique sequences** | **395** |
 
-97.9% of peptides are unique sequences. Peptide totals are computed in
-`research/notebooks/patient_001_results.ipynb` §3 from `peptides_novel.tsv`;
-the total matches `report.tsv` `mhc_prediction.total_predictions` because the
-output TSV preserves one row per input peptide position. Internally,
-MHCflurry is run only on the 1,260,074 unique sequences (see
-[`run_mhcflurry.py:427`](workflow/scripts/run_mhcflurry.py#L427)) and the
-predictions are joined back to each source row
-([`run_mhcflurry.py:475`](workflow/scripts/run_mhcflurry.py#L475)) to retain
-the `contig_key`/`start_nt` mapping.
+All 395 novel peptides are unique sequences. Counts are computed in
+`research/notebooks/patient_001_results.ipynb` §3 from `peptides_novel.tsv` (2026-06-23
+STAR run). MHCflurry is run on the unique sequences and joined back to each source row
+([`run_mhcflurry.py:475`](workflow/scripts/run_mhcflurry.py#L475)) to retain the
+`contig_key`/`start_nt` mapping.
 
 ### MHC Presentation Predictions
 
-MHCflurry 2.x `Class1PresentationPredictor` was run for all six expressed HLA alleles.
-Presentation class is defined by `presentation_percentile`: strong ≤ 0.5%, weak ≤ 2.0%.
+MHCflurry 2.x `Class1PresentationPredictor` was run for all six expressed HLA alleles across
+the 395 novel peptides. Presentation class is defined by `presentation_percentile`:
+strong <= 0.5%, weak <= 2.0%.
 
 | Presentation class | Count | % of total |
 |---|---|---|
-| Strong (percentile ≤ 0.5%) | 44,916 | 3.5% |
-| Weak (0.5% < percentile ≤ 2.0%) | 125,775 | 9.8% |
-| Non (percentile > 2.0%) | 1,115,801 | 86.7% |
-| **Total predictions** | **1,286,492** | — |
+| Strong (percentile <= 0.5%) | 17 | 4.3% |
+| Weak (0.5% < percentile <= 2.0%) | 22 | 5.6% |
+| Non (percentile > 2.0%) | 356 | 90.1% |
+| **Total predictions** | **395** | - |
 
-Strong presenters per allele (best-allele attribution, computed in notebook §4.2):
+Strong presenters by best-allele attribution (computed in notebook §4.2):
 
-| Allele | Strong-presenting peptides | % of total strong |
-|--------|---------------------------|-------------------|
-| HLA-C\*03:03 | 15,123 | 33.7% |
-| HLA-A\*31:01 | 12,685 | 28.2% |
-| HLA-C\*07:01 | 10,547 | 23.5% |
-| HLA-B\*18:01 | 4,068 | 9.1% |
-| HLA-A\*26:01 | 1,344 | 3.0% |
-| HLA-B\*15:63 | 1,149 | 2.6% |
+| Allele | Strong-presenting peptides |
+|--------|---------------------------|
+| HLA-C\*03:03 | 9 |
+| HLA-C\*07:01 | 3 |
+| HLA-A\*31:01 | 3 |
+| HLA-B\*18:01 | 1 |
+| HLA-B\*15:63 | 1 |
 
-HLA-C alleles combined account for 57.2% of strong presenters — partial recapitulation
-of the HLA-C dominance seen in patient_002 (~69%) despite different HLA-C alleles
-(patient_001: C\*03:03 / C\*07:01; patient_002: C\*01:02 / C\*07:01). HLA-A\*31:01 is
-a substantial contributor (28.2%), unlike patient_002's HLA-A\*01:01 which was nearly
-silent. Median per-allele percentile among genotype-strong presenters is 1.25 for
-HLA-C\*03:03 and 10.66 for HLA-B\*18:01, identifying B\*18:01 as the patient's
-"passenger" allele.
+HLA-C alleles combined account for **12 of 17 (71%)** strong presenters, recapitulating the
+HLA-C dominance reported for patient_002 despite different HLA-C alleles (patient_001:
+C\*03:03 / C\*07:01; patient_002: C\*01:02 / C\*07:01); this signal survived the #370
+correction. At the corrected (much smaller) candidate count the per-allele counts are single-
+to low-double-digit, so these proportions are directional rather than precise.
 
 ### Genotype Presentation Score (GPS)
 
@@ -120,52 +130,51 @@ where $p_i$ is per-allele `presentation_score` and $w_i$ is the locus weight
 (HLA-A/B = 1.0, HLA-C = 0.5, reflecting ~50% lower surface density). GPS estimates
 the probability that at least one allele in the patient's genotype presents the peptide.
 
-GPS distribution across all 1,286,492 predictions: mean 0.089, median 0.023.
-Only 9,276 peptides (0.72%) had GPS > 0.9 — slightly tighter than patient_002 (1.1%),
-confirming the metric is discriminating across patients. The GPS inflation edge case
-(GPS > 0.9 with `n_strong_alleles = 0`) is markedly smaller in patient_001:
-**25 candidates** vs 174 in patient_002 (~7× drop), likely reflecting fewer
-borderline-allele-breadth cases when individual allele strengths separate more cleanly.
-The proposed `n_strong_alleles ≥ 1` quality gate would remove these 25 from the
-strong-presenter pool.
+GPS distribution across all 395 predictions: mean 0.072, median 0.020.
+2 peptides (0.51%) had GPS > 0.9, both with `n_strong_alleles >= 1`. The GPS inflation
+edge case (GPS > 0.9 with `n_strong_alleles = 0`) is therefore **0** in the corrected
+patient_001 run, down from 25 in the pre-#370 draft. This matters for ranking: the inflated
+pre-#370 pool of 27,348 mostly-spurious junctions was far more likely to *contain* a
+near-ceiling-GPS peptide, which is how the pre-#370 draft's top candidate reached GPS 0.9999;
+the corrected top candidate sits at a realistic GPS 0.942 (below).
 
 ### Top Neoepitope Candidate
 
-**SQIPRTHSY / HLA-C\*07:01**
+**SQVTRGLAM / HLA-B\*15:63**
 
 | Metric | Value |
 |--------|-------|
-| IC50 | 33.6 nM |
-| Presentation percentile | 0.0052% |
-| GPS | 0.9999 |
-| n_strong_alleles | 5 of 6 |
+| IC50 | 64.7 nM |
+| Presentation percentile | 0.257% |
+| GPS | 0.942 |
+| n_strong_alleles | 3 of 6 |
 | Presentation class | strong |
 
-SQIPRTHSY ranks first by GPS and is presented as strong by 5 of 6 patient alleles —
-broader breadth than patient_002's FADLRPLLL (4 of 5 = 80% vs SQIPRTHSY 5 of 6 ≈ 83%).
-Its presentation percentile places it in the top 0.005% of all HLA-C\*07:01-presented
-peptides, indicating high intrinsic affinity rather than a borderline call. Notably,
-both patients' top candidates land at GPS ≈ 0.9999 / IC50 ≈ 33–34 nM despite different
-splice contexts and different best-allele HLA-C alleles — suggestive of a structural
-ceiling around the GPS-best slot rather than a peptide-specific outlier.
+SQVTRGLAM ranks first by GPS and is presented as strong by 3 of 6 patient alleles. Unlike the
+pre-#370 draft's top pick (SQIPRTHSY / HLA-C\*07:01, GPS 0.9999, percentile 0.005%), the
+corrected top candidate has non-ceiling scores - a realistic GPS 0.942 and a 0.26% presentation
+percentile - consistent with removal of the inflated-pool artifact rather than a peptide-specific
+outlier. The second-ranked candidate is RTVLQSLWFR / HLA-A\*31:01 (GPS 0.903).
 
-HLA-C\*07:01 is shared between patient_001 and patient_002 (patient_001: C\*07:01 /
-C\*03:03; patient_002: C\*01:02 / C\*07:01), but the top candidates rest on different
-HLA-C alleles per patient (C\*07:01 here, C\*01:02 in patient_002). Patient_001
-benefits from a matched RNA-seq normal applied at the junction-filtering step — a
-stronger tumor-exclusivity claim than patient_002's WES-only normal.
+The rank change is a direct consequence of the #370 correction plus the STAR/GTEx pipeline: the
+pre-#370 draft's SQIPRTHSY was drawn from the spurious inflated junction pool. One residual
+quality flag remains in the corrected set - ranks 3, 5, 6, 7, and 9 (the FFNVGPVLLR / FFNVGPVL
+family) derive from a single low-complexity poly-T junction (chr19:39227510) whose assembled
+contig is a long poly-T/poly-A run, a known alignment-artifact risk; these are flagged for
+scrutiny or complexity-filtering before any downstream use.
 
 ### Structural Validation (TCRdock)
 
-TCRdock was run on SQIPRTHSY / HLA-C\*07:01, the top GPS-ranked candidate, on a GCP
-Spot GPU VM (NVIDIA P100, 16 GB VRAM). The predicted TCR–peptide–MHC ternary complex
-structure was successfully generated (`pdb_available: true` in `report.tsv`) and is
-available in `results/patient_001/predictions/tcrdock/`, rendered interactively using
-Mol\* 4.x in the pipeline HTML report with chain labels A=MHC, B=peptide, C=TCR-α,
-D=TCR-β.
+TCRdock was run on SQVTRGLAM / HLA-B\*15:63, the top GPS-ranked candidate. The predicted
+TCR-peptide-MHC ternary complex was generated (model pLDDT 92.4, PAE 6.44) and is available in
+`results/patient_001/tcrdock/`, rendered interactively using Mol\* 4.x in the pipeline HTML
+report with chain labels A=MHC, B=peptide, C=TCR-α, D=TCR-β.
 
-*Structural interpretation (pLDDT, CDR3 contacts) to be added after Developer
-review of the PDB output, in parallel with patient_002.*
+**Caveat:** no patient-matched or epitope-matched TCR was available, so the docking used a
+fallback TCR (DMF5; `panel_status = dmf5_fallback`, no VDJdb match). The confidence metrics
+therefore describe the predicted geometry of a generic TCR against this peptide-MHC, not a
+validated cognate pairing - read as a foldability/geometry check, not evidence of
+patient-specific recognition.
 
 ---
 
@@ -173,11 +182,12 @@ review of the PDB output, in parallel with patient_002.*
 
 ### Dataset
 
-BG003082 T0 tumor sample (Boston Gene, Nov 2022), paired-end RNA-seq (~10 GB).
-No matched RNA-seq normal was available. BG003082_N0_WES (whole-exome sequencing, DNA)
-was used as the normal input for HLA typing (successful) but contributes no junctions
-to normal subtraction — WES contains no RNA splice junctions by design. Processed with
-HISAT2 alignment on GCP (n2-highmem-8).
+BG003082 T0 tumor sample (Boston Gene, Nov 2022), paired-end RNA-seq (~10 GB). Processed with
+**STAR** (the production default aligner) on the 2026-06-23 cohort run. The matched normal is a
+**CD3+ T-cell PBMC scRNA-seq** sample (Hudson Lab, Jan 2025; sample-sheet issue #277), which
+replaced an earlier WES blood normal. Critically, **no tissue-matched normal** (osteoblast,
+mesenchymal, or adjacent bone) is available for this patient - a limitation that governs how its
+junction-level results can be interpreted (see below).
 
 ### HLA Typing
 
@@ -195,110 +205,40 @@ A\*01:11N is a null allele; OptiType correctly identified A\*01:01 as the expres
 allele and called it homozygous. This is the first direct validation of OptiType
 accuracy in this pipeline.
 
-### Junction Filtering
+### Junction filtering and the matched-normal limitation
 
-| Stage | Count | % of total extracted |
-|-------|-------|----------------------|
-| Total junctions extracted (tumor) | 364,168 | 100.0% |
-| Annotated (GENCODE v47, discarded) | 305,254 | 83.8% |
-| Unannotated | 58,914 | 16.2% |
-| Normal-shared (WES normal) | 0 | 0.0% |
-| **Tumor-exclusive candidates** | **58,914** | **16.2%** |
+Unlike patient_001 (a tissue-matched tumor / adjacent-normal pair), patient_002 has **no
+tissue-matched normal**. Its only normal available for junction subtraction is the CD3+ T-cell
+PBMC transcriptome, and because the pipeline subtracts junctions seen in *any* normal-typed
+sample ([#940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940)), this
+blood/immune-lineage sample drove the subtraction in the 2026-06-23 STAR run: of the tumor's
+442 unannotated junctions, 154 were labeled normal-shared, 246 were removed by the GTEx
+pan-tissue population filter, leaving 42 nominal tumor-exclusive junctions.
 
-BG003082_N0_WES was used as the normal input and yielded valid HLA typing results.
-However, WES data contains no RNA splice junctions, so `normal_shared = 0` is
-expected — junction-level normal subtraction was not effective. Without a matched
-RNA-seq normal, a fraction of the 58,914 tumor-exclusive junctions may represent
-tissue-specific or germline splicing rather than tumor-specific events.
+That set cannot be read as tissue-specificity-controlled. A CD3+ T-cell transcriptome is a poor
+junction-subtraction normal for a bone/osteosarcoma tumor: T cells express a narrow,
+lineage-specific splicing repertoire, so junctions that are normal for bone or mesenchymal
+tissue but simply absent from T cells are never subtracted and survive as spurious
+"tumor-exclusive" calls. The GTEx pan-tissue filter partially compensates - it removes 246
+junctions here versus 39 for patient_001 - but bulk pan-tissue coverage does not fully capture
+bone- or osteosarcoma-microenvironment splicing. (The tumor-exclusive junctions also run much
+deeper here, median 373 mapped reads vs 28 for patient_001, reflecting a different tumor and
+library rather than stronger tumor-specificity.)
 
-### Peptide Translation
+We therefore treat patient_002 as a **demonstration of a methodological boundary condition**, not
+a second validated result. Its 42 tumor-exclusive junctions are **not comparable** to
+patient_001's 8, and the downstream figures (peptide translation, MHC presentation, GPS, and the
+top-GPS candidate VPQVRVTVL / HLA-B\*08:01) are regenerated for the record in
+`research/notebooks/patient_002_results.ipynb` but are deliberately **omitted from the
+comparative results here**. The generalizable lesson: for tumors lacking a tissue-matched normal,
+junction-level tumor-specificity cannot be established from a blood normal alone, and
+population-level filters are load-bearing but insufficient. A tissue-appropriate normal - or an
+explicit population-only mode with the blood normal excluded from subtraction
+([#940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940)) - is the
+prerequisite for a defensible patient_002 candidate set. The HLA typing above is unaffected and
+remains the pipeline's first serology-validated OptiType result.
 
-Junction-spanning peptides were extracted from contigs assembled at each
-tumor-exclusive junction, across all three reading frames, with the
-complete-codon junction-spanning filter applied.
-
-| Length | Count |
-|--------|-------|
-| 8-mer | 703,106 |
-| 9-mer | 781,159 |
-| 10-mer | 846,422 |
-| **Total** | **2,330,687** |
-| **Unique sequences** | **2,313,700** |
-
-99.3% of peptides are unique sequences. A previous run (older pipeline version)
-reported 781,424 9-mers; the 265-peptide discrepancy is untracked — likely due to
-the HISAT2 chr-naming fix (#148) altering junction calls and/or the difference in
-normal input (WES proxy vs. no normal). Motivates the run registry (Issue TBD).
-
-### MHC Presentation Predictions
-
-MHCflurry 2.x `Class1PresentationPredictor` was run for all five expressed HLA alleles
-(HLA-A homozygous A\*01:01 counted once). Presentation class is defined by
-`presentation_percentile`: strong ≤ 0.5%, weak ≤ 2.0%.
-
-| Presentation class | Count | % of total |
-|---|---|---|
-| Strong (percentile ≤ 0.5%) | 67,935 | 2.9% |
-| Weak (0.5% < percentile ≤ 2.0%) | 222,823 | 9.6% |
-| Non (percentile > 2.0%) | 2,039,929 | 87.5% |
-| **Total predictions** | **2,330,687** | — |
-
-Strong presenters per allele (best-allele attribution):
-
-| Allele | Strong-presenting peptides | % of total strong |
-|--------|---------------------------|-------------------|
-| HLA-C\*01:02 | 26,236 | 38.6% |
-| HLA-C\*07:01 | 20,443 | 30.1% |
-| HLA-B\*08:01 | 11,477 | 16.9% |
-| HLA-B\*27:05 | 5,193 | 7.6% |
-| HLA-A\*01:01 | 4,586 | 6.8% |
-
-HLA-C alleles dominated the strong-presenter set (~69% combined). HLA-A\*01:01 was
-nearly silent (median presentation percentile 8.5% among strong presenters).
-
-### Genotype Presentation Score (GPS)
-
-Each peptide was scored with the Genotype Presentation Score:
-
-$$\text{GPS} = 1 - \prod_{i} (1 - w_i \cdot p_i)$$
-
-where $p_i$ is per-allele `presentation_score` and $w_i$ is the locus weight
-(HLA-A/B = 1.0, HLA-C = 0.5, reflecting ~50% lower surface density). GPS estimates
-the probability that at least one allele in the patient's genotype presents the peptide.
-
-GPS distribution across all 2,330,687 predictions: mean 0.101, median 0.026.
-Only 24,961 peptides (1.1%) had GPS > 0.9, confirming the metric is
-discriminating. An inflation edge case was identified: 174 candidates (0.7% of
-GPS > 0.9) had `n_strong_alleles = 0` with `best_presentation_percentile` ~0.5–0.55%,
-just above the strong threshold. The current quality gate does not catch these;
-an additional `n_strong_alleles ≥ 1` filter is under consideration.
-
-### Top Neoepitope Candidate
-
-**FADLRPLLL / HLA-C\*01:02**
-
-| Metric | Value |
-|--------|-------|
-| IC50 | 33.2 nM |
-| Presentation percentile | 0.0045% |
-| GPS | 0.9999 |
-| n_strong_alleles | 4 of 5 |
-| Presentation class | strong |
-
-FADLRPLLL ranks first by GPS and is presented as strong by 4 of 5 patient alleles.
-Its presentation percentile places it in the top 0.005% of all HLA-C\*01:02-presented
-peptides. HLA-C\*01:02 was also the dominant allele in a pre-#148 (invalidated) run,
-suggesting it is a consistently strong presenter for splice-junction-derived 9-mers
-in this patient.
-
-Without a matched RNA-seq normal, the originating junction cannot be confirmed as
-absent from healthy osteoblasts or mesenchymal stem cells.
-
-### Structural Validation (TCRdock)
-
-TCRdock was run on FADLRPLLL / HLA-C\*01:02, the top GPS-ranked candidate.
-The predicted TCR–peptide–MHC ternary complex structure was successfully generated
-and is available in `results/patient_002/predictions/tcrdock/`.
-
-*Structural interpretation (pLDDT, CDR3 contacts) to be added after Developer
-review of the PDB output.*
+*Downstream figures for patient_002 (peptide translation, MHC presentation, GPS, top
+candidate, and TCRdock on VPQVRVTVL / HLA-B\*08:01) are regenerated in
+`research/notebooks/patient_002_results.ipynb` for the record but are intentionally not
+tabulated here - see the matched-normal limitation above.*

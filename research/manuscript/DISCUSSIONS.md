@@ -290,37 +290,42 @@ junction-driven neoepitope pipeline. STAR's full GRCh38 index requires ~32 GB RA
 (~8 GB) is retained as a low-memory alternative for local development and testing (macOS M1,
 8 GB RAM), selected through a single configuration switch.
 
-The patient_001 and patient_002 results reported here were generated with the HISAT2 path and
-therefore represent a conservative baseline for novel-junction recovery; STAR's higher
-sensitivity would be expected to expand the unannotated-junction set on re-analysis.
+The patient_001 and patient_002 results reported here were generated with the STAR production
+path (2026-06-23 cohort run), replacing an earlier HISAT2-path draft. The switch coincided with
+the [#370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) anchor-outer
+coordinate correction, so patient_001's junction count collapsed from a spurious 27,348 (pre-#370
+HISAT2 draft) to 8 (corrected STAR run) - the coordinate fix, not the aligner, accounts for most
+of that change.
 
 ---
 
-## Impact of missing matched normal: patient_002
+## Impact of the matched normal: patient_002
 
-Patient_002 (osteosarcoma IPISRC044) has no matched RNA-seq normal sample. Blood WGS
-DNA is available but cannot substitute: junction extraction requires spliced (gapped,
-`N`-CIGAR) alignments, which are absent from DNA-seq. Running the
-pipeline without a normal labels all unannotated junctions `tumor_exclusive`.
+Patient_002 (osteosarcoma) has **no tissue-matched normal**. The sample sheet's only normal is a
+CD3+ T-cell PBMC scRNA-seq sample (Hudson Lab, Jan 2025; issue #277), which replaced an earlier
+WES blood normal that could not contribute junctions at all (WES/DNA alignments yield no spliced
+reads). The CD3+ T-cell normal *does* provide RNA junctions, so junction-level subtraction runs
+(2026-06-23 STAR run: 442 unannotated junctions, of which 154 normal_shared, 246
+gtex_pantissue_shared, and 42 tumor_exclusive) - but it is a blood/immune-lineage transcriptome,
+not tissue-matched to a bone tumor.
 
-The patient_002 T0 run completed with 364,168 raw tumor junctions; 305,254 were
-annotated (GENCODE v47) and discarded, leaving 58,914 unannotated junctions.
-BG003082_N0_WES (WES, DNA) was used as the normal input — successfully for HLA
-typing, but it contributes no junctions to normal subtraction by design (WES
-alignments yield zero spliced reads, which junction calling — whether from STAR or
-regtools — requires). All 58,914 unannotated junctions are therefore labeled
-`tumor_exclusive` with a warning.
+This matters more than a raw count. A CD3+ T-cell transcriptome expresses a narrow,
+lineage-specific splicing repertoire, so junctions that are normal for bone or mesenchymal tissue
+but simply absent from T cells are never subtracted and survive as spurious `tumor_exclusive`
+calls. The GTEx pan-tissue population filter partially compensates - it removes 246 junctions for
+patient_002 versus 39 for patient_001, i.e. it does far more of the work here - but bulk
+pan-tissue coverage does not fully capture bone- or osteosarcoma-microenvironment splicing. We
+therefore treat patient_002's tumor-exclusive set as a methodological boundary condition rather
+than a validated candidate list, and report it as such in the Results.
 
-For reference, patient_001 had an 8.9% normal-shared rate among unannotated junctions
-using a matched RNA-seq normal. The WES proxy provides no junction-level filtering,
-so a corresponding fraction of the 58,914 candidates likely represent
-patient-specific but non-tumor splicing. Given the downstream MHCflurry and TCRdock
-filtering steps, the impact on the final top candidates is expected to be limited, but
-results should be interpreted with this caveat.
-
-If a matched RNA-seq sample becomes available from the osteosarcoma dataset in the
-future, the pipeline can be re-run with the normal to apply the full junction-level
-filter.
+Two further issues surfaced. First, the pipeline currently subtracts against *any* sample whose
+type contains "normal" (including a Blood Derived Normal), which conflicts with the documented
+intent that a Blood Derived Normal is used for HLA typing only; this let the T-cell normal drive
+subtraction silently, tracked in
+[#940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940). Second, a defensible
+patient_002 candidate set requires either a tissue-appropriate normal or an explicit
+population-only mode (matched normal excluded, GTEx retained). If a tissue-matched RNA-seq normal
+becomes available, the pipeline can be re-run to apply a genuine matched-normal filter.
 
 ---
 

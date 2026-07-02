@@ -86,14 +86,15 @@ wrong frame at the contig-assembly stage.
 
 ## 3. Junction Classification
 
-Junctions are classified into three categories:
+Junctions are classified into a funnel of categories:
 
 ```
 all junctions
-  └─ annotated          (present in GENCODE annotation)   → discard
-  └─ unannotated        (absent from GENCODE annotation)
-       ├─ normal_shared   (also found in matched normal) → excluded from prediction (retained in TSV)
-       └─ tumor_exclusive (absent in matched normal)     → neoepitope prediction
+  └─ annotated              (present in GENCODE annotation)          → discard
+  └─ unannotated            (absent from GENCODE annotation)
+       ├─ normal_shared          (also in matched normal)            → excluded from prediction (retained in TSV)
+       ├─ gtex_pantissue_shared  (in GTEx pan-tissue population normal) → excluded from prediction (retained in TSV)
+       └─ tumor_exclusive        (absent in matched normal AND GTEx) → neoepitope prediction
 ```
 
 **Annotated junctions** are filtered against the GENCODE v47 GTF reference junction set.
@@ -103,11 +104,20 @@ matched normal sample. A junction present in the normal at ≥ 2 reads is classi
 as `normal_shared` (germline or tissue-specific splicing) and excluded from prediction.
 These are retained in the output TSV for reporting.
 
-**tumor_exclusive junctions** — unannotated and absent from the matched normal — are
-carried forward to neoepitope prediction.
+**gtex_pantissue_shared junctions**
+([#211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/211)/[#212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212))
+are unannotated junctions that survive matched-normal subtraction but are present in a GTEx
+pan-tissue population normal (a population-level splicing blacklist). This always-on stage
+catches tissue-specific-but-non-tumor junctions that a matched normal misses - important when
+the matched normal is absent or not tissue-matched. Membership is checked *after* matched-normal
+subtraction, so the two filters do not double-count. These are retained in the output TSV for
+reporting.
 
-When no matched normal sample is available, all unannotated junctions are labeled
-`tumor_exclusive` with a warning.
+**tumor_exclusive junctions** - unannotated and absent from both the matched normal and the
+GTEx pan-tissue normal - are carried forward to neoepitope prediction.
+
+When no matched normal sample is available, unannotated junctions not caught by the GTEx filter
+are labeled `tumor_exclusive` with a warning.
 
 ### Comparison to related approaches
 
@@ -328,7 +338,8 @@ visualisation via Mol\* 4.x.
 - **HLA typing from RNA-seq:** OptiType is run on RNA-seq reads, which may have lower
   HLA coverage than WES/WGS. Low read depth (< 30 reads per locus) triggers fallback
   to configured default alleles with a warning.
-- **No matched RNA-seq normal for patient_002:** without a normal sample, all unannotated
-  junctions are treated as tumor-exclusive. Based on patient_001 statistics (~8.9%
-  normal-shared rate), a small fraction of candidates will be false positives arising
-  from patient-specific but non-tumor splicing.
+- **No tissue-matched normal for patient_002:** its only normal is a CD3+ T-cell PBMC, which
+  subtracts some junctions but is not tissue-matched to the bone tumor, so its tumor-exclusive
+  set is not tissue-specificity-controlled (see Results / Discussion). A tissue-appropriate
+  normal, or an explicit population-only mode, is required for a defensible candidate set
+  ([#940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940)).
