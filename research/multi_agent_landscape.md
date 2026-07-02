@@ -30,9 +30,9 @@ Entries re-ring on a *named event* - a promotion trigger firing, or an eval Issu
 The same edit that flips the ring opens the board #9 eval Issue (role label + priority rationale + per-tool Quarto deck, per the eval-Issue convention), cross-linked both ways.
 Terminal flips (`Adopt` / `Hold` / `Reference` / `Rejected`) are recorded back here when the eval Issue closes, via the close-time outcome-routing ritual.
 
-> **Ring-set note (2026-07-02, [#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553)):** `Reference` is a 6th ring added during the retrofit, beyond #553's original 5-ring design.
+> **Ring-set note (2026-07-02, [#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553)):** `Reference` is a 6th ring added during the retrofit, beyond #553's original 5-ring design, and **confirmed by PM**.
 > About half the existing entries are "pattern-confirmation / reinforcement" - evaluated, no product adopted, but the idea confirmed our approach or lent vocabulary - which none of `Assess/Trial/Adopt/Hold/Rejected` captured honestly (not watched, not to-avoid, and not "Rejected" when we endorse the idea).
-> Pending PM confirmation; fold these into `Rejected` if the 6th ring is unwanted.
+> The distinction it draws: `Rejected` = walked away, not useful; `Reference` = walked away from the product, kept the idea.
 
 ---
 
@@ -151,7 +151,7 @@ Update triggers:
 - New Issue concretely borrows from or extends a framework listed here → backfill the framework's rationale block with the Issue link.
 - Framework deprecated or pivoted → don't delete the entry; update the rationale with the deprecation note (the doc is a journal of *which* options we considered, not just current options).
 
-Last sweep: 2026-07-02 (adopted the Technology Radar-style `status:` ring funnel [#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553): retrofitted all entries with a ring + per-entry DoR on active ones, added the funnel convention + board-hygiene grep step; introduced a 6th `Reference` ring pending PM confirmation).
+Last sweep: 2026-07-02 (adopted the Technology Radar-style `status:` ring funnel [#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553): retrofitted all entries with a ring + per-entry DoR on active ones, added the funnel convention + board-hygiene grep step; introduced a 6th `Reference` ring, confirmed by PM).
 Prior: 2026-07-01 (companion governance-evidence report [`agent_team_governance_research_2026-07.md`](agent_team_governance_research_2026-07.md) cross-linked; adds MAST failure taxonomy + review-debt/review-column-WIP finding, neither previously tracked here).
 Prior: 2026-05-21 (Microsoft Conductor backfilled to Frameworks as counter-position to LLM-as-orchestrator).
 Prior: 2026-05-15 (GitHub Copilot desktop app backfilled to Frameworks as pattern-confirmation).
