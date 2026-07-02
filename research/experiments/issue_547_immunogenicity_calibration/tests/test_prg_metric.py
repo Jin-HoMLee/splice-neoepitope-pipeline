@@ -86,6 +86,24 @@ def test_uniform_weights_equal_unweighted():
     assert auprg(labels, scores, w) == pytest.approx(auprg(labels, scores), abs=1e-9)
 
 
+def test_invariant_to_positive_weight_scaling():
+    # Exercises the *fractional*-weight path (the negative-reweighting used in
+    # production yields fractional weights): AUPRG is a ratio of weighted masses,
+    # so scaling every weight by a positive constant must not change it.
+    rng = np.random.default_rng(5)
+    labels = np.r_[np.ones(8), np.zeros(20)].astype(int)
+    scores = rng.normal(size=28)
+    w = rng.uniform(0.3, 3.0, 28)
+    assert auprg(labels, scores, w) == pytest.approx(auprg(labels, scores, 2.5 * w), abs=1e-9)
+
+
+def test_length_mismatch_raises():
+    with pytest.raises(ValueError):
+        auprg(np.array([1, 0, 1]), np.array([0.1, 0.2]))
+    with pytest.raises(ValueError):
+        auprg(np.array([1, 0, 1]), np.array([0.1, 0.2, 0.3]), weights=np.array([1.0, 1.0]))
+
+
 # ---- robustness -------------------------------------------------------------
 
 def test_tie_heavy_scores_run_and_stay_bounded():

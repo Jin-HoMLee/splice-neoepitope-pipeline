@@ -77,7 +77,7 @@ def _prg_curve(labels, scores, weights):
     pg = _precision_gain(tp, fp, ratio)
 
     tp, fp, rg, pg = _insert_recall_gain_crossing(tp, fp, rg, pg, n_pos, n_neg, n, ratio)
-    tp, fp, rg, pg = _insert_precision_gain_crossings(tp, fp, rg, pg, n_pos, n_neg, n, ratio)
+    tp, fp, rg, pg = _insert_precision_gain_crossings(tp, fp, rg, pg, n_pos, n_neg, ratio)
     return rg, pg
 
 
@@ -101,7 +101,7 @@ def _insert_recall_gain_crossing(tp, fp, rg, pg, n_pos, n_neg, n, ratio):
     return tp, fp, rg, pg
 
 
-def _insert_precision_gain_crossings(tp, fp, rg, pg, n_pos, n_neg, n, ratio):
+def _insert_precision_gain_crossings(tp, fp, rg, pg, n_pos, n_neg, ratio):
     """Insert points where precision_gain crosses 0 within recall_gain >= 0, so the
     piecewise-linear trapezoid follows the true (hyperbolic) curve through the axis."""
     i = 1
@@ -143,6 +143,8 @@ def auprg(labels, scores, weights=None):
     """
     labels = np.asarray(labels).astype(int)
     scores = np.asarray(scores, dtype=float)
+    if len(labels) != len(scores):
+        raise ValueError(f"labels and scores length mismatch: {len(labels)} vs {len(scores)}")
     n_lab = labels.sum()
     if n_lab == 0 or n_lab == len(labels):
         return float("nan")
@@ -150,6 +152,8 @@ def auprg(labels, scores, weights=None):
         weights = np.ones(len(labels), dtype=float)
     else:
         weights = np.asarray(weights, dtype=float)
+        if len(weights) != len(labels):
+            raise ValueError(f"weights and labels length mismatch: {len(weights)} vs {len(labels)}")
 
     rg, pg = _prg_curve(labels, scores, weights)
     area = 0.0
