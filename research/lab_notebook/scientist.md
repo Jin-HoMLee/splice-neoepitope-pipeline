@@ -22,11 +22,16 @@ The pre-#370 code treated cols 2-3 as donor/acceptor, shifting every junction by
 Shifted coordinates fail exact GENCODE matching, so annotated junctions silently escaped the `annotated → discard` filter and the entire unannotated pool leaked downstream as spurious "tumor-exclusive" candidates.
 #370 fixed the extraction (`workflow/scripts/bed12_to_junctions.py`); #663 was the audit of everything the bug had already contaminated.
 
+One provenance detail worth stating, because it isn't obvious: the contaminated pre-#370 run (patient_001 junctions dated 2026-04-24) came from the **HISAT2/regtools** path — regtools BED12 is where the anchor-outer coordinates live, and that path is the one `bed12_to_junctions.py` fixed.
+The corrected 2026-06-23 re-run uses **STAR**, whose `SJ.out.tab` reports the intron donor/acceptor directly and was never affected by this bug.
+So the 27,348 → 8 collapse spans both a HISAT2/regtools → STAR aligner switch *and* the coordinate fix; it is not a STAR-path regression (`CLAUDE.md` documents the STAR path as unaffected by #370).
+
 **The blast radius for patient_001 (the interpretation PM wanted captured).**
 Of 141 unannotated junctions, 94 are shared with the matched adjacent-normal and 39 with the GTEx pan-tissue reference, leaving **8 tumor-exclusive** junctions.
 The pre-#370 run reported **27,348** — a ~3,400x inflation that was purely the leaked unannotated pool, not biology.
 The top candidate flipped in both peptide *and* allele: **SQIPRTHSY / HLA-C\*07:01 → SQVTRGLAM / HLA-B\*15:63**.
-The ranking flipped because the buggy top hit's near-ceiling scores (GPS ≈ 0.9999, percentile 0.0052%) were an artifact of ranking within a 27,348-junction pool of mostly-spurious candidates; the corrected top hit has realistic, non-ceiling scores (IC50 64.7 nM, GPS 0.9425, percentile 0.257%, strong across 3/6 alleles).
+The ranking flipped through a multiple-comparisons effect of the inflated search space, not a rescaling: MHCflurry's `presentation_score` / `presentation_percentile` are absolute (computed against a fixed reference peptide distribution, so pool size does not rescale a given peptide's score), but a 27,348-junction pool of mostly-spurious candidates was far more likely to *contain* some peptide scoring near-ceiling (GPS ≈ 0.9999, percentile 0.0052%) that outranked the true biological hit.
+The corrected top hit has realistic, non-ceiling scores (GPS 0.9425, presentation percentile 0.257%, strong across 3/6 alleles; IC50 64.7 nM as the secondary reference metric).
 MHC predictions collapsed **1.28M → 395** as a direct consequence of the junction-set collapse.
 The HLA-C dominance signal survived the correction (12/17 strong presenters are HLA-C), so that manuscript claim is robust to the bug.
 
