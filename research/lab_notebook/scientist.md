@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-02
 
+### 21:24 UTC - Editor: Scientist
+
+#### [PR #946](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/946) - report AUPRG alongside the AUPRC/prevalence lift in the calibrator LOCO eval. Closes [Issue #803](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/803).
+
+**What.** Added **AUPRG** (Area Under the Precision-Recall-Gain curve; Flach & Kull, NeurIPS 2015) as a prevalence-comparable discrimination metric next to the existing `lift = AUPRC / prevalence` in the #547 immunogenicity-calibrator LOCO validation. New `prg_metric.py` + 12 unit tests; notebook re-executed; README validation table now reports AUPRC / lift / AUPRG.
+
+**Why (the purpose, since it has no runtime consumer).** AUPRG is *not* used in the pipeline - the pipeline applies the calibrator, and AUPRG is an offline eval metric only. Its point is methodological rigor for the eventual manuscript: `lift = AUPRC/prevalence` is unbounded and blows up as prevalence shrinks, so it's not defensible in a writeup. AUPRG baselines precision and recall against the prevalence on a harmonic scale, giving a bounded [., 1] number (0 = random, 1 = perfect) that is comparable across cohorts. Pre-positioned now (P3, no urgent consumer) so a clean metric is ready when calibrator discrimination enters Methods/Results.
+
+**The finding (free payoff).** Real LOCO numbers expose the lift as a prevalence artifact: NCI's headline **111x lift** is almost entirely its 1-in-4,000 prevalence, not superior ranking - AUPRG places NCI/TESLA/HiTIDE all in the strong band (0.998 / 0.859 / 0.815) and IMPROVE alone near random (0.268), same ordering, sane spread. Reported the honest counter-caveat rather than overselling: at that extreme imbalance the AUPRG *finite-sample estimate* saturates toward 1 (the precision-gain baseline is trivially easy to beat) - an estimation artifact, not a metric defect. AUPRG earns its keep clearest on the three moderate-prevalence cohorts (~0.03-0.05).
+
+**Implementation rigor.** Clean-room reimplementation of the published algorithm (the reference `prg` PyPI sdist is unbuildable, and the auto-mode guard rightly blocked executing the curl'd source), generalized to sample weights so it stays consistent with the negative-reweighted AUPRC in the same eval. Locked against the published canonical known-answer (AUPRG = 0.432462103574, reproduced to 1e-9) plus perfect/random/inverted-ranker anchors, prevalence-invariance, and integer-weight == physical-replication invariance. (Verified the canonical value from the reference notebook, not recall - my first-guess number was wrong.)
+
+**Review + fixes.** `@claude` review verdict: strong, recommend merge; all notes non-blocking. Hand-traced the gain formulas, weight generalization, tie handling, crossing-point insertion, and degenerate-input guards as correct. Applied all four suggestions in 592ebcd: dropped an unused `n` param; added a scalar-rescale-invariance test that exercises the *fractional*-weight production path (the integer/uniform tests didn't); added explicit length-mismatch `ValueError` guards + test; tightened the README caveat to the population-quantity-vs-finite-sample-estimate framing. 36/36 tests green.
+
+**Verification.** AUPRG values (0.998 / 0.859 / 0.815 / 0.268) read first-hand from the re-executed notebook output, not recalled; canonical known-answer exact; notebook re-executes clean (nbconvert exit 0); README numbers match the notebook rounded. No pipeline runtime path touched.
+
+---
+
 ### 16:37 UTC - Editor: Scientist
 
 #### [PR #943](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/943) - refresh manuscript + notebooks to the STAR cohort run; reframe patient_002. Closes [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) + [Issue #899](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/899).

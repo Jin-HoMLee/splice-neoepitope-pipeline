@@ -130,7 +130,7 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 - `data_manifest.yaml` — **pinned schema v1** (Issue #707): paths + checksums + fetch commands + license. Raw tables are **not** committed (LICR copyright, no redistribution).
 - `outputs/calibrator_v1.joblib` — **deliverable artifact** (Issue #708): `PresentationCalibrator` fit with adaptive KDE mode, prior log-odds −6.525 (derived from `true_counts.csv` pooled across all 4 cohorts), trained on NCI + TESLA + HiTIDE + IMPROVE. Consumed by [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) (Snakemake wiring). Load: `PresentationCalibrator.load("outputs/calibrator_v1.joblib")`.
 - `outputs/scored_cohort_subsample.parquet.true_counts.csv` — per-cohort true positive and true negative counts used to compute the base-rate prior (committed; the `.parquet` itself is gitignored as LICR-derived).
-- `outputs/pr_reliability.png` — per-cohort **logit-scale calibration plot**: predicted log-odds (x) vs empirical logit of the observed rate (y, +0.5-corrected on the Kish-effective-n scale), with Wilson CIs, the 45° perfect-calibration diagonal, and the fitted **Cox recalibration** line. Headline numbers are the **Cox slope** (≈1 = well-calibrated spread; <1 = over-confident) and **intercept** (calibration-in-the-large / base-rate offset). Calibration is a held-out *diagnostic* on the SNV cohorts, not a deployment probability claim (#592); discrimination lives in the AUPRC-lift + top-k tables. The empirical curve is not expected to be monotone (sampling noise, not miscalibration); the monotonicity guarantee is structural (isotonic step, grid-checked at final fit).
+- `outputs/pr_reliability.png` — per-cohort **logit-scale calibration plot**: predicted log-odds (x) vs empirical logit of the observed rate (y, +0.5-corrected on the Kish-effective-n scale), with Wilson CIs, the 45° perfect-calibration diagonal, and the fitted **Cox recalibration** line. Headline numbers are the **Cox slope** (≈1 = well-calibrated spread; <1 = over-confident) and **intercept** (calibration-in-the-large / base-rate offset). Calibration is a held-out *diagnostic* on the SNV cohorts, not a deployment probability claim (#592); discrimination lives in the AUPRC-lift/AUPRG + top-k tables. The empirical curve is not expected to be monotone (sampling noise, not miscalibration); the monotonicity guarantee is structural (isotonic step, grid-checked at final fit).
 - `outputs/shift_gap.png` — LOCO vs within-cohort validation gap: visualises the cross-lab/assay transfer drop (the "proxy caveat" gap).
 - `outputs/kde_compare.png` — adaptive vs fixed-bandwidth KDE, logit-scale reliability for NCI + IMPROVE; confirms the two modes are indistinguishable on the large cohorts.
 - `outputs/kde_fit_compare.png` — the **same pooled data fitted both ways**: (left) class-conditional densities under fixed (Scott) vs adaptive (Abramson) KDE; (right) the resulting calibration maps. Shows what "adaptive" changes (wider kernels in the data-sparse tail, smoother map) and why the ranking/AUPRC barely moves (both maps monotone, track closely).
@@ -232,16 +232,21 @@ done
 
 ## Validation result
 
-**LOCO (leave-one-cohort-out) prevalence-relative lift** — primary cross-lab/assay transfer metric:
+**LOCO (leave-one-cohort-out) discrimination** - primary cross-lab/assay transfer metric.
+We report two baseline-corrected forms: the original AUPRC/prevalence **lift**, and **AUPRG** (area under the Precision-Recall-Gain curve; Flach & Kull, NeurIPS 2015), added in [Issue #803](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/803).
+Lift is unbounded and prevalence-sensitive; AUPRG baselines precision and recall against the prevalence on a harmonic (F-score) scale, so it lands in a bounded range (0 = random, 1 = perfect) that is comparable across cohorts of differing prevalence.
 
-| cohort left out | LOCO lift |
-|---|---|
-| NCI | ~111× |
-| TESLA | ~4.4× |
-| HiTIDE | ~2.7× |
-| IMPROVE | ~1.2× (near baseline) |
+| cohort left out | prevalence | AUPRC | LOCO lift | AUPRG |
+|---|---|---|---|---|
+| NCI | 0.000245 | 0.027 | ~111× | 0.998 |
+| TESLA | 0.046 | 0.201 | ~4.4× | 0.859 |
+| HiTIDE | 0.026 | 0.071 | ~2.7× | 0.815 |
+| IMPROVE | 0.027 | 0.032 | ~1.2× (near baseline) | 0.268 |
 
-NCI is the strongest discriminator; IMPROVE shows essentially no lift above the prevalence baseline (1×).
+Both metrics agree on the ordering - NCI > TESLA > HiTIDE > IMPROVE - but AUPRG collapses lift's incomparable spread onto one scale.
+NCI's headline "~111× lift" is largely a **tiny-prevalence artifact**: at a 1-in-4,000 positive rate the AUPRC/prevalence ratio explodes, so 111× is not 25× "better ranking" than TESLA's 4.4× - AUPRG places all three of NCI/TESLA/HiTIDE in the strong band (0.998 / 0.859 / 0.815) and IMPROVE alone near random (0.268).
+**Honest caveat on AUPRG at extreme imbalance:** AUPRG is prevalence-independent as a *population* quantity for a fixed ranker, but at NCI's 1-in-4,000 prevalence the precision-gain baseline is trivially easy to beat, so the *finite-sample estimate* saturates toward 1 - an estimation artifact, not a defect in the metric. Read the extreme-prevalence cohort with the same caution as its lift.
+AUPRG earns its keep most clearly on the three moderate-prevalence cohorts (~0.03-0.05), where lift compresses them into 1.2-4.4× while AUPRG cleanly separates the two strong discriminators (0.86 / 0.81) from near-random IMPROVE (0.27).
 
 **Proxy caveat:** all four cohorts are **SNV point-mutation neoantigens**. LOCO tests cross-lab/assay generalization as a stand-in for cross-antigen-type generalization; LOCO success does **not** validate performance on splice-junction-derived neoantigens. That transfer gap is a known open question — see [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547) and the design spec at [`docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md`](../../../docs/superpowers/specs/2026-06-18-issue-708-calibrator-design.md). The label-free **applicability** assessment of that transfer is below.
 
