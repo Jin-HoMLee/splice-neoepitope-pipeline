@@ -148,6 +148,22 @@ class TestSubprocessDeny:
         rc, out, _ = _run(_edit_payload("plain", f"S1{EN}S7"))
         assert rc == 0 and _is_deny(out)
 
+    def test_multiedit_adding_emdash_denied(self):
+        payload = json.dumps(
+            {
+                "tool_name": "MultiEdit",
+                "tool_input": {
+                    "file_path": "workflow/scripts/foo.py",
+                    "edits": [
+                        {"old_string": "a", "new_string": "a - b"},
+                        {"old_string": "c", "new_string": f"c{EM}d"},
+                    ],
+                },
+            }
+        )
+        rc, out, _ = _run(payload)
+        assert rc == 0 and _is_deny(out)
+
     def test_write_new_file_with_emdash_denied(self, tmp_path):
         target = tmp_path / "brand_new.py"
         payload = json.dumps(
@@ -201,3 +217,16 @@ class TestFailOpen:
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": "ls"}})
         rc, out, _ = _run(payload)
         assert rc == 0 and out.strip() == ""
+
+
+class TestFireLog:
+    def test_log_fire_appends_one_jsonl_line(self, tmp_path, monkeypatch):
+        logp = tmp_path / "hook_fires.jsonl"
+        monkeypatch.setattr(h, "LOG_PATH", logp)
+        h._log_fire("Edit", "foo.py", ["em-dash (U+2014)"])
+        lines = logp.read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1
+        rec = json.loads(lines[0])
+        assert rec["hook"] == "check_no_emdash"
+        assert rec["tool"] == "Edit"
+        assert rec["file"] == "foo.py"

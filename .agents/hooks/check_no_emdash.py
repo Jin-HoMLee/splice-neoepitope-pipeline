@@ -17,7 +17,11 @@ DELTA SCOPING: the guard flags only chars it is *net-adding*. For Edit/MultiEdit
 it compares each `new_string` against its `old_string`; for Write it compares the
 new `content` against the file's current on-disk content (empty for a new file).
 So editing a file that legitimately already contains em-dashes (most historical
-memory files) never false-positives unless the edit introduces a NEW one.
+memory files) never false-positives unless the edit introduces a NEW one. Note
+Write is COARSER than Edit/MultiEdit: it compares whole-file counts, so a single
+Write that both removes a pre-existing dash and adds a new one nets to zero and
+is not flagged (Edit/MultiEdit are span-local and exact). NotebookEdit is
+deliberately NOT in GUARDED_TOOLS - notebook cells are out of scope for now.
 
 ESCAPE HATCH: set env `CLAUDE_ALLOW_EMDASH=1` for a genuine verbatim need, or edit
 an allowlisted path (the guard's own source/tests, where the chars appear as
