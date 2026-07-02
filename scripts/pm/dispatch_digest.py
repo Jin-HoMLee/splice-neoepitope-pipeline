@@ -40,10 +40,11 @@ DISCUSSION_CATEGORY_ID = "DIC_kwDORwn9EM4C-Jo6"
 DISCUSSION_REPO_OWNER = "Jin-HoMLee"
 DISCUSSION_REPO_NAME = "splice-neoepitope-pipeline"
 
-# Committed statuses in display order (most-active first). Membership mirrors
-# board_open_items.COMMITTED_STATUSES (the Backlog->Ready commitment boundary);
-# this list additionally fixes the render order.
-COMMITTED_STATUSES = ["In progress", "In review", "Ready for review", "Ready"]
+# Committed statuses in display order (most-active first). Single-sourced from
+# board_open_items.COMMITTED_STATUSES (the Backlog->Ready commitment boundary) so
+# membership can never drift from the sibling; STATUS_ORDER supplies the render
+# order. Resolves to ["In progress", "In review", "Ready for review", "Ready"].
+COMMITTED_STATUSES = sorted(boi.COMMITTED_STATUSES, key=boi.STATUS_ORDER.get)
 
 UNASSIGNED = "(unassigned)"
 
@@ -126,6 +127,26 @@ def _item_link(it: dict[str, Any]) -> str:
     return f"{linked} {title}".rstrip()
 
 
+def _parse_discussions_response(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract discussion rows from a GraphQL response.
+
+    Pure (no I/O) so the fail-soft edges are unit-testable. A null `nodes` list
+    coalesces to [] and null node elements (GitHub returns these for inaccessible
+    items) are skipped, so neither raises.
+    """
+    nodes = data["data"]["repository"]["discussions"]["nodes"] or []
+    return [
+        {
+            "number": n.get("number"),
+            "title": n.get("title", ""),
+            "author": (n.get("author") or {}).get("login", "?"),
+            "url": n.get("url"),
+        }
+        for n in nodes
+        if n
+    ]
+
+
 def fetch_discussions() -> list[dict[str, Any]]:
     """Open Team Coordination Discussions as [{number, title, author, url}].
 
@@ -154,19 +175,15 @@ def fetch_discussions() -> list[dict[str, Any]]:
             print(f"Warning: discussions fetch failed: {r.stderr.strip()}", file=sys.stderr)
             return []
         data = json.loads(r.stdout)
-        nodes = data["data"]["repository"]["discussions"]["nodes"]
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        if errs := data.get("errors"):
+            print(f"Warning: discussions GraphQL errors: {errs}", file=sys.stderr)
+            return []
+        # Parse inside the guard so a malformed shape (null nodes, null element,
+        # missing key) fails soft to a board-only digest rather than aborting.
+        return _parse_discussions_response(data)
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
         print(f"Warning: could not parse discussions response: {e}", file=sys.stderr)
         return []
-    return [
-        {
-            "number": n.get("number"),
-            "title": n.get("title", ""),
-            "author": (n.get("author") or {}).get("login", "?"),
-            "url": n.get("url"),
-        }
-        for n in nodes
-    ]
 
 
 def render_digest(

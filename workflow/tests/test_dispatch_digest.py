@@ -132,3 +132,68 @@ def test_render_is_deterministic_given_fixed_now():
     a = dd.render_digest(items, discussions=[], now=NOW, stale_days=14)
     b = dd.render_digest(items, discussions=[], now=NOW, stale_days=14)
     assert a == b
+
+
+# --------------------------------------------------------------------------- #
+# committed-status parity + ordering (review finding 2)                        #
+# --------------------------------------------------------------------------- #
+
+def test_committed_statuses_single_source_matches_board_open_items():
+    """The digest's committed set must stay identical to the board_open_items source."""
+    import board_open_items as boi
+
+    assert set(dd.COMMITTED_STATUSES) == set(boi.COMMITTED_STATUSES)
+    assert dd.COMMITTED_STATUSES == ["In progress", "In review", "Ready for review", "Ready"]
+
+
+# --------------------------------------------------------------------------- #
+# _ordered_roles                                                              #
+# --------------------------------------------------------------------------- #
+
+def test_ordered_roles_canonical_first_then_extras_then_unassigned_last():
+    grouped = {
+        dd.UNASSIGNED: {}, "developer": {}, "zzz_custom": {}, "pm": {},
+    }
+    assert dd._ordered_roles(grouped) == ["pm", "developer", "zzz_custom", dd.UNASSIGNED]
+
+
+# --------------------------------------------------------------------------- #
+# _parse_discussions_response (fail-soft edges, review finding 1)              #
+# --------------------------------------------------------------------------- #
+
+def _disc_response(nodes):
+    return {"data": {"repository": {"discussions": {"nodes": nodes}}}}
+
+
+def test_parse_discussions_extracts_rows():
+    data = _disc_response([{"number": 910, "title": "t", "url": "u",
+                            "author": {"login": "Jin-HoMLee"}}])
+    rows = dd._parse_discussions_response(data)
+    assert rows == [{"number": 910, "title": "t", "author": "Jin-HoMLee", "url": "u"}]
+
+
+def test_parse_discussions_null_nodes_list_coalesces_to_empty():
+    """A null `nodes` must not raise - the fail-soft contract (review finding 1)."""
+    assert dd._parse_discussions_response(_disc_response(None)) == []
+
+
+def test_parse_discussions_skips_null_node_elements():
+    """GitHub returns null nodes for inaccessible items; skip, don't crash."""
+    data = _disc_response([None, {"number": 5, "title": "x", "url": "u", "author": None}])
+    rows = dd._parse_discussions_response(data)
+    assert [r["number"] for r in rows] == [5]
+    assert rows[0]["author"] == "?"  # null author -> sentinel, not a crash
+
+
+# --------------------------------------------------------------------------- #
+# build_digest_json                                                           #
+# --------------------------------------------------------------------------- #
+
+def test_build_digest_json_shape():
+    items = [_item(1, role="role:pm", status="Ready")]
+    discussions = [{"number": 910, "title": "t", "author": "a"}]
+    d = dd.build_digest_json(items, discussions=discussions, now=NOW, stale_days=14)
+    assert set(d) == {"generated_at", "stale_days", "per_role", "aging_wip", "discussions"}
+    assert d["stale_days"] == 14
+    assert d["per_role"]["pm"]["Ready"][0]["number"] == 1
+    assert d["discussions"] == discussions
