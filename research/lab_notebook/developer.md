@@ -6,6 +6,49 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-02 - Eval: adopt gh CLI v2.94.0 native issue-dependency fields for board tooling? (#824)
+
+### 15:30 UTC - Editor: Developer - gh native-dependency eval (findings + follow-up routing)
+
+**Context.** [Issue #824](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/824) (PM-filed, `arc:board-governance`) asked whether gh CLI v2.94.0's new native issue-dependency / sub-issue / issue-type fields can replace our raw-GraphQL + known-broken-search machinery for reading and setting Issue relationships.
+This entry is the durable capture of the eval; the eval produced no code change, so the deliverable is this entry plus two routed follow-up Issues.
+
+**Version gate.** The fields landed in gh **v2.94.0**.
+Local was **v2.92.0** (one minor behind, so none of the fields/flags existed); I upgraded local to **v2.95.0** via `brew upgrade gh`, which exposes them all.
+The **CCR remote-sandbox gh version is undocumented and unverified** - this is the real adoption blocker, since the `audit_and_merge.sh` commitment gate and the morning blocked-graph hygiene check run cross-env.
+
+**Findings.**
+
+1. **Reliable blocked read - strong YES (the headline win).**
+On the live board (127 open issues, no truncation): the broken `is:open is:blocked` search returned **9** blocked issues; native `gh issue list --json number,blockedBy` filtered on `blockedBy.totalCount > 0` returned **14**.
+The search silently under-reports by 5 (**36%**).
+The native field is authoritative and one call - it directly retires the broken-search workaround in the commitment gate and the morning hygiene check.
+Shape for implementers: `blockedBy` / `blocking` are `{nodes:[{number,...}], totalCount}` objects (not bare arrays); `parent` is object-or-null; all available on both `gh issue view` and `gh issue list --json`.
+
+2. **Does NOT fully replace `scan_prose_deps.py`.**
+Native fields surface only **formally wired** dependencies (via `addBlockedBy`); the prose scan reads dependency intent from free text ("blocked on #719").
+So native replaces the GraphQL `blockedBy` reads and the broken search, but the prose scan stays valuable as a safety net (or repurposes into a linter flagging prose-deps not yet wired) until the [Issue #745](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/745) backfill wires 100% of them.
+
+3. **Setter flags exist but are NOT idempotent.**
+`gh issue edit N --add-blocked-by M` / `--remove-blocked-by` / `--add-blocking` / `--add-sub-issue` / `--parent` all exist, but `--add-blocked-by` on an already-wired edge **errors** (`Validation failed: Target issue has already been taken`, non-zero exit) instead of no-op'ing.
+A backfill script must pre-check the existing `blockedBy` set or swallow that error - it can't blindly re-run.
+
+4. **No benefit to `board_open_items.py`.**
+It already inlines `subIssuesSummary { total }` in its ProjectV2 query - there is no separate call to eliminate.
+gh's native fields live on repo-issue queries, not project-item queries, so they don't reach the project scan anyway.
+
+**Recommendation.**
+Adopt native `blockedBy` for the reliable blocked read in the commitment gate + morning hygiene - **after** confirming the CCR sandbox runs gh >= 2.94.0.
+Keep `scan_prose_deps.py` as the prose safety net.
+Document the gh >= 2.94.0 minimum wherever env setup is described and add a soft version check to any script that adopts the fields, so an under-version env fails loud, not silent.
+No change to `board_open_items.py`.
+
+**Outcome routing.**
+Two follow-ups filed and wired: [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941) (CCR sandbox gh-version probe - the gating unknown) and [Issue #942](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/942) (adopt native `blockedBy` for the board-wide blocked read), with #942 blocked-by #941 so it can't start until the sandbox version is confirmed.
+Both are untriaged intake for PM to triage/commit.
+
+---
+
 ## 2026-07-01 - Deep-research: should we migrate Snakemake dependency management off conda? (#927)
 
 ### 15:01 UTC - Editor: Developer - conda-migration deep-research (durable capture of the full report)
