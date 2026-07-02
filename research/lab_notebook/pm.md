@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-02
 
+### 15:22 UTC - Editor: PM
+
+#### [PR #939](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/939) - Radar-style status-ring funnel for the landscape doc ([#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553))
+
+**Trigger.** Pulled [#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553) (Backlog -> In progress) as the best-next PM item: active-arc (`board-governance`), DoR-ready, unblocked, and high context-continuity with the same-session `multi_agent_landscape.md` governance cross-link.
+
+**What shipped (this PR, project repo).** Retrofitted `research/multi_agent_landscape.md` into a staging -> commit funnel using ThoughtWorks Technology Radar ring vocabulary (calendar cadence dropped): a header "Entry status: the funnel" section (ring enum + borrow-rings-drop-cadence + DoR convention), all 9 entries ringed, DoR/Next lines on the active ones, and a Maintenance funnel-convention note + board-hygiene grep step. Ring assignments: Copilot=`Assess`, Pattern Language=`Trial` (#353), Fugu/Conductor=`Hold`, Managed Agents/Symphony/Trends/Mason/AddyOsmani=`Reference`, none `Rejected`.
+
+**Design deviation, confirmed.** Added a **6th `Reference` ring** beyond #553's 5-ring design - about half the entries are pattern-confirmation/reinforcement (evaluated, no product adopted, but the idea confirmed our approach or lent vocabulary), which none of `Assess/Trial/Adopt/Hold/Rejected` captured honestly. The distinction: `Rejected` = walked away, not useful; `Reference` = walked away from the product, kept the idea. Flagged the deviation before implementing; **PM confirmed keeping the 6th ring**.
+
+**Companion memory ACs (4/5/8) done, shipping via MM drain.** Edited in the personas working tree: board-hygiene funnel-grep step, PM landscape-hook ring reference, same-hook-only bundling clause. AC7 (uncapped comment-on-tracked-Issue route) was **already present** in the shared file - verified, no edit (avoided duplication). These ship via the standard memory-drain flow, not a cross-repo PR (#882's convention is not live yet).
+
+**#553 stays open** until the memory edits drain; this PR delivers the project-repo half and does not close it. Graduation-to-cross-role trigger (its Future section) is gated on the pilot running one full `Assess -> Trial -> Adopt/Rejected` cycle, which has not happened - #553 is its own open carrier for it.
+
 ### 14:06 UTC - Editor: PM
 
 #### [PR #936](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/936) - agent-team governance deep-research report (2026-07)
