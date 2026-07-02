@@ -6,6 +6,8 @@ Maintained by PM. Updated when a morning briefing surfaces a `methodology-signal
 
 For our position relative to this landscape — why PM/Sci/Dev, why "multi-role" instead of "multi-agent" — see [Our position](#our-position).
 
+**Companion doc:** this file surveys the *frameworks/framing* (what exists in the field). For the *governance-evidence* survey — what the 2024-2026 literature says about **how to run** an agent/role team, which human-borrowed Kanban dials are miscalibrated, and the MAST failure taxonomy — see [`agent_team_governance_research_2026-07.md`](agent_team_governance_research_2026-07.md) (PM deep-research report, 2026-07).
+
 ---
 
 ## Frameworks
@@ -106,7 +108,8 @@ PM-owned. Update triggers:
 - New Issue concretely borrows from or extends a framework listed here → backfill the framework's rationale block with the Issue link.
 - Framework deprecated or pivoted → don't delete the entry; update the rationale with the deprecation note (the doc is a journal of *which* options we considered, not just current options).
 
-Last sweep: 2026-05-21 (Microsoft Conductor backfilled to Frameworks as counter-position to LLM-as-orchestrator).
+Last sweep: 2026-07-01 (companion governance-evidence report [`agent_team_governance_research_2026-07.md`](agent_team_governance_research_2026-07.md) cross-linked; adds MAST failure taxonomy + review-debt/review-column-WIP finding, neither previously tracked here).
+Prior: 2026-05-21 (Microsoft Conductor backfilled to Frameworks as counter-position to LLM-as-orchestrator).
 Prior: 2026-05-15 (GitHub Copilot desktop app backfilled to Frameworks as pattern-confirmation).
 Prior: 2026-05-14 (Gartner cancellation forecast backfilled to `our_position` #2 as external validation).
 Prior: 2026-05-12 (initial scaffold; 6 backfilled items: Symphony, Trends Report, Managed Agents, Mason, Fugu, Code Agent Orchestra).
