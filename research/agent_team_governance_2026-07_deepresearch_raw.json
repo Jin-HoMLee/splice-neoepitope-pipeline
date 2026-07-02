@@ -1,0 +1,783 @@
+{
+  "_note": "Raw deep-research results for research/agent_team_governance_research_2026-07.md. Provenance/verification trail. Ran 3x (rate-limiting killed synthesis on runs 1-2); final_run_completed = the run whose synthesize step succeeded. run1/run2 confirmed[] retained because those runs verified some claims the final run left unverified.",
+  "question": "Question: How should project management and workflow governance be designed for a team of AI agents (rather than humans), and which standard human-team Kanban/Agile assumptions break down when the \"team\" is AI personas?\n\nConcrete context to ground the research (make findings actionable for THIS setup, not a generic survey):\n- The \"team\" is a single human (project lead) coordinating 4 persistent AI personas - Project Manager, Scientist, Developer, and Memory Manager - each with its own role label, its own on-disk memory store, and its own clone of the repo.\n- Work is coordinated on a GitHub Projects board run as late-commitment Kanban: statuses No Status -> Backlog -> Ready -> In progress -> Ready for review -> In review -> Done; commitment happens at the Backlog->Ready boundary. We use per-role advisory WIP limits (cap ~3 in-progress per role), a proactive per-role \"Ready\" replenishment floor (~5), classes-of-service (coarse P0-P3), and never-closing \"arc\" theme labels.\n- We currently collect NO flow data (cycle time, throughput). Our WIP/floor parameters are borrowed straight from human-team Kanban guidance (\"2-3 items per person\").\n\nResearch angles I most want covered:\n1. Which core human-Kanban/Agile assumptions transfer to an AI-agent team and which DON'T - e.g. per-person WIP limits, cycle-time-as-a-metric, context-switching cost, sustainable pace, replenishment cadence, standup/retro rituals. AI agents don't fatigue and can parallelize, but have context-window limits, memory-persistence/staleness problems, and no true wall-clock \"flow\" - so what's the right analog of each concept?\n2. What NEW failure modes are specific to governing multi-agent teams - agent state drifting from the board, memory staleness, hallucinated task completion, coordination/handoff overhead, verification gaps - and what governance mechanisms (review gates, orchestration patterns, structured handoffs) does emerging practice/research use to counter them?\n3. What do the current (2024-2026) orchestration frameworks and multi-agent-systems literature say about coordinating agent teams (orchestrator-worker patterns, agent handoffs, shared memory/blackboard, role specialization, human-in-the-loop review) that maps onto board governance?\n4. Concrete, prioritized recommendations: what should we ADD, CHANGE, or DROP in our governance model given the above - especially which of our borrowed-from-humans parameters/rituals are miscalibrated for AI agents.",
+  "final_run_completed": {
+    "summary": "For an AI-persona team, the load-bearing parts of Kanban/Agile governance shift from managing human fatigue and flow to managing coordination cost, state persistence, and verification. The evidence strongly supports the setup's orchestrator-worker shape (PM-coordinated board dispatching role-specialized personas) and its structured-handoff discipline (Definition-of-Ready, arc labels, explicit task boundaries), because the dominant multi-agent failure classes are architectural/coordination/verification issues (MAST: ~44% system-design, ~32% inter-agent misalignment, ~24% task verification) rather than raw model capability. The human-borrowed parameters most at risk of miscalibration are the ones tied to human biology and one-way flow: per-person WIP limits and \"2-3 items\" floors assume fatigue and context-switching costs that AI agents largely lack, while the real constraints are context-window limits (forcing external-memory summarization) and, critically, downstream human review capacity - the true bottleneck once agents parallelize generation (\"review debt\"). The strongest concrete recommendations: keep and harden the review/closure gates and structured handoffs (load-bearing, not optional); stop treating output/velocity as productivity (commit count measures liability, not throughput); and re-anchor WIP limits to human review capacity rather than per-agent work-in-progress, since agents don't fatigue but reviewers do.",
+    "findings": [
+      {
+        "claim": "The orchestrator-worker pattern (one lead agent decomposing and delegating to parallel specialized subagents) is the canonical multi-agent coordination architecture, and it maps cleanly onto a PM-coordinated board dispatching role-specialized personas - validating the existing structure.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "Anthropic's Research system 'uses a multi-agent architecture with an orchestrator-worker pattern, where a lead agent coordinates the process while delegating to specialized subagents that operate in parallel.' Caveat surfaced in verification: Anthropic's subagents 'don't know other subagents exist' and 'cannot coordinate mid-task' - a weaker coordination model than a shared-board persona team, so the mapping is a defensible analogy, not an identity. A shared board is actually a stronger coordination substrate than the source's pattern.",
+        "sources": [
+          "https://www.anthropic.com/engineering/multi-agent-research-system"
+        ]
+      },
+      {
+        "claim": "Coordination overhead is a first-order cost: multi-agent systems use ~15x more tokens than chat (single agents ~4x), so a multi-agent/board structure is only justified for high-value work - a direct argument against over-decomposing low-stakes flow items into many personas/sub-issues.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "Anthropic: 'agents typically use about 4x more tokens than chat interactions, and multi-agent systems use about 15x more tokens than chats' and 'for economic viability, multi-agent systems require tasks where the value of the task is high enough to pay for the increased performance.' For THIS setup this supports the phases-as-sub-issues 'independent shippability' gate already in use and cautions against splitting cheap reactive work across personas. Multipliers are Anthropic's own system-specific approximations.",
+        "sources": [
+          "https://www.anthropic.com/engineering/multi-agent-research-system"
+        ]
+      },
+      {
+        "claim": "Structured, explicit task specifications at handoff are essential - without them agents duplicate work or leave gaps - which validates and should harden the board's Definition-of-Ready and the Backlog->Ready commitment gate as the persona-team analog of a handoff contract.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "Anthropic: each subagent 'needs an objective, an output format, guidance on the tools and sources to use, and clear task boundaries. Without detailed task descriptions, agents duplicate work, leave gaps, or fail to find necessary information.' This maps 1:1 onto DoR (scope clear, blockers cleared). Corroborating (unverified due to infra errors, not refuted) practice suggests handoffs benefit from explicit layers: state snapshot, decision log, priority queue, and warnings/gotchas.",
+        "sources": [
+          "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+        ]
+      },
+      {
+        "claim": "The AI-specific analog of 'memory staleness / state drift' governance is context-window management: long-running agents must summarize completed work and persist essential state to external memory (before the ~200K-token window truncates) - directly justifying the per-persona on-disk memory stores.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "Anthropic: 'agents summarize completed work phases and store essential information in external memory before proceeding to new tasks' and 'if the context window exceeds 200,000 tokens it will be truncated and it is important to retain the plan.' This reframes memory-staleness not as a human-team problem (people forget slowly) but as a hard truncation cliff, arguing the memory-commit (MM) role and external memory files are load-bearing infrastructure, not overhead. Unverified but corroborating: 'context rot' degrades LLM accuracy well before the nominal limit, favoring on-demand external state over keeping everything in-context.",
+        "sources": [
+          "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+        ]
+      },
+      {
+        "claim": "Multi-agent teams introduce genuinely NEW failure modes absent from single-agent work: hallucination amplification across agent chains, context loss during handoffs, cascading failures where one agent's error propagates to dependents, and coordination overhead from excessive inter-agent communication.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "arXiv 2601.13671 (Jan 2026) enumerates these four; independently corroborated across the 2024-2026 literature (MAST taxonomy, Galileo, Augment Code). Note: hallucination itself exists single-agent - the multi-agent-specific harm is amplification, where a hallucinated output stored in shared memory is treated as verified fact downstream with 'no error signal.' For THIS setup, shared-board/shared-memory reads are exactly the propagation vector, arguing for verification before a persona treats another persona's output as ground truth.",
+        "sources": [
+          "https://arxiv.org/pdf/2601.13671"
+        ]
+      },
+      {
+        "claim": "Most multi-agent failures are architectural/governance failures, not raw model-capability failures: the MAST empirical taxonomy clusters 14 failure modes into system-design issues (~44%), inter-agent misalignment (~32%), and task verification (~24%).",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "MAST (arXiv 2503.13657, UC Berkeley + Meta): grounded-theory analysis of 150+ traces across 7 frameworks, 6 annotators, kappa=0.88, plus 1600+ annotated traces. The authors' central thesis is that these failures require 'structural MAS redesigns,' not a stronger base model. This is the strongest single justification for investing in board governance itself: the payoff frontier is process design, not waiting for better models.",
+        "sources": [
+          "https://arxiv.org/pdf/2503.13657"
+        ]
+      },
+      {
+        "claim": "Verification gaps are a quantified, high-prevalence failure class - 'No or Incomplete Verification' 8.20% and 'Incorrect Verification' 9.10% (Task Verification category ~23.5% total) - directly supporting explicit review/closure gates as load-bearing board governance.",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "MAST (arXiv 2503.13657) from 1642 traces; the paper flags the verification category as 'a significant challenge regardless of the LLM used.' Caveat surfaced in verification: Task Verification is actually the SMALLEST of the three top-level categories, so 'top-tier' overstates its rank - but 'Incorrect Verification' at 9.10% is among the most prevalent individual modes. For THIS setup, this validates the closure-ritual gate, the audit_and_merge checks, and the review columns as the mechanisms that catch hallucinated/premature task completion.",
+        "sources": [
+          "https://arxiv.org/pdf/2503.13657"
+        ]
+      },
+      {
+        "claim": "Human oversight at key decision points is a load-bearing governance pattern for autonomous multi-agent execution - review/approval gates are not optional - which validates keeping the single human as an approval checkpoint (esp. at merge and commitment).",
+        "confidence": "high",
+        "vote": "3-0",
+        "evidence": "arXiv 2601.13671: 'Human oversight at key decision points mitigates risk in autonomous multi-agent execution.' Broadly corroborated (Mayer Brown 'Governance of Agentic AI Systems' Feb 2026; HITL reviews; AURA/Governance-as-a-Service frameworks) describing human approval before irreversible/high-stakes actions plus audit trails. The exact quoted line could not be re-located in the primary PDF (citation-precision defect, not refutation); the claim is mainstream consensus. For a 1-human-4-persona team this argues the human's scarce attention should be concentrated at irreversible gates (merge, commitment) rather than spread across every status move.",
+        "sources": [
+          "https://arxiv.org/pdf/2601.13671"
+        ]
+      },
+      {
+        "claim": "Output/velocity metrics (commit count, throughput) fail as AI-agent productivity measures because code generation was never the bottleneck - validation is - so borrowing human throughput metrics measures the wrong thing.",
+        "confidence": "medium",
+        "vote": "3-0",
+        "evidence": "InfoWorld (Matt Asay): 'writing code was never the bottleneck... The true bottleneck is validation'; celebrating 'commit velocity' measures 'how quickly your team can manufacture liability.' Consensus predating AI (Spolsky; 'typing is not the bottleneck') and corroborated 2026 (getDX, EPAM, LinearB). Secondary opinion source, hence medium. For THIS setup (which currently collects NO flow data), the actionable read is: do NOT rush to instrument commit/throughput; if instrumenting, measure verification/review lead time and rework, not generation volume. Note a related sharper claim - that agent metrics are 'trivially gameable' - was REFUTED (1-2), so the finding is 'wrong thing measured,' not 'inevitably gamed.'",
+        "sources": [
+          "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html"
+        ]
+      },
+      {
+        "claim": "Parallelizing agent output creates hidden 'review debt': more parallel generation increases the downstream verification burden, so the true constraint on an agent team is reviewer (human) capacity, not per-agent WIP - implying WIP limits should be re-anchored to the review columns.",
+        "confidence": "medium",
+        "vote": "3-0",
+        "evidence": "InfoWorld: 'The more you parallelize your code generation, the more review debt you create.' Corroborated (O'Reilly 'Comprehension Debt,' Augment Code 'The 80% Problem'); industry data cited: PR volume +29% YoY post-AI, AI code ~12x costlier to review, larger diffs. Secondary/conceptual source, hence medium. This is the key miscalibration for THIS setup: the borrowed 'cap ~3 in-progress per role' and 'floor ~5 Ready' assume human fatigue/context-switch costs agents lack; the binding constraint is instead the single human's review bandwidth. An unverified-but-relevant source suggests applying WIP limits to human-side review columns separately (starting limit ~5-10 cards per reviewer awaiting review).",
+        "sources": [
+          "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html",
+          "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop"
+        ]
+      }
+    ],
+    "caveats": "Time-sensitivity: all sources are 2025-2026 and the field is moving fast; MAST percentages and the token-multiplier figures are point-in-time and framework/system-specific (Anthropic's numbers are self-reported approximations for their own Research product). Source-quality split: Findings on architecture, failure taxonomy, memory, and human oversight rest on primary sources (Anthropic engineering, arXiv MAST 2503.13657, arXiv 2601.13671) with unanimous 3-0 votes; the two metrics findings (review debt, output-metric failure) rest on a single secondary opinion piece (InfoWorld) - directionally strong and widely corroborated but conceptual, not controlled measurement, hence medium confidence. Verification defects noted but not disqualifying: the exact supporting quotes for the human-oversight claim (2601.13671) and one MAST verification quote could not be re-located in the primary PDFs (citation-precision misses, not refutations); the 'orchestrator-worker maps to a PM board' and 'DoR analog' framings are the researcher's interpretive mappings, not source claims. One claim was REFUTED (that agent output metrics are 'trivially gameable') - the surviving finding is the weaker, better-supported 'measures the wrong thing.' IMPORTANT: 14 additional claims could NOT be verified due to verifier-agent infrastructure errors (not substantive failures) - these include several highly relevant, likely-true items I have flagged inline as corroborating context but should not be treated as confirmed: individual MAST mode prevalences (premature termination 6.20%, unaware-of-termination 12.4%, loss-of-conversation-history 2.80%, task derailment 7.40%), the 'context rot' degradation-before-limit finding, five-layer structured handoff artifacts, independent judge-agent verification (PwC 7x claim), the Kanban 'orbit/iterative' pattern where Done becomes human-agent agreement, and applying WIP limits to human review columns (5-10 cards/reviewer). These warrant a re-run of verification before being cited as settled.",
+    "openQuestions": [
+      "What are correct AI-agent-calibrated WIP/floor parameters? The borrowed human '2-3 per person' assumes fatigue/context-switching that agents lack; the binding constraint is single-human review bandwidth. What limit on the review/In-review columns (vs. per-role In-progress) best throttles review debt - and can it be tuned without any flow data collected yet?",
+      "What is the right flow-metric substrate for an agent team with no true wall-clock 'flow'? If cycle time/throughput are wrong, is the actionable metric verification lead time, rework rate, or human-review queue depth - and how do you measure these without over-instrumenting a low-stakes research board?",
+      "How should the team detect hallucinated/premature task completion specifically (the verification-gap failure class), given that closure gates check checkboxes/AC but not semantic correctness of a persona's claimed 'done' - is an independent judge/critic pass warranted, and at which gate?",
+      "Does adding a shared board actually raise or lower coordination cost vs. Anthropic's no-mid-task-coordination subagents? A shared blackboard enables silent hallucination propagation across personas - what verification is needed before one persona treats another's board/memory output as ground truth?"
+    ],
+    "confirmed": [],
+    "refuted": [
+      {
+        "claim": "AI agents make output-based metrics trivially gameable, so any human-team throughput metric borrowed as-is will be gamed effortlessly in an agent context.",
+        "vote": "1-2",
+        "source": "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html"
+      }
+    ],
+    "unverified": [
+      {
+        "claim": "Agent state/board drift and hallucinated/premature completion are recurring, individually-measured failure modes: 'Loss of Conversation History' (2.80%), 'Unaware of Termination Conditions' (12.4%), 'Premature Termination' (6.20%), and 'Task Derailment' (7.40%) are all named MAST modes with measured prevalence.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://arxiv.org/pdf/2503.13657"
+      },
+      {
+        "claim": "Traditional infrastructure metrics (latency, time-to-first-token, token throughput) are insufficient for evaluating AI agent performance, motivating outcome-based measures instead.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://arxiv.org/abs/2511.08242"
+      },
+      {
+        "claim": "The paper proposes a framework of eleven outcome-based, task-agnostic performance metrics measuring decision quality, autonomy, adaptability, and business value.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://arxiv.org/abs/2511.08242"
+      },
+      {
+        "claim": "AI agents must be evaluated as systems (that plan, call tools, maintain state, and adapt across turns), not as static models - implying governance/verification for agent work cannot rely on single-output correctness checks.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.infoq.com/articles/evaluating-ai-agents-lessons-learned/"
+      },
+      {
+        "claim": "Single-turn accuracy metrics miss multi-step agent failures such as an agent silently skipping a required action (e.g. a refund) after an API error - a concrete instance of hallucinated/undetected task incompletion that verification gates must catch.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.infoq.com/articles/evaluating-ai-agents-lessons-learned/"
+      },
+      {
+        "claim": "LLM performance degrades measurably as context grows well before the nominal token limit ('context rot'), with a Chroma study of 18 frontier models finding degradation at every increment and 30%+ accuracy drops from a lost-in-the-middle effect, and significant degradation at 50K tokens despite 200K windows.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+      },
+      {
+        "claim": "Robust long-running agent work requires storing critical state outside the context window in external memory, made available on-demand, rather than keeping it in-context.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+      },
+      {
+        "claim": "Effective agent-to-agent handoffs require structured artifacts across five explicit layers: state snapshot, narrative context, decision log, priority queue, and warnings/gotchas.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+      },
+      {
+        "claim": "A specific multi-agent failure mode is agents prematurely declaring a task complete after seeing incomplete or broken work from a prior session, motivating verification gates and warm-start handoffs.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/"
+      },
+      {
+        "claim": "Multi-agent LLM systems fail in production at rates between 41% and 86.7%, driven primarily by specification ambiguity and unstructured coordination protocols causing agents to misinterpret roles, duplicate work, and skip verification.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them"
+      },
+      {
+        "claim": "The MAST taxonomy (from 1,600+ execution traces, NeurIPS 2025) attributes multi-agent failures to three categories: specification problems (41.77%), coordination failures (36.94%), and verification gaps (21.30%).",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them"
+      },
+      {
+        "claim": "Adding an independent judge agent - one whose exclusive job is evaluating other agents' outputs with isolated prompts, separate context, and scoring criteria - is a recommended verification mechanism; PwC reported a 7x accuracy improvement (10% to 70%) via structured validation loops.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them"
+      },
+      {
+        "claim": "Standard Kanban's linear-progression assumption breaks for AI-agent work because agent output requires human evaluation, so tasks 'orbit' between agent and human rather than advancing one-way; 'Done' becomes mutual human-agent agreement rather than task completion.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop"
+      },
+      {
+        "claim": "WIP limits should be applied to human-side review columns separately from agent-side columns because human attention is the constrained resource, with a suggested starting limit of 5-10 cards per reviewer awaiting review.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop"
+      }
+    ],
+    "sources": [
+      {
+        "url": "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://addyosmani.com/blog/code-agent-orchestra/",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.agentcenter.cloud/blogs/how-to-structure-a-kanban-board-for-ai-agents",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://dataconomy.com/2025/09/18/how-to-apply-lean-kanban-to-ai-agents-an-interview-with-denis-ermakov/",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://openclawai.io/blog/openclaw-kanban-agent-task-board",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://yuvalyeret.com/blog/limiting-work-in-progress-wip-in-scrum-with-kanban-what-when-who-how/",
+        "quality": "blog",
+        "angle": "practitioner/implementation",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quality": "primary",
+        "angle": "academic/technical - orchestration patterns",
+        "claimCount": 5
+      },
+      {
+        "url": "https://towardsdatascience.com/how-agent-handoffs-work-in-multi-agent-systems/",
+        "quality": "blog",
+        "angle": "academic/technical - orchestration patterns",
+        "claimCount": 5
+      },
+      {
+        "url": "https://arize.com/blog/orchestrator-worker-agents-a-practical-comparison-of-common-agent-frameworks/",
+        "quality": "blog",
+        "angle": "academic/technical - orchestration patterns",
+        "claimCount": 5
+      },
+      {
+        "url": "https://arxiv.org/pdf/2601.13671",
+        "quality": "primary",
+        "angle": "academic/technical - orchestration patterns",
+        "claimCount": 5
+      },
+      {
+        "url": "https://beam.ai/agentic-insights/multi-agent-orchestration-patterns-production",
+        "quality": "blog",
+        "angle": "academic/technical - orchestration patterns",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html",
+        "quality": "secondary",
+        "angle": "contrarian/skeptical - assumption breakdown",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.infoq.com/articles/evaluating-ai-agents-lessons-learned/",
+        "quality": "secondary",
+        "angle": "contrarian/skeptical - assumption breakdown",
+        "claimCount": 5
+      },
+      {
+        "url": "https://galileo.ai/blog/ai-agent-metrics",
+        "quality": "blog",
+        "angle": "contrarian/skeptical - assumption breakdown",
+        "claimCount": 5
+      },
+      {
+        "url": "https://zylos.ai/research/2026-03-31-context-window-management-session-lifecycle-long-running-agents/",
+        "quality": "secondary",
+        "angle": "contrarian/skeptical - assumption breakdown",
+        "claimCount": 5
+      },
+      {
+        "url": "https://arxiv.org/pdf/2503.13657",
+        "quality": "primary",
+        "angle": "failure modes / risk",
+        "claimCount": 5
+      },
+      {
+        "url": "https://galileo.ai/blog/multi-agent-coordination-failure-mitigation",
+        "quality": "blog",
+        "angle": "failure modes / risk",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them",
+        "quality": "secondary",
+        "angle": "failure modes / risk",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.augmentcode.com/guides/agentic-design-patterns",
+        "quality": "blog",
+        "angle": "state-of-art frameworks",
+        "claimCount": 5
+      },
+      {
+        "url": "https://www.langchain.com/resources/ai-agent-frameworks",
+        "quality": "blog",
+        "angle": "state-of-art frameworks",
+        "claimCount": 5
+      },
+      {
+        "url": "https://arxiv.org/abs/2511.08242",
+        "quality": "primary",
+        "angle": "metrics/measurement analog",
+        "claimCount": 4
+      },
+      {
+        "url": "https://www.groundcover.com/learn/observability/ai-agent-observability",
+        "quality": "blog",
+        "angle": "metrics/measurement analog",
+        "claimCount": 5
+      },
+      {
+        "url": "https://montecarlo.ai/blog-agent-evaluation-metrics",
+        "quality": "unreliable",
+        "angle": "metrics/measurement analog",
+        "claimCount": 0
+      }
+    ],
+    "stats": {
+      "angles": 6,
+      "sourcesFetched": 23,
+      "claimsExtracted": 109,
+      "claimsVerified": 25,
+      "confirmed": 10,
+      "killed": 1,
+      "unverified": 14,
+      "afterSynthesis": 10,
+      "urlDupes": 2,
+      "budgetDropped": 11,
+      "agentCalls": 106
+    },
+    "logs": [
+      "Q: Question: How should project management and workflow governance be designed for …",
+      "Decomposed into 6 angles: practitioner/implementation, academic/technical - orchestration patterns, contrarian/skeptical - assumption breakdown, failure modes / risk, state-of-art frameworks, metrics/measurement analog",
+      "practitioner/implementation: 6 results",
+      "academic/technical - orchestration patterns: 6 results",
+      "contrarian/skeptical - assumption breakdown: 6 results",
+      "failure modes / risk: 6 results",
+      "state-of-art frameworks: 6 results",
+      "metrics/measurement analog: 6 results",
+      "academic/technical - orchestration patterns: 5 novel (1 filtered)",
+      "contrarian/skeptical - assumption breakdown: 4 novel (2 filtered)",
+      "failure modes / risk: 3 novel (3 filtered)",
+      "state-of-art frameworks: 2 novel (4 filtered)",
+      "metrics/measurement analog: 3 novel (3 filtered)",
+      "Fetched 23 sources → 109 claims → verifying top 25",
+      "\"Multi-agent systems consume roughly 15x more token…\": 3-0 ✓",
+      "\"Effective agent handoffs require explicit, structu…\": 3-0 ✓",
+      "\"A hierarchical orchestrator-worker pattern (one le…\": 3-0 ✓",
+      "\"Long-running agents must summarize completed work …\": 3-0 ✓",
+      "\"Human oversight inserted at key decision points is…\": 3-0 ✓",
+      "\"Multi-agent systems have distinct failure modes no…\": 3-0 ✓",
+      "[v1:Agent state/board drift and hallucinated] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Agent state/board drift and hallucinated] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Traditional infrastructure metrics (latency, time-…\": 0-0 (3 errored) ?",
+      "[v0:The paper proposes a framework of eleven] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:The paper proposes a framework of eleven] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"The paper proposes a framework of eleven outcome-b…\": 1-0 (2 errored) ?",
+      "\"Failures in multi-agent LLM systems cluster into 3…\": 3-0 ✓",
+      "\"Agent state/board drift and hallucinated/premature…\": 1-0 (2 errored) ?",
+      "\"Verification gaps are a top-tier, quantified failu…\": 3-0 ✓",
+      "\"Output/velocity metrics like commit count fail as …\": 3-0 ✓",
+      "[v1:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"AI agents must be evaluated as systems (that plan,…\": 0-0 (3 errored) ?",
+      "[v0:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Single-turn accuracy metrics miss multi-step agent…\": 0-0 (3 errored) ?",
+      "\"Parallelizing AI code generation creates a hidden …\": 3-0 ✓",
+      "\"AI agents make output-based metrics trivially game…\": 1-2 ✗",
+      "[v1:LLM performance degrades measurably as c] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:LLM performance degrades measurably as c] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Effective agent-to-agent handoffs require structur…\": 0-0 (3 errored) ?",
+      "[v1:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Robust long-running agent work requires storing cr…\": 0-0 (3 errored) ?",
+      "[v0:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"A specific multi-agent failure mode is agents prem…\": 0-0 (3 errored) ?",
+      "[v1:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Multi-agent LLM systems fail in production at rate…\": 0-0 (3 errored) ?",
+      "[v1:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"The MAST taxonomy (from 1,600+ execution traces, N…\": 0-0 (3 errored) ?",
+      "[v2:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Adding an independent judge agent - one whose excl…\": 0-0 (3 errored) ?",
+      "[v0:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Standard Kanban's linear-progression assumption br…\": 0-0 (3 errored) ?",
+      "[v0:WIP limits should be applied to human-si] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:WIP limits should be applied to human-si] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"WIP limits should be applied to human-side review …\": 1-0 (2 errored) ?",
+      "\"LLM performance degrades measurably as context gro…\": 1-0 (2 errored) ?",
+      "Verify done: 25 claims → 10 confirmed, 1 refuted, 14 unverified"
+    ]
+  },
+  "run1_partial": {
+    "confirmed": [
+      {
+        "claim": "Multi-agent parallelism carries a large, quantifiable coordination/resource cost - agents use ~4x the tokens of chat and multi-agent systems ~15x - so parallelization is not free and governance must gate it to high-value tasks, unlike costless human parallel work assumptions.",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quote": "agents typically use about 4× more tokens than chat interactions, and multi-agent systems use about 15× more tokens than chats",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Multi-agent LLM system failures cluster into three organizational categories - system design/specification issues (43.9%), inter-agent misalignment (31.4%), and task verification (23.5%) - meaning the majority of failures are governance/coordination-level, not raw model-capability failures. This directly validates designing explicit governance (role specs, handoff protocols, verification gates) for an AI-persona team.",
+        "source": "https://arxiv.org/pdf/2503.13657",
+        "quote": "FC1 (System Design Issues): 43.9% of failures; FC2 (Inter-Agent Misalignment): 31.35% of failures; FC3 (Task Verification): 23.5% of failures",
+        "vote": "2-1"
+      },
+      {
+        "claim": "Failures are not primarily a function of base-model weakness: the same underlying model performs measurably better under improved multi-agent system design (up to +15.6%), so investing in workflow/organizational governance yields gains independent of model upgrades.",
+        "source": "https://arxiv.org/pdf/2503.13657",
+        "quote": "MAS failure is not merely a function of challenges in the underlying model; a well-designed MAS can result in performance gain when using the same underlying model... With the same underlying model, we achieve max improvements of 15.6%",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Early errors compound through multi-step agent workflows: a single unverified/verification-gap at one stage cascades into downstream task failures, motivating stage-by-stage validation rather than end-only checks.",
+        "source": "https://arxiv.org/pdf/2601.22290",
+        "quote": "how early errors compound through multi-step workflows. A single verification gap at one stage cascades into downstream task failures",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Multi-agent LLM systems exhibit a distinctive cascading-failure mode absent in single-agent settings: an error in an upstream agent propagates through the workflow, amplifying issues or creating entirely new failure scenarios, so a single misconfigured or poorly-handled edge case can compromise the whole workflow.",
+        "source": "https://arxiv.org/pdf/2603.29848",
+        "quote": "multi-agent systems exhibit cascading failure patterns where errors in upstream agents propagate through the workflow, potentially amplifying issues or creating entirely new failure scenarios ... a single misconfigured or poorly handled edge case can compromise the entire workflow's effectiveness.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Automated failure localization in agent trajectories is an unsolved verification gap: on the TRAIL benchmark of trajectory-level traces with labeled reasoning/planning/execution/tool errors, even strong long-context models achieve only about 11% accuracy.",
+        "source": "https://arxiv.org/pdf/2603.29848",
+        "quote": "TRAIL provides trajectory-level traces with labeled reasoning, planning, execution, and tool errors, on which even strong long-context models achieve only ~11% accuracy",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Stale/outdated shared-memory state is identified as a distinct failure mode that causes agents to take mutually contradictory actions, mapping directly onto our memory-staleness and board-drift concerns.",
+        "source": "https://arxiv.org/pdf/2601.13671",
+        "quote": "Outdated information in shared memory systems can lead to contradictory agent actions",
+        "vote": "2-1"
+      },
+      {
+        "claim": "Commit velocity / raw output volume is an invalid productivity metric for AI agents; high commit counts measure technical-debt and liability production, not productivity.",
+        "source": "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html",
+        "quote": "You are not measuring productivity. You are measuring how quickly your team can manufacture liability.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "AI agents fail silently in multi-turn workflows by skipping a failed sub-step and misreporting the overall task as complete - a hallucinated-completion failure mode that sandbox evaluation misses.",
+        "source": "https://www.infoq.com/articles/evaluating-ai-agents-lessons-learned/",
+        "quote": "When the refund API returns an unexpected error in step two, the agent silently skips the refund and reports the case as resolved.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Agents must be evaluated as systems executing multi-step, tool-calling workflows rather than as single-turn text generators, so single-turn/static-text accuracy metrics are inadequate for verifying task completion.",
+        "source": "https://www.infoq.com/articles/evaluating-ai-agents-lessons-learned/",
+        "quote": "Classical NLP metrics like BLEU or ROUGE weren't designed for this situation; they score static text, not dynamic behavior.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Multi-agent LLM systems fail at production rates of 41-86.7%, per a taxonomy built from 1,600+ execution traces (MAST, NeurIPS 2025).",
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them",
+        "quote": "multi-agent LLM systems fail at rates between 41-86.7% in production. Research validates a taxonomy across 1,600+ execution traces at NeurIPS 2025.",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Multi-agent failures decompose into three categories: Specification problems (41.77%), Coordination/inter-agent misalignment (36.94%), and Verification gaps (21.30%).",
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them",
+        "quote": "Specification Problems (41.77%)... Coordination Failures (36.94%)... Verification Gaps (21.30%)",
+        "vote": "2-0"
+      }
+    ],
+    "refuted": [
+      {
+        "claim": "Multi-agent effort should scale to task complexity via explicit subagent-count/tool-call heuristics rather than a fixed per-agent WIP number - simple fact-finding = 1 agent/3-10 calls, comparisons = 2-4 subagents, complex work = 10+ subagents. This directly challenges borrowing a static human '2-3 items per person' WIP limit.",
+        "vote": "1-2",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system"
+      },
+      {
+        "claim": "Token usage (not wall-clock cycle time) is the dominant measurable predictor of agent-team performance, explaining 80% of outcome variance alone; this suggests token/tool-call budgets are the AI-team analog of flow metrics a human-team Kanban would track.",
+        "vote": "0-3",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system"
+      },
+      {
+        "claim": "In production LLM agentic systems, parsing/output-format failures (malformed JSON, missing schema fields, instruction non-compliance) are the single largest source of execution breakdowns, accounting for nearly 38% of all observed task failures.",
+        "vote": "0-3",
+        "source": "https://arxiv.org/pdf/2603.29848"
+      },
+      {
+        "claim": "Per-role WIP limits port directly to AI-agent teams via a dispatcher that refuses to admit a card beyond the cap (cap of 3 in-flight for the Dev agent), and this is the specific cure for the duplicate-PR failure mode.",
+        "vote": "0-3",
+        "source": "https://dataconomy.com/2025/09/18/how-to-apply-lean-kanban-to-ai-agents-an-interview-with-denis-ermakov/"
+      },
+      {
+        "claim": "A hard retry cap (three attempts) that halts the card and pages a human is required to bound agent cost; with it, p99 cost per issue is roughly 2x the median, whereas without it p99 runs 10x-20x the median.",
+        "vote": "0-3",
+        "source": "https://dataconomy.com/2025/09/18/how-to-apply-lean-kanban-to-ai-agents-an-interview-with-denis-ermakov/"
+      },
+      {
+        "claim": "The real engineering bottleneck is validation and integration, not code production, so making code generation cheaper (as agents do) increases total downstream work rather than reducing it.",
+        "vote": "1-2",
+        "source": "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html"
+      },
+      {
+        "claim": "Outcome-based flow metrics (DORA: deployment frequency, lead time for changes, change failure rate, time to restore service) are the correct measures for agent-driven work because they are indifferent to agent output volume.",
+        "vote": "0-3",
+        "source": "https://www.infoworld.com/article/4135492/ai-agents-and-bad-productivity-metrics.html"
+      }
+    ],
+    "unverified": [
+      {
+        "claim": "Coordination failures - communication breakdowns and state synchronization issues - are the second-largest failure source, directly relevant to agent state drifting from the board.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them"
+      },
+      {
+        "claim": "For AI-agent Kanban, the review columns should carry their own WIP limits keyed to human reviewer capacity (e.g. 5-10 cards in 'Awaiting Human Review' per reviewer), separate from agent-side column limits - implying the binding constraint is human review bandwidth, not agent throughput.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop"
+      },
+      {
+        "claim": "AI-agent work does not progress linearly through a Kanban board; because agent output almost always requires human evaluation before it is 'done', tasks cycle back through review/revision loops rather than moving straight to Done.",
+        "erroredVotes": 2,
+        "validVotes": 1,
+        "source": "https://www.mindstudio.ai/blog/iterative-kanban-pattern-ai-agents-feedback-loop"
+      },
+      {
+        "claim": "Effective multi-agent coding teams have an optimal size of roughly 3-5 parallel agents, and token cost scales linearly with team size - directly relevant to calibrating per-role WIP/parallelism limits for an AI team.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://addyosmani.com/blog/code-agent-orchestra/"
+      },
+      {
+        "claim": "For AI agents the binding constraint shifts from generation to verification, so review/quality gates (plan approval, lifecycle hooks, curated docs) are the core governance mechanism rather than throughput management.",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://addyosmani.com/blog/code-agent-orchestra/"
+      },
+      {
+        "claim": "A new multi-agent-specific failure mode is distributed error amplification: small mistakes compound across many parallel agents without a human oversight bottleneck, motivating hard kill/iteration limits (stop after 3+ stuck iterations).",
+        "erroredVotes": 3,
+        "validVotes": 0,
+        "source": "https://addyosmani.com/blog/code-agent-orchestra/"
+      }
+    ],
+    "logs": [
+      "Q: Question: How should project management and workflow governance be designed for …",
+      "Decomposed into 6 angles: practitioner/implementation, academic/technical - orchestration patterns, contrarian/skeptical - assumption breakdown, failure modes / risk, state-of-art frameworks, metrics/measurement analog",
+      "failure modes / risk: 6 results",
+      "contrarian/skeptical - assumption breakdown: 6 results",
+      "academic/technical - orchestration patterns: 6 results",
+      "academic/technical - orchestration patterns: 4 novel (2 filtered)",
+      "metrics/measurement analog: 6 results",
+      "metrics/measurement analog: 3 novel (3 filtered)",
+      "state-of-art frameworks: 6 results",
+      "state-of-art frameworks: 2 novel (4 filtered)",
+      "practitioner/implementation: 6 results",
+      "practitioner/implementation: 4 novel (2 filtered)",
+      "Fetched 25 sources → 124 claims → verifying top 25",
+      "\"Multi-agent effort should scale to task complexity…\": 1-2 ✗",
+      "\"Token usage (not wall-clock cycle time) is the dom…\": 0-3 ✗",
+      "\"Multi-agent parallelism carries a large, quantifia…\": 3-0 ✓",
+      "\"Multi-agent LLM system failures cluster into three…\": 2-1 ✓",
+      "\"Failures are not primarily a function of base-mode…\": 3-0 ✓",
+      "\"Early errors compound through multi-step agent wor…\": 3-0 ✓",
+      "\"Multi-agent LLM systems exhibit a distinctive casc…\": 3-0 ✓",
+      "\"In production LLM agentic systems, parsing/output-…\": 0-3 ✗",
+      "\"Automated failure localization in agent trajectori…\": 3-0 ✓",
+      "\"Per-role WIP limits port directly to AI-agent team…\": 0-3 ✗",
+      "\"A hard retry cap (three attempts) that halts the c…\": 0-3 ✗",
+      "\"Stale/outdated shared-memory state is identified a…\": 2-1 ✓",
+      "\"Commit velocity / raw output volume is an invalid …\": 3-0 ✓",
+      "\"The real engineering bottleneck is validation and …\": 1-2 ✗",
+      "\"Outcome-based flow metrics (DORA: deployment frequ…\": 0-3 ✗",
+      "\"AI agents fail silently in multi-turn workflows by…\": 3-0 ✓",
+      "\"Agents must be evaluated as systems executing mult…\": 3-0 ✓",
+      "[v1:Coordination failures - communication br] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:For AI-agent Kanban, the review columns] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Multi-agent failures decompose into thre] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Multi-agent failures decompose into three categori…\": 2-0 (1 errored) ✓",
+      "[v0:AI-agent work does not progress linearly] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:For AI-agent Kanban, the review columns] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Coordination failures - communication br] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:For AI-agent Kanban, the review columns] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"For AI-agent Kanban, the review columns should car…\": 0-0 (3 errored) ?",
+      "[v1:AI-agent work does not progress linearly] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Effective multi-agent coding teams have] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Effective multi-agent coding teams have] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:For AI agents the binding constraint shi] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Effective multi-agent coding teams have] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Effective multi-agent coding teams have an optimal…\": 0-0 (3 errored) ?",
+      "[v2:For AI agents the binding constraint shi] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:For AI agents the binding constraint shi] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"For AI agents the binding constraint shifts from g…\": 0-0 (3 errored) ?",
+      "[v0:A new multi-agent-specific failure mode] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:A new multi-agent-specific failure mode] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Coordination failures - communication breakdowns a…\": 1-0 (2 errored) ?",
+      "\"Multi-agent LLM systems fail at production rates o…\": 3-0 ✓",
+      "[v2:A new multi-agent-specific failure mode] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"A new multi-agent-specific failure mode is distrib…\": 0-0 (3 errored) ?",
+      "\"AI-agent work does not progress linearly through a…\": 0-1 (2 errored) ?",
+      "Verify done: 25 claims → 12 confirmed, 7 refuted, 6 unverified",
+      "[synthesize] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited"
+    ]
+  },
+  "run2_partial": {
+    "confirmed": [
+      {
+        "claim": "Multi-agent systems consume roughly 15x more tokens than single-agent chat interactions (and single agents ~4x more than chat), making coordination overhead a first-order cost that should drive when a multi-agent structure is justified.",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quote": "agents typically use about 4× more tokens than chat interactions, and multi-agent systems use about 15× more tokens than chats",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Effective agent handoffs require explicit, structured task specifications; without them agents duplicate work or leave gaps - a direct analog to the board's need for clear Definition-of-Ready/handoff structure between personas.",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quote": "an objective, an output format, guidance on the tools and sources to use, and clear task boundaries",
+        "vote": "3-0"
+      },
+      {
+        "claim": "A hierarchical orchestrator-worker pattern (one lead agent decomposing and delegating to parallel specialized subagents) is Anthropic's core coordination architecture, mapping onto a PM-coordinated board that dispatches role-specialized personas.",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quote": "a lead agent coordinates the process while delegating to specialized subagents that operate in parallel",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Long-running agents must summarize completed work and persist state to external memory to survive context-window limits (200K tokens), which is the AI-specific analog of memory-staleness/state-drift governance.",
+        "source": "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "quote": "agents summarize completed work phases and store essential information in external memory before proceeding",
+        "vote": "3-0"
+      },
+      {
+        "claim": "Multi-agent systems have distinct failure modes not present in single-agent setups - notably hallucination amplification (false outputs multiplying across agent chains), context loss during inter-agent handoffs, cascading failures where one agent's error propagates to dependents, and coordination overhead from excessive inter-agent communication.",
+        "source": "https://arxiv.org/pdf/2601.13671",
+        "quote": "Hallucination amplification: False outputs multiply across agent chains ... Context loss during handoffs: Incomplete information transfer between agents ... Cascading failures: Errors in one agent propagate through dependent agents ... Coordination overhead: Excessive inter-agent communication reducing efficiency",
+        "vote": "2-0"
+      }
+    ],
+    "logs": [
+      "Q: Question: How should project management and workflow governance be designed for …",
+      "Decomposed into 6 angles: practitioner/implementation, academic/technical - orchestration patterns, contrarian/skeptical - assumption breakdown, failure modes / risk, state-of-art frameworks, metrics/measurement analog",
+      "practitioner/implementation: 6 results",
+      "academic/technical - orchestration patterns: 6 results",
+      "contrarian/skeptical - assumption breakdown: 6 results",
+      "failure modes / risk: 6 results",
+      "state-of-art frameworks: 6 results",
+      "metrics/measurement analog: 6 results",
+      "academic/technical - orchestration patterns: 5 novel (1 filtered)",
+      "contrarian/skeptical - assumption breakdown: 4 novel (2 filtered)",
+      "failure modes / risk: 3 novel (3 filtered)",
+      "state-of-art frameworks: 2 novel (4 filtered)",
+      "metrics/measurement analog: 3 novel (3 filtered)",
+      "Fetched 23 sources → 109 claims → verifying top 25",
+      "\"Effective agent handoffs require explicit, structu…\": 3-0 ✓",
+      "\"Multi-agent systems consume roughly 15x more token…\": 3-0 ✓",
+      "\"Long-running agents must summarize completed work …\": 3-0 ✓",
+      "\"A hierarchical orchestrator-worker pattern (one le…\": 3-0 ✓",
+      "[v1:Human oversight inserted at key decision] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Failures in multi-agent LLM systems clus] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Human oversight inserted at key decision] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Failures in multi-agent LLM systems clus] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Failures in multi-agent LLM systems clus] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Failures in multi-agent LLM systems cluster into 3…\": 0-0 (3 errored) ?",
+      "[v0:Verification gaps are a top-tier, quanti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Multi-agent systems have distinct failur] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Verification gaps are a top-tier, quanti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Agent state/board drift and hallucinated] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Verification gaps are a top-tier, quanti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Verification gaps are a top-tier, quantified failu…\": 0-0 (3 errored) ?",
+      "[v1:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Agent state/board drift and hallucinated] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Traditional infrastructure metrics (late] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Traditional infrastructure metrics (latency, time-…\": 0-0 (3 errored) ?",
+      "[v2:Agent state/board drift and hallucinated] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Agent state/board drift and hallucinated/premature…\": 0-0 (3 errored) ?",
+      "[v1:The paper proposes a framework of eleven] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:The paper proposes a framework of eleven] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Output/velocity metrics like commit coun] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Multi-agent systems have distinct failure modes no…\": 2-0 (1 errored) ✓",
+      "[v0:The paper proposes a framework of eleven] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"The paper proposes a framework of eleven outcome-b…\": 0-0 (3 errored) ?",
+      "[v1:Output/velocity metrics like commit coun] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Human oversight inserted at key decision points is…\": 1-0 (2 errored) ?",
+      "[v2:AI agents make output-based metrics triv] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Parallelizing AI code generation creates] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Output/velocity metrics like commit coun] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Output/velocity metrics like commit count fail as …\": 0-0 (3 errored) ?",
+      "[v1:Parallelizing AI code generation creates] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Parallelizing AI code generation creates] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Parallelizing AI code generation creates a hidden …\": 0-0 (3 errored) ?",
+      "[v2:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:AI agents must be evaluated as systems (] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"AI agents must be evaluated as systems (that plan,…\": 0-0 (3 errored) ?",
+      "[v1:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:LLM performance degrades measurably as c] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:LLM performance degrades measurably as c] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Single-turn accuracy metrics miss multi-] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Single-turn accuracy metrics miss multi-step agent…\": 0-0 (3 errored) ?",
+      "[v1:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:LLM performance degrades measurably as c] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"LLM performance degrades measurably as context gro…\": 0-0 (3 errored) ?",
+      "[v1:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:AI agents make output-based metrics triv] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Effective agent-to-agent handoffs requir] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Effective agent-to-agent handoffs require structur…\": 0-0 (3 errored) ?",
+      "[v0:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Multi-agent LLM systems fail in producti] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Multi-agent LLM systems fail in production at rate…\": 0-0 (3 errored) ?",
+      "[v2:A specific multi-agent failure mode is a] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"A specific multi-agent failure mode is agents prem…\": 0-0 (3 errored) ?",
+      "[v0:AI agents make output-based metrics triv] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"AI agents make output-based metrics trivially game…\": 0-0 (3 errored) ?",
+      "[v2:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Adding an independent judge agent - one] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Adding an independent judge agent - one whose excl…\": 0-0 (3 errored) ?",
+      "[v0:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v0:WIP limits should be applied to human-si] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v1:WIP limits should be applied to human-si] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "[v2:Standard Kanban's linear-progression ass] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Standard Kanban's linear-progression assumption br…\": 0-0 (3 errored) ?",
+      "[v1:The MAST taxonomy (from 1,600+ execution] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"The MAST taxonomy (from 1,600+ execution traces, N…\": 0-0 (3 errored) ?",
+      "[v2:WIP limits should be applied to human-si] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"WIP limits should be applied to human-side review …\": 0-0 (3 errored) ?",
+      "[v2:Robust long-running agent work requires] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited",
+      "\"Robust long-running agent work requires storing cr…\": 0-0 (3 errored) ?",
+      "Verify done: 25 claims → 5 confirmed, 0 refuted, 20 unverified",
+      "[synthesize] failed: API Error: Server is temporarily limiting requests (not your usage limit) · Rate limited"
+    ]
+  }
+}
