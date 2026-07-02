@@ -328,6 +328,11 @@ CLAUDE.local.md
 .agents/last_session_marker.json
 .claude/last_session_marker.json
 
+# Codex CLI - per-user local harness config (local experiment; not team tooling yet).
+# Canonical hooks live in .agents/hooks/; promote to a committed config only if Codex
+# graduates to a supported harness.
+.codex/
+
 # Remote-tabix index downloaded by the GTEx pan-tissue builder (Issue #211); the builder
 # now stages it in a temp dir, but ignore the bare name as belt-and-suspenders.
 *.bgz.tbi
