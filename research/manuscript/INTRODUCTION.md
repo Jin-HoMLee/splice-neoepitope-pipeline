@@ -200,9 +200,11 @@ applied. HLA alleles typed by OptiType from RNA-seq reads; no ground-truth allel
 available for validation.
 
 **Patient_002 — Osteosarcoma (tumor only)**
-IPISRC044 from the publicly available osteosarcoma dataset (https://osteosarc.com/).
-Boston Gene T0 tumor RNA-seq (Nov 2022), paired-end Illumina. No matched RNA-seq normal
-available; all unannotated junctions treated as tumor-exclusive. Known HLA Class I alleles
-from Red Cross serology (A\*01:01/01:11N, B\*08:01/27:05, C\*01:02/07:01) provide a
-direct validation opportunity for the OptiType HLA typing step. Longitudinal tumor samples
-(T0, T1, T2) enable future analysis of neoepitope evolution over the course of treatment.
+Patient IPISRC044 (BostonGene sample BG003082) from the publicly available osteosarcoma
+dataset (https://osteosarc.com/). T0 tumor RNA-seq (Nov 2022), paired-end Illumina. No
+tissue-matched normal is available; the only normal is a CD3+ T-cell PBMC sample, so
+patient_002 serves as a matched-normal limitation case rather than a second validated result
+(see Results). Its Red Cross serology-typed HLA Class I alleles (A\*01:01/01:11N,
+B\*08:01/27:05, C\*01:02/07:01) provide a direct validation opportunity for the OptiType HLA
+typing step. Longitudinal tumor samples (T0, T1, T2) enable future analysis of neoepitope
+evolution over the course of treatment.
