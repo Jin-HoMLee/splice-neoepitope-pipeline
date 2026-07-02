@@ -6,6 +6,43 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-02
+
+### 11:01 UTC — Editor: Scientist
+
+#### [Issue #663](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/663) retrospective — the anchor-outer (#370) data-integrity correction and its downstream blast radius
+
+Retrospective narrative record for [Issue #663](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/663) (integrity audit), shipped via [PR #898](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/898) (merged 2026-06-29) without a journal entry at the time.
+Added now at PM's request: the PR body records *what* changed, but the cross-issue synthesis, the interpretation of *why* the ranking flipped, and the through-line for future-me live nowhere durable.
+All numbers below were verified first-hand against the corrected STAR re-run (2026-06-23) bytes on Cloudflare R2, not recalled.
+
+**Root cause: the [Issue #370](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/370) anchor-outer coordinate bug.**
+`regtools junctions extract` emits BED12 whose columns 2-3 are the *anchor outer boundaries* of the spliced-read pile-up, not the intron donor/acceptor.
+The pre-#370 code treated cols 2-3 as donor/acceptor, shifting every junction by the anchor lengths (~100-150 bp per side).
+Shifted coordinates fail exact GENCODE matching, so annotated junctions silently escaped the `annotated → discard` filter and the entire unannotated pool leaked downstream as spurious "tumor-exclusive" candidates.
+#370 fixed the extraction (`workflow/scripts/bed12_to_junctions.py`); #663 was the audit of everything the bug had already contaminated.
+
+**The blast radius for patient_001 (the interpretation PM wanted captured).**
+Of 141 unannotated junctions, 94 are shared with the matched adjacent-normal and 39 with the GTEx pan-tissue reference, leaving **8 tumor-exclusive** junctions.
+The pre-#370 run reported **27,348** — a ~3,400x inflation that was purely the leaked unannotated pool, not biology.
+The top candidate flipped in both peptide *and* allele: **SQIPRTHSY / HLA-C\*07:01 → SQVTRGLAM / HLA-B\*15:63**.
+The ranking flipped because the buggy top hit's near-ceiling scores (GPS ≈ 0.9999, percentile 0.0052%) were an artifact of ranking within a 27,348-junction pool of mostly-spurious candidates; the corrected top hit has realistic, non-ceiling scores (IC50 64.7 nM, GPS 0.9425, percentile 0.257%, strong across 3/6 alleles).
+MHC predictions collapsed **1.28M → 395** as a direct consequence of the junction-set collapse.
+The HLA-C dominance signal survived the correction (12/17 strong presenters are HLA-C), so that manuscript claim is robust to the bug.
+
+**The poly-T chr19 caveat (a residual quality flag, not a bug).**
+Even in the corrected set, ranks 3/5/6/7/9 (the FFNVGPVLLR / FFNVGPVL family) all derive from a *single* junction, chr19:39227510, whose assembled contig is a long poly-T/poly-A run.
+Low-complexity regions are a known alignment-artifact risk, so these candidates are flagged in the notebook to be scrutinized or filtered before any downstream use.
+This is a standing candidate-quality concern for the corrected pipeline, independent of the anchor-outer bug.
+
+**Through-line for future-me.**
+Every artifact that quoted pre-#370 patient junction numbers is suspect until regenerated.
+patient_001's notebook + prose are corrected; patient_002 and the manuscript RESULTS/METHODS/DISCUSSION were carved forward to [Issue #899](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/899).
+patient_002 stays **blocked** on [Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212) AC 6 / [Issue #378](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/378) regeneration — R2 holds only its pre-#370 vintage, so its prose must not be touched until its data is re-run.
+Method lesson worth keeping: a coordinate-semantics bug is silent (empty filters, no crash), so the CI canaries (`annotate-flag-canary`, the `bed12_to_junctions.py` unit tests) are the load-bearing guard against the *next* one of this family, not the audit.
+
+---
+
 ## 2026-06-30
 
 ### 21:15 UTC — Editor: Scientist
