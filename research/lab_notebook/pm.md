@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-02
 
+### 21:03 UTC - Editor: PM
+
+#### [PR #945](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/945) - per-role board dispatch digest ([#721](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/721))
+
+**Trigger.** Pulled [#721](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/721) from Ready (user-directed after finishing the #787 board-strategy decision). It restores the at-a-glance "what does each role have open/pending" visibility the retired `team_standup` gave ([#569](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/569)).
+
+**What shipped.** `scripts/pm/dispatch_digest.py` - a read-only per-role rollup of committed board work (Ready / In progress / Ready for review / In review), open Team Coordination Discussions, and aging WIP. Reuses `board_open_items.fetch_all_items` + `normalize` (the language-by-data-source convention) rather than re-rolling pagination; pure `group_by_role_status` / `aging_items` / `render_digest` helpers take an injected `now` so they unit-test with no network. `--json` for a scheduled post, `--no-discussions` for board-only. Documented in `scripts/README.md`. Aging keys on `Issue.updatedAt` (respects #642); role-less committed items surface under `(unassigned)` as a hygiene signal.
+
+**Review.** Bot review flagged one real bug: `fetch_discussions`' return comprehension sat outside the `try`, so a null `nodes` list or null node element would crash the whole digest, defeating the fail-soft contract. Fixed by extracting a pure `_parse_discussions_response` called inside the guard (null-coalesce + null-element skip + `AttributeError` in the caught tuple + symmetric `errors` check). Also single-sourced `COMMITTED_STATUSES` from `board_open_items` via `sorted(..., STATUS_ORDER.get)` to kill a drift risk. Declined two nits (`first:30` and the hardcoded category id are pre-existing conventions). Tests 15/15; CI 4/4 green.
+
+**Process note.** Caught and self-corrected a clone mix-up mid-task: the branch was created in the `-pm` clone but files first landed in the sibling clone (which was on the Developer's #824 branch). Copied to the correct clone and reverted the sibling to clean state - no collateral on #824.
+
 ### 15:22 UTC - Editor: PM
 
 #### [PR #939](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/939) - Radar-style status-ring funnel for the landscape doc ([#553](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/553))
