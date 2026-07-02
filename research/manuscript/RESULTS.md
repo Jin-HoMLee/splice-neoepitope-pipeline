@@ -158,10 +158,10 @@ outlier. The second-ranked candidate is RTVLQSLWFR / HLA-A\*31:01 (GPS 0.903).
 
 The rank change is a direct consequence of the #370 correction plus the STAR/GTEx pipeline: the
 pre-#370 draft's SQIPRTHSY was drawn from the spurious inflated junction pool. One residual
-quality flag remains in the corrected set - ranks 3 and 5 (FFNVGPVLLR / FFNVGPVL) derive from a
-single low-complexity poly-T junction (chr19:39227510) whose assembled contig is a long
-poly-T/poly-A run, a known alignment-artifact risk; these are flagged for scrutiny or
-complexity-filtering before any downstream use.
+quality flag remains in the corrected set - ranks 3, 5, 6, 7, and 9 (the FFNVGPVLLR / FFNVGPVL
+family) derive from a single low-complexity poly-T junction (chr19:39227510) whose assembled
+contig is a long poly-T/poly-A run, a known alignment-artifact risk; these are flagged for
+scrutiny or complexity-filtering before any downstream use.
 
 ### Structural Validation (TCRdock)
 

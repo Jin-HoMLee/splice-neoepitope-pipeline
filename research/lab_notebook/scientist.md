@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-02
 
+### 16:37 UTC - Editor: Scientist
+
+#### [PR #943](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/943) - refresh manuscript + notebooks to the STAR cohort run; reframe patient_002. Closes [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) + [Issue #899](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/899).
+
+**What.** Refreshed all patient-facing results to the corrected 2026-06-23 STAR cohort run, closing #636 (STAR refresh) and #899 (post-#370 manuscript correction) in one PR - they converge on the same end state (the STAR run is both the production-aligner run *and* free of the #370 bug, which never affected the STAR path). No compute needed: the run already existed on R2. patient_001: `tumor_exclusive` 27,348 -> 8; 395 novel peptides; 17 strong / 22 weak; HLA-C dominance survives (12/17); top candidate SQIPRTHSY/HLA-C\*07:01 -> **SQVTRGLAM/HLA-B\*15:63** (GPS 0.942, non-ceiling); GPS-inflation edge -> 0; TCRdock DMF5-fallback caveat; AC8 path flatten. Refreshed RESULTS / CONCLUSIONS / METHODS / DISCUSSIONS / INTRODUCTION + both notebooks; METHODS gained the GTEx pan-tissue funnel stage (the #899 gap).
+
+**The AC3 science gate (the load-bearing decision).** patient_002's only normal is a **CD3+ T-cell PBMC** ("Blood Derived Normal"), which `filter_junctions.py` subtracts against (`normal_shared=154`) despite config documenting Blood Derived Normal as HLA-only. A T-cell transcriptome is a poor junction normal for a bone tumor, so patient_002's 42 `tumor_exclusive` junctions are not tissue-specificity-controlled and **not comparable** to patient_001's 8. Decision: reframe patient_002 across the whole manuscript as a matched-normal *limitation case*, not a validated second result; regenerate its notebook for the record only. Serology-validated HLA typing kept intact. Filed [#940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940) for the code/config inconsistency.
+
+**Audit (Jin-Ho asked to double-check all prior patient_002 work before committing to the reframe).** The reframe is well-grounded: the CD3+ PBMC normal was labeled "interim / proof-of-concept / unreliable by construction" from the outset (role memory + sample sheet). Fixed 2 stale manuscript spots the audit surfaced (INTRODUCTION patient_002 blurb, METHODS limitations bullet) and reconciled the one countervailing note - the 2026-06-10 AC-6 sign-off's "identical in kind to patient_001" - which referred to the filter-stacking *code path*, not biological adequacy (forward-pointer added below). IPISRC044 (patient ID) vs BG003082 (sample ID) is not a discrepancy; linked them in INTRODUCTION.
+
+**Review + fixes (the catch worth keeping).** The `@-claude` review found a real bug: the regenerated `patient_002_results.ipynb` kept patient_001 narrative in several cells - §2.1 markdown said "8 tumor_exclusive" while its own output two cells down showed "42"; §4.2 had patient_001's alleles/count; §6.3 wrong counts; and three figure titles rendered "- patient_001". Root cause: building the notebook from the patient_001 template, I swapped only 4 of 25 cells and assumed the rest were patient-agnostic - a header-only cell map hid the patient-specific prose. Lesson: when cloning a per-patient notebook, scan **every** cell body for the other patient's numbers/labels, not just the headers. Fixed all 8 affected cells + re-executed clean (0 errors); a comprehensive re-scan confirms the only remaining "patient_001" mentions are intentional cross-patient comparisons. Also fixed the reviewer's minor: RESULTS.md understated the low-complexity poly-T chr19:39227510 family as "ranks 3 and 5" - verified against the data it is **ranks 3/5/6/7/9**, corrected.
+
+**Verification.** Every refreshed number verified first-hand against the R2 bytes for both patients; patient_002 notebook re-executed clean; no stale pre-#370 asserted numbers remain (grep); patient_001 notebook diff is markdown-only.
+
+---
+
 ### 11:01 UTC — Editor: Scientist
 
 #### [Issue #663](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/663) retrospective — the anchor-outer (#370) data-integrity correction and its downstream blast radius
