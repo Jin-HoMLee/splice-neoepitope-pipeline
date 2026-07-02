@@ -43,3 +43,24 @@ load-bearing — pick the language to match:
 New board-health checks: if they read a ProjectV2 field, add them on the Python
 side and import from `board_open_items` (`fetch_all_items` + `normalize`); if
 they read only REST objects, a `.sh` + `jq` script is the lighter fit.
+
+## Board dispatch digest (`scripts/pm/dispatch_digest.py`)
+
+A read-only per-role rollup of the **committed** board work (Ready / In progress /
+Ready for review / In review), open Team Coordination Discussions, and aging WIP -
+restoring the at-a-glance "what does each role have open/pending" view the retired
+`team_standup` gave (Issue #569 → #721). It reuses `board_open_items`'
+`fetch_all_items` + `normalize` (the language-by-data-source convention above) and
+the open-Discussions query from `shared/feedback_team_coordination.md`.
+
+```bash
+scripts/pm/dispatch_digest.py                  # markdown digest to stdout
+scripts/pm/dispatch_digest.py --stale-days 21  # widen the aging-WIP threshold (default 14)
+scripts/pm/dispatch_digest.py --json           # structured output for a scheduled post
+scripts/pm/dispatch_digest.py --no-discussions # board-only (skip the Discussions fetch)
+```
+
+**Invocation homes:** run it in the PM morning-routine Warm-up / stand-up beat for
+a manual glance, or wire it as a scheduled cloud post (see `docs/remote_routines.md`).
+It never mutates the board. A role-less committed item surfaces under `(unassigned)`
+as a mild hygiene signal rather than being dropped.
