@@ -6,6 +6,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-02
+
+### 14:06 UTC - Editor: PM
+
+#### [PR #936](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/936) - agent-team governance deep-research report (2026-07)
+
+**Trigger.** The 2026-07 PM governance deep-research run produced its deliverable but the artifacts were left uncommitted in `research/` (surfaced on a `git status` review). Shipping them into the repo per board conventions.
+
+**Deliverable.** Two new artifacts + one cross-link:
+- `research/agent_team_governance_research_2026-07.md` - curated governance-evidence report (companion to `multi_agent_landscape.md`). Headline finding: our *structure* is validated (orchestrator-worker/DoR/MM) but the *human-borrowed Kanban dials* are miscalibrated - the binding constraint is **human review bandwidth, not agent throughput**. Carries the MAST failure taxonomy + a reconciliation with our multi-role-not-multi-agent position.
+- `research/agent_team_governance_2026-07_deepresearch_raw.json` - full provenance trail.
+- `multi_agent_landscape.md` - cross-links the companion report + a 2026-07-01 sweep entry.
+
+**Scope call (flagged).** Referenced **#265** (SOTA autonomy survey) as *related* but deliberately did **not** close it - #265 is scoped to the autonomy-frameworks / whether-to-evolve-toward-autonomy decision, whereas this report answers the adjacent how-to-govern-the-team-we-have question. Closing #265 with this would over-claim its ACs. Operationalization candidates already filed under `arc:board-governance`: **#928** (review-column WIP limit) + **#929** (semantic critic/judge at the merge gate). Verified conclusions already distilled into reference memory `reference-agent-team-governance-research`.
+
+**Mechanics.** Standalone no-issue research-journal ship (matches the `multi_agent_landscape.md` sweep precedent) - branch `docs/pm/agent-team-governance-research` via `new_branch.sh --no-issue`. Bot-review offer skipped: docs-only, no code surface, and the findings already went through the deep-research harness's 3-vote adversarial verification. Test plan (cross-link resolution both directions + valid JSON) verified before merge.
+
+---
+
 ## 2026-06-30
 
 ### 22:30 UTC - Editor: PM
