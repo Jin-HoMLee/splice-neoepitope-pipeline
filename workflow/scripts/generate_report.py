@@ -790,7 +790,11 @@ def _build_strong_table_html_from_top_candidates(
             calib_val = row.get(calib_col, "")
             if calib_val != "" and pd.notna(calib_val):
                 oos = row.get("out_of_calibration_support", "")
-                is_oos = (oos is True) or (str(oos).strip().lower() == "true")
+                # #709 writes this as a bool, but the TSV round-trip (and any
+                # future numeric encoding) can hand it back as a numpy bool or
+                # the strings "True"/"1"/"1.0"; treat every truthy encoding as
+                # out-of-support so a schema drift can't silently un-flag a row.
+                is_oos = str(oos).strip().lower() in ("true", "1", "1.0")
                 val_txt = f"{float(calib_val):.3f}"
                 if is_oos:
                     # Flat flag (not a value-proportional gradient): the log-odds

@@ -777,12 +777,31 @@ class TestBuildStrongTableHtmlFromTopCandidates:
         assert "Immunogenicity (calib.)" not in html
         assert "out-of-calibration" not in html
 
+    def test_hides_calibrated_column_when_present_but_all_nan(self):
+        # Real no-calibrator path: the writer always emits the column in the
+        # schema, so a no-calibrator run yields the column present-but-all-NaN
+        # (not absent). The .notna().any() gate must still hide it.
+        df = self._make_top_df(n_rows=3, with_calib=True)
+        df["calibrated_immunogenicity_log_odds"] = pd.NA
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert "Immunogenicity (calib.)" not in html
+        assert "out-of-calibration" not in html
+
     def test_flags_out_of_calibration_support_rows(self):
         # Row i==1 is out-of-support; its cell must carry the flat-clip flag + marker,
         # and the in-support rows must NOT.
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=3, with_calib=True))
         assert html.count("class='out-of-calibration'") == 1
         assert "⚠" in html
+
+    def test_flags_out_of_calibration_support_when_numeric_encoded(self):
+        # Hardening: if #709's flag ever round-trips as numeric 1.0/0.0 instead
+        # of a bool, the out-of-support row must still be flagged rather than
+        # silently un-flagged (str(1.0) != "true").
+        df = self._make_top_df(n_rows=2, with_calib=True)
+        df["out_of_calibration_support"] = [0.0, 1.0]
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert html.count("class='out-of-calibration'") == 1
 
     def test_calibrated_column_is_not_a_resort_key(self):
         # The calibrated column must not reorder rows: rank order stays rank 1..N by
