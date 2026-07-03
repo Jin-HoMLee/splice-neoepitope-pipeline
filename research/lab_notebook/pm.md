@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-03
 
+### 14:46 UTC - Editor: PM
+
+#### Board-governance pulls - #952 finish, #947 dispatch_digest wiring, #931 arc-aware replenishment ([PR #958](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/958) closes [#931](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/931))
+
+**Trigger.** "What's next?" → best-next selector surfaced the In-progress #952 first, then the freshest Ready board-governance items. Worked three in sequence; all three commit (in part) via the MM memory drain.
+
+**#952 (finish).** Most of it was already landed (memory edits + #814 paired + lab entry in PR #957). Found + fixed two residual stale references in `pm/feedback_morning_routine.md` that still asserted the retired numeric cap (line 8 "issue-creation cap"; the "Why Signals sits at position 4" rationale "<=1 Issue/day") - left in place they would have re-asserted the cap. Ticked AC4; sole remaining is the MM cross-repo commit.
+
+**#947 (dispatch_digest wiring).** Wired `scripts/pm/dispatch_digest.py` into Beat 2 (Daily Stand-up) of `pm/feedback_morning_routine.md`: one read-only call replaces the hand-rolled per-role walk (status mechanics + `gh issue list` own-work query + manual cross-role scan); WIP-awareness now reads the digest's per-role `In progress` counts. Ran the digest live first to confirm output before documenting. **Scope note:** AC1 named a `board_open_items.py --status` triple-call "in Beat 2", but that literal call lives in § 1e (Flow health, a distinct age-sorted sweep the digest does not subsume) - left § 1e intact, wired the digest into Beat 2's own walk; flagged for a possible AC-wording follow-up.
+
+**#931 (arc-aware replenishment).** Code (AC2): `check_ready_queue.sh` `[REPLENISH]` routing now counts each role's Backlog candidates carrying `arc-phase:active` and nudges to prefer them (or notes none + "consider promoting a next-phase arc"). Closes the arc→selection loop from the daily gate without relying on memory; priority bands untouched (dynamic selection, not a re-rank, #902 facet 3). TDD (red→green), 3+1 tests, suite 18 green, verified live (pm 24/5, sci 38/3, dev 42/3). Ritual step (AC1) added to `shared/feedback_arc_review.md` "How to apply" (sweep an arc's Backlog on a phase flip to active) - MM drain. `@claude` review: LGTM, no blockers; addressed the one design question (verified the pull lens is a **soft** default with a full-pool fallback, so prefer-at-commit and prefer-at-pull are consistent, not disagreeing) + added the all-active boundary test; declined the negligible eager-jq perf nit.
+
+**Process note.** All three issues split a deliverable across two repos (project-repo code/PR + personas-repo memory drain). Pattern used: PR closes the Issue on the code half; the memory half is staged locally + flagged to MM via a `To: MM` handoff comment on each Issue. #952/#947 (pure-memory) stay open awaiting the MM commit; #931 closes on PR #958 with the memory bullet riding the drain independently.
+
 ### 13:08 UTC - Editor: PM
 
 #### Morning routine - #877 memory-slim dedup reconciliation (closes [#877](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/877)) + news-cap retirement ([#952](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/952))
