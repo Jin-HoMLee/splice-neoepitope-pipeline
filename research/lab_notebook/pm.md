@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-03
+
+### 13:08 UTC - Editor: PM
+
+#### Morning routine - #877 memory-slim dedup reconciliation (closes [#877](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/877)) + news-cap retirement ([#952](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/952))
+
+**Trigger.** Friday morning routine. Two governance deliverables fell out: the MM handoff on [#877](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/877) (AC2 = a PM board decision; MM had finished AC1/AC3 + drafted closing comments), pulled as the day's warm-up; and a user-initiated proposal to retire the news Issue-creation cap.
+
+**#877 - cross-repo dedup reconciliation.** MM's analysis confirmed project epic [#538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) (+ subs [#539](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/539)/[#540](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/540)/[#541](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/541)/[#542](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/542)) double-tracks the same shared+per-role `MEMORY.md` slimming that [personas #71](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/issues/71) now carries as a superset (6-target demotion ladder). Executed the recommended reconciliation: closed #539 (shared/) + #540/#541/#542 (per-role) as superseded-by-personas-#71 with positive-tombstone closing comments; un-parented [#626](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/626) (the surviving project-repo hook-code carrier) from #538 so it isn't stranded under a closed parent, then closed epic #538. #626 kept standalone, wired as personas #71's Developer dependency (cross-repo, prose-tracked). The boundary record both families cite was already committed by MM to `pm/project_memory_md_slimming.md` (personas `e15cd9b`). Net: one live carrier (personas #71) + one project-repo code carrier (#626); 5 duplicate trackers retired, no work lost.
+
+**#952 - news Issue-creation cap retired.** User observed the "<=1 Issue/day" news cap may be unnecessary now that durable-home routing is mature. Web-checked: best practice is against inflow rate-caps (don't match approval speed to close rate); bound the backlog by curation + soft size limit + age-based pruning. Also internally inconsistent with our own [#902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902) facet-3 (Anderson: unordered pool, prune-don't-rank). Landed: retired the numeric cap, kept the concrete-hook gate (the real quality filter) + durable-home routing; paired [#814](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/814) (weekly stale-prune) to Ready as the replacement bound. Memory edits (`shared/feedback_morning_routine.md` + `pm/feedback_morning_routine.md`) ship via MM's cross-repo commit (closes #952).
+
+**Milestone bookkeeping.** i5-S5 Modeling: on the Scientist's 2026-07-02 ship/carve read, carved [#601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) + [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) into a new undated i6-S5 goal-milestone (both compute-gated); i5-S5 now empty, close pending its closure-report (needs Sci Deliverables). i6-S3: nudged Sci on [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) (carve-vs-decommit); PM backstop ~2026-07-07.
+
+**Process notes.** (1) The Stand-up board-walk caught a stale post-it (i5-S5 "awaiting Sci read" when the read was already in) - live board beats post-it for current state. (2) A per-role replenishment heads-up was first mis-placed as anchor comments on single Issues, then re-homed to [Discussion #951](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/951) - a cross-issue batch notice is issue-less async (Discussion), even when its subjects are Issues; sharpened in `feedback_team_coordination`. (3) Replenishment/commitment is PM-coordinated (my job for every role); only DoR-clarity is the implementing role's input - corrected a framing that leaned toward offloading.
+
 ## 2026-07-02
 
 ### 21:03 UTC - Editor: PM
