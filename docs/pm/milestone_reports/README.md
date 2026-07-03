@@ -102,10 +102,13 @@ python scripts/pm/milestone_report.py --weekly --until 2026-07-03 --trend-weeks 
   `--trend-weeks` (default 4), bucketed weekly.
 - **Meta-work filter** = closed issues carrying **no milestone** (lifecycle work
   is milestoned and covered by the per-milestone report).
-- **Zero-ship weeks skip cleanly** - nothing meta-work closed in the reporting
-  week writes no empty artifact; a 1-2 item week still generates.
+- **Zero-close weeks skip cleanly** - a reporting week with nothing closed writes
+  no empty artifact; a 1-2 item week still generates. A week with only *descoped*
+  closes (dropped scope, 0 delivered) still generates - dropped scope is
+  legitimate SDR signal.
 
 **Cadence: weekly to start.** A high early cadence accumulates instances to
 calibrate against; **revisit toward biweekly/monthly after ~4-6 instances**, once
-the throughput/cycle-time baselines are legible. Generation is wired into the
-**Friday-cleanup** morning-routine beat.
+the throughput/cycle-time baselines are legible. Generation runs in the
+**Friday-cleanup** morning-routine beat (a PM-routine step carried in the PM
+morning-routine memory, not a repo-committed hook).

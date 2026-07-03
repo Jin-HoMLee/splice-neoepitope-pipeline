@@ -25,7 +25,9 @@ Retrospective) is author-owned in the sidecar and never overwritten.
 
 ## Cadence
 
-**Weekly to start**, generated in the Friday-cleanup morning-routine beat.
-Revisit toward biweekly/monthly after ~4-6 instances, once the throughput and
-cycle-time baselines are legible. A zero-ship reporting week produces no
-artifact.
+**Weekly to start**, generated in the Friday-cleanup morning-routine beat (a
+PM-routine step carried in the PM morning-routine memory, not a repo-committed
+hook). Revisit toward biweekly/monthly after ~4-6 instances, once the throughput
+and cycle-time baselines are legible. A reporting week with nothing closed
+produces no artifact (a descoped-only week still generates - dropped scope is
+signal).

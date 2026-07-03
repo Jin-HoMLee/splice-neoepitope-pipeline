@@ -546,7 +546,11 @@ def _fmt(v: Optional[float], unit: str = "") -> str:
 
 
 def print_metrics(milestone: dict, metrics: dict) -> None:
-    print(f"Milestone: {milestone['title']}  [{milestone.get('state')}]")
+    state = milestone.get("state")
+    if state and state != "n/a":  # milestone mode
+        print(f"Milestone: {milestone['title']}  [{state}]")
+    else:  # window (SDR) mode: the title already says what it is
+        print(milestone["title"])
     print(f"  total / closed / carried-forward : "
           f"{metrics['n_total']} / {metrics['n_closed']} / {metrics['n_carried_forward']}")
     print(f"  delivered / descoped (closed)    : "
@@ -594,22 +598,42 @@ def _run_milestone_mode(name: str, out_dir: Optional[Path], dry_run: bool) -> in
     return _generate(milestone, issues, metrics, out_dir or DEFAULT_OUT_DIR, dry_run, "milestone")
 
 
-def _run_window_mode(since: Optional[str], until: Optional[str], trend_weeks: int,
-                     out_dir: Optional[Path], dry_run: bool) -> int:
+def _parse_date_arg(ap: argparse.ArgumentParser, flag: str, value: str) -> datetime:
+    """Validate a ``YYYY-MM-DD`` CLI date -> tz-aware UTC datetime; ap.error else."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        ap.error(f"{flag} must be YYYY-MM-DD, got: {value!r}")
+
+
+def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: Optional[str],
+                     trend_weeks: int, out_dir: Optional[Path], dry_run: bool) -> int:
     """Weekly meta-work SDR. Reporting week = the most recent 7-day window; the
-    trend spans ``trend_weeks`` back. Skips a zero-ship reporting week."""
-    until_dt = parse_iso(until + "T23:59:59Z") if until else datetime.now(timezone.utc)
-    windows = week_windows(until_dt, trend_weeks)
+    trend spans ``n_weeks`` back. Skips a reporting week with nothing closed."""
+    until_dt = (_parse_date_arg(ap, "--until", until).replace(hour=23, minute=59, second=59)
+                if until else datetime.now(timezone.utc))
+    # --since sets the TREND SPAN: derive the week count from since..until so the
+    # trend actually reaches back to --since (overriding --trend-weeks). Deriving
+    # a single span-start without this would only clip the fetch and could
+    # silently under-count the headline (PR #960 review).
+    if since:
+        since_dt = _parse_date_arg(ap, "--since", since)
+        if since_dt >= until_dt:
+            ap.error("--since must be before --until")
+        span_days = (until_dt.date() - since_dt.date()).days
+        n_weeks = max(1, -(-span_days // 7))  # ceil-divide into whole weeks
+    else:
+        n_weeks = trend_weeks
+    windows = week_windows(until_dt, n_weeks)
     report_start, report_end = windows[-1]
-    span_start = parse_iso(since + "T00:00:00Z") if since else windows[0][0]
 
-    all_issues = fetch_window_issues(span_start.date().isoformat(), until_dt.date().isoformat())
+    all_issues = fetch_window_issues(windows[0][0].date().isoformat(), until_dt.date().isoformat())
     week_issues = closed_in_window(all_issues, report_start, report_end)
-    metrics = compute_window_metrics(week_issues, all_issues, until_dt, trend_weeks)
+    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
 
-    if metrics["n_total"] == 0:  # zero-ship week -> no empty artifact
+    if metrics["n_total"] == 0:  # nothing closed in the reporting week -> no artifact
         print(f"Meta-work SDR - week ending {report_end.date().isoformat()}: "
-              "0 meta-work issues closed in the reporting week; skipping (zero-ship week).")
+              "no meta-work issues closed in the reporting week; skipping (no artifact).")
         return 0
 
     pseudo = {
@@ -633,7 +657,8 @@ def main() -> int:
                          "omit (or pass --weekly) for the weekly meta-work SDR window mode")
     ap.add_argument("--weekly", action="store_true",
                     help="force weekly SDR window mode even if a milestone arg is present")
-    ap.add_argument("--since", help="SDR trend-span start (YYYY-MM-DD); default = trend-weeks back")
+    ap.add_argument("--since", help="SDR trend-span start (YYYY-MM-DD); sets the trend length "
+                                    "from since..until, overriding --trend-weeks")
     ap.add_argument("--until", help="SDR window end (YYYY-MM-DD); default = today")
     ap.add_argument("--trend-weeks", type=int, default=DEFAULT_TREND_WEEKS,
                     help=f"SDR trailing weeks shown in the trend (default {DEFAULT_TREND_WEEKS})")
@@ -647,7 +672,7 @@ def main() -> int:
         return _run_milestone_mode(args.milestone, args.out_dir, args.dry_run)
     if args.trend_weeks < 1:
         ap.error("--trend-weeks must be >= 1")
-    return _run_window_mode(args.since, args.until, args.trend_weeks, args.out_dir, args.dry_run)
+    return _run_window_mode(ap, args.since, args.until, args.trend_weeks, args.out_dir, args.dry_run)
 
 
 if __name__ == "__main__":
