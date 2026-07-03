@@ -214,6 +214,10 @@ _HTML_TEMPLATE = """\
                      padding: 8px 12px; margin: 1em 0; }}
     .tcr-matched code, .tcr-fallback code {{ background: #fff; padding: 1px 4px;
                      border-radius: 3px; }}
+
+    /* Provisional calibrated-immunogenicity column, out-of-support flag (Issue #906).
+       Flat muted style, NOT a value-proportional gradient. */
+    .out-of-calibration {{ color: #b9770e; font-style: italic; background: #fef9e7; }}
   </style>
 </head>
 <body>
@@ -760,6 +764,11 @@ def _build_strong_table_html_from_top_candidates(
     import pandas as pd
 
     has_gps = "genotype_presentation_score" in top_candidates_df.columns
+    # Provisional secondary immunogenicity signal (Issue #906). Rendered only when
+    # the calibrated column is present AND carries at least one real value, so a
+    # report from a run without the calibrator does not show an empty column.
+    calib_col = "calibrated_immunogenicity_log_odds"
+    has_calib = calib_col in top_candidates_df.columns and top_candidates_df[calib_col].notna().any()
 
     rows = []
     for _, row in top_candidates_df.iterrows():
@@ -776,6 +785,26 @@ def _build_strong_table_html_from_top_candidates(
         ic50_val = row.get("ic50_nM", "")
         ic50_cell = f"<td>{float(ic50_val):.1f}</td>" if ic50_val != "" and pd.notna(ic50_val) else "<td></td>"
 
+        calib_cell = ""
+        if has_calib:
+            calib_val = row.get(calib_col, "")
+            if calib_val != "" and pd.notna(calib_val):
+                oos = row.get("out_of_calibration_support", "")
+                is_oos = (oos is True) or (str(oos).strip().lower() == "true")
+                val_txt = f"{float(calib_val):.3f}"
+                if is_oos:
+                    # Flat flag (not a value-proportional gradient): the log-odds
+                    # for an out-of-support peptide is a flat-clipped extrapolation.
+                    calib_cell = (
+                        "<td class='out-of-calibration' "
+                        "title='Outside calibrator support - flat-clipped extrapolation, treat as unreliable'>"
+                        f"{val_txt} ⚠</td>"
+                    )
+                else:
+                    calib_cell = f"<td>{val_txt}</td>"
+            else:
+                calib_cell = "<td></td>"
+
         rows.append(
             f"<tr>"
             f"<td>{html_mod.escape(str(row.get('contig_key', '')))}</td>"
@@ -784,6 +813,7 @@ def _build_strong_table_html_from_top_candidates(
             f"{pct_cell}"
             f"{gps_cell}"
             f"{ic50_cell}"
+            f"{calib_cell}"
             f"<td>{contig_html}</td>"
             f"</tr>"
         )
@@ -797,17 +827,35 @@ def _build_strong_table_html_from_top_candidates(
         "<th title='Probability ≥1 genotype allele presents peptide — primary rank'>GPS ▾</th>"
         if has_gps else ""
     )
+    calib_header = (
+        "<th title='Provisional secondary immunogenicity signal (calibrated log-odds) - NOT a re-sort key'>"
+        "Immunogenicity (calib.) ▪</th>"
+        if has_calib else ""
+    )
     table = (
         f"<table><thead><tr>"
         f"<th>Source</th><th>Peptide</th><th>Best Allele</th>"
         f"<th title='Best-allele presentation percentile rank'>Best-allele %ile</th>"
         f"{gps_header}"
         f"<th title='Binding affinity in nM — informational'>IC50 (nM)</th>"
+        f"{calib_header}"
         f"<th>Contig ({legend})</th>"
         f"</tr></thead><tbody>{''.join(rows)}</tbody></table>"
     )
     if total is not None and capped is not None and total > capped:
         table += f"<p><em>Showing {capped} of {total} candidates.</em></p>"
+    if has_calib:
+        table += (
+            "<p><small>The <em>Immunogenicity (calib.)</em> column is a "
+            "<strong>provisional, secondary</strong> signal (calibrated immunogenicity "
+            "log-odds); the presentation-score ranking remains primary and this column "
+            "is not a re-sort key. Rows marked ⚠ fall outside the calibrator's "
+            "support (flat-clipped, treat as unreliable). Provisional pending the discharge "
+            "condition (<a href='https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/870'>#870</a>) "
+            "and the open splice-accuracy question "
+            "(<a href='https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680'>#680</a>)."
+            "</small></p>"
+        )
     return table
 
 
@@ -1314,6 +1362,7 @@ def _build_report_top_candidates_tsv(
     Schema (stable, cross-patient comparable):
       patient_id | rank | peptide | best_allele
         | best_presentation_percentile | genotype_presentation_score | ic50_nM
+        | calibrated_immunogenicity_log_odds | out_of_calibration_support
         | n_strong_alleles | presentation_class
         | hla_a1_id | hla_a1_pct | hla_a2_id | hla_a2_pct
         | hla_b1_id | hla_b1_pct | hla_b2_id | hla_b2_pct
@@ -1341,6 +1390,7 @@ def _build_report_top_candidates_tsv(
     schema = [
         "patient_id", "rank", "peptide", "best_allele",
         "best_presentation_percentile", "genotype_presentation_score", "ic50_nM",
+        "calibrated_immunogenicity_log_odds", "out_of_calibration_support",
         "n_strong_alleles", "presentation_class",
         *slot_columns,
         "contig_key", "contig_start_nt", "contig_peek",
@@ -1382,6 +1432,8 @@ def _build_report_top_candidates_tsv(
             "best_presentation_percentile": _round_or_blank(row.get("best_presentation_percentile"), 4),
             "genotype_presentation_score": _round_or_blank(row.get("genotype_presentation_score"), 4),
             "ic50_nM": _round_or_blank(row.get("ic50_nM"), 1),
+            "calibrated_immunogenicity_log_odds": _round_or_blank(row.get("calibrated_immunogenicity_log_odds"), 4),
+            "out_of_calibration_support": row.get("out_of_calibration_support", ""),
             "n_strong_alleles": int(row["n_strong_alleles"]) if pd.notna(row.get("n_strong_alleles")) else "",
             "presentation_class": row.get("presentation_class", ""),
             "contig_key": contig_key,
