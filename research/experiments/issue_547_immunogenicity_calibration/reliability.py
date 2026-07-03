@@ -47,6 +47,9 @@ def jeffreys_ci(n_pos_w, n_total_w, n_eff, alpha=0.05):
         return 0.0, 1.0
 
     p = n_pos_w / n_total_w
+    # Float-noise armor: the negative-reweighting upweights the negative class, so
+    # the weights stay positive and p is naturally in [0, 1]. The clamp also keeps
+    # the exact-boundary checks below robust to a tiny overshoot (e.g. 1.0000...2).
     p = min(max(p, 0.0), 1.0)
 
     # Effective successes / failures on the Kish scale, plus the Jeffreys Beta(1/2)

@@ -112,7 +112,11 @@ def test_coverage_beats_wilson_near_zero():
     jeff_cov = jeff_hits / n_sim
     wilson_cov = wilson_hits / n_sim
 
-    # Jeffreys reaches nominal coverage; Wilson under-covers at the boundary.
+    # Load-bearing assertions on jeffreys_ci itself: it reaches nominal coverage,
+    # and beats Wilson in this regime.
     assert jeff_cov >= 0.95, f"Jeffreys under-covered: {jeff_cov:.4f}"
-    assert wilson_cov < 0.95, f"Wilson unexpectedly covered: {wilson_cov:.4f}"
     assert jeff_cov > wilson_cov
+    # Premise guard (not a property of jeffreys_ci): Wilson under-covers near p=0.
+    # This relies on the fixed seed + numpy PCG64 stream stability, so a failure
+    # here more likely signals an env/RNG change than a real regression.
+    assert wilson_cov < 0.95, f"Wilson unexpectedly covered: {wilson_cov:.4f}"
