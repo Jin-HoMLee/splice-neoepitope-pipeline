@@ -767,7 +767,8 @@ class TestBuildStrongTableHtmlFromTopCandidates:
     def test_includes_calibrated_column_when_present(self):
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_calib=True))
         assert "Immunogenicity (calib.)" in html
-        assert "1.500" in html  # row 0 log-odds, formatted to 3dp
+        assert "1.50" in html  # row 0 (in-support) log-odds, formatted to 2dp
+        assert "1.500" not in html  # 3dp implies false precision for a provisional signal
         # Provisional caption + primary-ranker disclaimer present.
         assert "provisional" in html.lower()
         assert "#870" in html and "#680" in html
@@ -793,6 +794,17 @@ class TestBuildStrongTableHtmlFromTopCandidates:
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=3, with_calib=True))
         assert html.count("class='out-of-calibration'") == 1
         assert "⚠" in html
+
+    def test_out_of_support_row_suppresses_numeric_value(self):
+        # #956 Scientist sign-off: an out-of-support value is a flat-clipped
+        # extrapolation (shared ceiling, not discriminative), so the cell shows
+        # only the flag, never the misleading number.
+        df = self._make_top_df(n_rows=3, with_calib=True)
+        df.loc[1, "calibrated_immunogenicity_log_odds"] = 8.88  # distinctive clipped value on the oos row
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert "out of support" in html
+        assert "8.88" not in html  # suppressed, not rendered beside real values
+        assert html.count("class='out-of-calibration'") == 1
 
     def test_flags_out_of_calibration_support_when_numeric_encoded(self):
         # Hardening: if #709's flag ever round-trips as numeric 1.0/0.0 instead

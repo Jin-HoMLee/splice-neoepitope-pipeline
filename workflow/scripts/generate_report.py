@@ -795,17 +795,21 @@ def _build_strong_table_html_from_top_candidates(
                 # the strings "True"/"1"/"1.0"; treat every truthy encoding as
                 # out-of-support so a schema drift can't silently un-flag a row.
                 is_oos = str(oos).strip().lower() in ("true", "1", "1.0")
-                val_txt = f"{float(calib_val):.3f}"
                 if is_oos:
-                    # Flat flag (not a value-proportional gradient): the log-odds
-                    # for an out-of-support peptide is a flat-clipped extrapolation.
+                    # Out-of-support rows are flat-clipped extrapolations: every
+                    # peptide clipped on the same side shares the boundary value,
+                    # so the number is not a per-peptide estimate and is not
+                    # discriminative. Suppress it (show only the flag) so the
+                    # reader can't misread a clipped ceiling as higher
+                    # immunogenicity than a real in-support value (#956 Sci sign-off).
                     calib_cell = (
                         "<td class='out-of-calibration' "
                         "title='Outside calibrator support - flat-clipped extrapolation, treat as unreliable'>"
-                        f"{val_txt} ⚠</td>"
+                        "⚠ out of support</td>"
                     )
                 else:
-                    calib_cell = f"<td>{val_txt}</td>"
+                    # 2dp, not 3dp: a provisional signal does not resolve to 0.001.
+                    calib_cell = f"<td>{float(calib_val):.2f}</td>"
             else:
                 calib_cell = "<td></td>"
 
