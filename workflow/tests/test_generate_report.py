@@ -720,7 +720,9 @@ class TestRenderContigPeek:
 
 
 class TestBuildStrongTableHtmlFromTopCandidates:
-    def _make_top_df(self, n_rows: int = 3, with_gps: bool = True) -> pd.DataFrame:
+    def _make_top_df(
+        self, n_rows: int = 3, with_gps: bool = True, with_calib: bool = True
+    ) -> pd.DataFrame:
         rows = []
         for i in range(n_rows):
             row = {
@@ -734,6 +736,11 @@ class TestBuildStrongTableHtmlFromTopCandidates:
             }
             if with_gps:
                 row["genotype_presentation_score"] = 0.99 - 0.01 * i
+            if with_calib:
+                row["calibrated_immunogenicity_log_odds"] = 1.5 - 0.5 * i
+                # Exactly one row (i == 1) is outside calibrator support, to exercise
+                # the flat-clip flag without flagging every row.
+                row["out_of_calibration_support"] = (i == 1)
             rows.append(row)
         return pd.DataFrame(rows)
 
@@ -756,6 +763,64 @@ class TestBuildStrongTableHtmlFromTopCandidates:
     def test_omits_gps_column_when_absent(self):
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_gps=False))
         assert "GPS" not in html
+
+    def test_includes_calibrated_column_when_present(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_calib=True))
+        assert "Immunogenicity (calib.)" in html
+        assert "1.50" in html  # row 0 (in-support) log-odds, formatted to 2dp
+        assert "1.500" not in html  # 3dp implies false precision for a provisional signal
+        # Provisional caption + primary-ranker disclaimer present.
+        assert "provisional" in html.lower()
+        assert "#870" in html and "#680" in html
+
+    def test_omits_calibrated_column_when_absent(self):
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(with_calib=False))
+        assert "Immunogenicity (calib.)" not in html
+        assert "out-of-calibration" not in html
+
+    def test_hides_calibrated_column_when_present_but_all_nan(self):
+        # Real no-calibrator path: the writer always emits the column in the
+        # schema, so a no-calibrator run yields the column present-but-all-NaN
+        # (not absent). The .notna().any() gate must still hide it.
+        df = self._make_top_df(n_rows=3, with_calib=True)
+        df["calibrated_immunogenicity_log_odds"] = pd.NA
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert "Immunogenicity (calib.)" not in html
+        assert "out-of-calibration" not in html
+
+    def test_flags_out_of_calibration_support_rows(self):
+        # Row i==1 is out-of-support; its cell must carry the flat-clip flag + marker,
+        # and the in-support rows must NOT.
+        html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=3, with_calib=True))
+        assert html.count("class='out-of-calibration'") == 1
+        assert "⚠" in html
+
+    def test_out_of_support_row_suppresses_numeric_value(self):
+        # #956 Scientist sign-off: an out-of-support value is a flat-clipped
+        # extrapolation (shared ceiling, not discriminative), so the cell shows
+        # only the flag, never the misleading number.
+        df = self._make_top_df(n_rows=3, with_calib=True)
+        df.loc[1, "calibrated_immunogenicity_log_odds"] = 8.88  # distinctive clipped value on the oos row
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert "out of support" in html
+        assert "8.88" not in html  # suppressed, not rendered beside real values
+        assert html.count("class='out-of-calibration'") == 1
+
+    def test_flags_out_of_calibration_support_when_numeric_encoded(self):
+        # Hardening: if #709's flag ever round-trips as numeric 1.0/0.0 instead
+        # of a bool, the out-of-support row must still be flagged rather than
+        # silently un-flagged (str(1.0) != "true").
+        df = self._make_top_df(n_rows=2, with_calib=True)
+        df["out_of_calibration_support"] = [0.0, 1.0]
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert html.count("class='out-of-calibration'") == 1
+
+    def test_calibrated_column_is_not_a_resort_key(self):
+        # The calibrated column must not reorder rows: rank order stays rank 1..N by
+        # the existing ranker, independent of the calibrated values.
+        df = self._make_top_df(n_rows=3, with_calib=True)
+        html = _build_strong_table_html_from_top_candidates(df)
+        assert html.index("PEP0") < html.index("PEP1") < html.index("PEP2")
 
     def test_renders_styled_contig_peek(self):
         html = _build_strong_table_html_from_top_candidates(self._make_top_df(n_rows=1))
