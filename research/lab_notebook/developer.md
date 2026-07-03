@@ -6,6 +6,39 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-03 - Spike: re-verify whether editing .agents/settings.json deactivates hooks mid-session (#935)
+
+### 11:30 UTC - Editor: Developer - controlled 3-probe re-verification (finding + doc reconciliation)
+
+**Context.** [Issue #935](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/935) (`arc:board-governance`) asked us to re-verify a load-bearing caveat: does a mid-session edit to `.agents/settings.json` still silently deactivate ALL hooks until a session restart (the 2026-05-29 finding), given that on 2026-07-02 the bot-mention guard fired *live* after such an edit.
+
+**Method.** Controlled 3-probe test in a fresh, no-branch-switch session on **Claude Code 2.1.199**, using the em-dash PreToolUse guard as the observable hook and `.agents/hook_fires.jsonl` as an independent corroborator.
+Each probe attempts a `Write` containing an em-dash (denied iff the guard is live); `settings.json` was restored to its original content (shasum-verified) after the run.
+
+| Probe | `settings.json` state | em-dash guard | fire log |
+|-------|-----------------------|---------------|----------|
+| 1 baseline | original (hook present) | DENIED | 29 -> 30 |
+| 2 after no-op edit (a `timeout` 5 -> 6) | hook still present | DENIED | 30 -> 31 |
+| 3 after the em-dash hook block deleted | hook absent (file valid JSON) | ALLOWED | stays 31 |
+
+**Finding: hot-reload, not deactivation.**
+Probe 2 still firing after a mid-session edit rules out deactivation; probe 3 stopping once the hook is removed rules out a session-start snapshot; probe 3's file was confirmed valid JSON, ruling out a parse-failure fallback masquerading as "no hooks".
+So `.agents/settings.json` is re-read live on each subsequent tool call.
+This reverses the 2026-05-29 finding.
+The `post_gh_pr_create` PostToolUse hook also fired live on PR #953 in this same session, independently consistent with the re-read being hook-type-agnostic.
+
+**The real evidence trail is a flip-flop, not a one-time reversal** (surfaced by the bot review): an earlier `pm.md` note (`## 2026-05-18`) recorded a mid-session hot-reload of a PostToolUse hook in `settings.local.json`; then 2026-05-29 deactivated-until-restart; now 2026-07-03 hot-reload again.
+That variance is the empirical justification for pinning the claim to a build and keeping the `/hooks`-verify escape for older/unknown Claude Code versions.
+
+**Scope honesty.** The test exercised a PreToolUse guard.
+A per-tool-call re-read plausibly covers PostToolUse (corroborated by the 2026-05-18 note), but Stop hooks fire at turn end, outside the per-tool-call cycle, and were not tested - the doc flags them as untested rather than lumping them into "hook-type-agnostic".
+
+**Deliverables.** No product code change (a diagnostic spike).
+[PR #953](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/953) corrects the AGENTS.md "Hook loading" caveat + the em-dash-guard back-reference (kept the historical deactivation note; version-pinned).
+Role memory `hooks-inactive-after-midsession-settings-edit` was superseded by `settings-edit-hot-reloads-hooks` (MM commits separately); index + post-it updated.
+Three other spots asserting the old behavior (a plan, a design spec, and this notebook's `2026-06-25`-era entry) are dated point-in-time artifacts and were deliberately left per the don't-rewrite-history convention.
+Bot review returned LGTM with three non-blocking precision tweaks (cite the 05-18 point, narrow the Stop claim, soften the back-ref) - all three applied before merge.
+
 ## 2026-07-02 - Eval: adopt gh CLI v2.94.0 native issue-dependency fields for board tooling? (#824)
 
 ### 15:30 UTC - Editor: Developer - gh native-dependency eval (findings + follow-up routing)
