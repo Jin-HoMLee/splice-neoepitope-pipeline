@@ -21,7 +21,10 @@
 #   - [REPLENISH role] : short AND the role has triaged Backlog candidates ->
 #     commit the highest-priority DoR-ready ones. If none actually meet the
 #     Definition of Ready, that is a grooming gap - refine/file, do NOT stuff
-#     low-value work into Ready just to hit the number.
+#     low-value work into Ready just to hit the number. Arc-aware (Issue #931):
+#     the nudge flags how many candidates are on an active arc (arc-phase:active)
+#     and says to prefer those, so re-selection follows the active slate without
+#     relying on memory (the arc axis lives in shared/feedback_arc_review.md).
 #   - [GROOMING-GAP role] : short AND the role has NO Backlog candidates at all
 #     -> nothing is committable; the remedy is intake/grooming, not commitment.
 #
@@ -121,12 +124,23 @@ for role in "${FLOOR_ROLES[@]}"; do
     ready_count="$(printf '%s' "$READY_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')"
     inprog_count="$(printf '%s' "$INPROG_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')"
     backlog_count="$(printf '%s' "$BACKLOG_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r))] | length')"
+    # Active-arc Backlog candidates for this role (carry arc-phase:active). The
+    # daily gate is arc-aware: on a REPLENISH shortfall we flag active-arc
+    # candidates so re-selection follows the active slate without relying on
+    # someone remembering the lens at replenishment (Issue #931). The arc axis /
+    # active slate is defined in shared/feedback_arc_review.md.
+    active_count="$(printf '%s' "$BACKLOG_JSON" | jq --arg r "role:$role" '[.[] | select(.labels | index($r)) | select(.labels | index("arc-phase:active"))] | length')"
     ready_breakdown+="${role}=${ready_count} "
     inprog_breakdown+="${role}=${inprog_count} "
     backlog_breakdown+="${role}=${backlog_count} "
     if [[ "$ready_count" -lt "$FLOOR" ]]; then
         if [[ "$backlog_count" -ge 1 ]]; then
-            echo "[REPLENISH ${role}: ${ready_count} < ${FLOOR}] - ${backlog_count} Backlog candidate(s); commit the highest-priority DoR-ready ones. If none meet DoR, it's a grooming gap - refine/file, do not stuff (see shared/feedback_board_hygiene.md)."
+            if [[ "$active_count" -ge 1 ]]; then
+                arc_hint=", ${active_count} on an active arc (arc-phase:active) - prefer these"
+            else
+                arc_hint=", none on an active arc - commit the top DoR-ready pool item, or flag whether a next-phase arc should be promoted"
+            fi
+            echo "[REPLENISH ${role}: ${ready_count} < ${FLOOR}] - ${backlog_count} Backlog candidate(s)${arc_hint}; commit the highest-priority DoR-ready ones. If none meet DoR, it's a grooming gap - refine/file, do not stuff (see shared/feedback_board_hygiene.md)."
         else
             echo "[GROOMING-GAP ${role}: ${ready_count} < ${FLOOR}] - 0 Backlog candidates; nothing committable for this role. File/intake, do not stuff."
         fi

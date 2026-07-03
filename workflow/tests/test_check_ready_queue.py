@@ -36,9 +36,11 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_ready_queue.sh"
 
 
-def _item(number, *roles, status="Ready"):
-    return {"number": number, "status": status,
-            "labels": [f"role:{r}" for r in roles]}
+def _item(number, *roles, status="Ready", arc_active=False):
+    labels = [f"role:{r}" for r in roles]
+    if arc_active:
+        labels.append("arc-phase:active")
+    return {"number": number, "status": status, "labels": labels}
 
 
 def _run(items, *args):
@@ -106,6 +108,59 @@ def test_all_roles_at_floor_healthy():
     assert "healthy" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
     assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+
+
+def test_replenish_prefers_active_arc_backlog_candidates():
+    # PM short (2 < 5) with 3 Backlog candidates, 2 of them on an active arc.
+    # The REPLENISH nudge flags the active-arc ones to prefer (Issue #931).
+    items = (_spread("pm", 2, 100)
+             + [_item(150, "pm", status="Backlog", arc_active=True),
+                _item(151, "pm", status="Backlog", arc_active=True),
+                _item(152, "pm", status="Backlog")]
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300))
+    r = _run(items)
+    assert "[REPLENISH pm: 2 < 5]" in r.stdout, r.stdout
+    assert "3 Backlog candidate(s)" in r.stdout, r.stdout
+    assert "2 on an active arc" in r.stdout, r.stdout
+    assert "prefer these" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_replenish_notes_when_no_active_arc_candidates():
+    # PM short with Backlog candidates but NONE on an active arc -> the nudge
+    # says so (commit the top DoR-ready pool item / consider promoting an arc).
+    items = (_spread("pm", 2, 100) + _spread("pm", 3, 150, status="Backlog")
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300))
+    r = _run(items)
+    assert "[REPLENISH pm: 2 < 5]" in r.stdout, r.stdout
+    assert "none on an active arc" in r.stdout, r.stdout
+    assert "prefer these" not in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_replenish_all_candidates_active_arc():
+    # Boundary (active_count == backlog_count): every Backlog candidate is on an
+    # active arc, so M == N in "N Backlog candidate(s), M on an active arc".
+    items = (_spread("pm", 2, 100)
+             + [_item(150, "pm", status="Backlog", arc_active=True),
+                _item(151, "pm", status="Backlog", arc_active=True),
+                _item(152, "pm", status="Backlog", arc_active=True)]
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300))
+    r = _run(items)
+    assert "[REPLENISH pm: 2 < 5]" in r.stdout, r.stdout
+    assert "3 Backlog candidate(s), 3 on an active arc" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_grooming_gap_unaffected_by_arc_awareness():
+    # Short with ZERO Backlog candidates stays GROOMING-GAP (arc logic only
+    # applies on the REPLENISH branch, which requires >= 1 candidate).
+    items = (_spread("pm", 2, 100)
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300))
+    r = _run(items)
+    assert "[GROOMING-GAP pm: 2 < 5]" in r.stdout, r.stdout
+    assert "active arc" not in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
 def test_total_at_cap_flags_cap_and_exit_2():
