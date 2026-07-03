@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-03
 
+### 15:21 UTC - Editor: PM
+
+#### Weekly meta-work SDR window mode ([PR #960](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/960) closes [#915](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/915))
+
+**Trigger.** Next best-next pull after the #952/#947/#931 board-governance run. This is the tooling half of the [#902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902)-facet-2 decision: meta-work flows milestone-free, so the per-milestone closure report ([#752](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752)) never fires for it - the retrospective is rehomed to a cadence-based weekly Service Delivery Review.
+
+**What shipped.** Repointed `scripts/pm/milestone_report.py` (485 lines) to a trailing-week **date-window mode** alongside the existing per-milestone mode, sharing the metrics/aggregation/render/author-editor-critic machinery. Run with no milestone arg (or `--weekly`), it pulls closed **milestone-free** issues, computes the headline metrics **plus a weekly throughput + median-cycle-time trend** (new pure functions `week_windows`/`closed_in_window`/`weekly_series`/`compute_window_metrics`, 6 new unit tests, mirroring the metrics-layer pattern), skips a zero-close reporting week, and renders into `docs/pm/sdr_reports/`.
+
+**Design calls.** (1) "Cycle-time trend" = a trailing per-week series with the most recent week as the headline - the reading that makes "trend" meaningful for a single invocation and stays unit-testable. (2) Meta-work = no-milestone closes (lifecycle work is milestoned + covered by the per-milestone report). (3) Reused `seed_narrative`/`render_html` verbatim via a synthesized pseudo-milestone dict; template changes are strictly additive, mode-gated (`{% if mode == "window" %}` / `{% if metrics.weekly_series %}`), so milestone mode is byte-unchanged - **regression-rendered pm-i8 to confirm**.
+
+**Verification-before-completion held.** Beyond the 39 green unit tests, ran the real path end-to-end against the live board: dry-run (headline + 4-week trend), full HTML render (SDR header + trend table, no `Milestone #None` leak, balanced tables, sidecar seeded), and the milestone-mode regression render. This is the discipline that caught nothing broken *because* it was exercised, not assumed.
+
+**Review.** `@claude` review: ship-worthy, one substantive finding - `--since` only clipped the fetch (could silently under-count the headline). Took the trend-driver fix: `--since` now derives the trend-week count from the `since..until` span (verified a 2-week span yields a 2-week trend). Also added `YYYY-MM-DD` validation, tightened "zero-close" wording (a descoped-only week still generates - dropped scope is signal), softened the Friday-cleanup doc tense (the wiring is a memory-tier routine step, not a repo hook), and cleaned the stdout header. Declined the redundant-`--state-closed` nit (explicit + harmless).
+
+**Two-repo split.** Code + in-repo docs (READMEs, `docs/pm/sdr_reports/`) in the PR (closes #915). Two memory edits ride the MM drain: `pm/feedback_morning_routine.md` Friday-cleanup wiring (AC4) + `feedback_milestone_closure_report.md` shipped-tooling pointer. Flagged via a `To: MM` handoff on #915.
+
 ### 14:46 UTC - Editor: PM
 
 #### Board-governance pulls - #952 finish, #947 dispatch_digest wiring, #931 arc-aware replenishment ([PR #958](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/958) closes [#931](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/931))

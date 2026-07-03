@@ -30,7 +30,7 @@ import re
 import statistics
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -40,6 +40,8 @@ PROJECT_NUMBER = 9
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent  # scripts/pm -> scripts -> repo root
 DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "pm" / "milestone_reports"
+DEFAULT_SDR_OUT_DIR = REPO_ROOT / "docs" / "pm" / "sdr_reports"
+DEFAULT_TREND_WEEKS = 4
 TEMPLATE_PATH = HERE / "templates" / "milestone_report.html.j2"
 
 
@@ -167,6 +169,84 @@ def throughput_per_week(n_delivered: int, duration_days: Optional[float]) -> Opt
     return n_delivered / (duration_days / 7.0)
 
 
+# --- window-mode metrics (weekly SDR; pure, unit-tested) --------------------
+# The meta-work Service Delivery Review (Issue #915) is a cadence-based
+# retrospective decoupled from any milestone (per Issue #902 facet 2, meta-work
+# flows milestone-free, so the per-milestone report never fires for it). These
+# pure functions bucket delivered issues into trailing weeks so the report can
+# show a throughput + cycle-time TREND, not just a single-window snapshot.
+
+def week_windows(until: datetime, n_weeks: int) -> list[tuple[datetime, datetime]]:
+    """``n_weeks`` trailing 7-day ``(start, end]`` windows ending at ``until``.
+
+    Chronological (oldest first) so a rendered series reads left-to-right;
+    ``windows[-1]`` is the reporting week ``(until - 7d, until]``, earlier
+    entries are the trend history.
+    """
+    windows = [
+        (until - timedelta(days=7 * (i + 1)), until - timedelta(days=7 * i))
+        for i in range(max(n_weeks, 1))
+    ]
+    return list(reversed(windows))
+
+
+def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list[dict]:
+    """Closed issues whose ``closed_at`` falls in ``(start, end]``. Pure."""
+    out = []
+    for i in closed_issues(issues):
+        c = parse_iso(i.get("closed_at"))
+        if c and start < c <= end:
+            out.append(i)
+    return out
+
+
+def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dict]:
+    """Per-week throughput + median cycle-time trend over the trailing weeks.
+
+    Each entry: ``{week_start, week_end, n_delivered, median_cycle_time_days}``
+    (dates as ISO ``YYYY-MM-DD``), chronological. Throughput + cycle time key off
+    *delivered* issues (a descoped close is not shipped work), consistent with
+    the milestone-mode metrics.
+    """
+    series = []
+    for start, end in week_windows(until, n_weeks):
+        delivered = delivered_issues(closed_in_window(issues, start, end))
+        series.append({
+            "week_start": start.date().isoformat(),
+            "week_end": end.date().isoformat(),
+            "n_delivered": len(delivered),
+            "median_cycle_time_days": median_cycle_time(delivered),
+        })
+    return series
+
+
+def compute_window_metrics(
+    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int
+) -> dict[str, Any]:
+    """Headline (reporting-week) metrics + the weekly trend for SDR window mode.
+
+    ``week_issues`` are the closed meta-work issues in the reporting week (the
+    headline); ``all_issues`` span the full trend lookback (the series). Mirrors
+    ``compute_metrics``' keys so one template renders both modes, plus the extra
+    ``weekly_series``. There is no carried-forward concept in window mode (only
+    closed issues are fetched), so it is fixed at 0.
+    """
+    delivered = delivered_issues(week_issues)
+    return {
+        "n_total": len(week_issues),
+        "n_closed": len(closed_issues(week_issues)),
+        "n_delivered": len(delivered),
+        "n_descoped": len(descoped_issues(week_issues)),
+        "n_carried_forward": 0,
+        "duration_days": 7.0,
+        "throughput_per_week": throughput_per_week(len(delivered), 7.0),
+        "avg_cycle_time_days": avg_cycle_time(delivered),
+        "median_cycle_time_days": median_cycle_time(delivered),
+        "per_role_counts": per_role_counts(week_issues),
+        "weekly_series": weekly_series(all_issues, until, n_weeks),
+    }
+
+
 def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
     """Assemble the headline metrics block from the data layer."""
     closed = closed_issues(issues)
@@ -261,6 +341,37 @@ def _board_fields_by_number() -> dict[int, dict]:
         return {}
 
 
+def _normalize_issue(it: dict, board: dict[int, dict]) -> dict:
+    """Normalize one ``gh issue list --json`` record into the report's issue dict.
+
+    Shared by the milestone and window fetchers so both carry an identical shape.
+    """
+    labels = [lbl["name"] for lbl in it.get("labels", [])]
+    num = it["number"]
+    b = board.get(num, {})
+    # stateReason: COMPLETED | NOT_PLANNED | None (open). Upper-cased so the
+    # metrics layer can compare against the canonical NOT_PLANNED token.
+    reason = it.get("stateReason")
+    issue = {
+        "number": num,
+        "title": it["title"],
+        "url": it.get("url"),
+        "state": it["state"].upper(),
+        "state_reason": reason.upper() if reason else None,
+        "created_at": it.get("createdAt"),
+        "closed_at": it.get("closedAt"),
+        "roles": [l for l in labels if l.startswith("role:")],
+        "arcs": [l for l in labels if l.startswith("arc:")],
+        "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
+        "priority": b.get("priority") or "—",
+        "size": b.get("size") or "—",
+    }
+    # Single-source the descoped flag for the inventory badge (covers
+    # NOT_PLANNED + DUPLICATE without the template hardcoding the set).
+    issue["is_descoped"] = is_descoped(issue)
+    return issue
+
+
 def fetch_milestone_issues(name: str) -> list[dict]:
     """All issues in the milestone (open + closed), normalized for the report."""
     raw = _gh([
@@ -269,33 +380,28 @@ def fetch_milestone_issues(name: str) -> list[dict]:
         "--json", "number,title,state,stateReason,labels,createdAt,closedAt,url",
     ])
     board = _board_fields_by_number()
-    issues = []
-    for it in json.loads(raw):
-        labels = [lbl["name"] for lbl in it.get("labels", [])]
-        num = it["number"]
-        b = board.get(num, {})
-        # stateReason: COMPLETED | NOT_PLANNED | None (open). Upper-cased so the
-        # metrics layer can compare against the canonical NOT_PLANNED token.
-        reason = it.get("stateReason")
-        issue = {
-            "number": num,
-            "title": it["title"],
-            "url": it.get("url"),
-            "state": it["state"].upper(),
-            "state_reason": reason.upper() if reason else None,
-            "created_at": it.get("createdAt"),
-            "closed_at": it.get("closedAt"),
-            "roles": [l for l in labels if l.startswith("role:")],
-            "arcs": [l for l in labels if l.startswith("arc:")],
-            "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
-            "priority": b.get("priority") or "—",
-            "size": b.get("size") or "—",
-        }
-        # Single-source the descoped flag for the inventory badge (covers
-        # NOT_PLANNED + DUPLICATE without the template hardcoding the set).
-        issue["is_descoped"] = is_descoped(issue)
-        issues.append(issue)
-    return issues
+    return [_normalize_issue(it, board) for it in json.loads(raw)]
+
+
+def fetch_window_issues(since: str, until: str) -> list[dict]:
+    """Closed *meta-work* issues in the ``[since, until]`` date window (ISO dates).
+
+    Meta-work = closed issues carrying **no milestone** (per Issue #902 facet 2:
+    meta-work flows milestone-free; lifecycle work is milestoned and covered by
+    the per-milestone report). Milestoned closes are filtered out here so the SDR
+    covers only flow work.
+    """
+    raw = _gh([
+        "issue", "list", "--repo", f"{OWNER}/{REPO}",
+        "--state", "closed", "--search", f"closed:{since}..{until}", "--limit", "1000",
+        "--json", "number,title,state,stateReason,labels,createdAt,closedAt,url,milestone",
+    ])
+    board = _board_fields_by_number()
+    return [
+        _normalize_issue(it, board)
+        for it in json.loads(raw)
+        if not it.get("milestone")  # skip lifecycle (milestoned) work
+    ]
 
 
 # --- aggregation layer (narrative auto-seed) --------------------------------
@@ -407,7 +513,10 @@ def _md_to_html(md_text: str) -> str:
     return markdown.markdown(md_text, extensions=["tables", "fenced_code"])
 
 
-def render_html(milestone: dict, issues: list[dict], metrics: dict, narrative_md: str) -> str:
+def render_html(
+    milestone: dict, issues: list[dict], metrics: dict, narrative_md: str,
+    mode: str = "milestone",
+) -> str:
     from jinja2 import Environment, FileSystemLoader, select_autoescape  # lazy
 
     env = Environment(
@@ -426,6 +535,7 @@ def render_html(milestone: dict, issues: list[dict], metrics: dict, narrative_md
         carried=[i for i in issues if i.get("state") != "CLOSED"],
         metrics=metrics,
         arcs=arcs,
+        mode=mode,
         narrative_html=_md_to_html(narrative_md),
         generated_at=milestone.get("closed_at") or milestone.get("due_on") or "",
     )
@@ -436,7 +546,11 @@ def _fmt(v: Optional[float], unit: str = "") -> str:
 
 
 def print_metrics(milestone: dict, metrics: dict) -> None:
-    print(f"Milestone: {milestone['title']}  [{milestone.get('state')}]")
+    state = milestone.get("state")
+    if state and state != "n/a":  # milestone mode
+        print(f"Milestone: {milestone['title']}  [{state}]")
+    else:  # window (SDR) mode: the title already says what it is
+        print(milestone["title"])
     print(f"  total / closed / carried-forward : "
           f"{metrics['n_total']} / {metrics['n_closed']} / {metrics['n_carried_forward']}")
     print(f"  delivered / descoped (closed)    : "
@@ -446,39 +560,119 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  cycle time avg / median (days)   : "
           f"{_fmt(metrics['avg_cycle_time_days'])} / {_fmt(metrics['median_cycle_time_days'])}")
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
+    series = metrics.get("weekly_series")
+    if series:
+        print("  weekly trend (delivered / median cycle days):")
+        for w in series:
+            print(f"    {w['week_start']}..{w['week_end']} : "
+                  f"{w['n_delivered']} / {_fmt(w['median_cycle_time_days'])}")
 
 
 # --- orchestration ----------------------------------------------------------
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Generate a milestone closure report.")
-    ap.add_argument("milestone", help="full milestone name (e.g. 'pm-i6 - PM Tooling & Memory Methodology II')")
-    ap.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
-    ap.add_argument("--dry-run", action="store_true", help="print metrics only; write nothing")
-    args = ap.parse_args()
-
-    milestone = fetch_milestone(args.milestone)
-    issues = fetch_milestone_issues(args.milestone)
-    metrics = compute_metrics(issues, milestone)
-
+def _generate(milestone: dict, issues: list[dict], metrics: dict,
+              out_dir: Path, dry_run: bool, mode: str) -> int:
+    """Shared metrics-print + seed + render path for both modes."""
     print_metrics(milestone, metrics)
-    if args.dry_run:
+    if dry_run:
         return 0
-
-    slug = slugify(args.milestone)
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    sidecar = args.out_dir / f"{slug}.narrative.md"
+    slug = slugify(milestone["title"])
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sidecar = out_dir / f"{slug}.narrative.md"
     if not sidecar.exists():  # never overwrite author edits
         sidecar.write_text(seed_narrative(milestone, issues, metrics), encoding="utf-8")
         print(f"  seeded narrative -> {sidecar}")
     else:
         print(f"  narrative exists (preserved) -> {sidecar}")
-
-    html = render_html(milestone, issues, metrics, sidecar.read_text(encoding="utf-8"))
-    html_path = args.out_dir / f"{slug}.html"
+    html = render_html(milestone, issues, metrics, sidecar.read_text(encoding="utf-8"), mode=mode)
+    html_path = out_dir / f"{slug}.html"
     html_path.write_text(html, encoding="utf-8")
     print(f"  rendered report  -> {html_path}")
     return 0
+
+
+def _run_milestone_mode(name: str, out_dir: Optional[Path], dry_run: bool) -> int:
+    milestone = fetch_milestone(name)
+    issues = fetch_milestone_issues(name)
+    metrics = compute_metrics(issues, milestone)
+    return _generate(milestone, issues, metrics, out_dir or DEFAULT_OUT_DIR, dry_run, "milestone")
+
+
+def _parse_date_arg(ap: argparse.ArgumentParser, flag: str, value: str) -> datetime:
+    """Validate a ``YYYY-MM-DD`` CLI date -> tz-aware UTC datetime; ap.error else."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        ap.error(f"{flag} must be YYYY-MM-DD, got: {value!r}")
+
+
+def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: Optional[str],
+                     trend_weeks: int, out_dir: Optional[Path], dry_run: bool) -> int:
+    """Weekly meta-work SDR. Reporting week = the most recent 7-day window; the
+    trend spans ``n_weeks`` back. Skips a reporting week with nothing closed."""
+    until_dt = (_parse_date_arg(ap, "--until", until).replace(hour=23, minute=59, second=59)
+                if until else datetime.now(timezone.utc))
+    # --since sets the TREND SPAN: derive the week count from since..until so the
+    # trend actually reaches back to --since (overriding --trend-weeks). Deriving
+    # a single span-start without this would only clip the fetch and could
+    # silently under-count the headline (PR #960 review).
+    if since:
+        since_dt = _parse_date_arg(ap, "--since", since)
+        if since_dt >= until_dt:
+            ap.error("--since must be before --until")
+        span_days = (until_dt.date() - since_dt.date()).days
+        n_weeks = max(1, -(-span_days // 7))  # ceil-divide into whole weeks
+    else:
+        n_weeks = trend_weeks
+    windows = week_windows(until_dt, n_weeks)
+    report_start, report_end = windows[-1]
+
+    all_issues = fetch_window_issues(windows[0][0].date().isoformat(), until_dt.date().isoformat())
+    week_issues = closed_in_window(all_issues, report_start, report_end)
+    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
+
+    if metrics["n_total"] == 0:  # nothing closed in the reporting week -> no artifact
+        print(f"Meta-work SDR - week ending {report_end.date().isoformat()}: "
+              "no meta-work issues closed in the reporting week; skipping (no artifact).")
+        return 0
+
+    pseudo = {
+        "title": f"Meta-work SDR - week ending {report_end.date().isoformat()}",
+        "number": None,
+        "state": "n/a",
+        "created_at": report_start.isoformat(),
+        "closed_at": report_end.isoformat(),
+        "due_on": None,
+        "description": None,
+    }
+    return _generate(pseudo, week_issues, metrics, out_dir or DEFAULT_SDR_OUT_DIR, dry_run, "window")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Generate a milestone closure report, or a weekly meta-work "
+                    "Service Delivery Review (SDR) when no milestone is given.")
+    ap.add_argument("milestone", nargs="?",
+                    help="full milestone name (e.g. 'pm-i6 - PM Tooling & Memory Methodology II'); "
+                         "omit (or pass --weekly) for the weekly meta-work SDR window mode")
+    ap.add_argument("--weekly", action="store_true",
+                    help="force weekly SDR window mode even if a milestone arg is present")
+    ap.add_argument("--since", help="SDR trend-span start (YYYY-MM-DD); sets the trend length "
+                                    "from since..until, overriding --trend-weeks")
+    ap.add_argument("--until", help="SDR window end (YYYY-MM-DD); default = today")
+    ap.add_argument("--trend-weeks", type=int, default=DEFAULT_TREND_WEEKS,
+                    help=f"SDR trailing weeks shown in the trend (default {DEFAULT_TREND_WEEKS})")
+    ap.add_argument("--out-dir", type=Path, default=None,
+                    help="output dir (default: milestone_reports for milestone mode, "
+                         "sdr_reports for weekly SDR mode)")
+    ap.add_argument("--dry-run", action="store_true", help="print metrics only; write nothing")
+    args = ap.parse_args()
+
+    if args.milestone and not args.weekly:
+        return _run_milestone_mode(args.milestone, args.out_dir, args.dry_run)
+    if args.trend_weeks < 1:
+        ap.error("--trend-weeks must be >= 1")
+    return _run_window_mode(ap, args.since, args.until, args.trend_weeks, args.out_dir, args.dry_run)
 
 
 if __name__ == "__main__":

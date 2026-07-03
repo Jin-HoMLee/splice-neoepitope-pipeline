@@ -46,10 +46,14 @@
   <header class="report">
     <h1>{{ milestone.title }}</h1>
     <div class="sub">
+      {% if mode == "window" %}
+      Weekly meta-work Service Delivery Review · week {{ milestone.created_at[:10] }} to {{ milestone.closed_at[:10] }}
+      {% else %}
       Milestone #{{ milestone.number }} · state <strong>{{ milestone.state }}</strong>
       {% if milestone.created_at %}· opened {{ milestone.created_at[:10] }}{% endif %}
       {% if milestone.closed_at %}· closed {{ milestone.closed_at[:10] }}{% endif %}
       {% if metrics.duration_days is not none %}· {{ "%.0f"|format(metrics.duration_days) }} days{% endif %}
+      {% endif %}
       {% if arcs %}· {{ arcs|join(", ") }}{% endif %}
     </div>
   </header>
@@ -71,6 +75,19 @@
       <span class="sub">no role-tagged delivered issues</span>
     {% endfor %}
   </div>
+
+  {% if metrics.weekly_series %}
+  <!-- Weekly trend (SDR window mode; script-generated) -->
+  <h2>Weekly trend</h2>
+  <table>
+    <thead><tr><th>Week ending</th><th>Delivered</th><th>Median cycle (days)</th></tr></thead>
+    <tbody>
+      {% for w in metrics.weekly_series %}
+      <tr><td>{{ w.week_end }}</td><td>{{ w.n_delivered }}</td><td>{{ "%.1f"|format(w.median_cycle_time_days) if w.median_cycle_time_days is not none else "-" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
 
   <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
   <div class="narrative">

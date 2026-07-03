@@ -11,6 +11,7 @@ inside the render/aggregation functions so this test runs in the bare
 """
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -217,6 +218,91 @@ class TestComputeMetrics:
         assert m["throughput_per_week"] is None
         assert m["avg_cycle_time_days"] is None
         assert m["per_role_counts"] == {}
+
+
+# --- window-mode metrics (weekly SDR, Issue #915) ---------------------------
+
+UNTIL = datetime(2026, 7, 3, tzinfo=timezone.utc)
+
+# Trailing-4-week fixture keyed off UNTIL (2026-07-03). Windows (start, end]:
+#   w1 (06-05, 06-12] · w2 (06-12, 06-19] · w3 (06-19, 06-26] · w4 (06-26, 07-03] = reporting week
+WINDOW_ISSUES = [
+    _issue(1, "CLOSED", "2026-06-29T00:00:00Z", "2026-07-01T00:00:00Z", ["role:pm"], "COMPLETED"),                 # w4 delivered, 2d
+    _issue(2, "CLOSED", "2026-06-20T00:00:00Z", "2026-06-27T00:00:00Z", ["role:developer"], "COMPLETED"),          # w4 delivered, 7d
+    _issue(4, "CLOSED", "2026-06-30T00:00:00Z", "2026-07-02T00:00:00Z", ["role:pm"], "NOT_PLANNED"),               # w4 descoped
+    _issue(3, "CLOSED", "2026-06-18T00:00:00Z", "2026-06-20T00:00:00Z", ["role:scientist"], "COMPLETED"),          # w3 delivered, 2d
+    _issue(5, "CLOSED", "2026-06-08T00:00:00Z", "2026-06-10T00:00:00Z", ["role:pm"], "COMPLETED"),                 # w1 delivered, 2d
+]
+
+
+class TestWeekWindows:
+    def test_shape_and_chronology(self):
+        w = mr.week_windows(UNTIL, 4)
+        assert len(w) == 4
+        # chronological (oldest first); reporting week (most recent) is last.
+        starts = [s for s, _ in w]
+        assert starts == sorted(starts)
+        assert w[-1][1] == UNTIL                       # reporting week ends at until
+        assert (w[-1][1] - w[-1][0]).days == 7         # each window is 7 days
+
+    def test_n_weeks_floor_of_one(self):
+        assert len(mr.week_windows(UNTIL, 0)) == 1     # never zero windows
+
+
+class TestClosedInWindow:
+    def test_filters_by_closed_at_half_open(self):
+        start = datetime(2026, 6, 26, tzinfo=timezone.utc)
+        end = UNTIL
+        nums = sorted(i["number"] for i in mr.closed_in_window(WINDOW_ISSUES, start, end))
+        assert nums == [1, 2, 4]                        # closed in (06-26, 07-03]
+
+    def test_excludes_boundary_start_includes_end(self):
+        # (start, end]: an issue closed exactly at start is excluded; at end included.
+        issues = [
+            _issue(10, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-26T00:00:00Z", []),  # == start -> out
+            _issue(11, "CLOSED", "2026-06-01T00:00:00Z", "2026-07-03T00:00:00Z", []),  # == end -> in
+        ]
+        nums = [i["number"] for i in mr.closed_in_window(
+            issues, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)]
+        assert nums == [11]
+
+
+class TestWeeklySeries:
+    def test_trend_buckets_and_medians(self):
+        s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4)
+        assert [w["n_delivered"] for w in s] == [1, 0, 1, 2]   # w1, w2(empty), w3, w4
+        assert s[1]["median_cycle_time_days"] is None          # empty week -> None
+        assert s[0]["median_cycle_time_days"] == pytest.approx(2.0)   # #5
+        assert s[3]["median_cycle_time_days"] == pytest.approx(4.5)   # #1=2d, #2=7d
+        # descoped #4 must not inflate the reporting-week bucket count.
+        assert s[3]["week_end"] == "2026-07-03"
+
+
+class TestComputeWindowMetrics:
+    def test_headline_over_reporting_week_plus_trend(self):
+        week_issues = mr.closed_in_window(
+            WINDOW_ISSUES, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
+        m = mr.compute_window_metrics(week_issues, WINDOW_ISSUES, UNTIL, 4)
+        assert m["n_total"] == 3            # #1, #2, #4 closed in the reporting week
+        assert m["n_delivered"] == 2        # #1, #2 (descoped #4 excluded)
+        assert m["n_descoped"] == 1         # #4 NOT_PLANNED
+        assert m["n_carried_forward"] == 0  # window mode has no carried concept
+        assert m["throughput_per_week"] == pytest.approx(2.0)  # 2 delivered / 1 week
+        assert m["avg_cycle_time_days"] == pytest.approx(4.5)  # (2 + 7) / 2
+        assert m["per_role_counts"] == {"role:pm": 1, "role:developer": 1}  # delivered only
+        assert [w["n_delivered"] for w in m["weekly_series"]] == [1, 0, 1, 2]
+
+    def test_zero_ship_week_is_empty_headline(self):
+        # No issues closed in the reporting week -> n_total 0 (main() skips on this).
+        old = [_issue(20, "CLOSED", "2026-06-08T00:00:00Z", "2026-06-10T00:00:00Z", ["role:pm"], "COMPLETED")]
+        week_issues = mr.closed_in_window(
+            old, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
+        m = mr.compute_window_metrics(week_issues, old, UNTIL, 4)
+        # main() gates the zero-ship skip on n_total == 0 (nothing closed in the
+        # reporting week); delivered is 0 and cycle time is undefined.
+        assert m["n_total"] == 0
+        assert m["n_delivered"] == 0
+        assert m["avg_cycle_time_days"] is None
 
 
 # --- narrative seed digest --------------------------------------------------
