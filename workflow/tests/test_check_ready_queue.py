@@ -138,6 +138,20 @@ def test_replenish_notes_when_no_active_arc_candidates():
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
+def test_replenish_all_candidates_active_arc():
+    # Boundary (active_count == backlog_count): every Backlog candidate is on an
+    # active arc, so M == N in "N Backlog candidate(s), M on an active arc".
+    items = (_spread("pm", 2, 100)
+             + [_item(150, "pm", status="Backlog", arc_active=True),
+                _item(151, "pm", status="Backlog", arc_active=True),
+                _item(152, "pm", status="Backlog", arc_active=True)]
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300))
+    r = _run(items)
+    assert "[REPLENISH pm: 2 < 5]" in r.stdout, r.stdout
+    assert "3 Backlog candidate(s), 3 on an active arc" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
 def test_grooming_gap_unaffected_by_arc_awareness():
     # Short with ZERO Backlog candidates stays GROOMING-GAP (arc logic only
     # applies on the REPLENISH branch, which requires >= 1 candidate).
