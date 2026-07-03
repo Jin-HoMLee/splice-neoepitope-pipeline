@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-03
 
+### 16:48 UTC - Editor: PM
+
+#### Weekly per-role stale/superseded Issue self-review ([#814](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/814), memory deliverable via MM drain)
+
+**Trigger.** Best-next pull after closing the stale-open #952/#947 (both functionally done - the MM drain `2d84793` had already landed their memory edits; ticked the final AC + closing comment + board->Done on each). Selector surfaced #814: Ready, board-governance (active arc), and the direct follow-through on #952, which committed #814 to Ready as the Backlog's new bounding force when it retired the news inflow cap.
+
+**Board-hygiene find en route.** #814 and #769 sat in Ready carrying `arc-phase:later` while their arc, board-governance, is `active` - a contradiction (you don't commit later-phase work into the Ready pull queue). Corrected #814 -> `arc-phase:active` as I pulled it; flagged #769 for the same fix (left for the next arc review or a follow-up sweep). Root: the `arc_taxonomy.tsv` source-of-truth doesn't list either issue, so their phase labels were hand-set and drifted.
+
+**Design calls (AC1, the 3 open questions).** (1) **Stale trigger** = last-activity threshold *surfaces* (`board_open_items.py --role <role> --stale-days 30`), a 3-point checklist *decides* (premise valid? / superseded by shipped work? / right priority class?) - deliberately not a hard age gate, since an old option is not a stale one under the #902 facet-3 unordered-pool model. (2) **Scope** = all open statuses, Backlog-weighted (supersession hits Ready/In-progress too - #617 was mid-flight when overtaken). (3) **Flagged-item action** = one of close-with-comment / re-validate-and-keep / defer-to-open-carrier, each routed through the rule that already governs it (closure ritual, deferred-action carrier).
+
+**Structure call.** Gave the convention its own file (`shared/feedback_stale_issue_review.md`) rather than folding into `board_hygiene.md` - it mirrors how `feedback_branch_cleanup.md` is its own cadence-sibling file, and the two ride the same Friday-cleanup beat (branch sweep first, then the Issue self-review). Wired the beat in `shared/feedback_morning_routine.md`; reciprocal cross-links in `branch_cleanup.md` (Related) and `board_hygiene.md` (the central option-pool prune now names this as its complementary per-role depth pass); indexed in `shared/MEMORY.md` + `pm/MEMORY.md`.
+
+**Complementarity (the load-bearing distinction).** PM-central prune bounds the pool's *size* (breadth, one owner, no deep context); per-role self-review keeps it *valid* (supersession, judged by the implementing role - the call PM structurally cannot make). Neither replaces the other. Captures AC's PM cross-cutting + cadence-enforcement step (PM coordinates dedup across roles + ensures the cadence happens).
+
+**Ship state.** All 4 ACs ticked; six memory edits staged for the MM drain (cross-repo close per the #882 pattern). #814 stays In progress until the drain lands, then closes.
+
 ### 15:21 UTC - Editor: PM
 
 #### Weekly meta-work SDR window mode ([PR #960](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/960) closes [#915](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/915))
