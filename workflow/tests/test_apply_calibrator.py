@@ -68,6 +68,39 @@ def test_calibrate_extrapolation_preserves_order_and_breaks_ties():
     assert all(bool(f) for f in oos)    # all four still flagged out of support
 
 
+def test_extrapolation_helper_copies_do_not_drift():
+    """Issue #805: interp_monotone_extrapolate (production, apply_calibrator.py) and
+    _interp_monotone_extrapolate (research, calibrator.py) are intentionally
+    duplicated - production takes no research-dir import. Guard against silent
+    divergence by comparing their source bodies (name- and docstring-agnostic, via
+    AST): an edit to one that isn't mirrored fails here. Stdlib-only, so it runs in
+    the production venv without the research deps (scipy/sklearn)."""
+    import ast
+    from pathlib import Path
+
+    def _body_dump(rel_path, fname):
+        src = (Path(__file__).resolve().parents[2] / rel_path).read_text()
+        fn = next(
+            n for n in ast.walk(ast.parse(src))
+            if isinstance(n, ast.FunctionDef) and n.name == fname
+        )
+        body = fn.body
+        # drop a leading docstring (the two copies document each other differently)
+        if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+            body = body[1:]
+        return "\n".join(ast.dump(s) for s in body)
+
+    prod = _body_dump("workflow/scripts/apply_calibrator.py", "interp_monotone_extrapolate")
+    research = _body_dump(
+        "research/experiments/issue_547_immunogenicity_calibration/calibrator.py",
+        "_interp_monotone_extrapolate",
+    )
+    assert prod == research, (
+        "interp_monotone_extrapolate copies have drifted - keep the production and "
+        "research helpers byte-identical (only their docstrings may differ)."
+    )
+
+
 def test_calibrate_boundary_is_in_support():
     # Exactly cx[0]/cx[-1] is IN support (flag is strict < / >).
     _, oos = calibrate([0.1, 0.9], _CX, _CY)

@@ -70,7 +70,7 @@ def interp_monotone_extrapolate(scores, cx, cy) -> np.ndarray:
     the two are deliberately decoupled (no research-dir import here) but must apply
     the same map so the offline eval matches production.
     """
-    scores = np.asarray(scores, dtype=float)
+    scores = np.atleast_1d(np.asarray(scores, dtype=float))
     cx = np.asarray(cx, dtype=float)
     cy = np.asarray(cy, dtype=float)
     out = np.interp(scores, cx, cy)  # correct in-range; clipped out-of-range; nan->nan

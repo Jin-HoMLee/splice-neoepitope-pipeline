@@ -21,7 +21,7 @@ def _interp_monotone_extrapolate(scores, cx, cy):
     Mirror of ``interp_monotone_extrapolate`` in ``workflow/scripts/apply_calibrator.py``
     (production), kept in sync so the offline eval matches production.
     """
-    scores = np.asarray(scores, dtype=float)
+    scores = np.atleast_1d(np.asarray(scores, dtype=float))
     cx = np.asarray(cx, dtype=float)
     cy = np.asarray(cy, dtype=float)
     out = np.interp(scores, cx, cy)
