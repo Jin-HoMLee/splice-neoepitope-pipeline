@@ -98,7 +98,7 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **HLA-LOH** - HLA Loss of Heterozygosity. Tumor immune-escape mechanism: somatic deletion or copy-neutral loss of one HLA allele, narrowing the peptide-presentation repertoire and shielding the tumor from neoantigen-specific T cells. Detected from WES (e.g. LOHHLA); candidates predicted on a lost allele are no longer presented. *Domain: bio.*
 
-**HPC** - High-Performance Computing. Cluster compute systems with job schedulers (SLURM, LSF, HTCondor); distinct from cloud "on-demand" compute models (GCP, AWS Batch). Pipeline currently runs on cloud, not HPC. *Domain: cloud.*
+**HPC** - High-Performance Computing. Cluster compute systems with job schedulers (SLURM, LSF, HTCondor); distinct from cloud "on-demand" compute models (GCP, AWS Batch). The pipeline core currently runs on a local CPU-only host (neither cloud nor HPC) post-GCP-decommission; the funded GPU-revival path targets cloud (RunPod), not HPC. *Domain: cloud.*
 
 **HTCondor** - High-Throughput Condor. Distributed batch scheduler from UW-Madison's CHTC; dominant in physics/astronomy (e.g. CERN ATLAS). Supports no-shared-FS topologies natively - relevant precedent for cloud-executor design. *Domain: cloud.*
 
