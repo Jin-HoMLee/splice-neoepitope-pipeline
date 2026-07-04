@@ -6,6 +6,41 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-04
+
+### Editor: Scientist
+
+#### [PR #980](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/980) - label `normal_shared` junctions by which normal removed them. Closes [Issue #940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940).
+
+**The premise was wrong, and correcting it changed the fix.**
+[Issue #940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940) (and my first read of it) framed the problem as "`Blood Derived Normal` is used for junction subtraction, filtering out genuine tumor-specific junctions."
+On inspection that direction is largely incorrect: a genuinely tumor-restricted junction is, by definition, absent from the patient's normal blood, so blood subtraction *keeps* it (`_build_normal_junction_sources` only adds a junction seen with >= `min_normal_reads` in a normal).
+What blood actually removes are junctions *present* in the patient's blood - ubiquitous/housekeeping and leukocyte splicing - which is a legitimate, conservative safety filter (a blood-expressed junction is a self-antigen, not tumor-specific).
+The mismatched-normal worry that *is* real runs the other way (blood fails to subtract tissue-of-origin normal junctions, which then leak through as false `tumor_exclusive`), but that hole is already covered by the always-on GTEx pan-tissue population filter ([Issue #212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/212)).
+
+**So the real defect was narrower: silence + conflation, not lost candidates.**
+`config.yaml` documented `Blood Derived Normal -> HLA typing only` while the code silently pooled it into subtraction, and every normal collapsed into one undifferentiated `normal_shared` bucket - so for patient_002 (osteosarcoma, whose only normal is a CD3+ T-cell PBMC) the weak T-cell-vs-bone subtraction (`normal_shared=154` in the 2026-06-23 STAR run) looked like real tissue-matched filtering.
+
+**Decision (Jin-Ho chose, from three options I surfaced): direction #3 - keep subtracting with all normals, but label by source.**
+Rejected #1 (exclude blood entirely) because it would strip patient_002's only normal down to GTEx-only and discard the valid conservative blood filter; rejected #2 (just update the config to legitimize blood) because it leaves the `normal_shared` bucket ambiguous.
+#3 preserves the conservative filter *and* makes provenance explicit.
+
+**What shipped.**
+`_build_normal_junction_set` -> `_build_normal_junction_sources` now returns `{junction: set[sample_type]}` (membership semantics preserved, so classification is byte-for-byte unchanged); a new backward-compatible `normal_source` column records which normal type(s) removed each `normal_shared` junction; and the filter-stats funnel gains descriptive `normal_shared:<type>` breakdown rows (kept out of the reconciling partition).
+`config.yaml`'s legend was corrected so code and config agree.
+
+**patient_002 impact (cross-ref [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636)).**
+Zero numeric change - the same junctions are excluded, so `normal_shared=154` holds and no re-run is needed - but those 154 now carry `normal_source = "Blood Derived Normal"`, converting a silent weakness into a visible, interpretable one.
+
+**Verification.**
+Full workflow suite green (618 passed / 31 skipped); a live E2E CLI run on a tumor + solid + blood manifest labeled the blood-shared junction `Blood Derived Normal` and the solid-shared one `Solid Tissue Normal`, both subtracted.
+The `@-claude` review returned no blocking issues; I extended a test to cover the multi-type sorted comma-join and converted the config legend em-dashes to plain hyphens.
+
+**Follow-up.**
+The provenance lands in the TSV but not yet in `report.html` (the report's funnel pivot drops the per-source rows) - surfacing it there is filed as [Issue #983](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/983), out of #940's filter scope.
+
+---
+
 ## 2026-07-03
 
 ### 15:29 UTC - Editor: Scientist
