@@ -37,6 +37,12 @@ def _is_deny(stdout: str) -> bool:
     )
 
 
+def _deny_reason(stdout: str) -> str:
+    """The human-facing `permissionDecisionReason` string from a deny decision."""
+    parsed = json.loads(stdout)
+    return parsed["hookSpecificOutput"]["permissionDecisionReason"]
+
+
 class TestAllowPaths:
     def test_non_gh_command_allowed(self):
         rc, out, _ = _run(_payload("ls -la"))
@@ -94,6 +100,32 @@ class TestDenyPaths:
             )
         )
         assert rc == 0 and _is_deny(out)
+
+
+class TestDenyMessageGuidance:
+    """#975: the deny message must surface BOTH escape hatches, so an agent
+    denied while legitimately requesting a review can construct the correct
+    command from the message alone, without reading the hook source.
+    """
+
+    STRAY = 'gh pr comment 1 --body "ping @claude for review"'
+
+    def test_reason_names_canonical_review_trigger(self):
+        _, out, _ = _run(_payload(self.STRAY))
+        reason = _deny_reason(out)
+        # the one allowed form, and how to invoke it
+        assert "@claude review" in reason
+        assert "--body" in reason
+
+    def test_reason_names_zero_width_workaround(self):
+        _, out, _ = _run(_payload(self.STRAY))
+        reason = _deny_reason(out)
+        assert "@-claude" in reason
+
+    def test_reason_names_guarded_edit_subcommand(self):
+        # the guard covers `edit` too; the message should not undersell its scope
+        _, out, _ = _run(_payload(self.STRAY))
+        assert "edit" in _deny_reason(out)
 
 
 class TestFailOpen:
