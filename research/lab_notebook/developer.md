@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
 
+### 14:02 UTC - Editor: Developer - gh auth keyring migration: Dev-half runbook + collaborative human migration ([PR #1000](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1000) closes [Issue #971](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/971))
+
+**Context.** [Issue #971](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/971) (dual `role:human` + `role:developer`, the morning warm-up pick): migrate local `gh` off a long-lived classic PAT hardcoded in `~/.zshenv` to a Keychain-primary OAuth credential, and rotate two tokens exposed in the 2026-07-03 session. The gating ACs are human-only (browser OAuth, dotfile edit, token revocation at github.com); the Dev half is advisory runbook + live verification + docs.
+
+**Dev deliverable.** `docs/gh_auth_setup.md`: interactive Keychain path (`gh auth login --web` -> `gh auth refresh -s project,read:org`), a fine-grained expiring automation-token spec, a Keychain runtime-injection snippet, verification commands, and the human checklist. Plus a discoverability pointer from `docs/installation.md`.
+
+**Live audit finding.** Pre-migration `gh auth status` confirmed all three anti-patterns (GH_TOKEN env var, classic `ghp_` PAT, plaintext `~/.zshenv`) plus a scope gap: the token had `project, repo, workflow` but was **missing `read:org`** (AC-4). The post-migration keyring `gho_` token carries all five (`gist, project, read:org, repo, workflow`).
+
+**Collaborative migration (human half, walked live).** Keychain login + refresh landed the `gho_` token; a fresh login shell confirmed GH_TOKEN gone (a stale-shell intermediate state re-shadowed it until a truly new login shell). Token-inventory disambiguation at the tokens page (3 classic PATs): revoked the exposed `gh CLI (global, ~/.zshenv)` PAT; **kept** two purpose-built automation PATs (`ADD_TO_PROJECT_PAT` = board auto-add Action, `splice-pipeline-ci-projects-read` = CI `read:project`) - neither exposed, and revoking either would break automation. Identify-before-revoke mattered: 2 of 3 classic tokens were live automation secrets.
+
+**Two lessons (candidate memories).**
+1. **Never put even a fragment of a live credential in tracked text.** My first doc draft hardcoded a 7-char prefix of the *live* token in the checklist (the Issue body carried the same). Bot review caught it: a truncated `ghp_` prefix evades GitHub secret-scanning yet persists in git history forever - in a doc whose whole thesis is "stop leaking credentials." Disambiguate tokens by name + creation date instead; no secret bytes. Scrubbed both the doc and the Issue body.
+2. **A live GH_TOKEN rotation strands the agent's own Bash shell.** Revoking the classic PAT 401'd *my* agent shell (it still held the pre-revocation GH_TOKEN in env from session start), while the user's interactive terminals were fine on the keyring. Workaround for the rest of the session: prefix `env -u GH_TOKEN gh ...` so the shell falls back to the Keychain `gho_` token (the Bash tool re-inits from profile, but the exported var persisted).
+
+**Review.** Bot review LGTM-in-shape, 3 findings, all addressed in `f66b43d`: (1) removed the live-token fragment; (2) added `-U` to `security add-generic-password` so store + rotation are idempotent (bare re-run errors `errSecDuplicateItem`); (3) reworded the `read:org` rationale - `project` scope alone drives Projects v2, `read:org` is a `gh` default AC-4 mandates. Content-based poll caught the verdict at 3m50s.
+
+**Process note.** Warm-up pick that became a live collaborative migration; closure routed through the doc PR since the machine-state work produced no repo diff (the entry above is that record). Stopped at the merge command per the standing autonomy cadence.
+
 ### 02:58 UTC - Editor: Developer - namespace shared-step logs under logs/_shared/ ([PR #991](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/991) closes [Issue #673](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/673))
 
 **Context.** [Issue #673](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/673): shared reference/index/model-build logs (no `{patient_id}`) wrote to `logs/<step>/` at the top level while per-patient jobs wrote to `logs/<patient_id>/<step>/`, so five step names (alignment, download, filter_junctions, mhc_affinity, proteome_filter) appeared at two depths. Next quick win of the session.
