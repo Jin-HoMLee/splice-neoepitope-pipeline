@@ -19,6 +19,13 @@ points at a JSON array of {number, status, labels} items, the script reads from
 that file and filters by status (Ready / In progress / Backlog) itself, so a
 fixture controls the buffer, the demand context, and the candidate pool.
 
+Assertion style: tests target the role(s) under test with `... in r.stdout`
+substring checks, and deliberately leave the other roles unstocked. Since MM
+became a floor role (#1006), a fixture that stocks only pm/sci/dev now also emits
+an (unasserted) `[GROOMING-GAP memory_manager: 0 < 5]` line - that is expected and
+harmless: exit is already 2 and the targeted assertion still holds. Tests whose
+`healthy` / no-flag assertions would otherwise break DO stock MM to floor.
+
 Gate:
   - per-role floor 5 for PM / Scientist / Developer / MM (MM folded in by
     Issue #1006, retiring the #705/#754 exemption)
