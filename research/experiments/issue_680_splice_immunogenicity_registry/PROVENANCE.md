@@ -22,17 +22,19 @@ Publication venue class per source, resolved first-hand (2026-07-04) and recorde
 
 | Source (key) | Venue | `venue_type` |
 |---|---|---|
-| Bigot 2021 (SF3B1 UM) | *JCI Insight* | `journal` |
+| Bigot 2021 (SF3B1 UM) | *Cancer Discovery* | `journal` |
 | Kim 2025 (SF-mutant leukemia) | *Cell* | `journal` |
-| Manoharan 2026 (IR-CRC) | OA journal (PMC13096189) | `journal` |
-| Merlotti 2023 (NSCLC exon-TE) | *Sci Immunol* | `journal` |
-| SNAF / Li 2024 | *Sci Transl Med* | `journal` |
-| Long-read UM 2023 | *Cancer Immunol Res* | `journal` |
+| Manoharan 2026 (IR-CRC) | *Scientific Reports* | `journal` |
+| Merlotti 2023 (NSCLC exon-TE) | *Science Immunology* | `journal` |
+| SNAF / Li 2024 | *Science Translational Medicine* | `journal` |
+| Long-read UM 2023 (Yao) | *Cancer Immunology Research* | `journal` |
 | IRIS (Pan/Xing) | *PNAS* | `journal` |
-| Fisher 2026 (CoREST) | peer-reviewed journal | `journal` |
+| Fisher 2026 (CoREST) | *JCI Insight* | `journal` |
 | Kwok 2024 | *Nature* | `journal` |
-| Xiong 2025 (GBM) | peer-reviewed journal | `journal` |
-| POSTN-203 (Liu 2025) | *Genes Immun* | `journal` |
+| Xiong 2025 (GBM) | *Cellular & Molecular Immunology* | `journal` |
+| POSTN-203 (Genes & Immunity) | *Genes & Immunity* | `journal` |
+
+*(Venue names verified against Zotero `publicationTitle` for collection `Z38GTJNW`, 2026-07-04.)*
 
 **Not a policy against preprints.** A preprint-sourced row can be folded; it just must be **marked** `preprint`. The three preprints encountered to date (Lin 2025 bioRxiv, TEtrans/Li 2025 bioRxiv, the SNAF exon-TE preprint) were each deferred for **sequence-unavailability**, not because they are preprints. The guard against a *silent* preprint fold is structural: a source absent from the venue map derives to the out-of-vocab sentinel `unclassified`, which `validate_registry.py` rejects, so any newly-folded source must be venue-classified before it validates.
 
