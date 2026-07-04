@@ -653,6 +653,38 @@ def _df_to_html(df: "pd.DataFrame", max_rows: int = 100) -> str:
     return out
 
 
+def _normal_shared_by_source(junction_df):
+    """Per-sample breakdown of normal_shared junctions by the normal sample_type
+    that removed them (Issue #983).
+
+    Reads the ``normal_shared:<type>`` category rows that Issue #940 emits into the
+    junction-filter stats (e.g. ``normal_shared:Blood Derived Normal``) and pivots
+    them to [sample_id, sample_type, <normal type>...]. Returns an empty DataFrame
+    when no such rows are present (pipelines predating #940), which drives the
+    omit-the-section path in the funnel renderer. Descriptive, not a funnel
+    partition: a junction shared with more than one normal type is counted under
+    each, so row sums may exceed the normal_shared total. An empty type suffix
+    renders as ``(unspecified)`` rather than a blank column (AC-3, clean render)."""
+    import pandas as pd
+
+    src = junction_df[junction_df["category"].astype(str).str.startswith("normal_shared:")].copy()
+    if src.empty:
+        return pd.DataFrame()
+    src["normal_source"] = (
+        src["category"].str.split(":", n=1).str[1].fillna("").replace("", "(unspecified)")
+    )
+    pivot = (
+        src.pivot_table(index=["sample_id", "sample_type"], columns="normal_source",
+                        values="count", aggfunc="first")
+        .reset_index()
+        .fillna(0)
+    )
+    pivot.columns.name = None
+    value_cols = [c for c in pivot.columns if c not in ("sample_id", "sample_type")]
+    pivot[value_cols] = pivot[value_cols].astype(int)  # counts render as 154, not 154.0
+    return pivot
+
+
 def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     """Render the cross-step filtering funnel section (Issue #215).
 
@@ -720,6 +752,21 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
             "min/median/max describe the input distribution.</small></p>"
             + _df_to_html(dist_pivot)
         )
+        # normal_shared broken down by which normal sample_type removed each
+        # junction (Issue #983; surfaces the normal_shared:<type> rows from #940
+        # that the funnel_cats filter above drops). Omitted for pre-#940 stats.
+        ns_by_source = _normal_shared_by_source(junction_df)
+        if not ns_by_source.empty:
+            junction_html += (
+                "<h3>normal_shared by normal source (per sample)</h3>"
+                "<p><small>Which matched-normal sample_type removed each junction "
+                "(Issue #940) - so a blood-only / weak-normal case (e.g. a CD3+ PBMC "
+                "normal) is visible at a glance rather than an undifferentiated total. "
+                "Descriptive, not a funnel partition: a junction shared with more than "
+                "one normal type is counted under each, so row sums may exceed "
+                "normal_shared.</small></p>"
+                + _df_to_html(ns_by_source)
+            )
 
     # ----- Patient-level pipeline funnel for downstream steps -----
     downstream = df[df["step"] != "junction-filter"][["step", "category", "count"]].copy()
