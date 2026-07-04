@@ -602,6 +602,139 @@ class TestComputeRecheckParentSkip:
         assert "1 open issue(s) missing Size" in out  # only #540, not the parent #538
 
 
+class TestComputeRecheckStaleReconcile:
+    """compute_recheck(moved_issue=N) reconciles the eventually-consistent
+    "issues-by-milestone" listing endpoint against a strongly-consistent
+    ``gh issue view --json milestone`` read of the moved issue BEFORE computing
+    capacity (Issue #406).
+
+    After a ``gh issue edit N --milestone X`` move, the listing endpoint can lag:
+    the SOURCE milestone may still list #N, or the DESTINATION may not list it
+    yet. That drove a false-positive ``[UPDATE NEEDED]`` on the source right
+    after a successful move (caught live 2026-05-19). The reconciler retries the
+    listing until it agrees with the strong read, and on non-convergence emits a
+    ``[stale state, verification pending]`` note (exit 3) instead of a misleading
+    capacity recommendation.
+    """
+
+    def _patch(self, monkeypatch, *, title, due_on, listings, actual_ms,
+               sizes=None, parents=()):
+        """`listings` is a sequence of successive open_issues_in_milestone
+        return values, modelling the listing endpoint catching up across
+        retries. The last value is reused if the reconciler queries more times
+        than provided."""
+        monkeypatch.setattr(rm, "milestone_meta",
+                            lambda n: {"title": title, "due_on": due_on})
+        seq = list(listings)
+        state = {"i": 0}
+
+        def fake_list(_title):
+            i = min(state["i"], len(seq) - 1)
+            state["i"] += 1
+            return list(seq[i])
+
+        monkeypatch.setattr(rm, "open_issues_in_milestone", fake_list)
+        monkeypatch.setattr(rm, "milestone_for_issue", lambda n: actual_ms)
+        if sizes is not None:
+            monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                                lambda ns: (dict(sizes), set(parents)))
+
+    def test_source_listing_never_catches_up_is_stale(self, monkeypatch, capsys):
+        # Rechecking the SOURCE milestone (17) after #381 moved to dest (27).
+        # The listing keeps wrongly including #381, never converges, so: stale.
+        sleeps = []
+        self._patch(
+            monkeypatch,
+            title="i2 - S4 - Source", due_on="2026-05-19T00:00:00Z",
+            listings=[[381, 500]],          # reused across every retry
+            actual_ms=27,                    # strong read: #381 is on dest, not 17
+        )
+        # If the reconciler wrongly proceeds, this would blow up computing sizes.
+        monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
+                            lambda ns: pytest.fail("proceeded despite stale listing"))
+        rc = rm.compute_recheck(17, moved_issue=381, _sleep=sleeps.append)
+        out = capsys.readouterr().out
+        assert rc == 3
+        assert "[stale state, verification pending]" in out
+        assert "[UPDATE NEEDED]" not in out
+        assert len(sleeps) == rm.STALE_RETRY_ATTEMPTS   # retried, then gave up
+
+    def test_dest_listing_catches_up_on_retry_then_proceeds(self, monkeypatch, capsys):
+        # Rechecking the DEST milestone (27); listing initially misses #381,
+        # then catches up on the first retry, so the reconciler proceeds.
+        sleeps = []
+        self._patch(
+            monkeypatch,
+            title="i3 - S4 - Dest", due_on="2026-06-30T00:00:00Z",
+            listings=[[], [381]],           # miss, then present
+            actual_ms=27,                    # strong read: #381 IS on dest 27
+            sizes={381: "S"},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])  # no other milestones
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 6, 20)
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(27, moved_issue=381, _sleep=sleeps.append)
+        out = capsys.readouterr().out
+        assert "[stale state, verification pending]" not in out
+        assert "Proposed due_on:" in out          # normal path reached
+        assert len(sleeps) == 1                    # one retry to converge
+        assert rc in (0, 2)
+
+    def test_already_consistent_no_retry(self, monkeypatch, capsys):
+        # Listing already agrees with the strong read: zero retries, zero sleeps.
+        sleeps = []
+        self._patch(
+            monkeypatch,
+            title="i3 - S4 - Dest", due_on="2026-06-30T00:00:00Z",
+            listings=[[381]],
+            actual_ms=27,
+            sizes={381: "S"},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 6, 20)
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(27, moved_issue=381, _sleep=sleeps.append)
+        out = capsys.readouterr().out
+        assert "[stale state, verification pending]" not in out
+        assert sleeps == []
+        assert rc in (0, 2)
+
+    def test_no_moved_issue_skips_reconciliation(self, monkeypatch, capsys):
+        # Without --moved-issue the strongly-consistent read is never taken, so
+        # behaviour is exactly the pre-#406 path (close / size-change / PATCH).
+        self._patch(
+            monkeypatch,
+            title="i3 - S4 - Dest", due_on="2026-06-30T00:00:00Z",
+            listings=[[381]],
+            actual_ms=27,
+            sizes={381: "S"},
+        )
+        monkeypatch.setattr(rm, "milestone_for_issue",
+                            lambda n: pytest.fail("reconciliation ran without moved_issue"))
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 6, 20)
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(27)
+        out = capsys.readouterr().out
+        assert "[stale state, verification pending]" not in out
+        assert rc in (0, 2)
+
+
 # --- Live-vs-hermetic integration split (Issue #711) -----------------------
 # The recheck integration is checked TWO ways, by design:
 #   * TestRecheckHermeticIntegration (below) — runs on every PR in
