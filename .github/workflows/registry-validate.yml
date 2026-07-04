@@ -1,0 +1,51 @@
+name: Registry integrity guard
+
+# CI guard for Issue #883: run the #680 splice-immunogenicity registry integrity
+# validator (`validate_registry.py`, landed in #735) automatically instead of only
+# by hand. The registry is the labeling spine the #736 FASTA+label harness and the
+# #870 calibrator-accuracy validation depend on, so a hand-edit to `registry.tsv`
+# (or the presented-decoy seed) that drifts from the documented labeling scheme
+# would otherwise pass silently. The validator already exits non-zero on any scheme
+# violation; this job is the thin wrapper that fails the PR loudly when it does.
+#
+# Path-filtered: runs only on PRs that touch the registry data or the validation /
+# derivation / constants scripts. A separate workflow (not a job in tests.yml) so
+# the path filter gates THIS check without throttling the unconditional pytest /
+# dry-run / conda-solve jobs (same pattern as annotate-canary.yml).
+
+on:
+  push:
+    branches: [main]
+    paths: &paths
+      - research/experiments/issue_680_splice_immunogenicity_registry/registry.tsv
+      - research/experiments/issue_680_splice_immunogenicity_registry/decoy_negatives/presented_decoys_681.tsv
+      - research/experiments/issue_680_splice_immunogenicity_registry/validate_registry.py
+      - research/experiments/issue_680_splice_immunogenicity_registry/labeling_constants.py
+      - research/experiments/issue_680_splice_immunogenicity_registry/derive_assay_context.py
+      - research/experiments/issue_680_splice_immunogenicity_registry/derive_evidence_strength.py
+      - .github/workflows/registry-validate.yml
+  pull_request:
+    branches: [main]
+    paths: *paths
+
+jobs:
+  registry-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install pandas
+        # Sole runtime dependency of the validator (matches research/requirements.txt).
+        run: pip install "pandas>=2.0"
+
+      - name: Validate registry against the labeling scheme
+        # The validator resolves registry.tsv + the decoy seed relative to its own
+        # __file__, and imports labeling_constants from its own directory (added to
+        # sys.path[0] when run as a script), so it runs correctly from the repo root.
+        run: python research/experiments/issue_680_splice_immunogenicity_registry/validate_registry.py
