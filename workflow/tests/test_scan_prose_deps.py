@@ -291,6 +291,97 @@ def test_render_report_surfaces_edges_lookup_failed():
     assert "745" in out and "edges-lookup-failed" in out
 
 
+# --- meta(blocker) lookup-failure resilience + --check exit code (Issue #1012) ---
+# Same transient-failure class as #989, extended to the blocker-meta REST lookup,
+# plus a --check exit code that no longer reads a partially-failed scan as clean.
+
+def test_meta_and_blocker_errors_share_a_base():
+    assert issubclass(spd.MetaLookupError, spd.IssueLookupError)
+    assert issubclass(spd.BlockerLookupError, spd.IssueLookupError)
+
+
+def test_issue_meta_raises_meta_lookup_error_on_gh_failure(monkeypatch):
+    def boom(*a, **k):
+        raise subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 500")
+    monkeypatch.setattr(spd, "gh", boom)
+    with pytest.raises(spd.MetaLookupError):
+        spd.issue_meta(722)
+
+
+def test_issue_meta_raises_meta_lookup_error_on_non_json_stdout(monkeypatch):
+    import json as _json
+
+    def bad(*a, **k):
+        raise _json.JSONDecodeError("Expecting value", "", 0)
+    monkeypatch.setattr(spd, "gh", bad)
+    with pytest.raises(spd.MetaLookupError):
+        spd.issue_meta(722)
+
+
+def test_issue_meta_happy_path(monkeypatch):
+    monkeypatch.setattr(spd, "gh", lambda *a, **k: {"state": "open"})
+    assert spd.issue_meta(722) == {"state": "open", "is_pr": False}
+    monkeypatch.setattr(spd, "gh", lambda *a, **k: {"state": "closed", "pull_request": {}})
+    assert spd.issue_meta(714) == {"state": "closed", "is_pr": True}
+
+
+def test_reconcile_skips_on_meta_lookup_failure(monkeypatch, capsys):
+    # #722's blocker-meta lookup fails; the scan continues and #211 still classifies.
+    monkeypatch.setattr(spd, "native_blockers", lambda n: set())
+
+    def meta(n):
+        if n == 722:
+            raise spd.MetaLookupError("simulated flaky meta lookup")
+        return {"state": "open", "is_pr": False}
+    monkeypatch.setattr(spd, "issue_meta", meta)
+
+    records = spd.reconcile([(745, 722), (594, 211)])
+    by = {r["blocker"]: r["action"] for r in records}
+    assert by[722] == "meta-lookup-failed"
+    assert by[211] == "needs-wiring"
+    assert "722" in capsys.readouterr().err  # warned to stderr, not silent
+
+
+def test_reconcile_caches_meta_lookup_failure(monkeypatch):
+    calls = {"n": 0}
+
+    def meta(n):
+        calls["n"] += 1
+        raise spd.MetaLookupError("flaky")
+    monkeypatch.setattr(spd, "issue_meta", meta)
+    monkeypatch.setattr(spd, "native_blockers", lambda n: set())
+
+    records = spd.reconcile([(745, 722), (594, 722)])  # same failing blocker, two dependents
+    assert calls["n"] == 1  # one lookup, not one-per-pair
+    assert len(records) == 2
+    assert all(r["action"] == "meta-lookup-failed" for r in records)
+
+
+def test_render_report_surfaces_meta_lookup_failed():
+    recs = [{"dependent": 745, "blocker": 722, "state": "?", "action": "meta-lookup-failed"}]
+    out = spd.render_report(recs)
+    assert "722" in out and "meta-lookup-failed" in out
+
+
+def test_main_check_exits_1_on_lookup_failure(monkeypatch, capsys):
+    # A run whose only anomaly is an incomplete lookup is NOT clean: exit 1
+    # (error / re-run), distinct from 0 (clean) and 2 (real drift).
+    failed = [{"dependent": 745, "blocker": 722, "state": "?", "action": "edges-lookup-failed"}]
+    rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722)], failed)
+    assert rc == 1
+
+
+def test_main_check_lookup_failure_precedes_drift(monkeypatch, capsys):
+    # Both real drift and an incomplete lookup -> exit 1 (the drift picture can't
+    # be trusted mid-failure; re-run clears the transient), not 2.
+    mixed = [
+        {"dependent": 745, "blocker": 722, "state": "open", "action": "needs-wiring"},
+        {"dependent": 594, "blocker": 211, "state": "?", "action": "meta-lookup-failed"},
+    ]
+    rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722), (594, 211)], mixed)
+    assert rc == 1
+
+
 def test_main_apply_only_subsets_by_dependent(monkeypatch, capsys):
     # --only restricts --apply to the named dependents among the needs-wiring set.
     wired = []

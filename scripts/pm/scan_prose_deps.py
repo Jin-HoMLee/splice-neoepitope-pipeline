@@ -11,7 +11,8 @@ Usage:
   scripts/pm/scan_prose_deps.py --apply         # wire all needs-wiring records
   scripts/pm/scan_prose_deps.py --apply --only 745 594   # wire only these dependents
 
-Exits 0 clean / 2 drift-present (--check) / 1 on error.
+Exits 0 clean / 2 drift-present (--check) / 1 on error or incomplete scan
+(a transient per-issue lookup failure, which takes precedence over 2).
 """
 import argparse
 import json
@@ -23,12 +24,23 @@ REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 REPO_OWNER, REPO_NAME = REPO.split("/")
 
 
-class BlockerLookupError(Exception):
-    """The native blockedBy lookup for one issue could not be completed.
+class IssueLookupError(Exception):
+    """A per-issue `gh` lookup could not be completed (a transient 5xx / network
+    blip, a GraphQL `errors` payload, or non-JSON stdout). The caller skips that
+    one pair and surfaces it, rather than aborting the whole board scan or
+    misreading a failed lookup as a real result. `action` is the report-row
+    label the reconcile loop uses for this failure kind."""
+    action = "lookup-failed"
 
-    Raised on a failed `gh` call (transient 5xx / network blip) or a GraphQL
-    `errors` payload, so the caller can skip that one issue rather than
-    aborting the whole scan or misreading a failed lookup as "no blockers"."""
+
+class BlockerLookupError(IssueLookupError):
+    """The native blockedBy lookup for one issue could not be completed (#989)."""
+    action = "edges-lookup-failed"
+
+
+class MetaLookupError(IssueLookupError):
+    """The blocker-meta (state / is_pr) REST lookup could not be completed (#1012)."""
+    action = "meta-lookup-failed"
 
 
 def gh(*args, parse_json=True):
@@ -107,8 +119,18 @@ def classify(dependent, blocker, *, blocker_meta, existing):
 
 def issue_meta(number):
     """{'state': 'open'|'closed', 'is_pr': bool} via the REST issues endpoint
-    (which serves both issues and PRs; a PR carries a 'pull_request' key)."""
-    obj = gh("api", f"repos/{REPO}/issues/{number}")
+    (which serves both issues and PRs; a PR carries a 'pull_request' key).
+
+    Raises MetaLookupError if the lookup could not be completed (a failed `gh`
+    call, or non-JSON stdout), so the caller skips that one pair instead of
+    aborting the whole scan on a transient blip - the same resilience #989 gave
+    the blockedBy lookup, extended to the blocker-meta fetch (#1012)."""
+    try:
+        obj = gh("api", f"repos/{REPO}/issues/{number}")
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        raise MetaLookupError(
+            f"gh issue-meta lookup failed for #{number}: {getattr(e, 'stderr', None) or e}"
+        ) from e
     return {"state": obj["state"], "is_pr": "pull_request" in obj}
 
 
@@ -166,41 +188,39 @@ def reconcile(pairs):
     meta_cache = {}
     edges_cache = {}
 
-    def meta(n):
-        if n not in meta_cache:
-            meta_cache[n] = issue_meta(n)
-        return meta_cache[n]
-
-    def edges(n):
-        # Cache the failure too, so a flaky lookup is not re-attempted once per
-        # pair sharing the same dependent (and re-raised each time).
-        if n not in edges_cache:
+    def cached(cache, n, fn):
+        # Memoize fn(n), caching a raised IssueLookupError too, so a flaky
+        # per-issue lookup is attempted once (not once per pair sharing it) and
+        # re-raised on each subsequent hit.
+        if n not in cache:
             try:
-                edges_cache[n] = native_blockers(n)
-            except BlockerLookupError as e:
-                edges_cache[n] = e
-        cached = edges_cache[n]
-        if isinstance(cached, BlockerLookupError):
-            raise cached
-        return cached
+                cache[n] = fn(n)
+            except IssueLookupError as e:
+                cache[n] = e
+        result = cache[n]
+        if isinstance(result, IssueLookupError):
+            raise result
+        return result
 
     records = []
     for dependent, blocker in pairs:
         try:
-            existing = edges(dependent)
-        except BlockerLookupError as e:
-            # One flaky per-issue lookup must not abort the whole scan. Skip
-            # this pair's classification and surface it in the report so a
-            # failed lookup is never mistaken for "no blockers" (Issue #989).
-            print(f"scan_prose_deps: WARNING - skipping #{dependent}: {e}", file=sys.stderr)
+            existing = cached(edges_cache, dependent, native_blockers)
+            bmeta = cached(meta_cache, blocker, issue_meta)
+        except IssueLookupError as e:
+            # One flaky per-issue lookup (edge OR blocker-meta) must not abort the
+            # whole scan. Skip this pair's classification and surface it in the
+            # report so a failed lookup is never mistaken for a real result
+            # (edges: Issue #989; blocker-meta: Issue #1012).
+            print(f"scan_prose_deps: WARNING - skipping #{dependent} -> #{blocker}: {e}",
+                  file=sys.stderr)
             records.append({
                 "dependent": dependent,
                 "blocker": blocker,
                 "state": "?",
-                "action": "edges-lookup-failed",
+                "action": e.action,
             })
             continue
-        bmeta = meta(blocker)
         action = classify(dependent, blocker, blocker_meta=bmeta, existing=existing)
         records.append({
             "dependent": dependent,
@@ -211,9 +231,9 @@ def reconcile(pairs):
     return records
 
 
-# edges-lookup-failed first: it is a scan-integrity warning (a dependency this
-# run could not determine), so it sorts above the actionable-drift rows.
-_ACTION_ORDER = ["edges-lookup-failed", "needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
+# *-lookup-failed first: they are scan-integrity warnings (a dependency this run
+# could not determine), so they sort above the actionable-drift rows.
+_ACTION_ORDER = ["edges-lookup-failed", "meta-lookup-failed", "needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
 _ACTION_RANK = {a: i for i, a in enumerate(_ACTION_ORDER)}
 
 
@@ -264,7 +284,8 @@ def main():
     parser.add_argument("--issue", type=int, help="restrict scan to a single dependent issue")
     parser.add_argument("--report", action="store_true",
                         help="print the drift table (default action; explicit form)")
-    parser.add_argument("--check", action="store_true", help="exit 2 if any needs-wiring drift")
+    parser.add_argument("--check", action="store_true",
+                        help="exit 2 if any needs-wiring drift, 1 if any lookup failed (incomplete scan)")
     parser.add_argument("--apply", action="store_true", help="wire the needs-wiring edges")
     parser.add_argument("--only", type=int, nargs="*", default=None,
                         help="with --apply: wire only these dependent issue numbers")
@@ -274,6 +295,7 @@ def main():
 
     records = _scan(args.issue)
     needs = [r for r in records if r["action"] == "needs-wiring"]
+    lookup_failed = [r for r in records if r["action"].endswith("-lookup-failed")]
 
     if args.apply:
         subset = needs if args.only is None else [r for r in needs if r["dependent"] in args.only]
@@ -285,6 +307,11 @@ def main():
 
     print(render_report(records), end="")
     if args.check:
+        # A partially-failed scan can't be trusted to have found all drift, so an
+        # incomplete lookup signals "error" (1, this script's error code) and
+        # takes precedence over the drift code (2). Re-running clears a transient.
+        if lookup_failed:
+            return 1
         return 2 if needs else 0
     return 0
 
