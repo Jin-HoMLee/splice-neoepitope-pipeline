@@ -73,8 +73,14 @@ def test_format_table_tags_personas_row_only():
          "priority": "P2", "size": "S", "role": "role:memory_manager", "arc": None,
          "arc_phase": None, "updated_at": None},
     ]
-    out = b.format_table(items)
-    assert "pers#71" in out          # personas row tagged
-    assert " 71 " in out or out.count("71") >= 2  # project row keeps a bare 71
-    # header renamed # -> Ref
-    assert "Ref" in out.splitlines()[0]
+    table = b.format_table(items)
+    lines = table.splitlines()
+    header = lines[0]
+    assert "Ref" in header                 # header renamed # -> Ref
+    rows = lines[2:]                        # 0=header, 1=separator
+    pers_row = next(r for r in rows if "pers#71" in r)
+    proj_row = next(r for r in rows if "pers#71" not in r and "71" in r)
+    # both refs (bare project + tagged personas) start under the Ref header - the
+    # tagged path is exactly why the column was widened, so guard its alignment.
+    assert pers_row.index("pers#71") == header.index("Ref")
+    assert proj_row.index("71") == header.index("Ref")   # project row is bare

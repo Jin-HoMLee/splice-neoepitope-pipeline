@@ -367,12 +367,12 @@ def format_table(
     # Kind column is 8 wide to fit the longest marker "Issue/P" (parent); plain
     # "Issue" / draft "PR/D" are shorter. A narrower budget overflows and shifts
     # every column to its right out from under its header.
-    # Ref column (was "#") is 9 wide so a tagged personas ref ("pers#1234") fits
-    # without shifting the columns to its right; a bare project number is shorter
-    # (Issue #999 two-repo disambiguation).
+    # Ref column (was "#") is 10 wide so a tagged personas ref keeps its column
+    # even at 5 digits ("pers#12345") without shifting arc/title; a bare project
+    # number is shorter (Issue #999 two-repo disambiguation).
     lines = [
-        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<8} {'Ref':<9} {arc_hdr}Title",
-        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 9} {arc_sep}{'-' * 60}",
+        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<8} {'Ref':<10} {arc_hdr}Title",
+        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 10} {arc_sep}{'-' * 60}",
     ]
     for it in items:
         role = (it["role"] or "(none)").removeprefix("role:")[:16]
@@ -389,7 +389,7 @@ def format_table(
             arc_cell = ""
         lines.append(
             f"{it['status']:<17} {it['priority'] or '?':<3} {it['size'] or '?':<3} "
-            f"{age:<5} {role:<17} {kind:<8} {ref_cell(it):<9} {arc_cell}{title}"
+            f"{age:<5} {role:<17} {kind:<8} {ref_cell(it):<10} {arc_cell}{title}"
         )
     return "\n".join(lines) + "\n"
 
