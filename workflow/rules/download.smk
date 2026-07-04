@@ -60,7 +60,7 @@ rule download_vdjdb_release:
         vdjdb_tsv = f"references/vdjdb/{config['tcrdock']['vdjdb_release']}/vdjdb_full.txt",
         sentinel = f"references/vdjdb/{config['tcrdock']['vdjdb_release']}/.download.done",
     log:
-        f"logs/download/vdjdb_{config['tcrdock']['vdjdb_release']}.log",
+        os.path.join(_SHARED_LOG, "download", f"vdjdb_{config['tcrdock']['vdjdb_release']}.log"),
     params:
         release = config["tcrdock"]["vdjdb_release"],
         sha256 = config["tcrdock"]["vdjdb_sha256"],
@@ -122,7 +122,7 @@ if _GTEX_CFG.get("enabled", False) and _GTEX_REF.startswith("gs://"):
             src=_GTEX_REF,
             sha256=(_GTEX_CFG.get("reference_bed_sha256") or "").strip(),
         log:
-            os.path.join(_LOGS, "download", "gtex_pan_tissue_bed.log"),
+            os.path.join(_SHARED_LOG, "download", "gtex_pan_tissue_bed.log"),
         shell:
             """
             set -euo pipefail
@@ -157,7 +157,7 @@ rule download_imgt_germlines:
     output:
         sentinel = "references/imgt_germlines/.download.done",
     log:
-        "logs/download/imgt_germlines.log",
+        os.path.join(_SHARED_LOG, "download", "imgt_germlines.log"),
     conda:
         "../envs/vdjdb.yaml"
     shell:

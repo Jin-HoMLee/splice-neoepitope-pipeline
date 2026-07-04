@@ -217,6 +217,32 @@ if [[ -d "$OLD_RESOURCES" ]]; then
     done
 fi
 
+# One-shot migration (Issue #673): shared-step logs move from logs/<step>/ to
+# logs/_shared/<step>/, mirroring the shared-vs-per-patient convention now used
+# in the workflow. Idempotent - only moves a top-level step dir that exists AND
+# is not yet present under _shared/ (per-patient logs under logs/<patient_id>/
+# are left untouched). The shared-log rules are cached/skipped once their
+# artifact exists, so a warm VM will not regenerate these logs under the new
+# path on its own; this lets an existing VM adopt the layout without a rebuild.
+# Companion GCS move (mirrors this on the remote store, once per bucket):
+#   for s in alignment download filter_junctions mhc_affinity proteome_filter; do
+#     gcloud storage mv "gs://$GCS_BUCKET/logs/$s" "gs://$GCS_BUCKET/logs/_shared/$s"
+#   done
+# NOTE: the gs://splice-neoepitope-project bucket was decommissioned in the
+# 2026-06-26 $0-budget teardown (Issue #854), so the GCS move is documented for
+# a funded revival, not runnable today.
+LOGS_DIR="$REPO_DIR/logs"
+SHARED_LOGS="$LOGS_DIR/_shared"
+if [[ -d "$LOGS_DIR" ]]; then
+    for s in alignment download filter_junctions mhc_affinity proteome_filter; do
+        if [[ -d "$LOGS_DIR/$s" && ! -d "$SHARED_LOGS/$s" ]]; then
+            log "  Migrating logs/$s/ → logs/_shared/$s/ (Issue #673 layout)"
+            mkdir -p "$SHARED_LOGS"
+            mv "$LOGS_DIR/$s" "$SHARED_LOGS/$s"
+        fi
+    done
+fi
+
 FASTA_GZ="$REFERENCES/GRCh38.primary_assembly.genome.fa.gz"
 FASTA="$REFERENCES/GRCh38.primary_assembly.genome.fa"
 

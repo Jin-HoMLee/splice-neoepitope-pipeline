@@ -23,6 +23,14 @@ if "samples_tsv" not in config:
 _RES  = config["output"]["results_dir"]
 _LOGS = config["output"]["logs"]
 
+# Log-tree convention: per-patient jobs (a {patient_id} wildcard) write to
+# logs/<patient_id>/<step>/; shared reference/index/model-build jobs (no
+# {patient_id}) write to logs/_shared/<step>/ instead of the top of logs/.
+# Namespacing the shared logs keeps every step-name folder at one depth (2)
+# and mirrors the results-side segregation (indices/, references/) and the
+# research/experiments/_shared/ convention.
+_SHARED_LOG = os.path.join(_LOGS, "_shared")
+
 # ── Wildcard constraints ──────────────────────────────────────────────────────
 wildcard_constraints:
     patient_id="[^/]+",

@@ -45,7 +45,7 @@ rule download_mhcflurry_models:
     output:
         sentinel=touch(_MHCFLURRY_SENTINEL),
     log:
-        os.path.join(_LOGS, "mhc_affinity", "mhcflurry_downloads.log"),
+        os.path.join(_SHARED_LOG, "mhc_affinity", "mhcflurry_downloads.log"),
     conda:
         "../envs/python.yaml"
     shell:

@@ -29,7 +29,7 @@ if _PROTEOME_FILTER_ENABLED:
         output:
             fasta=_PROTEOME_FASTA,
         log:
-            os.path.join(_LOGS, "proteome_filter", "download_proteome.log"),
+            os.path.join(_SHARED_LOG, "proteome_filter", "download_proteome.log"),
         params:
             url="https://rest.uniprot.org/uniprotkb/stream?query=reviewed:true+AND+organism_id:9606&format=fasta&compressed=true",
         conda:

@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
 
+### 02:58 UTC - Editor: Developer - namespace shared-step logs under logs/_shared/ ([PR #991](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/991) closes [Issue #673](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/673))
+
+**Context.** [Issue #673](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/673): shared reference/index/model-build logs (no `{patient_id}`) wrote to `logs/<step>/` at the top level while per-patient jobs wrote to `logs/<patient_id>/<step>/`, so five step names (alignment, download, filter_junctions, mhc_affinity, proteome_filter) appeared at two depths. Next quick win of the session.
+
+**Change.** Added `_SHARED_LOG = os.path.join(_LOGS, "_shared")` in `common.smk` (with a shared-vs-per-patient convention comment) and routed all 9 shared `log:` directives through it; converted the two hardcoded `logs/download/...` strings - which also fixes a latent bug (they now honor `config["output"]["logs"]` like every other directive, flagged as a bonus by the bot review). `setup_vm.sh` gets an idempotent `logs/<step>` -> `logs/_shared/` migration mirroring the #63 `resources/->references/` block.
+
+**Infra-reality rescope.** Two ACs were premised on GCP infra decommissioned 2026-06-26 ([#854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)): AC #5's "run once" GCS `gcloud storage mv` cannot run (bucket deleted) - reframed as a revival-scoped `setup_vm.sh` comment; AC #4's VM migration is revival-scoped (no live VM). AC #7's GTEx-log coordination resolved itself - PR #653 merged, so `gtex_pan_tissue_bed.log` is folded into the routing (download x3). Core routing has present value on the local CPU core (the hisat2_index / mhcflurry_downloads / build_reference_junctions logs are written locally too). Same verify-premise-against-current-infra discipline as the #942 rescope earlier this session ([[feedback_verify_premise_before_mechanizing]]).
+
+**Verification.** `snakemake -n` resolves the 9-job DAG (no parse error - `_SHARED_LOG` wired); pytest 646 passed / 6 skipped; `bash -n setup_vm.sh` clean; grep confirms no shared `_LOGS` / hardcoded `logs/` strings remain and per-patient `log:` untouched.
+
+**Review.** Bot review LGTM (2m58s), enumerated all 25 `log:` directives (9 shared / 16 per-patient) and confirmed the classification exact, flagged the latent-bug fix as a bonus. Three non-blocking observations dispositioned on the PR, no code change: (1) `patient_id`==step-name migration collision - effectively impossible (accession IDs) and the sibling #63 block shares the assumption; (2) idempotency orphan when both dirs exist - intentional non-clobbering; (3) stale `logs/download/` path in a frozen 2026-05-20 plan doc - left as historical record.
+
+**Process note.** Fifth quick-win of the session under the standing autonomy cadence; content-based bot-review poll caught at 2m58s again.
+
 ### 02:26 UTC - Editor: Developer - rescope #942: the native blockedBy swap was already done; scope-correct the gh floor ([PR #988](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/988) closes [Issue #942](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/942))
 
 **Context.** [Issue #942](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/942) (the implementation half of the #824 eval, follow-up to my 00:29 #941 probe below) asked to swap the `is:blocked` search read to native `blockedBy` in the commitment gate (`scripts/audit_and_merge.sh`) and the morning blocked-graph hygiene check. Picked it as a quick win.
