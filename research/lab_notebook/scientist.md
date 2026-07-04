@@ -10,6 +10,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #994](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/994) - TEtrans out-of-registry provenance + `outputs/` commit-vs-gitignore policy. Closes [Issue #832](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/832) + [Issue #774](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/774).
+
+**#832 - TEtrans (Li 2025) as a transcript-level exon-TE source, no registry row.**
+TEtrans clears both registry gates - exon-TE source (gate-1); HLA-A\*02:01 transcript-level CD8+ killing + IFN-gamma, T4180/LTR30 MS-presented in gastric STAD tissue (gate-2) - but the paper reports its 387 candidate neopeptides **count-only** (Fig 6A funnel), with no sequence table in the supplement and no data deposit. A peptide-keyed `registry.tsv` row is therefore not constructable without fabricating a sequence (no-inference rule, `LABELING_SCHEME.md` §6), so it is recorded as a transcript/antigen-level source in `PROVENANCE.md` with a README cross-reference; `registry.tsv` is byte-identical to main (still 96 rows, validator green). Same disposition as the Zhao 2025 (sequence-blocked) and long-read-UM (functional-nonscorable) precedents.
+
+**#774 - `research/experiments/*/outputs/` commit-vs-gitignore rule.**
+Pinned in `docs/research_artifact_conventions.md` (the real home of the Size guidance section; the issue said "CLAUDE.md", which only points there). **Regenerability is the tie-breaker over the size band:** a 10-100 MB artifact that is not *offline*-regenerable (paid/quota API, no committed regenerator) stays out of git with a remote R2 mirror + `data_manifest.yaml`. Reconciled the two existing experiments - issue_225 (Snaptron, in-notebook regenerable) committed = correct; issue_224 (AlphaGenome-API, ~17 MB, no offline regenerator) gitignored = correct but missing the prescribed mirror → follow-up [#992](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/992). Also corrected the stale `> 100 MB` `gs://` reference to the post-GCP R2 store (#854).
+
+**Review.** Bot review (mergeable as-is): fixed the one real defect it caught - my TEtrans bullet had made the README's "Four library-sweep papers" heading off-by-one; reworked the heading + marked TEtrans as a later #832 addition (not one of the #733 four), softened the now-inaccurate "(functional gate confirmed absent)" parenthetical, and named the R2 store in the 10-100 MB bullet.
+
 #### [PR #990](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/990) - repair the stale `splice-neoepitope-research` Jupyter kernelspec. Closes [Issue #923](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/923).
 
 **What was broken.** The globally-registered `splice-neoepitope-research` kernelspec pointed at a `Documents/GitHub/...` clone that stopped existing at the 2026-05-14 separate-clone migration, so `jupyter nbconvert --execute` on any research notebook failed at kernel launch (worked around in #914 with a throwaway temp kernel). Confirmed live: `argv[0]` in `~/Library/Jupyter/kernels/splice-neoepitope-research/kernel.json` resolved to a non-existent path.
