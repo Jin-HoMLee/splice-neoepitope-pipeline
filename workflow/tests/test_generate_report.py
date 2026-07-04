@@ -13,6 +13,7 @@ from generate_report import (
     _build_report_tsv,
     _build_strong_table_html,
     _build_strong_table_html_from_top_candidates,
+    _normal_shared_by_source,
     _build_structure_section,
     _build_tcr_provenance_html,
     _build_vdjdb_panel_section,
@@ -928,6 +929,70 @@ class TestBuildFilteringFunnelHtml:
         html = _build_filtering_funnel_html(path)
         assert "NaN" not in html
         assert "T1" in html  # still rendered
+
+    # ---------- normal_shared by normal source (Issue #983) ----------
+
+    def _write_stats_with_normal_source(self, tmp_path):
+        path = tmp_path / "filtering_stats.tsv"
+        pd.DataFrame([
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "normal_shared", "count": 154},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "normal_shared:Blood Derived Normal", "count": 154},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "normal_shared:Solid Tissue Normal", "count": 12},
+            {"patient_id": "p1", "sample_id": "T1", "sample_type": "Primary Tumor",
+             "step": "junction-filter", "category": "tumor_exclusive", "count": 30},
+        ]).to_csv(path, sep="\t", index=False)
+        return path
+
+    def test_surfaces_normal_shared_by_source(self, tmp_path):
+        """Issue #983: the normal_shared:<type> breakdown rows (Issue #940) must be
+        surfaced in the report, not dropped by the funnel_cats .isin() filter."""
+        path = self._write_stats_with_normal_source(tmp_path)
+        html = _build_filtering_funnel_html(path)
+        assert "normal_shared by normal source" in html
+        assert "Blood Derived Normal" in html
+        assert "Solid Tissue Normal" in html
+        assert "154" in html
+
+    def test_normal_shared_by_source_omitted_when_no_breakdown_rows(self, tmp_path):
+        """Back-compat: a stats TSV with no normal_shared:<type> rows renders no
+        breakdown section (pipelines predating Issue #940)."""
+        path = self._write_unified_stats(tmp_path)  # has no normal_shared:<type> rows
+        html = _build_filtering_funnel_html(path)
+        assert "normal_shared by normal source" not in html
+
+
+def test_normal_shared_by_source_pivot():
+    """Issue #983: per-sample breakdown of normal_shared by the normal sample_type
+    that removed each junction, pivoted from the normal_shared:<type> stats rows."""
+    from generate_report import _normal_shared_by_source
+    jdf = pd.DataFrame({
+        "sample_id": ["T1", "T1", "T2"],
+        "sample_type": ["Primary Tumor", "Primary Tumor", "Primary Tumor"],
+        "category": ["normal_shared:Blood Derived Normal",
+                     "normal_shared:Solid Tissue Normal",
+                     "normal_shared:Blood Derived Normal"],
+        "count": [154, 12, 20],
+    })
+    piv = _normal_shared_by_source(jdf)
+    t1 = piv[piv["sample_id"] == "T1"].iloc[0]
+    assert int(t1["Blood Derived Normal"]) == 154
+    assert int(t1["Solid Tissue Normal"]) == 12
+    t2 = piv[piv["sample_id"] == "T2"].iloc[0]
+    assert int(t2["Blood Derived Normal"]) == 20
+    assert int(t2["Solid Tissue Normal"]) == 0  # reindex-filled, renders cleanly (AC-3)
+
+
+def test_normal_shared_by_source_empty_when_no_breakdown():
+    """No normal_shared:<type> rows -> empty frame (drives the omit-section path)."""
+    from generate_report import _normal_shared_by_source
+    jdf = pd.DataFrame({
+        "sample_id": ["T1"], "sample_type": ["Primary Tumor"],
+        "category": ["normal_shared"], "count": [40],
+    })
+    assert _normal_shared_by_source(jdf).empty
 
 
 class TestPresenterCountsHtml:
