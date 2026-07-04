@@ -4,17 +4,23 @@
 Run: research/.venv/bin/python validate_registry.py
 Exit 0 = clean; exit 1 = violations printed to stderr.
 """
+import json
+import os
 import sys
+import urllib.error
+import urllib.request
 import pandas as pd
 from pathlib import Path
 
-from labeling_constants import GRADES, STRENGTHS, ASSAY_CONTEXTS, EFFECTOR, DETECTION, IVS_MARKER
+from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, EFFECTOR,
+                                DETECTION, IVS_MARKER, VENUE_BY_SOURCE_SUBSTR,
+                                ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS)
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
 
 REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade",
-                     "assay_context"]
+                     "assay_context", "venue_type"]
 
 
 def violations(df: pd.DataFrame) -> list[str]:
@@ -79,6 +85,19 @@ def violations(df: pd.DataFrame) -> list[str]:
         # na is exactly the negative-control-not-splice tier (mirror of the above)
         if (ac == "na") != (r["tier"] == "negative-control-not-splice"):
             out.append(f"{rid}: na assay_context must match the negative-control-not-splice tier")
+        # venue_type (#1001): controlled vocabulary. The out-of-vocab sentinel
+        # 'unclassified' fails here, so a source absent from the venue map cannot
+        # be folded venue-unmarked (esp. a preprint).
+        if r["venue_type"] not in VENUE_TYPES:
+            out.append(f"{rid}: bad venue_type {r['venue_type']!r} "
+                       f"(source not classified in derive_venue_type.py)")
+        # preprint-marker guard (#1001 review finding 1): the source-keyed derivation
+        # can't distinguish a preprint from the journal version of an already-mapped
+        # study, so catch it here - a source naming a preprint server must be `preprint`.
+        src_l = str(r["source"]).lower()
+        if r["venue_type"] != "preprint" and any(m in src_l for m in PREPRINT_MARKERS):
+            out.append(f"{rid}: source names a preprint server but venue_type is "
+                       f"{r['venue_type']!r} (map it as 'preprint' in labeling_constants.py)")
     return out
 
 
@@ -108,6 +127,100 @@ def decoy_violations(path: Path) -> list[str]:
     return out
 
 
+def _zotero_creds() -> tuple[str, str] | None:
+    """Return (user_id, api_key) from the environment or the project-root .env,
+    or None if unavailable. The cross-check is offline-optional: no creds -> skip."""
+    uid, key = os.environ.get("ZOTERO_USER_ID"), os.environ.get("ZOTERO_API_KEY")
+    if uid and key:
+        return uid, key
+    for parent in [HERE, *HERE.parents]:
+        env = parent / ".env"
+        if env.exists():
+            vals = {}
+            for raw in env.read_text().splitlines():
+                line = raw.strip()
+                if line.startswith("export "):
+                    line = line[len("export "):]
+                if line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                vals[k.strip()] = v.strip().strip('"').strip("'")
+            uid, key = vals.get("ZOTERO_USER_ID"), vals.get("ZOTERO_API_KEY")
+            if uid and key:
+                return uid, key
+            # this .env lacks creds; keep walking up (e.g. research/.env -> root .env)
+            continue
+    return None
+
+
+def _fetch_zotero_doi_itemtypes(uid: str, key: str) -> dict[str, str]:
+    """Map normalized DOI -> itemType across all top-level items in the collection.
+    Paginated (the collection exceeds one page). Raises on any HTTP/JSON error."""
+    out, start, limit = {}, 0, 100
+    while True:
+        url = (f"https://api.zotero.org/users/{uid}/collections/{ZOTERO_COLLECTION}"
+               f"/items/top?format=json&limit={limit}&start={start}")
+        req = urllib.request.Request(url, headers={"Zotero-API-Key": key})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            page = json.loads(resp.read())
+        if not page:
+            break
+        for it in page:
+            d = it.get("data", {})
+            doi = str(d.get("DOI", "")).strip().lower()
+            if doi:
+                out[doi] = d.get("itemType", "")
+        if len(page) < limit:
+            break
+        start += limit
+    return out
+
+
+def zotero_venue_crosscheck(df: pd.DataFrame) -> tuple[list[str], bool]:
+    """Offline-optional cross-check: assert each source's mapped venue_type agrees
+    with the itemType Zotero records for that source's DOI. Returns (violations,
+    ran). ran=False means the check was skipped (no creds / network error) - never
+    a failure, so hermetic CI/offline runs stay green; a genuine venue<->itemType
+    disagreement (creds present) is a real violation. DOI-keyed, so it sidesteps
+    the parent-vs-attachment-key trap (only top-level items carry DOIs)."""
+    creds = _zotero_creds()
+    if creds is None:
+        return [], False
+    try:
+        doi_types = _fetch_zotero_doi_itemtypes(*creds)
+    except urllib.error.HTTPError as e:
+        # creds ARE present but the request was rejected (403 bad key / 404 wrong
+        # collection): the operator intended to verify, so surface this loudly
+        # rather than a quiet skip - but still don't hard-fail (could be transient).
+        print(f"WARNING: Zotero venue cross-check could NOT run - HTTP {e.code} "
+              f"(check ZOTERO_API_KEY / collection {ZOTERO_COLLECTION}). Not verified.",
+              file=sys.stderr)
+        return [], False
+    except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as e:
+        print(f"NOTE: Zotero venue cross-check skipped (offline / fetch failed: {e}).", file=sys.stderr)
+        return [], False
+
+    present = {s.lower() for s in df["source"].unique()}
+    out = []
+    for substr, spec in VENUE_BY_SOURCE_SUBSTR.items():
+        if not any(substr in s for s in present):
+            continue  # source not currently in the registry
+        doi = spec["doi"].lower()
+        itemtype = doi_types.get(doi)
+        if itemtype is None:
+            out.append(f"source {substr!r}: DOI {doi} not found in Zotero collection "
+                       f"{ZOTERO_COLLECTION} (add the item, or fix the DOI in labeling_constants.py)")
+            continue
+        expected = ZOTERO_ITEMTYPE_TO_VENUE.get(itemtype)
+        if expected is None:
+            out.append(f"source {substr!r}: Zotero itemType {itemtype!r} has no venue_type mapping "
+                       f"(extend ZOTERO_ITEMTYPE_TO_VENUE)")
+        elif expected != spec["venue"]:
+            out.append(f"source {substr!r}: venue_type {spec['venue']!r} disagrees with Zotero "
+                       f"itemType {itemtype!r} (implies {expected!r})")
+    return out, True
+
+
 def main() -> int:
     df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
     v = violations(df)
@@ -117,6 +230,29 @@ def main() -> int:
             print("  -", line, file=sys.stderr)
         return 1
     print(f"PASS: {len(df)} rows valid against the labeling scheme.")
+
+    # venue_type (#1001) advisory summary: surface the preprint-row count so a
+    # non-peer-reviewed source in the ground-truth set is visible at a glance.
+    # A preprint row is legitimate (it just must be marked), so this reports, it
+    # does not reject.
+    venue_counts = df["venue_type"].value_counts()
+    n_preprint = int(venue_counts.get("preprint", 0))
+    print("venue_type: " + ", ".join(f"{vt}={int(ct)}" for vt, ct in venue_counts.items()))
+    if n_preprint:
+        print(f"ADVISORY: {n_preprint} preprint-sourced row(s) in the set "
+              f"(non-peer-reviewed; consider down-weighting in sensitivity analysis).")
+
+    # venue_type <-> Zotero itemType cross-check (#1001). Offline-optional: runs only
+    # when ZOTERO_* creds are present (skipped cleanly in hermetic CI / offline), and
+    # fails on a genuine disagreement between the stored venue and Zotero's itemType.
+    vx, ran = zotero_venue_crosscheck(df)
+    if vx:
+        print(f"FAIL: {len(vx)} venue_type/Zotero cross-check violation(s):", file=sys.stderr)
+        for line in vx:
+            print("  -", line, file=sys.stderr)
+        return 1
+    print("PASS: venue_type agrees with Zotero itemType." if ran
+          else "SKIP: Zotero venue cross-check (no ZOTERO_* creds; hermetic run).")
 
     DECOY = HERE / "decoy_negatives" / "presented_decoys_681.tsv"
     dv = decoy_violations(DECOY)

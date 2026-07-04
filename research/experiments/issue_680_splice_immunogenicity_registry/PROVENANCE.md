@@ -16,6 +16,32 @@ Each sequence is graded by **how it was obtained**, so it can be re-verified man
 
 ---
 
+## Venue audit (#1001) - the `venue_type` column
+
+Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 11 folded studies (14 distinct `source` strings, 96 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
+
+| Source (key) | Venue | `venue_type` |
+|---|---|---|
+| Bigot 2021 (SF3B1 UM) | *Cancer Discovery* | `journal` |
+| Kim 2025 (SF-mutant leukemia) | *Cell* | `journal` |
+| Manoharan 2026 (IR-CRC) | *Scientific Reports* | `journal` |
+| Merlotti 2023 (NSCLC exon-TE) | *Science Immunology* | `journal` |
+| SNAF / Li 2024 | *Science Translational Medicine* | `journal` |
+| Long-read UM 2023 (Yao) | *Cancer Immunology Research* | `journal` |
+| IRIS (Pan/Xing) | *PNAS* | `journal` |
+| Fisher 2026 (CoREST) | *JCI Insight* | `journal` |
+| Kwok 2024 | *Nature* | `journal` |
+| Xiong 2025 (GBM) | *Cellular & Molecular Immunology* | `journal` |
+| POSTN-203 (Genes & Immunity) | *Genes & Immunity* | `journal` |
+
+*(Venue names verified against Zotero `publicationTitle` for collection `Z38GTJNW`, 2026-07-04.)*
+
+**Ongoing guard.** `validate_registry.py` carries an offline-optional cross-check: when `ZOTERO_*` creds are present it resolves each source by DOI in `Z38GTJNW` and fails on any disagreement between the stored `venue_type` and Zotero's `itemType` (skips cleanly with no creds, so hermetic CI/offline runs stay green). Zotero is thus the authoritative *input* to this audit and its continuous *verifier* - but never a runtime dependency of the committed column. This cross-check is what surfaced the initial hand-entry venue-name errors (Bigot/Fisher swap, Xiong, Manoharan) corrected above.
+
+**Not a policy against preprints.** A preprint-sourced row can be folded; it just must be **marked** `preprint`. The three preprints encountered to date (Lin 2025 bioRxiv, TEtrans/Li 2025 bioRxiv, the SNAF exon-TE preprint) were each deferred for **sequence-unavailability**, not because they are preprints. The guard against a *silent* preprint fold is structural: a source absent from the venue map derives to the out-of-vocab sentinel `unclassified`, which `validate_registry.py` rejects, so any newly-folded source must be venue-classified before it validates.
+
+---
+
 ## SNAF — Li et al. 2024, *Sci Transl Med* 16, eade2886
 Files: `A46YTSYY` (main PDF), `7SLW6B96` (sm.pdf), `WK4DHT6M` (Data S1–S15 .xlsx)
 
