@@ -41,7 +41,8 @@ gh auth login --hostname github.com --git-protocol https --web
 ```
 
 The web flow stores the OAuth token in the macOS Keychain.
-Its default scopes do not include `project`, and our board is a user Projects v2 board (user project 9), so add the two scopes the board operations need:
+Its default scopes do not include `project`, and our board is a user Projects v2 board (user project 9).
+Add `project` (which alone grants Projects v2 read/write on user- or org-owned boards) plus `read:org` (a `gh auth login` default that AC-4 mandates; it covers org membership, not the board ops themselves):
 
 ```bash
 gh auth refresh --hostname github.com --scopes project,read:org
@@ -77,8 +78,9 @@ So the fine-grained token belongs in `GH_TOKEN`, but injected at runtime, not wr
 Store the fine-grained token once in the Keychain:
 
 ```bash
-security add-generic-password -a "$USER" -s gh-automation-token -w
+security add-generic-password -U -a "$USER" -s gh-automation-token -w
 # (paste the token at the prompt; it is not echoed and not stored on disk in plaintext)
+# -U updates the item in place if it already exists, so this same command is safe to re-run on rotation
 ```
 
 Then, in an automation shell only, inject it at runtime instead of exporting a literal:
@@ -88,7 +90,7 @@ Then, in an automation shell only, inject it at runtime instead of exporting a l
 export GH_TOKEN="$(security find-generic-password -a "$USER" -s gh-automation-token -w)"
 ```
 
-Rotate by re-running `security add-generic-password` with the new token after the old one is revoked; nothing in version control or dotfiles needs to change.
+Rotate by re-running the same `security add-generic-password -U ...` command with the new token after the old one is revoked (the `-U` flag updates the existing item in place); nothing in version control or dotfiles needs to change.
 
 ## Verification
 
@@ -103,8 +105,8 @@ scripts/board_open_items.py --role developer   # a paginated board query that ex
 
 An agent cannot perform these; they are account-level or local-machine actions.
 
-- [ ] **Rotate the two exposed tokens first (time-sensitive).**
-  Revoke `ghp_YniY...` (already dead) and the current `ghp_jCNBGr4...` at <https://github.com/settings/tokens>.
+- [ ] **Rotate the two exposed classic PATs first (time-sensitive).**
+  Revoke both at <https://github.com/settings/tokens>: the one that already expired on 2026-07-03, and the classic `ghp_` token still active as the current `gh` credential. Identify them by their name/note and creation date on that page; no token value is reproduced here.
 - [ ] Run the `gh auth login --web` browser flow to store an OAuth token in the Keychain.
 - [ ] Run `gh auth refresh --scopes project,read:org` to add the board scopes.
 - [ ] Remove the `export GH_TOKEN=...` line from `~/.zshenv`.
