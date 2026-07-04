@@ -10,6 +10,12 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #997](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/997) - correct the notebook data-read instruction from decommissioned GCS to R2. Closes [Issue #995](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/995).
+
+**What.** `research/README.md` still told notebooks to read results from `gs://splice-neoepitope-project/` via `gsutil`; GCP was decommissioned 2026-06-26 (#854). Verified the as-shipped path against the codebase (not recall): the notebooks already read from Cloudflare R2 via `research/notebooks/r2_io.py` (`r2_read_tsv_cached`, creds from project-root `.env`, local cache + ETag validation; `boto3>=1.34` in requirements). Corrected the instruction to that helper with a usage example matching the shipped notebooks verbatim, and dropped the line's pre-existing em-dash.
+
+**Review.** Bot review LGTM - every factual claim (API signature, env-var names, cache-dir default, boto3 dep) verified against source. Applied its one usability nit (noted the bare import resolves because notebooks run from `research/notebooks/`). It also confirmed the glossary staleness I flagged extends to a sibling GCP entry → filed [#998](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/998) for the `research/glossary.md` GCS+GCP refresh. This was surfaced originally by the [#990](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/990) kernelspec review; the `research/lab_notebook*.md` `gs://` mentions are immutable historical entries and correctly left untouched.
+
 #### [PR #994](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/994) - TEtrans out-of-registry provenance + `outputs/` commit-vs-gitignore policy. Closes [Issue #832](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/832) + [Issue #774](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/774).
 
 **#832 - TEtrans (Li 2025) as a transcript-level exon-TE source, no registry row.**

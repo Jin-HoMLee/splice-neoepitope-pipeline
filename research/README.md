@@ -38,6 +38,8 @@ from r2_io import r2_read_tsv_cached
 report = r2_read_tsv_cached("results/patient_001/reports/report.tsv")
 ```
 
+The bare `import r2_io` resolves because notebooks run with `research/notebooks/` as the cwd (Jupyter's default); adjust the import path if you run the snippet from elsewhere.
+
 ---
 
 ## scripts/zotero_add.py
