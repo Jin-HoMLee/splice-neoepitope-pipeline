@@ -19,6 +19,12 @@ legitimately uses for scratch files (`/tmp`, `/private/tmp`, `/var/tmp`,
 `/var/folders`, `$TMPDIR`). A `cd` resolving inside any of those is allowed;
 anything else (another repo, `$HOME`, a sibling clone) is denied.
 
+MULTI-CLONE HEADS-UP: this project runs as separate role clones + git worktrees,
+and the Memory-Manager persona operates from the personas-repo cwd. A cross-tree
+hop into a *sibling* clone (not under this worktree, not a temp root) is denied
+by design - use `git -C <other-clone> ...` or set CLAUDE_ALLOW_CD for a routine
+that genuinely must switch trees.
+
 STATEFUL: chained `cd`s are walked in order against a running virtual cwd, so
 `cd workflow && cd ..` (which nets back to the root) does NOT false-positive.
 

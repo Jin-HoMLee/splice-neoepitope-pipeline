@@ -73,6 +73,51 @@ class TestIsForcePush:
     def test_requires_git_token(self):
         assert not h.is_force_push(["push", "--force"])
 
+    # subcommand resolution: `push` must be the git subcommand, not any token
+    def test_ref_named_push_not_flagged(self):
+        assert not h.is_force_push(["git", "checkout", "-f", "push"])
+        assert not h.is_force_push(["git", "branch", "-f", "push", "origin/main"])
+        assert not h.is_force_push(["git", "switch", "-f", "push"])
+
+    def test_force_push_through_global_opts(self):
+        assert h.is_force_push(["git", "-C", "/other", "push", "--force"])
+        assert h.is_force_push(["git", "-c", "k=v", "push", "-f"])
+
+    # destructive-push forms beyond force flags
+    def test_force_refspec(self):
+        assert h.is_force_push(["git", "push", "origin", "+main"])
+
+    def test_delete_refspec(self):
+        assert h.is_force_push(["git", "push", "origin", ":old"])
+
+    def test_mirror(self):
+        assert h.is_force_push(["git", "push", "--mirror"])
+
+    def test_delete_flag(self):
+        assert h.is_force_push(["git", "push", "--delete", "origin", "x"])
+        assert h.is_force_push(["git", "push", "-d", "origin", "x"])
+
+    def test_normal_refspec_allowed(self):
+        assert not h.is_force_push(["git", "push", "origin", "main:main"])
+
+
+class TestGitSubcommand:
+    def test_plain(self):
+        assert h.git_subcommand(["git", "push", "--force"]) == "push"
+
+    def test_skips_value_opt(self):
+        assert h.git_subcommand(["git", "-c", "user.name=x", "commit"]) == "commit"
+        assert h.git_subcommand(["git", "-C", "/path", "push"]) == "push"
+
+    def test_skips_valueless_flag(self):
+        assert h.git_subcommand(["git", "--no-pager", "log"]) == "log"
+
+    def test_ref_named_push_resolves_to_checkout(self):
+        assert h.git_subcommand(["git", "checkout", "-f", "push"]) == "checkout"
+
+    def test_non_git(self):
+        assert h.git_subcommand(["ls", "-la"]) is None
+
 
 # --- split_subcommands ---
 
@@ -166,3 +211,11 @@ class TestEndToEnd:
     def test_non_bash_tool_ignored(self):
         proc = _run({"tool_name": "Edit", "tool_input": {"command": "git push --force"}})
         assert proc.stdout.strip() == ""
+
+
+def test_hook_is_executable():
+    # The harness execs the hook by bare path, so a non-executable file (100644)
+    # EACCESes before the shebang runs - the blocker caught on PR #1029. The
+    # subprocess tests above invoke via `sys.executable <hook>`, which bypasses
+    # the exec bit, so this is the one check that exercises the real harness path.
+    assert os.access(HOOK, os.X_OK), f"{HOOK} must be committed executable (100755)"

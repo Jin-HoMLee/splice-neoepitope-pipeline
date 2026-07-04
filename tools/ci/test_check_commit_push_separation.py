@@ -102,3 +102,9 @@ class TestEndToEnd:
 
     def test_non_bash_ignored(self):
         assert _run({"tool_name": "Edit", "tool_input": {"command": "git commit && git push"}}).stdout.strip() == ""
+
+
+def test_hook_is_executable():
+    # The harness execs the hook by bare path; a non-executable file EACCESes
+    # before the shebang (the blocker caught on PR #1029).
+    assert os.access(HOOK, os.X_OK), f"{HOOK} must be committed executable (100755)"

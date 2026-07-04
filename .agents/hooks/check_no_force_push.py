@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Pre-flight hook: refuse a `git push` carrying a force flag.
+"""Pre-flight hook: refuse a history-destructive `git push`.
 
-Force-pushing rewrites published history: it can clobber a teammate's commits on
-a shared branch and is irreversible on the remote. The house rule is "never
-force-push without explicit user confirmation", but an agent cannot ask
-mid-tool-call, so this guard denies the push and points at the escape hatch for
-the case where the user HAS authorized it.
+Force-pushing - and its cousins, a `+ref` force refspec, a `:ref` delete
+refspec, `--delete`, `--mirror` - rewrites or removes published history: it can
+clobber a teammate's commits on a shared branch and is irreversible on the
+remote. The house rule is "never force-push without explicit user confirmation",
+but an agent cannot ask mid-tool-call, so this guard denies the push and points
+at the escape hatch for the case where the user HAS authorized it.
 
 WHY A HOOK, NOT `permissions.deny`: the official permissions docs call
 argument-constrained static denies "fragile" - a pattern like
 `Bash(git push --force:*)` misses `git push origin main --force` (flag last),
 `-f`, and `--force-with-lease`, and the docs explicitly recommend a PreToolUse
-hook for argument filtering. A hook parses the whole command and catches the
-force flag in any position. Sibling of the other destructive-command guards
+hook for argument filtering. A hook parses the whole command, resolves the real
+git subcommand (so a ref literally named `push` is not mis-flagged), and catches
+a destructive push in any argument position. Sibling of the destructive-command
+guards
 `check_commit_push_separation.py` / `check_no_cd_outside_cwd.py` and of the
 existing `check_board_query_pagination.py` / `check_no_emdash.py`.
 
@@ -53,6 +56,12 @@ _TRUTHY = {"1", "true", "yes", "on"}
 # long flags (--force*) are matched separately; the bundle regex never matches
 # them because the char after the leading '-' must be a letter, not another '-'.
 _SHORT_FORCE_RE = re.compile(r"^-[a-zA-Z]*f[a-zA-Z]*$")
+# git global options that consume the FOLLOWING token as their value; skipping
+# them + their arg lets us find the real subcommand in `git -c k=v push` etc.
+_VALUE_OPTS = {"-c", "-C", "--git-dir", "--work-tree", "--namespace",
+               "--super-prefix", "--config-env", "--exec-path"}
+# push flags that delete/rewrite remote refs (force-* flags handled separately).
+_DELETE_FLAGS = {"--mirror", "--delete", "-d"}
 
 
 # --- pure helpers (unit-tested, no I/O) ---
@@ -95,17 +104,49 @@ def _is_force_flag(tok: str) -> bool:
     return bool(_SHORT_FORCE_RE.match(tok))
 
 
-def is_force_push(tokens: list[str]) -> bool:
-    """True iff a subcommand is `git push` with a force flag.
+def _is_destructive_refspec(tok: str) -> bool:
+    """True iff a token is a force refspec (`+ref`) or a delete refspec (`:ref`)."""
+    return tok.startswith("+") or tok.startswith(":")
 
-    Requires the bare tokens `git` and `push` both present (a quoted string like
-    "push --force" collapses to one token and so cannot trip this) and at least
-    one force flag among the tokens. Requiring `push` as its own token keeps a
-    `git log --grep push` style command from matching.
+
+def git_subcommand(tokens: list[str]):
+    """The git subcommand token (e.g. 'push'), or None if not a git invocation.
+
+    Skips git global options and the value they consume, so `git -c k=v push` and
+    `git -C /other push` both resolve to 'push'. The first non-option token after
+    the options is the subcommand.
     """
-    if "git" not in tokens or "push" not in tokens:
+    if "git" not in tokens:
+        return None
+    i = tokens.index("git") + 1
+    while i < len(tokens):
+        t = tokens[i]
+        if t in _VALUE_OPTS:
+            i += 2  # skip the option AND its value
+            continue
+        if t.startswith("-"):
+            i += 1  # a valueless flag (incl. --foo=bar)
+            continue
+        return t
+    return None
+
+
+def is_force_push(tokens: list[str]) -> bool:
+    """True iff a subcommand is a history-destructive `git push`.
+
+    Requires `push` to be the git *subcommand* (resolved past global options), so
+    `git checkout -f push` / `git branch -f push` on a ref named `push` are NOT
+    mis-flagged. Destructive = a force flag (-f / --force / --force-with-lease),
+    a delete/mirror flag (--delete / -d / --mirror), or a force/delete refspec
+    (+ref / :ref) among the arguments. shlex quoting collapses a quoted string to
+    one token, so `git commit -m "push --force"` carries no bare flag token.
+    """
+    if git_subcommand(tokens) != "push":
         return False
-    return any(_is_force_flag(t) for t in tokens)
+    for t in tokens:
+        if _is_force_flag(t) or t in _DELETE_FLAGS or _is_destructive_refspec(t):
+            return True
+    return False
 
 
 def command_force_pushes(cmd: str) -> bool:
