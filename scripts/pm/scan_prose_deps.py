@@ -23,6 +23,14 @@ REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 REPO_OWNER, REPO_NAME = REPO.split("/")
 
 
+class BlockerLookupError(Exception):
+    """The native blockedBy lookup for one issue could not be completed.
+
+    Raised on a failed `gh` call (transient 5xx / network blip) or a GraphQL
+    `errors` payload, so the caller can skip that one issue rather than
+    aborting the whole scan or misreading a failed lookup as "no blockers"."""
+
+
 def gh(*args, parse_json=True):
     """Run a gh command; return parsed JSON (default) or raw stdout text."""
     result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
@@ -116,17 +124,34 @@ def native_blockers(number):
     version-gated. Do not "modernize" it to `--json blockedBy`: that would
     silently add a gh >= 2.94.0 requirement and break on older clients (e.g.
     the CCR sandbox's gh 2.65.0). GitHub enforces a max of 50 blockers per
-    direction per issue, so first:50 is a true ceiling, not a sample. Returns
-    an empty set if the issue has no blockedBy node (defensive: a malformed or
-    empty response should not crash a full-board scan)."""
+    direction per issue, so first:50 is a true ceiling, not a sample.
+
+    Returns an empty set if the issue simply has no blockers (a benign null
+    issue node with no errors). Raises BlockerLookupError if the lookup could
+    not be completed at all -- a failed `gh` call, or a GraphQL `errors`
+    payload with no usable issue node -- so the caller skips that one issue
+    instead of crashing the whole scan or misreading it as "no blockers"
+    (Issue #989)."""
     q = (
         f'query {{ repository(owner: "{REPO_OWNER}", name: "{REPO_NAME}") {{'
         f"  issue(number: {number}) {{ blockedBy(first: 50) {{ nodes {{ number }} }} }}"
         "}}"
     )
-    data = gh("api", "graphql", "-f", f"query={q}")
-    issue = (data.get("data", {}).get("repository", {}) or {}).get("issue") or {}
-    nodes = (issue.get("blockedBy") or {}).get("nodes") or []
+    try:
+        data = gh("api", "graphql", "-f", f"query={q}")
+    except subprocess.CalledProcessError as e:
+        raise BlockerLookupError(
+            f"gh graphql blockedBy lookup failed for #{number}: {e.stderr or e}"
+        ) from e
+    issue = (data.get("data", {}).get("repository", {}) or {}).get("issue")
+    # gh can exit 0 with a partial response carrying a top-level `errors` array.
+    # Trust it only if the issue node still came back; otherwise the lookup is
+    # incomplete and must be treated as a failure, not an empty (no-blocker) result.
+    if data.get("errors") and issue is None:
+        raise BlockerLookupError(
+            f"GraphQL errors on blockedBy lookup for #{number}: {data['errors']}"
+        )
+    nodes = ((issue or {}).get("blockedBy") or {}).get("nodes") or []
     return {n["number"] for n in nodes}
 
 
@@ -142,14 +167,36 @@ def reconcile(pairs):
         return meta_cache[n]
 
     def edges(n):
+        # Cache the failure too, so a flaky lookup is not re-attempted once per
+        # pair sharing the same dependent (and re-raised each time).
         if n not in edges_cache:
-            edges_cache[n] = native_blockers(n)
-        return edges_cache[n]
+            try:
+                edges_cache[n] = native_blockers(n)
+            except BlockerLookupError as e:
+                edges_cache[n] = e
+        cached = edges_cache[n]
+        if isinstance(cached, BlockerLookupError):
+            raise cached
+        return cached
 
     records = []
     for dependent, blocker in pairs:
+        try:
+            existing = edges(dependent)
+        except BlockerLookupError as e:
+            # One flaky per-issue lookup must not abort the whole scan. Skip
+            # this pair's classification and surface it in the report so a
+            # failed lookup is never mistaken for "no blockers" (Issue #989).
+            print(f"scan_prose_deps: WARNING - skipping #{dependent}: {e}", file=sys.stderr)
+            records.append({
+                "dependent": dependent,
+                "blocker": blocker,
+                "state": "?",
+                "action": "edges-lookup-failed",
+            })
+            continue
         bmeta = meta(blocker)
-        action = classify(dependent, blocker, blocker_meta=bmeta, existing=edges(dependent))
+        action = classify(dependent, blocker, blocker_meta=bmeta, existing=existing)
         records.append({
             "dependent": dependent,
             "blocker": blocker,
@@ -159,7 +206,9 @@ def reconcile(pairs):
     return records
 
 
-_ACTION_ORDER = ["needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
+# edges-lookup-failed first: it is a scan-integrity warning (a dependency this
+# run could not determine), so it sorts above the actionable-drift rows.
+_ACTION_ORDER = ["edges-lookup-failed", "needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
 _ACTION_RANK = {a: i for i, a in enumerate(_ACTION_ORDER)}
 
 

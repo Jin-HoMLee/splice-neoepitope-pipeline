@@ -3,6 +3,7 @@
 Parse layer is pure and gets the bulk of coverage; reconcile/act monkeypatch the
 gh-backed helpers so nothing touches the network.
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -181,6 +182,63 @@ def test_classify_self_ref():
     # The defensive self-ref arm (unreachable via reconcile, but present in classify).
     r = spd.classify(745, 745, blocker_meta={"state": "open", "is_pr": False}, existing=set())
     assert r == "self-ref"
+
+
+# --- native_blockers lookup-failure resilience (Issue #989) ---
+# A transient gh failure (5xx / network blip) or a GraphQL errors payload on ONE
+# per-issue blockedBy lookup must NOT abort the whole board scan. The failing
+# issue is skipped and surfaced in the report, never silently read as "no blockers".
+
+def test_native_blockers_returns_empty_when_no_blockers(monkeypatch):
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": {"blockedBy": {"nodes": []}}}}})
+    assert spd.native_blockers(745) == set()
+
+
+def test_native_blockers_parses_nodes(monkeypatch):
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": {"blockedBy": {"nodes": [{"number": 707}, {"number": 708}]}}}}})
+    assert spd.native_blockers(709) == {707, 708}
+
+
+def test_native_blockers_raises_on_gh_call_failure(monkeypatch):
+    def boom(*a, **k):
+        raise subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 503")
+    monkeypatch.setattr(spd, "gh", boom)
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_native_blockers_raises_on_graphql_errors_payload(monkeypatch):
+    # gh can exit 0 with a partial/errored response: top-level `errors` + no issue node.
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": None}}, "errors": [{"message": "boom"}]})
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_reconcile_skips_failing_issue_and_continues(monkeypatch, capsys):
+    # #745's edge lookup fails; #594's succeeds. Scan must complete, surfacing the
+    # failure as its own action rather than misclassifying #745 as needs-wiring.
+    monkeypatch.setattr(spd, "issue_meta", lambda n: {"state": "open", "is_pr": False})
+
+    def edges(n):
+        if n == 745:
+            raise spd.BlockerLookupError("simulated flaky lookup")
+        return set()
+    monkeypatch.setattr(spd, "native_blockers", edges)
+
+    records = spd.reconcile([(745, 722), (594, 211)])
+    by = {r["dependent"]: r["action"] for r in records}
+    assert by[745] == "edges-lookup-failed"
+    assert by[594] == "needs-wiring"
+    assert "745" in capsys.readouterr().err  # warned to stderr, not silent
+
+
+def test_render_report_surfaces_edges_lookup_failed():
+    recs = [{"dependent": 745, "blocker": 722, "state": "?", "action": "edges-lookup-failed"}]
+    out = spd.render_report(recs)
+    assert "745" in out and "edges-lookup-failed" in out
 
 
 def test_main_apply_only_subsets_by_dependent(monkeypatch, capsys):
