@@ -107,9 +107,17 @@ def issue_meta(number):
 def native_blockers(number):
     """Set of issue numbers this issue is already natively blockedBy.
 
-    Uses the GraphQL blockedBy edge (GitHub enforces a max of 50 blockers per
-    direction per issue, so first:50 is a true ceiling, not a sample). Returns
-    an empty set if the issue has no blockedBy node (defensive — a malformed or
+    Reads the native blockedBy edge via a raw `gh api graphql` passthrough,
+    NOT the `gh issue view --json blockedBy` client field. This is deliberate
+    and load-bearing: the `--json blockedBy` field is validated against gh's
+    built-in per-version field list and only exists on gh >= 2.94.0, whereas a
+    GraphQL query string is passed to GitHub's server unchanged (the blockedBy
+    edge is server-side GA since 2025-08-21), so this read is NOT client-
+    version-gated. Do not "modernize" it to `--json blockedBy`: that would
+    silently add a gh >= 2.94.0 requirement and break on older clients (e.g.
+    the CCR sandbox's gh 2.65.0). GitHub enforces a max of 50 blockers per
+    direction per issue, so first:50 is a true ceiling, not a sample. Returns
+    an empty set if the issue has no blockedBy node (defensive: a malformed or
     empty response should not crash a full-board scan)."""
     q = (
         f'query {{ repository(owner: "{REPO_OWNER}", name: "{REPO_NAME}") {{'
