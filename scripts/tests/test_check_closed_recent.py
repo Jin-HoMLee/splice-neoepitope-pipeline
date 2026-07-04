@@ -69,6 +69,16 @@ class TestIsWithin:
         assert c.is_within("", floor) is True
 
 
+class TestFilterMerged:
+    def test_keeps_merged_drops_unmerged(self):
+        rows = [
+            {"number": 1, "mergedAt": "2026-07-04T09:00:00Z"},
+            {"number": 2, "mergedAt": None},   # closed-unmerged -> dropped
+            {"number": 3},                       # no mergedAt key -> dropped
+        ]
+        assert [r["number"] for r in c.filter_merged(rows)] == [1]
+
+
 class TestCollect:
     FLOOR = datetime(2026, 7, 3, 0, 0, tzinfo=UTC)
 
@@ -88,6 +98,16 @@ class TestCollect:
         issues = [{"number": 5, "title": "edge", "closedAt": "2026-07-03T00:00:00Z"}]
         rows = c.collect(self.FLOOR, issues, [])
         assert len(rows) == 1 and rows[0]["number"] == 5
+
+    def test_fail_open_placeholder_sorts_last_not_first(self):
+        # A row whose timestamp is unparseable (kept fail-open, when="?") must not
+        # jump to the top of a newest-first list on raw-string sort.
+        issues = [
+            {"number": 1, "title": "real", "closedAt": "2026-07-04T09:00:00Z"},
+            {"number": 2, "title": "malformed", "closedAt": "not-a-date"},
+        ]
+        rows = c.collect(self.FLOOR, issues, [])
+        assert [r["number"] for r in rows] == [1, 2]  # real first, placeholder last
 
 
 class TestRender:

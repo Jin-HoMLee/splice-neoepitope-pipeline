@@ -28,7 +28,6 @@ import json
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 UTC = timezone.utc
@@ -76,6 +75,15 @@ def parse_ts(ts):
         return None
 
 
+def filter_merged(rows):
+    """Keep only merged PRs (mergedAt present); drop closed-unmerged (mergedAt null).
+
+    Pulled out of the `gh` I/O layer so the merged-vs-closed selection rule - the
+    one real business rule on the PR side - is unit-testable without a live `gh`.
+    """
+    return [r for r in rows if r.get("mergedAt")]
+
+
 def is_within(when_ts, floor):
     """True if `when_ts` (ISO-8601) is at/after `floor`.
 
@@ -117,7 +125,7 @@ def list_merged_prs(search):
         "--search", search, "--limit", "1000",
         "--json", "number,title,mergedAt",
     )
-    return [r for r in rows if r.get("mergedAt")]
+    return filter_merged(rows)
 
 
 # --- orchestration ---
@@ -139,7 +147,11 @@ def collect(floor, issues, prs):
         if is_within(pr.get("mergedAt"), floor):
             rows.append({"number": pr["number"], "kind": "PR",
                          "when": pr.get("mergedAt") or "?", "title": pr.get("title") or ""})
-    rows.sort(key=lambda r: r["when"], reverse=True)
+    # Sort on the parsed timestamp, not the raw string: a fail-open placeholder
+    # ("?") sorts above digits and would jump a malformed row to the top of a
+    # newest-first list. Unparseable rows sink to the bottom instead.
+    rows.sort(key=lambda r: parse_ts(r["when"]) or datetime.min.replace(tzinfo=UTC),
+              reverse=True)
     return rows
 
 
