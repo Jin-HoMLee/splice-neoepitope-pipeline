@@ -325,6 +325,65 @@ def datacite_to_zotero(data, collection, tags, pubmed_date=None, pubmed_abstract
     return item
 
 
+def normalize_doi(doi):
+    """Normalize a DOI for exact matching: strip whitespace, lowercase, and drop a
+    leading resolver prefix (`https://doi.org/`, `doi:`, …).
+
+    DOIs are case-insensitive by registration, so a stored `10.1126/SciAdv.X`
+    must match a candidate `10.1126/sciadv.x`. The prefix strip lets a bare DOI
+    match one stored as a resolver URL.
+    """
+    d = (doi or "").strip().lower()
+    for prefix in (
+        "https://doi.org/", "http://doi.org/",
+        "https://dx.doi.org/", "http://dx.doi.org/",
+        "doi:",
+    ):
+        if d.startswith(prefix):
+            return d[len(prefix):].strip()
+    return d
+
+
+def fetch_library_doi_index(user_id, api_key):
+    """Return {normalized_doi: item_key} for every top-level item in the user's
+    whole Zotero library, paginated.
+
+    Scans the **entire library** (not one collection): post-Issue #675 the papers
+    live across 8 stage sub-collections plus a separate methodology collection
+    (`DA3EWEJ9`), so a single-collection scan is blind to both
+    (feedback_zotero_doi_exact_dedup.md). Child notes/attachments carry no DOI, so
+    `/items/top` is a complete DOI source and lighter than `/items`. JSON is parsed
+    with `strict=False`: abstract fields carry raw control characters that trip the
+    default strict decoder.
+    """
+    index = {}
+    start, limit = 0, 100
+    while True:
+        url = (
+            f"https://api.zotero.org/users/{user_id}/items/top"
+            f"?format=json&limit={limit}&start={start}"
+        )
+        req = urllib.request.Request(url, headers={"Zotero-API-Key": api_key})
+        with urllib.request.urlopen(req) as resp:
+            total = resp.headers.get("Total-Results")
+            batch = json.loads(resp.read().decode("utf-8"), strict=False)
+        if not batch:
+            break
+        for it in batch:
+            doi = normalize_doi(it.get("data", {}).get("DOI", ""))
+            if doi and doi not in index:
+                index[doi] = it.get("key", "")
+        start += limit
+        try:
+            if total is not None and start >= int(total):
+                break
+        except (TypeError, ValueError):
+            pass
+        if len(batch) < limit:
+            break
+    return index
+
+
 def post_to_zotero(item, user_id, api_key):
     url = f"https://api.zotero.org/users/{user_id}/items"
     payload = json.dumps([item]).encode()
@@ -395,6 +454,8 @@ def main():
     parser.add_argument("--note", help="Relevance note to attach to the Zotero entry")
     parser.add_argument("--update-note", metavar="ITEM_KEY", help="Update the note on an existing Zotero item (skips DOI add)")
     parser.add_argument("--dry-run", action="store_true", help="Print item without posting to Zotero")
+    parser.add_argument("--force", action="store_true",
+                        help="Skip the DOI-exact dedup pre-check (add even if the DOI is already in the library)")
     args = parser.parse_args()
 
     if not args.update_note and not args.doi:
@@ -470,6 +531,28 @@ def main():
             print("\n[dry-run] Note:")
             print(args.note)
         return
+
+    # DOI-exact dedup pre-check (Issue #896): refuse a silent duplicate. Scans the
+    # whole library; --force overrides for a genuine intentional-duplicate add.
+    if not args.force:
+        candidate_doi = item.get("DOI") or args.doi
+        try:
+            index = fetch_library_doi_index(user_id, api_key)
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as e:
+            reason = getattr(e, "reason", e)
+            sys.exit(
+                f"Dedup pre-check could not reach Zotero: {reason}. "
+                f"Re-run, or pass --force to skip the check."
+            )
+        existing_key = index.get(normalize_doi(candidate_doi))
+        if existing_key:
+            sys.exit(
+                f"DOI {candidate_doi} is already in the library as item {existing_key}. "
+                f"Not adding a duplicate.\n"
+                f"To refresh its note instead:\n"
+                f"  python research/scripts/zotero_add.py --update-note {existing_key} --note \"...\"\n"
+                f"To add anyway (intentional duplicate): re-run with --force."
+            )
 
     print("Posting to Zotero...")
     result = post_to_zotero(item, user_id, api_key)
