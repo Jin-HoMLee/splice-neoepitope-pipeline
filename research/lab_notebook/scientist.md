@@ -10,6 +10,39 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #987](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/987) - monotone extrapolation instead of endpoint-clipping in the calibrator. Closes [Issue #805](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/805).
+
+**The bug and the fix.**
+`PresentationCalibrator.transform` (research) and `apply_calibrator.calibrate` (production) both applied the centered-isotonic knots with `np.interp`, which **clips** out-of-range scores to the nearest endpoint log-odds.
+Every score past a knot then collapses to one value - ties that shed ranking resolution exactly at the top of the candidate list, where neoepitope ranking matters most.
+Replaced the clip with **monotone linear extrapolation** off the terminal knot-segment slopes, so a strictly higher score always maps to a strictly higher log-odds.
+
+**Empirical payoff (the reason this was worth doing).**
+On the SNV subsample (`scored_cohort_subsample.parquet`, n=50,645), per-cohort AUPRC under raw / clip / extrapolation:
+
+| cohort | out-of-support % | raw | clip | extrap |
+|--------|:---:|:---:|:---:|:---:|
+| HiTIDE | 7.5 | 0.3686 | 0.3655 | 0.3686 |
+| IMPROVE | 6.8 | 0.2120 | 0.2104 | 0.2120 |
+| NCI | 14.3 | 0.1855 | 0.1531 | 0.1855 |
+| TESLA | 14.0 | 0.6723 | 0.6509 | 0.6723 |
+
+Clipping's AUPRC loss scaled with the out-of-support fraction (worst at NCI/TESLA ~14%, echoing Dev's chr22 observation that top presenters were disproportionately out-of-support).
+**Extrapolation recovers raw AUPRC exactly** - a strictly-monotone transform preserves ranking, so calibrated ranking == raw ranking once the ties are gone.
+(The absolute values differ from #708's cited full-cohort numbers because this is the committed subsample; the direction and mechanism are identical.)
+
+**What did NOT change (deliberately).**
+The `out_of_calibration_support` flag and the support interval `[cx[0], cx[-1]]` are byte-for-byte unchanged, so the [Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826) applicability gate behaves identically - only the out-of-range *value* is now ordered instead of flat, and it stays flagged as not-calibration-accurate.
+`calibrator_v1.joblib` is unchanged (the application changed, not the fit) - no refit.
+The #826 applicability section of the experiment README leaned on the out-of-support region being "constant regardless"; I added a forward-note there - the ranking conclusion is *strengthened* (not weakened), since ordering is now preserved.
+
+**Decoupled copies + drift guard.**
+Production takes no research-dir import, so the helper is duplicated (`interp_monotone_extrapolate` in `apply_calibrator.py`, `_interp_monotone_extrapolate` in `calibrator.py`).
+Post-review I added a stdlib-only AST drift guard asserting the two bodies stay byte-identical, so an unmirrored edit fails a test instead of silently diverging.
+
+**Verification.**
+Full workflow suite (620 passed) + research calibrator suite (49 passed) green; the `@-claude` review returned no blocking issues (drift guard + `np.atleast_1d` scalar-consistency added in response).
+
 #### [PR #980](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/980) - label `normal_shared` junctions by which normal removed them. Closes [Issue #940](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/940).
 
 **The premise was wrong, and correcting it changed the fix.**
