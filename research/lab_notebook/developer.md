@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
 
+### 18:05 UTC - Editor: Developer - quick-win-burndown project skill ([PR #1023](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1023) closes [Issue #1022](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1022))
+
+**Context.** Capstone of the burn-down session: after shipping #883 + #570 to the gate this way and reflecting with the user, we captured the "quick-win burn-down" workflow as a project skill (sibling of `awaiting-bot-review`). The whole point of the skill is the two parts memory kept slipping on - *selecting* real quick wins and *knowing when to stop* - not the mechanical PR flow, which it composes from existing tooling.
+
+**Design - compose, don't duplicate.** Selection defers to `[[issue-freshness-check-before-start]]` (the 7-check ratification); the PR flow to `[[autonomy-merge-gate-cadence]]` (stop at the merge command); Backlog-pull to `[[morning-routine-shared-backbone]]` (pull discipline). The skill owns only the burn-down layer (two extra drops, standing-grant framing, stop condition, bake-time fan-out, gotchas + board IDs).
+
+**Skill/memory boundary (the user pushed twice on this).** First pass I under-cited the freshness check - reconstructed a thinner version instead of linking the canonical one; folded in the 4 missed checks (supersession, parent-orphan, priority-inversion, already-in-progress). Then a best-practice question ("should a skill reference a memory or vice versa?") - web-checked ([[feedback_best_practice_web_check]]): the answer is **split by content type** - durable rules live in memory, procedure lives in the skill; **skill -> memory** for shared canon it must obey, **memory -> skill** as a thin routing pointer (because skills under-trigger). We have the former; the latter (a memory pointer to this skill) is a deferred belt-and-suspenders, since the description triggered fine live.
+
+**Bot review (LGTM, one real fix in `2284994`).** Caught a genuine bug: Step 2.1's `git pull origin main` before `new_branch.sh` is redundant (the helper bases off *remote* main server-side via `gh issue develop --base main`) and harmful in the fan-out loop (merges main into the previous item's feature branch). Replaced with a bare `git checkout main`. **Surfaced a memory defect:** my always-in-effect "sync main before branching" rule is itself redundant for the `new_branch.sh` path - a candidate refinement for MM ([[feedback_rule_as_suspect]]). Non-blocking notes dispositioned; filed the reviewer's `set_status.sh` wrapper idea as follow-up [Issue #1024](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1024) (would DRY the board-ID duplication + the error-prone raw-graphql status move).
+
+**Verification.** Docs-only (a SKILL.md): frontmatter parses, `name: quick-win-burndown`, zero em/en dashes (guard-clean), all three `[[...]]` slugs resolve to real memory files, skill auto-registered and triggered live on "any quick wins?".
+
+**Process note.** Stopping at the merge command per the cadence the skill itself documents; card at In review. Content-based review poll via the `awaiting-bot-review` skill (dogfooded).
+
 ### 16:17 UTC - Editor: Developer - extend scan_prose_deps resilience to the blocker-meta lookup + --check exit code ([PR #1014](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1014) closes [Issue #1012](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1012))
 
 **Context.** [Issue #1012](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1012) was the follow-up I filed from the #1010 (#989) review below: that review flagged two adjacent same-class gaps as out of scope. Picked it as the next quick win right after #989 merged. This is the second-order follow-up chain in one session ([[feedback_communicate_next_steps]]).
