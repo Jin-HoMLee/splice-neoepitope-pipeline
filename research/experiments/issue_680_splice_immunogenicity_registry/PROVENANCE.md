@@ -36,6 +36,8 @@ Publication venue class per source, resolved first-hand (2026-07-04) and recorde
 
 *(Venue names verified against Zotero `publicationTitle` for collection `Z38GTJNW`, 2026-07-04.)*
 
+**Ongoing guard.** `validate_registry.py` carries an offline-optional cross-check: when `ZOTERO_*` creds are present it resolves each source by DOI in `Z38GTJNW` and fails on any disagreement between the stored `venue_type` and Zotero's `itemType` (skips cleanly with no creds, so hermetic CI/offline runs stay green). Zotero is thus the authoritative *input* to this audit and its continuous *verifier* - but never a runtime dependency of the committed column. This cross-check is what surfaced the initial hand-entry venue-name errors (Bigot/Fisher swap, Xiong, Manoharan) corrected above.
+
 **Not a policy against preprints.** A preprint-sourced row can be folded; it just must be **marked** `preprint`. The three preprints encountered to date (Lin 2025 bioRxiv, TEtrans/Li 2025 bioRxiv, the SNAF exon-TE preprint) were each deferred for **sequence-unavailability**, not because they are preprints. The guard against a *silent* preprint fold is structural: a source absent from the venue map derives to the out-of-vocab sentinel `unclassified`, which `validate_registry.py` rejects, so any newly-folded source must be venue-classified before it validates.
 
 ---

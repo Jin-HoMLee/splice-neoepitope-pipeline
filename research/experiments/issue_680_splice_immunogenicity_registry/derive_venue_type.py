@@ -28,43 +28,34 @@ Run: research/.venv/bin/python derive_venue_type.py
 import pandas as pd
 from pathlib import Path
 
-from labeling_constants import VENUE_UNCLASSIFIED
+from labeling_constants import VENUE_BY_SOURCE_SUBSTR, VENUE_UNCLASSIFIED
 
 HERE = Path(__file__).resolve().parent
 REG = HERE / "registry.tsv"
 
-# source-substring -> venue_type. All current sources are peer-reviewed journals
-# (2026-07-04 audit, PROVENANCE.md). Keyed on a lowercased substring of `source`.
-VENUE_BY_SOURCE_SUBSTR = {
-    "bigot": "journal",       # Bigot 2021, JCI Insight (SF3B1 uveal melanoma)
-    "kim 2025": "journal",    # Kim 2025, Cell (SF-mutant leukemia)
-    "manoharan": "journal",   # Manoharan 2026, OA journal (IR-CRC)
-    "merlotti": "journal",    # Merlotti 2023, Sci Immunol (NSCLC exon-TE)
-    "snaf": "journal",        # SNAF / Li 2024, Sci Transl Med (the folded rows; the SNAF preprint was deferred)
-    "long-read": "journal",   # Long-read UM 2023, Cancer Immunol Res
-    "iris": "journal",        # IRIS (Pan/Xing), PNAS
-    "fisher": "journal",      # Fisher 2026 (CoREST)
-    "kwok": "journal",        # Kwok 2024, Nature
-    "xiong": "journal",       # Xiong 2025 (GBM)
-    "postn": "journal",       # POSTN-203 study
-}
-
 
 def venue_type(r):
+    """Source-keyed venue_type. VENUE_BY_SOURCE_SUBSTR (labeling_constants.py) is
+    the single source of truth, matched on a lowercased substring of `source`."""
     src = str(r["source"]).lower()
-    for substr, venue in VENUE_BY_SOURCE_SUBSTR.items():
+    for substr, spec in VENUE_BY_SOURCE_SUBSTR.items():
         if substr in src:
-            return venue
+            return spec["venue"]
     # unmapped source: force classification rather than silently defaulting.
     return VENUE_UNCLASSIFIED
 
 
-df = pd.read_csv(REG, sep="\t", dtype=str).fillna("")
-df["venue_type"] = df.apply(venue_type, axis=1)
-df.to_csv(REG, sep="\t", index=False)
+def main():
+    df = pd.read_csv(REG, sep="\t", dtype=str).fillna("")
+    df["venue_type"] = df.apply(venue_type, axis=1)
+    df.to_csv(REG, sep="\t", index=False)
 
-print(df["venue_type"].value_counts().to_string())
-unclassified = int((df["venue_type"] == VENUE_UNCLASSIFIED).sum())
-if unclassified:
-    print(f"WARNING: {unclassified} row(s) with unclassified venue_type "
-          f"(source not in VENUE_BY_SOURCE_SUBSTR) - validate_registry.py will fail.")
+    print(df["venue_type"].value_counts().to_string())
+    unclassified = int((df["venue_type"] == VENUE_UNCLASSIFIED).sum())
+    if unclassified:
+        print(f"WARNING: {unclassified} row(s) with unclassified venue_type "
+              f"(source not in VENUE_BY_SOURCE_SUBSTR) - validate_registry.py will fail.")
+
+
+if __name__ == "__main__":
+    main()
