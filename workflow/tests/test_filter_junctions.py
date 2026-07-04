@@ -424,15 +424,17 @@ class TestClassifyJunctions:
         for f in (tumor_f, solid_f, blood_f):
             f.parent.mkdir()
 
-        # Two tumor junctions clear the mean filter: one shared with blood only,
-        # one shared with solid only. Plus a noise junction below the mean.
+        # Tumor junctions clearing the mean filter: one shared with blood only,
+        # one with solid only, one with BOTH (exercises the sorted comma-join).
+        # Plus a noise junction below the mean.
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),   # shared with blood
             ("chr22:601:700:+", 100),   # shared with solid
+            ("chr22:701:800:+", 100),   # shared with BOTH
             ("chr22:401:500:+", 1),     # noise, filtered out
         ])
-        self._write_junction_file(solid_f, [("chr22:601:700:+", 5)])
-        self._write_junction_file(blood_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(solid_f, [("chr22:601:700:+", 5), ("chr22:701:800:+", 5)])
+        self._write_junction_file(blood_f, [("chr22:201:300:+", 5), ("chr22:701:800:+", 5)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -457,15 +459,19 @@ class TestClassifyJunctions:
         src = dict(zip(df["junction_id"], df["normal_source"]))
         assert src["chr22:201:300:+"] == "Blood Derived Normal"
         assert src["chr22:601:700:+"] == "Solid Tissue Normal"
-        # both were removed as normal_shared (blood is used, not dropped)
-        assert (df["junction_origin"] == "normal_shared").sum() == 2
+        # a junction in both normals carries both, sorted + comma-joined
+        assert src["chr22:701:800:+"] == "Blood Derived Normal,Solid Tissue Normal"
+        # all three removed as normal_shared (blood is used, not dropped)
+        assert (df["junction_origin"] == "normal_shared").sum() == 3
 
-        # Stats funnel carries the per-source breakdown, and normal_shared total is intact.
+        # Stats funnel carries the per-source breakdown (a both-normals junction
+        # counts under each source, so the per-source rows can sum to > normal_shared),
+        # and the funnel normal_shared total counts distinct junctions.
         sdf = pd.read_csv(stats, sep="\t")
         cats = dict(zip(sdf["category"], sdf["count"]))
-        assert cats["normal_shared"] == 2
-        assert cats["normal_shared:Blood Derived Normal"] == 1
-        assert cats["normal_shared:Solid Tissue Normal"] == 1
+        assert cats["normal_shared"] == 3
+        assert cats["normal_shared:Blood Derived Normal"] == 2   # chr22:201 + chr22:701
+        assert cats["normal_shared:Solid Tissue Normal"] == 2    # chr22:601 + chr22:701
 
     def test_blood_only_manifest_subtracts_and_labels(self, tmp_path):
         """Issue #940 AC: a Blood-Derived-Normal-only manifest (patient_002's shape:
