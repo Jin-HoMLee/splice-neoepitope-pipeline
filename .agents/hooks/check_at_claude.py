@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Pre-flight hook: refuse `gh (pr|issue) (comment|create)` whose body contains
-a literal @claude bot mention, except the canonical `@claude review` trigger.
+"""Pre-flight hook: refuse `gh (pr|issue) (comment|create|edit)` whose body
+contains a literal @claude bot mention, except the canonical `@claude review`
+trigger.
 
 See memory/shared/feedback_no_at_claude_mention.md for the originating rule.
 Spec: https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/360
@@ -41,12 +42,15 @@ def main() -> int:
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
                     "permissionDecisionReason": (
-                        "Stray @claude mention in `gh (pr|issue) (comment|create)` body. "
+                        "Stray @claude mention in `gh (pr|issue) (comment|create|edit)` body. "
                         "The Claude Code GitHub Action triggers on ANY literal @claude "
                         "(incl. inside parens, ACs, code spans, quoted historical refs). "
-                        "See memory/shared/feedback_no_at_claude_mention.md. For "
-                        "non-trigger references, use the zero-width workaround @-claude "
-                        "(literal substring @claude must not appear)."
+                        "See memory/shared/feedback_no_at_claude_mention.md. "
+                        "To intentionally request a bot review, use exactly "
+                        '--body "@claude review" (the canonical trigger is the one '
+                        "allowed form). For any OTHER (non-trigger) reference, use the "
+                        "zero-width workaround @-claude (literal substring @claude must "
+                        "not appear)."
                     ),
                 }
             }

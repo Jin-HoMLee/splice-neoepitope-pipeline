@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
 
+### 01:43 UTC - Editor: Developer - surface the canonical review trigger in the bot-mention deny message ([Issue #975](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/975))
+
+**Context.** [Issue #975](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/975) (a papercut surfaced by the #799 guard work): the `check_at_claude.py` deny message advertised the `@-claude` zero-width workaround (for non-trigger references) but never the canonical `--body "@claude review"` carve-out. So an agent legitimately requesting a bot review got denied with no hint of the allowed form and had to read the hook source (observed on a personas-repo PR).
+
+**Change.** Deny message now names **both** escape hatches - request a review with exactly `--body "@claude review"`, use `@-claude` for any other reference. Folded in the accuracy fix I flagged in the [#979](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/979) review: the message + module docstring said `(comment|create)` but the regex has always covered `edit`; both now say `(comment|create|edit)`. Deny/allow logic byte-unchanged - this is message wording + tests only ([PR #984](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/984), closes #975).
+
+**TDD + review.** Added `TestDenyMessageGuidance` RED-first (2 failed on the old message: canonical-trigger + edit-scope; the `@-claude` assertion already passed), GREEN after the fix; suite 15 passed. Bot review LGTM; applied its nit to assert the exact `(comment|create|edit)` token instead of a bare `"edit"` substring (which would match "edited"/"credit"). Left the single-quoted-form nit as-is - one canonical form in the message is clearer.
+
+**Process note.** Third quick-win of the session under the standing autonomy cadence, and the second clean run of the content-based bot-review poll (2m47s, caught correctly).
+
 ### 01:28 UTC - Editor: Developer - canonicalize the bot-mention guard to one user-level source ([Issue #799](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/799))
 
 **Context.** [Issue #799](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/799) ([#665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) gap 1): the `check_at_claude.py` bot-mention guard was registered in **both** the project `.agents/settings.json` and the MM's user-level `~/.claude/settings.json`, so in the project cwd it double-fired - a drift risk. The guard must fire cwd-agnostically (a project comment can be drafted from the project clones *or* the personas cwd), and only a user-level global registration does that; a project-scoped hook fires only when its own repo is cwd.
