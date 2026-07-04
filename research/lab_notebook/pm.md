@@ -8,6 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 16:45 UTC - Editor: PM
+
+#### Fold MM into the Replenishment floor-5, remove the exemption ([PR #1016](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1016) closes [#1006](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1006))
+
+**Trigger.** Third quick-win pull, chosen for value over pure self-containedness: P2, board-governance arc, Jin-Ho already decided the approach (2026-07-04, symmetric floor-5), and it retired a manual STOPGAP I was carrying in memory every Replenishment. Scanning also surfaced a coherence finding - [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999) still asserts "MM floor-EXEMPT by design," now contradicted by #1006 (flagged; #999's real deliverable, a board_open_items bucketing bug, is separate and still valid).
+
+**What shipped.** `check_ready_queue.sh`: `memory_manager` added to `FLOOR_ROLES`, cap default `18 -> 23` (floor 5 x 4 roles + 3). Tests: the MM-excluded test flipped to MM-included, cap tests to 23, MM stocked in the healthy/cap/floor fixtures. AGENTS.md WIP + Ready-queue sections. The exemption's premise (a fixed floor nags a bursty/blocked MM lane into stuffing) was obsoleted by #902 facet-1's GROOMING-GAP routing - a thin MM lane reads "groom, don't stuff," which is what the exemption hand-rolled. **AC2 web check:** canonical Kanban guidance is to start every workstream at a uniform WIP/buffer limit and scale by capacity only *after* flow data shows a mismatch - the exemption was a pre-emptive scale with no data.
+
+**Scope extension (flagged for sanity-check, review-affirmed).** #1006's literal decision is the Ready floor, but the In-progress WIP cap of 3 and the stale-issue-review exclusion both rested on the *identical* "MM implements no board-tracked work" premise #1006 retires. Leaving them would be internally incoherent (AC4 names the "WIP limits" section, which contains the In-progress cap), so I folded MM into both and flagged it. The bot review agreed it's the right call, not creep, and noted the In-progress cap is advisory/doc-only (no script change needed).
+
+**Live verify.** `check_ready_queue.sh` against the real board now fires `[REPLENISH memory_manager: 3 < 5]` (14 Backlog candidates) - MM was previously invisible to the gate.
+
+**Review (bot, LGTM, nothing blocking).** Cap arithmetic consistent everywhere, `--help` source-of-truth updated, no stale refs in active files (surviving `cap-18` hits are point-in-time milestone reports / this notebook, correctly untouched). One optional nit taken: un-updated fixtures now emit unasserted `[GROOMING-GAP memory_manager]` lines - documented the targeted-assertion pattern in the test docstring rather than churning every fixture.
+
+**Harness observation.** The #996 auto-hooks (both `post_gh_pr_create` and my new `post_gh_pr_review_request`) went dormant mid-session - neither fired for PR #1016 though both worked for #1008/#1011. Running the review-request hook manually flipped #1006 to In review correctly, so the hook *code* is sound; this is the documented Claude-Code build behavior where hooks stop firing mid-session. Board cards need a manual flip until a session restart.
+
+**Cross-repo (AC3 + AC5).** The memory updates (floor_gate + MEMORY.md + morning-routine + shared board-hygiene/stale-review) and the stopgap removal live in the personas repo - authored + staged in the personas working tree for MM to commit, not in this pipeline PR. AC5's "same-PR strip" is a two-repo-model consequence (documented in the PR).
+
 ### 16:00 UTC - Editor: PM
 
 #### `scan_addressed_comments.py` - board-wide `To:<role>` ping scanner ([PR #1011](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1011) closes [#901](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/901))
