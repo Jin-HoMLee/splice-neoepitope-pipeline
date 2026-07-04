@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 15:30 UTC - Editor: PM
+
+#### Review-request board-advance hook - `Ready for review` -> `In review` auto-flip ([PR #1008](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1008) closes [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996))
+
+**Trigger.** Quick-win pull, and the natural sequel to the [#993](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/993) session: #996 was filed hours earlier when the user flagged that PR cards keep stranding in *Ready for review* and never advance to *In review* (slipped on #406, #234 this same session). Discipline/memory hadn't fixed it, so it met the mechanism-over-memory threshold (>= 2x same shape) - rung-3.
+
+**What shipped.** A PostToolUse board-automation hook (`.agents/hooks/post_gh_pr_review_request.py`), sibling of `post_gh_pr_create.py`. On a bot-review request - `gh pr comment <ref> --body "@-claude review"` or a direct `gh pr review <ref>` - it resolves the PR's linked Issue(s) via `closingIssuesReferences` and sets each card's Status on board #9 to *In review*. Reuses the sibling's `PROJECT_ID`/`STATUS_FIELD_ID` constants and shlex command-start tokenizer (no field-ID drift). Idempotent, skips `Epic`/`Done` cards, fails open on any `gh` error, logs one fire-log line per flip. Wired into `.agents/settings.json`; documented in `AGENTS.md` safety-wrappers. 39 unit tests.
+
+**Dogfood as the E2E.** Posting `@claude review` on this very PR fired the new hook live (settings.json hot-reloaded on this Claude Code build) and flipped #996 `Ready` -> *In review* on board #9, confirmed via a read-back query + `.agents/hook_fires.jsonl`. Mechanism proven end-to-end in production, not just unit-tested.
+
+**Review (bot, LGTM - nothing blocking).** Two real findings, both taken: (1, medium) `_issue_item_and_status` hardcoded `owner/name = splice-neoepitope-pipeline` even though `TRACKED_REPOS` admits the personas repo and `_pr_linked_issues` returns the PR's real repo - a personas PR would look its linked numbers up in the wrong repo (silent no-op usually, wrong-card flip worst case). Fixed by threading the PR's owner/repo into the GraphQL args + a test asserting the threading. (2, low/edge) the `gh pr comment` trigger-scan ran unbounded across `&&` separators and a triggerless comment `return None`d before later segments - so `... --body "plain" && echo "@claude review"` false-positived and `... --body "plain" && gh pr review M` false-negatived. Fixed with a segment-bounded `_segment()` scan + continue-past-non-match; both traced cases now correct, pinned by 2 new tests. Plus two nits (misleading `_not_matched` test name; URL ref rendered raw in the confirmation) taken. 39 hook tests / 529 full `tools/ci/` green.
+
+**Residual (documented, deferred).** A human reviewing directly on github.com emits no local command, so the local hook can't see that path - still a manual flip there (or a future GitHub Action / webhook). The bot-review path is our dominant one, so the hook covers the common case.
+
 ### 03:15 UTC - Editor: PM
 
 #### `awaiting-bot-review` skill - auto-poll a PR for its review verdict ([PR #993](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/993) closes [#864](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/864))
