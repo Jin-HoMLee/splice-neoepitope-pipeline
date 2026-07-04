@@ -207,6 +207,22 @@ def milestone_for_issue(issue_number: int) -> int | None:
     return data["milestone"]["number"] if data.get("milestone") else None
 
 
+def milestone_and_state_for_issue(issue_number: int) -> tuple[int | None, str]:
+    """Strongly-consistent ``(milestone_number, state)`` for an issue (Issue #406).
+
+    Folds the milestone read the reconciler needs with the issue ``state`` in one
+    ``gh issue view`` call. ``state`` is gh's ``"OPEN"``/``"CLOSED"``. Used so the
+    reconciler can short-circuit a closed moved issue, which never appears in the
+    open-only milestone listing and so could otherwise loop forever on a false
+    ``[stale state]`` (PR #985 review, finding 1).
+    """
+    data = gh(
+        "issue", "view", str(issue_number), "--repo", REPO, "--json", "milestone,state"
+    )
+    ms = data["milestone"]["number"] if data.get("milestone") else None
+    return ms, data.get("state", "")
+
+
 def milestone_meta(milestone_number: int) -> dict:
     return gh("api", f"repos/{REPO}/milestones/{milestone_number}")
 
@@ -233,18 +249,27 @@ def _reconcile_moved_issue(
     """Reconcile the laggy milestone listing against a strongly-consistent read
     of ``moved_issue``'s actual milestone before capacity is computed (Issue #406).
 
-    ``milestone_for_issue`` is backed by ``gh issue view --json milestone``, which
-    is strongly consistent, so it is the source of truth for whether
-    ``moved_issue`` belongs to THIS milestone. We compare that against the
-    eventually-consistent listing and, on disagreement, re-fetch the listing up
-    to ``STALE_RETRY_ATTEMPTS`` times (``STALE_RETRY_DELAY_SECONDS`` apart) until
-    it converges.
+    ``milestone_and_state_for_issue`` is backed by ``gh issue view``, which is
+    strongly consistent, so it is the source of truth for whether ``moved_issue``
+    belongs to THIS milestone. We compare that against the eventually-consistent
+    listing and, on disagreement, re-fetch the listing up to
+    ``STALE_RETRY_ATTEMPTS`` times (``STALE_RETRY_DELAY_SECONDS`` apart) until it
+    converges.
+
+    A CLOSED moved issue short-circuits to converged: it never appears in the
+    open-only listing and does not count toward capacity, so there is nothing to
+    reconcile - without this guard a closed issue moved INTO a milestone reads as
+    should-be-member yet is always absent, looping forever on a false ``[stale state]``
+    (PR #985 review, finding 1).
 
     Returns ``(issue_numbers, stale)``: the (possibly re-fetched) listing and a
     flag that is True when the listing never caught up to the strong read.
     ``_sleep`` is an injection seam for tests.
     """
-    should_be_member = milestone_for_issue(moved_issue) == milestone_number
+    actual_ms, state = milestone_and_state_for_issue(moved_issue)
+    if state == "CLOSED":
+        return issue_numbers, False
+    should_be_member = actual_ms == milestone_number
     for attempt in range(STALE_RETRY_ATTEMPTS + 1):
         if (moved_issue in issue_numbers) == should_be_member:
             return issue_numbers, False
@@ -349,7 +374,7 @@ def compute_recheck(
     sizes, parents = sizes_and_parents_for_issues(issue_numbers)
 
     print(f"Milestone: {title}")
-    print(f"Current due_on: {current_due_date or '—'}")
+    print(f"Current due_on: {current_due_date or '(none)'}")
     print(f"Open issues ({len(issue_numbers)}):")
     remaining = 0.0
     leaf_numbers: list[int] = []

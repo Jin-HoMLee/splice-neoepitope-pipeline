@@ -22,6 +22,8 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **Convention note.** This is the rung-3 style fix for a recently-shipped mechanism's own foot-gun, staying inside the same hook rather than adding a new guard - the reconciliation is a correctness fix to the recheck itself, not a new policy layer.
 
+**Review.** `@claude` review: LGTM, all findings low-severity/optional. Took two: (1, real) a **closed** issue moved into a milestone would loop forever on a false `[stale state]` - the listing is open-only, so a closed issue reads as should-be-member yet is never present. Added `milestone_and_state_for_issue` (folds the state read into the existing `gh issue view`) and a closed-state short-circuit that treats a closed moved issue as converged (it counts for nothing toward capacity); re-verified E2E. (2, nit) unified the `Current due_on` placeholder to `(none)` across both branches (the normal branch had used an em-dash). Added two matrix-completing tests (source-converges-on-retry, the closed-issue edge) - 69 recheck / 471 full `tools/ci/` green. Declined findings 3-5 as informational: the one duplicate `gh issue view` on the empty-history path is a single call on a rare branch, and the strong-read-trust assumption is already documented in the module comment + was live-validated 2026-05-19.
+
 ---
 
 ## 2026-07-03

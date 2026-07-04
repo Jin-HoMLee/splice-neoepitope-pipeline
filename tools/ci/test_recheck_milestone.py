@@ -618,11 +618,12 @@ class TestComputeRecheckStaleReconcile:
     """
 
     def _patch(self, monkeypatch, *, title, due_on, listings, actual_ms,
-               sizes=None, parents=()):
+               moved_state="OPEN", sizes=None, parents=()):
         """`listings` is a sequence of successive open_issues_in_milestone
         return values, modelling the listing endpoint catching up across
         retries. The last value is reused if the reconciler queries more times
-        than provided."""
+        than provided. `moved_state` is the strong-read state of the moved
+        issue (gh's OPEN/CLOSED)."""
         monkeypatch.setattr(rm, "milestone_meta",
                             lambda n: {"title": title, "due_on": due_on})
         seq = list(listings)
@@ -634,7 +635,8 @@ class TestComputeRecheckStaleReconcile:
             return list(seq[i])
 
         monkeypatch.setattr(rm, "open_issues_in_milestone", fake_list)
-        monkeypatch.setattr(rm, "milestone_for_issue", lambda n: actual_ms)
+        monkeypatch.setattr(rm, "milestone_and_state_for_issue",
+                            lambda n: (actual_ms, moved_state))
         if sizes is not None:
             monkeypatch.setattr(rm, "sizes_and_parents_for_issues",
                                 lambda ns: (dict(sizes), set(parents)))
@@ -719,7 +721,7 @@ class TestComputeRecheckStaleReconcile:
             actual_ms=27,
             sizes={381: "S"},
         )
-        monkeypatch.setattr(rm, "milestone_for_issue",
+        monkeypatch.setattr(rm, "milestone_and_state_for_issue",
                             lambda n: pytest.fail("reconciliation ran without moved_issue"))
         monkeypatch.setattr(rm, "gh", lambda *a, **k: [])
 
@@ -733,6 +735,64 @@ class TestComputeRecheckStaleReconcile:
         out = capsys.readouterr().out
         assert "[stale state, verification pending]" not in out
         assert rc in (0, 2)
+
+    def test_source_listing_catches_up_on_retry_then_proceeds(self, monkeypatch, capsys):
+        # Symmetric happy path (PR #985 review, finding 5): rechecking the SOURCE
+        # milestone (17); the listing initially still (wrongly) lists #381 then
+        # DROPS it on the first retry, so should_be_member=False converges and the
+        # reconciler proceeds instead of flagging stale.
+        sleeps = []
+        self._patch(
+            monkeypatch,
+            title="i2 - S4 - Source", due_on="2026-05-19T00:00:00Z",
+            listings=[[381, 500], [500]],   # #381 present, then dropped
+            actual_ms=27,                    # strong read: #381 is on dest 27, NOT 17
+            sizes={500: "S"},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 5, 20)
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(17, moved_issue=381, _sleep=sleeps.append)
+        out = capsys.readouterr().out
+        assert "[stale state, verification pending]" not in out
+        assert "Proposed due_on:" in out
+        assert len(sleeps) == 1                    # one retry for the listing to drop #381
+        assert rc in (0, 2)
+
+    def test_closed_moved_issue_short_circuits_not_stale(self, monkeypatch, capsys):
+        # PR #985 review, finding 1: a CLOSED issue moved INTO a milestone reads as
+        # should_be_member=True, but open_issues_in_milestone is open-only so the
+        # listing can never contain it. Without the closed-state short-circuit this
+        # loops forever on a false [stale state]. With it, the recheck converges
+        # immediately (the closed issue counts for nothing) and reports normally.
+        sleeps = []
+        self._patch(
+            monkeypatch,
+            title="i3 - S4 - Dest", due_on="2026-06-30T00:00:00Z",
+            listings=[[]],                   # open listing never contains the closed issue
+            actual_ms=27,                    # strong read: milestone IS 27 (dest)
+            moved_state="CLOSED",
+            sizes={},
+        )
+        monkeypatch.setattr(rm, "gh", lambda *a, **k: [])
+
+        class _FakeDate(date):
+            @classmethod
+            def today(cls):
+                return date(2026, 6, 20)
+        monkeypatch.setattr(rm, "date", _FakeDate)
+
+        rc = rm.compute_recheck(27, moved_issue=381, _sleep=sleeps.append)
+        out = capsys.readouterr().out
+        assert "[stale state, verification pending]" not in out
+        assert sleeps == []                        # short-circuited, no retry loop
+        assert rc == 0                             # empty open listing so: no change
+        assert "[No change]" in out
 
 
 # --- Live-vs-hermetic integration split (Issue #711) -----------------------
