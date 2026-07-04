@@ -78,6 +78,20 @@ def _tokenize(cmd: str) -> list[str] | None:
         return None
 
 
+def _segment(tokens: list[str], start: int) -> list[str]:
+    """Tokens from `start` up to (not including) the next pure-punctuation
+    separator (`&&`, `||`, `;`, `|`, ...), i.e. the rest of the current command
+    only. Bounds a body scan to one command so a trigger in a later `&&`-joined
+    segment doesn't leak in.
+    """
+    seg = []
+    for tok in tokens[start:]:
+        if tok and all(ch in _PUNCT for ch in tok):
+            break
+        seg.append(tok)
+    return seg
+
+
 def matches_review_request(cmd: str) -> str | None:
     """Return the PR ref (number or URL, as a string) of a review-request command.
 
@@ -93,9 +107,13 @@ def matches_review_request(cmd: str) -> str | None:
 
     The PR ref is taken as the first bare positional immediately after the
     subcommand - the strong gh convention (`gh pr comment 996 --body ...`). If the
-    token right after the subcommand is a flag, the ref can't be parsed reliably
-    and we fail safe (None) rather than mis-grab a flag value. Untokenizable input
-    (unbalanced quotes) also fails safe.
+    token right after the subcommand is a flag, that segment can't be parsed
+    reliably and is skipped (we don't mis-grab a flag value). Compound commands
+    are scanned segment by segment: a non-matching `gh pr comment` segment does
+    NOT abort the scan, so a later `&&`-joined `gh pr review` still matches, and a
+    comment's trigger scan is bounded to its own segment so a trigger in a
+    separate `echo` can't false-positive. Untokenizable input (unbalanced quotes)
+    fails safe (None).
     """
     tokens = _tokenize(cmd)
     if tokens is None:
@@ -113,14 +131,15 @@ def matches_review_request(cmd: str) -> str | None:
         ):
             subcommand = tokens[i + 2]
             ref = tokens[i + 3] if i + 3 < len(tokens) else None
-            if ref is None or ref.startswith("-"):
-                return None  # no parseable positional ref -> fail safe
-            if subcommand == "review":
-                return ref
-            # comment: only a body carrying the trigger is a review request
-            if any(_has_trigger(t) for t in tokens[i + 3:]):
-                return ref
-            return None
+            if ref is not None and not ref.startswith("-"):
+                if subcommand == "review":
+                    return ref
+                # comment: only a body (within THIS segment) carrying the trigger
+                if any(_has_trigger(t) for t in _segment(tokens, i + 3)):
+                    return ref
+            # no match in this segment -> keep scanning later segments
+            at_command_start = False
+            continue
         at_command_start = False
     return None
 
@@ -184,14 +203,17 @@ def _pr_linked_issues(ref: str) -> tuple[str, str, list[int]] | None:
     return owner, repo, issues
 
 
-def _issue_item_and_status(issue: int) -> tuple[str | None, str | None]:
-    """Return (project-item id on #9, current Status name) for `issue`.
+def _issue_item_and_status(issue: int, owner: str, repo: str) -> tuple[str | None, str | None]:
+    """Return (project-item id on #9, current Status name) for `issue` in `owner/repo`.
 
     (None, None) if the issue is not on the board. Mirrors recheck_dispatch's
-    projectItems resolution.
+    projectItems resolution. The repo is threaded from the PR (not hardcoded) so a
+    tracked personas-repo PR resolves its OWN board items rather than a
+    same-numbered pipeline issue (`closingIssuesReferences` is same-repo-only, so
+    a personas PR's linked numbers are personas numbers).
     """
     query = (
-        'query { repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") '
+        'query { repository(owner: "' + owner + '", name: "' + repo + '") '
         '{ issue(number: ' + str(issue) + ') { projectItems(first: 10) { nodes { '
         'id project { number } fieldValues(first: 20) { nodes { '
         '... on ProjectV2ItemFieldSingleSelectValue { name field { '
@@ -263,7 +285,7 @@ def main() -> int:
             return 0
         flipped = []
         for issue in issues:
-            item_id, status = _issue_item_and_status(issue)
+            item_id, status = _issue_item_and_status(issue, owner, repo)
             if item_id is None or not should_flip(status):
                 continue
             _set_status(item_id, IN_REVIEW_OPTION)
@@ -277,11 +299,13 @@ def main() -> int:
 
     _log_fire(flipped, f"{owner}/{repo}")
     issue_list = ", ".join(f"#{n}" for n in flipped)
+    ref_url = parse_pr_url(ref)  # ref may be a bare number or a full PR URL
+    pr_display = ref_url[2] if ref_url else ref
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
             "additionalContext": (
-                f"post_gh_pr_review_request: review requested on PR #{ref} "
+                f"post_gh_pr_review_request: review requested on PR #{pr_display} "
                 f"({owner}/{repo}) - linked Issue(s) {issue_list} Status -> In review."
             ),
         }

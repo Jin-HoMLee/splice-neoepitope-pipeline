@@ -50,6 +50,18 @@ class TestMatchesReviewRequest:
     def test_after_separator(self):
         assert h.matches_review_request('git push && gh pr review 996 --approve') == "996"
 
+    def test_compound_trigger_in_later_echo_not_matched(self):
+        # The trigger lives in a separate `&&`-joined echo, NOT the posted comment
+        # body - must not false-positive (segment-bounded scan).
+        cmd = 'gh pr comment 996 --body "plain" && echo "@claude review"'
+        assert h.matches_review_request(cmd) is None
+
+    def test_compound_triggerless_comment_then_review_matches(self):
+        # A triggerless comment must not abort the scan - the later `gh pr review`
+        # is the real review request.
+        cmd = 'gh pr comment 996 --body "plain" && gh pr review 42'
+        assert h.matches_review_request(cmd) == "42"
+
     def test_var_prefix_matched(self):
         assert h.matches_review_request('GH_TOKEN=x gh pr review 996') == "996"
 
@@ -61,13 +73,11 @@ class TestMatchesReviewRequest:
         assert h.matches_review_request("gh pr view 996") is None
         assert h.matches_review_request("gh pr merge 996") is None
 
-    def test_trigger_inside_unrelated_comment_body_not_matched(self):
-        # a `gh pr view` whose... no command to fire; discussing the trigger in a
-        # comment on a DIFFERENT command must not match as a review request.
+    def test_comment_carrying_literal_trigger_matches(self):
+        # A comment body containing the literal trigger legitimately matches:
+        # posting that body WOULD fire the bot, so flipping to In review is
+        # correct. The guard keys on command shape + literal trigger, not intent.
         cmd = 'gh pr comment 5 --body "the hook fires on \'@claude review\'"'
-        # This IS a comment carrying the trigger substring -> it legitimately
-        # matches (posting that body would trigger the bot). Guard is on command
-        # shape, not intent; documented behavior.
         assert h.matches_review_request(cmd) == "5"
 
     def test_unbalanced_quotes_fail_safe(self):
@@ -175,17 +185,24 @@ class TestMainFlipPath:
     def test_trigger_flips_linked_issue(self, monkeypatch, capsys):
         import io
         flips = []
+        lookups = []
         monkeypatch.setattr(sys, "stdin",
                             io.StringIO(_payload('gh pr comment 996 --body "@claude review"')))
         monkeypatch.setattr(
             h, "_pr_linked_issues",
-            lambda ref: ("Jin-HoMLee", "splice-neoepitope-pipeline", [996]))
-        monkeypatch.setattr(
-            h, "_issue_item_and_status", lambda issue: ("ITEM_996", "Ready for review"))
+            lambda ref: ("Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline", [996]))
+
+        def fake_lookup(issue, owner, repo):
+            lookups.append((issue, owner, repo))
+            return ("ITEM_996", "Ready for review")
+
+        monkeypatch.setattr(h, "_issue_item_and_status", fake_lookup)
         monkeypatch.setattr(h, "_set_status", lambda item_id, opt: flips.append((item_id, opt)))
         monkeypatch.setattr(h, "_log_fire", lambda *a: None)
         assert h.main() == 0
         assert flips == [("ITEM_996", h.IN_REVIEW_OPTION)]
+        # the PR's real owner/repo is threaded into the issue lookup (not hardcoded)
+        assert lookups == [(996, "Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline")]
         assert "In review" in capsys.readouterr().out
 
     def test_already_in_review_is_noop(self, monkeypatch, capsys):
@@ -197,7 +214,7 @@ class TestMainFlipPath:
             h, "_pr_linked_issues",
             lambda ref: ("Jin-HoMLee", "splice-neoepitope-pipeline", [996]))
         monkeypatch.setattr(
-            h, "_issue_item_and_status", lambda issue: ("ITEM_996", "In review"))
+            h, "_issue_item_and_status", lambda issue, owner, repo: ("ITEM_996", "In review"))
         monkeypatch.setattr(h, "_set_status", lambda item_id, opt: flips.append(opt))
         assert h.main() == 0
         assert flips == []
