@@ -16,6 +16,24 @@
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_board_query_pagination.py",
             "if": "Bash(gh api *)",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_no_force_push.py",
+            "if": "Bash(git *)",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_commit_push_separation.py",
+            "if": "Bash(git *)",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_no_cd_outside_cwd.py",
+            "if": "Bash(cd*)",
+            "timeout": 5
           }
         ]
       },
