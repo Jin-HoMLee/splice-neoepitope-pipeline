@@ -6,6 +6,8 @@ Unit + snapshot tests for the pipeline's Python helpers and Snakemake rule shell
 
 The test runner is a pyenv-managed Python venv separate from the workflow's `snakemake` conda env. The two envs cooperate at run time: the venv provides `pytest` + test deps, and the activated conda env puts the `snakemake` binary on PATH for tests that invoke it via subprocess (e.g. [test_alignment_star_command.py](test_alignment_star_command.py)).
 
+Prerequisite: [`uv`](https://docs.astral.sh/uv/) (Astral's fast installer/resolver) - `brew install uv` or the standalone installer `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
 ```bash
 # 1. Pin the Python version used by this clone (writes .python-version, gitignored).
 #    Any stable Python >=3.10 works; 3.13.5 is recommended (recent, widely
@@ -13,13 +15,15 @@ The test runner is a pyenv-managed Python venv separate from the workflow's `sna
 #    have no upper Python bound.
 pyenv local 3.13.5
 
-# 2. Create the test venv inside workflow/tests/ (also gitignored)
-python -m venv workflow/tests/.venv
+# 2. Create the test venv inside workflow/tests/ (also gitignored) with uv.
+uv venv --python 3.13.5 workflow/tests/.venv
 
-# 3. Install test dependencies
-workflow/tests/.venv/bin/pip install --upgrade pip
-workflow/tests/.venv/bin/pip install -r workflow/tests/requirements-test.txt
+# 3. Install test dependencies with uv (10-100x faster than pip; no separate
+#    pip-upgrade step needed).
+uv pip install --python workflow/tests/.venv/bin/python -r workflow/tests/requirements-test.txt
 ```
+
+Only the two per-clone pyenv venvs move to `uv`. The `snakemake` conda env and the per-rule `--use-conda` envs (`workflow/envs/*.yaml`) are unchanged - `uv` operates on the pip/PyPI side and does not touch conda's binary solver.
 
 ## Running tests
 
