@@ -20,7 +20,7 @@ A tool can be a clean open-only GO yet be un-smokeable locally (SNAF: MIT but Li
 |--------|---------------------------|-------------------|----------------------------|:-------------:|:---------------------:|------------|
 | **splice2neo** | MIT (TRON gGmbH) | none - stops at peptides; feeds our MHCflurry | none | **GO** | **YES** (toy fixtures) | local arm64 |
 | **SNAF** | MIT (F. Li) | native `binding_method='MHCflurry'` flag | none | **GO** | NO (Py3.7/TF2.3 linux-x86; amd64 AltAnalyze Docker) | Linux / free-GPU |
-| **ASNEO** | Apache-2.0 (bm2-lab) | bundled NetMHCpan bypassed (#566 patch) -> MHCflurry | yes, **stripped/bypassed** by [#566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566) | **GO** | PARTIAL (caller runs on a pre-made `SJ.out.tab`; STAR front-end VM-bound) | local arm64 (caller) / VM (alignment) |
+| **ASNEO** | Apache-2.0 (bm2-lab) | bundled NetMHCpan bypassed (#566 patch) -> MHCflurry | yes, **stripped/bypassed** by [#566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566) | **GO** | **YES** (caller-proper smoked on chr22; STAR front-end VM-bound) | local arm64 (caller) / VM (alignment) |
 | **NeoSplice** | Apache-2.0 code, but vendors NetMHCpan-4.0 + NetMHCIIpan-3.2; README says "academic and non-profit" | hard `--netMHCpan_path`, fixed `.xls` nM parser | **yes, vendored** | **NO-GO** as-is | NO (Python 2.7 EOL, no arm64) | needs a Py3 fork + MHCflurry shim |
 | **SINE** | GPL-3.0 (Guo Lab UCSD) | NetMHCpan **+ NetMHCIIpan** load-bearing (PHBR class I **and** II) | none bundled | **NO-GO** as-is | NO (Trinity-in-Singularity; netMHCpan x86) | class-I-only re-plumb on Linux |
 | **NeoHunter** | **MIT** (own) + Apache-2.0 (bundled ASNEO) - issue's "academic-only" label is **wrong** | pervasive NetMHCpan **+ NetMHCstabpan** (no MHCflurry equivalent for stability) | **yes, vendored** netMHCpan-4.0 x86 | **EXCLUDE** (operational) | NO (STAR >30 GB index, hg19 tens-of-GB refs, x86) | - (wraps ASNEO anyway) |
@@ -73,7 +73,7 @@ Mayo Clinic in-house framework (Wickland et al., *J Immunother Cancer* 2024). No
 ## Status + what feeds leaf B
 
 - **splice2neo: installed + smoked on arm64 (PASS).** `install/splice2neo_install.R` builds the MIT package + Bioconductor deps + hg19 BSgenome from source on this M1 (see the toolchain gotcha below); `install/splice2neo_smoke.R` on the bundled toy fixtures gives **17/17 junctions -> a context sequence -> 15 mutated proteins -> 14 junction `peptide_context` neoepitope candidates (5 frame-shift; 3 junctions yield no in-frame peptide)** - the exact artifact that feeds MHCflurry. The committed output slice is [`outputs/splice2neo_smoke_out.tsv`](outputs/splice2neo_smoke_out.tsv); the `INSTALL_OK` / `SMOKE_OK` console logs are gitignored (`*.log`) and kept locally.
-- **ASNEO:** open-only path validated (env built + patch tested) in [#566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566); the caller-proper runs CPU-only on arm64 given a pre-made hg19 `SJ.out.tab`. A local toy-`SJ.out.tab` run + the MHCflurry-scoring notebook are the remaining local proofs (fast follow-up, #566 territory).
+- **ASNEO: open-only caller smoked on arm64 (PASS).** `install/asneo_smoke.sh` runs the option-B-patched caller (no netMHCpan) on ASNEO's own bundled test `SJ.out.tab` subset to chr22, against the small hg19 chr22 FASTA - all 11 stages end to end, emitting **800 junction-derived candidate peptides** at relaxed thresholds (0 at default, a low-coverage scale artifact). Sample in [`outputs/asneo_smoke_peptides_head.txt`](outputs/asneo_smoke_peptides_head.txt). Only the STAR *front-end alignment* (to make a fresh `SJ.out.tab` from FASTQs) stays VM-bound; the MHCflurry-scoring notebook is tracked by #848.
 - **SNAF:** open-only GO confirmed; its smoke is deferred to the Linux/free-GPU leaf (no local Docker daemon, no arm64 build).
 - Leaf B (harness) should target the **3 GO callers**, scheduling SNAF's runs on Linux/free-GPU and running splice2neo (+ the ASNEO caller-proper) locally.
 
@@ -90,5 +90,6 @@ On this box (homebrew R 4.6.0, Bioconductor 3.23), **no CRAN/Bioconductor arm64 
 | `install/splice2neo_install.R` | splice2neo + Bioconductor deps + hg19 BSgenome (arm64) |
 | `install/splice2neo_smoke.R` | toy-fixture smoke |
 | `install/snaf_install.md` | SNAF Linux/Docker recipe (open-only, MHCflurry flag) |
-| `install/asneo_notes.md` | ASNEO open-only recipe pointer (#566 patch + env) |
-| `outputs/` | committed smoke output slice (`splice2neo_smoke_out.tsv`); build/smoke `*.log` are gitignored, kept locally |
+| `install/asneo_notes.md` | ASNEO open-only recipe + smoke result (#566 patch + env) |
+| `install/asneo_smoke.sh` | ASNEO chr22 open-only smoke (patched caller on ASNEO's own test junctions) |
+| `outputs/` | committed smoke slices (`splice2neo_smoke_out.tsv`, `asneo_smoke_peptides_head.txt`); build/run `*.log` are gitignored, kept locally |
