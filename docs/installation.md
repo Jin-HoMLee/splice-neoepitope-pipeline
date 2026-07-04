@@ -11,6 +11,8 @@
 | Python | 3.11+ | Managed automatically via conda |
 | Git | any | For cloning the repository |
 
+> For contributors: best-practice local GitHub CLI authentication (Keychain-primary, fine-grained tokens) is documented in [gh auth setup](gh_auth_setup.md).
+
 ---
 
 ## 1. Install Conda (Miniforge — recommended)
