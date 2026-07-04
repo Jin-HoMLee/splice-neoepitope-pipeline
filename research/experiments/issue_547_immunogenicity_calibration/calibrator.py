@@ -7,6 +7,32 @@ from scipy.stats import gaussian_kde
 from sklearn.isotonic import IsotonicRegression
 
 
+def _interp_monotone_extrapolate(scores, cx, cy):
+    """``np.interp`` but with monotone linear extrapolation beyond ``[cx[0], cx[-1]]``.
+
+    ``np.interp`` clips out-of-range scores to the nearest endpoint, collapsing them
+    to one value - ties that shed ranking resolution at the top of the list where it
+    matters most (Issue #805). Each out-of-range score is instead extrapolated off
+    the terminal knot segment's slope, so a strictly higher score maps to a strictly
+    higher log-odds (unless that terminal segment is flat). The extrapolated value is
+    ordering-only, not calibration-accurate out of support. NaN in -> NaN out; falls
+    back to ``np.interp`` with < 2 knots.
+
+    Mirror of ``interp_monotone_extrapolate`` in ``workflow/scripts/apply_calibrator.py``
+    (production), kept in sync so the offline eval matches production.
+    """
+    scores = np.asarray(scores, dtype=float)
+    cx = np.asarray(cx, dtype=float)
+    cy = np.asarray(cy, dtype=float)
+    out = np.interp(scores, cx, cy)
+    if cx.size >= 2:
+        left_slope = (cy[1] - cy[0]) / (cx[1] - cx[0])
+        right_slope = (cy[-1] - cy[-2]) / (cx[-1] - cx[-2])
+        out = np.where(scores < cx[0], cy[0] + (scores - cx[0]) * left_slope, out)
+        out = np.where(scores > cx[-1], cy[-1] + (scores - cx[-1]) * right_slope, out)
+    return out
+
+
 def centered_isotonic(x, y_iso, w):
     """Centered isotonic regression (Oron & Flournoy 2017).
 
@@ -109,7 +135,7 @@ class PresentationCalibrator:
         if not hasattr(self, "cx_"):
             raise RuntimeError("PresentationCalibrator must be fit before transform()")
         scores = np.atleast_1d(np.asarray(scores, float))
-        return np.interp(scores, self.cx_, self.cy_)  # np.interp clips to endpoints
+        return _interp_monotone_extrapolate(scores, self.cx_, self.cy_)
 
     def save(self, path):
         joblib.dump({

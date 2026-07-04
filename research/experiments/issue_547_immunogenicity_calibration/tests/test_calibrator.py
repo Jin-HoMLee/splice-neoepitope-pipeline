@@ -23,12 +23,19 @@ def test_higher_score_higher_logodds():
     cal = PresentationCalibrator().fit(scores, labels)
     assert cal.transform([0.9])[0] > cal.transform([0.1])[0]
 
-def test_out_of_range_clips_to_boundary():
+def test_out_of_range_extrapolates_monotonically():
+    """Issue #805: beyond the knot range, transform extrapolates (ordered) instead
+    of clipping flat to the boundary, so ranking resolution is preserved at the
+    extremes rather than collapsing to ties."""
     scores, labels = _synthetic()
     cal = PresentationCalibrator().fit(scores, labels)
     lo, hi = cal.score_range_
-    assert cal.transform([hi + 5.0])[0] == pytest.approx(cal.transform([hi])[0])
-    assert cal.transform([lo - 5.0])[0] == pytest.approx(cal.transform([lo])[0])
+    # further above the ceiling => strictly higher (not tied to the boundary value)
+    assert cal.transform([hi + 5.0])[0] > cal.transform([hi + 1.0])[0]
+    # further below the floor => strictly lower
+    assert cal.transform([lo - 5.0])[0] < cal.transform([lo - 1.0])[0]
+    # global monotonicity holds across the whole out-of-range span
+    assert cal.transform([lo - 1.0])[0] < cal.transform([hi + 1.0])[0]
 
 def test_prior_uses_true_counts_not_subsample():
     scores, labels = _synthetic(n_pos=200, n_neg=4000)
