@@ -29,6 +29,10 @@ comment" tool.
      --jq '[.comments[] | select(.body|test("@claude review"))] | last | .createdAt'
    ```
 
+   (This `gh --jq` form is safe *because* it passes no `--arg`; the poller uses
+   `gh ... | jq -f` precisely because `gh --jq --arg` is the trap - do not "fix"
+   one to match the other.)
+
    If you can't get it cleanly, omit `--since`; the poller defaults the watermark
    to "now", which is safe (it just ignores anything already on the PR).
 

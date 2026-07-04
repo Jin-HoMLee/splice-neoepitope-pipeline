@@ -104,16 +104,45 @@ _FAKE_GH = (
 )
 
 
+# Fake gh that fails its first `pr view` call then serves FAKE_COMMENTS: models a
+# transient blip (network / rate-limit / 5xx) that the poller must survive.
+_FAKE_GH_FAIL_ONCE = (
+    "#!/usr/bin/env python3\n"
+    "import os, sys\n"
+    "a = sys.argv[1:]\n"
+    "if a[:2] != ['pr', 'view']:\n"
+    "    sys.stderr.write('unmatched\\n'); sys.exit(1)\n"
+    "c = os.environ['FAKE_COUNTER']\n"
+    "try:\n"
+    "    n = int(open(c).read())\n"
+    "except Exception:\n"
+    "    n = 0\n"
+    "open(c, 'w').write(str(n + 1))\n"
+    "if n == 0:\n"
+    "    sys.stderr.write('gh: simulated transient failure\\n'); sys.exit(1)\n"
+    "sys.stdout.write(os.environ.get('FAKE_COMMENTS', '{\"comments\":[]}')); sys.exit(0)\n"
+)
+
+# Fake gh that always fails: models a persistent error (bad auth / deleted PR).
+_FAKE_GH_ALWAYS_FAIL = (
+    "#!/usr/bin/env python3\n"
+    "import sys\n"
+    "sys.stderr.write('gh: simulated persistent failure\\n'); sys.exit(1)\n"
+)
+
+
 @requires_jq
 class TestPollScript:
-    def _run(self, args, comments_json="", tmp_path=None):
+    def _run(self, args, comments_json="", tmp_path=None, gh_body=_FAKE_GH, extra_env=None):
         gh = tmp_path / "gh"
-        gh.write_text(_FAKE_GH)
+        gh.write_text(gh_body)
         gh.chmod(0o755)
         env = dict(os.environ)
         env["PATH"] = f"{tmp_path}:{env['PATH']}"
         if comments_json:
             env["FAKE_COMMENTS"] = comments_json
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run(
             ["bash", str(POLL_SH), *args],
             capture_output=True, text=True, timeout=30, env=env,
@@ -165,3 +194,35 @@ class TestPollScript:
         assert r.returncode == 0, r.stderr
         assert "Usage:" in r.stdout
         assert not r.stdout.lstrip().startswith("!")   # shebang must not leak
+
+    def test_survives_transient_gh_failure_then_detects(self, tmp_path):
+        # PR #993 review, finding 1: a single transient `gh` failure must NOT abort
+        # the poller (it would under `set -euo pipefail` without the guard). First
+        # poll fails, second succeeds with a landed review -> exit 0.
+        r = self._run(
+            [str(985), "--since", WATERMARK, "--timeout-min", "5", "--interval-sec", "0"],
+            comments_json=_comments(_finished()),
+            gh_body=_FAKE_GH_FAIL_ONCE,
+            extra_env={"FAKE_COUNTER": str(tmp_path / "count")},
+            tmp_path=tmp_path,
+        )
+        assert r.returncode == 0, r.stderr
+        assert "Claude finished" in r.stdout
+
+    def test_gives_up_after_consecutive_failures(self, tmp_path):
+        # A persistent failure surfaces loudly (exit 4) instead of masquerading as a
+        # clean 25-min timeout. timeout-min large so the failure breaker, not the
+        # deadline, is what stops it.
+        r = self._run(
+            [str(985), "--since", WATERMARK, "--timeout-min", "5", "--interval-sec", "0"],
+            gh_body=_FAKE_GH_ALWAYS_FAIL, tmp_path=tmp_path,
+        )
+        assert r.returncode == 4
+        assert "consecutive" in r.stderr
+
+    def test_option_value_swallow_is_guarded(self, tmp_path):
+        # PR #993 review, nit 1: `--since --timeout-min 5` must error, not take
+        # "--timeout-min" as the watermark.
+        r = self._run(["--since", "--timeout-min", "5", str(985)], tmp_path=tmp_path)
+        assert r.returncode == 2
+        assert "requires a value" in r.stderr

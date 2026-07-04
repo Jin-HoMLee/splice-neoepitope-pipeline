@@ -16,6 +16,12 @@
 #
 # Output: the newest matching comment's body, or nothing (empty) when none has
 # landed yet. An empty result is the caller's "keep polling" signal.
+# The bot-review comment author login is exactly "claude" (NOT "claude[bot]" or
+# "github-actions[bot]") - empirically verified 2026-07-04 against real landed
+# reviews on PRs #985 and #993 (`gh pr view N --json comments --jq
+# '[.comments[]|select(.body|test("Claude finished")).author.login]|unique'` -> ["claude"]).
+# Pinned so a future reader doesn't "fix" it to a [bot] form and silently break
+# detection. If a future GitHub-App migration changes it, re-verify and update here.
 [
   .comments[]
   | select(
