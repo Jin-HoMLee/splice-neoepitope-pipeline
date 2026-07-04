@@ -9,13 +9,13 @@ Remote routines are scheduled or one-time Claude Code agents that run in an **is
 
 ## CCR sandbox environment — reference facts
 
-Empirically probed in the `github-pat` environment (`env_01FffKZvNhx6EVwk7nEqMSkM`) on 2026-06-03. Re-probe if the platform image changes.
+Empirically probed in the `github-pat` environment (`env_01FffKZvNhx6EVwk7nEqMSkM`) on 2026-06-03; `gh` re-confirmed **2.65.0** on 2026-07-04 ([#941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941), unchanged since the first probe). Re-probe if the platform image changes.
 
 | Fact | Value | Implication for a routine |
 |---|---|---|
 | OS / CPU | Linux 6.18.5 x86_64, 4 cores | fine for tests/dry-runs; not for heavy compute |
 | Python | 3.11.15 (`/usr/local/bin`) | |
-| `gh` | 2.65.0, authed via `$GH_TOKEN` — fine-grained PAT, **repo + project** scope | can push, open PRs, comment, **and** move project-board fields |
+| `gh` | 2.65.0 (re-confirmed 2026-07-04, [#941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941)), authed via `$GH_TOKEN` - fine-grained PAT, **repo + project** scope | can push, open PRs, comment, **and** move project-board fields. **But 2.65.0 < 2.94.0**, so the native `gh issue` dependency JSON fields (`blockedBy` / `blocking` / `parent` / `subIssues`) do **not** exist in-sandbox - any cross-env script (`scripts/audit_and_merge.sh`, the morning blocked-graph hygiene check) must **not** switch to native fields until the platform image bumps `gh`; keep the `is:blocked` search workaround ([#824](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/824), [#942](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/942)). |
 | PyPI egress | ✅ works | `pip install` reaches pypi.org |
 | **network egress** | **allowlisted** — PyPI + GitHub reachable; other hosts (e.g. `api.datacite.org`) return `403 Host not in allowlist` | an in-sandbox live API-shape probe works **only** for GitHub + PyPI; a mapper/fixture that depends on another external API can't be confirmed in-sandbox → build from the documented schema and **defer live confirmation to human/CI** (leave that AC unchecked). Surfaced by #641/[PR #648](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/648). |
 | **pip pyyaml trap** | `pip install --upgrade … pyyaml` **fails** — the debian-managed PyYAML 6.0.1 can't be uninstalled, which **aborts the whole transaction → pytest never installs** | install with **`python3 -m pip install pytest`** (no `--upgrade`, don't touch pyyaml — it's already present). Capture `pip`'s rc directly (`rc=$?` with no pipe; `\| tail` swallows it). |
