@@ -467,6 +467,45 @@ class TestClassifyJunctions:
         assert cats["normal_shared:Blood Derived Normal"] == 1
         assert cats["normal_shared:Solid Tissue Normal"] == 1
 
+    def test_blood_only_manifest_subtracts_and_labels(self, tmp_path):
+        """Issue #940 AC: a Blood-Derived-Normal-only manifest (patient_002's shape:
+        a CD3+ PBMC as the sole normal) still subtracts, and the exclusion is
+        explicitly attributed to blood - not silent, not dropped."""
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        blood_f = tmp_path / "blood" / "raw_junctions.tsv"
+        for f in (tumor_f, blood_f):
+            f.parent.mkdir()
+
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),   # shared with blood -> normal_shared (blood)
+            ("chr22:601:700:+", 100),   # absent in blood -> tumor_exclusive
+            ("chr22:401:500:+", 1),     # noise, filtered out
+        ])
+        self._write_junction_file(blood_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"),
+            ("blood", "Blood Derived Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, blood_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+        )
+
+        df = pd.read_csv(output, sep="\t")
+        src = dict(zip(df["junction_id"], df["normal_source"]))
+        origin = dict(zip(df["junction_id"], df["junction_origin"]))
+        assert origin["chr22:201:300:+"] == "normal_shared"
+        assert src["chr22:201:300:+"] == "Blood Derived Normal"
+        assert origin["chr22:601:700:+"] == "tumor_exclusive"
+
     def test_annotated_junctions_discarded(self, tmp_path):
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         normal_f = tmp_path / "normal" / "raw_junctions.tsv"
