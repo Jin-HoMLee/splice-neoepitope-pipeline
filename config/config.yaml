@@ -10,9 +10,15 @@
 #   patient_id   sample_id    sample_type    fastq1    fastq2
 #
 # sample_type values:
-#   "Primary Tumor"        — junctions used for neoepitope prediction
-#   "Solid Tissue Normal"  — filters out non-tumor-specific junctions
-#   "Blood Derived Normal" — used for HLA typing only (WES or RNA-seq)
+#   "Primary Tumor"        - junctions used for neoepitope prediction
+#   "Solid Tissue Normal"  - filters out non-tumor-specific junctions (tissue-matched)
+#   "Blood Derived Normal" - used for HLA typing AND as a conservative junction
+#                            normal: a junction present in blood is a self-antigen,
+#                            so it is subtracted too. Any sample_type containing
+#                            "normal" contributes to junction subtraction; the
+#                            filter_junctions `normal_source` column records which
+#                            normal type removed each junction (Issue #940), so a
+#                            blood-sourced exclusion is explicit, not silent.
 #
 # For single-end data, leave fastq2 empty.
 # gs:// paths are downloaded automatically by the download_fastq rule.
