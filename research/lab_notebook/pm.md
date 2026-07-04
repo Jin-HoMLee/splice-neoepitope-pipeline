@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 03:15 UTC - Editor: PM
+
+#### `awaiting-bot-review` skill - auto-poll a PR for its review verdict ([PR #993](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/993) closes [#864](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/864))
+
+**Trigger.** Quick-win pull, and the most dogfood-motivated item on the board: after posting `@-claude review` the verdict lands ~5-7 min later, and until now someone had to notice and prompt me - which happened repeatedly earlier this same session. The design was pre-brainstormed/approved on the issue (2026-06-24) and #862 (its stated blocker) was already merged, so it was unblocked with the thinking already done.
+
+**What shipped.** First project-level skill (`.agents/skills/awaiting-bot-review/`): a `SKILL.md` with a trigger-shaped description, a bundled `poll_bot_review.sh <PR> [--since|--timeout-min|--interval-sec]`, and the detection predicate as a standalone `match_review.jq` (comment author `claude`, `createdAt > watermark`, body contains `"Claude finished"`). The poller is meant to run as a **background task** so the harness re-invokes on landing; it **never merges** (relaying the verdict is the whole job). Detection is a separate `.jq` file precisely so it is unit-tested independently of the polling shell. The `gh ... | jq -f` form is deliberate - an earlier inline `gh --jq --arg` poller (PR #862) was rejected by gh and silently timed out every run; `tools/ci/test_poll_bot_review.py` pins both the predicate and the arg parsing so that failure class can't regress.
+
+**Dogfood as the E2E.** Used the skill on its own PR: requested #993's review and launched the poller as a real background task. It detected the landed review and re-invoked me automatically - AC5 satisfied with the actual mechanism, not a simulation. (Aside caught live: the `@-claude review` mention-guard only allows the trigger as a *standalone* command, so it can't be bundled with the watermark capture in one shell call.)
+
+**Review (the bot reviewed its own poller).** `@-claude` review found two real issues, both taken: (1, medium) under `set -euo pipefail` a single transient `gh` blip made `verdict=$(gh|jq)` propagate a non-zero and `set -e` killed the whole 25-min background watch with an undocumented exit - the exact resilience the skill promises. Fixed by guarding the assignment (`if verdict=...`) + a consecutive-failure breaker that keeps polling through blips and gives up **loudly** (exit 4) only after 5 straight failures (bad auth / deleted PR), rather than masquerading as a clean timeout. (2, verify) detection hardcodes `author.login == "claude"` and the tests were self-referential - confirmed empirically that the real login IS `claude` on landed reviews (#985, #993) and pinned it with a comment so it can't be "fixed" to a `[bot]` form. Plus two nits (option-value swallow guard; a SKILL.md note that the watermark's `gh --jq` is safe only without `--arg`). Added 3 tests for the new paths; 16 skill / 490 full `tools/ci/` green.
+
+**Related board-hygiene find.** While shipping this, the user flagged a recurring cross-role slip: PRs stranded in *Ready for review*, never advanced to *In review*. Filed [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996) (a rung-3 mechanism: a PostToolUse hook that flips the linked issue to *In review* when a review is requested, mirroring `post_gh_pr_create.py`'s auto-board) and moved this very PR's card to *In review* by hand.
+
 ### 02:08 UTC - Editor: PM
 
 #### GitHub MCP server for board field updates - eval + decision ([#234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234))
