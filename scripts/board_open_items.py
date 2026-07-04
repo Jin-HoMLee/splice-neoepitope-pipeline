@@ -15,6 +15,16 @@ Each item carries its issue/PR created/updated/closed timestamps; `--sort-update
 content-level field, NOT the board "Updated" column (which a bare field nudge bumps;
 see Issue #642).
 
+**Two-repo aggregation (Issue #999).** Board #9 aggregates items from BOTH the
+project repo and the personas repo (`claude-personas-splice-neoepitope-pipeline`),
+whose issue/PR numbers COLLIDE (both have a #29, #64, #71, ...). Each item's true
+identity is its `url`, never the bare number, so the text table disambiguates by
+tagging non-project rows (`pers#71` vs a bare project `71`), and `--json` carries
+both `url` and an `origin` field (`project` / `personas` / `other`). When acting on
+a listed item, resolve the repo from its `url` before any `gh ... -R` call: a bare
+`gh issue view 71` hits whichever repo your cwd defaults to and can silently return
+the wrong same-numbered issue.
+
 Usage:
   scripts/board_open_items.py
   scripts/board_open_items.py --role developer
@@ -36,6 +46,32 @@ from typing import Any
 
 OWNER = "Jin-HoMLee"
 PROJECT_NUMBER = 9
+
+# Board #9 aggregates two repos with colliding numbers (Issue #999). Personas is
+# checked first because its name CONTAINS the project name as a substring.
+PERSONAS_REPO = "claude-personas-splice-neoepitope-pipeline"
+PROJECT_REPO = "splice-neoepitope-pipeline"
+# Short tag rendered before a non-project item's number in the text table; the
+# project repo is the expected default and stays bare (asymmetric on purpose).
+_ORIGIN_TAG = {"personas": "pers", "other": "ext"}
+
+
+def origin_from_url(url: str) -> str:
+    """Classify a board item's origin repo from its URL: project / personas / other."""
+    url = url or ""
+    if f"/{PERSONAS_REPO}/" in url:
+        return "personas"
+    if f"/{PROJECT_REPO}/" in url:
+        return "project"
+    return "other"
+
+
+def ref_cell(item: dict) -> str:
+    """Disambiguated reference for the text table: bare `123` for a project item,
+    tagged `pers#123` for a personas (or `ext#123` for an unexpected) item."""
+    number = item.get("number")
+    tag = _ORIGIN_TAG.get(item.get("origin"))
+    return f"{tag}#{number}" if tag else str(number)
 
 QUERY = """
 query($owner: String!, $number: Int!, $after: String) {
@@ -194,6 +230,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "number": content.get("number"),
         "title": content.get("title", ""),
         "url": content.get("url", ""),
+        "origin": origin_from_url(content.get("url", "")),
         "kind": "PR" if content.get("__typename") == "PullRequest" else "Issue",
         "is_draft": content.get("isDraft", False),
         "is_parent": is_parent,
@@ -327,9 +364,12 @@ def format_table(
     # Kind column is 8 wide to fit the longest marker "Issue/P" (parent); plain
     # "Issue" / draft "PR/D" are shorter. A narrower budget overflows and shifts
     # every column to its right out from under its header.
+    # Ref column (was "#") is 9 wide so a tagged personas ref ("pers#1234") fits
+    # without shifting the columns to its right; a bare project number is shorter
+    # (Issue #999 two-repo disambiguation).
     lines = [
-        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<8} {'#':<5} {arc_hdr}Title",
-        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 5} {arc_sep}{'-' * 60}",
+        f"{'Status':<17} {'P':<3} {'Sz':<3} {'Age':<5} {'Role':<17} {'Kind':<8} {'Ref':<9} {arc_hdr}Title",
+        f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 9} {arc_sep}{'-' * 60}",
     ]
     for it in items:
         role = (it["role"] or "(none)").removeprefix("role:")[:16]
@@ -346,7 +386,7 @@ def format_table(
             arc_cell = ""
         lines.append(
             f"{it['status']:<17} {it['priority'] or '?':<3} {it['size'] or '?':<3} "
-            f"{age:<5} {role:<17} {kind:<8} {it['number']:<5} {arc_cell}{title}"
+            f"{age:<5} {role:<17} {kind:<8} {ref_cell(it):<9} {arc_cell}{title}"
         )
     return "\n".join(lines) + "\n"
 
