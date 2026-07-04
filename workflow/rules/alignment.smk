@@ -109,7 +109,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 index_dir=directory(_HISAT2_INDEX_DIR),
                 done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
             log:
-                os.path.join(_LOGS, "alignment", "hisat2_index.log"),
+                os.path.join(_SHARED_LOG, "alignment", "hisat2_index.log"),
             params:
                 url=_HISAT2_PREBUILT_URL,
             resources:
@@ -140,7 +140,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 index_dir=directory(_HISAT2_INDEX_DIR),
                 done=touch(os.path.join(_HISAT2_INDEX_DIR, "index.done")),
             log:
-                os.path.join(_LOGS, "alignment", "hisat2_index.log"),
+                os.path.join(_SHARED_LOG, "alignment", "hisat2_index.log"),
             threads: config.get("alignment", {}).get("threads", 8)
             resources:
                 mem_mb=8000,
@@ -267,7 +267,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             index_dir=directory(_STAR_INDEX_DIR),
             done=touch(os.path.join(_STAR_INDEX_DIR, "index.done")),
         log:
-            os.path.join(_LOGS, "alignment", "star_index.log"),
+            os.path.join(_SHARED_LOG, "alignment", "star_index.log"),
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
