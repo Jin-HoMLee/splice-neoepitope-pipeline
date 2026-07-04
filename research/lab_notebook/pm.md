@@ -6,6 +6,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-04
+
+### Editor: PM
+
+#### GitHub MCP server for board field updates - eval + decision ([#234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/234))
+
+**Trigger.** Quick-win pull: a decision-only P3 eval of whether to migrate PM's project-board automation from hand-rolled `gh api graphql` (with hardcoded field IDs) to the official GitHub MCP server's Projects toolset.
+
+**Decision: DEFER. Do not migrate now.** The eval reaches a clear negative recommendation on architecture, not on ergonomics.
+
+**Capability coverage (web-verified against `github/github-mcp-server` README, 2026-07-04).** The current server exposes a consolidated 3-tool `projects` toolset - `projects_get` / `projects_list` / `projects_write` (read-write; scopes `read:project` / `project`; no Copilot requirement). Mapped against our seven board operations:
+
+| Operation | MCP coverage |
+|---|---|
+| Status (single-select) | `projects_write` |
+| Priority (single-select) | `projects_write` |
+| Size (single-select) | `projects_write` |
+| Target date (date field) | `projects_write` |
+| Milestone assignment | **not** in the projects toolset (it is an issue field - would need the separate `issues` toolset / stay on `gh`) |
+| Sub-issue / parent link | **unsupported** |
+| Position / reorder | **unsupported** |
+
+So 4/7 covered by the projects toolset; the milestone/target coupling our recheck hook relies on straddles two toolsets, and sub-issue linking + reordering have no MCP path.
+
+**The decisive point is architectural, not coverage.** The hardcoded field-ID GraphQL that "burns context" (the issue's stated motivation) lives almost entirely in **committed hooks/scripts** - `.agents/hooks/post_gh_pr_create.py` and `.agents/hooks/recheck_dispatch.py` (grep: 3 files, all script-side). Those are Python subprocess calls to `gh`, and **a script cannot invoke an MCP tool** - MCP tools are only callable by the interactive agent. So a migration would *not* retire the field-ID lookup tables; they would remain in the scripts. MCP could only replace the minority of *ad-hoc interactive* field edits made during a triage session. Adopting it would therefore add a **second** mutation mechanism (hybrid: MCP interactive + `gh api` scripted) plus a per-session server dependency, rather than replacing one - the opposite of the simplification the issue sought.
+
+**Live smoke test: not run (infra-blocked, noted for honesty).** The AC's "install + smoke-test each operation end-to-end" needs a running, authenticated MCP server. Blockers in this environment: no Docker (rules out the official local server image); the remote/local-binary paths need an interactive OAuth/token setup **and** a session reconnect (MCP servers bind at session start), which is the user's to grant. The gh token already carries the `project` scope, so auth is *feasible* - but standing the server up is a user-gated infra step. Crucially, the smoke test would only measure interactive ergonomics; it cannot overturn the architectural finding above (scripts still can't call MCP), so the decision does not hinge on it.
+
+**Follow-up: none opened.** The "if favorable, open a migration issue" AC is conditional on a positive recommendation; this is negative, so no migration issue is filed. **Revisit trigger:** reopen the question if (a) the MCP projects toolset reaches milestone + sub-issue + reorder parity, AND (b) our board mutation shifts materially from scripted toward interactive. Until then `gh api graphql` stays - it works, and its field IDs are already centralized as module constants (not re-looked-up per call), so the context cost the issue cited is already mitigated where it actually occurs.
+
+---
+
 ## 2026-07-03
 
 ### 16:48 UTC - Editor: PM
