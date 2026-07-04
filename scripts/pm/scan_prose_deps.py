@@ -139,11 +139,16 @@ def native_blockers(number):
     )
     try:
         data = gh("api", "graphql", "-f", f"query={q}")
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        # CalledProcessError = gh exited non-zero (5xx / network / GraphQL error);
+        # JSONDecodeError = gh exited 0 with empty/non-JSON stdout. Both mean the
+        # lookup could not be completed, so degrade rather than abort the scan.
         raise BlockerLookupError(
-            f"gh graphql blockedBy lookup failed for #{number}: {e.stderr or e}"
+            f"gh graphql blockedBy lookup failed for #{number}: {getattr(e, 'stderr', None) or e}"
         ) from e
-    issue = (data.get("data", {}).get("repository", {}) or {}).get("issue")
+    # Use `or {}` at every level: a GraphQL top-level error nulls `data` (key
+    # present, value None), so `.get("data", {})` returns None, not the default.
+    issue = ((data.get("data") or {}).get("repository") or {}).get("issue")
     # gh can exit 0 with a partial response carrying a top-level `errors` array.
     # Trust it only if the issue node still came back; otherwise the lookup is
     # incomplete and must be treated as a failure, not an empty (no-blocker) result.
