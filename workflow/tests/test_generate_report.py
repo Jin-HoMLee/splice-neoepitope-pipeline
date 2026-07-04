@@ -967,7 +967,6 @@ class TestBuildFilteringFunnelHtml:
 def test_normal_shared_by_source_pivot():
     """Issue #983: per-sample breakdown of normal_shared by the normal sample_type
     that removed each junction, pivoted from the normal_shared:<type> stats rows."""
-    from generate_report import _normal_shared_by_source
     jdf = pd.DataFrame({
         "sample_id": ["T1", "T1", "T2"],
         "sample_type": ["Primary Tumor", "Primary Tumor", "Primary Tumor"],
@@ -987,12 +986,26 @@ def test_normal_shared_by_source_pivot():
 
 def test_normal_shared_by_source_empty_when_no_breakdown():
     """No normal_shared:<type> rows -> empty frame (drives the omit-section path)."""
-    from generate_report import _normal_shared_by_source
     jdf = pd.DataFrame({
         "sample_id": ["T1"], "sample_type": ["Primary Tumor"],
         "category": ["normal_shared"], "count": [40],
     })
     assert _normal_shared_by_source(jdf).empty
+
+
+def test_normal_shared_by_source_empty_suffix_renders_unspecified():
+    """Issue #983 review: a normal_shared:<empty> row (blank normal sample_type)
+    pivots into an '(unspecified)' column, not a blank one, so it renders cleanly."""
+    jdf = pd.DataFrame({
+        "sample_id": ["T1", "T1"],
+        "sample_type": ["Primary Tumor", "Primary Tumor"],
+        "category": ["normal_shared:", "normal_shared:Blood Derived Normal"],
+        "count": [7, 20],
+    })
+    piv = _normal_shared_by_source(jdf)
+    t1 = piv[piv["sample_id"] == "T1"].iloc[0]
+    assert int(t1["(unspecified)"]) == 7
+    assert int(t1["Blood Derived Normal"]) == 20
 
 
 class TestPresenterCountsHtml:
