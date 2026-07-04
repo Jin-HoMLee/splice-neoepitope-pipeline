@@ -23,6 +23,14 @@ pip install -r requirements.txt
 
 **Usage:** Open any `.ipynb` in VSCode and select `research/.venv` as the kernel (Python 3.14.4).
 
+**Headless execution (one-time, per-clone):** register this clone's venv as the `splice-neoepitope-research` Jupyter kernelspec so `jupyter nbconvert --execute` and agent/CI contexts resolve to a real interpreter:
+```bash
+research/.venv/bin/python -m ipykernel install --user \
+  --name splice-neoepitope-research \
+  --display-name "Splice Neoepitope (research)"
+```
+This is a machine-local registration (`~/Library/Jupyter/kernels/` on macOS, `~/.local/share/jupyter/kernels/` on Linux for the GPU-revival path), not tracked in git - like the `.venv` itself, each clone runs it once. The kernelspec name is global, so the last clone to run it becomes the canonical execution clone; run it from whichever clone you execute notebooks in. After registration, run notebooks from this venv's jupyter (`research/.venv/bin/jupyter nbconvert --to notebook --execute <nb>`) with no `--ExecutePreprocessor.kernel_name` override needed.
+
 The notebooks read pipeline results directly from GCS (`gs://splice-neoepitope-project/results/<patient_id>/`) via `gsutil` — no local data download needed. Make sure `gsutil` is authenticated (`gcloud auth application-default login`).
 
 ---
