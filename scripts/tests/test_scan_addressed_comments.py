@@ -174,3 +174,24 @@ class TestOrchestrationNoNetwork:
                    [("dev", "2026-07-04T10:00:00Z", "review please")])]
         out = s.render("pm", groups, since)
         assert "#10 [Issue] Alpha" in out and "@dev" in out
+
+
+class TestCliGuards:
+    def _run(self, *args):
+        import subprocess
+        return subprocess.run(
+            [sys.executable, str(SCRIPTS_PM / "scan_addressed_comments.py"), *args],
+            capture_output=True, text=True, timeout=10,
+        )
+
+    def test_negative_days_rejected(self):
+        r = self._run("--role", "pm", "--days", "-3")
+        assert r.returncode == 2 and "non-negative" in r.stderr
+
+    def test_unknown_role_rejected(self):
+        r = self._run("--role", "nobody")
+        assert r.returncode == 2
+
+    def test_missing_role_rejected(self):
+        r = self._run("--days", "1")
+        assert r.returncode == 2

@@ -21,7 +21,9 @@ Window: the last-session watermark (`.agents/last_session_marker.json`, written 
 the Stop hook) minus a 1-day backward overlap; a conservative 7-day floor when the
 marker is absent (fresh clone / first run). `--since` / `--days` override it.
 
-Exit 0 always (a scan surfaces, it never gates). Issue #901.
+Exit 0 on a completed scan - finding nothing is not a failure. A hard `gh` /
+network failure on the board-listing call surfaces loudly (non-zero traceback)
+rather than as a false empty result. Issue #901.
 
 [Issue #887]: https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/887
 """
@@ -184,7 +186,7 @@ def recently_updated(since_date):
     for kind, sub in (("Issue", "issue"), ("PR", "pr")):
         rows = gh(
             sub, "list", "--repo", REPO, "--state", "all", "--limit", "1000",
-            "--search", search, "--json", "number,title,updatedAt",
+            "--search", search, "--json", "number,title",
         )
         for r in rows:
             items[r["number"]] = {**r, "kind": kind}
@@ -196,7 +198,10 @@ def fetch_comments(number):
     try:
         return gh(
             "api", f"repos/{REPO}/issues/{number}/comments", "--paginate",
-            "--jq", ".[] | {body, created_at, user: {login: .user.login}}",
+            # `.user` is null for a fully-deleted account; guard it so a single
+            # such comment doesn't error the whole `--jq` page (which would exit
+            # gh non-zero and silently drop EVERY comment on this issue).
+            "--jq", '.[] | {body, created_at, user: {login: (.user.login? // "?")}}',
             parse_json=False,
         ).strip()
     except subprocess.CalledProcessError:
@@ -261,6 +266,8 @@ def main():
         if since is None:
             parser.error(f"unparseable --since: {args.since!r}")
     elif args.days is not None:
+        if args.days < 0:
+            parser.error(f"--days must be non-negative, got {args.days}")
         since = now - timedelta(days=args.days)
     else:
         since = compute_since(read_marker(), now)
