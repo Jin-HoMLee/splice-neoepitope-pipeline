@@ -42,8 +42,10 @@ class TestRefCell:
     def test_personas_is_tagged(self):
         assert b.ref_cell({"number": 71, "origin": "personas"}) == "pers#71"
 
-    def test_other_is_tagged(self):
-        assert b.ref_cell({"number": 71, "origin": "other"}) == "ext#71"
+    def test_other_renders_bare(self):
+        # Board #9 has exactly two repos, so only personas is tagged; an
+        # unexpected/unknown origin renders bare (never occurs in production).
+        assert b.ref_cell({"number": 71, "origin": "other"}) == "71"
 
     def test_missing_origin_falls_back_to_bare(self):
         # Defensive: an item dict without an origin key renders the bare number.

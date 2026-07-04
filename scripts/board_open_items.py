@@ -19,8 +19,9 @@ see Issue #642).
 project repo and the personas repo (`claude-personas-splice-neoepitope-pipeline`),
 whose issue/PR numbers COLLIDE (both have a #29, #64, #71, ...). Each item's true
 identity is its `url`, never the bare number, so the text table disambiguates by
-tagging non-project rows (`pers#71` vs a bare project `71`), and `--json` carries
-both `url` and an `origin` field (`project` / `personas` / `other`). When acting on
+tagging the personas rows (`pers#71` vs a bare project `71` - the two collide),
+and `--json` carries both `url` and an `origin` field (`project` / `personas` /
+`other`). When acting on
 a listed item, resolve the repo from its `url` before any `gh ... -R` call: a bare
 `gh issue view 71` hits whichever repo your cwd defaults to and can silently return
 the wrong same-numbered issue.
@@ -51,11 +52,6 @@ PROJECT_NUMBER = 9
 # checked first because its name CONTAINS the project name as a substring.
 PERSONAS_REPO = "claude-personas-splice-neoepitope-pipeline"
 PROJECT_REPO = "splice-neoepitope-pipeline"
-# Short tag rendered before a non-project item's number in the text table; the
-# project repo is the expected default and stays bare (asymmetric on purpose).
-_ORIGIN_TAG = {"personas": "pers", "other": "ext"}
-
-
 def origin_from_url(url: str) -> str:
     """Classify a board item's origin repo from its URL: project / personas / other."""
     url = url or ""
@@ -67,11 +63,18 @@ def origin_from_url(url: str) -> str:
 
 
 def ref_cell(item: dict) -> str:
-    """Disambiguated reference for the text table: bare `123` for a project item,
-    tagged `pers#123` for a personas (or `ext#123` for an unexpected) item."""
+    """Disambiguated reference for the text table.
+
+    Board #9 aggregates exactly two repos, so tagging ONLY the personas rows fully
+    disambiguates them from the collision-partner project rows: a personas item
+    renders `pers#123`, everything else (project - the expected default - or an
+    unexpected/unknown origin) renders the bare `123`. Asymmetric on purpose: the
+    overwhelmingly-common project case stays uncluttered.
+    """
     number = item.get("number")
-    tag = _ORIGIN_TAG.get(item.get("origin"))
-    return f"{tag}#{number}" if tag else str(number)
+    if item.get("origin") == "personas":
+        return f"pers#{number}"
+    return str(number)
 
 QUERY = """
 query($owner: String!, $number: Int!, $after: String) {

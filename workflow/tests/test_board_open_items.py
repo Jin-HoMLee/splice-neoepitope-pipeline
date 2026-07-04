@@ -369,11 +369,13 @@ def test_exclude_parents_filters_out_parents(monkeypatch, capsys):
 
 def test_format_table_parent_kind_keeps_column_alignment():
     # "Issue/P" is 7 chars and must not overflow the Kind column and shift the
-    # # column out from under its header (the first kind value to exceed the
-    # old 5-char budget; "Issue"=5 fit, drafts are "PR/D"=4).
+    # Ref column out from under its header (the first kind value to exceed the
+    # old 5-char budget; "Issue"=5 fit, drafts are "PR/D"=4). The Ref column was
+    # renamed from "#" in Issue #999 (two-repo disambiguation); a project item
+    # renders a bare number, so #547 stays "547".
     parent = boi.normalize(_board_item(547, sub_total=4))
     lines = boi.format_table([parent], now=NOW).splitlines()
     header, row = lines[0], lines[2]  # 0=header, 1=separator, 2=data
     assert "Issue/P" in row
-    # the issue number sits exactly under the '#' header label
-    assert row.index("547") == header.index("#")
+    # the issue number sits exactly under the 'Ref' header label
+    assert row.index("547") == header.index("Ref")
