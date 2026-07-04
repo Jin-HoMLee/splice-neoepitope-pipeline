@@ -410,6 +410,8 @@ def test_normalize_doi_lowercases_trims_and_strips_prefix():
     assert zotero_add.normalize_doi("https://doi.org/10.1/A") == "10.1/a"
     assert zotero_add.normalize_doi("http://dx.doi.org/10.1/A") == "10.1/a"
     assert zotero_add.normalize_doi("doi:10.1/B") == "10.1/b"
+    # whitespace after the resolver prefix is also stripped (space after 'doi:')
+    assert zotero_add.normalize_doi("doi: 10.1/x") == "10.1/x"
     assert zotero_add.normalize_doi("") == ""
     assert zotero_add.normalize_doi(None) == ""
 
@@ -434,6 +436,33 @@ def test_fetch_library_doi_index_paginates(monkeypatch):
     assert len(index) == total
     assert index["10.1000/x0"] == "K0"
     assert index["10.1000/x149"] == "K149"
+
+
+def test_fetch_library_doi_index_normalizes_url_form_stored_doi(monkeypatch):
+    """A DOI stored in resolver-URL form is normalized to bare in the index, so a
+    bare candidate DOI still matches an item stored as a full doi.org URL."""
+    body = '[{"key":"K1","data":{"DOI":"https://doi.org/10.1/URLform"}}]'
+    monkeypatch.setattr(zotero_add.urllib.request, "urlopen", lambda req: _FakeResp(body, "1"))
+    index = zotero_add.fetch_library_doi_index("0000", "key")
+    assert "10.1/urlform" in index
+    assert index["10.1/urlform"] == "K1"
+
+
+def test_fetch_library_doi_index_terminates_on_exact_page_boundary(monkeypatch):
+    """total == limit (exactly one full page) must terminate, not loop forever."""
+    import urllib.parse as up
+
+    total = 100
+
+    def _fake_urlopen(req):
+        start = int(up.parse_qs(up.urlparse(req.full_url).query)["start"][0])
+        n = min(100, max(0, total - start))
+        items = [{"key": f"K{start + i}", "data": {"DOI": f"10.1000/y{start + i}"}} for i in range(n)]
+        return _FakeResp(json.dumps(items), str(total))
+
+    monkeypatch.setattr(zotero_add.urllib.request, "urlopen", _fake_urlopen)
+    index = zotero_add.fetch_library_doi_index("0000", "key")
+    assert len(index) == 100
 
 
 def test_fetch_library_doi_index_tolerates_control_chars(monkeypatch):
@@ -537,3 +566,20 @@ def test_dedup_network_failure_aborts_with_force_hint(monkeypatch):
     msg = str(exc.value)
     assert "--force" in msg
     assert "Traceback" not in msg
+
+
+def test_dry_run_skips_dedup_scan(monkeypatch):
+    """--dry-run is a pure offline preview: it must not hit the Zotero library scan."""
+    _setup_add_env(monkeypatch, ["zotero_add.py", "10.1093/bioadv/vbae080", "--dry-run"])
+
+    def _must_not_scan(uid, key):
+        raise AssertionError("dry-run must not perform the dedup library scan")
+
+    monkeypatch.setattr(zotero_add, "fetch_library_doi_index", _must_not_scan)
+    monkeypatch.setattr(zotero_add, "post_to_zotero",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("dry-run must not POST")))
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        zotero_add.main()
+    assert '"DOI": "10.1093/bioadv/vbae080"' in buf.getvalue()

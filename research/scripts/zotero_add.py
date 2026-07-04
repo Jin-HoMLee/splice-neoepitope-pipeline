@@ -340,7 +340,7 @@ def normalize_doi(doi):
         "doi:",
     ):
         if d.startswith(prefix):
-            return d[len(prefix):]
+            return d[len(prefix):].strip()
     return d
 
 
@@ -538,7 +538,7 @@ def main():
         candidate_doi = item.get("DOI") or args.doi
         try:
             index = fetch_library_doi_index(user_id, api_key)
-        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as e:
             reason = getattr(e, "reason", e)
             sys.exit(
                 f"Dedup pre-check could not reach Zotero: {reason}. "
