@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 17:15 UTC - Editor: PM
+
+#### Tag item origin repo in board_open_items - board #9 collision guard ([PR #1018](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1018) closes [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999))
+
+**Trigger.** After re-scoping [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999) (its two original premises were both invalid - the MM-exemption framing overturned by #1006, and the "bucketing bug" a two-repo number-collision misread), the user asked whether we follow the 4 web-confirmed cross-repo best practices. Audit finding: we comply exactly where a **mechanism** exists (the auto-close gate; URL-keyed JSON) and slip exactly where it's **discipline-only** (ad-hoc `gh -R`, human-facing displays). The biggest mechanizable gap was the board tool's own text output showing bare numbers - the thing that caused #999's misfiling. Recommended fixing that one, skipping a noisy `gh -R` guard (negative ROI) and the mild prose gap. User approved.
+
+**What shipped.** `board_open_items.py`: an `origin` field per item (`project`/`personas`/`other`, from the URL - personas matched first since its repo name contains the project name), and an **asymmetric** `Ref` cell in the text table - `pers#71` for personas, bare `71` for project (project is the ~universal default, so only the collision partner is tagged). Docstring documents the two-repo aggregation + resolve-repo-from-URL rule. Live proof: the MM lane now shows `pers#73`/`pers#74` for personas items while its project items (`#978`, `#346`) stay bare.
+
+**The miss (worth recording).** My first test plan ran `scripts/tests/` + `test_check_ready_queue.py` (85 green) and I shipped - but `board_open_items` has a **second** test suite at `workflow/tests/test_board_open_items.py` (the one `pipeline-pytest` runs), which I never ran locally. Its alignment test asserted `header.index("#")`, which the `#`->`Ref` rename broke. The user caught the red check. **Lesson: a module with tests in two trees needs BOTH run before push** (`pytest workflow/tests/ scripts/tests/`) - the same silent-second-location class the CLAUDE.md dry-run gotchas warn about. Reproduced locally (blocked by a `joblib` local-venv gap on the *full* workflow suite, so ran the 4 `board_open_items` consumers directly: board_open_items, check_ready_queue, check_roadmap_health, dispatch_digest - all green), fixed via `header.index("Ref")` + simplifying `ref_cell` to tag only personas (so existing example-URL fixtures render bare, not `ext#`), pushed green.
+
+**Review (bot, on the pre-fix commit).** Independently flagged the same two-fold CI failure I'd just fixed (header rename + the `other`-classified fixture), plus 3 valid nits on the current code: no alignment guard for the *tagged* ref path (added `pers#71` + bare-`71` under-Ref assertions), a vacuous `or count>=2` disjunct (dropped), and a 5-digit overflow of the 9-wide Ref column (bumped to 10, matching the Kind-column's defensive sizing). Its `ext#`-vocabulary nit was moot post-simplification.
+
 ### 16:45 UTC - Editor: PM
 
 #### Fold MM into the Replenishment floor-5, remove the exemption ([PR #1016](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1016) closes [#1006](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1006))
