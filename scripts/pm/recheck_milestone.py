@@ -7,8 +7,10 @@ Implements the recheck rule from memory/feedback_milestones.md:
 Usage:
   scripts/pm/recheck_milestone.py --issue N
   scripts/pm/recheck_milestone.py --milestone N
+  scripts/pm/recheck_milestone.py --milestone N --moved-issue M
 
-Exits 0 if delta within +-7 days, 2 if UPDATE NEEDED, 1 on error.
+Exits 0 if delta within +-7 days (or no open work), 2 if UPDATE NEEDED / UNSIZED,
+3 if the post-move listing is stale (verification pending, Issue #406), 1 on error.
 """
 from __future__ import annotations
 
@@ -24,6 +26,19 @@ REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
 THRESHOLD_DAYS = 7
 AVAILABILITY_RATE = 5.0  # capacity-days per calendar-week
+
+# Post-move eventual-consistency reconciliation (Issue #406). `gh issue edit N
+# --milestone X` mutates strongly-consistent issue state, but the
+# "issues-by-milestone" listing endpoint (open_issues_in_milestone) lags: right
+# after a move the SOURCE milestone can still list #N and the DESTINATION may not
+# list it yet, which drove a false-positive [UPDATE NEEDED] on a successful move
+# (caught live 2026-05-19). When a moved issue is named we retry the laggy
+# listing up to STALE_RETRY_ATTEMPTS times until it agrees with the strong read,
+# then bail to STALE_STATUS rather than emit a misleading capacity read.
+STALE_RETRY_ATTEMPTS = 2
+STALE_RETRY_DELAY_SECONDS = 0.5
+STALE_STATUS = "[stale state, verification pending]"
+STALE_EXIT_CODE = 3
 
 # Size weight in capacity-days (midpoints of feedback_milestones.md ranges)
 SIZE_WEIGHTS = {"XS": 0.5, "S": 1.0, "M": 2.5, "L": 3.5, "XL": 5.0}
@@ -192,6 +207,22 @@ def milestone_for_issue(issue_number: int) -> int | None:
     return data["milestone"]["number"] if data.get("milestone") else None
 
 
+def milestone_and_state_for_issue(issue_number: int) -> tuple[int | None, str]:
+    """Strongly-consistent ``(milestone_number, state)`` for an issue (Issue #406).
+
+    Folds the milestone read the reconciler needs with the issue ``state`` in one
+    ``gh issue view`` call. ``state`` is gh's ``"OPEN"``/``"CLOSED"``. Used so the
+    reconciler can short-circuit a closed moved issue, which never appears in the
+    open-only milestone listing and so could otherwise loop forever on a false
+    ``[stale state]`` (PR #985 review, finding 1).
+    """
+    data = gh(
+        "issue", "view", str(issue_number), "--repo", REPO, "--json", "milestone,state"
+    )
+    ms = data["milestone"]["number"] if data.get("milestone") else None
+    return ms, data.get("state", "")
+
+
 def milestone_meta(milestone_number: int) -> dict:
     return gh("api", f"repos/{REPO}/milestones/{milestone_number}")
 
@@ -206,6 +237,46 @@ def open_issues_in_milestone(milestone_title: str) -> list[int]:
         "--json", "number",
     )
     return [issue["number"] for issue in data]
+
+
+def _reconcile_moved_issue(
+    milestone_number: int,
+    milestone_title: str,
+    moved_issue: int,
+    issue_numbers: list[int],
+    _sleep=time.sleep,
+) -> tuple[list[int], bool]:
+    """Reconcile the laggy milestone listing against a strongly-consistent read
+    of ``moved_issue``'s actual milestone before capacity is computed (Issue #406).
+
+    ``milestone_and_state_for_issue`` is backed by ``gh issue view``, which is
+    strongly consistent, so it is the source of truth for whether ``moved_issue``
+    belongs to THIS milestone. We compare that against the eventually-consistent
+    listing and, on disagreement, re-fetch the listing up to
+    ``STALE_RETRY_ATTEMPTS`` times (``STALE_RETRY_DELAY_SECONDS`` apart) until it
+    converges.
+
+    A CLOSED moved issue short-circuits to converged: it never appears in the
+    open-only listing and does not count toward capacity, so there is nothing to
+    reconcile - without this guard a closed issue moved INTO a milestone reads as
+    should-be-member yet is always absent, looping forever on a false ``[stale state]``
+    (PR #985 review, finding 1).
+
+    Returns ``(issue_numbers, stale)``: the (possibly re-fetched) listing and a
+    flag that is True when the listing never caught up to the strong read.
+    ``_sleep`` is an injection seam for tests.
+    """
+    actual_ms, state = milestone_and_state_for_issue(moved_issue)
+    if state == "CLOSED":
+        return issue_numbers, False
+    should_be_member = actual_ms == milestone_number
+    for attempt in range(STALE_RETRY_ATTEMPTS + 1):
+        if (moved_issue in issue_numbers) == should_be_member:
+            return issue_numbers, False
+        if attempt < STALE_RETRY_ATTEMPTS:
+            _sleep(STALE_RETRY_DELAY_SECONDS)
+            issue_numbers = open_issues_in_milestone(milestone_title)
+    return issue_numbers, True
 
 
 def sizes_and_parents_for_issues(
@@ -263,7 +334,11 @@ def sizes_and_parents_for_issues(
     return sizes, parents
 
 
-def compute_recheck(milestone_number: int) -> int:
+def compute_recheck(
+    milestone_number: int,
+    moved_issue: int | None = None,
+    _sleep=time.sleep,
+) -> int:
     meta = milestone_meta(milestone_number)
     title = meta["title"]
     current_due_raw = meta.get("due_on")
@@ -273,10 +348,33 @@ def compute_recheck(milestone_number: int) -> int:
     )
 
     issue_numbers = open_issues_in_milestone(title)
+
+    # Post-move reconciliation (Issue #406): only when a moved issue is named
+    # (the `gh issue edit --milestone` trigger). If the listing endpoint hasn't
+    # caught up to the strongly-consistent move, bail with a [stale state] note
+    # instead of computing a misleading capacity read off stale membership.
+    if moved_issue is not None:
+        issue_numbers, stale = _reconcile_moved_issue(
+            milestone_number, title, moved_issue, issue_numbers, _sleep=_sleep
+        )
+        if stale:
+            print(f"Milestone: {title}")
+            print(f"Current due_on: {current_due_date or '(none)'}")
+            print(
+                f"Open issues: (listing endpoint has not caught up to the move "
+                f"of #{moved_issue})"
+            )
+            print("Proposed due_on: (skipped - post-move listing is stale)")
+            print(
+                f"Status: {STALE_STATUS} - re-run recheck once GitHub's "
+                f"issues-by-milestone listing catches up"
+            )
+            return STALE_EXIT_CODE
+
     sizes, parents = sizes_and_parents_for_issues(issue_numbers)
 
     print(f"Milestone: {title}")
-    print(f"Current due_on: {current_due_date or '—'}")
+    print(f"Current due_on: {current_due_date or '(none)'}")
     print(f"Open issues ({len(issue_numbers)}):")
     remaining = 0.0
     leaf_numbers: list[int] = []
@@ -340,6 +438,11 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--issue", type=int, help="Issue number; recheck its milestone")
     group.add_argument("--milestone", type=int, help="Milestone number")
+    parser.add_argument(
+        "--moved-issue", type=int, default=None,
+        help="Issue just moved via `gh issue edit --milestone`; enables post-move "
+             "eventual-consistency reconciliation of the listing endpoint (Issue #406)",
+    )
     args = parser.parse_args()
 
     if args.issue:
@@ -347,8 +450,8 @@ def main() -> int:
         if ms is None:
             print(f"error: issue #{args.issue} has no milestone", file=sys.stderr)
             return 1
-        return compute_recheck(ms)
-    return compute_recheck(args.milestone)
+        return compute_recheck(ms, moved_issue=args.moved_issue)
+    return compute_recheck(args.milestone, moved_issue=args.moved_issue)
 
 
 if __name__ == "__main__":

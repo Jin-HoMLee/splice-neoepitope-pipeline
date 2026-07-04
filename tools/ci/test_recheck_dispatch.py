@@ -73,6 +73,46 @@ class TestScopeFilter:
         assert out.strip() == ""
 
 
+class TestMovePathThreadsMovedIssue:
+    """The `gh issue edit N --milestone X` move path threads `--moved-issue N`
+    into every recheck it fires, so recheck_milestone.py can reconcile the laggy
+    listing endpoint against a strongly-consistent read post-move (Issue #406).
+
+    Imported in-process and driven through `dispatch()` with the gh-touching
+    internals monkeypatched, so no live auth is needed to prove the wiring.
+    """
+
+    def _import_hook(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("recheck_dispatch_wiring", HOOK)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _stub_common(self, monkeypatch, mod, calls):
+        monkeypatch.setattr(mod, "run_recheck",
+                            lambda *a: calls.append(a) or "Status: [No change]")
+        monkeypatch.setattr(mod, "apply_target_sync", lambda n: None)
+
+    def test_move_with_history_threads_moved_issue_to_each_milestone(self, monkeypatch):
+        mod = self._import_hook()
+        calls = []
+        self._stub_common(monkeypatch, mod, calls)
+        monkeypatch.setattr(mod, "prior_milestones_for_issue", lambda n: [17, 27])
+        mod.dispatch('gh issue edit 381 --milestone "i3 - S4 - Dest"')
+        assert ("--milestone", "17", "--moved-issue", "381") in calls
+        assert ("--milestone", "27", "--moved-issue", "381") in calls
+
+    def test_move_with_empty_history_threads_moved_issue(self, monkeypatch):
+        mod = self._import_hook()
+        calls = []
+        self._stub_common(monkeypatch, mod, calls)
+        monkeypatch.setattr(mod, "prior_milestones_for_issue", lambda n: [])
+        mod.dispatch('gh issue edit 381 --milestone "i3 - S4 - Dest"')
+        assert ("--issue", "381", "--moved-issue", "381") in calls
+
+
 class TestStatusFieldTrigger:
     @REQUIRES_LIVE_GH
     def test_status_mutation_emits_parent_status_block(self):

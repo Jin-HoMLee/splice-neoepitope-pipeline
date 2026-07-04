@@ -143,6 +143,10 @@ _NO_FIRE_SENTINELS = {
     "recheck_milestone": (
         "Status: [No change]",       # no drift OR no remaining capacity
         "has no milestone",          # issue lost its milestone (stderr)
+        # Post-move listing not yet converged (Issue #406). Surfaced to the PM as
+        # context, but it is NOT an actionable capacity drift (a "come back
+        # later" note), so it must not inflate the promotion fire-log.
+        "[stale state, verification pending]",
     ),
     "recheck_parent_status": (
         "Status: [No change]",       # no drift detected on parent chain
@@ -461,16 +465,20 @@ def dispatch(cmd: str) -> list[str]:
                     issue,
                     f"[milestone recheck — move on #{issue} "
                     f"(milestone history empty; rechecking current only)]\n"
-                    f"{run_recheck('--issue', str(issue))}",
+                    f"{run_recheck('--issue', str(issue), '--moved-issue', str(issue))}",
                     outputs,
                 )
             else:
+                # --moved-issue enables post-move eventual-consistency
+                # reconciliation of the laggy listing endpoint (Issue #406):
+                # each source/dest recheck confirms the move propagated before
+                # recomputing capacity, instead of a false [UPDATE NEEDED].
                 for ms in ms_numbers:
                     _wrap_warning(
                         "recheck_milestone",
                         issue,
                         f"[milestone recheck — move on #{issue}, milestone {ms}]\n"
-                        f"{run_recheck('--milestone', str(ms))}",
+                        f"{run_recheck('--milestone', str(ms), '--moved-issue', str(issue))}",
                         outputs,
                     )
     # Target-date auto-sync (Route A, Issue #782): a dedicated finditer loop so
