@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
+
+### 00:29 UTC - Editor: Developer - one-shot sandbox probe + adoption verdict
+
+**Context.** [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941) (`arc:board-governance`, follow-up from the [#824](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/824) native-issue-dependency eval) asked whether the CCR remote sandbox's `gh` is at or above 2.94.0, the floor at which the native `blockedBy` / `blocking` / `parent` / `subIssues` JSON fields exist. `scripts/audit_and_merge.sh` and the morning blocked-graph hygiene check both run cross-env, so a shared script must not adopt native fields unless the sandbox `gh` clears that floor.
+
+**Premise correction.** The Issue framed the sandbox `gh` as "undocumented and unverified", but `docs/remote_routines.md` already recorded 2.65.0 from the 2026-06-03 probe. The real gap was staleness (a month old, and the doc itself says "re-probe if the platform image changes"), not absence. A fresh probe was still warranted (the image could have bumped) but the finding is "confirmed unchanged", not "discovered" - a [[feedback_rule_as_suspect]]-adjacent reminder to verify an Issue's stated premise before mechanizing it.
+
+**Method + result.** Dispatched a one-shot CCR routine (`probe-ccr-gh-version-941`, sonnet-5) that ran `gh --version` in-sandbox and ferried the result out as issue comments (sandbox stdout is unreachable from outside). Result: still **2.65.0**, unchanged since 2026-06-03, below the 2.94.0 floor. So the native fields do not exist in-sandbox; any cross-env script must keep the `is:blocked` search workaround ([#942](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/942)) as the single code path until the platform image bumps `gh`.
+
+**Deliverables.** [PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974): recorded the re-probe date + the below-2.94.0 implication in the `docs/remote_routines.md` env-facts table. Adoption verdict posted on [#824](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/824) (defer native-field adoption; keep one code path). Docs-only; bot review skipped as genuinely trivial (4-line doc change) per the review-offer gate.
+
+**Process note.** First quick win run end-to-end under the newly-standing all-role autonomy cadence (promoted to shared this session). I initially stopped too early - at PR-open, handing the review + lab-notebook back as separate asks - and the user corrected that review-addressed + this entry are *inside* the autonomous zone, with the stop point at just before `gh pr merge`. Memory: `shared/feedback_autonomy_merge_gate_cadence.md`, de-provisionalized from the Dev-only n=1 form.
+
 ## 2026-07-03 - Surface calibrated_immunogenicity_log_odds as a provisional secondary report column ([PR #955](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/955) closes [Issue #906](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/906))
 
 ### 17:10 UTC - Editor: Developer - report-HTML column + Scientist display-semantics sign-off
