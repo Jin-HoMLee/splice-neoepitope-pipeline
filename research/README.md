@@ -31,7 +31,12 @@ research/.venv/bin/python -m ipykernel install --user \
 ```
 This is a machine-local registration (`~/Library/Jupyter/kernels/` on macOS, `~/.local/share/jupyter/kernels/` on Linux for the GPU-revival path), not tracked in git - like the `.venv` itself, each clone runs it once. The kernelspec name is global, so the last clone to run it becomes the canonical execution clone; run it from whichever clone you execute notebooks in. After registration, run notebooks from this venv's jupyter (`research/.venv/bin/jupyter nbconvert --to notebook --execute <nb>`) with no `--ExecutePreprocessor.kernel_name` override needed.
 
-The notebooks read pipeline results directly from GCS (`gs://splice-neoepitope-project/results/<patient_id>/`) via `gsutil` — no local data download needed. Make sure `gsutil` is authenticated (`gcloud auth application-default login`).
+The notebooks read pipeline results from **Cloudflare R2** (`results/<patient_id>/` on the project bucket) via the [`r2_io.py`](notebooks/r2_io.py) helper, which replaced the decommissioned GCS/`gsutil` loader at the GCP exit ([#854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)). Credentials come from the project-root `.env` (gitignored): `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Reads are locally cached (`$R2_CACHE_DIR`, default `~/.cache/splice-neoepitope-r2`) and ETag-validated, so a re-run is cache-backed and offline-tolerant:
+
+```python
+from r2_io import r2_read_tsv_cached
+report = r2_read_tsv_cached("results/patient_001/reports/report.tsv")
+```
 
 ---
 
