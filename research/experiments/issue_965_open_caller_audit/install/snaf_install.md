@@ -17,7 +17,7 @@ Both engines register results under the same internal attribute, so nothing down
 ## Steps (Linux x86_64)
 
 ```bash
-# 1. Env (Linux-x86 lockfile ships in the repo)
+# 1. Env (Linux-x86 lockfile ships in the SNAF upstream repo, frankligy/SNAF)
 conda env create -f snaf_linux_py37_env.yml && conda activate snaf37
 mhcflurry-downloads fetch                      # open MHCflurry models
 

@@ -72,7 +72,7 @@ Mayo Clinic in-house framework (Wickland et al., *J Immunother Cancer* 2024). No
 
 ## Status + what feeds leaf B
 
-- **splice2neo: installed + smoked on arm64 (PASS).** `install/splice2neo_install.R` builds the MIT package + Bioconductor deps + hg19 BSgenome from source on this M1 (see the toolchain gotcha below); `install/splice2neo_smoke.R` on the bundled toy fixtures gives **17/17 junctions -> a context sequence -> 17 junction `peptide_context` neoepitope candidates (5 frame-shift)** - the exact artifact that feeds MHCflurry. Logs + the output slice are in [`outputs/`](outputs/).
+- **splice2neo: installed + smoked on arm64 (PASS).** `install/splice2neo_install.R` builds the MIT package + Bioconductor deps + hg19 BSgenome from source on this M1 (see the toolchain gotcha below); `install/splice2neo_smoke.R` on the bundled toy fixtures gives **17/17 junctions -> a context sequence -> 15 mutated proteins -> 14 junction `peptide_context` neoepitope candidates (5 frame-shift; 3 junctions yield no in-frame peptide)** - the exact artifact that feeds MHCflurry. The committed output slice is [`outputs/splice2neo_smoke_out.tsv`](outputs/splice2neo_smoke_out.tsv); the `INSTALL_OK` / `SMOKE_OK` console logs are gitignored (`*.log`) and kept locally.
 - **ASNEO:** open-only path validated (env built + patch tested) in [#566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566); the caller-proper runs CPU-only on arm64 given a pre-made hg19 `SJ.out.tab`. A local toy-`SJ.out.tab` run + the MHCflurry-scoring notebook are the remaining local proofs (fast follow-up, #566 territory).
 - **SNAF:** open-only GO confirmed; its smoke is deferred to the Linux/free-GPU leaf (no local Docker daemon, no arm64 build).
 - Leaf B (harness) should target the **3 GO callers**, scheduling SNAF's runs on Linux/free-GPU and running splice2neo (+ the ASNEO caller-proper) locally.
@@ -91,4 +91,4 @@ On this box (homebrew R 4.6.0, Bioconductor 3.23), **no CRAN/Bioconductor arm64 
 | `install/splice2neo_smoke.R` | toy-fixture smoke |
 | `install/snaf_install.md` | SNAF Linux/Docker recipe (open-only, MHCflurry flag) |
 | `install/asneo_notes.md` | ASNEO open-only recipe pointer (#566 patch + env) |
-| `outputs/` | install logs + smoke outputs |
+| `outputs/` | committed smoke output slice (`splice2neo_smoke_out.tsv`); build/smoke `*.log` are gitignored, kept locally |

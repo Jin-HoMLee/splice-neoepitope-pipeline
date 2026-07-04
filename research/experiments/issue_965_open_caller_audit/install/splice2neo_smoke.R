@@ -7,6 +7,7 @@
 # API verified against splice2neo 0.6.14:
 #   add_context_seq(df, transcripts, size=400, bsg)  -> adds `cts_seq`
 #   add_peptide(df, cds, flanking_size=14, bsg)      -> adds `protein`, `peptide_context`, `frame_shift`
+# Run from the repo root (the outdir path below is repo-root-relative).
 
 suppressMessages({
   library(splice2neo)
@@ -25,15 +26,19 @@ cat("splice2neo", as.character(packageVersion("splice2neo")),
 stopifnot(exists("toy_junc_df"), exists("toy_transcripts"), exists("toy_cds"))
 cat("toy_junc_df:", nrow(toy_junc_df), "junctions x", ncol(toy_junc_df), "cols\n")
 
+# Count only real, non-empty strings. `nzchar(NA)` returns TRUE by default
+# (keepNA = FALSE), so an NA cell would be miscounted as present - guard with !is.na.
+non_empty <- function(x) sum(!is.na(x) & nzchar(as.character(x)))
+
 # 1) Junction -> transcript context sequence.
 ctx <- add_context_seq(toy_junc_df, transcripts = toy_transcripts, size = 400, bsg = bsg)
-n_ctx <- sum(nzchar(as.character(ctx$cts_seq)))
+n_ctx <- non_empty(ctx$cts_seq)
 cat("[1] add_context_seq ->", nrow(ctx), "rows;", n_ctx, "with a context sequence (cts_seq)\n")
 
 # 2) Context -> mutated CDS -> peptide (the artifact that would feed MHCflurry).
 pep <- add_peptide(ctx, cds = toy_cds, flanking_size = 14, bsg = bsg)
-n_prot <- sum(nzchar(as.character(pep$protein)))
-n_pctx <- sum(nzchar(as.character(pep$peptide_context)))
+n_prot <- non_empty(pep$protein)
+n_pctx <- non_empty(pep$peptide_context)
 cat("[2] add_peptide ->", nrow(pep), "rows;", n_prot, "with a mutated protein;",
     n_pctx, "with a junction peptide_context;", sum(pep$frame_shift, na.rm = TRUE),
     "frame-shift junctions\n")
