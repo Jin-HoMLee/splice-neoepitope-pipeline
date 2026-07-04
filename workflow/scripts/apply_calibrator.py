@@ -4,16 +4,20 @@
 Slots between MHCflurry (`presentation.tsv`, carries `genotype_presentation_score`)
 and TCRdock. Emits two new columns onto the presentation TSV:
 
-  * ``calibrated_immunogenicity_log_odds`` — ``np.interp(score, cx, cy)`` over the
-    serialized centered-isotonic knots in ``calibrator_v1.joblib``. This is a
-    **provisional, SECONDARY** ranking signal: ``genotype_presentation_score`` stays
-    the primary ranker, so this script only ADDS columns and never re-sorts rows.
-    The "provisional" status is discharged by Issue #870 (validate the SNV->splice
-    transfer on measured labels); accuracy for splice stays open at Issue #680.
+  * ``calibrated_immunogenicity_log_odds`` — the centered-isotonic knots in
+    ``calibrator_v1.joblib`` applied via ``interp_monotone_extrapolate`` (in-range
+    interpolation, monotone linear extrapolation out of range; Issue #805). This is
+    a **provisional, SECONDARY** ranking signal: ``genotype_presentation_score``
+    stays the primary ranker, so this script only ADDS columns and never re-sorts
+    rows. The "provisional" status is discharged by Issue #870 (validate the
+    SNV->splice transfer on measured labels); accuracy for splice stays open at
+    Issue #680.
   * ``out_of_calibration_support`` (bool) — True where the score is outside the
-    interpolation support ``[cx[0], cx[-1]]`` (both the floor-clip and ceil-clip),
-    where ``np.interp`` returns a flat constant rather than a fitted gradient. NaN
-    scores are also flagged (a missing score cannot be certified in-support).
+    interpolation support ``[cx[0], cx[-1]]``. Out-of-support scores are now
+    extrapolated (ordered) rather than clipped-flat (Issue #805), but they are
+    still flagged here, so the value is ranking-usable while remaining marked as not
+    calibration-accurate. NaN scores are also flagged (a missing score cannot be
+    certified in-support).
 
 The support thresholds are read FROM the artifact (``cx[0]`` / ``cx[-1]``), never
 hard-coded, so a future calibrator refit cannot silently desync the flag from the
@@ -46,6 +50,38 @@ DEFAULT_SCORE_COL = "genotype_presentation_score"
 KNOWN_CALIBRATOR_VERSIONS = {"v1"}
 
 
+def interp_monotone_extrapolate(scores, cx, cy) -> np.ndarray:
+    """``np.interp`` but with monotone linear extrapolation beyond ``[cx[0], cx[-1]]``.
+
+    ``np.interp`` clips every out-of-range score to the nearest endpoint value, so
+    all scores past a knot collapse to one log-odds - ties that shed ranking
+    resolution exactly at the top of the candidate list, where neoepitope ranking
+    matters most (Issue #805, empirically: calibrated AUPRC fell *below* raw). Here
+    each out-of-range score is instead extrapolated off the terminal knot segment's
+    slope, so a strictly higher score always maps to a strictly higher log-odds
+    (unless that terminal segment is flat). The extrapolated value is NOT
+    calibration-accurate out of support - it exists only to preserve ordering; the
+    ``out_of_support`` flag (unchanged) is what marks it untrustworthy as a
+    probability. NaN in -> NaN out. Falls back to plain ``np.interp`` with < 2 knots
+    (no segment to take a slope from).
+
+    Keep in sync with ``PresentationCalibrator.transform`` in
+    ``research/experiments/issue_547_immunogenicity_calibration/calibrator.py`` -
+    the two are deliberately decoupled (no research-dir import here) but must apply
+    the same map so the offline eval matches production.
+    """
+    scores = np.atleast_1d(np.asarray(scores, dtype=float))
+    cx = np.asarray(cx, dtype=float)
+    cy = np.asarray(cy, dtype=float)
+    out = np.interp(scores, cx, cy)  # correct in-range; clipped out-of-range; nan->nan
+    if cx.size >= 2:
+        left_slope = (cy[1] - cy[0]) / (cx[1] - cx[0])
+        right_slope = (cy[-1] - cy[-2]) / (cx[-1] - cx[-2])
+        out = np.where(scores < cx[0], cy[0] + (scores - cx[0]) * left_slope, out)
+        out = np.where(scores > cx[-1], cy[-1] + (scores - cx[-1]) * right_slope, out)
+    return out
+
+
 def calibrate(scores, cx, cy) -> Tuple[np.ndarray, np.ndarray]:
     """Apply the centered-isotonic calibrator knots to an array of scores.
 
@@ -54,17 +90,21 @@ def calibrate(scores, cx, cy) -> Tuple[np.ndarray, np.ndarray]:
         cx, cy: calibrator knot x/y arrays (``cx`` strictly increasing).
 
     Returns:
-        ``(log_odds, out_of_support)`` — ``log_odds`` is ``np.interp(scores, cx, cy)``
-        (flat-clipped outside ``[cx[0], cx[-1]]``, NaN preserved); ``out_of_support``
-        is a boolean array, True outside ``[cx[0], cx[-1]]`` or where the score is NaN.
+        ``(log_odds, out_of_support)`` — ``log_odds`` is
+        ``interp_monotone_extrapolate(scores, cx, cy)`` (linearly extrapolated
+        outside ``[cx[0], cx[-1]]`` so ordering is preserved, NaN preserved);
+        ``out_of_support`` is a boolean array, True outside ``[cx[0], cx[-1]]`` or
+        where the score is NaN. Extrapolation changes only the out-of-range
+        *value* (ordered instead of clipped-flat); the support flag is unchanged,
+        so the #826 applicability gate behaves identically.
     """
     scores = np.asarray(scores, dtype=float)
     cx = np.asarray(cx, dtype=float)
     cy = np.asarray(cy, dtype=float)
 
-    log_odds = np.interp(scores, cx, cy)  # np.interp(nan) -> nan; clips to endpoints
+    log_odds = interp_monotone_extrapolate(scores, cx, cy)
     nan_mask = np.isnan(scores)
-    # np.interp already returns nan for nan input, but be explicit (defensive).
+    # interp_monotone_extrapolate preserves nan, but be explicit (defensive).
     log_odds = np.where(nan_mask, np.nan, log_odds)
     out_of_support = (scores < cx[0]) | (scores > cx[-1]) | nan_mask
     return log_odds, out_of_support

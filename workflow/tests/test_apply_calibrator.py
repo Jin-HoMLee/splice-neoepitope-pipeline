@@ -40,16 +40,65 @@ def test_calibrate_in_support_interpolates():
     assert not oos[0] and not oos[1]
 
 
-def test_calibrate_floor_clip_is_flat_and_flagged():
+def test_calibrate_floor_extrapolates_and_is_flagged():
+    # Issue #805: below cx[0] extrapolates off the first segment slope
+    # (= (cy[1]-cy[0])/(cx[1]-cx[0]) = 10.0), not clipped flat at cy[0].
     log_odds, oos = calibrate([0.05], _CX, _CY)
-    assert log_odds[0] == pytest.approx(-5.0)  # flat at cy[0]
-    assert bool(oos[0]) is True
+    assert log_odds[0] == pytest.approx(-5.0 + (0.05 - 0.1) * 10.0)  # -5.5
+    assert bool(oos[0]) is True  # still flagged out of support
 
 
-def test_calibrate_ceil_clip_is_flat_and_flagged():
+def test_calibrate_ceil_extrapolates_and_is_flagged():
+    # Above cx[-1] extrapolates off the last segment slope
+    # (= (cy[-1]-cy[-2])/(cx[-1]-cx[-2]) = 2.5), not clipped flat at cy[-1].
     log_odds, oos = calibrate([0.95], _CX, _CY)
-    assert log_odds[0] == pytest.approx(0.0)  # flat at cy[-1]
+    assert log_odds[0] == pytest.approx(0.0 + (0.95 - 0.9) * 2.5)  # 0.125
     assert bool(oos[0]) is True
+
+
+def test_calibrate_extrapolation_preserves_order_and_breaks_ties():
+    # The whole point of #805: two distinct out-of-range scores must map to two
+    # distinct, correctly-ordered log-odds (np.interp clipping tied them).
+    log_odds, oos = calibrate([0.02, 0.05, 0.95, 1.00], _CX, _CY)
+    below_lo, below_hi, above_lo, above_hi = log_odds
+    assert below_lo < below_hi          # ordered below the floor (no tie)
+    assert above_lo < above_hi          # ordered above the ceiling (no tie)
+    assert below_hi < above_lo          # global monotonicity across the range
+    assert len(set(log_odds)) == 4      # all distinct - clipping would give ties
+    assert all(bool(f) for f in oos)    # all four still flagged out of support
+
+
+def test_extrapolation_helper_copies_do_not_drift():
+    """Issue #805: interp_monotone_extrapolate (production, apply_calibrator.py) and
+    _interp_monotone_extrapolate (research, calibrator.py) are intentionally
+    duplicated - production takes no research-dir import. Guard against silent
+    divergence by comparing their source bodies (name- and docstring-agnostic, via
+    AST): an edit to one that isn't mirrored fails here. Stdlib-only, so it runs in
+    the production venv without the research deps (scipy/sklearn)."""
+    import ast
+    from pathlib import Path
+
+    def _body_dump(rel_path, fname):
+        src = (Path(__file__).resolve().parents[2] / rel_path).read_text()
+        fn = next(
+            n for n in ast.walk(ast.parse(src))
+            if isinstance(n, ast.FunctionDef) and n.name == fname
+        )
+        body = fn.body
+        # drop a leading docstring (the two copies document each other differently)
+        if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+            body = body[1:]
+        return "\n".join(ast.dump(s) for s in body)
+
+    prod = _body_dump("workflow/scripts/apply_calibrator.py", "interp_monotone_extrapolate")
+    research = _body_dump(
+        "research/experiments/issue_547_immunogenicity_calibration/calibrator.py",
+        "_interp_monotone_extrapolate",
+    )
+    assert prod == research, (
+        "interp_monotone_extrapolate copies have drifted - keep the production and "
+        "research helpers byte-identical (only their docstrings may differ)."
+    )
 
 
 def test_calibrate_boundary_is_in_support():
@@ -95,8 +144,10 @@ def test_apply_calibrator_adds_two_columns(synthetic_calibrator, presentation_ts
     res = pd.read_csv(out, sep="\t")
     assert "calibrated_immunogenicity_log_odds" in res.columns
     assert "out_of_calibration_support" in res.columns
-    # values: 0.5->-1.0 (in), 0.05->-5.0 (floor, oos), 0.95->0.0 (ceil, oos)
-    assert res["calibrated_immunogenicity_log_odds"].tolist() == pytest.approx([-1.0, -5.0, 0.0])
+    # values: 0.5->-1.0 (in); 0.05->-5.5 (floor, extrapolated off slope 10.0, oos);
+    # 0.95->0.125 (ceil, extrapolated off slope 2.5, oos). Out-of-support flags
+    # unchanged by the #805 extrapolation - only the out-of-range *values* differ.
+    assert res["calibrated_immunogenicity_log_odds"].tolist() == pytest.approx([-1.0, -5.5, 0.125])
     assert res["out_of_calibration_support"].tolist() == [False, True, True]
 
 
