@@ -138,6 +138,7 @@ These 13 form the Tier-2 decoy-negative seed ([`decoy_negatives/presented_decoys
 - **Lin 2025** (HCC, bioRxiv) - neoTSTs are 96.6% splicing-derived, but human evidence is MS + prediction; functional assays only in mice (mixed vaccine, no sequences) → **#681**.
 - **Bathini/MHC1-TIP 2026** (Comm Biol) - immunopeptidomics *methods* paper; **no splice peptides and no functional assay** → out of scope (not even a #681 splice feeder).
 - **Zhao 2025** (HCC AS-vaccine, *Cell Research*) - **gate-1 + gate-2 PASS**: human per-peptide ELISpot / tetramer / 4-1BB on HCC patient TILs (A\*02:01 / A\*11:01 / A\*24:02), splice (AS) source. **Registry-eligible but sequence-blocked** - exact peptides are referenced only by internal ID (pA02-28, pA11-10, …) in the 19 local supplements; amino-acid strings live in the main paper / a peptide table not in our Zotero set. Folding deferred to a sequence-retrieval pass (do **not** translate junction coords - that would be inference).
+- **TEtrans / Li 2025** (gastric TE-derived transcripts, bioRxiv) - **gate-1 + gate-2 PASS** at transcript level (A\*02:01-restricted CD8+ killing + IFN-gamma; T4180/LTR30 MS-presented in STAD) but the 387 candidate neopeptides are **count-only, no sequence at source** (no supplement table, no data deposit). Documented as a transcript/antigen-level exon-TE source in [`PROVENANCE.md`](PROVENANCE.md); **no `registry.tsv` rows** ([#832](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/832)).
 
 ## How it was curated (provenance)
 

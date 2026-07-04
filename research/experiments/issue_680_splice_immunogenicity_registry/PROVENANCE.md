@@ -107,6 +107,13 @@ PMID 37756564; DOI 10.1158/2326-6066.cir-23-0083; Zotero `6P5JCCIB` (supp figure
 
 - **`MADAGAMAA`** & **`RQVGEGCRT`** / SEPTIN6, **`KNILNGSRA`** / AMZ2P1 (archaemetzincin-2 *pseudogene 1*), **`RGAGLGRAL`** / MZT2B — alt-splicing neojunctions; gene + neojunction-ORF context from **supp Table 13** ("Sequence information for SEPTIN6, AMZ2P1 and MZT2B"; the long ORFs `MADAGAMAATDIARQVGEGCRT` / `…SVKNILNGSRATVKHISIA` / `…CPRGAGLGRALHGAAPRMGQRL`). Gate-1 confirmed. **No per-peptide HLA published** (IEDB = `human`; IFN-γ ELISPOT on bulk PBMC) → no allele key → non-scorable (retained for the validation base). `RGAGLGRAL` and `RQVGEGCRT` are IEDB mixed Negative/Positive(-Low).
 
+## TEtrans / Li et al. 2025 - transposable-element-derived transcript neoantigens, gastric cancer (#832, transcript-level source; no peptide in source)
+bioRxiv 2025.03.01.640928; Zotero `IJ55K4WH` (full 55-page PDF read 2026-06-22). Surfaced via the splice-immunogenicity standing watch. **Gate-1 (exon-TE / TE-junction source) and gate-2 (human functional T-cell) both pass, but no peptide sequence is resolvable at source -> no rows folded.** Represented here as a transcript/antigen-level exon-TE source annotation only.
+
+- **Passes at transcript/antigen level:** T4180 (LTR30) and T2432 TEtrans transcripts elicit **HLA-A\*02:01-restricted CD8+ killing + IFN-gamma**; T4180 is **MS-presented in gastric (STAD) tumor tissue** (STAD = our chr22 test tumor type); validated in 2 gastric-cancer patients plus an in vivo mRNA-vaccine model.
+- **Fails the peptide gate (why no row):** all functional validation is **transcript-level** (mRNA transfection / K562-expressing-TEtrans), never minimal-peptide pulsing. The 387 candidate neopeptides are reported **count-only** (Fig 6A funnel) - **no sequence table** in the embedded supplement, **no data deposit** (Data Availability lists only the ASJA tool repo). A peptide-keyed `registry.tsv` row is not constructable without fabricating a sequence, so none was added (no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 6). Comparable to the Zhao 2025 (sequence-blocked) and long-read UM (functional-nonscorable) entries above.
+- Zotero note `NIGQEC6J` "vs our pipeline" line was refreshed at filing (2026-06-22) to reflect transcript-level-only / no peptide in source (previously stale: "row needs minimal-epitope check").
+
 ---
 
 ## Junction mapping grades (#735)
