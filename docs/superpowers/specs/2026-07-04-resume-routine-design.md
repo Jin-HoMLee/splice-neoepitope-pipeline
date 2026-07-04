@@ -67,6 +67,8 @@ Board detail beyond the two-to-three line glance is provided only on request - t
 
 The resume routine does **not** run any of these - they remain once-daily in the morning routine:
 
+The Daily Stand-up (named in section 2 as the only canonically per-session cadence) is deliberately absent from this list, and that is not an omission: the five-item pass above - specifically the what-changed glance, the `/coordination` scan, and the next-pull - *is* the compact per-session analog of the Stand-up. Only the heavier once-daily cadences below stay in the morning routine.
+
 - Service Delivery Review (closure audit, milestone health, roadmap-overdue sweep, flow-health aging sweep).
 - Replenishment (intake triage `No Status -> Backlog`; commitment `Backlog -> Ready`).
 - Signals (external / methodology scan).
@@ -76,7 +78,7 @@ If any of these genuinely need attention mid-day, they are pulled deliberately (
 
 ### 3.5 Relationship to the morning routine
 
-The two routines are siblings that share the same Step -1 spine (memory check + field recall).
+The two routines are siblings that share the same Step -1 spine (memory check + field recall - authoritatively defined in `shared/MEMORY.md` under "Always run at every fresh session start"; other spec docs that paraphrase that spine more loosely defer to the memory definition).
 The morning routine is the daily-cadence ceremony; the resume routine is the per-session re-orientation.
 Both are memory-defined and greeting-triggered - consistent with how the morning routine is already delivered (no skill/command; the definition lives in memory and the agent executes it on the greeting).
 
@@ -108,13 +110,13 @@ No scripts, hooks, or new state files are introduced. The routine reuses existin
 
 - Dry-run the greeting classification against the trigger table (each row maps to the intended routine).
 - Confirm the resume routine renders as one compact message with items 1-5 and no morning-cadence beats.
-- Confirm the morning routine is unchanged (a *"good morning"* still runs all five/six beats).
+- Confirm the morning routine is unchanged (a *"good morning"* still runs all its cadence beats, which are day- and role-driven, not a fixed count).
 - Confirm items 1-2 are not double-run when the spine already executed them in the same session start.
 
 ## 7. Follow-ups / rollout
 
-- File a `role:pm` Issue (process/flow work, commits milestone-free) tracking the wiring.
-- Spec doc PR (project repo) is not standalone - it closes its tracking Issue or ships with the implementation.
+- Tracking filed: parent Issue #1026 (process/flow work, milestone-free) covers the wiring + verify; spec sub-issue #1027 carries this doc and is closed by its PR.
+- Spec doc PR (project repo) is not standalone - it closes the spec sub-issue #1027; the parent #1026 stays open until the memory wiring lands.
 - Memory wiring (section 4 items 1-3) is committed by the Memory Manager on the personas repo.
 - The wiring is shared-only (`shared/feedback_resume_routine.md` + `shared/MEMORY.md`); no per-role `MEMORY.md` edits, so no other-role dirs are touched.
 
