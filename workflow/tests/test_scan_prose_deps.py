@@ -3,6 +3,7 @@
 Parse layer is pure and gets the bulk of coverage; reconcile/act monkeypatch the
 gh-backed helpers so nothing touches the network.
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -181,6 +182,113 @@ def test_classify_self_ref():
     # The defensive self-ref arm (unreachable via reconcile, but present in classify).
     r = spd.classify(745, 745, blocker_meta={"state": "open", "is_pr": False}, existing=set())
     assert r == "self-ref"
+
+
+# --- native_blockers lookup-failure resilience (Issue #989) ---
+# A transient gh failure (5xx / network blip) or a GraphQL errors payload on ONE
+# per-issue blockedBy lookup must NOT abort the whole board scan. The failing
+# issue is skipped and surfaced in the report, never silently read as "no blockers".
+
+def test_native_blockers_returns_empty_when_no_blockers(monkeypatch):
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": {"blockedBy": {"nodes": []}}}}})
+    assert spd.native_blockers(745) == set()
+
+
+def test_native_blockers_parses_nodes(monkeypatch):
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": {"blockedBy": {"nodes": [{"number": 707}, {"number": 708}]}}}}})
+    assert spd.native_blockers(709) == {707, 708}
+
+
+def test_native_blockers_raises_on_gh_call_failure(monkeypatch):
+    def boom(*a, **k):
+        raise subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 503")
+    monkeypatch.setattr(spd, "gh", boom)
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_native_blockers_raises_on_graphql_errors_payload(monkeypatch):
+    # gh can exit 0 with a partial/errored response: top-level `errors` + no issue node.
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": {"repository": {"issue": None}}, "errors": [{"message": "boom"}]})
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_native_blockers_raises_on_null_data_top_level_error(monkeypatch):
+    # Canonical GraphQL top-level error: `data` is null (key present, value None)
+    # alongside `errors`. `.get("data", {})` returns None here, so the issue-node
+    # access must not assume a dict - it must raise BlockerLookupError, not AttributeError.
+    monkeypatch.setattr(spd, "gh",
+                        lambda *a, **k: {"data": None, "errors": [{"message": "boom"}]})
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_native_blockers_raises_on_non_json_stdout(monkeypatch):
+    # gh can exit 0 with empty / non-JSON stdout, which gh() surfaces as a
+    # json.JSONDecodeError (a ValueError, not CalledProcessError) - still an
+    # incomplete lookup, so it must degrade to BlockerLookupError, not abort.
+    import json as _json
+
+    def bad(*a, **k):
+        raise _json.JSONDecodeError("Expecting value", "", 0)
+    monkeypatch.setattr(spd, "gh", bad)
+    with pytest.raises(spd.BlockerLookupError):
+        spd.native_blockers(745)
+
+
+def test_native_blockers_trusts_partial_response_with_issue_node(monkeypatch):
+    # The intentional asymmetry: `errors` present BUT the issue node still came
+    # back -> trust it and parse the nodes (do NOT raise). Locks that decision.
+    monkeypatch.setattr(spd, "gh", lambda *a, **k: {
+        "data": {"repository": {"issue": {"blockedBy": {"nodes": [{"number": 707}]}}}},
+        "errors": [{"message": "a non-fatal field-level error"}],
+    })
+    assert spd.native_blockers(709) == {707}
+
+
+def test_reconcile_caches_edges_lookup_failure(monkeypatch):
+    # A failing dependent shared by multiple pairs is looked up ONCE (the failure
+    # is cached), yet every pair is still surfaced as its own row.
+    calls = {"n": 0}
+
+    def edges(n):
+        calls["n"] += 1
+        raise spd.BlockerLookupError("flaky")
+    monkeypatch.setattr(spd, "native_blockers", edges)
+    monkeypatch.setattr(spd, "issue_meta", lambda n: {"state": "open", "is_pr": False})
+
+    records = spd.reconcile([(745, 722), (745, 211)])  # same failing dependent, two blockers
+    assert calls["n"] == 1  # one lookup, not one-per-pair
+    assert len(records) == 2
+    assert all(r["action"] == "edges-lookup-failed" for r in records)
+
+
+def test_reconcile_skips_failing_issue_and_continues(monkeypatch, capsys):
+    # #745's edge lookup fails; #594's succeeds. Scan must complete, surfacing the
+    # failure as its own action rather than misclassifying #745 as needs-wiring.
+    monkeypatch.setattr(spd, "issue_meta", lambda n: {"state": "open", "is_pr": False})
+
+    def edges(n):
+        if n == 745:
+            raise spd.BlockerLookupError("simulated flaky lookup")
+        return set()
+    monkeypatch.setattr(spd, "native_blockers", edges)
+
+    records = spd.reconcile([(745, 722), (594, 211)])
+    by = {r["dependent"]: r["action"] for r in records}
+    assert by[745] == "edges-lookup-failed"
+    assert by[594] == "needs-wiring"
+    assert "745" in capsys.readouterr().err  # warned to stderr, not silent
+
+
+def test_render_report_surfaces_edges_lookup_failed():
+    recs = [{"dependent": 745, "blocker": 722, "state": "?", "action": "edges-lookup-failed"}]
+    out = spd.render_report(recs)
+    assert "745" in out and "edges-lookup-failed" in out
 
 
 def test_main_apply_only_subsets_by_dependent(monkeypatch, capsys):
