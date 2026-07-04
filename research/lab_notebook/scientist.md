@@ -10,6 +10,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #990](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/990) - repair the stale `splice-neoepitope-research` Jupyter kernelspec. Closes [Issue #923](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/923).
+
+**What was broken.** The globally-registered `splice-neoepitope-research` kernelspec pointed at a `Documents/GitHub/...` clone that stopped existing at the 2026-05-14 separate-clone migration, so `jupyter nbconvert --execute` on any research notebook failed at kernel launch (worked around in #914 with a throwaway temp kernel). Confirmed live: `argv[0]` in `~/Library/Jupyter/kernels/splice-neoepitope-research/kernel.json` resolved to a non-existent path.
+
+**Fix (the issue's option 1).** Re-register from the active clone (`research/.venv/bin/python -m ipykernel install --user --name splice-neoepitope-research ...`) - a machine-local action, so the only tracked change is a per-clone registration note added to `research/README.md` beside the existing venv-setup step.
+
+**Verification.** (AC1) re-registered `argv[0]` resolves to `research/.venv/bin/python`; (AC2) the self-contained `issue_737_sparsity` notebook runs end-to-end via `nbconvert --execute` with **no `--kernel_name` override** and 0 error outputs; the repaired named kernel also launches directly (probe prints the venv python + pandas 3.0.3).
+
+**Findings surfaced for follow-up.** The `python3` kernelspec is not "bare" when jupyter is invoked from the venv - it resolves to `research/.venv/share/jupyter/kernels/python3` (the venv's own), so headless runs "just work" from `research/.venv/bin/jupyter`. Bot review (LGTM) flagged two out-of-scope staleness items, both filed rather than folded in: the Linux `--user` path note (applied inline), and the adjacent stale GCS notebook-data line → [#995](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/995) (GCS→R2 correction).
+
 #### [PR #987](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/987) - monotone extrapolation instead of endpoint-clipping in the calibrator. Closes [Issue #805](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/805).
 
 **The bug and the fix.**
