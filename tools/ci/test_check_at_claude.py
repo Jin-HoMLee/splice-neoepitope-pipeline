@@ -123,9 +123,10 @@ class TestDenyMessageGuidance:
         assert "@-claude" in reason
 
     def test_reason_names_guarded_edit_subcommand(self):
-        # the guard covers `edit` too; the message should not undersell its scope
+        # the guard covers `edit` too; assert the actual scope token, not a bare
+        # "edit" substring (which would also match "edited"/"credit")
         _, out, _ = _run(_payload(self.STRAY))
-        assert "edit" in _deny_reason(out)
+        assert "(comment|create|edit)" in _deny_reason(out)
 
 
 class TestFailOpen:
