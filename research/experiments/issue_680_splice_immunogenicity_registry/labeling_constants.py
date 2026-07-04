@@ -28,6 +28,23 @@ ASSAY_CONTEXTS = {
     "na",                 # not applicable (constitutive control / non-tested sequence)
 }
 
+# Controlled vocabulary for the #1001 venue_type column. Records the publication
+# venue class of each row's source so peer-reviewed evidence is queryable and
+# auditable at a glance (GRADE / systematic-review practice down-weights
+# non-peer-reviewed sources). Assigned source-keyed from the curated venue audit
+# in PROVENANCE.md. `db_recovered` is reserved for a row recovered from a public
+# deposit (IEDB / CEDAR) whose underlying publication venue is ambiguous - none
+# exist today. There is deliberately NO in-vocabulary "unknown": a source not in
+# the venue map derives to the out-of-vocab sentinel `unclassified`, which the
+# validator rejects, so a newly-folded source cannot slip in venue-unmarked
+# (esp. a preprint). See derive_venue_type.py for the rule.
+VENUE_TYPES = {
+    "journal",       # peer-reviewed journal article
+    "preprint",      # preprint server (bioRxiv / medRxiv / arXiv), not yet peer-reviewed
+    "db_recovered",  # recovered from a public deposit (IEDB/CEDAR); underlying venue ambiguous
+}
+VENUE_UNCLASSIFIED = "unclassified"  # out-of-vocab sentinel: forces classification of a new source
+
 # Effector vs detection-only keyword sets (the positive evidence_strength rule):
 # a positive readout naming any EFFECTOR term is `strong`; one with only a
 # DETECTION term is `weak`. Mass-spec (`MS`) is presentation, not T-cell

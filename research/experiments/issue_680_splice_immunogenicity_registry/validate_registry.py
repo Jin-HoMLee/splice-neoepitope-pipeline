@@ -8,13 +8,14 @@ import sys
 import pandas as pd
 from pathlib import Path
 
-from labeling_constants import GRADES, STRENGTHS, ASSAY_CONTEXTS, EFFECTOR, DETECTION, IVS_MARKER
+from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, EFFECTOR,
+                                DETECTION, IVS_MARKER)
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
 
 REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade",
-                     "assay_context"]
+                     "assay_context", "venue_type"]
 
 
 def violations(df: pd.DataFrame) -> list[str]:
@@ -79,6 +80,12 @@ def violations(df: pd.DataFrame) -> list[str]:
         # na is exactly the negative-control-not-splice tier (mirror of the above)
         if (ac == "na") != (r["tier"] == "negative-control-not-splice"):
             out.append(f"{rid}: na assay_context must match the negative-control-not-splice tier")
+        # venue_type (#1001): controlled vocabulary. The out-of-vocab sentinel
+        # 'unclassified' fails here, so a source absent from the venue map cannot
+        # be folded venue-unmarked (esp. a preprint).
+        if r["venue_type"] not in VENUE_TYPES:
+            out.append(f"{rid}: bad venue_type {r['venue_type']!r} "
+                       f"(source not classified in derive_venue_type.py)")
     return out
 
 
@@ -117,6 +124,17 @@ def main() -> int:
             print("  -", line, file=sys.stderr)
         return 1
     print(f"PASS: {len(df)} rows valid against the labeling scheme.")
+
+    # venue_type (#1001) advisory summary: surface the preprint-row count so a
+    # non-peer-reviewed source in the ground-truth set is visible at a glance.
+    # A preprint row is legitimate (it just must be marked), so this reports, it
+    # does not reject.
+    venue_counts = df["venue_type"].value_counts()
+    n_preprint = int(venue_counts.get("preprint", 0))
+    print("venue_type: " + ", ".join(f"{v}={int(n)}" for v, n in venue_counts.items()))
+    if n_preprint:
+        print(f"ADVISORY: {n_preprint} preprint-sourced row(s) in the set "
+              f"(non-peer-reviewed; consider down-weighting in sensitivity analysis).")
 
     DECOY = HERE / "decoy_negatives" / "presented_decoys_681.tsv"
     dv = decoy_violations(DECOY)
