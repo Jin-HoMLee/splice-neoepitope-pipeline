@@ -76,9 +76,9 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 **GBM** - Glioblastoma (Multiforme). WHO grade 4 astrocytoma; most aggressive primary adult brain tumor (~15-mo median OS post standard-of-care surgery + radiation + temozolomide). MGMT-unmethylated subset has the worst prognosis (resistant to temozolomide); subject of the GNOS-PV01 personalized DNA vaccine Phase 1 ([Garfinkle et al. 2026](https://www.nature.com/articles/s43018-026-01163-w)). *Domain: bio.*
 
-**GCP** - Google Cloud Platform. The cloud provider hosting this pipeline's VMs and storage bucket (zone `europe-west4-a`). *Domain: cloud.*
+**GCP** - Google Cloud Platform. Formerly hosted this pipeline's VMs and storage bucket (zone `europe-west4-a`); the GCP stack was decommissioned 2026-06-26 ([Issue #854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)) to stop charges before the free-trial lapse. Current compute is a local CPU-only core; the funded revival path targets a paid GPU provider (RunPod, see `docs/migration_runbook.md`). *Domain: cloud.*
 
-**GCS** - Google Cloud Storage. GCP's object store; pipeline results, logs, and reference data live in `gs://splice-neoepitope-project`. *Domain: cloud.*
+**GCS** - Google Cloud Storage. GCP's object store; formerly held this pipeline's results, logs, and reference data in `gs://splice-neoepitope-project`. Decommissioned with the GCP stack 2026-06-26 ([Issue #854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)) after project data was preserved on Cloudflare R2 - see **[R2](#r)**. *Domain: cloud.*
 
 **GKE** - Google Kubernetes Engine. Managed Kubernetes on GCP. *Domain: cloud.*
 
@@ -188,9 +188,13 @@ Project-relevant abbreviations and acronyms. The pipeline mixes biology, ML, bio
 
 ## R
 
+**R2** - Cloudflare R2. S3-compatible object store; the current home for this pipeline's results, logs, and reference data after the GCP/**[GCS](#g)** decommission (2026-06-26, [Issue #854](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/854)). Accessed via the s3v4 API with `region=auto`. *Domain: cloud.*
+
 **RCE** - Remote Code Execution. Vulnerability class where an attacker runs arbitrary code on a remote system, typically via input-validation or memory-safety bugs (e.g. CVE-2026-3854's crafted git push trigger). *Domain: security.*
 
 **RMSD** - Root Mean Square Deviation. Average distance (in Å) between corresponding atoms after optimal superposition; the standard structural-similarity metric. Variants used in DockQ: backbone-only, all-atom, interface-only (iRMSD), ligand-only (LRMSD). *Domain: bio.*
+
+**RunPod** - GPU cloud provider (per-second billing on L4 / Ada-class GPUs). The forward paid-provider target for reviving GPU workloads (TCRdock structural validation, GPU MHCflurry) post-GCP; migration plan in `docs/migration_runbook.md`. *Domain: cloud.*
 
 ## S
 
