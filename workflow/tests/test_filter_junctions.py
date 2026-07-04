@@ -5,7 +5,7 @@ import pytest
 
 from filter_junctions import (
     _build_cds_donor_lookup,
-    _build_normal_junction_set,
+    _build_normal_junction_sources,
     _load_reference_junctions,
     _parse_junction_id,
     _read_junction_file,
@@ -119,10 +119,10 @@ class TestLoadReferenceJunctions:
 
 
 # ---------------------------------------------------------------------------
-# _build_normal_junction_set
+# _build_normal_junction_sources
 # ---------------------------------------------------------------------------
 
-class TestBuildNormalJunctionSet:
+class TestBuildNormalJunctionSources:
     def _write_junction_file(self, path, rows):
         """Write a junction TSV: junction_id<TAB>reads."""
         path.write_text("".join(f"{jid}\t{reads}\n" for jid, reads in rows))
@@ -131,26 +131,39 @@ class TestBuildNormalJunctionSet:
         f = tmp_path / "normal.tsv"
         self._write_junction_file(f, [("chr22:101:200:+", 5)])
         ref = frozenset()
-        result = _build_normal_junction_set([(f, "normal")], ref, min_reads=2)
+        result = _build_normal_junction_sources([(f, "normal", "Solid Tissue Normal")], ref, min_reads=2)
         assert ("chr22", 100, 200, "+") in result
+        # provenance: the sample_type that contained it is recorded
+        assert result[("chr22", 100, 200, "+")] == {"Solid Tissue Normal"}
 
     def test_excludes_junctions_below_min_reads(self, tmp_path):
         f = tmp_path / "normal.tsv"
         self._write_junction_file(f, [("chr22:101:200:+", 1)])
         ref = frozenset()
-        result = _build_normal_junction_set([(f, "normal")], ref, min_reads=2)
+        result = _build_normal_junction_sources([(f, "normal", "Solid Tissue Normal")], ref, min_reads=2)
         assert ("chr22", 100, 200, "+") not in result
 
     def test_excludes_reference_junctions(self, tmp_path):
         f = tmp_path / "normal.tsv"
         self._write_junction_file(f, [("chr22:101:200:+", 5)])
         ref = frozenset({("chr22", 100, 200, "+")})
-        result = _build_normal_junction_set([(f, "normal")], ref, min_reads=2)
+        result = _build_normal_junction_sources([(f, "normal", "Solid Tissue Normal")], ref, min_reads=2)
         assert len(result) == 0
 
-    def test_empty_normal_files_returns_empty_set(self):
-        result = _build_normal_junction_set([], frozenset(), min_reads=2)
+    def test_empty_normal_files_returns_empty(self):
+        result = _build_normal_junction_sources([], frozenset(), min_reads=2)
         assert len(result) == 0
+
+    def test_junction_in_two_normal_types_records_both(self, tmp_path):
+        solid = tmp_path / "solid.tsv"
+        blood = tmp_path / "blood.tsv"
+        self._write_junction_file(solid, [("chr22:101:200:+", 5)])
+        self._write_junction_file(blood, [("chr22:101:200:+", 4)])
+        result = _build_normal_junction_sources(
+            [(solid, "n1", "Solid Tissue Normal"), (blood, "n2", "Blood Derived Normal")],
+            frozenset(), min_reads=2,
+        )
+        assert result[("chr22", 100, 200, "+")] == {"Solid Tissue Normal", "Blood Derived Normal"}
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +375,8 @@ class TestClassifyJunctions:
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
         assert df.iloc[0]["junction_origin"] == "tumor_exclusive"
+        # Issue #940: normal_source is empty for non-normal_shared rows.
+        assert pd.isna(df.iloc[0]["normal_source"]) or df.iloc[0]["normal_source"] == ""
 
     def test_normal_shared_labeled_correctly(self, tmp_path):
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
@@ -396,6 +411,61 @@ class TestClassifyJunctions:
         df = pd.read_csv(output, sep="\t")
         assert len(df) == 1
         assert df.iloc[0]["junction_origin"] == "normal_shared"
+        # Issue #940: the exclusion carries its provenance.
+        assert df.iloc[0]["normal_source"] == "Solid Tissue Normal"
+
+    def test_blood_derived_normal_is_used_and_labeled(self, tmp_path):
+        """Issue #940: a Blood Derived Normal still subtracts (conservative
+        self-antigen filter), and the resulting normal_shared row is labeled with
+        that source so it is distinguishable from a solid-tissue exclusion."""
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        solid_f = tmp_path / "solid" / "raw_junctions.tsv"
+        blood_f = tmp_path / "blood" / "raw_junctions.tsv"
+        for f in (tumor_f, solid_f, blood_f):
+            f.parent.mkdir()
+
+        # Two tumor junctions clear the mean filter: one shared with blood only,
+        # one shared with solid only. Plus a noise junction below the mean.
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 100),   # shared with blood
+            ("chr22:601:700:+", 100),   # shared with solid
+            ("chr22:401:500:+", 1),     # noise, filtered out
+        ])
+        self._write_junction_file(solid_f, [("chr22:601:700:+", 5)])
+        self._write_junction_file(blood_f, [("chr22:201:300:+", 5)])
+
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"),
+            ("solid", "Solid Tissue Normal"),
+            ("blood", "Blood Derived Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        output = tmp_path / "novel.tsv"
+        stats = tmp_path / "stats.tsv"
+        classify_junctions(
+            junction_files=[tumor_f, solid_f, blood_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats,
+        )
+
+        df = pd.read_csv(output, sep="\t")
+        src = dict(zip(df["junction_id"], df["normal_source"]))
+        assert src["chr22:201:300:+"] == "Blood Derived Normal"
+        assert src["chr22:601:700:+"] == "Solid Tissue Normal"
+        # both were removed as normal_shared (blood is used, not dropped)
+        assert (df["junction_origin"] == "normal_shared").sum() == 2
+
+        # Stats funnel carries the per-source breakdown, and normal_shared total is intact.
+        sdf = pd.read_csv(stats, sep="\t")
+        cats = dict(zip(sdf["category"], sdf["count"]))
+        assert cats["normal_shared"] == 2
+        assert cats["normal_shared:Blood Derived Normal"] == 1
+        assert cats["normal_shared:Solid Tissue Normal"] == 1
 
     def test_annotated_junctions_discarded(self, tmp_path):
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
@@ -765,8 +835,9 @@ class TestClassifyJunctionsStats:
 
         # Long-format per tumor sample: 6 funnel rows (Issue #214 + the
         # gtex_pantissue_shared row from Issue #212, always emitted) +
-        # 4 descriptive distribution rows (Issue #215) = 10 total.
-        assert len(stats) == 10
+        # 4 descriptive distribution rows (Issue #215) + 1 per-normal-source
+        # breakdown row (Issue #940, one normal type removed a junction) = 11 total.
+        assert len(stats) == 11
         assert (stats["sample_id"] == "tumor").all()
         assert (stats["sample_type"] == "Primary Tumor").all()
 
@@ -781,6 +852,8 @@ class TestClassifyJunctionsStats:
         assert by_cat["tumor_exclusive"] == 1
         # No GTEx blacklist supplied → the row is still emitted with count 0.
         assert by_cat["gtex_pantissue_shared"] == 0
+        # Issue #940: per-source breakdown row for the one normal type used.
+        assert by_cat["normal_shared:Solid Tissue Normal"] == 1
 
     def test_funnel_reconciles_arithmetically(self, tmp_path):
         """junctions_raw must equal the sum of the downstream partition categories."""

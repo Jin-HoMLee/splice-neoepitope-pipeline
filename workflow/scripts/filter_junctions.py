@@ -21,7 +21,15 @@ filter is a no-op and no junction is labeled gtex_pantissue_shared.
 
 Output TSV columns:
   junction_id  chrom  start  end  strand  mapped_reads  sample_id  sample_type
-  junction_origin  reading_frame
+  junction_origin  normal_source  reading_frame
+
+normal_source (Issue #940) records which normal sample_type(s) removed a
+`normal_shared` junction (e.g. ``Solid Tissue Normal``, ``Blood Derived Normal``,
+or both, comma-joined), so the exclusion's provenance is explicit rather than
+collapsed into one bucket. It is empty for `gtex_pantissue_shared` and
+`tumor_exclusive` rows. All available normals still contribute to subtraction
+(a blood-present junction is a self-antigen, a valid conservative filter); the
+column only makes *which* normal did the removing visible.
 
 reading_frame (0, 1, or 2) is the canonical CDS reading frame at the splice donor,
 derived from the GENCODE GTF when gencode_gtf is supplied. Empty string means the frame
@@ -220,26 +228,36 @@ def _build_cds_donor_lookup(
 # Core classification logic
 # ---------------------------------------------------------------------------
 
-def _build_normal_junction_set(
-    normal_files: list[tuple[Path, str]],
+def _build_normal_junction_sources(
+    normal_files: list[tuple[Path, str, str]],
     reference_junctions: frozenset[tuple[str, int, int, str]],
     min_reads: int,
-) -> frozenset[tuple[str, int, int, str]]:
-    """Build the set of unannotated junctions reliably seen in normal samples.
+) -> dict[tuple[str, int, int, str], set[str]]:
+    """Map each unannotated junction reliably seen in a normal sample to the set
+    of normal ``sample_type``\\ s that contain it.
 
     A junction is included if it has >= min_reads in at least one normal sample
-    and is not in the reference annotation.
+    and is not in the reference annotation. The value set records *which* normal
+    types (e.g. ``Solid Tissue Normal``, ``Blood Derived Normal``) it was seen in,
+    so the downstream ``normal_shared`` label carries its provenance rather than
+    collapsing every normal into one undifferentiated bucket (Issue #940).
+
+    Both normal types are used for subtraction on purpose: a junction present in
+    the patient's blood is a self-antigen, not tumor-specific, so subtracting it is
+    a valid conservative filter. The labeling stays honest about which normal did
+    the removing; it does not drop blood.
 
     Args:
-        normal_files:         List of (file_path, sample_id) for normal samples.
+        normal_files:         List of (file_path, sample_id, sample_type) for normals.
         reference_junctions:  Frozenset of annotated junction tuples to exclude.
         min_reads:            Minimum read count to trust a normal junction.
 
     Returns:
-        Frozenset of ``(chrom, start, end, strand)`` tuples.
+        dict mapping ``(chrom, start, end, strand)`` to a set of ``sample_type``
+        strings. Membership (``junction in result``) preserves the old set semantics.
     """
-    normal_set: set[tuple[str, int, int, str]] = set()
-    for path, sample_id in normal_files:
+    sources: dict[tuple[str, int, int, str], set[str]] = defaultdict(set)
+    for path, sample_id, sample_type in normal_files:
         rows = _read_junction_file(path)
         n_added = 0
         for junc_id, reads, _annotated in rows:  # annotated flag unused here
@@ -248,14 +266,15 @@ def _build_normal_junction_set(
             parsed = _parse_junction_id(junc_id)
             if parsed is None or parsed in reference_junctions:
                 continue
-            normal_set.add(parsed)
+            sources[parsed].add(sample_type)
             n_added += 1
         log.info(
-            "Normal sample %s: %d unannotated junctions (min_reads=%d)",
-            sample_id, n_added, min_reads,
+            "Normal sample %s (%s): %d unannotated junctions (min_reads=%d)",
+            sample_id, sample_type, n_added, min_reads,
         )
-    log.info("Normal junction set: %d unique unannotated junctions", len(normal_set))
-    return frozenset(normal_set)
+    log.info("Normal junction set: %d unique unannotated junctions across %d normal type(s)",
+             len(sources), len({st for s in sources.values() for st in s}))
+    return dict(sources)
 
 
 def classify_junctions(
@@ -330,14 +349,14 @@ def classify_junctions(
 
     # Split files into tumor and normal
     tumor_files: list[tuple[Path, str, str]] = []
-    normal_files: list[tuple[Path, str]] = []
+    normal_files: list[tuple[Path, str, str]] = []
 
     for fp in junction_files:
         fp = Path(fp)
         sample_id = fp.parent.name
         sample_type = manifest.get(sample_id, "Unknown")
         if "normal" in sample_type.lower():
-            normal_files.append((fp, sample_id))
+            normal_files.append((fp, sample_id, sample_type))
         else:
             tumor_files.append((fp, sample_id, sample_type))
 
@@ -348,8 +367,10 @@ def classify_junctions(
             "manifest for normal_shared filtering."
         )
 
-    # Build normal junction set
-    normal_junction_set = _build_normal_junction_set(
+    # Build the normal-junction provenance map: junction → set of normal sample_types
+    # that contain it. Membership drives the normal_shared classification (unchanged);
+    # the value set drives the normal_source provenance column (Issue #940).
+    normal_junction_sources = _build_normal_junction_sources(
         normal_files, ref_junctions, min_reads=min_normal_reads
     )
 
@@ -380,6 +401,10 @@ def classify_junctions(
         n_mean_filtered = n_raw - len(rows)
 
         n_annotated = n_normal_shared = n_gtex_shared = n_tumor_exclusive = 0
+        # Per-normal-source breakdown of normal_shared (Issue #940). A junction seen
+        # in >1 normal type counts once per type it matched, so these are descriptive
+        # (they can sum to >= n_normal_shared) and are NOT part of the funnel partition.
+        normal_source_counts: dict[str, int] = defaultdict(int)
         # STAR col-6 annotated-flag cross-check counters (Issue #375).
         n_star_annot_not_in_ref = 0
         n_ref_not_star_annot = 0
@@ -429,9 +454,17 @@ def classify_junctions(
             # makes gtex_pantissue_shared the filter's *marginal* contribution beyond
             # the matched normal (a junction already removed as normal_shared is not
             # re-counted), keeping the funnel a clean partition.
-            if parsed in normal_junction_set:
+            normal_source = ""
+            if parsed in normal_junction_sources:
                 origin = "normal_shared"
                 n_normal_shared += 1
+                # Provenance: which normal sample_type(s) removed this junction
+                # (Issue #940). Sorted + comma-joined so a junction seen in both a
+                # solid and a blood normal reads e.g. "Blood Derived Normal,Solid Tissue Normal".
+                matched_types = normal_junction_sources[parsed]
+                normal_source = ",".join(sorted(matched_types))
+                for st in matched_types:
+                    normal_source_counts[st] += 1
             elif parsed in gtex_junctions:
                 origin = "gtex_pantissue_shared"
                 n_gtex_shared += 1
@@ -454,6 +487,7 @@ def classify_junctions(
                     "sample_id": sample_id,
                     "sample_type": sample_type,
                     "junction_origin": origin,
+                    "normal_source": normal_source,
                     "reading_frame": reading_frame,
                 }
             )
@@ -496,12 +530,25 @@ def classify_junctions(
                 "count": count,
             })
 
+        # Per-normal-source breakdown of normal_shared (Issue #940), one descriptive
+        # row per normal type that removed at least one junction. Category is
+        # ``normal_shared:<normal sample_type>``. Descriptive, not a funnel partition
+        # (a junction in >1 normal type is counted under each), so these are kept
+        # separate from the reconciling funnel rows above.
+        for normal_type, count in sorted(normal_source_counts.items()):
+            stats_rows.append({
+                "sample_id": sample_id,
+                "sample_type": sample_type,
+                "category": f"normal_shared:{normal_type}",
+                "count": count,
+            })
+
     df = pd.DataFrame(
         all_classified,
         columns=[
             "junction_id", "chrom", "start", "end", "strand",
             "mapped_reads", "sample_id", "sample_type", "junction_origin",
-            "reading_frame",
+            "normal_source", "reading_frame",
         ],
     )
     output_path = Path(output_path)
