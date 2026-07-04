@@ -74,6 +74,16 @@ ZOTERO_ITEMTYPE_TO_VENUE = {
     "preprint": "preprint",
 }
 
+# Preprint-server markers (#1001 review finding 1). The source-keyed derivation
+# matches on study substring, so it CANNOT self-distinguish a preprint from the
+# journal version of an *already-mapped* study (a future "SNAF ... bioRxiv" source
+# would first-match "snaf" -> journal). This keyword set closes that hole: the
+# validator fails any row whose `source` names a preprint server but whose
+# venue_type is not `preprint`. Matched as a lowercased substring of `source`
+# only (not `notes`, which may legitimately mention a preprint for a journal row).
+PREPRINT_MARKERS = ("biorxiv", "medrxiv", "arxiv", "preprint", "research square",
+                    "ssrn", "chemrxiv", "osf.io")
+
 # Effector vs detection-only keyword sets (the positive evidence_strength rule):
 # a positive readout naming any EFFECTOR term is `strong`; one with only a
 # DETECTION term is `weak`. Mass-spec (`MS`) is presentation, not T-cell

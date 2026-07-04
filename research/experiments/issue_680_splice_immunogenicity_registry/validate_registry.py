@@ -14,7 +14,7 @@ from pathlib import Path
 
 from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, EFFECTOR,
                                 DETECTION, IVS_MARKER, VENUE_BY_SOURCE_SUBSTR,
-                                ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE)
+                                ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS)
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
@@ -91,6 +91,13 @@ def violations(df: pd.DataFrame) -> list[str]:
         if r["venue_type"] not in VENUE_TYPES:
             out.append(f"{rid}: bad venue_type {r['venue_type']!r} "
                        f"(source not classified in derive_venue_type.py)")
+        # preprint-marker guard (#1001 review finding 1): the source-keyed derivation
+        # can't distinguish a preprint from the journal version of an already-mapped
+        # study, so catch it here - a source naming a preprint server must be `preprint`.
+        src_l = str(r["source"]).lower()
+        if r["venue_type"] != "preprint" and any(m in src_l for m in PREPRINT_MARKERS):
+            out.append(f"{rid}: source names a preprint server but venue_type is "
+                       f"{r['venue_type']!r} (map it as 'preprint' in labeling_constants.py)")
     return out
 
 
@@ -141,7 +148,8 @@ def _zotero_creds() -> tuple[str, str] | None:
             uid, key = vals.get("ZOTERO_USER_ID"), vals.get("ZOTERO_API_KEY")
             if uid and key:
                 return uid, key
-            return None
+            # this .env lacks creds; keep walking up (e.g. research/.env -> root .env)
+            continue
     return None
 
 
@@ -180,8 +188,16 @@ def zotero_venue_crosscheck(df: pd.DataFrame) -> tuple[list[str], bool]:
         return [], False
     try:
         doi_types = _fetch_zotero_doi_itemtypes(*creds)
+    except urllib.error.HTTPError as e:
+        # creds ARE present but the request was rejected (403 bad key / 404 wrong
+        # collection): the operator intended to verify, so surface this loudly
+        # rather than a quiet skip - but still don't hard-fail (could be transient).
+        print(f"WARNING: Zotero venue cross-check could NOT run - HTTP {e.code} "
+              f"(check ZOTERO_API_KEY / collection {ZOTERO_COLLECTION}). Not verified.",
+              file=sys.stderr)
+        return [], False
     except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as e:
-        print(f"NOTE: Zotero venue cross-check skipped (fetch failed: {e}).", file=sys.stderr)
+        print(f"NOTE: Zotero venue cross-check skipped (offline / fetch failed: {e}).", file=sys.stderr)
         return [], False
 
     present = {s.lower() for s in df["source"].unique()}
@@ -221,7 +237,7 @@ def main() -> int:
     # does not reject.
     venue_counts = df["venue_type"].value_counts()
     n_preprint = int(venue_counts.get("preprint", 0))
-    print("venue_type: " + ", ".join(f"{v}={int(n)}" for v, n in venue_counts.items()))
+    print("venue_type: " + ", ".join(f"{vt}={int(ct)}" for vt, ct in venue_counts.items()))
     if n_preprint:
         print(f"ADVISORY: {n_preprint} preprint-sourced row(s) in the set "
               f"(non-peer-reviewed; consider down-weighting in sensitivity analysis).")

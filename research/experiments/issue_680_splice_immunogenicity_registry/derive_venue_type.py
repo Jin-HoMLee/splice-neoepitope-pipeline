@@ -12,16 +12,26 @@ The assignment is **source-keyed**: the `source` column is the stable curation
 key (same convention as derive_assay_context.py), matched on lowercased
 substrings so the minor per-source string variants (e.g. "IRIS" vs
 "IRIS (Pan/Xing, PNAS)") map to one venue. The per-source venue was resolved
-first-hand in the 2026-07-04 venue audit recorded in PROVENANCE.md; all 14
-current sources are peer-reviewed journal articles (0 preprints folded to date -
-the three preprints encountered were each deferred for sequence-unavailability,
-not because they are preprints).
+first-hand in the 2026-07-04 venue audit recorded in PROVENANCE.md; all 11
+current studies (14 distinct `source` strings) are peer-reviewed journal
+articles (0 preprints folded to date - the three preprints encountered were
+each deferred for sequence-unavailability, not because they are preprints).
 
 This script OWNS the venue_type column: re-running overwrites every value from
-source. A source NOT in the map below derives to the out-of-vocab sentinel
-`unclassified`, which validate_registry.py rejects - so a newly-folded source
-cannot slip in venue-unmarked. When you fold a new source, add it here with its
-audited venue (never edit registry.tsv directly, or the next run reverts it).
+source. When you fold a new source, add it to VENUE_BY_SOURCE_SUBSTR
+(labeling_constants.py) with its audited venue (never edit registry.tsv directly,
+or the next run reverts it).
+
+Two guards catch a mis-marked venue (both in validate_registry.py):
+  1. A source matching NO key derives to the out-of-vocab sentinel `unclassified`,
+     which the validator rejects - so a genuinely new source cannot slip in
+     venue-unmarked.
+  2. Because a study-substring key CANNOT self-distinguish a preprint from the
+     journal version of an *already-mapped* study (a future "SNAF ... bioRxiv"
+     source would first-match "snaf" -> journal), the validator separately fails
+     any row whose `source` names a preprint server (PREPRINT_MARKERS) but whose
+     venue_type is not `preprint`. The offline-optional Zotero cross-check is a
+     third, independent backstop when creds are present.
 
 Run: research/.venv/bin/python derive_venue_type.py
 """
