@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-04
+
+### Editor: PM
+
+#### Post-move listing-lag reconciliation in the milestone recheck ([PR #985](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/985) closes [#406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406))
+
+**Trigger.** Quick-win pull off the board: #406 was the only small item that was active-arc (board-governance) *and* had its design pre-decided in the issue, so no thinking-cost tax. A known foot-gun in the capacity-recheck hook that shipped with [PR #397](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/397): the recheck reads GitHub's eventually-consistent `issues-by-milestone` listing, which lags a just-completed `gh issue edit --milestone` move and produced a false `[UPDATE NEEDED]` on the source milestone (caught live 2026-05-19).
+
+**Design (option 2 from the issue - verify the change, then recompute the aggregate).** The strongly-consistent read (`gh issue view --json milestone`, already wrapped as `milestone_for_issue`) is the source of truth for whether the moved issue belongs to a given milestone. `compute_recheck` now takes an optional `moved_issue`; when set it reconciles that strong read against the laggy listing, retries the listing up to twice (~500ms apart), and on non-convergence emits `Status: [stale state, verification pending]` (exit 3) instead of a misleading capacity read. `recheck_dispatch` threads `--moved-issue` on the move trigger for **both** source and destination rechecks. Chose the reconcile-and-bail over a blind retry so a genuinely-stuck listing surfaces a "come back later" note rather than silently blocking on `time.sleep`.
+
+**Blast-radius containment.** The `moved_issue` param is opt-in - the close / size-change / due_on-PATCH triggers do not pass it, so their behaviour is byte-unchanged (a dedicated unit test pins this). The stale note is registered as a no-fire sentinel in the dispatch, so it is surfaced to the PM as context but never inflates the promotion fire-log (a stale read is not an actionable capacity drift).
+
+**Verification.** New `TestComputeRecheckStaleReconcile` lag fixture (source-never-converges → stale; dest-catches-up-on-retry → proceeds; already-consistent → zero retries; no-moved-issue → reconciliation skipped) + `TestMovePathThreadsMovedIssue` wiring class. 67 recheck tests + full `tools/ci/` (469) green. E2E: ran the real `recheck_milestone.py --milestone 17 --moved-issue 381` against a fake `gh` forcing source-listing lag → exit 3 + stale note, no false `[UPDATE NEEDED]`.
+
+**Convention note.** This is the rung-3 style fix for a recently-shipped mechanism's own foot-gun, staying inside the same hook rather than adding a new guard - the reconciliation is a correctness fix to the recheck itself, not a new policy layer.
+
+---
+
 ## 2026-07-03
 
 ### 16:48 UTC - Editor: PM
