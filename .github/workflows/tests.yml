@@ -74,19 +74,24 @@ jobs:
         run: python -m pip install --upgrade pip pytest pyyaml
 
       - name: Run CI-tooling tests
-        # Collection scope: every tools/<dir>/ with a test suite must be listed
-        # here explicitly — pytest does NOT recurse into tools/ as a whole, so a
-        # new tools/<x>/ test home is silently skipped until added below.
-        # Separate invocations so each dir is collected in isolation — tools/ci
+        # Collection scope: every tools/<dir>/ AND scripts/tests/ with a test
+        # suite must be listed here explicitly - pytest does NOT recurse into
+        # tools/ (or scripts/) as a whole, so a new test home is silently skipped
+        # until added below.
+        # Separate invocations so each dir is collected in isolation - tools/ci
         # and tools/news carry their own pytest.ini for marker registration
         # (tools/project_map has none; isolation still keeps collection scopes
         # clean). tools/news is the morning-news poller (Issue #639);
-        # tools/project_map is the project-map atlas extractor (Issue #713 —
+        # tools/project_map is the project-map atlas extractor (Issue #713 -
         # the invariant suite was CI-invisible under tools/, regressions
         # ungated). project_map's extractor discovers files via `git ls-files`
         # (Issue #780), so the atlas is reproducible across working-tree states
         # (a populated local clone matches a clean checkout); it needs git on
-        # PATH, which the actions/checkout step provides.
+        # PATH, which the actions/checkout step provides. scripts/tests holds the
+        # PM board-tooling suites (board_open_items, arc labels, and the
+        # scan_addressed_comments Beat-2 scanner, Issue #901) - it was
+        # CI-invisible until #901 added it here, the same regression class #713
+        # fixed for tools/project_map.
         #
         # `-m "not live"` deselects the live-API smoke (Issue #711): a transient
         # GitHub-API blip must not red this per-PR job (or poison the hermetic
@@ -97,6 +102,7 @@ jobs:
           pytest tools/ci/ -v -m "not live"
           pytest tools/news/ -v
           pytest tools/project_map/ -v
+          pytest scripts/tests/ -v
         env:
           # PAT with `read:project` scope; integration tests that resolve
           # project items via GraphQL need this scope (the default

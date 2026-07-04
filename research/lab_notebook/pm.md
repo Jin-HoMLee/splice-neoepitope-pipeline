@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 16:00 UTC - Editor: PM
+
+#### `scan_addressed_comments.py` - board-wide `To:<role>` ping scanner ([PR #1011](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1011) closes [#901](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/901))
+
+**Trigger.** Second quick-win of the session (after [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996)). The Daily Stand-up Beat 2 ping scan was a daily hand-roll that broke 3x in five minutes on 2026-06-29 (zsh word-split; jq `test()` escaping) and, worse, was role-scoped - so it structurally missed every cross-role `**To:** <you>` ping, which is how PM missed the Developer's `To: PM` reply on `role:developer` #887. Deterministic-first: a tested script.
+
+**What shipped.** `scripts/pm/scan_addressed_comments.py --role <role>`: board-wide (two `gh {issue,pr} list --search "updated:>=..."` calls, sidestepping the Done-first project-query pagination trap and covering PRs), windowed by the `.agents/last_session_marker.json` watermark (#886) minus a 1-day overlap with a 7-day floor fallback, matching the `**To:**` field with a word-bounded literal-substring test (no `test()` regex - the exact footgun that broke the hand-roll), grouped by Issue with author + timestamp + snippet. 29 unit tests. **Also closed a latent CI gap:** `scripts/tests/` ran in *no* CI job (the `board_open_items` + arc-label suites were ungated) - wired it into `ci-tools-pytest`, the same regression class #713 fixed for `tools/project_map`.
+
+**Live smoke as the real E2E.** Ran `--role pm --days 6` and `--role developer --days 4` against the live board: both surfaced real, correctly-grouped `**To:**` pings (multi-recipient `To: PM, Developer`, both `->`/arrow forms), confirming the whole pipeline works, not just the mocked units.
+
+**Dogfood of the #996 hook.** Requesting this PR's review auto-flipped #901's card `Ready` -> *In review* via the hook shipped ~1h earlier - the mechanism working on the very next PR unprompted.
+
+**Review (bot, "ready to merge", all non-blocking).** Four taken: (1) the `fetch_comments` jq crashed on a null `.user` (deleted account), and because `--jq` errors exit gh non-zero, the `except` dropped *every* comment on that issue - null-guarded `(.user.login? // "?")`; (2) softened the "exit 0 always" docstring to be honest that a hard `gh`-listing failure surfaces loudly (the intended behavior) rather than as a false "(none)"; (4) dropped a fetched-but-unused `updatedAt`; (5) fail-fast on negative `--days`. One nit left with reasoning: (3) trailing prose on a same-line `To:` can over-match, but over-surfacing is the *safe* direction for a coordination scan (the harm was under-surfacing, #887). 3 new CLI-guard tests.
+
+**Cross-repo residual (AC 5).** The Beat 2 repoint edits `shared/feedback_morning_routine.md`, which lives in the **personas repo**, not here - so it is NOT in this pipeline PR. Authored + staged in the personas working tree (script now primary, hand-rolled scan demoted to documented fallback) for the Memory Manager to commit, per the "memory is committed for you" model.
+
 ### 15:30 UTC - Editor: PM
 
 #### Review-request board-advance hook - `Ready for review` -> `In review` auto-flip ([PR #1008](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1008) closes [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996))
