@@ -4,15 +4,21 @@
 # Surfaces an under-stocked Ready queue using a proactive per-role floor plus a
 # total cap, and routes a shortfall to the right remedy (commit vs groom).
 #
-#   - PER-ROLE PROACTIVE FLOOR (default 5) for PM / Scientist / Developer.
+#   - PER-ROLE PROACTIVE FLOOR (default 5) for PM / Scientist / Developer / MM.
 #     The floor is a TARGET shelf depth: keep ~5 DoR-ready items committed per
 #     role so that when a role sits down there is always a curated shortlist to
 #     pull, without paying the commitment-decision tax mid-session. It is
 #     proactive (kept stocked ahead of demand), NOT gated on current
 #     consumption: the buffer's whole value is being stocked before demand
-#     arrives. Memory Manager is EXCLUDED (memory-curation pulls cross-repo /
-#     opportunistically, not from a maintained board Ready buffer).
-#   - TOTAL CAP (default 18 = floor x 3 roles + 3 headroom) - a WIP limit on the
+#     arrives. Memory Manager is held to the SAME floor as every role (Jin-Ho
+#     2026-07-04, Issue #1006): the pre-#902 MM floor-exemption (#705) assumed a
+#     fixed floor would nag a bursty/blocked MM lane into stuffing junk, but #902
+#     facet-1 already solved stuffing for all roles - a thin lane reads
+#     GROOMING-GAP (groom, don't stuff), so a genuinely-empty MM lane is honest,
+#     not a violation. The web-canonical rule is to start every workstream at a
+#     uniform limit and only scale by capacity AFTER flow data shows a mismatch;
+#     the exemption was a pre-emptive scale with no such data, so it is retired.
+#   - TOTAL CAP (default 23 = floor x 4 roles + 3 headroom) - a WIP limit on the
 #     commitment buffer so Ready doesn't over-deepen and inflate lead time.
 #
 # Shortfall routing (Issue #902 facet 1, refined 2026-06-30). A role below floor
@@ -46,7 +52,7 @@
 #
 # Env:
 #   READY_QUEUE_FLOOR      override per-role floor (default 5)
-#   READY_QUEUE_CAP        override total cap (default 18)
+#   READY_QUEUE_CAP        override total cap (default 23)
 #   BOARD_ITEMS_JSON_FILE  read the open-items JSON array from this file instead
 #                          of calling board_open_items.py (test seam). The array
 #                          holds objects with at least `.status` and `.labels`
@@ -65,10 +71,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLOOR="${READY_QUEUE_FLOOR:-5}"
-CAP="${READY_QUEUE_CAP:-18}"
+CAP="${READY_QUEUE_CAP:-23}"
 
-# Roles subject to the per-role floor. MM is intentionally excluded (#754).
-FLOOR_ROLES=(pm scientist developer)
+# Roles subject to the per-role floor. MM is held to the same floor as every
+# role (Jin-Ho 2026-07-04, Issue #1006, retiring the #705/#754 MM exemption).
+FLOOR_ROLES=(pm scientist developer memory_manager)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

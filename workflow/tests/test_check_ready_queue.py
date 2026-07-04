@@ -20,11 +20,12 @@ that file and filters by status (Ready / In progress / Backlog) itself, so a
 fixture controls the buffer, the demand context, and the candidate pool.
 
 Gate:
-  - per-role floor 5 for PM / Scientist / Developer (MM excluded)
+  - per-role floor 5 for PM / Scientist / Developer / MM (MM folded in by
+    Issue #1006, retiring the #705/#754 exemption)
   - a role with ready < floor -> REPLENISH if it has >= 1 Backlog candidate,
     else GROOMING-GAP; either way it needs attention
   - In progress never affects the floor decision (context only)
-  - total cap 18 on the Ready buffer (soft WIP limit)
+  - total cap 23 (= floor 5 x 4 roles + 3 headroom) on the Ready buffer
   - exit 2 if any role is short OR total at/over cap; else exit 0
 """
 import json
@@ -93,7 +94,7 @@ def test_floor_is_proactive_not_gated_on_in_progress():
 
 def test_in_progress_does_not_force_attention_when_stocked():
     # A role at floor with In-progress work is healthy; In progress is context.
-    items = ([_item(400 + i, "pm", "scientist", "developer") for i in range(5)]
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
              + _spread("pm", 2, 500, status="In progress"))
     r = _run(items)
     assert "healthy" in r.stdout, r.stdout
@@ -102,8 +103,8 @@ def test_in_progress_does_not_force_attention_when_stocked():
 
 
 def test_all_roles_at_floor_healthy():
-    # 5 items each carrying all three roles -> pm=sci=dev=5, total 5 < cap 18.
-    items = [_item(400 + i, "pm", "scientist", "developer") for i in range(5)]
+    # 5 items each carrying all four roles -> pm=sci=dev=mm=5, total 5 < cap 23.
+    items = [_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
     r = _run(items)
     assert "healthy" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
@@ -164,32 +165,34 @@ def test_grooming_gap_unaffected_by_arc_awareness():
 
 
 def test_total_at_cap_flags_cap_and_exit_2():
-    # Disjoint pm=6/sci=6/dev=6 Ready -> no floor breach (all >= 5), total 18 == cap.
-    items = _spread("pm", 6, 100) + _spread("scientist", 6, 200) + _spread("developer", 6, 300)
+    # Disjoint pm=6/sci=6/dev=6/mm=5 Ready -> no floor breach (all >= 5),
+    # total 23 == cap.
+    items = (_spread("pm", 6, 100) + _spread("scientist", 6, 200)
+             + _spread("developer", 6, 300) + _spread("memory_manager", 5, 400))
     r = _run(items)
-    assert "[CAP] Ready at 18 (>= 18)" in r.stdout, r.stdout
+    assert "[CAP] Ready at 23 (>= 23)" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
-def test_empty_board_grooming_gaps_all_three():
-    # Nothing anywhere -> every role short with no candidates -> GROOMING-GAP x3
+def test_empty_board_grooming_gaps_all_four():
+    # Nothing anywhere -> every role short with no candidates -> GROOMING-GAP x4
     # (the board has no committable work at all; intake is the remedy).
     r = _run([])
-    for role in ("pm", "scientist", "developer"):
+    for role in ("pm", "scientist", "developer", "memory_manager"):
         assert f"[GROOMING-GAP {role}: 0 < 5]" in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
-def test_memory_manager_excluded_from_floor():
-    # pm/sci/dev at floor; MM short with a Backlog candidate but excluded.
+def test_memory_manager_included_in_floor():
+    # MM is now a floor role (Issue #1006): pm/sci/dev at floor, MM short with a
+    # Backlog candidate -> REPLENISH memory_manager, exit 2 (was: excluded/silent).
     items = [_item(400 + i, "pm", "scientist", "developer") for i in range(5)]
     items += [_item(500, "memory_manager"),
               _item(501, "memory_manager", status="Backlog")]
     r = _run(items)
-    assert "memory_manager" not in r.stdout, r.stdout
-    assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
-    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+    assert "[REPLENISH memory_manager: 1 < 5]" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
 def test_multiple_roles_short_route_independently():
@@ -206,20 +209,21 @@ def test_multiple_roles_short_route_independently():
 
 def test_floor_flag_lowers_threshold():
     # PM=2 Ready would breach floor 5, but --floor 2 makes it not short.
-    items = (_spread("pm", 2, 100)
-             + _spread("scientist", 2, 200) + _spread("developer", 2, 300))
+    items = (_spread("pm", 2, 100) + _spread("scientist", 2, 200)
+             + _spread("developer", 2, 300) + _spread("memory_manager", 2, 400))
     r = _run(items, "--floor", "2")
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
-    assert "[CAP]" not in r.stdout, r.stdout  # total Ready 6 < cap 18
+    assert "[CAP]" not in r.stdout, r.stdout  # total Ready 8 < cap 23
     assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
 
 
 def test_cap_flag_lowers_threshold():
-    # 5/5/5 disjoint Ready = 15 (every role at floor); default cap 18 is fine,
+    # 5/5/5/5 disjoint Ready = 20 (every role at floor); default cap 23 is fine,
     # but --cap 9 trips the WIP limit with no floor breach.
-    items = _spread("pm", 5, 100) + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+    items = (_spread("pm", 5, 100) + _spread("scientist", 5, 200)
+             + _spread("developer", 5, 300) + _spread("memory_manager", 5, 400))
     r = _run(items, "--cap", "9")
-    assert "[CAP] Ready at 15 (>= 9)" in r.stdout, r.stdout
+    assert "[CAP] Ready at 20 (>= 9)" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
