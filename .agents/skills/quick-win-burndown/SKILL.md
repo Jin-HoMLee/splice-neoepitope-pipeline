@@ -62,7 +62,7 @@ What survives is the real quick-win field. Rank: Ready before Backlog, then `arc
 
 This is the per-item pipeline, and it is exactly the `[[autonomy-merge-gate-cadence]]` quick-win flow - run the whole reversible chain unsupervised and **stop at the merge command**, the one irreversible outward-facing act, which stays with the human. Don't over-checkpoint: stopping at PR-open to hand back the review or lab-notebook as separate asks is stopping *too early*, inside the autonomous zone.
 
-1. **Sync + branch.** `git fetch origin && git pull origin main`, then `scripts/new_branch.sh <issue#> <short-slug>` (never hand-roll the branch name; the helper preserves the Issue<->branch link and refuses epics).
+1. **Start clean + branch.** `git checkout main` for a predictable starting point - do **not** `git pull origin main` here: `scripts/new_branch.sh` bases the branch off *remote* main server-side (`gh issue develop --base main`), so a local pull is redundant, and in the fan-out loop (Step 3) it would merge main *into* the previous item's still-checked-out feature branch. Then `scripts/new_branch.sh <issue#> <short-slug>` (never hand-roll the branch name; the helper preserves the Issue<->branch link and refuses epics).
 2. **Move the Issue to In progress** on board #9 before opening the branch (the pre-PR step the auto-hooks don't cover). IDs in the appendix.
 3. **Build + verify.** Make the change; run the real verification, not just the tests a dry-run would pass. For CI/YAML or docs changes there may be no unit test - drive the actual behavior instead (run the validator green *and* red; build the venv and run pytest against it). Restore any file you mutate for a red-path test from a backup copy, never `git checkout` (it wipes uncommitted work).
 4. **Commit, push, PR.** One logical change; PR body carries a ticked Test plan; tick the Issue's `## Acceptance criteria` boxes once truly satisfied.
@@ -81,7 +81,7 @@ Go back to Step 1's surviving field and take the next one. Two items in flight a
 ## Gotchas (all seen live)
 
 - **Lab-notebook merge conflict on parallel same-role PRs.** Every PR inserts a `### <time>` entry at the same top-of-today anchor in `research/lab_notebook/<role>.md`, so the *second* PR the user merges will conflict there. Flag this up front in your closing report; offer to rebase the second after the first lands. It's trivial to resolve (keep both entries) but surprising if unannounced.
-- **Bot-review bake-time.** A review takes ~4-7 min. Don't idle-poll: use `awaiting-bot-review`, and meanwhile start the next item's build. Never chain `sleep`s in Bash (the harness blocks it and the 2-min shell cap kills long polls anyway).
+- **Bot-review bake-time.** A review takes ~5-7 min. Don't idle-poll: use `awaiting-bot-review`, and meanwhile start the next item's build. Never chain `sleep`s in Bash (the harness blocks it and the 2-min shell cap kills long polls anyway).
 - **Branch-switching shows stale file contents.** Hopping between two in-flight branches makes the working tree show each branch's version; a "file modified since read" error usually just means you switched branches, not that work was lost - your commits are safe on their own branch. Prefer finishing one item before switching, or use worktrees for true parallelism.
 - **Board Status field IDs must be queried, not guessed** (see appendix for the current ones).
 - **`CLAUDE.md` is a symlink to `AGENTS.md`** - edit the real target; a direct write to the symlink is refused.
