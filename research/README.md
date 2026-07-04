@@ -16,7 +16,7 @@ Per-patient result interpretation notebooks. Each patient run gets its own noteb
 ```bash
 cd research/
 pyenv local 3.14.4            # sets .python-version (gitignored, per-clone)
-uv venv --python 3.14.4 .venv                              # fast venv creation
+uv venv --seed --python 3.14.4 .venv                       # --seed keeps pip in the venv (uv omits it by default)
 uv pip install --python .venv/bin/python -r requirements.txt  # 10-100x faster than pip
 ```
 Only the two per-clone pyenv venvs use `uv`; the `snakemake` conda env and per-rule `--use-conda` envs are unchanged (`uv` is pip-side only, never touches conda's solver).

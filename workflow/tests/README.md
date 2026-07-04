@@ -16,7 +16,9 @@ Prerequisite: [`uv`](https://docs.astral.sh/uv/) (Astral's fast installer/resolv
 pyenv local 3.13.5
 
 # 2. Create the test venv inside workflow/tests/ (also gitignored) with uv.
-uv venv --python 3.13.5 workflow/tests/.venv
+#    --seed keeps pip/setuptools in the venv (uv omits them by default), so an
+#    ad-hoc `workflow/tests/.venv/bin/pip install <pkg>` still works.
+uv venv --seed --python 3.13.5 workflow/tests/.venv
 
 # 3. Install test dependencies with uv (10-100x faster than pip; no separate
 #    pip-upgrade step needed).
@@ -63,6 +65,6 @@ Last measurement (non-RAM-pressured run): full collection of 287 tests in ~20s; 
 
 - **`snakemake` conda env = workflow runner.** Snakemake + solver. Keep pristine; adding test deps risks dep drift in the workhorse env.
 - **`.venv` = test runner.** Pinned via [requirements-test.txt](requirements-test.txt). Fast to recreate. Isolated.
-- **CI parity.** CI runs tests via pip in a clean venv, not a conda env — local mirrors that.
+- **CI parity.** CI installs `requirements-test.txt` into a clean venv (via pip), not a conda env; local now uses `uv` for that same install, and the shared `>=`-pinned requirements keep both on the same package set. (Resolver-identical parity would need `uv` in CI too via `astral-sh/setup-uv` - a possible follow-up.)
 
 The migration from git worktrees to separate clones (2026-05-14) means each clone needs its own one-time `.venv` setup; no sharing across clones.

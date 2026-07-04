@@ -69,8 +69,8 @@ The project has **4 functional Python environments**, each with a different use 
 
 | Use case | Canonical path | Setup recipe | Documented at |
 |---|---|---|---|
-| Pytest test suite | `workflow/tests/.venv` | `pyenv local 3.13.5 && uv venv --python 3.13.5 workflow/tests/.venv && uv pip install --python workflow/tests/.venv/bin/python -r workflow/tests/requirements-test.txt` | [workflow/tests/README.md](workflow/tests/README.md) |
-| Research / Jupyter notebooks | `research/.venv` | `cd research/ && pyenv local 3.14.4 && uv venv --python 3.14.4 .venv && uv pip install --python .venv/bin/python -r requirements.txt` | [research/README.md](research/README.md) |
+| Pytest test suite | `workflow/tests/.venv` | `pyenv local 3.13.5 && uv venv --seed --python 3.13.5 workflow/tests/.venv && uv pip install --python workflow/tests/.venv/bin/python -r workflow/tests/requirements-test.txt` | [workflow/tests/README.md](workflow/tests/README.md) |
+| Research / Jupyter notebooks | `research/.venv` | `cd research/ && pyenv local 3.14.4 && uv venv --seed --python 3.14.4 .venv && uv pip install --python .venv/bin/python -r requirements.txt` | [research/README.md](research/README.md) |
 | Snakemake orchestration (and ad-hoc `python -c` quick checks) | `conda activate snakemake` | `bash scripts/setup_local.sh` | "Snakemake Conda Activation" above |
 | Per-rule Python (`workflow/scripts/*.py` invoked by Snakemake rules) | rule's own `--use-conda` env | auto-created from `workflow/envs/*.yaml` on first `snakemake --use-conda` run | implicit; each rule declares `conda: "envs/<env>.yaml"` |
 
