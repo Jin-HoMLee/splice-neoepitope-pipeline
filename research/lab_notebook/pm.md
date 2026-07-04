@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-04
 
+### 19:40 UTC - Editor: PM
+
+#### Light resume session-start routine, greeting-triggered ([PR #1028](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1028) closes spec sub-issue [#1027](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1027); parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026))
+
+**Trigger.** The user opened an evening session with "Hey :) I'm back. Let's gooo!" and I started rolling toward the full five-beat morning routine - roughly 3h after the same day's morning cadence had already run. The user stopped me: a resume greeting has no defined behavior, so I flail or over-apply the morning ceremony. The morning trigger ("Good morning!") is a reliable habit; the *other* greetings are the gap. This session's own misfire is the establishing case.
+
+**Decision.** Add a **resume routine** as a sibling of the morning routine, selected purely by **greeting classification** - no marker, no state, no nudge. Morning greeting -> morning routine; any other resume greeting -> a light one-message re-orientation pass; bare task request -> silent spine + straight to work. I initially proposed a marker-driven "cadence hasn't run today" nudge; the user rejected it (the morning-greeting habit already works, so the nudge solves a non-problem) and I dropped it - simpler and correct. Ambiguity resolves to the *lighter* routine.
+
+**Premise web-checked** (per `feedback_verify_premise_before_mechanizing` + best-practice-web-check, since this cements a routine). Two axes both hold: Kanban's cadence model makes the Daily Stand-up the only per-session cadence (Replenishment weekly/biweekly, Service Delivery Review biweekly-to-quarterly), so re-running them on a resume is a cadence-frequency mismatch; and context-switching research backs a per-session re-orientation step (~23 min to refocus after an interruption). Cited in spec §2.
+
+**What shipped.** Spec doc `docs/superpowers/specs/2026-07-04-resume-routine-design.md` ([PR #1028](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1028)). The routine = the already-universal spine (memory-check + field recall) plus a what-changed board glance, a `/coordination` scan, and a one-line next-pull, rendered as one compact message - explicitly NOT the once-daily cadences. Delivery is **shared-only** memory wiring (a new `shared/feedback_resume_routine.md` + a greeting-classification bullet and index line in `shared/MEMORY.md`), authored this session and left uncommitted for MM; no per-role dirs touched (personas governance). The wiring landing + a behavior verification are the parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) ACs, kept open past this spec PR.
+
+**Structure note.** The spec is not standalone: per the freshly-added user rule ("spec PRs are never standalone"), it gets its own sub-issue [#1027](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1027) that the PR closes, under a structural parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) parked in `Epic`. The spec/wiring split maps cleanly onto the phases-as-sub-issues heuristic (distinct repos, committers, commit-points).
+
+**Review (bot).** Approve, 4 non-blocking clarity findings, all handled in `7ddcc0e`. Finding 1 (the spec listed SDR/Replenishment/Signals/Friday-cleanup as out-of-scope but was silent on the Stand-up, which §2 names as *the* per-session cadence) was the sharp one - resolved by stating that the five-item pass *is* the compact per-session Stand-up analog. Finding 2 (spine phrasing differs from the older visual-morning spec) I verified and deferred: my spec matches the authoritative `shared/MEMORY.md` spine; the other doc's "anti-stranding scan" wording is the looseness, so I added a source-of-truth pointer rather than adopt it. Findings 3-4 (stale rollout line, fuzzy "five/six beats") applied.
+
 ### 17:15 UTC - Editor: PM
 
 #### Tag item origin repo in board_open_items - board #9 collision guard ([PR #1018](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1018) closes [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999))
