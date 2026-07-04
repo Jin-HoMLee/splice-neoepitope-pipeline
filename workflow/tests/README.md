@@ -6,6 +6,8 @@ Unit + snapshot tests for the pipeline's Python helpers and Snakemake rule shell
 
 The test runner is a pyenv-managed Python venv separate from the workflow's `snakemake` conda env. The two envs cooperate at run time: the venv provides `pytest` + test deps, and the activated conda env puts the `snakemake` binary on PATH for tests that invoke it via subprocess (e.g. [test_alignment_star_command.py](test_alignment_star_command.py)).
 
+Prerequisite: [`uv`](https://docs.astral.sh/uv/) (Astral's fast installer/resolver) - `brew install uv` or the standalone installer `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+
 ```bash
 # 1. Pin the Python version used by this clone (writes .python-version, gitignored).
 #    Any stable Python >=3.10 works; 3.13.5 is recommended (recent, widely
@@ -13,13 +15,17 @@ The test runner is a pyenv-managed Python venv separate from the workflow's `sna
 #    have no upper Python bound.
 pyenv local 3.13.5
 
-# 2. Create the test venv inside workflow/tests/ (also gitignored)
-python -m venv workflow/tests/.venv
+# 2. Create the test venv inside workflow/tests/ (also gitignored) with uv.
+#    --seed keeps pip/setuptools in the venv (uv omits them by default), so an
+#    ad-hoc `workflow/tests/.venv/bin/pip install <pkg>` still works.
+uv venv --seed --python 3.13.5 workflow/tests/.venv
 
-# 3. Install test dependencies
-workflow/tests/.venv/bin/pip install --upgrade pip
-workflow/tests/.venv/bin/pip install -r workflow/tests/requirements-test.txt
+# 3. Install test dependencies with uv (10-100x faster than pip; no separate
+#    pip-upgrade step needed).
+uv pip install --python workflow/tests/.venv/bin/python -r workflow/tests/requirements-test.txt
 ```
+
+Only the two per-clone pyenv venvs move to `uv`. The `snakemake` conda env and the per-rule `--use-conda` envs (`workflow/envs/*.yaml`) are unchanged - `uv` operates on the pip/PyPI side and does not touch conda's binary solver.
 
 ## Running tests
 
@@ -59,6 +65,6 @@ Last measurement (non-RAM-pressured run): full collection of 287 tests in ~20s; 
 
 - **`snakemake` conda env = workflow runner.** Snakemake + solver. Keep pristine; adding test deps risks dep drift in the workhorse env.
 - **`.venv` = test runner.** Pinned via [requirements-test.txt](requirements-test.txt). Fast to recreate. Isolated.
-- **CI parity.** CI runs tests via pip in a clean venv, not a conda env — local mirrors that.
+- **CI parity.** CI installs `requirements-test.txt` into a clean venv (via pip), not a conda env; local now uses `uv` for that same install, and the shared `>=`-pinned requirements keep both on the same package set. (Resolver-identical parity would need `uv` in CI too via `astral-sh/setup-uv` - a possible follow-up.)
 
 The migration from git worktrees to separate clones (2026-05-14) means each clone needs its own one-time `.venv` setup; no sharing across clones.

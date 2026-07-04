@@ -12,14 +12,14 @@ Scientific work associated with the splice neoepitope pipeline project.
 
 Per-patient result interpretation notebooks. Each patient run gets its own notebook (`patient_NNN_results.ipynb`). Cross-patient comparisons go in `results_comparison.ipynb`.
 
-**Setup (one-time):**
+**Setup (one-time):** requires [`uv`](https://docs.astral.sh/uv/) (`brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`).
 ```bash
 cd research/
 pyenv local 3.14.4            # sets .python-version (gitignored, per-clone)
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv venv --seed --python 3.14.4 .venv                       # --seed keeps pip in the venv (uv omits it by default)
+uv pip install --python .venv/bin/python -r requirements.txt  # 10-100x faster than pip
 ```
+Only the two per-clone pyenv venvs use `uv`; the `snakemake` conda env and per-rule `--use-conda` envs are unchanged (`uv` is pip-side only, never touches conda's solver).
 
 **Usage:** Open any `.ipynb` in VSCode and select `research/.venv` as the kernel (Python 3.14.4).
 

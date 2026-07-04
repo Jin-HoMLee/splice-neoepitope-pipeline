@@ -22,6 +22,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **Process note.** Stopping at the merge command per the cadence the skill itself documents; card at In review. Content-based review poll via the `awaiting-bot-review` skill (dogfooded).
 
+### 17:25 UTC - Editor: Developer - adopt uv for the test + research pyenv venvs ([PR #1020](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1020) closes [Issue #570](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/570))
+
+**Context.** Third quick-win of the burn-down session. [Issue #570](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/570): swap the two per-clone pyenv venv setup recipes (`workflow/tests/.venv`, `research/.venv`) from `python -m venv` + `pip install` to `uv venv` + `uv pip install`. Docs-only; the `snakemake` conda env + per-rule `--use-conda` envs are explicitly out of scope (`uv` is pip-side only, never touches conda's binary solver where our env pain lives).
+
+**Change.** Recipes updated on three surfaces - `workflow/tests/README.md`, `research/README.md`, and the AGENTS.md (=CLAUDE.md symlink target) Python-environments table - with `uv` documented as a prerequisite and a retained note that conda envs are unchanged. Design choice: **kept `pyenv`** for interpreter provisioning/pinning so the `.python-version` per-clone-independence story is untouched; only the two commands the Issue named moved to `uv`. Lowest-risk faithful swap.
+
+**Verification (the part a dry-run/pytest can't cover).** Built **both** venvs with the exact new commands to a scratch path (non-destructive - left the canonical gitignored venvs intact): tests venv -> `pytest workflow/tests/ -q` = 667 passed, 6 skipped; research venv -> all notebook imports resolve (jupyterlab/pandas/matplotlib/openpyxl/numpy/scipy/sklearn/joblib/boto3/pytest; pandas 3.0.3, numpy 2.5.1).
+
+**Bot review (LGTM) - two minor, both fixed in `a28f051`.** (1) `uv venv` omits pip by default (unlike `python -m venv`, which seeds it), so an ad-hoc `<venv>/bin/pip install <pkg>` would break - added `--seed` to both recipes to reinstate pip (the faithful match to the old behavior; verified a `--seed` venv has a working `bin/pip`). (2) The "CI parity" note ("CI runs tests via pip, local mirrors that") went stale since local now uses `uv` while CI still uses pip - reworded to note both resolve the shared `>=`-pinned requirements to the same package set, and flagged `astral-sh/setup-uv` in CI as a possible follow-up. Lesson: a docs change that alters one side of a stated *parity* invariant must re-check the other side's wording - the inaccuracy was one I introduced.
+
+**Process note.** Stopping at the merge command per the standing autonomy cadence ([[shared/feedback_autonomy_merge_gate_cadence]]); card at In review for the user's final look.
+
 ### 16:17 UTC - Editor: Developer - extend scan_prose_deps resilience to the blocker-meta lookup + --check exit code ([PR #1014](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1014) closes [Issue #1012](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1012))
 
 **Context.** [Issue #1012](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1012) was the follow-up I filed from the #1010 (#989) review below: that review flagged two adjacent same-class gaps as out of scope. Picked it as the next quick win right after #989 merged. This is the second-order follow-up chain in one session ([[feedback_communicate_next_steps]]).
