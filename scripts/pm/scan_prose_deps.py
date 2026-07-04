@@ -28,9 +28,14 @@ class IssueLookupError(Exception):
     """A per-issue `gh` lookup could not be completed (a transient 5xx / network
     blip, a GraphQL `errors` payload, or non-JSON stdout). The caller skips that
     one pair and surfaces it, rather than aborting the whole board scan or
-    misreading a failed lookup as a real result. `action` is the report-row
-    label the reconcile loop uses for this failure kind."""
-    action = "lookup-failed"
+    misreading a failed lookup as a real result.
+
+    Abstract: only the concrete subclasses are ever raised. Each sets a concrete
+    `action` report-row label AND registers it in `_LOOKUP_FAILED_ACTIONS` below
+    (the single source the `--check` gate + report ordering key off). `action`
+    is None here so a subclass that forgets to override fails loudly, rather than
+    inheriting a plausible-looking string that would silently escape the gate."""
+    action = None
 
 
 class BlockerLookupError(IssueLookupError):
@@ -41,6 +46,13 @@ class BlockerLookupError(IssueLookupError):
 class MetaLookupError(IssueLookupError):
     """The blocker-meta (state / is_pr) REST lookup could not be completed (#1012)."""
     action = "meta-lookup-failed"
+
+
+# Single source of truth for the scan-integrity actions: derived from the classes,
+# NOT a string convention. Both the `--check` incomplete-scan gate and the report
+# sort order below consume this, so a new lookup type is registered in exactly one
+# place and cannot silently escape either (edges: #989; meta + this guard: #1012).
+_LOOKUP_FAILED_ACTIONS = (BlockerLookupError.action, MetaLookupError.action)
 
 
 def gh(*args, parse_json=True):
@@ -233,7 +245,7 @@ def reconcile(pairs):
 
 # *-lookup-failed first: they are scan-integrity warnings (a dependency this run
 # could not determine), so they sort above the actionable-drift rows.
-_ACTION_ORDER = ["edges-lookup-failed", "meta-lookup-failed", "needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
+_ACTION_ORDER = [*_LOOKUP_FAILED_ACTIONS, "needs-wiring", "un-wireable-pr", "already-wired", "closed-blocker", "self-ref"]
 _ACTION_RANK = {a: i for i, a in enumerate(_ACTION_ORDER)}
 
 
@@ -295,7 +307,7 @@ def main():
 
     records = _scan(args.issue)
     needs = [r for r in records if r["action"] == "needs-wiring"]
-    lookup_failed = [r for r in records if r["action"].endswith("-lookup-failed")]
+    lookup_failed = [r for r in records if r["action"] in _LOOKUP_FAILED_ACTIONS]
 
     if args.apply:
         subset = needs if args.only is None else [r for r in needs if r["dependent"] in args.only]

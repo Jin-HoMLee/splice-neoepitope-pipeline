@@ -363,6 +363,24 @@ def test_render_report_surfaces_meta_lookup_failed():
     assert "722" in out and "meta-lookup-failed" in out
 
 
+def test_lookup_failed_actions_are_class_derived():
+    # The gate keys off the subclass action attributes, not a string convention,
+    # so a future lookup type can't silently escape the --check / sort handling.
+    assert spd.BlockerLookupError.action in spd._LOOKUP_FAILED_ACTIONS
+    assert spd.MetaLookupError.action in spd._LOOKUP_FAILED_ACTIONS
+
+
+def test_render_report_orders_lookup_failures_above_drift():
+    # Both scan-integrity rows sort above actionable drift, edges before meta.
+    recs = [
+        {"dependent": 100, "blocker": 200, "state": "open", "action": "needs-wiring"},
+        {"dependent": 101, "blocker": 201, "state": "?", "action": "meta-lookup-failed"},
+        {"dependent": 102, "blocker": 202, "state": "?", "action": "edges-lookup-failed"},
+    ]
+    order = [ln.split()[-1] for ln in spd.render_report(recs).splitlines() if "lookup-failed" in ln or "needs-wiring" in ln]
+    assert order == ["edges-lookup-failed", "meta-lookup-failed", "needs-wiring"]
+
+
 def test_main_check_exits_1_on_lookup_failure(monkeypatch, capsys):
     # A run whose only anomaly is an incomplete lookup is NOT clean: exit 1
     # (error / re-run), distinct from 0 (clean) and 2 (real drift).
