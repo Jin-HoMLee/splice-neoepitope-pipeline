@@ -138,6 +138,9 @@ Post-Issue #63, the pipeline keeps three distinct top-level directories:
 | `references/` | User-provided + downloaded reference data | yes | `GRCh38.primary_assembly.genome.fa`, `gencode.v47.annotation.gtf.gz`, `vdjdb/<release>/`, `imgt_germlines/` |
 | `indices/` | Pipeline-built alignment indices | yes | `indices/hisat2/`, `indices/star/` |
 | `resources/test/` | Small committed test fixtures + chr22 local-dev cache | partial (test fixtures may be committed; chr22 data is gitignored) | `chr22.fa`, `chr22.gtf.gz`, `hisat2_index/` |
+| `models/` | Committed ML model artifacts (fitted, small, reproducible) | no | `models/calibrator_v1.joblib` |
+
+`models/` is the stable production home for committed model artifacts (e.g. the immunogenicity `calibrator_v1.joblib` consumed by the default DAG via `config.yaml` `calibrator.artifact`). It is committed by default (not gitignored), unlike `references/`/`resources/`, so a production artifact and any future re-fit live in the tree rather than a gitignored path. Chosen over `resources/calibrator/` in [Issue #908](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/908) to avoid a `.gitignore` negation and to keep the "`resources/` is retired" convention clean.
 
 The production `resources/` directory is no longer used. `setup_vm.sh` performs a one-shot idempotent migration on existing VMs (moves old `resources/*` → `references/` and `resources/{hisat2,star}_index/` → `indices/{hisat2,star}/`). MHCflurry sentinel moved from `resources/mhcflurry_models.done` to `<mhcflurry.models_cache_dir>/.download_done` (default `~/.mhcflurry/`); the actual model cache still lives in MHCflurry's platformdirs default.
 
