@@ -8,6 +8,10 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-05 - quick-win burn-down: set_status.sh board-status wrapper ([PR #1039](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1039) closes [Issue #1024](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1024))
 
+### 16:52 UTC - Editor: Developer - cross-repo hardening addendum (same PR #1039)
+
+**Prompted by a user question** ("how does it handle same Issue/PR numbers across repos?"). Traced it: the wrapper selects the repo by **cwd** (`gh repo view`), not an argument, and queries `repository.issue(number)` - Issue-only. So there is no cross-repo *mutation* collision (it always targets the current clone's Issue N's board-#9 card), but there **was** a silent wrong-target risk: run it from the wrong clone and it moves that clone's same-numbered card with no signal. Fix in `a290f58`: every outcome now echoes `Issue #N in owner/repo ("title")` (the only wrong-target signal available), and a PR number now prints an explicit "not an Issue" hint instead of a bare `NOT_FOUND`. **Deliberately did NOT add a `--repo` override** - YAGNI (no manual cross-clone workflow needs it; the hooks already own the automated cross-repo path by threading repo from PR context). Verified: title resolves, PR-number hint fires, live flip shows the repo-qualified line. Card still at In review; still stopped at the gate.
+
 ### 16:39 UTC - Editor: Developer - scripts/pm/set_status.sh DRY board-status wrapper
 
 **Context.** First-item (and, as it turned out, only-item) pass of a `quick-win-burndown` for the Developer lane. #1024 was itself born from the [PR #1023](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1023) review that shipped the skill - the reviewer flagged that moving a board card meant a raw `updateProjectV2ItemFieldValue` graphql call with hand-supplied IDs (the "query, don't guess IDs" foot-gun). The wrapper DRYs the *manual* path: resolves the Issue's board-#9 item id itself, maps the Status name from one canonical `case`, mutates idempotently.
