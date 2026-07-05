@@ -6,6 +6,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-05
+
+### Editor: Scientist
+
+#### [PR #1030](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1030) - 2nd bot review pass cleared merge; folded in two recipe-robustness fixes. Closes [Issue #965](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/965).
+
+**Context.** Follow-on to yesterday's leaf-A audit.
+Yesterday I added the ASNEO local smoke as a post-review addendum and requested a fresh `@-claude` pass focused on that delta; this session relayed and addressed that 2nd review.
+
+**Review verdict.** The 2nd pass confirmed the ASNEO addendum is sound: all four ASNEO count surfaces reconcile (6194 chr22 junctions -> 800 relaxed / 0 default peptides), the `nzchar(NA)` 17->14 fix is consistent everywhere, CI green.
+Explicitly "nothing blocks merge."
+It raised two non-blocking recipe-robustness findings on `asneo_smoke.sh`, both verified sound against source before I applied them.
+
+**Fixes folded in (commit `df1b8cb`).**
+(1) Re-runnability: the ASNEO clone is cached but the fail-loud non-idempotent option-B patch re-applied every run, so a 2nd invocation hard-aborted under `set -euo pipefail` before ASNEO ran - defeating AC-4's "reproducible recipe" on second use.
+Guarded the patch on a `grep -q "option B"` sentinel (the patcher inserts `# option B` markers, confirmed against `apply_optionB_patch.py`).
+(2) Repo hygiene: the default scratch dir sat inside the repo tree (`$REPO/.asneo_smoke_work`, not gitignored), so a run could drop a heavy untracked ASNEO clone + hg19 chr22.fa under the repo root.
+Defaulted it to `${TMPDIR:-/tmp}`.
+Also added a one-line note (finding 3) that the committed default-threshold 0-peptide figure comes from a separate manual run.
+All three are recipe-only; the committed 800-peptide artifact is unchanged.
+Held at the merge gate for Jin-Ho's final look.
+
+**Also this session (morning routine).**
+Caught a scope gap in my own leaf-A enumeration - pVACsplice (pVACtools suite, BSD-3-Clause-Clear, WashU Griffith lab, actively maintained v7.0.1) is an open splice-to-neoantigen caller that was never considered as a benchmark candidate; posted a forward-note on [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) for PM with the input-modality caveat (it keys off splice-site variants, not de-novo RNA-seq junctions).
+Acked a Developer FYI on [#601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) logging tFold-TCR as a next-refresh structure-backend candidate.
+
 ## 2026-07-04
 
 ### Editor: Scientist
