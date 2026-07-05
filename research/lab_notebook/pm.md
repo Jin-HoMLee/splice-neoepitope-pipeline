@@ -6,7 +6,99 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-05
+
+### 12:05 UTC - Editor: PM
+
+#### i5-S5 Modeling milestone closure report to the merge gate ([PR #1007](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1007); milestone [i5 - S5 - Modeling](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29))
+
+**Trigger.** The Sunday morning routine's milestone-health beat surfaced two 0-open lifecycle milestones (i5-S5, 2d left; i6-S3, 5d left). i5-S5's closure report ([PR #1007](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1007)) had been parked as a draft on my post-it "blocked on Sci Deliverables" - but the [Discussion #1003](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1003) scan showed the Scientist had authored + pushed the Deliverables section overnight (19:40Z, commit `5b11ded`). Blocker cleared; user chose to finish i5-S5 this session.
+
+**Author-editor-critic triad completed.** Scientist authored Deliverables (Review layer) - well-pruned to the 5 real deliverables (the calibrator paper-to-pipeline chain #592/#708/#826/#709 + the ASNEO peer cross-check #566), not the raw over-collected seed; PM had authored Carried-forward and Retrospective. As editor I confirmed the narrative reads clean and the Sci-regenerated HTML was in sync (verbatim phrasing present, self-contained). Un-drafted, requested `@claude review` as critic, awaited hands-free via the background poller.
+
+**Review (bot).** LGTM, nothing blocking. All Test-plan claims verified clean (self-contained HTML, MHC vocab, zero em/en dashes, 5 deliverables map 1:1 to inventory). Two minor accuracy nits on the permanent record: (1) footer "as of 2026-07-08" is a future date; (2) the decision-deck reference pointed at a gitignored `slides.html` build artifact.
+
+**Dispositioned.** Fixed nit 2 in `b3efcf4` (`slides.html` -> committed `slides.qmd`, both narrative + rendered HTML - patched the HTML surgically since this `-pm` clone has no `research/.venv` to regenerate). Nit 1 I *investigated rather than took at face value*: the reviewer guessed "a regenerate self-corrects it," but line 540 sets `generated_at = closed_at or due_on`, so a pre-close report stamps the milestone's `due_on` (07-08) - a regenerate would **not** fix it. Routed the "as of" mislabeling + the pre-close `state open` snapshot (finding 4) to the `milestone_report.py` quality follow-up [Issue #1005](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005). Both cosmetic; neither blocks the close.
+
+**State at entry.** CI green, mergeable-clean, at the merge gate (user-gated per the autonomy merge-gate cadence). On merge: close milestone i5-S5 + link the report from the close comment, and close [Discussion #1003](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1003) (the full loop). Sibling milestone i6-S3's close-path is a separate decision still pending.
+
 ## 2026-07-04
+
+### 19:40 UTC - Editor: PM
+
+#### Light resume session-start routine, greeting-triggered ([PR #1028](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1028) closes spec sub-issue [#1027](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1027); parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026))
+
+**Trigger.** The user opened an evening session with "Hey :) I'm back. Let's gooo!" and I started rolling toward the full five-beat morning routine - roughly 3h after the same day's morning cadence had already run. The user stopped me: a resume greeting has no defined behavior, so I flail or over-apply the morning ceremony. The morning trigger ("Good morning!") is a reliable habit; the *other* greetings are the gap. This session's own misfire is the establishing case.
+
+**Decision.** Add a **resume routine** as a sibling of the morning routine, selected purely by **greeting classification** - no marker, no state, no nudge. Morning greeting -> morning routine; any other resume greeting -> a light one-message re-orientation pass; bare task request -> silent spine + straight to work. I initially proposed a marker-driven "cadence hasn't run today" nudge; the user rejected it (the morning-greeting habit already works, so the nudge solves a non-problem) and I dropped it - simpler and correct. Ambiguity resolves to the *lighter* routine.
+
+**Premise web-checked** (per `feedback_verify_premise_before_mechanizing` + best-practice-web-check, since this cements a routine). Two axes both hold: Kanban's cadence model makes the Daily Stand-up the only per-session cadence (Replenishment weekly/biweekly, Service Delivery Review biweekly-to-quarterly), so re-running them on a resume is a cadence-frequency mismatch; and context-switching research backs a per-session re-orientation step (~23 min to refocus after an interruption). Cited in spec §2.
+
+**What shipped.** Spec doc `docs/superpowers/specs/2026-07-04-resume-routine-design.md` ([PR #1028](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1028)). The routine = the already-universal spine (memory-check + field recall) plus a what-changed board glance, a `/coordination` scan, and a one-line next-pull, rendered as one compact message - explicitly NOT the once-daily cadences. Delivery is **shared-only** memory wiring (a new `shared/feedback_resume_routine.md` + a greeting-classification bullet and index line in `shared/MEMORY.md`), authored this session and left uncommitted for MM; no per-role dirs touched (personas governance). The wiring landing + a behavior verification are the parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) ACs, kept open past this spec PR.
+
+**Structure note.** The spec is not standalone: per the freshly-added user rule ("spec PRs are never standalone"), it gets its own sub-issue [#1027](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1027) that the PR closes, under a structural parent [#1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) parked in `Epic`. The spec/wiring split maps cleanly onto the phases-as-sub-issues heuristic (distinct repos, committers, commit-points).
+
+**Review (bot).** Approve, 4 non-blocking clarity findings, all handled in `7ddcc0e`. Finding 1 (the spec listed SDR/Replenishment/Signals/Friday-cleanup as out-of-scope but was silent on the Stand-up, which §2 names as *the* per-session cadence) was the sharp one - resolved by stating that the five-item pass *is* the compact per-session Stand-up analog. Finding 2 (spine phrasing differs from the older visual-morning spec) I verified and deferred: my spec matches the authoritative `shared/MEMORY.md` spine; the other doc's "anti-stranding scan" wording is the looseness, so I added a source-of-truth pointer rather than adopt it. Findings 3-4 (stale rollout line, fuzzy "five/six beats") applied.
+
+### 17:15 UTC - Editor: PM
+
+#### Tag item origin repo in board_open_items - board #9 collision guard ([PR #1018](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1018) closes [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999))
+
+**Trigger.** After re-scoping [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999) (its two original premises were both invalid - the MM-exemption framing overturned by #1006, and the "bucketing bug" a two-repo number-collision misread), the user asked whether we follow the 4 web-confirmed cross-repo best practices. Audit finding: we comply exactly where a **mechanism** exists (the auto-close gate; URL-keyed JSON) and slip exactly where it's **discipline-only** (ad-hoc `gh -R`, human-facing displays). The biggest mechanizable gap was the board tool's own text output showing bare numbers - the thing that caused #999's misfiling. Recommended fixing that one, skipping a noisy `gh -R` guard (negative ROI) and the mild prose gap. User approved.
+
+**What shipped.** `board_open_items.py`: an `origin` field per item (`project`/`personas`/`other`, from the URL - personas matched first since its repo name contains the project name), and an **asymmetric** `Ref` cell in the text table - `pers#71` for personas, bare `71` for project (project is the ~universal default, so only the collision partner is tagged). Docstring documents the two-repo aggregation + resolve-repo-from-URL rule. Live proof: the MM lane now shows `pers#73`/`pers#74` for personas items while its project items (`#978`, `#346`) stay bare.
+
+**The miss (worth recording).** My first test plan ran `scripts/tests/` + `test_check_ready_queue.py` (85 green) and I shipped - but `board_open_items` has a **second** test suite at `workflow/tests/test_board_open_items.py` (the one `pipeline-pytest` runs), which I never ran locally. Its alignment test asserted `header.index("#")`, which the `#`->`Ref` rename broke. The user caught the red check. **Lesson: a module with tests in two trees needs BOTH run before push** (`pytest workflow/tests/ scripts/tests/`) - the same silent-second-location class the CLAUDE.md dry-run gotchas warn about. Reproduced locally (blocked by a `joblib` local-venv gap on the *full* workflow suite, so ran the 4 `board_open_items` consumers directly: board_open_items, check_ready_queue, check_roadmap_health, dispatch_digest - all green), fixed via `header.index("Ref")` + simplifying `ref_cell` to tag only personas (so existing example-URL fixtures render bare, not `ext#`), pushed green.
+
+**Review (bot, on the pre-fix commit).** Independently flagged the same two-fold CI failure I'd just fixed (header rename + the `other`-classified fixture), plus 3 valid nits on the current code: no alignment guard for the *tagged* ref path (added `pers#71` + bare-`71` under-Ref assertions), a vacuous `or count>=2` disjunct (dropped), and a 5-digit overflow of the 9-wide Ref column (bumped to 10, matching the Kind-column's defensive sizing). Its `ext#`-vocabulary nit was moot post-simplification.
+
+### 16:45 UTC - Editor: PM
+
+#### Fold MM into the Replenishment floor-5, remove the exemption ([PR #1016](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1016) closes [#1006](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1006))
+
+**Trigger.** Third quick-win pull, chosen for value over pure self-containedness: P2, board-governance arc, Jin-Ho already decided the approach (2026-07-04, symmetric floor-5), and it retired a manual STOPGAP I was carrying in memory every Replenishment. Scanning also surfaced a coherence finding - [#999](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/999) still asserts "MM floor-EXEMPT by design," now contradicted by #1006 (flagged; #999's real deliverable, a board_open_items bucketing bug, is separate and still valid).
+
+**What shipped.** `check_ready_queue.sh`: `memory_manager` added to `FLOOR_ROLES`, cap default `18 -> 23` (floor 5 x 4 roles + 3). Tests: the MM-excluded test flipped to MM-included, cap tests to 23, MM stocked in the healthy/cap/floor fixtures. AGENTS.md WIP + Ready-queue sections. The exemption's premise (a fixed floor nags a bursty/blocked MM lane into stuffing) was obsoleted by #902 facet-1's GROOMING-GAP routing - a thin MM lane reads "groom, don't stuff," which is what the exemption hand-rolled. **AC2 web check:** canonical Kanban guidance is to start every workstream at a uniform WIP/buffer limit and scale by capacity only *after* flow data shows a mismatch - the exemption was a pre-emptive scale with no data.
+
+**Scope extension (flagged for sanity-check, review-affirmed).** #1006's literal decision is the Ready floor, but the In-progress WIP cap of 3 and the stale-issue-review exclusion both rested on the *identical* "MM implements no board-tracked work" premise #1006 retires. Leaving them would be internally incoherent (AC4 names the "WIP limits" section, which contains the In-progress cap), so I folded MM into both and flagged it. The bot review agreed it's the right call, not creep, and noted the In-progress cap is advisory/doc-only (no script change needed).
+
+**Live verify.** `check_ready_queue.sh` against the real board now fires `[REPLENISH memory_manager: 3 < 5]` (14 Backlog candidates) - MM was previously invisible to the gate.
+
+**Review (bot, LGTM, nothing blocking).** Cap arithmetic consistent everywhere, `--help` source-of-truth updated, no stale refs in active files (surviving `cap-18` hits are point-in-time milestone reports / this notebook, correctly untouched). One optional nit taken: un-updated fixtures now emit unasserted `[GROOMING-GAP memory_manager]` lines - documented the targeted-assertion pattern in the test docstring rather than churning every fixture.
+
+**Harness observation.** The #996 auto-hooks (both `post_gh_pr_create` and my new `post_gh_pr_review_request`) went dormant mid-session - neither fired for PR #1016 though both worked for #1008/#1011. Running the review-request hook manually flipped #1006 to In review correctly, so the hook *code* is sound; this is the documented Claude-Code build behavior where hooks stop firing mid-session. Board cards need a manual flip until a session restart.
+
+**Cross-repo (AC3 + AC5).** The memory updates (floor_gate + MEMORY.md + morning-routine + shared board-hygiene/stale-review) and the stopgap removal live in the personas repo - authored + staged in the personas working tree for MM to commit, not in this pipeline PR. AC5's "same-PR strip" is a two-repo-model consequence (documented in the PR).
+
+### 16:00 UTC - Editor: PM
+
+#### `scan_addressed_comments.py` - board-wide `To:<role>` ping scanner ([PR #1011](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1011) closes [#901](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/901))
+
+**Trigger.** Second quick-win of the session (after [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996)). The Daily Stand-up Beat 2 ping scan was a daily hand-roll that broke 3x in five minutes on 2026-06-29 (zsh word-split; jq `test()` escaping) and, worse, was role-scoped - so it structurally missed every cross-role `**To:** <you>` ping, which is how PM missed the Developer's `To: PM` reply on `role:developer` #887. Deterministic-first: a tested script.
+
+**What shipped.** `scripts/pm/scan_addressed_comments.py --role <role>`: board-wide (two `gh {issue,pr} list --search "updated:>=..."` calls, sidestepping the Done-first project-query pagination trap and covering PRs), windowed by the `.agents/last_session_marker.json` watermark (#886) minus a 1-day overlap with a 7-day floor fallback, matching the `**To:**` field with a word-bounded literal-substring test (no `test()` regex - the exact footgun that broke the hand-roll), grouped by Issue with author + timestamp + snippet. 29 unit tests. **Also closed a latent CI gap:** `scripts/tests/` ran in *no* CI job (the `board_open_items` + arc-label suites were ungated) - wired it into `ci-tools-pytest`, the same regression class #713 fixed for `tools/project_map`.
+
+**Live smoke as the real E2E.** Ran `--role pm --days 6` and `--role developer --days 4` against the live board: both surfaced real, correctly-grouped `**To:**` pings (multi-recipient `To: PM, Developer`, both `->`/arrow forms), confirming the whole pipeline works, not just the mocked units.
+
+**Dogfood of the #996 hook.** Requesting this PR's review auto-flipped #901's card `Ready` -> *In review* via the hook shipped ~1h earlier - the mechanism working on the very next PR unprompted.
+
+**Review (bot, "ready to merge", all non-blocking).** Four taken: (1) the `fetch_comments` jq crashed on a null `.user` (deleted account), and because `--jq` errors exit gh non-zero, the `except` dropped *every* comment on that issue - null-guarded `(.user.login? // "?")`; (2) softened the "exit 0 always" docstring to be honest that a hard `gh`-listing failure surfaces loudly (the intended behavior) rather than as a false "(none)"; (4) dropped a fetched-but-unused `updatedAt`; (5) fail-fast on negative `--days`. One nit left with reasoning: (3) trailing prose on a same-line `To:` can over-match, but over-surfacing is the *safe* direction for a coordination scan (the harm was under-surfacing, #887). 3 new CLI-guard tests.
+
+**Cross-repo residual (AC 5).** The Beat 2 repoint edits `shared/feedback_morning_routine.md`, which lives in the **personas repo**, not here - so it is NOT in this pipeline PR. Authored + staged in the personas working tree (script now primary, hand-rolled scan demoted to documented fallback) for the Memory Manager to commit, per the "memory is committed for you" model.
+
+### 15:30 UTC - Editor: PM
+
+#### Review-request board-advance hook - `Ready for review` -> `In review` auto-flip ([PR #1008](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1008) closes [#996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996))
+
+**Trigger.** Quick-win pull, and the natural sequel to the [#993](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/993) session: #996 was filed hours earlier when the user flagged that PR cards keep stranding in *Ready for review* and never advance to *In review* (slipped on #406, #234 this same session). Discipline/memory hadn't fixed it, so it met the mechanism-over-memory threshold (>= 2x same shape) - rung-3.
+
+**What shipped.** A PostToolUse board-automation hook (`.agents/hooks/post_gh_pr_review_request.py`), sibling of `post_gh_pr_create.py`. On a bot-review request - `gh pr comment <ref> --body "@-claude review"` or a direct `gh pr review <ref>` - it resolves the PR's linked Issue(s) via `closingIssuesReferences` and sets each card's Status on board #9 to *In review*. Reuses the sibling's `PROJECT_ID`/`STATUS_FIELD_ID` constants and shlex command-start tokenizer (no field-ID drift). Idempotent, skips `Epic`/`Done` cards, fails open on any `gh` error, logs one fire-log line per flip. Wired into `.agents/settings.json`; documented in `AGENTS.md` safety-wrappers. 39 unit tests.
+
+**Dogfood as the E2E.** Posting `@claude review` on this very PR fired the new hook live (settings.json hot-reloaded on this Claude Code build) and flipped #996 `Ready` -> *In review* on board #9, confirmed via a read-back query + `.agents/hook_fires.jsonl`. Mechanism proven end-to-end in production, not just unit-tested.
+
+**Review (bot, LGTM - nothing blocking).** Two real findings, both taken: (1, medium) `_issue_item_and_status` hardcoded `owner/name = splice-neoepitope-pipeline` even though `TRACKED_REPOS` admits the personas repo and `_pr_linked_issues` returns the PR's real repo - a personas PR would look its linked numbers up in the wrong repo (silent no-op usually, wrong-card flip worst case). Fixed by threading the PR's owner/repo into the GraphQL args + a test asserting the threading. (2, low/edge) the `gh pr comment` trigger-scan ran unbounded across `&&` separators and a triggerless comment `return None`d before later segments - so `... --body "plain" && echo "@claude review"` false-positived and `... --body "plain" && gh pr review M` false-negatived. Fixed with a segment-bounded `_segment()` scan + continue-past-non-match; both traced cases now correct, pinned by 2 new tests. Plus two nits (misleading `_not_matched` test name; URL ref rendered raw in the confirmation) taken. 39 hook tests / 529 full `tools/ci/` green.
+
+**Residual (documented, deferred).** A human reviewing directly on github.com emits no local command, so the local hook can't see that path - still a manual flip there (or a future GitHub Action / webhook). The bot-review path is our dominant one, so the hook covers the common case.
 
 ### 03:15 UTC - Editor: PM
 
