@@ -11,7 +11,7 @@
 set -euo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
-WORK="${1:-$REPO/.asneo_smoke_work}"          # scratch (clone + genome + outputs); keep OUT of the repo tree
+WORK="${1:-${TMPDIR:-/tmp}/asneo_smoke_work}" # scratch (clone + genome + outputs); default OUT of the repo tree
 PATCH="$REPO/research/experiments/issue_566_asneo_crosscheck/apply_optionB_patch.py"
 mkdir -p "$WORK"
 
@@ -28,10 +28,14 @@ fi
 awk '$1=="chr22"' "$WORK/ASNEO/test/SRR2660032.SJ.out.tab" > "$WORK/chr22_SJ.out.tab"
 
 # 4. Option-B patch (strip/bypass bundled netMHCpan; stop at candidate peptides).
-conda run -n asneo python "$PATCH" "$WORK/ASNEO/ASNEO.py"
+#    Idempotent guard: the patcher is fail-loud non-idempotent (aborts if anchors
+#    match != 1), so a cached-clone re-run would die. Skip it when already patched.
+grep -q "option B" "$WORK/ASNEO/ASNEO.py" || conda run -n asneo python "$PATCH" "$WORK/ASNEO/ASNEO.py"
 
-# 5. Run the patched caller. Default thresholds yield ~0 peptides at chr22 coverage;
-#    relaxed thresholds exercise the full translate -> peptide -> normal-subtract tail.
+# 5. Run the patched caller at relaxed thresholds (exercises the full
+#    translate -> peptide -> normal-subtract tail; yields the 800 committed peptides).
+#    The "0 peptides at default thresholds" figure in the notes comes from a separate
+#    manual run with ASNEO's stock --reads/--psi; this script reproduces the relaxed run.
 cd "$WORK/ASNEO"
 conda run -n asneo python ASNEO.py -j "$WORK/chr22_SJ.out.tab" -a HLA-A02:01 \
   -l 8,9,10,11 --reads 2 --psi 0.05 -g "$WORK/chr22.fa" -o "$WORK/out"
