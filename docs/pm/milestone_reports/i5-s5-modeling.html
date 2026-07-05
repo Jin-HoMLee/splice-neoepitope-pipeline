@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milestone closure report — i5 - S5 - Modeling</title>
+<style>
+  :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
+          --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  header.report { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: .75rem; margin: 1rem 0; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+  .card .n { font-size: 1.5rem; font-weight: 600; }
+  .card .l { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .rolebar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .pill { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+          padding: .15rem .6rem; font-size: .82rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0; }
+  th, td { text-align: left; padding: .4rem .55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+  tr.closed td:first-child { color: var(--ok); }
+  tr.open td:first-child { color: var(--warn); }
+  .badge { display: inline-block; border-radius: 999px; padding: .02rem .45rem; font-size: .72rem;
+           border: 1px solid var(--line); margin-left: .35rem; vertical-align: middle; }
+  .badge.descoped { color: var(--warn); border-color: var(--warn); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .narrative { margin-top: .5rem; }
+  .narrative table th { text-transform: none; }
+  code { background: var(--soft); padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report">
+    <h1>i5 - S5 - Modeling</h1>
+    <div class="sub">
+      
+      Milestone #29 · state <strong>open</strong>
+      · opened 2026-05-20
+      
+      
+      
+      · arc:scoring-tcr-pmhc
+    </div>
+  </header>
+
+  <!-- Section 2: At-a-glance (script-generated) -->
+  <h2>At a glance</h2>
+  <div class="cards">
+    <div class="card"><div class="n">5</div><div class="l">Delivered</div></div>
+    
+    <div class="card"><div class="n">0</div><div class="l">Carried forward</div></div>
+    <div class="card"><div class="n">—</div><div class="l">Delivered / week</div></div>
+    <div class="card"><div class="n">11.2</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">8.3</div><div class="l">Median cycle (days)</div></div>
+  </div>
+  <div class="rolebar">
+    
+      <span class="pill">role:scientist · <strong>4</strong></span>
+    
+      <span class="pill">role:developer · <strong>1</strong></span>
+    
+  </div>
+
+  
+
+  <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
+  <div class="narrative">
+    <!-- Author-owned narrative for i5 - S5 - Modeling. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+<h2>Deliverables (Review layer)</h2>
+<!-- Lead role: what shipped, grouped by deliverable, with PR + slide links.
+     The 5 delivered issues are listed in the Inventory appendix
+     below - narrate the highlights here, don't re-list them. -->
+
+<p>The milestone's throughline was the <strong>immunogenicity calibrator</strong>: turning MHCflurry's <code>presentation_score</code> (a presentation likelihood) into a <strong>calibrated immunogenicity log-odds</strong>, carried end to end from training-data selection through production pipeline wiring.
+Four of the five deliverables are that chain; the fifth stands up our closest-peer cross-check.</p>
+<h3>Immunogenicity calibrator (4 of 5 deliverables)</h3>
+<p>The calibrator moved from paper to pipeline in four gated steps:</p>
+<ul>
+<li><strong>Training-cohort selection</strong> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592">Issue #592</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/596">PR #596</a>) landed the decision on <em>which</em> labelled immunogenicity cohorts to calibrate against, choosing four SNV / point-mutation neoantigen cohorts (NCI, TESLA, HiTIDE, IMPROVE).
+  The choice was grounded in a fact-checked 109-agent deep-research sweep (26 sources, 80 claims extracted, 25 adversarially verified) rather than recall, and it satisfied AC 1 of the parent calibrator epic <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547">Issue #547</a>, unblocking the fit.
+  Decision deck: <code>research/decisions/issue_592/slides.qmd</code>.</li>
+<li><strong>The calibrator itself</strong> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/708">Issue #708</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/786">PR #786</a>) reimplemented NeoGuider's rank-calibration ML <em>from the Wei et al. (Genome Medicine 2026) paper</em> rather than vendoring its code (NeoGuider is AGPL-3.0 with an explicit non-commercial restriction and depends on paid tools we do not use).
+  The module chains adaptive KDE of positive-vs-negative <code>presentation_score</code> densities into a density ratio, then isotonic and finally <strong>centered isotonic regression</strong> (Oron &amp; Flournoy 2017), emitting a calibrated immunogenicity log-odds and validated leave-one-cohort-out (LOCO).
+  Ships the fitted <code>calibrator_v1.joblib</code>; experiment at <code>research/experiments/issue_547_immunogenicity_calibration</code>.</li>
+<li><strong>Applicability gate</strong> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826">Issue #826</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/873">PR #873</a>) is the honest guardrail on the SNV-to-splice transfer.
+  No labelled splice-neoepitope immunogenicity data exists yet (that gap is <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680">Issue #680</a>), so a full validation cannot run; this is the <em>label-free</em> applicability check that can.
+  It quantifies the fraction of real patient_001 / patient_002 splice <code>presentation_score</code>s falling outside the calibrator's fitted support - where the curve flat-line extrapolates and the log-odds is unreliable - and surfaces those out-of-support presenters instead of silently trusting them.
+  This gate had to pass before the production wiring below.</li>
+<li><strong>Pipeline wiring</strong> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709">Issue #709</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/907">PR #907</a>) is the single Developer deliverable: a new Snakemake rule between MHCflurry presentation and TCRdock that applies the serialized calibrator and emits the <code>calibrated_immunogenicity_log_odds</code> column, making the calibrated signal a first-class pipeline output.</li>
+</ul>
+<h3>Peer cross-check setup</h3>
+<ul>
+<li><strong>ASNEO cross-check - setup + decision slice</strong> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566">Issue #566</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/849">PR #849</a>).
+  ASNEO (Zhang et al., <em>Aging</em> 2020) is our closest published peer (RNA-seq to splice junctions to neoepitopes).
+  This deliverable resolved the open MHC-path question with an <strong>option-B decision</strong> (standardize both pipelines on MHCflurry so call-concordance isolates the junction-detection signal and holds the MHC predictor constant as a nuisance variable) and shipped a <strong>turnkey chr22 runner</strong> so the actual cross-check is one command.
+  The VM-bound execution (run, concordance, writeup) is carved to <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/848">Issue #848</a>; dir <code>research/experiments/issue_566_asneo_crosscheck</code>.</li>
+</ul>
+<h2>Carried-forward &amp; routing</h2>
+<!-- PM: issues that didn't close + where they went (carve / arc) + the
+     closure-routing decision (a/b/c/d). -->
+
+<p>None carried forward - all 5 issues delivered COMPLETED and i5-S5 closes clean. The sibling Data-Preparation milestone i6-S3 is a <strong>separate</strong> carve/decommit decision, tracked via <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/964">Discussion #964</a> (not part of this milestone's scope).</p>
+<h2>Retrospective (process/health)</h2>
+<!-- PM: was it healthy? what to improve? WIP/aging observations. -->
+
+<p>i5-S5 closed <strong>healthy</strong>: 5/5 delivered (4 Scientist + 1 Developer), <strong>0 carried forward</strong>, cycle time avg 11.2d / median 8.3d. The Scientist calibrator workstream (KDE + centered isotonic + LOCO validation, then within-cohort CV, Jeffreys/boundary CIs, monotone extrapolation, and report surfacing) drove the milestone; the Developer contribution wired the calibrated immunogenicity log-odds through the pipeline into the report. No aging-WIP or blocker incidents inside the milestone window.</p>
+<p>One process note routed to a follow-up: the closure-report <strong>seed over-collects</strong> (dumps the whole date-window across all roles rather than the milestone's issues), so this Deliverables section needed heavier hand-pruning than it should - scoped as a fix in <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005">Issue #1005</a>.</p>
+  </div>
+
+  <!-- Section 6: Inventory appendix (script-generated) -->
+  <h2>Inventory appendix</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Role</th><th>Size</th><th>Pri</th><th>Closed</th></tr></thead>
+    <tbody>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826">#826</a></td>
+        <td>research(scientist): applicability check for the SNV-fit immunogenicity calibrator on splice neoepitopes (gates Issue 709)</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-26</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709">#709</a></td>
+        <td>feat(scoring): Snakemake wiring for calibrated_immunogenicity_log_odds (post-MHCflurry, pre-TCRdock)</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-30</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/708">#708</a></td>
+        <td>feat(scoring): single-feature KDE + centered isotonic calibrator + leave-one-cohort-out validation</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-19</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592">#592</a></td>
+        <td>research(scoring): training-cohort selection for presentation_score immunogenicity calibration (gate for #547)</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-05-31</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566">#566</a></td>
+        <td>research(scientist): ASNEO cross-check — env + option-B decision + turnkey runner (run carved to #848)</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-06-23</td>
+      </tr>
+      
+    </tbody>
+  </table>
+
+  <footer>
+    Generated by <code>scripts/pm/milestone_report.py</code> · as of 2026-07-08 · author-editor-critic closure report
+    (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752">Issue #752</a>).
+    Data sections + this appendix are script-generated; the narrative above is author-owned
+    (<code>i5 - S5 - Modeling</code> sidecar).
+  </footer>
+
+</div>
+</body>
+</html>

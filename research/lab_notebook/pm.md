@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-05
+
+### 12:05 UTC - Editor: PM
+
+#### i5-S5 Modeling milestone closure report to the merge gate ([PR #1007](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1007); milestone [i5 - S5 - Modeling](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/29))
+
+**Trigger.** The Sunday morning routine's milestone-health beat surfaced two 0-open lifecycle milestones (i5-S5, 2d left; i6-S3, 5d left). i5-S5's closure report ([PR #1007](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1007)) had been parked as a draft on my post-it "blocked on Sci Deliverables" - but the [Discussion #1003](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1003) scan showed the Scientist had authored + pushed the Deliverables section overnight (19:40Z, commit `5b11ded`). Blocker cleared; user chose to finish i5-S5 this session.
+
+**Author-editor-critic triad completed.** Scientist authored Deliverables (Review layer) - well-pruned to the 5 real deliverables (the calibrator paper-to-pipeline chain #592/#708/#826/#709 + the ASNEO peer cross-check #566), not the raw over-collected seed; PM had authored Carried-forward and Retrospective. As editor I confirmed the narrative reads clean and the Sci-regenerated HTML was in sync (verbatim phrasing present, self-contained). Un-drafted, requested `@claude review` as critic, awaited hands-free via the background poller.
+
+**Review (bot).** LGTM, nothing blocking. All Test-plan claims verified clean (self-contained HTML, MHC vocab, zero em/en dashes, 5 deliverables map 1:1 to inventory). Two minor accuracy nits on the permanent record: (1) footer "as of 2026-07-08" is a future date; (2) the decision-deck reference pointed at a gitignored `slides.html` build artifact.
+
+**Dispositioned.** Fixed nit 2 in `b3efcf4` (`slides.html` -> committed `slides.qmd`, both narrative + rendered HTML - patched the HTML surgically since this `-pm` clone has no `research/.venv` to regenerate). Nit 1 I *investigated rather than took at face value*: the reviewer guessed "a regenerate self-corrects it," but line 540 sets `generated_at = closed_at or due_on`, so a pre-close report stamps the milestone's `due_on` (07-08) - a regenerate would **not** fix it. Routed the "as of" mislabeling + the pre-close `state open` snapshot (finding 4) to the `milestone_report.py` quality follow-up [Issue #1005](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005). Both cosmetic; neither blocks the close.
+
+**State at entry.** CI green, mergeable-clean, at the merge gate (user-gated per the autonomy merge-gate cadence). On merge: close milestone i5-S5 + link the report from the close comment, and close [Discussion #1003](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1003) (the full loop). Sibling milestone i6-S3's close-path is a separate decision still pending.
+
 ## 2026-07-04
 
 ### 19:40 UTC - Editor: PM
