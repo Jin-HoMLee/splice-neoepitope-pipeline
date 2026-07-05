@@ -157,7 +157,7 @@ mhcflurry:
 # on measured labels); splice accuracy stays open at Issue #680. Artifact is a
 # committed serialized calibrator (centered-isotonic knots).
 calibrator:
-  artifact: "research/experiments/issue_547_immunogenicity_calibration/outputs/calibrator_v1.joblib"
+  artifact: "models/calibrator_v1.joblib"
 
 # -----------------------------------------------------------------
 # TCRdock structural validation (Step 6 — optional, GPU required)

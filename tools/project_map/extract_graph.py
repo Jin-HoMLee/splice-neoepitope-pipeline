@@ -130,6 +130,7 @@ def classify_path(rel_path, is_dir=False):
     if q.endswith(".bib"): return "reference"
     if base == "readme.md": return "doc"
     if q.endswith(".yaml") and "/tools/news/" in q: return "config"
+    if q.endswith((".joblib", ".pkl")): return "model"  # committed ML artifacts (models/, Issue #908)
     return "resource"
 
 
@@ -140,6 +141,7 @@ def assign_group(rel_path):
     if rel_path.startswith("docs"): return "docs"
     if rel_path.startswith("scripts") or rel_path.startswith("tools"): return "infrastructure"
     if rel_path.startswith("docker") or rel_path.startswith("resources"): return "infrastructure"
+    if rel_path.startswith("models"): return "pipeline"  # committed ML artifacts consumed by the DAG (Issue #908)
     return "project"
 
 
@@ -172,6 +174,7 @@ def describe_file(rel_path, ftype):
         "docker": "Docker build configuration",
         "reference": "Bibliography / reference",
         "data": "Tabular data",
+        "model": "Serialized ML model artifact",
     }
     return labels.get(ftype, "Project file")
 

@@ -10,6 +10,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #1040](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1040) - promote `calibrator_v1.joblib` to a stable `models/` production home. Closes [Issue #908](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/908).
+
+**Context.** Quick-win burn-down pickup.
+The fitted immunogenicity calibrator is a mandatory input to the default DAG (`apply_calibrator` -> `generate_report`) but lived in an experiment-scoped `research/experiments/issue_547_immunogenicity_calibration/outputs/` dir, so a research reorg could silently break production ([PR #907](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/907) bot finding).
+The Developer's AC-1/AC-2 Lead call (settled on the issue) picked a new committed top-level `models/` home over `resources/calibrator/` (no `.gitignore` negation; keeps the "`resources/` is retired" convention clean), and green-lit me to take it end-to-end in one atomic PR.
+
+**What shipped.** `git mv` the artifact to `models/calibrator_v1.joblib`; repoint `config.yaml` `calibrator.artifact`; repoint both notebook refs (producer `notebook.ipynb` `save_path` computed relative to `BASE`, and `applicability_notebook.ipynb` loader via `EXP.parents[2]`) so a re-fit writes to the production home (no fork); add a `models/` row + rationale to the Reference + Index Layout table in `CLAUDE.md`; sync the experiment README location refs.
+
+**Verified from the new path.** Production `apply_calibrator.py` runs green consuming `models/calibrator_v1.joblib` on a minimal fixture (out-of-support flags correct, support `[0.0163, 0.9839]`); Snakemake DAG resolves `input.calibrator` to the new path (the missing-input detector fired for an unrelated absent test-reference file but not the calibrator).
+Full chr22 execute not run - byte-identical relocation + the test dataset is not provisioned on this clone; verification was done at the level that actually exercises the change.
+
+**Bot review (`7m40s`).** One real blocking finding: the new `models/` dir turned `ci-tools-pytest` red (`tools/project_map/test_extract_graph.py::test_resource_blob_is_gone`) - a `.joblib` fell through the extractor's `classify_path` to the unclassified `resource` fallback and `models/` mapped to the `project` group, making that group 100% unclassified.
+Reproduced locally, then taught the extractor about the home (`.joblib`/`.pkl` -> `model`; `models/` -> `pipeline` group; `describe_file` label) in `7095b86`; all 7 project-map tests + all four required CI checks green.
+Pushed back on the "regenerate graph.json" nit: the committed atlas is stale project-wide (~6400-line drift from a pristine-`main` regen; last refreshed [#697](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/697) 2026-06-11, no freshness gate), and no test reads it (all use `build_graph()` live), so regenerating here would bury the change under a month of unrelated drift - a full atlas refresh + a freshness gate belong in their own PR.
+Cleared a stale save-cell output that still printed the old path; clarified a `.gitignore` comment.
+Filed the pre-existing hardcoded-`BASE`-absolute-path finding (in mild tension with the anti-fork guarantee) as follow-up [#1042](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1042).
+Held at the merge gate for Jin-Ho's final look.
+
 #### [PR #1030](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1030) - 2nd bot review pass cleared merge; folded in two recipe-robustness fixes. Closes [Issue #965](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/965).
 
 **Context.** Follow-on to yesterday's leaf-A audit.

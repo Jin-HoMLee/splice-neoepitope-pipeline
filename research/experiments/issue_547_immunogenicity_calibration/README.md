@@ -27,8 +27,7 @@ issue_547_immunogenicity_calibration/
 │   ├── fixtures/
 │   │   └── cir_fixtures.json      # frozen R oracle outputs (committed)
 │   └── conftest.py
-├── outputs/                   # calibration artifacts + diagnostics (see Outputs index below)
-│   ├── calibrator_v1.joblib           # deliverable artifact (committed)
+├── outputs/                   # calibration diagnostics (the fitted calibrator now lives at repo-root models/, Issue #908; see Outputs index below)
 │   ├── pr_reliability.png             # logit-scale calibration panels (45° + Cox fit) (committed)
 │   ├── shift_gap.png                  # LOCO vs within-cohort gap (committed)
 │   ├── kde_compare.png                # adaptive vs fixed KDE (logit-scale reliability) (committed)
@@ -61,7 +60,7 @@ Raw tables are **never committed**: NeoRanking is LICR copyright (no redistribut
 | Cohort-composition reconcile vs #592 | ✅ paper+data confirmed: mutation 131 pt / neo-pep 99 pt, 178 CD8 neo-peptides, **no Bjerregaard** — #592 correcting note posted |
 | IMPROVE/Borch augment | ✅ downloaded — CV training table (17,520 / 467) + CEDAR benchmark from `SRHgroup/IMPROVE_paper` (the repo named in the paper's Data Availability Statement) |
 | MHCflurry scoring (`score_cohort.py`) | ✅ all 4 cohorts scored; `scored_cohort_subsample.parquet` + `.true_counts.csv` in `outputs/` |
-| Calibrator build (`calibrator.py` + `notebook.ipynb`) | ✅ `calibrator_v1.joblib` in `outputs/`; LOCO + within-cohort validation done — see "Validation result" below |
+| Calibrator build (`calibrator.py` + `notebook.ipynb`) | ✅ `calibrator_v1.joblib` in repo-root `models/` (Issue #908); LOCO + within-cohort validation done — see "Validation result" below |
 | Unit tests | ✅ `tests/` — centered-isotonic vs R oracle, calibrator round-trip, score formula |
 
 ## Schema & join feasibility (NeoRanking, confirmed from the downloaded tables 2026-06-17)
@@ -128,7 +127,7 @@ calibrator (#708) consumes assayed-positive vs assayed-negative, so map NeoRanki
 ## Outputs index
 
 - `data_manifest.yaml` — **pinned schema v1** (Issue #707): paths + checksums + fetch commands + license. Raw tables are **not** committed (LICR copyright, no redistribution).
-- `outputs/calibrator_v1.joblib` — **deliverable artifact** (Issue #708): `PresentationCalibrator` fit with adaptive KDE mode, prior log-odds −6.525 (derived from `true_counts.csv` pooled across all 4 cohorts), trained on NCI + TESLA + HiTIDE + IMPROVE. Consumed by [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) (Snakemake wiring). Load: `PresentationCalibrator.load("outputs/calibrator_v1.joblib")`.
+- `models/calibrator_v1.joblib` — **deliverable artifact** (Issue #708; relocated to the repo-root `models/` production home in Issue #908): `PresentationCalibrator` fit with adaptive KDE mode, prior log-odds −6.525 (derived from `true_counts.csv` pooled across all 4 cohorts), trained on NCI + TESLA + HiTIDE + IMPROVE. Consumed by [Issue #709](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/709) (Snakemake wiring, via `config.yaml` `calibrator.artifact`). Load: `PresentationCalibrator.load("models/calibrator_v1.joblib")` (path relative to repo root).
 - `outputs/scored_cohort_subsample.parquet.true_counts.csv` — per-cohort true positive and true negative counts used to compute the base-rate prior (committed; the `.parquet` itself is gitignored as LICR-derived).
 - `outputs/pr_reliability.png` — per-cohort **logit-scale calibration plot**: predicted log-odds (x) vs empirical logit of the observed rate (y, +0.5-corrected on the Kish-effective-n scale), with Jeffreys (boundary-corrected) CIs (visually near-identical to the former Wilson interval except in the lowest-rate NCI bins, where Wilson under-covers as p->0; #804), the 45° perfect-calibration diagonal, and the fitted **Cox recalibration** line. Headline numbers are the **Cox slope** (≈1 = well-calibrated spread; <1 = over-confident) and **intercept** (calibration-in-the-large / base-rate offset). Calibration is a held-out *diagnostic* on the SNV cohorts, not a deployment probability claim (#592); discrimination lives in the AUPRC-lift/AUPRG + top-k tables. The empirical curve is not expected to be monotone (sampling noise, not miscalibration); the monotonicity guarantee is structural (isotonic step, grid-checked at final fit).
 - `outputs/shift_gap.png` — LOCO vs within-cohort validation gap: visualises the cross-lab/assay transfer drop (the "proxy caveat" gap).
@@ -214,7 +213,7 @@ cd research/experiments/issue_547_immunogenicity_calibration
 
 ```bash
 ../../../research/.venv/bin/jupyter nbconvert --to notebook --execute --inplace notebook.ipynb
-# Writes: outputs/calibrator_v1.joblib  outputs/*.png
+# Writes: models/calibrator_v1.joblib (repo root)  outputs/*.png
 ```
 
 **Step 4 — Splice applicability gate ([Issue #826](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/826); `research/.venv`, Python 3.14)**
