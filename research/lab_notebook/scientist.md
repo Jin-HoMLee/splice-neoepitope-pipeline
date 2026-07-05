@@ -6,9 +6,49 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-05
+
+### Editor: Scientist
+
+#### [PR #1030](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1030) - 2nd bot review pass cleared merge; folded in two recipe-robustness fixes. Closes [Issue #965](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/965).
+
+**Context.** Follow-on to yesterday's leaf-A audit.
+Yesterday I added the ASNEO local smoke as a post-review addendum and requested a fresh `@-claude` pass focused on that delta; this session relayed and addressed that 2nd review.
+
+**Review verdict.** The 2nd pass confirmed the ASNEO addendum is sound: all four ASNEO count surfaces reconcile (6194 chr22 junctions -> 800 relaxed / 0 default peptides), the `nzchar(NA)` 17->14 fix is consistent everywhere, CI green.
+Explicitly "nothing blocks merge."
+It raised two non-blocking recipe-robustness findings on `asneo_smoke.sh`, both verified sound against source before I applied them.
+
+**Fixes folded in (commit `df1b8cb`).**
+(1) Re-runnability: the ASNEO clone is cached but the fail-loud non-idempotent option-B patch re-applied every run, so a 2nd invocation hard-aborted under `set -euo pipefail` before ASNEO ran - defeating AC-4's "reproducible recipe" on second use.
+Guarded the patch on a `grep -q "option B"` sentinel (the patcher inserts `# option B` markers, confirmed against `apply_optionB_patch.py`).
+(2) Repo hygiene: the default scratch dir sat inside the repo tree (`$REPO/.asneo_smoke_work`, not gitignored), so a run could drop a heavy untracked ASNEO clone + hg19 chr22.fa under the repo root.
+Defaulted it to `${TMPDIR:-/tmp}`.
+Also added a one-line note (finding 3) that the committed default-threshold 0-peptide figure comes from a separate manual run.
+All three are recipe-only; the committed 800-peptide artifact is unchanged.
+Held at the merge gate for Jin-Ho's final look.
+
+**Also this session (morning routine).**
+Caught a scope gap in my own leaf-A enumeration - pVACsplice (pVACtools suite, BSD-3-Clause-Clear, WashU Griffith lab, actively maintained v7.0.1) is an open splice-to-neoantigen caller that was never considered as a benchmark candidate; posted a forward-note on [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) for PM with the input-modality caveat (it keys off splice-site variants, not de-novo RNA-seq junctions).
+Acked a Developer FYI on [#601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) logging tFold-TCR as a next-refresh structure-backend candidate.
+
 ## 2026-07-04
 
 ### Editor: Scientist
+
+#### [PR #1030](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1030) - open-only splice-caller install + license audit (benchmark leaf A). Closes [Issue #965](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/965).
+
+**What.** Leaf A of the [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) open head-to-head splice-caller benchmark: install + license-audit each open caller under the open-only constraint (MHCflurry in place of the blocked NetMHCpan), on the macOS arm64 / CPU-only keep-alive target. Deliverable in `research/experiments/issue_965_open_caller_audit/` (README go/no-go + `audit_notes.md` per-tool sheets + `install/` recipes). Fanned out 7 parallel per-caller research agents, each verifying license against the actual repo `LICENSE` (not recall), then did the installs/smokes myself.
+
+**Result - two-axis go/no-go, 3 GO / 4 NO-GO.** The audit splits the question the issue conflated: open-only license/dep viability vs local-arm64 smoke feasibility (STAR is VM-only; no local Docker). GO: splice2neo (MIT, no MHC step), SNAF (MIT, MHCflurry is a native flag), ASNEO (Apache-2.0, open-only path already solved by [#566](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/566)). NO-GO: NeoSplice (vendored NetMHCpan binaries + Py2.7 -> needs a fork), SINE (NetMHCpan load-bearing for class II, which MHCflurry can't cover), NeoHunter (operational lock-in; its splice branch is just ASNEO), REAL-neo/SPLICE-neo (no released code).
+
+**Three issue assumptions corrected against source.** NeoHunter is MIT, not "free academic use" (license detector missed the misspelled `LISCENCE.md`); the blocker is operational. splice2neo is a junction->peptide library, not an end-to-end caller. REAL-neo/SPLICE-neo ships no installable code (Mayo in-house; paper CC BY-NC).
+
+**Local smoke + toolchain gotcha.** splice2neo built from source on this M1 and smoked green on its bundled toy fixtures. Hit a real R-4.6.0/arm64 toolchain bug: no CRAN/Bioc arm64 binaries exist yet for this R, so everything compiles from source, and the default compile line omits `-isysroot` -> Apple clang can't find libc++ headers -> every C++ dep dies on `fatal error: 'cmath' file not found`. Fixed by pointing `CPLUS_INCLUDE_PATH` at the SDK's `c++/v1`, baked into the recipe (with a note that a conda-forge R env is the more portable alternative).
+
+**Review.** Bot review positive, one real correctness finding: my headline "17 peptide_context candidates" over-counted - `nzchar(NA)` returns TRUE by default (`keepNA=FALSE`), so the count silently included the 3 NA (no-in-frame-peptide) rows. Verified against the committed TSV (14 non-NA of 17), fixed the counting helper to `!is.na(x) & nzchar(x)`, re-ran (17 context seqs -> 15 proteins -> **14 peptide_context**, 5 frame-shift), and corrected README + PR body. Also applied 3 doc nits (gitignored-log wording, SNAF-repo clarification, run-from-root note). On AC-5 (surviving-caller smokes) the reviewer endorsed treating it as satisfied for leaf A: splice2neo smoked locally; SNAF genuinely can't run here (Linux/Docker only) and is carried by the #679 compute leaves; ASNEO's local run + MHCflurry concordance is carried by [#848](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/848) - both tracked, box ticked with links.
+
+**Post-review addendum.** Jin-Ho flagged an inconsistency: I smoked splice2neo but deferred ASNEO. Fair - ASNEO's caller-proper runs natively on arm64 (the #566 env), so that deferral was a tractability skip, not a principled one. Held it to the same bar: `install/asneo_smoke.sh` runs the option-B-patched caller on ASNEO's own bundled test `SJ.out.tab` subset to chr22 (no STAR, no hand-crafting) - all 11 stages end to end, 800 candidate peptides at relaxed thresholds. So 2/3 GO callers now smoked locally. SNAF stays deferred, but now on a resource-grounded, Jin-Ho-confirmed basis (not a skip): it has no arm64 build at all, and a full amd64-emulated smoke needs ~6 GB (colima VM + 2.72 GB reference + TF/AltAnalyze) against 5.1 GB free disk - so it belongs to the Linux/free-GPU compute leaf, where its open-only GO (MIT + native MHCflurry flag) will actually run.
 
 #### [PR #1021](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1021) - surface `normal_shared` by normal source in `report.html`. Closes [Issue #983](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/983).
 
