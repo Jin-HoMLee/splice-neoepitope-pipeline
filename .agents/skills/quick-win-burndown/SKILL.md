@@ -63,7 +63,7 @@ What survives is the real quick-win field. Rank: Ready before Backlog, then `arc
 This is the per-item pipeline, and it is exactly the `[[autonomy-merge-gate-cadence]]` quick-win flow - run the whole reversible chain unsupervised and **stop at the merge command**, the one irreversible outward-facing act, which stays with the human. Don't over-checkpoint: stopping at PR-open to hand back the review or lab-notebook as separate asks is stopping *too early*, inside the autonomous zone.
 
 1. **Start clean + branch.** `git checkout main` for a predictable starting point - do **not** `git pull origin main` here: `scripts/new_branch.sh` bases the branch off *remote* main server-side (`gh issue develop --base main`), so a local pull is redundant, and in the fan-out loop (Step 3) it would merge main *into* the previous item's still-checked-out feature branch. Then `scripts/new_branch.sh <issue#> <short-slug>` (never hand-roll the branch name; the helper preserves the Issue<->branch link and refuses epics).
-2. **Move the Issue to In progress** on board #9 before opening the branch (the pre-PR step the auto-hooks don't cover). IDs in the appendix.
+2. **Move the Issue to In progress** on board #9 before opening the branch (the pre-PR step the auto-hooks don't cover): `scripts/pm/set_status.sh <issue#> "In progress"` (resolves the item id itself, idempotent). Raw-graphql fallback + IDs in the appendix.
 3. **Build + verify.** Make the change; run the real verification, not just the tests a dry-run would pass. For CI/YAML or docs changes there may be no unit test - drive the actual behavior instead (run the validator green *and* red; build the venv and run pytest against it). Restore any file you mutate for a red-path test from a backup copy, never `git checkout` (it wipes uncommitted work).
 4. **Commit, push, PR.** One logical change; PR body carries a ticked Test plan; tick the Issue's `## Acceptance criteria` boxes once truly satisfied.
 5. **Request the bot review** (`@-claude review`, hyphenated only to dodge the mention guard - the literal trigger is `@claude review`) and **launch the `awaiting-bot-review` skill** so the wait is hands-free. Do not hand-roll a poll loop.
@@ -94,7 +94,13 @@ Query these fresh if a mutation 404s (`updateProjectV2Field` regenerates option 
 - Status field: `PVTSSF_lAHOB17eGc4BSomPzhAHFf8`
 - Options: Backlog `f75ad846` · Ready `61e4505c` · In progress `47fc9ee4` · Ready for review `8bf9192f` · In review `df73e18b` · Done `98236657` · Epic `9f872564`
 
-Set an Issue's status (get its project item id from `issue(number:N){ projectItems }`):
+Set an Issue's status - **prefer the wrapper**, which resolves the project item id itself, maps the status name from the single canonical place, and is idempotent:
+
+```bash
+scripts/pm/set_status.sh <issue#> "In progress"
+```
+
+Raw-graphql fallback (get the project item id from `issue(number:N){ projectItems }`), only if the wrapper is unavailable:
 
 ```bash
 gh api graphql -f query='mutation($item:ID!){ updateProjectV2ItemFieldValue(input:{

@@ -6,6 +6,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-05 - quick-win burn-down: set_status.sh board-status wrapper ([PR #1039](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1039) closes [Issue #1024](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1024))
+
+### 17:10 UTC - Editor: Developer - regression cover + a second review round (same PR #1039)
+
+**Second `@claude review` (user-requested before merge).** Ship-ready again; verified both prior fixes correct (nice catch that my `<<<` here-string is load-bearing under `set -e` - a `| read` pipe would EOF-abort), IDs drift-free, agreed with the `--repo` YAGNI. One new non-blocking finding: the *write* path rode bare `set -e` while the *read* path now echoes `$TARGET` on failure - asymmetric. Fixed in `c106d6d` (guard the mutation, echo TARGET + re-query hint on the likely regenerated-option-id 404).
+
+**Test cover (`983b440`, addressing both reviews' optional bats suggestion).** Judgment call worth recording: the reviewer said "bats", but **bats is uninstalled with zero `.bats` precedent** - the house style is pytest-subprocess (`test_new_branch.py` tests the sibling `scripts/` shell wrapper exactly this way). Followed the convention over the literal wording: `workflow/tests/test_set_status.py`, 17 cases, PATH-stubbed `gh` that even emulates `--jq` (runs the script's own filter on the fixture) so the `@tsv` read parsing is exercised for real. The load-bearing assertion is a **parametrized Status-name -> option-id map** pinned to an independent canonical dict - a fat-fingered id in the script's `case` now fails a test, which was the reviewer's stated drift risk. `17 passed`. Card still In review; still stopped at the gate.
+
+### 16:52 UTC - Editor: Developer - cross-repo hardening addendum (same PR #1039)
+
+**Prompted by a user question** ("how does it handle same Issue/PR numbers across repos?"). Traced it: the wrapper selects the repo by **cwd** (`gh repo view`), not an argument, and queries `repository.issue(number)` - Issue-only. So there is no cross-repo *mutation* collision (it always targets the current clone's Issue N's board-#9 card), but there **was** a silent wrong-target risk: run it from the wrong clone and it moves that clone's same-numbered card with no signal. Fix in `a290f58`: every outcome now echoes `Issue #N in owner/repo ("title")` (the only wrong-target signal available), and a PR number now prints an explicit "not an Issue" hint instead of a bare `NOT_FOUND`. **Deliberately did NOT add a `--repo` override** - YAGNI (no manual cross-clone workflow needs it; the hooks already own the automated cross-repo path by threading repo from PR context). Verified: title resolves, PR-number hint fires, live flip shows the repo-qualified line. Card still at In review; still stopped at the gate.
+
+### 16:39 UTC - Editor: Developer - scripts/pm/set_status.sh DRY board-status wrapper
+
+**Context.** First-item (and, as it turned out, only-item) pass of a `quick-win-burndown` for the Developer lane. #1024 was itself born from the [PR #1023](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1023) review that shipped the skill - the reviewer flagged that moving a board card meant a raw `updateProjectV2ItemFieldValue` graphql call with hand-supplied IDs (the "query, don't guess IDs" foot-gun). The wrapper DRYs the *manual* path: resolves the Issue's board-#9 item id itself, maps the Status name from one canonical `case`, mutates idempotently.
+
+**Selection - the field was one item deep.** Ran the 7-check freshness pass over the role-scoped Ready + Backlog. Ready held only two M items (neither a clean quick win: #919 is an evaluation, #962 M-sized test infra). Six Backlog S-items were pre-disqualified - and the skill's own playbook names each: #183 stale-premise (GCP gone), #193 not-a-PR (a *run*), #725 blocked, #677 ~142-occ rename (not *quick*), #800 needs a live event, #842 gated. #1024 was the lone survivor, so this was a single-item pass; stopped rather than stuffing a marginal item.
+
+**Lesson - macOS system bash is 3.2; no `declare -A`.** First cut mapped Status->option-id with an associative array. Verification (not just "looks right") caught it: `env bash` on this Mac is 3.2.57, which errors on `declare -A` with `unbound variable`. Rewrote as a `case` (the local `scripts/` idiom; only the Linux-targeted `star_flag_sweep.sh` uses `declare -A`). The generalizable bit: **any local `.sh` here must be bash-3.2-safe**, and `/bin/bash -n` + a live run under `/bin/bash` are the check.
+
+**Bot review (ship-ready, non-blocking; fix in `377b3de`).** Dogfooded via `awaiting-bot-review` (landed in 4m). Finding 1 was a real robustness bug I'd call worth-fixing: the item-resolution query used `2>/dev/null || true`, so *every* failure mode (expired auth, API 5xx, jq error, bad issue #) collapsed into the "no card on board #9" branch - the single misleading outcome for a wrapper meant to de-risk this exact step. Fix: capture the query's exit status + stderr; report "no card" only on a successful-but-empty result, else surface the real error (exit 1). Applied the same guard to `gh repo view` (Finding 2). Verified live: a non-existent issue # now prints the graphql `NOT_FOUND` (exit 1), a genuine exists-but-not-on-board case still reads "no card". Findings 3 (cross-hook single-sourcing - the Python hooks can't source a bash `case`) and 4 (bounded `first:` fetches) left as documented non-blocking design notes.
+
+**Verification.** `/bin/bash -n` parse under 3.2; all three arg-failure paths exit 2; live happy-path dogfooded (the script did #1024's own `Backlog -> In progress` move); idempotency no-op confirmed twice; post-fix board-query-failure path surfaces the real error.
+
+**Process note.** Stopped at the merge command per the standing autonomy cadence ([[shared/feedback_autonomy_merge_gate_cadence]]); card at In review. Field exhausted after this item - honest single-item pass, not a churned batch.
+
 ## 2026-07-04 - CCR sandbox gh re-probe: native issue-dependency fields still unavailable in-sandbox ([PR #974](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/974) closes [Issue #941](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/941))
 
 ### 20:36 UTC - Editor: Developer - destructive-command PreToolUse guards, net-new subset of [Issue #626](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/626) ([PR #1029](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1029))
