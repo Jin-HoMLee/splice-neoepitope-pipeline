@@ -77,12 +77,18 @@ STATUS="$2"
 OPTION_ID="$(status_option_id "$STATUS")" || { echo "Error: unknown status name '$STATUS'." >&2; usage; }
 
 # owner/repo of the current repo (the Issue's card resolves from its own repo).
-read -r OWNER REPO < <(gh repo view --json owner,name --jq '.owner.login + " " + .name')
+OWNER_REPO="$(gh repo view --json owner,name --jq '.owner.login + " " + .name' 2>&1)" \
+  || { echo "Error: could not resolve the current repo (not in a GitHub repo / gh unauthenticated):" >&2; printf '%s\n' "$OWNER_REPO" >&2; exit 1; }
+read -r OWNER REPO <<<"$OWNER_REPO"
 
 # Resolve the Issue's board-#9 project item id + its current Status name.
 # @tsv keeps the two fields tab-separated so a status with a space
-# ("In progress") survives the read.
-IFS=$'\t' read -r ITEM_ID CURRENT < <(
+# ("In progress") survives the read. Capture the query's exit status +
+# stderr separately: a transient failure (expired auth, API 5xx, jq error)
+# must not be misreported as "no card on board" - that is the one confusing
+# outcome for a wrapper whose job is to de-risk this step. "No card" is only
+# reported when the query *succeeded* and returned nothing.
+if ! RESULT="$(
   gh api graphql -f query="
     query {
       repository(owner: \"$OWNER\", name: \"$REPO\") {
@@ -108,8 +114,14 @@ IFS=$'\t' read -r ITEM_ID CURRENT < <(
       | select(.project.number == $PROJECT_NUMBER)
       | [.id, ((.fieldValues.nodes[]? | select(.field.name == \"Status\") | .name) // \"\")]
       | @tsv
-  " 2>/dev/null
-) || true
+  " 2>&1
+)"; then
+  echo "Error: board query failed for Issue #$ISSUE:" >&2
+  printf '%s\n' "$RESULT" >&2
+  exit 1
+fi
+
+IFS=$'\t' read -r ITEM_ID CURRENT <<<"$RESULT"
 
 if [[ -z "${ITEM_ID:-}" ]]; then
   echo "Error: Issue #$ISSUE has no card on board #$PROJECT_NUMBER (nothing to move)." >&2
