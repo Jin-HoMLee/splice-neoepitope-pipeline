@@ -93,6 +93,7 @@ if ! RESULT="$(
     query {
       repository(owner: \"$OWNER\", name: \"$REPO\") {
         issue(number: $ISSUE) {
+          title
           projectItems(first: 10) {
             nodes {
               id
@@ -110,26 +111,37 @@ if ! RESULT="$(
         }
       }
     }" --jq "
-      .data.repository.issue.projectItems.nodes[]
+      .data.repository.issue as \$iss
+      | \$iss.projectItems.nodes[]
       | select(.project.number == $PROJECT_NUMBER)
-      | [.id, ((.fieldValues.nodes[]? | select(.field.name == \"Status\") | .name) // \"\")]
+      | [.id, ((.fieldValues.nodes[]? | select(.field.name == \"Status\") | .name) // \"\"), (\$iss.title // \"\")]
       | @tsv
   " 2>&1
 )"; then
   echo "Error: board query failed for Issue #$ISSUE:" >&2
   printf '%s\n' "$RESULT" >&2
+  # A PR number is the common cause: repository.issue(number) is Issue-only, so
+  # a PR (or a cross-repo number that only exists as a PR here) NOT_FOUNDs.
+  case "$RESULT" in
+    *"Could not resolve to an Issue"*)
+      echo "Hint: #$ISSUE resolves to no Issue in $OWNER/$REPO (a PR shares the number space but is not an Issue; this wrapper moves Issue cards only)." >&2 ;;
+  esac
   exit 1
 fi
 
-IFS=$'\t' read -r ITEM_ID CURRENT <<<"$RESULT"
+# TITLE + the resolved OWNER/REPO are echoed in every outcome so a run from the
+# WRONG clone (a same-numbered Issue in another repo on board #9) is obvious - the
+# repo is selected by cwd, not an argument, so this is the only wrong-target signal.
+IFS=$'\t' read -r ITEM_ID CURRENT TITLE <<<"$RESULT"
+TARGET="Issue #$ISSUE in $OWNER/$REPO (\"${TITLE:-?}\")"
 
 if [[ -z "${ITEM_ID:-}" ]]; then
-  echo "Error: Issue #$ISSUE has no card on board #$PROJECT_NUMBER (nothing to move)." >&2
+  echo "Error: $TARGET has no card on board #$PROJECT_NUMBER (nothing to move)." >&2
   exit 1
 fi
 
 if [[ "${CURRENT:-}" == "$STATUS" ]]; then
-  echo "Issue #$ISSUE already in '$STATUS' - no-op."
+  echo "$TARGET already in '$STATUS' - no-op."
   exit 0
 fi
 
@@ -141,4 +153,4 @@ gh api graphql -f query='
     }) { projectV2Item { id } }
   }' -f p="$PROJECT_ID" -f i="$ITEM_ID" -f f="$STATUS_FIELD_ID" -f o="$OPTION_ID" >/dev/null
 
-echo "Issue #$ISSUE: '${CURRENT:-<none>}' -> '$STATUS'"
+echo "$TARGET: '${CURRENT:-<none>}' -> '$STATUS'"
