@@ -17,7 +17,7 @@ The calibrator moved from paper to pipeline in four gated steps:
 
 - **Training-cohort selection** ([Issue #592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592), [PR #596](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/596)) landed the decision on *which* labelled immunogenicity cohorts to calibrate against, choosing four SNV / point-mutation neoantigen cohorts (NCI, TESLA, HiTIDE, IMPROVE).
   The choice was grounded in a fact-checked 109-agent deep-research sweep (26 sources, 80 claims extracted, 25 adversarially verified) rather than recall, and it satisfied AC 1 of the parent calibrator epic [Issue #547](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/547), unblocking the fit.
-  Decision deck: `research/decisions/issue_592/slides.html`.
+  Decision deck: `research/decisions/issue_592/slides.qmd`.
 - **The calibrator itself** ([Issue #708](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/708), [PR #786](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/786)) reimplemented NeoGuider's rank-calibration ML *from the Wei et al. (Genome Medicine 2026) paper* rather than vendoring its code (NeoGuider is AGPL-3.0 with an explicit non-commercial restriction and depends on paid tools we do not use).
   The module chains adaptive KDE of positive-vs-negative `presentation_score` densities into a density ratio, then isotonic and finally **centered isotonic regression** (Oron & Flournoy 2017), emitting a calibrated immunogenicity log-odds and validated leave-one-cohort-out (LOCO).
   Ships the fitted `calibrator_v1.joblib`; experiment at `research/experiments/issue_547_immunogenicity_calibration`.
