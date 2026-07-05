@@ -145,12 +145,18 @@ if [[ "${CURRENT:-}" == "$STATUS" ]]; then
   exit 0
 fi
 
-gh api graphql -f query='
+# Guard the mutation symmetrically with the read path: on failure echo the
+# resolved TARGET (which/where) + the header's re-query hint, since the most
+# likely cause is a regenerated option ID -> 404 (see header).
+if ! gh api graphql -f query='
   mutation($p:ID!, $i:ID!, $f:ID!, $o:String!) {
     updateProjectV2ItemFieldValue(input:{
       projectId:$p, itemId:$i, fieldId:$f,
       value:{ singleSelectOptionId:$o }
     }) { projectV2Item { id } }
-  }' -f p="$PROJECT_ID" -f i="$ITEM_ID" -f f="$STATUS_FIELD_ID" -f o="$OPTION_ID" >/dev/null
+  }' -f p="$PROJECT_ID" -f i="$ITEM_ID" -f f="$STATUS_FIELD_ID" -f o="$OPTION_ID" >/dev/null 2>&1; then
+  echo "Error: failed to move $TARGET to '$STATUS'. The board option IDs may have been regenerated - re-query per the header recipe." >&2
+  exit 1
+fi
 
 echo "$TARGET: '${CURRENT:-<none>}' -> '$STATUS'"
