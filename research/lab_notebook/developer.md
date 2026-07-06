@@ -6,7 +6,27 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
-## 2026-07-05 - quick-win burn-down: set_status.sh board-status wrapper ([PR #1039](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1039) closes [Issue #1024](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1024))
+## 2026-07-06 - stand up docs/adr + docs/design homes ([PR #1051](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1051) closes [Issue #777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777))
+
+### 10:31 UTC - Editor: Developer - ADR/design extraction home + seed pass
+
+**Context.** Morning warm-up pull: [#777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777) was the oldest Ready item (17d) - stand up a technical decision-record home and start unloading the "why" content from the overloaded project-root `CLAUDE.md`. Technical sibling to [#769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) (PM board-governance extraction from the same file); confirmed #769 not in progress / no branch, so no live collision on the file.
+
+**Design decisions (brainstormed, M-size).** Two genuine user calls surfaced:
+- **Scope:** scaffold + seed (this PR) vs full migration in one PR. Chose scaffold + seed - stand up both homes, the ADR template, the READMEs (recorded rationale + routing rule + #769 boundary note), and one migrated exemplar each; carve the ~7-block bulk migration to follow-up [#1050](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1050). Load-bearing deliverable (home + routing rule + pattern) ships here; the rest is mechanical.
+- **Format:** user picked the Diataxis-purer **two-home split** (`docs/adr/` for point-in-time decisions, `docs/design/` for ongoing explanation) over my ADR-only recommendation. Routing rule recorded in `docs/adr/README.md` so the #1050 pass is deterministic. Seeded ADR-0001 (TCRdock-via-Docker) + design/junction-origin-classification to validate both homes.
+
+**Closure shape.** Followed `feedback_close_issue_with_pr`: PR ticks AC1/3/4/5 fully + AC2 partial (2 exemplars), remaining AC2 carved to [#1050](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1050); AC2 box ticked with the deferral link so the merge gate passes. `Closes #777`.
+
+**Bot review (LGTM - ship it; fixes in `5a6ca2d`).** One 🟡 non-blocking accuracy nit worth taking: ADR-0001 Context listed OpenMM as a TCRdock *need*, but `docker/Dockerfile.pipeline:3-4` deliberately omits openmm/pdbfixer (Amber relaxation unused by `run_prediction.py`). Verified the Dockerfile claim, then corrected the Context (OpenMM is a conda-conflict *source*, not a runtime need) and added a Consequences bullet recording the deliberate omission - the "what is explicitly not done" an ADR should carry. Also de-linked the template's non-resolving `Superseded by` placeholder (trivia). Routing-judgment trivia (regtools/samtools + `assembly:` read more like gotchas than decisions) forwarded to [#1050](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1050) to settle per-block at migration time.
+
+**Process notes / gotchas.**
+- **`CLAUDE.md` is a symlink to `AGENTS.md`.** The Edit tool refuses to write through a symlink ("Resolve the symlink and pass the real target path") - had to target `AGENTS.md` directly. Same bytes, but any future `CLAUDE.md` edit hits this; `readlink CLAUDE.md` -> `AGENTS.md` (CLAUDE.md is the link).
+- **Em-dash guard vs verbatim migration.** Migrated content carried em-dashes; rather than reach for the `CLAUDE_ALLOW_EMDASH=1` escape hatch, normalized em -> hyphen in the migrated text. This both honors house style AND satisfies AC4 "no semantic change" (punctuation-only is not semantic), and keeps the guard clean with zero net-added dashes. The right call for a verbatim-relocation task under this house style.
+
+**No memory writes this session** - the symlink gotcha is self-correcting (the Edit error names the fix); will escalate to a memory only if it bites a second time.
+
+---
 
 ### 17:10 UTC - Editor: Developer - regression cover + a second review round (same PR #1039)
 
