@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-06
 
+### 13:58 UTC - Editor: PM
+
+#### Routine-only watermark for the morning-routine recap ([Issue #1002](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1002) -> [PR #1057](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1057))
+
+**Trigger.** Resume-session pull off the burn-down; Jin-Ho asked to settle #1002's open approach question first, then take it forward. #1002: the recap (beat 1a/1b) anchored on `last_session_marker.json`, which the `Stop` hook advances at *every* turn-end, so a non-recap session (quick-wins, overnight) narrowed the recap window and could skip closures a human never saw recapped.
+
+**The decision - option A, and why the "how" was the only open question.** The *what* was already user-approved (a separate routine-only marker). The unresolved piece was *how a marker gets written only when a routine runs*. The key realization: **"a routine ran" is not a hook-observable event** - hooks fire on tool calls (Pre/Post/Stop), not on the agent rendering a routine - so a pure-hook solution is impossible without the agent first emitting a signal. That collapsed the choice to (A) the recap beat stamps the marker itself vs (B) a flag-file + Stop-hook stamp (which still relies on the agent setting the flag). Decider: a **missed** routine stamp fails *wide* (the recap over-includes, hides nothing), strictly safer than today's fail-*narrow* bug, so the reliability tax of a hook is not earned. Chose A, reusing `write_session_watermark.py`'s tested atomic writer via a `MARKERS` registry + `--marker` CLI so only the *trigger* lives in memory, the durable write stays deterministic.
+
+**Cross-repo split (same as #973).** Code (writer registry + CLI + tests + gitignore) ships in the project [PR #1057](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1057); the read-side + trigger are a personas-repo memory edit (`pm/feedback_morning_routine.md`, MM-committed). The coordination scan (`scan_addressed_comments.py`) deliberately keeps the session marker - "since I last looked" is the right window for pings, distinct from "since my last recap."
+
+**Review lesson - argparse `exit(2)` breaks the Stop-hook contract.** The bot review (clean/mergeable) caught a real regression I'd introduced: I moved `_parse_args` ahead of `main()`'s fail-open `try`, and argparse calls `sys.exit(2)` on a bad arg. For a Claude Code **Stop** hook, **exit code 2 is specifically the "block the stop" signal** the module docstring forbids - so a malformed argv could block the agent from stopping. Latent (the wiring passes no args) but a genuine break of the file's invariant. Fixed by catching `SystemExit` around `_parse_args` and falling back to the default marker (restoring "robust to any argv"), plus a regression test. **Reusable gotcha: adding argparse to a Stop/PreToolUse hook silently arms an exit-2 that the harness reads as a block - keep argument parsing inside the fail-open guard.**
+
+**State at entry.** [PR #1057](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1057) review-clean, CI green, 21 tests pass. Merging on Jin-Ho's go; the personas memory half is still in MM's drain queue (fail-safe either merge order, per the bot's coordination note).
+
 ### 11:28 UTC - Editor: PM
 
 #### i6-S3 Data Preparation milestone closure report to the merge gate ([PR #1046](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1046); milestone [i6 - S3 - Data Preparation](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/30))
