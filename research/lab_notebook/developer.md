@@ -8,6 +8,37 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-06 - stand up docs/adr + docs/design homes ([PR #1051](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1051) closes [Issue #777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777))
 
+### 13:48 UTC - Editor: Developer - shared hardened gh() wrapper ([PR #1056](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1056) closes [Issue #1017](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1017))
+
+**Context.**
+A `quick-win-burndown` for the Developer lane came up empty - the whole Ready queue was three genuine M-tasks and every Backlog S-item was pre-disqualified (blocked/stale-premise/gated/not-a-PR/wide).
+Rather than stuff a marginal item, surfaced that honestly and pulled the most tractable committed item, #1017, as a *proper* (non-quick) task on the user's go-ahead.
+PM had pre-approved the approach in the Issue thread.
+
+**Design decisions.**
+- **Wrapper home = `scripts/pm/gh_client.py`** (PM's open "scripts/pm vs tools/ common" question). All four hand-rolled copies + the priority-1 target live in `scripts/pm/`, and the established sibling-import convention is exactly `sys.path.insert(parent)` + bare-name import (as `board_open_items` is already consumed). No consumer lives elsewhere yet, so a neutral top-level home would be speculative.
+- **`GhError(subprocess.CalledProcessError)`** for the typed hard-failure (AC #1). Subclassing the base means every pre-existing `except subprocess.CalledProcessError` site keeps catching it unchanged (backward compatible) while new callers can isolate per-item. Ported the retry/backoff/`Retry-After` body verbatim-in-behavior from `recheck_milestone.py` (#711) - "do not reinvent."
+- **Scope discipline.** Kept PR1 to the wrapper + the one fully-unguarded copy (`recheck_parent_status.py`) per PM's stated boundary; filed follow-on [#1055](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1055) for the other three copies (AC #3's sanctioned branch). CLI contracts untouched.
+
+**Verification.**
+Drove real behavior, not just tests: a live `recheck_parent_status.py --issue 798` walk through the shared `gh()` (live REST + GraphQL) produced a correct audit. Full non-live `tools/ci` suite green.
+
+**Bot review (LGTM - ship it; fixes in `e8fb185`).**
+Four non-blocking observations, all technically sound and cheap, all taken:
+- **The strongest one:** the no-`--jq` house rule was documented but not *enforced*. Given this repo's mechanism-over-memory ladder (and that mode-(b) already bit once, #1011), moved it from convention to guarantee - `gh()` now raises `ValueError` on `--jq`/`-q` before any subprocess runs. This turns the whole argument *for* the refactor into something the wrapper upholds. +4 tests.
+- `run_all_mode()` now exits `1` when every parent was skipped on `gh` errors, so a `0` can't be misread as "clean board" when the sweep was blind - the exact silent-miss class this tool exists to catch. +1 test.
+- Documented `parse_json=False` for empty-stdout mutation calls (for the #1055 migrators) and recorded the deliberate `--issue`-vs-`--all` isolation asymmetry as an intentional choice.
+
+**Gotcha.**
+The em-dash guard fired on the *new* module - I'd ported `recheck_milestone.py`'s comments verbatim and they carried em-dashes. Normalized to hyphens in the added text rather than reach for the escape hatch (house style, and the delta-only guard then reads clean). Same class as the 2026-07-06 docs/adr entry below - a verbatim port carries the source's punctuation.
+
+**Incidental find (forwarded, not acted).**
+The live verification run flagged epic [#665](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/665) as `COMPLETION DRIFT` - open, but both native sub-issues (#798/#799) closed-completed. Pinged PM (To:PM comment on #665) with the evidence + the note that open #800 is a non-native, event-gated follow-up that doesn't block the close. PM's call.
+
+Card at In review; stopped at the merge gate.
+
+---
+
 ### 10:31 UTC - Editor: Developer - ADR/design extraction home + seed pass
 
 **Context.** Morning warm-up pull: [#777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777) was the oldest Ready item (17d) - stand up a technical decision-record home and start unloading the "why" content from the overloaded project-root `CLAUDE.md`. Technical sibling to [#769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) (PM board-governance extraction from the same file); confirmed #769 not in progress / no branch, so no live collision on the file.
