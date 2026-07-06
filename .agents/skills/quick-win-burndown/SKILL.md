@@ -19,9 +19,9 @@ Default the role to the one this workspace implements (its `role:` label). Ask o
 ## The loop
 
 ```
-select the candidate field  ->  pick the next best  ->  bring it to the gate (stop before merge)  ->  repeat
-                                        |
-                                        +--> when the next-best isn't a clean quick win: STOP and surface it
+select the candidate field  ->  pre-flight triage  ->  pick the next clean-go  ->  bring it to the gate (stop before merge)  ->  repeat
+                                 (batch the human-input                 |
+                                  questions once, up front)             +--> when the next-best isn't a clean quick win: STOP and surface it
 ```
 
 Normally the commitment to *start* each Issue is the human's, and the merge-gate cadence only governs how far to run *once started*. The burn-down request is what changes that: it's a **standing grant to keep starting** quick wins without asking each time. That grant is only safe because of two guardrails - the per-candidate freshness ratification (Step 1) that stops you starting stale work, and the stop condition (Step 3) that ends the grant the moment the field stops being clean. Without those, "keep starting things autonomously" is exactly the anti-pattern the start-is-human-gated rule guards against.
@@ -56,7 +56,19 @@ Two burn-down-specific drops the freshness checks don't name, but that still dis
 - **not-a-PR** - verification-only or research-only; no code artifact to park at In review (#800, needs a live event that hasn't happened). A pipeline **run** ("execute the pipeline") is the same: it produces results, not a mergeable diff (#193).
 - **not actually quick** - well-specified but wide (100+ occurrences, touches a cross-script contract, or collides with an open PR). #677 (~142-occurrence rename) is the archetype; it is a real task, just not a *quick* one, so it belongs in Step 3's stop condition, not the loop.
 
-What survives is the real quick-win field. Rank: Ready before Backlog, then `arc-phase:active` first, then smallest, then freshest. Pick the top one.
+What survives is the real quick-win field. Rank: Ready before Backlog, then `arc-phase:active` first, then smallest, then freshest. This ranked field is the input to Step 1.5.
+
+## Step 1.5 - Pre-flight triage (front-load the human-input decisions)
+
+Before starting *any* item, read **all** of Step 1's surviving candidates' bodies in one pass and bucket each. This is the Definition-of-Ready / refinement judgment pulled to the **front** of the burn-down instead of discovered item-by-item mid-loop - the whole point is that a decision knowable from the issue body gets made once, up front, not when the loop stalls on it.
+
+- **Clean-go** - passes freshness and the approach is unambiguous from the body. Runs autonomously in the loop.
+- **Needs-one-answer** - a single decision blocks it *and that decision is answerable straight from the body* (a go/no-go, a which-of-two-approaches, a scope call). Do not start it silently, and do not drop it - it just needs one answer.
+- **Drop** - genuinely needs design, is too wide, or is blocked. Name it with a one-line reason; don't debate it here (that is Step 3's boundary-case surfacing).
+
+Then **surface every needs-one-answer question together, as one upfront batch**, and let the user clear them in a single pass - an `AskUserQuestion` batch when they are mutually-exclusive picks, a short numbered list when a freeform answer is likely (a batched `AskUserQuestion` loses all typed text if the user closes without answering every tab, per [[ask-user-question-batching]]). Fold the answered items into clean-go. The loop (Steps 2-3) then runs end-to-end through clean-go + cleared items with **no mid-loop input stops** for this knowable-upfront class.
+
+**Caveat - only the knowable-upfront class.** This front-loads decisions readable from the issue body. Some problems only surface once you are inside the code (an API that misbehaves, a hidden coupling), so pre-flight triage **shrinks** mid-loop interruptions, it does not eliminate them. That residual is expected: handle it with the loop's normal freshness/stop logic, not as a triage failure. Establishing case (2026-07-04): a burn-down ran #784 clean to the gate, then stalled at #1002, whose marker-write approach (a memory-instructed stamp vs a hook signal) was decidable straight from the body - exactly the question an upfront batch front-loads.
 
 ## Step 2 - Bring one item to the merge gate
 
