@@ -12,9 +12,12 @@ Exits 0 if no drift, 2 if drift detected, 1 on error.
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
 import sys
+from pathlib import Path
+
+# Import the shared hardened gh() wrapper from the sibling module (Issue #1017).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_client import GhError, gh  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
@@ -102,12 +105,6 @@ def classify_drift(
     if p_rank < c_rank:
         return "BACKWARD DRIFT"
     return None
-
-
-def gh(*args: str, parse_json: bool = True):
-    """Invoke `gh` and parse JSON output (or return raw text)."""
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout) if parse_json else result.stdout
 
 
 def parent_issue_number(issue_number: int) -> int | None:
@@ -257,7 +254,13 @@ def all_parent_issues() -> list[int]:
     parents: list[int] = []
     for issue in data:
         n = issue["number"]
-        meta = gh("api", f"repos/{REPO}/issues/{n}")
+        try:
+            meta = gh("api", f"repos/{REPO}/issues/{n}")
+        except GhError as e:
+            # Per-item isolation (Issue #1017): a terminal gh failure on one issue's
+            # parent-probe must not abort the whole listing. Skip it and continue.
+            print(f"  [skipped #{n}: gh error probing sub-issues - {e}]", file=sys.stderr)
+            continue
         if (meta.get("sub_issues_summary") or {}).get("total", 0) > 0:
             parents.append(n)
     return parents
@@ -266,13 +269,21 @@ def all_parent_issues() -> list[int]:
 def run_all_mode() -> int:
     parents = all_parent_issues()
     drifted_count = 0
+    skipped_count = 0
     drift_blocks: list[str] = []
     for p in parents:
-        parent_status = status_for_issue(p)
-        children = open_sub_issues(p)
-        enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
-                    for c in children]
-        has_np = not enriched and has_not_planned_child(p)
+        try:
+            parent_status = status_for_issue(p)
+            children = open_sub_issues(p)
+            enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
+                        for c in children]
+            has_np = not enriched and has_not_planned_child(p)
+        except GhError as e:
+            # Per-item isolation (Issue #1017): one parent's terminal gh failure
+            # skips that parent, it does not abort the remaining audit.
+            skipped_count += 1
+            print(f"  [skipped #{p}: gh error during audit - {e}]", file=sys.stderr)
+            continue
         record = {
             "issue": p,
             "status": parent_status,
@@ -284,7 +295,8 @@ def run_all_mode() -> int:
             drifted_count += 1
             drift_blocks.append(format_record(record))
 
-    print(f"Audited {len(parents)} parent issues; {drifted_count} drifted.\n")
+    suffix = f" ({skipped_count} skipped on gh error)" if skipped_count else ""
+    print(f"Audited {len(parents)} parent issues; {drifted_count} drifted{suffix}.\n")
     for block in drift_blocks:
         print(block)
         print()
