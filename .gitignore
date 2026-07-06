@@ -327,6 +327,9 @@ CLAUDE.local.md
 # Last-session watermark — deterministic morning-routine window floor (Issue #820)
 .agents/last_session_marker.json
 .claude/last_session_marker.json
+# Last-routine watermark - recap-beat window floor, distinct from last-session (Issue #1002)
+.agents/last_routine_marker.json
+.claude/last_routine_marker.json
 
 # Codex CLI - per-user local harness config (local experiment; not team tooling yet).
 # Canonical hooks live in .agents/hooks/; promote to a committed config only if Codex

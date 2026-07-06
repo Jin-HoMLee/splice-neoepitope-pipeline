@@ -24,6 +24,7 @@ import pytest
 
 HOOK = Path(__file__).parent.parent.parent / ".agents" / "hooks" / "write_session_watermark.py"
 MARKER_RELPATH = Path(".agents") / "last_session_marker.json"
+ROUTINE_MARKER_RELPATH = Path(".agents") / "last_routine_marker.json"
 ISO_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
@@ -169,3 +170,76 @@ class TestWriteWatermark:
         mod = _load_module()
         root = mod._project_root({"cwd": "/some/other/path"})
         assert root == tmp_path
+
+
+class TestRoutineMarker:
+    """Issue #1002: a second, routine-only watermark distinct from the session
+    marker. The Stop hook keeps writing the session marker every turn-end; the
+    morning-routine recap beat writes the routine marker via `--marker routine`,
+    and the recap/closure-audit lookback anchors on that one instead."""
+
+    def test_default_marker_is_session(self, tmp_path):
+        # Backward compat: no marker arg == the session marker the Stop hook writes.
+        mod = _load_module()
+        path = mod.write_watermark(tmp_path, timestamp="2026-07-06T12:00:00Z")
+        assert path == tmp_path / MARKER_RELPATH
+        assert json.loads(path.read_text()) == {
+            "last_session_end_utc": "2026-07-06T12:00:00Z",
+            "schema": 1,
+        }
+
+    def test_routine_marker_path_and_key(self, tmp_path):
+        mod = _load_module()
+        path = mod.write_watermark(tmp_path, timestamp="2026-07-06T12:00:00Z", marker="routine")
+        assert path == tmp_path / ROUTINE_MARKER_RELPATH
+        assert json.loads(path.read_text()) == {
+            "last_routine_end_utc": "2026-07-06T12:00:00Z",
+            "schema": 1,
+        }
+
+    def test_session_and_routine_markers_are_independent(self, tmp_path):
+        # Writing one marker must never disturb the other (distinct files).
+        mod = _load_module()
+        mod.write_watermark(tmp_path, timestamp="2026-07-01T00:00:00Z", marker="session")
+        mod.write_watermark(tmp_path, timestamp="2026-07-06T00:00:00Z", marker="routine")
+        session = json.loads((tmp_path / MARKER_RELPATH).read_text())
+        routine = json.loads((tmp_path / ROUTINE_MARKER_RELPATH).read_text())
+        assert session["last_session_end_utc"] == "2026-07-01T00:00:00Z"
+        assert routine["last_routine_end_utc"] == "2026-07-06T00:00:00Z"
+
+    def test_unknown_marker_raises(self, tmp_path):
+        mod = _load_module()
+        with pytest.raises(KeyError):
+            mod.write_watermark(tmp_path, marker="nope")
+
+    def test_cli_marker_routine_writes_only_routine_file(self, tmp_path):
+        (tmp_path / ".agents").mkdir()
+        proc = subprocess.run(
+            [sys.executable, str(HOOK), "--marker", "routine"],
+            input=_stop_payload(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": ""},
+        )
+        assert proc.returncode == 0
+        assert proc.stdout.strip() == ""
+        assert (tmp_path / ROUTINE_MARKER_RELPATH).exists()
+        assert not (tmp_path / MARKER_RELPATH).exists()
+        ts = json.loads((tmp_path / ROUTINE_MARKER_RELPATH).read_text())["last_routine_end_utc"]
+        assert ISO_Z.match(ts)
+
+    def test_cli_default_writes_only_session_file(self, tmp_path):
+        # No --marker == the Stop-hook path == session marker only.
+        (tmp_path / ".agents").mkdir()
+        proc = subprocess.run(
+            [sys.executable, str(HOOK)],
+            input=_stop_payload(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": ""},
+        )
+        assert proc.returncode == 0
+        assert (tmp_path / MARKER_RELPATH).exists()
+        assert not (tmp_path / ROUTINE_MARKER_RELPATH).exists()
