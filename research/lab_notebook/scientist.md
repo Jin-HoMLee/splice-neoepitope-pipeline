@@ -10,6 +10,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ### Editor: Scientist
 
+#### [PR #1066](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1066) - within-cohort shift gap as a distribution over CV-split seeds. Closes [Issue #954](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/954).
+
+**Context.** The within-cohort 5-fold AUPRC in `issue_547_immunogenicity_calibration/notebook.ipynb` (cell 19) was a point estimate on one random fold partition (`StratifiedKFold(random_state=42)`); the `shift_gap` (within - LOCO) inherited that single-partition variance, material given small per-cohort positive counts (TESLA n_pos=34, HiTIDE 41).
+Sequenced after the [#1059](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1059) refresh (Jin-Ho's split call); branched off main after #1060 merged so the diff isolates to the variance band.
+
+**What shipped.** Replaced the point estimate with a distribution over N=25 CV-split seeds: cell 19 reports within AUPRC as mean + SD + a 2.5-97.5 percentile band + a per-cohort robustness verdict; `shift_gap.png` gains a +/-1 SD band with `*`/`n.s.` tags; stability statement added to cells 31/40 + README.
+Only the CV-split seed is swept; the upstream subsample seed (`score_cohort.py seed=42`) stays fixed (frozen dataset).
+
+**Finding.** Every cohort's gap is robust to the fold partition (95% partition band excludes 0), but only TESLA (+0.17) and HiTIDE (+0.11) are practically large; NCI (+0.02) and IMPROVE (+0.01) clear the partition noise only because their per-seed variance is tiny.
+The single-seed point estimate was an optimistic draw (TESLA within 0.50 vs the 0.42 seed-mean) - exactly the wobble this quantifies.
+
+**Verified.** Numbers reproduce deterministically across two independent 25-seed executions; the second run branched off updated main and the diff isolated cleanly to cells 19/30/31/40 + `shift_gap.png` + `conclusion_ladder.png` + README (all other figures byte-identical). Both figures visually checked (fixed a title-collision on `shift_gap.png`).
+
+**Bot review (`6m 2s`).** No blocking bugs; verified the arithmetic, the frozen-subsample-seed scoping, and the refactor. One substantive methodological caveat (correct): the +/-1.96*SD band is fold-partition (Monte-Carlo) estimator variance, so it licenses "robust to the fold partition," **not** "statistically distinguishable from zero" (a significance test would need the AUPRC's finite-sample sampling error + LOCO's own uncertainty, neither in `within_sd`).
+Reframed all the "distinguishable from zero" wording to fold-partition robustness in `7e35678`, added the Monte-Carlo-variance caveat, dropped the dead `within_seed_draws`, and marked the percentile columns descriptive.
+Filed [#1065](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1065) for the #1059-class stragglers the notebook refresh missed (README LOCO table + cell 33 figure title) rather than bundling them here.
+Held at the merge gate for Jin-Ho's final look.
+
 #### [PR #1060](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1060) - refresh stale calibration-notebook outputs (predate the #805 calibrator change). Closes [Issue #1059](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1059).
 
 **Context.** Surfaced while re-executing `issue_547_immunogenicity_calibration/notebook.ipynb` for the [#954](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/954) seed-variance-band work: the committed outputs did not match a fresh run of the notebook's own current code.
