@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-06
+
+### Editor: Scientist
+
+#### [PR #1054](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1054) - make the calibrator producer notebook `BASE` portable (cwd-derived, not hardcoded). Closes [Issue #1042](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1042).
+
+**Context.** Quick-win pickup; the hardening follow-up I filed off the [PR #1040](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1040) bot review.
+Cell 3 of `research/experiments/issue_547_immunogenicity_calibration/notebook.ipynb` hardcoded `BASE` (and the `sys.path.insert`) to one machine's absolute path, so #908's "a re-fit writes to the production `models/` home, no fork" guarantee held **only** on the clone whose absolute path matched `BASE`; any other checkout resolved `BASE/../../../models` outside the repo.
+
+**What shipped.** Mirrored the sibling `applicability_notebook.ipynb` portable idiom (also the repo-wide `experiments/` convention): `EXP = Path.cwd()`; `sys.path.insert(0, str(EXP))`; `BASE = str(EXP)`.
+Kept `BASE` a `str` so the ~10 downstream `os.path.join(BASE, ...)` call sites are untouched (minimal 6/2 diff, cell 3 only).
+Source-only edit, no re-execution (it changes path resolution, not any computed value).
+
+**Verified.** From the experiment dir, `save_path = normpath(join(BASE, "..","..","..","models","calibrator_v1.joblib"))` resolves to repo-root `models/calibrator_v1.joblib` (normpath match, artifact exists); both `BASE`-relative reads (`scored_cohort_subsample.parquet`, `.true_counts.csv`) resolve; cell 3 compiles; notebook JSON parses (41 cells intact).
+The 4 remaining absolute-path strings are prior-run cell **outputs** (`Saved ...` logs), regenerated on the next execute and left untouched (hand-editing execution records would fabricate them).
+
+**Bot review (`4m 23s`).** LGTM, nothing blocking.
+It independently confirmed the `save_path` math, noted `Path.cwd()` is the repo-wide notebook anchor (5 notebooks), and endorsed leaving the stale output paths alone.
+One trivial non-blocking nit: my mirrored comment said "per README Step 4," but for **this** notebook the correct pointer is **Step 3** (README Step 3 executes `notebook.ipynb`; Step 4 executes `applicability_notebook.ipynb`) - a copy-paste artifact from the sibling.
+Verified against the README and folded the one-token fix into the same cell.
+Held at the merge gate for Jin-Ho's final look.
+
 ## 2026-07-05
 
 ### Editor: Scientist
