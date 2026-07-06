@@ -202,7 +202,9 @@ def fetch_comments(number):
     """
     try:
         pages = gh("api", f"repos/{REPO}/issues/{number}/comments", "--paginate", "--slurp")
-    except GhError:
+    except (GhError, json.JSONDecodeError):
+        # Per-item isolation (matches scan_prose_deps): a gh failure OR a 0-exit
+        # non-JSON body skips this one item rather than aborting the whole scan.
         return []
     comments = [c for page in pages for c in (page if isinstance(page, list) else [page])]
     return [
