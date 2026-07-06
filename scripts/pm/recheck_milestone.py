@@ -15,12 +15,14 @@ Exits 0 if delta within +-7 days (or no open work), 2 if UPDATE NEEDED / UNSIZED
 from __future__ import annotations
 
 import argparse
-import json
 import re
-import subprocess
 import sys
 import time
 from datetime import date, datetime, timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_client import gh  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
@@ -143,63 +145,6 @@ def compute_layered_due_date(
     calendar_days = int(round(capacity_days / AVAILABILITY_RATE * 7))
     proposed = base + timedelta(days=calendar_days)
     return (proposed, note)
-
-
-GH_MAX_ATTEMPTS = 4
-assert GH_MAX_ATTEMPTS >= 1, "gh() runs the loop at least once; a terminal raise needs a result"
-GH_BACKOFF_BASE_SECONDS = 2.0
-# Clamp a Retry-After hint: GitHub can legally emit a large value (e.g. 3600s)
-# during sustained degradation, which would otherwise stall the nightly live job
-# for that whole duration before raising (Issue #711 review).
-GH_RETRY_AFTER_CAP_SECONDS = 120.0
-
-# Deterministic client errors that won't fix themselves on retry — a bad request
-# stays bad. Everything else (5xx, 403/secondary-rate-limit, network/timeout, an
-# empty-stderr crash) is treated as transient and retried. We fail TOWARD retrying:
-# the goal is de-flaking the live recheck smoke against transient GitHub-API blips
-# (Issue #711 D4), and over-retrying a genuine bad arg only wastes a bounded few
-# seconds, whereas under-retrying a transient blip reds the whole job.
-_DETERMINISTIC_HTTP_RE = re.compile(r"HTTP (400|401|404|410|422)\b")
-_RETRY_AFTER_RE = re.compile(r"retry[- ]after[:\s]+(\d+)", re.IGNORECASE)
-
-
-def _is_transient_gh_error(stderr: str) -> bool:
-    return not _DETERMINISTIC_HTTP_RE.search(stderr or "")
-
-
-def _retry_after_seconds(stderr: str) -> float | None:
-    m = _RETRY_AFTER_RE.search(stderr or "")
-    return float(m.group(1)) if m else None
-
-
-def gh(*args: str, parse_json: bool = True, _runner=subprocess.run, _sleep=time.sleep) -> object:
-    """Run ``gh`` with retry + exponential backoff on transient failures (Issue #711 D4).
-
-    GitHub secondary rate limits and transient 5xx / replication-lag errors surface
-    as a non-zero ``gh`` exit unrelated to the request. The live recheck smoke makes
-    ~35-40 calls per CI run, so a single such blip would otherwise red the shared
-    ``ci-tools-pytest`` job. Transient non-zero exits are retried up to
-    ``GH_MAX_ATTEMPTS`` with exponential backoff, honoring a ``Retry-After`` hint
-    when GitHub provides one. A deterministic 4xx is not retried, and a terminal
-    failure raises ``CalledProcessError`` — preserving the ``check=True`` contract
-    callers depend on. ``_runner`` / ``_sleep`` are injection seams for tests.
-    """
-    cmd = ["gh", *args]
-    result = None
-    for attempt in range(GH_MAX_ATTEMPTS):
-        result = _runner(cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            return json.loads(result.stdout) if parse_json else result.stdout
-        if not _is_transient_gh_error(result.stderr):
-            break
-        if attempt < GH_MAX_ATTEMPTS - 1:
-            delay = _retry_after_seconds(result.stderr)
-            if delay is None:
-                delay = GH_BACKOFF_BASE_SECONDS * (2 ** attempt)
-            _sleep(min(delay, GH_RETRY_AFTER_CAP_SECONDS))
-    raise subprocess.CalledProcessError(
-        result.returncode, cmd, output=result.stdout, stderr=result.stderr
-    )
 
 
 def milestone_for_issue(issue_number: int) -> int | None:

@@ -131,14 +131,57 @@ class TestSnippet:
         assert len(out) == 50 and out.endswith("...")
 
 
-class TestParseJsonl:
-    def test_parses_and_skips_bad(self):
-        text = '{"a": 1}\n\nnot json\n{"b": 2}\n'
-        assert s._parse_jsonl(text) == [{"a": 1}, {"b": 2}]
+class TestFetchComments:
+    """fetch_comments: the `--jq` -> `--paginate --slurp` + Python-filter rewrite (#1055).
 
-    def test_empty(self):
-        assert s._parse_jsonl("") == []
-        assert s._parse_jsonl(None) == []
+    Locks in what the live CLI-contract diff could not guarantee it exercised - the
+    array-of-arrays flatten and the #1011 null-`.user` guard - by feeding a fake `gh`.
+    """
+
+    @staticmethod
+    def _stub(pages):
+        def fake_gh(*args, **kwargs):
+            if isinstance(pages, Exception):
+                raise pages
+            return pages
+        return fake_gh
+
+    def test_flattens_pages_and_guards_null_user(self, monkeypatch):
+        # --slurp yields a list of per-page lists; the 2nd comment has a null
+        # `.user` (deleted account, the #1011 case).
+        pages = [
+            [
+                {"body": "hi", "created_at": "2026-07-01T00:00:00Z", "user": {"login": "alice"}},
+                {"body": "ghost", "created_at": "2026-07-02T00:00:00Z", "user": None},
+            ],
+            [
+                {"body": "page2", "created_at": "2026-07-03T00:00:00Z", "user": {"login": "bob"}},
+            ],
+        ]
+        monkeypatch.setattr(s, "gh", self._stub(pages))
+        out = s.fetch_comments(42)
+        assert [c["user"]["login"] for c in out] == ["alice", "?", "bob"]  # flatten + guard
+        assert [c["body"] for c in out] == ["hi", "ghost", "page2"]
+
+    def test_missing_user_key_also_guards(self, monkeypatch):
+        monkeypatch.setattr(s, "gh", self._stub([[{"body": "x", "created_at": "t"}]]))
+        assert s.fetch_comments(1) == [{"body": "x", "created_at": "t", "user": {"login": "?"}}]
+
+    def test_flat_page_defensive_fallback(self, monkeypatch):
+        # A page that is a bare dict (not a list) is yielded, not iterated by key.
+        monkeypatch.setattr(s, "gh", self._stub([{"body": "x", "created_at": "t", "user": {"login": "z"}}]))
+        assert s.fetch_comments(1) == [{"body": "x", "created_at": "t", "user": {"login": "z"}}]
+
+    def test_gh_error_returns_empty(self, monkeypatch):
+        monkeypatch.setattr(s, "gh", self._stub(s.GhError(1, ["gh"], stderr="HTTP 503")))
+        assert s.fetch_comments(1) == []
+
+    def test_json_decode_error_isolated_returns_empty(self, monkeypatch):
+        # A 0-exit non-JSON body raises JSONDecodeError from inside gh(); isolate it
+        # per-item rather than aborting the whole scan (#1055 review).
+        import json
+        monkeypatch.setattr(s, "gh", self._stub(json.JSONDecodeError("bad", "doc", 0)))
+        assert s.fetch_comments(1) == []
 
 
 class TestOrchestrationNoNetwork:
@@ -151,10 +194,12 @@ class TestOrchestrationNoNetwork:
         ])
 
         def fake_comments(number):
+            # New contract (#1055): fetch_comments returns a list of comment dicts
+            # (was NDJSON text parsed by the now-removed _parse_jsonl).
             data = {
-                10: '{"body": "**To:** PM\\n\\nreview", "created_at": "2026-07-04T10:00:00Z", "user": {"login": "dev"}}',
-                11: '{"body": "**To:** Scientist\\n\\nnot pm", "created_at": "2026-07-04T10:00:00Z", "user": {"login": "sci"}}',
-                12: "",  # comment-less issue
+                10: [{"body": "**To:** PM\n\nreview", "created_at": "2026-07-04T10:00:00Z", "user": {"login": "dev"}}],
+                11: [{"body": "**To:** Scientist\n\nnot pm", "created_at": "2026-07-04T10:00:00Z", "user": {"login": "sci"}}],
+                12: [],  # comment-less issue
             }
             return data[number]
 
