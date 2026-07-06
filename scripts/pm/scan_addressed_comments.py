@@ -29,10 +29,12 @@ rather than as a false empty result. Issue #901.
 """
 import argparse
 import json
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_client import GhError, gh  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 MARKER_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "last_session_marker.json"
@@ -162,11 +164,6 @@ def select_pings(comments, names, since):
 # --- gh I/O ---
 
 
-def gh(*args, parse_json=True):
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout) if parse_json else result.stdout
-
-
 def read_marker(path=MARKER_PATH):
     """Parse the session watermark file, or None if absent/malformed."""
     try:
@@ -194,31 +191,28 @@ def recently_updated(since_date):
 
 
 def fetch_comments(number):
-    """All REST comments on Issue/PR `number` (REST serves both). Empty on error."""
+    """All REST comments on Issue/PR `number` as {body, created_at, user:{login}} dicts.
+
+    REST serves comments for both Issues and PRs. Uses `--paginate --slurp` (not
+    `--jq`, which the shared gh() rejects - the mode-(b) house rule) to get valid
+    JSON across pages; `--slurp` yields a list of per-page lists, which we flatten.
+    `.user` is null for a fully-deleted account, so login is guarded to "?" here in
+    Python - this is the #1011 null-guard, moved out of the old jq filter. Empty
+    list on error.
+    """
     try:
-        return gh(
-            "api", f"repos/{REPO}/issues/{number}/comments", "--paginate",
-            # `.user` is null for a fully-deleted account; guard it so a single
-            # such comment doesn't error the whole `--jq` page (which would exit
-            # gh non-zero and silently drop EVERY comment on this issue).
-            "--jq", '.[] | {body, created_at, user: {login: (.user.login? // "?")}}',
-            parse_json=False,
-        ).strip()
-    except subprocess.CalledProcessError:
-        return ""
-
-
-def _parse_jsonl(text):
-    """Parse newline-delimited JSON objects (gh --jq streams one per line)."""
-    rows = []
-    for line in (text or "").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                pass
-    return rows
+        pages = gh("api", f"repos/{REPO}/issues/{number}/comments", "--paginate", "--slurp")
+    except GhError:
+        return []
+    comments = [c for page in pages for c in (page if isinstance(page, list) else [page])]
+    return [
+        {
+            "body": c.get("body"),
+            "created_at": c.get("created_at"),
+            "user": {"login": (c.get("user") or {}).get("login") or "?"},
+        }
+        for c in comments
+    ]
 
 
 # --- orchestration ---
@@ -244,7 +238,7 @@ def scan(role, since):
     since_date = since.strftime("%Y-%m-%d")
     groups = []
     for item in recently_updated(since_date):
-        comments = _parse_jsonl(fetch_comments(item["number"]))
+        comments = fetch_comments(item["number"])
         pings = select_pings(comments, names, since)
         if pings:
             groups.append((item, pings))

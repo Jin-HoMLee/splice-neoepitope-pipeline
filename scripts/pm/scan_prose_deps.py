@@ -17,8 +17,11 @@ Exits 0 clean / 2 drift-present (--check) / 1 on error or incomplete scan
 import argparse
 import json
 import re
-import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_client import GhError, gh  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 REPO_OWNER, REPO_NAME = REPO.split("/")
@@ -53,12 +56,6 @@ class MetaLookupError(IssueLookupError):
 # sort order below consume this, so a new lookup type is registered in exactly one
 # place and cannot silently escape either (edges: #989; meta + this guard: #1012).
 _LOOKUP_FAILED_ACTIONS = (BlockerLookupError.action, MetaLookupError.action)
-
-
-def gh(*args, parse_json=True):
-    """Run a gh command; return parsed JSON (default) or raw stdout text."""
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout) if parse_json else result.stdout
 
 
 def fetch_open_issues():
@@ -139,7 +136,7 @@ def issue_meta(number):
     the blockedBy lookup, extended to the blocker-meta fetch (#1012)."""
     try:
         obj = gh("api", f"repos/{REPO}/issues/{number}")
-    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+    except (GhError, json.JSONDecodeError) as e:
         raise MetaLookupError(
             f"gh issue-meta lookup failed for #{number}: {getattr(e, 'stderr', None) or e}"
         ) from e
@@ -173,7 +170,7 @@ def native_blockers(number):
     )
     try:
         data = gh("api", "graphql", "-f", f"query={q}")
-    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+    except (GhError, json.JSONDecodeError) as e:
         # CalledProcessError = gh exited non-zero (5xx / network / GraphQL error);
         # JSONDecodeError = gh exited 0 with empty/non-JSON stdout. Both mean the
         # lookup could not be completed, so degrade rather than abort the scan.
