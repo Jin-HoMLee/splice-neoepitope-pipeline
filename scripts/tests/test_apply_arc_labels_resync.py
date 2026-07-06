@@ -8,8 +8,11 @@ labels -- it only reconciles arc-phase.
 A fake ``gh`` on PATH makes the reconcile deterministic with no live-board calls:
   - ``gh label list ... --jq ...``            -> $ARCLABELS (defined arc:* labels),
                                                  one per line (unknown-slug guard).
-  - ``gh issue list --label <arc> ... --jq``  -> $MEMBERS_<sanitized-arc> (numbers).
-  - ``gh issue view N ... --json labels --jq``-> $LABELS_<N> (arc/arc-phase labels).
+  - ``gh issue list --label <arc> ... --jq``  -> one ``<n>\t<space-joined labels>``
+                                                 line per member of $MEMBERS_<arc>,
+                                                 labels drawn from $LABELS_<n>
+                                                 (labels are returned INLINE now, so
+                                                 the script makes no per-member call).
   - ``gh issue edit N ...``                   -> the full argv, appended to $GH_EDIT_LOG.
 The arc slug is sanitized to an env-safe name (non-alnum -> ``_``): e.g.
 ``arc:board-governance`` -> ``MEMBERS_arc_board_governance``.
@@ -31,13 +34,11 @@ _FAKE_GH = (
     '  arc=""\n'
     '  while [[ $# -gt 0 ]]; do [[ "$1" == "--label" ]] && arc="$2"; shift; done\n'
     "  san=$(printf '%s' \"$arc\" | sed 's/[^a-zA-Z0-9]/_/g')\n"
-    '  varname="MEMBERS_$san"\n'
-    "  printf '%s\\n' ${!varname:-}\n"
-    "  exit 0\n"
-    "fi\n"
-    'if [[ "$1" == "issue" && "$2" == "view" ]]; then\n'
-    '  varname="LABELS_$3"\n'
-    "  printf '%s\\n' ${!varname:-}\n"
+    '  mvar="MEMBERS_$san"\n'
+    "  for n in ${!mvar:-}; do\n"
+    '    lvar="LABELS_$n"\n'
+    "    printf '%s\\t%s\\n' \"$n\" \"${!lvar:-}\"\n"
+    "  done\n"
     "  exit 0\n"
     "fi\n"
     'if [[ "$1" == "issue" && "$2" == "edit" ]]; then\n'
@@ -198,3 +199,55 @@ def test_comment_and_blank_manifest_lines_skipped(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     assert log == ""
+
+
+def test_invalid_phase_in_manifest_fails_fast(tmp_path):
+    # A phase typo would make every `gh issue edit --add-label arc-phase:<typo>`
+    # fail permanently -> reject it up front, not as a spurious transient retry.
+    proc, log = _run(
+        tmp_path, "arc:board-governance\tactiv\tBoard governance\n",
+        arclabels="arc:board-governance",
+        members={"arc:board-governance": "5"},
+        labels={5: "arc:board-governance"},
+    )
+    assert proc.returncode == 2
+    assert "invalid phase" in (proc.stdout + proc.stderr)
+    assert log == ""  # bailed before any edit
+
+
+def test_more_than_three_active_flagged(tmp_path):
+    # The focus slate is capped at 3 active arcs; a 4th is drift.
+    manifest = (
+        "arc:a\tactive\tA\n"
+        "arc:b\tactive\tB\n"
+        "arc:c\tactive\tC\n"
+        "arc:d\tactive\tD\n"
+    )
+    proc, log = _run(
+        tmp_path, manifest,
+        arclabels="arc:a arc:b arc:c arc:d",
+        members={},  # no members needed; the cap is a manifest-level check
+        check=True,
+    )
+    assert proc.returncode == 2
+    assert "DRIFT cap" in proc.stdout
+    assert "4 arcs marked 'active'" in proc.stdout
+
+
+def test_multi_arc_reported_once_across_arcs(tmp_path):
+    # #5 is a member of two arcs; it must be reported exactly once, not per-arc.
+    manifest = "arc:board-governance\tactive\tBG\narc:scoring-tcr-pmhc\tactive\tScoring\n"
+    proc, log = _run(
+        tmp_path, manifest,
+        arclabels="arc:board-governance arc:scoring-tcr-pmhc",
+        members={"arc:board-governance": "5", "arc:scoring-tcr-pmhc": "5"},
+        labels={5: "arc:board-governance arc:scoring-tcr-pmhc arc-phase:active"},
+        check=True,
+    )
+    assert proc.returncode == 2
+    assert proc.stdout.count("multi-arc: #5") == 1
+
+
+def test_member_query_uses_limit_1000(tmp_path):
+    # Guard against gh issue list's silent default --limit 30 truncation.
+    assert "--limit 1000" in SCRIPT.read_text()
