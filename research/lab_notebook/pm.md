@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-06
 
+### 11:28 UTC - Editor: PM
+
+#### i6-S3 Data Preparation milestone closure report to the merge gate ([PR #1046](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1046); milestone [i6 - S3 - Data Preparation](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/milestone/30))
+
+**Trigger.** Morning routine milestone-health beat surfaced i6-S3 at 0-open / 10-closed, 4d to due. Jin-Ho chose the full author-editor-critic closure report (sibling to yesterday's i5-S5).
+
+**Author-editor-critic - and a real lesson about the triad.** I scaffolded the report and PM-drafted all sections, then Jin-Ho asked the right question: "don't we need an expert to edit too?" I'd collapsed author+editor into PM. Pinged the Scientist ([Discussion #1047](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1047)); a real Scientist session responded and authored the Deliverables ([`9b54458`](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/commit/9b54458)). **Meanwhile I had impatiently started my own PM-session "Scientist-lens" pass on the same section - and it was wrong in ways theirs corrected:** I framed the registry as a positive-only "ground-truth set" and over-claimed #737's sparsity as a "key finding / HLA monoculture." The actual Scientist, checking `registry.tsv` directly, corrected both: it is a **two-class substrate** (85 positive / 10 negative incl. the 1 `hard-negative-true-splice` a calibrator needs for its boundary), and #737 is a **face-validity / stress-test probe, not a statistically powered benchmark**. I discarded my parallel commit (`git reset` to theirs) and deferred. **Lesson: a PM wearing the domain hat is not a domain expert - the same model in the PM seat perpetuated a framing error the Scientist seat caught against the data. The role separation is load-bearing, not ceremony.**
+
+**Re-review (bot, on Jin-Ho's call).** Because the reviewed Deliverables had changed post-pass, re-triggered the bot review. Verdict: ship it - it cross-checked the two-class claim against `registry.tsv` itself (85/10/1). One actionable gap: the Scientist had authored a "milestone composition swept in off-thesis work" **What-to-improve** bullet and handed it to me (editor) to place, but I'd missed folding it. Folded it (`1d4a54a`) + re-rendered.
+
+**Routing (c) extend the workstream.** The registry (+ its two-class labeling scheme + characterized sparsity) is the standing ground-truth substrate feeding the `arc:immunogenicity-benchmark` program (#679 caller benchmark, #1036 simulated validation set, the i5-S5 calibrator).
+
+**State at entry.** Author-editor-critic complete, all Test-plan boxes ticked, bot re-review clean, HTML in sync. Branch synced with main (picks up the #973 merge, keeping this pm.md entry conflict-free). At the merge gate. On merge: close milestone #30 + link the report, close [Discussion #1047](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1047) + [Discussion #964](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/964). Process fix-forward captured (gate milestones to thematic deliverables; flow work commits milestone-free) - a candidate memory tightening.
+
 ### 10:52 UTC - Editor: PM
 
 #### Arc taxonomy source-of-truth: model A' ([PR #1052](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1052) closes [Issue #973](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/973))
