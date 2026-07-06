@@ -1,0 +1,65 @@
+<!-- Author-owned narrative for i6 - S3 - Data Preparation. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+## Deliverables (Review layer)
+
+This milestone is the **data-preparation stage for the splice-immunogenicity ground-truth**: building, cleaning, and characterizing the curated registry of experimentally-validated splice-derived neoantigens that downstream calibration and benchmarking depend on.
+All 10 issues were Scientist-led (one dual Sci/Dev); they cluster into four deliverables.
+
+### 1. The splice-immunogenicity registry (ground-truth positive set)
+
+The core artifact of the stage: a provenance-tracked registry of real, T-cell-validated splice neoantigens, grown by systematic multi-database mining rather than opportunistic collection.
+
+- **Registry growth from standing-watch + library sweep** - [Issue #733](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733) ([PR #819](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/819)): expanded the seed registry to 44 rows.
+- **4-DB splice-category gap analysis + CEDAR/IEDB free-text mine** - [Issue #734](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/734) ([PR #840](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/840)): a systematic recovery pass across four databases to find splice-category candidates the structured queries miss.
+- **Verify + fold the recovered candidates** - [Issue #838](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/838) ([PR #905](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/905)): confirmed and folded the #734 IEDB-recovered set (long-read UM, Kwok GNAS/RPL22, POSTN, Kim extras) into the registry.
+- **Data-integrity close-out** - [Issue #904](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/904) ([PR #913](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/913)): re-verified the two IRIS `candidate` rows against the located IRIS supplement, resolving the last open AC on #733.
+- **Provenance + data-quality pass** - [Issue #823](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/823) ([PR #893](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/893)): added the `assay_context` column and upgraded Manoharan provenance, so each entry carries how its immunogenicity was established.
+
+### 2. Labeling scheme + ground-truth sparsity characterization
+
+Turning the registry into a usable train/eval substrate, and honestly quantifying how much truth it actually holds.
+
+- **Junction mapping + documented pos/neg labeling scheme** - [Issue #735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735) ([PR #881](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/881)): mapped registry entries to junctions and wrote down the positive/negative labeling convention.
+- **Ground-truth sparsity quantification + writeup** - [Issue #737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) ([PR #912](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/912)): quantified how sparse the validated ground truth is and shipped the writeup + experiment deck - characterizing the limit rather than papering over it.
+
+### 3. Cohort data refresh
+
+- **STAR cohort re-run + RESULTS refresh** - [Issue #636](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636) ([PR #943](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/943), dual Sci/Dev): re-ran patient_001 + patient_002 through the STAR path and refreshed `RESULTS.md` on corrected data.
+
+### 4. Data-capture + repo-hygiene infrastructure
+
+Process deliverables that keep the data substrate clean going forward.
+
+- **Widen Zotero capture to field-context + orphan notes** - [Issue #634](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634) ([PR #670](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/670)): closed the retired news-log's lost "else" bucket by routing field-context updates into Zotero.
+- **Migrate per-Issue notebooks + slides into the `research/experiments/` convention** - [Issue #455](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455) ([PR #775](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/775)): consolidated scattered analysis artifacts under one convention.
+
+## Carried-forward & routing
+
+**Nothing carried forward** - 10 of 10 delivered, 0 descoped, 0 re-milestoned.
+
+**Aggregate-outcome routing (milestone-close decision).**
+The stage produced a standing artifact, not a one-off: the splice-immunogenicity registry (with its labeling scheme and characterized sparsity) is now the ground-truth substrate the downstream work consumes.
+Routing is **(c) extend the workstream** - the data-prep outputs flow directly into the live `arc:immunogenicity-benchmark` program:
+
+- The **simulated validation dataset** family ([Issue #1036](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1036) + sub-issues #1037/#1038, triaged 2026-07-06) draws its injected loci and two-tier truth labels from this registry.
+- The **first open head-to-head caller benchmark** ([Issue #679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679)) uses the registry as its validated-positive set.
+- The immunogenicity **calibrator** delivered in the parallel i5-S5 Modeling milestone is validated against this same registry.
+
+No Publication (a) or Modeling (b) sibling is opened off this milestone directly - S3 is a foundation stage; its scientific payoff is realized in the benchmark + modeling work it feeds.
+
+## Retrospective (process/health)
+
+**Healthy close.**
+10/10 delivered over a ~4-week window (2026-06-04 to 2026-07-02), 0 descoped, median cycle time 10 days (avg 12.4) - steady single-lane Scientist throughput with no stranded or aging items.
+
+**What went well.**
+
+- **Disciplined data curation.** The registry grew through systematic multi-DB mining (#733/#734/#838) with explicit provenance rigor (#823) and a data-integrity close-out that chased down the last unverified rows (#904) - not opportunistic collection.
+- **Scientific honesty on the binding constraint.** #737 quantified the ground-truth *sparsity* head-on and shipped the characterization, rather than hiding a small validated set. That honesty is what makes the downstream benchmark trustworthy.
+- **Clean handoff.** The stage leaves a labeled, provenance-tracked substrate that the benchmark and validation-dataset work can consume without rework.
+
+**What to improve.**
+
+- **The report scaffolding itself was noisy.** `milestone_report.py`'s first-run seed over-collected - it pulled lab-notebook entries across the whole window and both roles instead of scoping to this milestone's 10 issues, so the Deliverables narrative had to be re-authored from the verified issue->PR set by hand. That is exactly the open [Issue #1005](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005) (seed over-collects; scope Deliverables to the milestone's issues + lead role). This close is a second concrete datapoint for prioritizing #1005 before the next lifecycle-milestone report.
