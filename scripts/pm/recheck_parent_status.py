@@ -219,6 +219,10 @@ def format_record(record: dict) -> str:
 
 
 def run_issue_mode(issue_number: int) -> int:
+    # Deliberate asymmetry with run_all_mode (Issue #1017 review): the single-chain
+    # --issue path has no per-item isolation - a terminal GhError propagates and
+    # fails hard (after the shared gh()'s retries). A one-target lookup should fail
+    # loudly rather than half-report; only the --all sweep isolates per parent.
     chain = audit_parent_chain(issue_number)
     if not chain:
         print(f"Issue #{issue_number} has no parent — nothing to audit.")
@@ -300,6 +304,12 @@ def run_all_mode() -> int:
     for block in drift_blocks:
         print(block)
         print()
+    # A sweep that skipped every parent on gh errors audited nothing - exit with the
+    # error code so a 0 can never be misread as "clean board" when it actually means
+    # "blind" (Issue #1017 review: the exact silent-miss class this tool exists to
+    # prevent). A partial skip keeps the 0/2 signal, surfaced by the suffix above.
+    if parents and skipped_count == len(parents):
+        return 1
     return 2 if drifted_count > 0 else 0
 
 

@@ -104,6 +104,38 @@ class TestGhRetry:
         assert out == "raw text"
 
 
+class TestNoJqGuard:
+    """The mode-(b) house rule is enforced at the chokepoint, not just documented
+    (Issue #1017 review): passing --jq to gh() raises before any subprocess runs, so
+    a data-shape error can never masquerade as a transport failure (the #1011 class).
+    """
+
+    def _boom_runner(self):
+        def run(cmd, **kwargs):  # must never be reached
+            raise AssertionError("subprocess should not run when --jq is rejected")
+        return run
+
+    def test_rejects_long_jq_flag(self):
+        with pytest.raises(ValueError, match="jq"):
+            ghc.gh("api", "x", "--jq", ".foo", _runner=self._boom_runner(), _sleep=lambda _: None)
+
+    def test_rejects_jq_equals_form(self):
+        with pytest.raises(ValueError, match="jq"):
+            ghc.gh("api", "x", "--jq=.foo", _runner=self._boom_runner(), _sleep=lambda _: None)
+
+    def test_rejects_short_q_flag(self):
+        with pytest.raises(ValueError, match="jq"):
+            ghc.gh("api", "x", "-q", ".foo", _runner=self._boom_runner(), _sleep=lambda _: None)
+
+    def test_allows_jq_substring_in_a_value(self):
+        # A query value that merely contains "jq" (not the flag) must pass through.
+        runner = TestGhRetry()._runner_seq([
+            subprocess.CompletedProcess(["gh"], 0, '{"ok": true}', ""),
+        ])
+        out = ghc.gh("api", "search?q=jq-parser", _runner=runner, _sleep=lambda _: None)
+        assert out == {"ok": True}
+
+
 class TestGhError:
     """The typed hard-failure exception (Issue #1017 AC #1).
 

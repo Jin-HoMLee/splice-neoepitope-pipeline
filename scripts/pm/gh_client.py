@@ -86,9 +86,24 @@ def gh(*args: str, parse_json: bool = True, _runner=subprocess.run, _sleep=time.
     and a terminal failure raises :class:`GhError` - preserving the ``check=True``
     contract callers depend on. ``_runner`` / ``_sleep`` are injection seams for tests.
 
-    Do NOT pass ``--jq`` (mode (b) house rule above): fetch raw JSON and filter in
-    Python so a data-shape error cannot be misread as a transport failure.
+    ``--jq`` (mode (b) house rule above) is **rejected with ``ValueError``**: fetch
+    raw JSON and filter in Python so a data-shape error cannot be misread as a
+    transport failure. This enforces the rule at the single chokepoint rather than
+    leaving it a convention each call site could slip (mechanism over memory).
+
+    ``parse_json`` defaults to True (every board read expects JSON). For a mutation
+    call with empty stdout (``gh issue edit`` / ``gh pr comment``) pass
+    ``parse_json=False``, else a *successful* call raises ``json.JSONDecodeError`` on
+    the empty body - a confusing success-that-looks-like-failure.
     """
+    # Enforce the mode-(b) house rule at the chokepoint: gh's -q/--jq routes a jq
+    # data-shape error through the same non-zero exit as a transport failure, so it
+    # would be retried/swallowed. Reject it before any subprocess runs.
+    if any(a == "--jq" or a == "-q" or a.startswith("--jq=") for a in args):
+        raise ValueError(
+            "gh(): pass raw JSON and filter in Python; --jq/-q conflates a data-shape "
+            "error with a transport failure (mode b, #1011)"
+        )
     cmd = ["gh", *args]
     result = None
     for attempt in range(GH_MAX_ATTEMPTS):

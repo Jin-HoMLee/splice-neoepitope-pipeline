@@ -362,6 +362,24 @@ class TestAllMode:
         err = capsys.readouterr().err
         assert "skipped #86" in err  # the skip was surfaced, not silently dropped
 
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_all_parents_skipped_returns_error_not_zero(
+        self, mock_parents, mock_subs, mock_status
+    ):
+        # Issue #1017 review: a broad outage that skips EVERY parent audits nothing;
+        # exit 0 would be indistinguishable from a clean board. Must exit 1 instead.
+        mock_parents.return_value = [86, 24]
+
+        def boom(n):
+            raise rps.GhError(1, ["gh"], stderr="HTTP 503: server error")
+
+        mock_status.side_effect = boom
+        mock_subs.side_effect = lambda n: []
+        rc = rps.run_all_mode()
+        assert rc == 1  # audited nothing -> error, not a false "clean"
+
 
 class TestNotPlannedDrift:
     """Issue #632: a parent whose only remaining children are all closed must
