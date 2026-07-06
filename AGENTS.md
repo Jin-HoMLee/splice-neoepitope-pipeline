@@ -17,20 +17,10 @@ Modernised reimplementation of a 2015 cancer neoepitope prediction pipeline (Jin
 ## Pipeline Design Decisions
 
 ### Junction origin classification
-Normal samples are used to filter tumor junctions at the junction level, not at the prediction level. The hierarchy:
-```
-all junctions
-  └─ annotated        (in GENCODE)            → discard
-  └─ unannotated      (not in GENCODE)
-       ├─ normal_shared  (also in normal)  → discard (kept in TSV for reference)
-       └─ tumor_exclusive    (absent in normal) → neoepitope prediction
-```
-This is the clinically correct approach: a junction present in matched normal tissue is not tumor-specific and should not be a neoepitope target. The Fisher's exact test (end-of-pipeline statistical comparison) was removed in favour of this upstream filtering step.
-
-When no normal sample is present, all unannotated junctions are labeled `tumor_exclusive` with a warning — the pipeline still runs.
+Tumor junctions are filtered against matched normal at the **junction** level, not the prediction level. Labels used in code/TSVs: `annotated` (in GENCODE) and `normal_shared` (also in normal) are discarded; `tumor_exclusive` (unannotated, absent in normal) goes to neoepitope prediction. With no normal sample, all unannotated junctions fall back to `tumor_exclusive` with a warning. How/why (the clinical rationale + the removed Fisher's exact test): [`docs/design/junction-origin-classification.md`](docs/design/junction-origin-classification.md).
 
 ### TCRdock via Docker
-TCRdock runs inside a Docker container (`docker/Dockerfile.pipeline`) rather than a conda env. The conda approach failed due to irreconcilable cuDNN/JAX/openmm version conflicts. The Docker image bundles CUDA 11.8, cuDNN 8, Python 3.10, JAX 0.3.25, AlphaFold params, and BLAST — the host only needs the NVIDIA Container Toolkit. Running CUDA 11.8 inside the container on a host with a newer driver (e.g. 12.8) is supported by NVIDIA's forward-compatibility guarantee.
+TCRdock runs in a Docker container (`docker/Dockerfile.pipeline`), not a conda env; the image bundles CUDA 11.8, cuDNN 8, Python 3.10, JAX 0.3.25, AlphaFold params, and BLAST, so the host needs only the NVIDIA Container Toolkit. Rationale (the conda-conflict history + forward-compatibility guarantee): [`docs/adr/0001-tcrdock-via-docker.md`](docs/adr/0001-tcrdock-via-docker.md).
 
 ### PDB chain relabelling
 AlphaFold outputs all residues as a single chain (A). `relabel_pdb_chains()` in `run_tcrdock.py` reassigns chain IDs (A=MHC, B=peptide, C=TCR-α, D=TCR-β) using per-chain sequence lengths from TCRdock's `alphafold_setup/targets.tsv`. The report injects PDB COMPND records so Mol* displays meaningful chain names in the sequence panel instead of "Polymer 1/2/3/4".
