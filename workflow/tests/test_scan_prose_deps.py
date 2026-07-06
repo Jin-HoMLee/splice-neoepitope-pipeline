@@ -3,7 +3,6 @@
 Parse layer is pure and gets the bulk of coverage; reconcile/act monkeypatch the
 gh-backed helpers so nothing touches the network.
 """
-import subprocess
 import sys
 from pathlib import Path
 
@@ -203,7 +202,7 @@ def test_native_blockers_parses_nodes(monkeypatch):
 
 def test_native_blockers_raises_on_gh_call_failure(monkeypatch):
     def boom(*a, **k):
-        raise subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 503")
+        raise spd.GhError(1, ["gh"], stderr="HTTP 503")
     monkeypatch.setattr(spd, "gh", boom)
     with pytest.raises(spd.BlockerLookupError):
         spd.native_blockers(745)
@@ -302,7 +301,7 @@ def test_meta_and_blocker_errors_share_a_base():
 
 def test_issue_meta_raises_meta_lookup_error_on_gh_failure(monkeypatch):
     def boom(*a, **k):
-        raise subprocess.CalledProcessError(1, ["gh"], stderr="HTTP 500")
+        raise spd.GhError(1, ["gh"], stderr="HTTP 500")
     monkeypatch.setattr(spd, "gh", boom)
     with pytest.raises(spd.MetaLookupError):
         spd.issue_meta(722)
