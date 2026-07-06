@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-06
+
+### 10:52 UTC - Editor: PM
+
+#### Arc taxonomy source-of-truth: model A' ([PR #1052](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1052) closes [Issue #973](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/973))
+
+**Trigger.** Picked #973 off the PM Ready lane to fill the wait on two other PRs. It flagged that `scripts/pm/arc_taxonomy.tsv` (the arc source of truth) had drifted systemically from the live `arc:*` labels - member lists never reconciled at triage/close (18 missing / 11 closed-stale in board-governance alone).
+
+**The decision - a refinement of the issue's A-vs-B.** The issue framed it as (A) labels authoritative, TSV generated vs (B) TSV authoritative + drift guard. Reading the actual TSV surfaced that it tangled two data elements: **membership** (issue->arc) and **arc-level metadata** (roster + slate phase). The insight: `arc-phase` is a property of the *arc* (one phase per arc), replicated as a per-issue label - which is exactly what drifts. So:
+
+- **Membership -> labels** (`arc:<slug>` at triage). Member lists dropped from the manifest -> the biggest drift class eliminated *by construction*, not policed.
+- **Roster + phase -> slim manifest** (`arc_slug  phase  description`). Not derivable from labels (an arc with 0 open issues still exists; the phase labels are the thing that drifts, so they can't be their own authority - **pure A "generate from labels" is circular for phase**).
+- **`arc-phase:*` labels DERIVED** by `apply_arc_labels.sh` (discovers members live via `gh issue list --label`, sets phase from the manifest, never touches `arc:<slug>`). Web-grounded: SSOT = one authoritative source per element, then derive - don't duplicate.
+
+**Built.** Rewrote `apply_arc_labels.sh` (membership-via-labels + a `--check` read-only drift guard: phase-mismatch / multi-arc / unknown-slug / >3-active cap). Slimmed the TSV. Reconciled the live board: **35 stale/missing `arc-phase` labels fixed**. The tool caught the #1036 double-arc (flagged this same morning) by construction.
+
+**Review (bot) + disposition.** The critic found a genuine 🔴: `gh issue list` defaults to `--limit 30`, so both `apply` and `--check` would silently truncate a >30-member arc - a `--check` "clean" hiding drift past row 30 defeats the whole point. Fixed (`--limit 1000`). Verified my earlier reconcile was in fact complete (every arc <=19 today), so no silent miss occurred - but the trap is closed. Also took its hardening: inline-label fetch (killed an N+1), up-front phase-vocab validation (a typo phase was a *permanent* failure masquerading as a retryable transient), the <=3-active cap in `--check`, multi-arc dedup, and shellcheck-clean.
+
+**Live-integration lesson, again.** A transient 504 aborted the first reconcile mid-batch under `set -e`; only ~4 of 40 issues had been fixed. Made the mutating call fault-tolerant (log + continue, exit 3 signals retry) and locked it with a test. The unit tests (13 now) validate my *model* of the reconcile; the live run found what they couldn't (the 504, the truncation-in-practice). Boundary-touching tooling needs the live smoke.
+
+**Companion + follow-ups.** The `shared/feedback_arc_review.md` edit (memory half of AC4) is made and pending MM commit (before->after: "TSV = source of truth incl. members" -> "TSV = roster+phase only; membership label-authoritative"). Two arc-review follow-ups routed, not dropped: (1) #1036's single-arc pick; (2) slate-staleness - `immunogenicity-benchmark` is declared `next` but is the most active arc (19 open). Re-slating is an arc-review call, out of scope for the drift fix.
+
+**State at entry.** shellcheck clean, 13 tests green, live `--check` clean except the deliberate #1036. At the merge gate (user-gated).
+
 ## 2026-07-05
 
 ### 12:05 UTC - Editor: PM

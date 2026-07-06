@@ -1,14 +1,17 @@
-# scripts/pm/arc_taxonomy.tsv — v1 arc taxonomy (2026-06-05)
-# Source of truth for apply_arc_labels.sh. Spec §5:
-# docs/superpowers/specs/2026-06-05-arc-work-structuring-design.md
-# Columns (whitespace-delimited): arc_slug  arc-phase  issue...
-arc:aligner-junctions     active  297 375 377 378 411 636
-arc:junction-filtering    later   126 212 304 381 594 663
-arc:variant-cohort        later   413 416 436 437 438 440
-arc:scoring-tcr-pmhc      active  433 492 547 566 585 601 659 803 804 805 806 807
-arc:results-reporting     later   193 198 233 435 455
-arc:cloud-reproducibility next    66 183 195 310 630 651 658 664 669 673 674
-arc:memory-methodology    later   248 265 324 326 346 353 527 538 539 540 541 542 672
-arc:board-governance      active  234 250 294 295 406 445 498 499 533 553 569 578 617 626 633 655 665
-arc:immunogenicity-benchmark next 678 680 732 733 734 735 736 737
-# unfiled (intentionally NO arc label): 446 451 570 641
+# scripts/pm/arc_taxonomy.tsv - arc taxonomy (v2, 2026-07-06, Issue #973 model A')
+# Source of truth for the arc ROSTER + each arc's slate PHASE only.
+# MEMBERSHIP (issue -> arc) is LABEL-authoritative (the arc:<slug> label set at
+# triage), NOT listed here - member lists drifted by construction (Issue #973).
+# apply_arc_labels.sh discovers members live via `gh issue list --label arc:<slug>`
+# and DERIVES each member's arc-phase:<phase> label from the phase below.
+# Columns (whitespace-delimited): arc_slug  arc-phase  description...
+# Constraint: at most 3 arcs may be `active` (the focus slate).
+arc:aligner-junctions      active  Aligner + junction-extraction correctness (HISAT2/STAR/regtools)
+arc:junction-filtering     later   Junction filtering + classification (annotated / normal-shared / tumor-exclusive)
+arc:variant-cohort         later   Variant calling + patient-cohort processing
+arc:scoring-tcr-pmhc       active  MHC presentation + TCR-pMHC structural scoring
+arc:results-reporting      later   Results assembly + report.html + reproducibility of outputs
+arc:cloud-reproducibility  next    Cloud/GPU infra, cost posture, environment reproducibility
+arc:memory-methodology     later   Memory curation + multi-role methodology + governance research
+arc:board-governance       active  Board/Kanban governance, hooks, closure ritual, PM tooling
+arc:immunogenicity-benchmark next  Splice-immunogenicity ground-truth registry + caller/scorer benchmark
