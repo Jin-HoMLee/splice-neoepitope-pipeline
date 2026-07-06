@@ -84,8 +84,8 @@
 
 <h2>Deliverables (Review layer)</h2>
 <p>This milestone is the <strong>data-preparation stage for the splice-immunogenicity ground-truth</strong>: building, cleaning, and characterizing the curated registry of experimentally-validated splice-derived neoantigens that downstream calibration and benchmarking depend on.
-All 10 issues were Scientist-led (one dual Sci/Dev); they cluster into four deliverables.</p>
-<h3>1. The splice-immunogenicity registry (ground-truth positive set)</h3>
+All 10 issues were Scientist-led (one dual Sci/Dev). Two clusters are the milestone's core - the registry and its labeling/characterization; three further issues delivered supporting data-substrate and repo-hygiene work that closed under the milestone but sit adjacent to the ground-truth-preparation thesis.</p>
+<h3>1. The splice-immunogenicity registry (validated ground-truth substrate)</h3>
 <p>The core artifact of the stage: a provenance-tracked registry of real, T-cell-validated splice neoantigens, grown by systematic multi-database mining rather than opportunistic collection.</p>
 <ul>
 <li><strong>Registry growth from standing-watch + library sweep</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/733">Issue #733</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/819">PR #819</a>): expanded the seed registry to 44 rows.</li>
@@ -97,18 +97,15 @@ All 10 issues were Scientist-led (one dual Sci/Dev); they cluster into four deli
 <h3>2. Labeling scheme + ground-truth sparsity characterization</h3>
 <p>Turning the registry into a usable train/eval substrate, and honestly quantifying how much truth it actually holds.</p>
 <ul>
-<li><strong>Junction mapping + documented pos/neg labeling scheme</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735">Issue #735</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/881">PR #881</a>): mapped registry entries to junctions and wrote down the positive/negative labeling convention.</li>
-<li><strong>Ground-truth sparsity quantification + writeup</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737">Issue #737</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/912">PR #912</a>): quantified how sparse the validated ground truth is and shipped the writeup + experiment deck - characterizing the limit rather than papering over it.</li>
+<li><strong>Junction mapping + documented pos/neg labeling scheme</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735">Issue #735</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/881">PR #881</a>): mapped registry entries to junctions and documented the positive/negative labeling convention. The registry is a <strong>two-class</strong> substrate, not a positive-only list: alongside the T-cell-validated positives it carries curated negatives, including the scarce true-splice-junction-but-non-immunogenic hard-negatives (functional screens with no measured T-cell response) that a calibrator needs to learn the decision boundary.</li>
+<li><strong>Ground-truth sparsity quantification + writeup</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737">Issue #737</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/912">PR #912</a>): quantified how sparse the validated ground truth is and shipped the writeup + experiment deck - establishing that the current set is a face-validity / stress-test probe rather than a statistically powered benchmark, and characterizing that limit head-on instead of papering over it.</li>
 </ul>
-<h3>3. Cohort data refresh</h3>
+<h3>3. Supporting / adjacent work</h3>
+<p>These three issues closed under i6-S3 but sit adjacent to the ground-truth-preparation thesis rather than delivering it. Two are reactive flow/hygiene work that our three-axis model commits milestone-free; the cohort refresh is genuine pipeline-data work, but on a different data axis than the registry.</p>
 <ul>
-<li><strong>STAR cohort re-run + RESULTS refresh</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636">Issue #636</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/943">PR #943</a>, dual Sci/Dev): re-ran patient_001 + patient_002 through the STAR path and refreshed <code>RESULTS.md</code> on corrected data.</li>
-</ul>
-<h3>4. Data-capture + repo-hygiene infrastructure</h3>
-<p>Process deliverables that keep the data substrate clean going forward.</p>
-<ul>
-<li><strong>Widen Zotero capture to field-context + orphan notes</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634">Issue #634</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/670">PR #670</a>): closed the retired news-log's lost "else" bucket by routing field-context updates into Zotero.</li>
-<li><strong>Migrate per-Issue notebooks + slides into the <code>research/experiments/</code> convention</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455">Issue #455</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/775">PR #775</a>): consolidated scattered analysis artifacts under one convention.</li>
+<li><strong>STAR cohort re-run + RESULTS refresh</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/636">Issue #636</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/943">PR #943</a>, dual Sci/Dev): re-ran patient_001 + patient_002 through the STAR path and refreshed <code>RESULTS.md</code> on corrected data. Pipeline-data work - the closest of the three to the data-preparation stage, though on the patient-cohort axis, not the ground-truth registry.</li>
+<li><strong>Widen Zotero capture to field-context + orphan notes</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/634">Issue #634</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/670">PR #670</a>): closed the retired news-log's lost "else" bucket by routing field-context updates into Zotero. Curation-process infrastructure.</li>
+<li><strong>Migrate per-Issue notebooks + slides into the <code>research/experiments/</code> convention</strong> - <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/455">Issue #455</a> (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/775">PR #775</a>): consolidated scattered analysis artifacts under one convention. Repo hygiene.</li>
 </ul>
 <h2>Carried-forward &amp; routing</h2>
 <p><strong>Nothing carried forward</strong> - 10 of 10 delivered, 0 descoped, 0 re-milestoned.</p>
