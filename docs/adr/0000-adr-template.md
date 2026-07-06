@@ -1,6 +1,6 @@
 # ADR-NNNN: <short decision title, imperative>
 
-- **Status:** Proposed | Accepted | Superseded by [ADR-XXXX](XXXX-slug.md) | Deprecated
+- **Status:** Proposed | Accepted | Superseded by ADR-XXXX | Deprecated
 - **Date:** YYYY-MM-DD
 - **Deciders:** <role(s)>
 
