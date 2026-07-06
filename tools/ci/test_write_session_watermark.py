@@ -229,6 +229,24 @@ class TestRoutineMarker:
         ts = json.loads((tmp_path / ROUTINE_MARKER_RELPATH).read_text())["last_routine_end_utc"]
         assert ISO_Z.match(ts)
 
+    def test_bad_marker_arg_exits_zero_and_falls_back_to_session(self, tmp_path):
+        # Stop-hook safety (review finding, PR #1057): argparse exits 2 on a bad
+        # arg, and exit 2 is the "block the stop" signal a Stop hook must never
+        # emit. main() must swallow it, write the default (session) marker, and
+        # exit 0 - never propagate the non-zero.
+        (tmp_path / ".agents").mkdir()
+        proc = subprocess.run(
+            [sys.executable, str(HOOK), "--marker", "bogus"],
+            input=_stop_payload(),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env={"CLAUDE_PROJECT_DIR": str(tmp_path), "PATH": ""},
+        )
+        assert proc.returncode == 0
+        assert (tmp_path / MARKER_RELPATH).exists()
+        assert not (tmp_path / ROUTINE_MARKER_RELPATH).exists()
+
     def test_cli_default_writes_only_session_file(self, tmp_path):
         # No --marker == the Stop-hook path == session marker only.
         (tmp_path / ".agents").mkdir()

@@ -79,25 +79,25 @@ def write_watermark(root, timestamp=None, marker=DEFAULT_MARKER):
     never observes a partially written file. Raises KeyError on an unknown name.
     """
     spec = MARKERS[marker]
-    marker = Path(root).joinpath(*spec["relpath"])
-    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker_path = Path(root).joinpath(*spec["relpath"])
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
     body = {
         spec["key"]: timestamp or _utc_now_iso(),
         "schema": SCHEMA,
     }
-    fd, tmp = tempfile.mkstemp(dir=str(marker.parent), prefix=".lsm-", suffix=".tmp")
+    fd, tmp = tempfile.mkstemp(dir=str(marker_path.parent), prefix=".lsm-", suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as fh:
             json.dump(body, fh)
             fh.write("\n")
-        os.replace(tmp, marker)
+        os.replace(tmp, marker_path)
     except Exception:
         try:
             os.unlink(tmp)
         except OSError:
             pass
         raise
-    return marker
+    return marker_path
 
 
 def _parse_args(argv):
@@ -114,7 +114,16 @@ def _parse_args(argv):
 
 
 def main(argv=None):
-    args = _parse_args(argv)
+    try:
+        marker = _parse_args(argv).marker
+    except SystemExit:
+        # argparse calls sys.exit() on an unrecognized/invalid arg. As a Stop
+        # hook, a non-zero exit is the "block the stop" signal - which this hook
+        # must never emit (see module docstring). Swallow it, fall back to the
+        # default marker, and continue to a clean exit 0. On the CLI path a typo
+        # thus writes the session marker rather than erroring: a fail-wide, not
+        # fail-closed, outcome consistent with the rest of this writer.
+        marker = DEFAULT_MARKER
     payload = {}
     # As a Stop hook, stdin carries the hook JSON (used only for cwd fallback).
     # As a CLI (`--marker routine`), skip the read when stdin is a TTY so we
@@ -127,7 +136,7 @@ def main(argv=None):
             # stdin): an absent payload just falls back to env/cwd resolution.
             payload = {}
     try:
-        write_watermark(_project_root(payload), marker=args.marker)
+        write_watermark(_project_root(payload), marker=marker)
     except Exception:
         # Fail open: a watermark failure must never block session stop.
         pass
