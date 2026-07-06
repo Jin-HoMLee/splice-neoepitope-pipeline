@@ -8,6 +8,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-06 - stand up docs/adr + docs/design homes ([PR #1051](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1051) closes [Issue #777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777))
 
+### 14:37 UTC - Editor: Developer - converge the remaining 3 gh() copies ([PR #1061](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1061) closes [Issue #1055](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1055))
+
+**Context.**
+Direct continuation of the 13:48 wrapper work (#1017), pulled while the context was hot - the whole point of doing #1055 now rather than at a later replenishment.
+`gh_client` had just landed on `main`, so the three remaining copies could finally import it.
+
+**Migrations.**
+- `recheck_milestone.py` - it was the *source* the wrapper was ported from, so this re-point is what closes the loop: delete its local `gh()` + retry constants/helpers, `from gh_client import gh`. Dropped the redundant `TestGhRetry` (now in `test_gh_client.py`; verified the coverage isn't lost, not just moved).
+- `scan_prose_deps.py` - trivial re-point; tightened the two per-item `except` clauses to `(GhError, json.JSONDecodeError)`.
+- `scan_addressed_comments.py` - **the delicate one.** Its `fetch_comments` used `gh api --paginate --jq '...'`, and the wrapper now *rejects* `--jq` (the mode-(b) guard I added in #1017's review). So I couldn't just re-point it - I had to rewrite the fetch. Used `--paginate --slurp` for valid across-pages JSON, then did the projection + the #1011 null-`.user` guard in Python.
+
+**Verification - the load-bearing part, because these two scan scripts have NO unit tests.**
+Proved the CLI contract unchanged with a **live before/after diff**: ran each script on `main` (old `--jq`/local `gh()`) and on the branch (shared `gh()` + `--slurp`/Python) with identical args - `scan_prose_deps --issue 725`, `--report`, and `scan_addressed_comments --role developer --since 2026-07-01` all **byte-identical**. Verified `gh api --paginate --slurp`'s actual output shape live first (a list-of-pages, each a list) rather than guessing the flatten.
+
+**Bot review (LGTM; fixes in `25d489c`).**
+Two findings taken:
+- `fetch_comments` caught only `GhError`, not `json.JSONDecodeError` - broadened to match the sibling + its own docstring (per-item isolation).
+- **The reviewer's sharpest point:** a byte-identical diff is only as strong as the window's data - if that window had no multi-page or null-`.user` comment, the flatten and guard were "byte-identical but vacuous." Added `test_scan_addressed_comments.py` (5 tests) that *forces* the array-of-arrays flatten and the null-guard with a fake `gh`. This is the right lesson: a live diff proves *equivalence on the sampled input*, not *coverage of the logic* - a targeted unit test is what locks the branch in.
+- Non-issue (jq↔Python empty-string null): logins are never empty + `select_pings` re-guards. No change.
+- Out-of-scope straggler: `check_closed_recent.py` still has an un-hardened `gh_json()` (verified it's the last one) - filed [#1062](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1062) rather than expand a reviewed PR.
+
+**Lesson (worth a memory if it recurs).**
+A byte-identical live diff is necessary but not sufficient for a data-shaped rewrite - it validates the paths the sampled data happened to hit. For an untested script, pair it with a unit test that forces the specific transform (here: multi-page flatten + null-guard).
+
+With this merged, the #1017 convergence is complete: all four `gh()` copies gone, one hardened wrapper, no-`--jq` enforced. Card at In review; stopped at the merge gate.
+
+---
+
 ### 13:48 UTC - Editor: Developer - shared hardened gh() wrapper ([PR #1056](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1056) closes [Issue #1017](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1017))
 
 **Context.**
