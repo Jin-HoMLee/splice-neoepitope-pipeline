@@ -12,8 +12,8 @@ The assignment is **source-keyed**: the `source` column is the stable curation
 key (same convention as derive_assay_context.py), matched on lowercased
 substrings so the minor per-source string variants (e.g. "IRIS" vs
 "IRIS (Pan/Xing, PNAS)") map to one venue. The per-source venue was resolved
-first-hand in the 2026-07-04 venue audit recorded in PROVENANCE.md; all 11
-current studies (14 distinct `source` strings) are peer-reviewed journal
+first-hand in the 2026-07-04 venue audit recorded in PROVENANCE.md; all 12
+current studies (15 distinct `source` strings) are peer-reviewed journal
 articles (0 preprints folded to date - the three preprints encountered were
 each deferred for sequence-unavailability, not because they are preprints).
 
