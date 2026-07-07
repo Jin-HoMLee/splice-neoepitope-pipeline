@@ -20,6 +20,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 **State.** Ref `cd3cbf2`. Review addressed, CI green. At the merge gate.
 
+### 15:30 UTC - Editor: PM
+
+#### [Issue #882](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/882) — cross-repo PR convention for memory/Issue-closing drains
+
+**What.** Process rule: when an MM drain satisfies the last open AC of a project-repo `role:*` Issue, it ships as a personas-repo PR carrying a cross-repo `Closes Jin-HoMLee/splice-neoepitope-pipeline#N` keyword, not a direct drain-to-`main`. The existing `cross_repo_ac_gate.py` gate audits the target Issue's ACs before merge; the keyword auto-closes on merge. Routine/non-closing drains keep direct-to-`main`. Batched: carve the Issue-closing edit into its own PR.
+
+**Edits.** Two `shared/` memory edits:
+- `feedback_personas_governance.md`: new bullet under "PR vs direct-to-`main`" defining the trigger, scope boundary, and batched-drains rule.
+- `MEMORY.md`: Always-in-effect bullet referencing it.
+
+**Correction.** #882 body stated cross-repo auto-close does not work — it does. `Closes org/repo#N` auto-closes on merge; what `closingIssuesReferences` cannot surface is cross-repo refs, which is why `cross_repo_ac_gate.py` exists.
+
+**State.** Edits on disk in the personas-repo clone, uncommitted. Deliverable is memory-only — no project-repo PR. MM commits via a personas PR with a cross-repo forward-link; the project Issue closes on merge.
+
 ### 14:41 UTC - Editor: PM
 
 #### SPM-3.0 agentic-PM landscape entry to the merge gate ([PR #1075](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1075); seeds [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072))
