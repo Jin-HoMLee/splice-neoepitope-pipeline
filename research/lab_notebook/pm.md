@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-07
 
+### 17:30 UTC - Editor: PM
+
+#### [Issue #928](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/928) — review-column WIP limit anchored to human review bandwidth ([PR #1080](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1080))
+
+**What.** Third WIP guard in `check_ready_queue.sh`: `[REVIEW-DEBT]` when PRs in `Ready for review` + `In review` >= 10 (top of 5-10/reviewer band, [`research/agent_team_governance_research_2026-07.md`](research/agent_team_governance_research_2026-07.md) §7). Filters to `kind=="PR"` only — a PR and its linked Issue both land in review columns, so card-count would double each unit. Advisory, tunable via `--review-limit` / `REVIEW_WIP_LIMIT` env.
+
+**CLAUDE.md reframed.** Restructured WIP limits section: three-guard table (starvation/swarm/review-debt), In-progress cap re-explained as swarm-guard, flow-data hedges repointed from "we have no flow data yet" to the weekly SDR plan. Cross-referenced the governance research doc.
+
+**Review.** `@claude review` returned LGTM with one calibration finding: the original filter counted all cards, roughly doubling the real review-unit count. Fixed by restricting to `kind=="PR"` and added a boundary test (9→healthy) and an issue-cards-excluded regression test. 26 tests green.
+
+**State.** Ref `cd3cbf2`. Review addressed, CI green. At the merge gate.
+
 ### 14:41 UTC - Editor: PM
 
 #### SPM-3.0 agentic-PM landscape entry to the merge gate ([PR #1075](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1075); seeds [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072))
