@@ -2039,7 +2039,9 @@ Bot review on [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline
 
 ---
 
-## 2026-07-07 - COL6A3-FLNV folded into the #680 splice-immunogenicity registry (Scientist)
+## 2026-07-07
+
+### 11:41 UTC - Editor: Scientist - COL6A3-FLNV folded into the #680 splice-immunogenicity registry
 
 **Context.** The morning-routine splice-immunogenicity standing watch surfaced a Frontiers 2026 non-canonical-neoantigen review (Kudriavskii et al.; Zotero `R6FX223R`). Cross-checking it against the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry flagged one named splice neoepitope not in our set - COL6A3. Chased the review's reference 16 to the primary source: Kim GB et al., *Sci Transl Med* 2022 (tumor-stroma COL6A3 exon-6 alternative splice; Immatics IMA204; PMID 36044599; Zotero `XPC2BT2Q`).
 
