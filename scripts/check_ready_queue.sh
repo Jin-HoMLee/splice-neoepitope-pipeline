@@ -58,8 +58,8 @@
 #                          of calling board_open_items.py (test seam). The array
 #                          holds objects with at least `.status` and `.labels`
 #                          across all statuses; the script filters Ready /
-#                          In progress / Backlog / review columns (the test
-#                          fixtures also carry `.number`).
+#                          In progress / Backlog / review-column PRs (the test
+#                          fixtures carry `.number` + `.kind`).
 #
 # Exit codes:
 #   0 - healthy (every role at/above floor, total below cap, review columns
@@ -123,7 +123,11 @@ READY_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Ready")]
 }
 INPROG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "In progress")]' 2>/dev/null)"
 BACKLOG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Backlog")]' 2>/dev/null)"
-REVIEW_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Ready for review" or .status == "In review")]' 2>/dev/null)"
+# PR cards only — a PR and its linked Issue both sit in review columns
+# (PR at Ready for review, Issue at In review), so counting cards would
+# double each review unit. Filtering to kind=="PR" gives the real PRs-
+# awaiting-review count.
+REVIEW_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select((.status == "Ready for review" or .status == "In review") and .kind == "PR")]' 2>/dev/null)"
 
 TOTAL="$(printf '%s' "$READY_JSON" | jq 'length')"
 
@@ -170,20 +174,21 @@ if [[ "$TOTAL" -ge "$CAP" ]]; then
 fi
 
 # Review-column WIP limit (advisory, keyed to human review bandwidth).
-# Ready for review + In review = cards awaiting the single human reviewer.
-# Default 10 (top of the 5-10/reviewer band from governance research;
+# Counts PRs (not cards — a PR and its linked Issue both sit in review
+# columns, so card-count double-counts). Default 10 (top of the 5-10
+# PRs/reviewer band from governance research;
 # agent_team_governance_research_2026-07.md §7); tunable via --review-limit
 # or REVIEW_WIP_LIMIT env. Advisory not blocking (house style).
 REVIEW_TOTAL="$(printf '%s' "$REVIEW_JSON" | jq 'length')"
 if [[ "$REVIEW_TOTAL" -ge "$REVIEW_LIMIT" ]]; then
-    echo "[REVIEW-DEBT] Ready for review + In review at ${REVIEW_TOTAL} (>= ${REVIEW_LIMIT}) - human review is the binding throughput constraint; merge some PRs or slow down dispatch."
+    echo "[REVIEW-DEBT] PRs awaiting review at ${REVIEW_TOTAL} (>= ${REVIEW_LIMIT}) - human review is the binding throughput constraint; merge some PRs or slow down dispatch."
     needs_attention=1
 fi
 
 # Always print the full per-role breakdown (Ready buffer + In-progress demand
 # context + Backlog candidate pool + review column load) so every run is
 # self-documenting.
-status_line="Ready by role: ${ready_breakdown%% } | In progress: ${inprog_breakdown%% } | Backlog candidates: ${backlog_breakdown%% } | Review columns: ${REVIEW_TOTAL} | total Ready ${TOTAL} (floor ${FLOOR}/role, cap ${CAP}, review limit ${REVIEW_LIMIT})"
+status_line="Ready by role: ${ready_breakdown%% } | In progress: ${inprog_breakdown%% } | Backlog candidates: ${backlog_breakdown%% } | Review PRs: ${REVIEW_TOTAL} | total Ready ${TOTAL} (floor ${FLOOR}/role, cap ${CAP}, review limit ${REVIEW_LIMIT})"
 
 if [[ "$needs_attention" -eq 1 ]]; then
     echo "${status_line} - needs attention."

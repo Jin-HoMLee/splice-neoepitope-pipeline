@@ -14,7 +14,9 @@ History:
     In progress is reported as demand context only; it does NOT gate the floor.
   - Issue #928 added a review-column WIP limit (default 10, top of the 5-10
     band from agent_team_governance_research_2026-07.md): [REVIEW-DEBT] when
-    Ready for review + In review >= REVIEW_LIMIT. Advisory not blocking.
+    PRs in Ready for review + In review >= REVIEW_LIMIT. Filters to kind=="PR"
+    (Issue cards are excluded — a PR and its linked Issue both sit in review
+    columns, so card-count would double each unit). Advisory not blocking.
 
 The script reads the board via board_open_items.py, which hits the network. For
 deterministic offline tests it accepts a fixture seam: when BOARD_ITEMS_JSON_FILE
@@ -36,8 +38,8 @@ Gate:
     else GROOMING-GAP; either way it needs attention
   - In progress never affects the floor decision (context only)
   - total cap 23 (= floor 5 x 4 roles + 3 headroom) on the Ready buffer
-  - review-column WIP limit 10 on Ready for review + In review (advisory)
-  - exit 2 if any role is short OR total at/over cap OR review columns at/over
+  - review-column WIP limit 10 on PRs in Ready for review + In review (advisory, kind=="PR" only)
+  - exit 2 if any role is short OR total at/over cap OR review PRs at/over
     limit; else exit 0
 """
 import json
@@ -49,11 +51,14 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_ready_queue.sh"
 
 
-def _item(number, *roles, status="Ready", arc_active=False):
+def _item(number, *roles, status="Ready", arc_active=False, kind="Issue"):
     labels = [f"role:{r}" for r in roles]
     if arc_active:
         labels.append("arc-phase:active")
-    return {"number": number, "status": status, "labels": labels}
+    it = {"number": number, "status": status, "labels": labels}
+    if kind != "Issue":
+        it["kind"] = kind
+    return it
 
 
 def _run(items, *args):
@@ -261,25 +266,48 @@ def test_breakdown_shows_ready_inprogress_and_backlog():
 
 
 def test_review_columns_at_limit_flags_review_debt():
-    # 10 items across Ready for review + In review >= default limit 10 ->
+    # 10 PRs across Ready for review + In review >= default limit 10 ->
     # [REVIEW-DEBT], exit 2. All roles at floor so no floor/cap flags fire;
     # the review-debt signal is the sole attention trigger.
     items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
-             + [_item(500 + i, "pm", status="Ready for review") for i in range(6)]
-             + [_item(600 + i, "developer", status="In review") for i in range(4)])
+             + [_item(500 + i, "pm", status="Ready for review", kind="PR") for i in range(6)]
+             + [_item(600 + i, "developer", status="In review", kind="PR") for i in range(4)])
     r = _run(items)
     assert "[REVIEW-DEBT]" in r.stdout, r.stdout
-    assert "Ready for review + In review at 10 (>= 10)" in r.stdout, r.stdout
+    assert "PRs awaiting review at 10 (>= 10)" in r.stdout, r.stdout
     assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
     assert "[CAP]" not in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
 def test_review_columns_below_limit_no_flag():
-    # 5 items in review columns < default limit 10 -> no REVIEW-DEBT, healthy.
+    # 5 PRs in review columns < default limit 10 -> no REVIEW-DEBT, healthy.
     items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
-             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
-             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+             + [_item(500 + i, "pm", status="Ready for review", kind="PR") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review", kind="PR") for i in range(2)])
+    r = _run(items)
+    assert "healthy" in r.stdout, r.stdout
+    assert "[REVIEW-DEBT]" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+
+
+def test_review_columns_9_below_limit_healthy():
+    # 9 PRs is just below the default limit of 10 -> healthy (boundary).
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="Ready for review", kind="PR") for i in range(5)]
+             + [_item(600 + i, "developer", status="In review", kind="PR") for i in range(4)])
+    r = _run(items)
+    assert "healthy" in r.stdout, r.stdout
+    assert "[REVIEW-DEBT]" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+
+
+def test_issue_cards_in_review_columns_dont_count():
+    # Issue cards at Ready for review / In review are filtered out by the
+    # kind=="PR" guard — they don't inflate the review count.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="In review") for i in range(10)]  # 10 Issue cards, no PRs
+             )
     r = _run(items)
     assert "healthy" in r.stdout, r.stdout
     assert "[REVIEW-DEBT]" not in r.stdout, r.stdout
@@ -287,22 +315,22 @@ def test_review_columns_below_limit_no_flag():
 
 
 def test_review_limit_flag_lowers_threshold():
-    # 5 review-column items would pass the default limit of 10, but --review-limit 3
+    # 5 PRs would pass the default limit of 10, but --review-limit 3
     # trips REVIEW-DEBT. No floor breach. Prove the flag is tunable.
     items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
-             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
-             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+             + [_item(500 + i, "pm", status="Ready for review", kind="PR") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review", kind="PR") for i in range(2)])
     r = _run(items, "--review-limit", "3")
     assert "[REVIEW-DEBT]" in r.stdout, r.stdout
-    assert "Ready for review + In review at 5 (>= 3)" in r.stdout, r.stdout
+    assert "PRs awaiting review at 5 (>= 3)" in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
 def test_review_limit_env_var_lowers_threshold():
     # Same setup, driven by REVIEW_WIP_LIMIT env instead of --review-limit.
     items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
-             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
-             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+             + [_item(500 + i, "pm", status="Ready for review", kind="PR") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review", kind="PR") for i in range(2)])
     import os as posix_os
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         json.dump(items, f)
@@ -314,7 +342,7 @@ def test_review_limit_env_var_lowers_threshold():
     finally:
         os.unlink(path)
     assert "[REVIEW-DEBT]" in r.stdout, r.stdout
-    assert "Ready for review + In review at 5 (>= 3)" in r.stdout, r.stdout
+    assert "PRs awaiting review at 5 (>= 3)" in r.stdout, r.stdout
     assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
 
 
@@ -325,11 +353,11 @@ def test_invalid_review_limit_exits_1():
 
 
 def test_breakdown_shows_review_columns():
-    # The status line includes the review-column count for a self-documenting run.
+    # The status line includes the review PR count for a self-documenting run.
     items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
-             + [_item(500, "pm", status="Ready for review")])
+             + [_item(500, "pm", status="Ready for review", kind="PR")])
     r = _run(items)
-    assert "Review columns:" in r.stdout, r.stdout
+    assert "Review PRs:" in r.stdout, r.stdout
     assert "review limit 10" in r.stdout, r.stdout
 
 
