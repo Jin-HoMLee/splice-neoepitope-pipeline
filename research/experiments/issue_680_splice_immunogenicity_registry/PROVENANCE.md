@@ -18,7 +18,7 @@ Each sequence is graded by **how it was obtained**, so it can be re-verified man
 
 ## Venue audit (#1001) - the `venue_type` column
 
-Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 11 folded studies (14 distinct `source` strings, 96 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
+Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 12 folded studies (15 distinct `source` strings, 97 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
 
 | Source (key) | Venue | `venue_type` |
 |---|---|---|
@@ -33,6 +33,7 @@ Publication venue class per source, resolved first-hand (2026-07-04) and recorde
 | Kwok 2024 | *Nature* | `journal` |
 | Xiong 2025 (GBM) | *Cellular & Molecular Immunology* | `journal` |
 | POSTN-203 (Genes & Immunity) | *Genes & Immunity* | `journal` |
+| Kim/Immatics 2022 (COL6A3 tumor-stroma) | *Science Translational Medicine* | `journal` |
 
 *(Venue names verified against Zotero `publicationTitle` for collection `Z38GTJNW`, 2026-07-04.)*
 
@@ -41,6 +42,14 @@ Publication venue class per source, resolved first-hand (2026-07-04) and recorde
 **Not a policy against preprints.** A preprint-sourced row can be folded; it just must be **marked** `preprint`. The three preprints encountered to date (Lin 2025 bioRxiv, TEtrans/Li 2025 bioRxiv, the SNAF exon-TE preprint) were each deferred for **sequence-unavailability**, not because they are preprints. The guard against a *silent* preprint fold is structural: a source absent from the venue map derives to the out-of-vocab sentinel `unclassified`, which `validate_registry.py` rejects, so any newly-folded source must be venue-classified before it validates.
 
 ---
+
+## Kim GB / Immatics 2022 - COL6A3 tumor-stroma (#680 standing-watch, 2026-07-07)
+Source key `col6a3` · *Science Translational Medicine* 2022;14:eabo6135 (PMID 36044599; DOI 10.1126/scitranslmed.abo6135) · Zotero `XPC2BT2Q` (review context `R6FX223R`) · `agent-local`.
+
+- **`FLLDGSANV`** COL6A3 / A\*02:01 - 9-mer, UniProt P12111 p642-650. Sequence verbatim from PMC10130759 full text: *"The peptide sequence (FLLDGSANV, P12111 p642-650) was confirmed by coelution of the corresponding synthetic isotope-labeled peptide using LC-MS."* Immatics shorthand "COL6A3-FLNV" = first-2 + last-2 residues (FL..NV). Valid A\*02:01 9-mer (P2=L, C-terminus=V canonical anchors).
+- **Splice origin (gate 1):** tumor-restricted inclusion of the exon-6 (VWA-domain) cassette; the splice event, not overexpression, confers tumor-specificity. Genomically contiguous exon-encoded (not proteasomal cis-spliced); no SNV/indel/fusion. `splice_mechanism_canonical = alt_splice_junction`, `junction_mapping_grade = gene-mechanism` (protein coords only; no genomic junction published at source).
+- **Immunogenicity (gate 2) + assay_context:** functional readouts (IFN-g, ICS, CD107a, cytotoxicity, in-vivo tumor control) are from cloned TCRs - natural D10/F9/H3 (modest) and an affinity-enhanced variant (efficacious) - with no primary patient/donor detection, so `assay_context = cloned_tcr` (same class as the IRIS JPTCR rows). Shared tumor-stroma SELF antigen, partly tolerized: `confidence = medium` caps the realism while `evidence_strength = strong` reflects the effector readout. IMA204 target.
+- **Verification:** 3-vote adversarial gate 3/3 pass (2026-07-07) - splice-provenance, gate-2 defensibility, and sequence/HLA/citation lenses each returned refuted=false at high confidence.
 
 ## SNAF — Li et al. 2024, *Sci Transl Med* 16, eade2886
 Files: `A46YTSYY` (main PDF), `7SLW6B96` (sm.pdf), `WK4DHT6M` (Data S1–S15 .xlsx)

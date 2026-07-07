@@ -49,8 +49,9 @@ VENUE_UNCLASSIFIED = "unclassified"  # out-of-vocab sentinel: forces classificat
 # `source` column (same convention as derive_assay_context.py). This is the
 # single source of truth for both the derivation (derive_venue_type.py reads
 # `venue`) and the offline-optional Zotero cross-check in validate_registry.py
-# (which reads `doi`). All 14 current sources are peer-reviewed journals per the
-# 2026-07-04 audit; DOIs verified against Zotero collection Z38GTJNW the same day.
+# (which reads `doi`). All 15 current sources are peer-reviewed journals (14 per
+# the 2026-07-04 audit + COL6A3/STM verified 2026-07-07); DOIs verified against
+# Zotero collection Z38GTJNW.
 VENUE_BY_SOURCE_SUBSTR = {
     "bigot":     {"venue": "journal", "doi": "10.1158/2159-8290.cd-20-0555"},   # Cancer Discovery
     "kim 2025":  {"venue": "journal", "doi": "10.1016/j.cell.2025.03.047"},     # Cell
@@ -63,6 +64,7 @@ VENUE_BY_SOURCE_SUBSTR = {
     "kwok":      {"venue": "journal", "doi": "10.1038/s41586-024-08552-0"},     # Nature
     "xiong":     {"venue": "journal", "doi": "10.1038/s41423-025-01360-0"},     # Cellular & Molecular Immunology (GBM)
     "postn":     {"venue": "journal", "doi": "10.1038/s41435-025-00326-6"},     # Genes & Immunity
+    "col6a3":    {"venue": "journal", "doi": "10.1126/scitranslmed.abo6135"},   # Science Translational Medicine (Kim/Immatics tumor-stroma)
 }
 
 # Zotero collection that mirrors the registry's sources, and the itemType ->

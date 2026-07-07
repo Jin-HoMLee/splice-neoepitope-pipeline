@@ -53,6 +53,8 @@ def assay_context(r):
         return "patient_exvivo" if ("ex-vivo" in notes or "ex vivo" in notes) else "patient_til"
     if "iris" in src:
         return "cloned_tcr"          # JPTCR engineered-TCR IFN-g / cytotoxicity readout
+    if "col6a3" in src:
+        return "cloned_tcr"          # Kim/Immatics 2022: affinity-enhanced + natural COL6A3 TCRs, no primary patient/donor detection
 
     # SNAF / Kim / Xiong / Fisher / POSTN / Kwok: assay reported, T-cell source
     # not determinable from held provenance -> no guess.
