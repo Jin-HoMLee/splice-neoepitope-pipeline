@@ -2038,3 +2038,21 @@ Bot review on [PR #300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline
 **Citation style.** Author-year inline `(Rojas et al., *Nature* 2023)` matches the existing INTRODUCTION convention used by Yewdell & Bennink 1999, Sahin et al. 2017, Ott et al. 2017, Cai et al. 2026 (added in [PR #282](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/282)), Alam et al. 2023. Reference-list finalisation deferred to [Sub-Issue #272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/272).
 
 ---
+
+## 2026-07-07 - COL6A3-FLNV folded into the #680 splice-immunogenicity registry (Scientist)
+
+**Context.** The morning-routine splice-immunogenicity standing watch surfaced a Frontiers 2026 non-canonical-neoantigen review (Kudriavskii et al.; Zotero `R6FX223R`). Cross-checking it against the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry flagged one named splice neoepitope not in our set - COL6A3. Chased the review's reference 16 to the primary source: Kim GB et al., *Sci Transl Med* 2022 (tumor-stroma COL6A3 exon-6 alternative splice; Immatics IMA204; PMID 36044599; Zotero `XPC2BT2Q`).
+
+**What landed.** [PR #1070](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1070) (closes [#1068](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1068)) adds `FLLDGSANV` (COL6A3 / HLA-A\*02:01; UniProt P12111 p642-650; MS co-elution verified verbatim in PMC10130759) as `functional-scorable` / `positive` / `assay_context=cloned_tcr` / `confidence=medium`. Registry 96 -> 97 rows, 81 -> 82 functional-scorable.
+
+**Placement rationale.** The strong effector data (IFN-g, cytotoxicity, CD107a, in-vivo control) is from an affinity-enhanced engineered TCR on a shared tumor-stroma self antigen; natural TCRs (D10/F9/H3) were only modest. This is the weakest positive class, so I encoded the realism via `cloned_tcr` + `medium` + a curated `label_rationale` rather than excluding it - consistent with the IRIS `cloned_tcr` precedent and discountable by any scoring run's assay-realism weighting. A 3-vote adversarial gate (3/3 pass, 0 refutes, high-confidence) endorsed both the gate-2 admission and the medium/cloned_tcr encoding.
+
+**Two process findings.**
+1. Re-running `derive_evidence_strength.py` wholesale clobbered hand-curated `label_rationale` on ~17 existing rows (the script re-*seeds* that column). Caught it in the pre-commit diff, restored the committed registry, and re-added the row running only the idempotent `assay_context`/`venue_type` derives - existing rows byte-identical to `main`. This is the notebook-refresh lesson applied to the registry: a "re-run the deriver" step is unsafe when the column is seed-then-curate. Hardening tracked in [#1071](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1071).
+2. Scoped the #737 sparsity recompute out (date-scoped the README section to the n=81 snapshot rather than fabricate inverse-Simpson figures) - tracked in [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069). Split the refresh from the methodology change, same lesson.
+
+**Bot review:** LGTM, CI green, all independent verification confirmed (well-formed row, counts reconcile, existing rows byte-identical). Three non-blocking findings addressed in `cd21a17` (stale 14 -> 15 source-count comments; `in-vivo` readout normalize) and folded into [#1071](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1071).
+
+Refs: [PR #1070](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1070), [#1068](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1068), [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069), [#1071](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1071), [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
+
+---
