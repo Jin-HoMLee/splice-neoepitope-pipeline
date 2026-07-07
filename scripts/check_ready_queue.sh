@@ -48,23 +48,27 @@
 # Intended for the PM morning-routine Replenishment beat (commitment half).
 #
 # Usage:
-#   bash scripts/check_ready_queue.sh [--floor <count>] [--cap <count>]
+#   bash scripts/check_ready_queue.sh [--floor <count>] [--cap <count>] [--review-limit <count>]
 #
 # Env:
 #   READY_QUEUE_FLOOR      override per-role floor (default 5)
 #   READY_QUEUE_CAP        override total cap (default 23)
+#   REVIEW_WIP_LIMIT       override review-column WIP limit (default 10)
 #   BOARD_ITEMS_JSON_FILE  read the open-items JSON array from this file instead
 #                          of calling board_open_items.py (test seam). The array
 #                          holds objects with at least `.status` and `.labels`
 #                          across all statuses; the script filters Ready /
-#                          In progress / Backlog (the test fixtures also carry
-#                          `.number`).
+#                          In progress / Backlog / review columns (the test
+#                          fixtures also carry `.number`).
 #
 # Exit codes:
-#   0 - healthy (every role at/above floor AND total below cap)
-#   2 - needs attention (a role below floor [REPLENISH or GROOMING-GAP], or
-#       total at/over cap). Distinguish via stdout: [REPLENISH] (commit DoR-ready
-#       work) vs [GROOMING-GAP] (groom/intake) vs [CAP] (hold new commitments).
+#   0 - healthy (every role at/above floor, total below cap, review columns
+#       below WIP limit)
+#   2 - needs attention (a role below floor [REPLENISH or GROOMING-GAP], total
+#       at/over cap [CAP], or review columns at/over limit [REVIEW-DEBT]).
+#       Distinguish via stdout tag: [REPLENISH] (commit DoR-ready work) vs
+#       [GROOMING-GAP] (groom/intake) vs [CAP] (hold new commitments) vs
+#       [REVIEW-DEBT] (human review bandwidth is the binding constraint).
 #   1 - usage / runtime error
 
 set -euo pipefail
@@ -72,6 +76,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLOOR="${READY_QUEUE_FLOOR:-5}"
 CAP="${READY_QUEUE_CAP:-23}"
+REVIEW_LIMIT="${REVIEW_WIP_LIMIT:-10}"
 
 # Roles subject to the per-role floor. MM is held to the same floor as every
 # role (Jin-Ho 2026-07-04, Issue #1006, retiring the #705/#754 MM exemption).
@@ -79,8 +84,9 @@ FLOOR_ROLES=(pm scientist developer memory_manager)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --floor) [[ -n "${2:-}" ]] || { echo "--floor requires a value" >&2; exit 1; }; FLOOR="$2"; shift 2 ;;
-        --cap)   [[ -n "${2:-}" ]] || { echo "--cap requires a value" >&2; exit 1; }; CAP="$2"; shift 2 ;;
+        --floor)         [[ -n "${2:-}" ]] || { echo "--floor requires a value" >&2; exit 1; }; FLOOR="$2"; shift 2 ;;
+        --cap)           [[ -n "${2:-}" ]] || { echo "--cap requires a value" >&2; exit 1; }; CAP="$2"; shift 2 ;;
+        --review-limit)  [[ -n "${2:-}" ]] || { echo "--review-limit requires a value" >&2; exit 1; }; REVIEW_LIMIT="$2"; shift 2 ;;
         -h|--help)
             awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"
             exit 0
@@ -89,8 +95,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ "$FLOOR" =~ ^[0-9]+$ ]] || { echo "floor must be a non-negative integer, got: $FLOOR" >&2; exit 1; }
-[[ "$CAP" =~ ^[0-9]+$ ]]   || { echo "cap must be a non-negative integer, got: $CAP" >&2; exit 1; }
+[[ "$FLOOR" =~ ^[0-9]+$ ]]        || { echo "floor must be a non-negative integer, got: $FLOOR" >&2; exit 1; }
+[[ "$CAP" =~ ^[0-9]+$ ]]          || { echo "cap must be a non-negative integer, got: $CAP" >&2; exit 1; }
+[[ "$REVIEW_LIMIT" =~ ^[0-9]+$ ]] || { echo "review-limit must be a non-negative integer, got: $REVIEW_LIMIT" >&2; exit 1; }
 
 # Source the open-items JSON: a fixture file (test seam) when set, else the live
 # board via board_open_items.py (progress chatter on stderr is dropped; the JSON
@@ -116,6 +123,7 @@ READY_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Ready")]
 }
 INPROG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "In progress")]' 2>/dev/null)"
 BACKLOG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Backlog")]' 2>/dev/null)"
+REVIEW_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Ready for review" or .status == "In review")]' 2>/dev/null)"
 
 TOTAL="$(printf '%s' "$READY_JSON" | jq 'length')"
 
@@ -161,9 +169,21 @@ if [[ "$TOTAL" -ge "$CAP" ]]; then
     needs_attention=1
 fi
 
+# Review-column WIP limit (advisory, keyed to human review bandwidth).
+# Ready for review + In review = cards awaiting the single human reviewer.
+# Default 10 (top of the 5-10/reviewer band from governance research;
+# agent_team_governance_research_2026-07.md §7); tunable via --review-limit
+# or REVIEW_WIP_LIMIT env. Advisory not blocking (house style).
+REVIEW_TOTAL="$(printf '%s' "$REVIEW_JSON" | jq 'length')"
+if [[ "$REVIEW_TOTAL" -ge "$REVIEW_LIMIT" ]]; then
+    echo "[REVIEW-DEBT] Ready for review + In review at ${REVIEW_TOTAL} (>= ${REVIEW_LIMIT}) - human review is the binding throughput constraint; merge some PRs or slow down dispatch."
+    needs_attention=1
+fi
+
 # Always print the full per-role breakdown (Ready buffer + In-progress demand
-# context + Backlog candidate pool) so every run is self-documenting.
-status_line="Ready by role: ${ready_breakdown%% } | In progress: ${inprog_breakdown%% } | Backlog candidates: ${backlog_breakdown%% } | total Ready ${TOTAL} (floor ${FLOOR}/role, cap ${CAP})"
+# context + Backlog candidate pool + review column load) so every run is
+# self-documenting.
+status_line="Ready by role: ${ready_breakdown%% } | In progress: ${inprog_breakdown%% } | Backlog candidates: ${backlog_breakdown%% } | Review columns: ${REVIEW_TOTAL} | total Ready ${TOTAL} (floor ${FLOOR}/role, cap ${CAP}, review limit ${REVIEW_LIMIT})"
 
 if [[ "$needs_attention" -eq 1 ]]; then
     echo "${status_line} - needs attention."

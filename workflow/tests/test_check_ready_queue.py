@@ -1,5 +1,5 @@
 """Tests for scripts/check_ready_queue.sh - proactive per-role floor with
-shortfall routing (commit vs groom).
+shortfall routing (commit vs groom), total cap, and review-column WIP limit.
 
 History:
   - Issue #754 introduced a per-role floor (5) + total cap (18) gate.
@@ -12,12 +12,15 @@ History:
                             the highest-priority DoR-ready ones (never stuff).
       * [GROOMING-GAP role]: short AND NO Backlog candidates -> groom/intake.
     In progress is reported as demand context only; it does NOT gate the floor.
+  - Issue #928 added a review-column WIP limit (default 10, top of the 5-10
+    band from agent_team_governance_research_2026-07.md): [REVIEW-DEBT] when
+    Ready for review + In review >= REVIEW_LIMIT. Advisory not blocking.
 
 The script reads the board via board_open_items.py, which hits the network. For
 deterministic offline tests it accepts a fixture seam: when BOARD_ITEMS_JSON_FILE
 points at a JSON array of {number, status, labels} items, the script reads from
-that file and filters by status (Ready / In progress / Backlog) itself, so a
-fixture controls the buffer, the demand context, and the candidate pool.
+that file and filters by status (Ready / In progress / Backlog / review columns)
+itself, so a fixture controls the buffer, the demand context, and the candidate pool.
 
 Assertion style: tests target the role(s) under test with `... in r.stdout`
 substring checks, and deliberately leave the other roles unstocked. Since MM
@@ -33,7 +36,9 @@ Gate:
     else GROOMING-GAP; either way it needs attention
   - In progress never affects the floor decision (context only)
   - total cap 23 (= floor 5 x 4 roles + 3 headroom) on the Ready buffer
-  - exit 2 if any role is short OR total at/over cap; else exit 0
+  - review-column WIP limit 10 on Ready for review + In review (advisory)
+  - exit 2 if any role is short OR total at/over cap OR review columns at/over
+    limit; else exit 0
 """
 import json
 import os
@@ -250,6 +255,82 @@ def test_breakdown_shows_ready_inprogress_and_backlog():
     assert "Ready by role:" in r.stdout, r.stdout
     assert "In progress:" in r.stdout, r.stdout
     assert "Backlog candidates:" in r.stdout, r.stdout
+
+
+# ---- review-column WIP limit tests (Issue #928) ----
+
+
+def test_review_columns_at_limit_flags_review_debt():
+    # 10 items across Ready for review + In review >= default limit 10 ->
+    # [REVIEW-DEBT], exit 2. All roles at floor so no floor/cap flags fire;
+    # the review-debt signal is the sole attention trigger.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="Ready for review") for i in range(6)]
+             + [_item(600 + i, "developer", status="In review") for i in range(4)])
+    r = _run(items)
+    assert "[REVIEW-DEBT]" in r.stdout, r.stdout
+    assert "Ready for review + In review at 10 (>= 10)" in r.stdout, r.stdout
+    assert "[REPLENISH" not in r.stdout and "[GROOMING-GAP" not in r.stdout, r.stdout
+    assert "[CAP]" not in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_review_columns_below_limit_no_flag():
+    # 5 items in review columns < default limit 10 -> no REVIEW-DEBT, healthy.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+    r = _run(items)
+    assert "healthy" in r.stdout, r.stdout
+    assert "[REVIEW-DEBT]" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+
+
+def test_review_limit_flag_lowers_threshold():
+    # 5 review-column items would pass the default limit of 10, but --review-limit 3
+    # trips REVIEW-DEBT. No floor breach. Prove the flag is tunable.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+    r = _run(items, "--review-limit", "3")
+    assert "[REVIEW-DEBT]" in r.stdout, r.stdout
+    assert "Ready for review + In review at 5 (>= 3)" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_review_limit_env_var_lowers_threshold():
+    # Same setup, driven by REVIEW_WIP_LIMIT env instead of --review-limit.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500 + i, "pm", status="Ready for review") for i in range(3)]
+             + [_item(600 + i, "developer", status="In review") for i in range(2)])
+    import os as posix_os
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(items, f)
+        path = f.name
+    try:
+        env = {**posix_os.environ, "BOARD_ITEMS_JSON_FILE": path, "REVIEW_WIP_LIMIT": "3"}
+        r = subprocess.run(["bash", str(SCRIPT)], env=env,
+                           capture_output=True, text=True)
+    finally:
+        os.unlink(path)
+    assert "[REVIEW-DEBT]" in r.stdout, r.stdout
+    assert "Ready for review + In review at 5 (>= 3)" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout, r.stderr)
+
+
+def test_invalid_review_limit_exits_1():
+    r = _run([], "--review-limit", "abc")
+    assert r.returncode == 1, (r.returncode, r.stdout, r.stderr)
+    assert "review-limit must be" in r.stderr, r.stderr
+
+
+def test_breakdown_shows_review_columns():
+    # The status line includes the review-column count for a self-documenting run.
+    items = ([_item(400 + i, "pm", "scientist", "developer", "memory_manager") for i in range(5)]
+             + [_item(500, "pm", status="Ready for review")])
+    r = _run(items)
+    assert "Review columns:" in r.stdout, r.stdout
+    assert "review limit 10" in r.stdout, r.stdout
 
 
 def test_help_has_no_code_leak():
