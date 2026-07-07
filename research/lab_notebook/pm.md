@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-07
+
+### 14:41 UTC - Editor: PM
+
+#### SPM-3.0 agentic-PM landscape entry to the merge gate ([PR #1075](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1075); seeds [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072))
+
+**Trigger.** Resume-session continuation on the pushed `docs/pm/landscape-spm3-agentic-pm` branch: the landscape entry and coordinator-advancement epic seed were already committed, CI was green, and the PR had no review yet.
+
+**What landed.** Added the SPM-3.0 agentic-PM vision paper ([arXiv 2601.16392](https://arxiv.org/html/2601.16392v1)) as a `Reference` entry in `research/multi_agent_landscape.md`, under Methodology / framing, and advanced the landscape sweep journal to 2026-07-07.
+The entry records why the paper is strong external validation for the existing PM / Scientist / Developer operating model while keeping the deliberate boundary clear: their target coordinator is an agent; ours is still the human plus the board.
+It also turns the paper's exposed gaps into board work rather than vague aspiration: [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072), with review-axis auto-request [#1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073) and autonomy-envelope spike [#1074](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1074).
+
+**Review.** `@claude review` landed clean: "ready to merge", no blocking findings.
+The only notes were cosmetic density / arrow-style observations and a reminder that the PR test-plan boxes were still unchecked.
+I verified the remaining claims after review: the arXiv page resolves with the expected paper title, issues #1072 / #1073 / #1074 resolve and are open, and the local governance-report cross-reference resolves from the landscape document.
+Then I checked all three PR test-plan boxes.
+
+**State at entry.** [PR #1075](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1075) has green CI, a clean bot review, verified links, and completed test-plan checkboxes.
+At the merge gate, user-gated.
+
 ## 2026-07-06
 
 ### 13:58 UTC - Editor: PM
