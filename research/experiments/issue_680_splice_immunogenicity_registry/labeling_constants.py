@@ -63,6 +63,7 @@ VENUE_BY_SOURCE_SUBSTR = {
     "kwok":      {"venue": "journal", "doi": "10.1038/s41586-024-08552-0"},     # Nature
     "xiong":     {"venue": "journal", "doi": "10.1038/s41423-025-01360-0"},     # Cellular & Molecular Immunology (GBM)
     "postn":     {"venue": "journal", "doi": "10.1038/s41435-025-00326-6"},     # Genes & Immunity
+    "col6a3":    {"venue": "journal", "doi": "10.1126/scitranslmed.abo6135"},   # Science Translational Medicine (Kim/Immatics tumor-stroma)
 }
 
 # Zotero collection that mirrors the registry's sources, and the itemType ->
