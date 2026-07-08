@@ -79,6 +79,20 @@ class TestIsRelativeMemoryToken:
         # a token that merely contains the segment deeper in is not a root-relative ref
         assert h.is_relative_memory_token("foo/.agents/memory/x") is False
 
+    def test_exact_segment_matches(self):
+        # a bare `.agents/memory` reference (e.g. `ls .agents/memory`) is caught
+        assert h.is_relative_memory_token(".agents/memory") is True
+        assert h.is_relative_memory_token(".claude/memory") is True
+
+    def test_sibling_dir_not_over_matched(self):
+        # anchored at a path boundary: a sibling dir must NOT match (deny direction)
+        assert h.is_relative_memory_token(".agents/memory-archive/x") is False
+        assert h.is_relative_memory_token(".claude/memory-old/y") is False
+
+    def test_parent_relative_intentional_gap(self):
+        # `../.agents/memory` is a deliberate fail-open gap (not the incident shape)
+        assert h.is_relative_memory_token("../.agents/memory/x") is False
+
 
 # --- command_has_relative_memory_ref ---
 

@@ -90,8 +90,13 @@ def is_relative_memory_token(token: str) -> bool:
         return False  # dynamic -> unresolvable -> fail open
     if token.startswith("/") or token.startswith("~"):
         return False  # absolute / home-anchored -> cwd-independent -> safe
+    # A leading `./` is the memory dir itself; a leading `../` is NOT matched -
+    # a parent-relative escape (`../.agents/memory`) is a deliberate fail-open gap
+    # (not the recorded incident shape; erring toward allow on the deny path).
     stripped = token[2:] if token.startswith("./") else token
-    return any(stripped.startswith(seg) for seg in _MEMORY_SEGMENTS)
+    # Anchor at a path boundary so a sibling like `.agents/memory-archive/` does
+    # NOT over-match - a false-positive deny is the costly direction here.
+    return any(stripped == seg or stripped.startswith(seg + "/") for seg in _MEMORY_SEGMENTS)
 
 
 def command_has_relative_memory_ref(cmd: str):
