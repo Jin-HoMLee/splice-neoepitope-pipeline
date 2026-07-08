@@ -78,6 +78,19 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     import sys
     sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
     from strandness import get_strandness_from_row
+    from hisat2_command import build_read_args
+
+    def _get_hisat2_read_args(wildcards, input):
+        """Resolve the HISAT2 read-input args (`-U` vs `-1/-2`) for one sample.
+
+        Mirrors `_get_hisat2_strandness`: delegates the single-end / paired-end
+        selection to the pure `build_read_args` helper (unit-tested in
+        test_hisat2_command.py). Reads the already-resolved input paths so the
+        emitted command uses exactly the staged files. `input.fastq2` is a
+        (possibly empty) list from `_get_fastq2`.
+        """
+        fastq2 = input.fastq2[0] if input.fastq2 else ""
+        return build_read_args(input.fastq1, fastq2)
 
     def _get_hisat2_strandness(wildcards):
         """Resolve the HISAT2 --rna-strandness flag value for a single sample.
@@ -187,6 +200,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         params:
             index_prefix=_HISAT2_INDEX_PREFIX,
             strandness=_get_hisat2_strandness,
+            read_args=_get_hisat2_read_args,
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=20000,
@@ -205,12 +219,6 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 exit 1
             fi
 
-            if [[ -n "{input.fastq2}" ]]; then
-                FASTQ_ARGS="-1 {input.fastq1} -2 {input.fastq2}"
-            else
-                FASTQ_ARGS="-U {input.fastq1}"
-            fi
-
             STRANDNESS_ARGS=""
             if [[ -n "{params.strandness}" ]]; then
                 STRANDNESS_ARGS="--rna-strandness {params.strandness}"
@@ -220,7 +228,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 -p {threads} \\
                 -x {params.index_prefix} \\
                 $STRANDNESS_ARGS \\
-                $FASTQ_ARGS \\
+                {params.read_args} \\
                 2>> {log} | \\
                 samtools sort -@ {threads} -m 1G -o {output.bam} - 2>> {log}
 
