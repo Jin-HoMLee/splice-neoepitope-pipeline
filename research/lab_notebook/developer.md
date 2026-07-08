@@ -6,6 +6,31 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-08 - memory-path cwd-drift guard ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
+
+### Editor: Developer - narrow PreToolUse guard for relative memory ops under a drifted cwd
+
+**The audit-first step earned its keep - again.**
+AC#1 asked to "confirm the premise first" before building. Doing so materially reshaped the issue. The three recorded drift incidents (esp. the 2026-07-04 PM episode) show the recurring shape is **persisted cwd drift** (a `cd .../scratchpad` that persists, then a bare-relative `grep .agents/memory/shared` resolving wrong), not the scary **wrong-clone memory write** the issue was framed around - the PM's own realpath check that session confirmed writes landed in the right clone. So the dangerous class has **fired zero times**; it's latent. And the existing `check_no_cd_outside_cwd` hook (PR #1029, landed hours after the last incident) **deliberately allows** `cd` into `/private/tmp` - exactly the door the drift walks through - so it never covered this.
+
+**Surfaced the honest disposition, let the user decide.**
+Given the dangerous class never fired and the observed drift self-corrects (a failed relative command is loud, not silent corruption), this narrowly misses our "mechanism only after the *specific* defect recurs" bar. I said so plainly and offered close-vs-build. The user asked what actual agentic-coding best practice says about `cd` handling, so I web-cross-checked: persistent-shell harnesses accept cwd drift as a known tradeoff and mitigate by (a) preferring absolute paths / `git -C` and (b) making drift **loud** not silent (Claude Code even resets cwd per-command *for subagents*, but not the main session). User chose to build the narrow guard as cheap insurance. The guard's job, framed by that research: make the one high-harm drift moment loud.
+
+**Build.**
+`check_memory_path_cwd_drift.py` denies a Bash/Edit/Write iff BOTH (a) `cwd` (from PreToolUse JSON - the lever) resolves outside the clone subtree, and (b) a **relative** `.agents/memory`/`.claude/memory` path is used. Absolute paths and in-clone cwd pass; fails open on unresolvable cwd / dynamic tokens. Mirrors the sibling cd-guard's pure-helper structure; committed `100755` (the #1032 exec-bit lesson, with an `os.access` regression test). 37 tests, live-fire probed.
+
+**Bot review (LGTM, non-blocking nits; fixes in `99414ea`).**
+- **Took #1 (real):** `startswith(".agents/memory")` over-matched a sibling like `.agents/memory-archive/` and would *deny* it - a false positive on the **costly deny direction**. Anchored to `== seg or startswith(seg + "/")`. +tests.
+- **Took #3:** documented the `../.agents/memory` parent-relative gap as an *intentional* fail-open with a comment + test.
+- **Declined #2 (perf `if:` gate) with rationale:** a leading-wildcard `Bash(*memory*)` whose match support is unverified could silently fail and **disable the guard** - a silent-guard-failure is exactly the class we're guarding against, so correctness beats a micro-perf spawn. **Declined #4:** MM cross-cwd is already escape-hatched + forced onto `git -C` by the cd-guard.
+
+**Cross-repo companion (AC#4).**
+The transient stopgap bullet lives in the personas repo (`pm/MEMORY.md`), so the strip ships as forward-linked companion [personas PR #126](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/126), to merge alongside this one.
+
+**Lesson.** On a deny-direction guard, an unanchored `startswith` on a path segment is a latent false-positive - anchor at the path boundary. And the premise-audit-before-building step keeps paying: it turned a "thrice-recurring correctness hazard" framing into an honest "latent, never-fired; here's the real narrow residual." Both PRs at the merge gate.
+
+---
+
 ## 2026-07-06 - stand up docs/adr + docs/design homes ([PR #1051](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1051) closes [Issue #777](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/777))
 
 ### 14:37 UTC - Editor: Developer - converge the remaining 3 gh() copies ([PR #1061](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1061) closes [Issue #1055](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1055))
