@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-08
+
+### 15:53 UTC - Editor: Scientist
+
+#### [PR #1085](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1085) - two-resolution registry design note (junction-key + nullable peptide). Closes [Issue #1084](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1084).
+
+**Context.** Session resumed with an untracked design note (`design_junction_resolution_axis.md`) in the working tree, drafted earlier as a proposal for the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry. Jin-Ho asked to file it. Filed [#1084](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1084) as a **design/spec leaf** under #680 (native sub-issue; `role:scientist` + `arc:immunogenicity-benchmark`, P2), so committing the note satisfies its ACs while the adopt-or-not decision stays a downstream issue - satisfying the spec-PRs-never-standalone rule.
+
+**What shipped.** The design note only (spec-only PR, no schema code). It proposes making the peptide-keyed registry **two-resolution**: promote coordinate identity to a first-class key so coordinate-first sources contribute rows they cannot today (triggering case Zhao 2025 [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817): 139 AS antigens by coordinate, zero peptide sequences; also unblocks measured true-negatives [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)). Adds a typed-null `peptide_status`, two eval resolutions (peptide-level for the #680 scorer, junction-level for the #679 detection benchmark), and 4 open questions for a board decision at commitment.
+
+**Bot review (`5m 16s`).** No blocking bugs; verified column refs (18/19), grade vocab, and the §6 no-inference citation against the tree. One substantive non-blocking catch (correct): §1's *"always-present `junction_id` becomes row identity"* is self-contradictory - I verified 62 of 97 rows (64%, `gene-mechanism`/`none` grade) legitimately have an empty `junction_id`, `validate_registry.py:72-74` enforces that, and filling them would be the exact coordinate inference §6 forbids. Reframed row identity to a **coalesced** `COALESCE(junction_id, peptide)` key with both columns nullable under an at-least-one-non-null invariant; surfaced the `validate_registry.py` grade<->`junction_id` rule change as a cost, added the `peptide_status`<->`tier`/`grade` harmonization caveat, and softened the SEPTIN6/AMZ2P1 precedent to the empty-typed-column mechanism (its trigger is missing-HLA, not missing-sequence). Fix in `2059691`.
+
+**Held at the merge gate** for Jin-Ho's final look. PR Test plan + #1084 ACs verified and ticked.
+
 ## 2026-07-06
 
 ### Editor: Scientist
