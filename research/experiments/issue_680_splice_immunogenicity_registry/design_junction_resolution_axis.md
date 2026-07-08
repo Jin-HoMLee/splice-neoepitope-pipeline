@@ -40,11 +40,16 @@ What is missing is (a) the junction as a *first-class key* rather than an option
 
 ## Proposal
 
-### 1. Registry entity = `(junction_id, peptide?, hla?, readout, provenance)`; junction becomes the stable key
+### 1. Registry entity = `(junction_id?, peptide?, hla?, readout, provenance)`; identity is a coalesced junction-or-peptide key
 
-The peptide becomes nullable.
-A canonical, always-present `junction_id` (harmonized coordinate + genome build, or a canonical event id) becomes the row identity.
-Dedup keys on `(junction_id, peptide, hla)` with `peptide` allowed null.
+Both `junction_id` and `peptide` become nullable, under an **at-least-one-non-null** invariant: a row must carry a `junction_id` (coordinate-first sources), a `peptide` (sequence-first sources), or both.
+Row identity is the **coalesced** key `COALESCE(junction_id, peptide)` (disambiguated by `hla` where present), *not* an always-present `junction_id`.
+
+An always-present `junction_id` was the first instinct, but it does not survive contact with the current registry: 62 of 97 data rows (64%) are `gene-mechanism` or `none` grade and legitimately have an empty `junction_id`, and `validate_registry.py` (the grade<->`junction_id` consistency block) actively *enforces* that they stay empty.
+Filling those in would be exactly the coordinate fabrication section 6's no-inference rule forbids - the same rule this note leans on for the peptide direction.
+So the mirror case (junction present / peptide absent, e.g. Zhao) and the existing case (peptide present / junction absent, those 62 `gene-mechanism`/`none` rows) each need their key column nullable; a coalesced identity is the only framing that holds for both.
+Dedup keys on `(junction_id, peptide, hla)` with either identity column allowed null.
+Adopting this requires revising the `validate_registry.py` grade<->`junction_id` rule (today it hard-blocks a `gene-mechanism`/`none` row from ever carrying a `junction_id`, which a coordinate-recovered source would need) - see Costs.
 
 ### 2. A missing peptide is a *typed* null, never a bare blank
 
@@ -57,8 +62,8 @@ A blank cell conflates at least three states that demand different follow-up:
 | `unpublished-idonly` | source only ever gave coordinates / internal IDs | author contact only |
 | `na-junction-level` | never a peptide (e.g. a normal-tissue true-negative junction) | none |
 
-This extends an *existing* convention rather than inventing one: the long-read-UM rows (SEPTIN6, AMZ2P1) already carry an empty `hla` + `tier = functional-nonscorable` because the restriction was unpublished.
-A null peptide is the same move one column over, with the additions that identity shifts to the junction and absence carries an explicit reason code.
+This extends an *existing* convention rather than inventing one: the long-read-UM rows (SEPTIN6, AMZ2P1) already carry an empty `hla` + `tier = functional-nonscorable` because the *HLA restriction* was unpublished (their peptide sequence *is* published; `LABELING_SCHEME.md` section 4 documents `functional-nonscorable` for the missing-*sequence* case, so the precedent is the empty-typed-column-with-tier-consequence *mechanism*, not an exact tier-trigger match).
+A null peptide is the same move one column over, with the additions that identity becomes the coalesced key and absence carries an explicit reason code.
 A null peptide correctly nulls its derivatives (`length`, the scorable tier).
 
 ### 3. Two evaluation resolutions, one per pipeline stage
@@ -87,6 +92,9 @@ Switching the *scorer* benchmark target from peptide to coordinate would quietly
   This is deterministic and scriptable (liftover + a canonical junction-ID scheme), unlike paywall-gated peptide recovery.
 - **Junction-level label semantics are a compound claim.**
   A junction positive asserts detected + translated + presented + immunogenic; for a *detection* benchmark we only need "this is a real tumor-specific junction," so validated-immunogenic junctions are a high-confidence subset of real junctions.
+- **The `validate_registry.py` grade<->`junction_id` rule must change.**
+  Today it forbids a `gene-mechanism`/`none` row from carrying a `junction_id` (blocking 64% of current rows from ever gaining one). The coalesced-key model instead needs both identity columns independently nullable plus an at-least-one-non-null check. This is a schema/validator revision the board is signing up for, listed here so the cost estimate is honest.
+- **`peptide_status` must be harmonized with the existing `tier` and `junction_mapping_grade` axes**, or the registry grows a third partially-redundant status column. The harmonization rule needs stating (e.g. is a `na-junction-level` peptide-null row always `gene-mechanism`-or-`none` grade? which `tier` does it resolve to?) before adoption.
 - **The scorer still needs peptide labels**, so peptide-level rows remain the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) core; this axis is complementary.
 
 ## Open questions (for the board)
