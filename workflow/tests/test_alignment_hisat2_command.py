@@ -100,3 +100,13 @@ def test_paired_end_sample_uses_1_2(hisat2_dry_run_output):
 def test_paired_end_sample_not_rendered_single(hisat2_dry_run_output):
     o = hisat2_dry_run_output
     assert f"-U {o['pe_r1']}" not in o["out"]
+
+
+def test_paired_end_sample_wires_strandness(hisat2_dry_run_output):
+    """The PE fixture sets strandness=reverse; the rendered command must carry
+    `--rna-strandness RF`, so the fixture's `reverse` value is load-bearing and
+    the PE path is asserted fully wired (read args + strandness), not just
+    -1/-2. The SE fixture leaves strandness empty, so RF can only come from PE.
+    """
+    o = hisat2_dry_run_output
+    assert "--rna-strandness RF" in o["out"]
