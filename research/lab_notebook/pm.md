@@ -6,6 +6,45 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-09
+
+### 12:10 UTC - Editor: PM
+
+#### [Issue #1074](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1074) - autonomy envelope: closure ([PR #1087](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1087))
+
+**What.** Closed out the spike opened 2026-07-08. The sole open gate was #1074 AC 1's memory half, which sat in the personas repo awaiting the Memory Manager's commit.
+
+**Resolution.** The memory half landed as personas `bd1ed87` ("drain(shared): coordinator autonomy envelope - PM #1074 spike memory-half"). Verified `shared/feedback_coordinator_autonomy_envelope.md` **and** its `shared/MEMORY.md` index line are present in personas `origin/main` - not merely on disk. That direct check was deliberate: `feedback_verify_drain_state_before_deferring_close.md` records the inverse failure on #553, where I planned around a drain that had in fact already committed + pushed.
+
+**Closure.** All four #1074 ACs verified individually and ticked, plus the PR's memory-half box. AC 1 reads "documented (memory + CLAUDE.md)" and `CLAUDE.md` is a symlink to `AGENTS.md`, whose "Coordinator autonomy envelope" section carries the boundary statement + act->tier table - so the AC is literally, not interpretively, met.
+
+**Note.** Left the 2026-07-08 entry's now-stale "awaits MM commit" line untouched: entries are immutable once committed (it shipped in `97beb18`), and it is a correct point-in-time record.
+
+**Symmetry worth recording.** The first act governed by this envelope was the merge of the envelope itself - merge is **Tier B** (run the chain autonomously, human performs the irreversible act), so the chain ran to the gate and stopped for Jin-Ho's call. The policy's first live exercise was on its own PR.
+
+**State.** Merged. Unblocks [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072)'s dispatch rungs 3-5, which reference it as governing policy.
+
+## 2026-07-08
+
+### 16:40 UTC - Editor: PM
+
+#### [Issue #1074](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1074) - coordinator autonomy envelope: 3-tier reversibility ladder ([PR #1087](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1087))
+
+**What.** Defined the pre-authorized autonomy policy gating [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072)'s dispatch rungs 3-5: a linear 3-tier reversibility ladder (A autonomous / B autonomous-to-gate / C always-stop) mapping each coordination act (commit / dispatch / merge / escalate) to a tier, plus an unambiguous human-gate boundary. Makes the existing `autonomy-merge-gate-cadence` + `decision-ratification` rules explicit and act-indexed rather than inventing new policy.
+
+**Design decisions.**
+- **Ladder over matrix** - a linear read beats a grid lookup at action time, which is where our rules historically slip.
+- **Dispatch = B now -> A on maturation** (Jin-Ho delegated the call) - the one act whose tier climbs; promotes once the review-axis rung ships + fire-log shows safe behavior. It is the crossover where act-tiers meet the working-mode Supervised -> Delegated trajectory.
+- **Merge = B, flips to C** when the PR itself trips a Tier-C trigger. Jin-Ho probed "why B not C?"; the answer that fell out is that the B/C line turns on whether the decision is reducible to a one-touch ratification of already-verified work, not on reversibility - merge qualifies unless the change it ships is itself novel/governance.
+- **Two refinements derived while drafting:** Tier C is an override condition, not a fourth act; reversible-but-novel splits into instance (A + surface) vs precedent-setting (C).
+- **Altitude separation** - act-tiers (this spike) vs working-modes (the epic); pins the category error caught in the prior session.
+
+**Landed where.** Spec `docs/superpowers/specs/2026-07-08-coordinator-autonomy-envelope-design.md` + AGENTS.md operational section (in PR #1087). Shared memory `shared/feedback_coordinator_autonomy_envelope.md` + index on disk in the personas repo - awaits MM commit (gates #1074 AC1 memory half).
+
+**Review.** `@-claude review` returned "strong, ship-ready." One should-fix (section 6 -> 7 cross-reference) + one nit (merge flip-to-C timing seam); both valid, both fixed in `05d6546`. Verified clean on house style, spec <-> AGENTS.md consistency, and naming/placement.
+
+**State.** Ref `05d6546`. Review addressed. At the merge gate - holding for Jin-Ho's merge call + MM's memory-file commit.
+
 ## 2026-07-07
 
 ### 17:30 UTC - Editor: PM

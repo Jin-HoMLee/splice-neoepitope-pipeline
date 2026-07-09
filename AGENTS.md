@@ -340,6 +340,30 @@ The first two (Ready starvation + In-progress swarm) constrain agent throughput.
 
 **Rule (review-column WIP limit): advisory cap of 10 on `Ready for review` + `In review` combined ([Issue #928](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/928), 2026-07-07).** For a 1-human/N-persona team, human review bandwidth is the binding throughput constraint — "the more you parallelize your code generation, the more review debt you create" ([`research/agent_team_governance_research_2026-07.md`](research/agent_team_governance_research_2026-07.md) §7, hand-verified verbatim from MindStudio + InfoWorld). Default 10 (top of the 5–10 cards/reviewer band from practitioner guidance). Counts PRs only (a PR and its linked Issue both sit in review columns, so counting all cards would double-count). Tunable via `--review-limit` or `REVIEW_WIP_LIMIT` env. The `[REVIEW-DEBT]` surfacing fires in `check_ready_queue.sh`'s status line; it's a Daily Stand-up WIP-awareness signal (same tier as the In-progress cap), not a dispatch gate.
 
+## Coordinator autonomy envelope - reversibility ladder gating dispatch
+
+The pre-authorized policy for what a coordinating agent may commit/dispatch **without** per-action human approval, and where it must stop. It makes the two existing autonomy rules (`autonomy-merge-gate-cadence` + `decision-ratification != action-authorization`) explicit and act-indexed, and is the keystone gating [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072)'s dispatch rungs 3-5. Full design + rationale: [`docs/superpowers/specs/2026-07-08-coordinator-autonomy-envelope-design.md`](docs/superpowers/specs/2026-07-08-coordinator-autonomy-envelope-design.md); operational memory: `shared/feedback_coordinator_autonomy_envelope.md`.
+
+**The boundary (unambiguous):** reversible coordination is pre-authorized; the irreversible outward act and the novel/governance decision are the human's.
+
+**The 3-tier ladder** (keyed on reversibility / blast-radius; linear, not a matrix, for action-time read speed):
+- **Tier A - autonomous** - reversible, in-envelope. Do it.
+- **Tier B - autonomous up to the gate** - irreversible-routine: run the whole chain autonomously, the human performs the single irreversible act.
+- **Tier C - always stop** - novel / precedent / governance / cross-role-conflict / irreversible-outward beyond merge. Propose first.
+
+**Act -> tier mapping:**
+
+| Act | Tier | Note |
+|---|---|---|
+| **Commit** (Backlog -> Ready) | A | up to the per-role floor, on the active arc, DoR met |
+| **Dispatch** (route ping, trigger pull) | B now -> A on maturation | promotes once the review-axis rung ships + `hook_fires.jsonl` shows safe behavior; the one act whose tier climbs (the Supervised -> Delegated trajectory in miniature) |
+| **Merge** (`gh pr merge`) | B | run the chain, stop at the merge command; flips to C when the PR itself trips a Tier-C trigger |
+| **Escalate** (flag / ask) | A | never need approval to raise a concern |
+
+**Two refinements:** (1) **Tier C is an override condition, not a fourth act** - its triggers (novel scope / precedent-or-governance change / cross-role conflict / irreversible-outward beyond merge) bump *any* act to always-stop (editing memory or CLAUDE.md is itself Tier C). (2) **Reversible-but-novel splits**: a novel *instance* is Tier A + surface (do it, explain); a *precedent-setting* act is Tier C (stop).
+
+**Altitude:** these are **act tiers** (per-act, reversibility). Distinct from the paper's **working modes** (posture over a workstream, maturing over time = the epic's altitude). Same word root, different altitude.
+
 ## GitHub Safety Wrappers
 
 Mechanisms that fire automatically to enforce GitHub-related discipline rules that have broken repeatedly despite being documented in memory. Per the mechanism-over-memory ladder (memory → inline Always-in-effect → mechanism), these are the rung-3 escalation when a rule has slipped ≥2× on the same shape.
