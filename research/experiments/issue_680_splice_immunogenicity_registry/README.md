@@ -78,10 +78,64 @@ Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence
 
 ## Coverage (97 rows, 12 studies, 75 genes)
 
-- **Alleles (11 distinct `hla` values + 4 HLA-unresolved):** HLA-A\*02:01 (73), A\*11:01 (9), A\*24:02 (2), **C\*04 (2), C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row), + **4 blank** (the #838 long-read-UM rows with no per-peptide HLA published). **A\*02:01 skew deepened to 73/97** - the Bigot 2021 SF3B1-UM panel (+35), the IR-CRC positives, the Merlotti exon-TE set, and now the #838 Kim mis-splicing fold (+13) are all A\*02:01/A2 (see Caveats; rebalance tracked in [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)).
+- **Alleles (11 distinct `hla` values + 4 HLA-unresolved):** HLA-A\*02:01 (73), A\*11:01 (9), A\*24:02 (2), **C\*04 (2), C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row), + **4 blank** (the #838 long-read-UM rows with no per-peptide HLA published). **A\*02:01 skew deepened to 73/97** - the Bigot 2021 SF3B1-UM panel (+35), the IR-CRC positives, the Merlotti exon-TE set, and now the #838 Kim mis-splicing fold (+13) are all A\*02:01/A2 (see Caveats; per-allele table + scoring implication in "Per-allele coverage and the A\*02:01 scoring skew (#839)" below; rebalance tracked in [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)).
 - **Splice mechanisms:** + `alt_3p_ss` (Bigot SF3B1 aberrant 3′SS, 30) and `neojunction_frameshift` (Bigot S8-junction-validated frameshift+NMD, 5) dominate alongside `exon_te_junction` (Merlotti, 10) and `intron_retention` (IR-CRC, 12); the #838 Kim fold adds 13 `alt_splice_junction`/`alt_5p_ss` rows (skipped-exon, constitutive-intron, mxe, a5ss events).
 - **Sources (11 studies, 14 source strings):** SNAF (Li 2024), IRIS (Pan), Kim 2025 (SF-mutant leukemia, expanded +13 via #838), Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, Manoharan 2026 (IR-CRC), Merlotti 2023 (NSCLC exon-TE), Bigot 2021 (SF3B1 uveal melanoma, +35 - #734 IEDB mine), **Long-read UM 2023 (Cancer Immunol Res, SEPTIN6/AMZ2P1/MZT2B, +4 non-scorable - #838)**. (The Kim source string was canonicalized to one value in #838; SNAF/IRIS/Xiong still carry a pre-existing 2-string split each - left for a future source-key hygiene pass.)
 - **Genes (75 distinct strings):** + Bigot SF3B1-UM source genes - NF1, USP39, NET1, ATP8B2, MAPK8IP2 (the 5 S8-junction-validated), plus ZFYVE27, SRSF1, SF3A2, SEPSECS, UBA1, CTDNEP1, ARIH1, MRPS10, VPS51, MINDY4, ZDHHC16, SOAT1, OXA1L, HADHA, SLC3A2, RNF38, ATP5MC2, VARS2 (tetramer-only); + the #838 Kim genes USF1, AP4B1, EZH2, BIN3, CASP2, SLC20A1, RHOT2, NCOA7, LTBR, MAN2C1, SH3GL1 + the long-read-UM genes SEPTIN6, AMZ2P1, MZT2B + COL6A3 (Kim/Immatics tumor-stroma). (5 Bigot tetramer-only peptides have no source gene in IEDB → `not-named`.)
+
+### Per-allele coverage and the A\*02:01 scoring skew (#839)
+
+Per-row `hla` tallied across all 97 rows, split by scorability.
+The **scoring-relevant** column is the 82 `functional-scorable` positives (the set a predictor is actually scored on); the total column includes the negative tiers and the 4 HLA-unresolved rows.
+(Recompute: `conda activate snakemake` then `python -c "import csv,collections; rows=list(csv.DictReader(open('registry.tsv'),delimiter=chr(9))); import collections as c; print(c.Counter((r['hla'].strip() or '(unresolved)') for r in rows))"` from this directory.)
+
+| Allele | Registry rows | Scorable positives | Role of the non-scorable rows |
+|---|---:|---:|---|
+| HLA-A\*02:01 | 73 | 73 | - |
+| HLA-A\*11:01 | 9 | 4 | 1 hard + 4 soft negatives (the registry's true-negative set) |
+| HLA-A\*24:02 | 2 | 1 | 1 RCAN1 constitutive non-splice control |
+| HLA-C\*04 | 2 | 2 | - (HLA-C breadth, SNAF) |
+| HLA-A\*02:06 | 1 | 1 | - (A\*02 family) |
+| HLA-C\*08 | 1 | 1 | - (HLA-C breadth, SNAF) |
+| HLA-A\*02:07 | 1 | 0 | IR-CRC allele-diversity (non-scorable) |
+| HLA-A\*02 (2-digit) | 1 | 0 | `TEFQTRRAM` prevalence-only row |
+| HLA-A\*24:07 | 1 | 0 | IR-CRC allele-diversity (non-scorable) |
+| HLA-A\*31:01 | 1 | 0 | IR-CRC allele-diversity (non-scorable) |
+| HLA-A\*34:01 | 1 | 0 | IR-CRC allele-diversity (non-scorable) |
+| (unresolved) | 4 | 0 | long-read UM, no per-peptide HLA published |
+| **Total** | **97** | **82** | |
+
+**Family rollup on the scoring set:** the whole A\*02 family is **74/82 scorable positives (90%)**; A\*02:01 alone is **73/82 (89%)**.
+Only **8 of 82 scorable positives (10%) are non-A\*02**, and they span just **four** alleles - A\*11:01 (4), C\*04 (2), A\*24:02 (1), C\*08 (1).
+A\*11:01 is the only non-A\*02 allele with more than two scorable rows.
+
+**Scoring implication.**
+Any AUC, ranked-recall, or sensitivity figure computed on this registry is, to first order, an **A\*02:01-specific** result - a cross-allele generalizability claim is unsupportable, because seven of the eight non-A\*02 scorable rows sit at n≤2 per allele (no allele but A\*02:01 has enough rows to estimate a per-allele operating point).
+A **balanced** per-allele scoring split is therefore not achievable from the current set; the only defensible stratification today is **A\*02:01 vs. pooled-non-A\*02:01** (73 vs. 8), and even that pooled arm is too thin for a stable estimate.
+This is a documentation-and-sourcing matter, not a data-quality defect: every A\*02:01 row is legitimately validated (see "What this is NOT" and Caveats).
+The remedy is to **add** non-A\*02:01 functionally-validated splice-neoantigens (the allele-targeted sweep below), never to remove A\*02:01 rows.
+
+### Allele-targeted rebalance sweep - outcome (#839, AC2/AC3)
+
+An allele-targeted hunt for non-A\*02:01 functionally-validated splice-junction-derived neoantigens was run 2026-07-09.
+**Outcome: no new foldable rows.**
+The field's functionally-validated splice-immunogenicity is genuinely A\*02:01-dominated; this is a real limitation of the field's validation base, not a curation gap.
+
+Sweep performed:
+- Zotero `Z38GTJNW` re-scan (our curated splice-immunogenicity shelf).
+- Re-check of the #734 IEDB free-text recovered-candidate list ([`issue_734_db_audit/recovered_candidates.tsv`](issue_734_db_audit/)) - zero unfolded non-A\*02 functional rows.
+- Live IEDB `tcell_search` free-text mine (reference title matching `splic`), with proteasome-*cis*-spliced-peptide papers excluded (also gate-1-excluded); schema confirmed, endpoint rate-limited before exhaustive allele-stratified enumeration, so the completed #734 audit remains the authoritative IEDB splice coverage.
+- Recency web sweep (2025-2026) for non-A\*02 functional splice-neoantigen reports.
+
+Every non-A\*02 splice-immunogenicity signal the sweep surfaced was already accounted for:
+- **Already folded** (the current 8 non-A\*02 scorable rows): RCAN1-4 (Xiong 2025, GBM, A\*24:02), POSTN-203 (A\*11:01), and the SNAF HLA-C entries (C\*04, C\*08).
+- **Sequence-blocked - the one live rebalance lever:** Zhao 2025 (HCC AS-vaccine, *Cell Research*) reports patient-TIL functional hits restricted to A\*02:01 / **A\*11:01 / A\*24:02**, but the exact peptide sequences are paywalled. Recovery is tracked in [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817); if the sequences land, this is the single largest realistic non-A\*02 rebalance available.
+- **Gate-1 excluded (documented boundary case):** survivin-2B (`AYACNTSTL`, HLA-A\*24, functional CTL killing, oral/colorectal cancer). It is splice-variant-derived and non-A\*02, but survivin-2B is a *naturally-occurring physiological alternative isoform* of the canonical shared tumor-associated antigen survivin (an established peptide-vaccine target; per the literature its expression *decreases* in later tumor stages), not a tumor-specific aberrant-splicing neojunction. It fails **gate-1** (canonical-TAA splice isoform, excluded by design) and is therefore not folded.
+
+**Conclusion (AC3 - documented null).**
+A meaningful allele rebalance is **not achievable from currently-published functional data**.
+The registry's A\*02:01 monoculture (89% of scorable positives) reflects where the field's functional-validation effort has actually gone, and must be carried as a registry limitation: **any AUC / ranked-recall / sensitivity claim in the manuscript must be scoped to A\*02:01**, not framed as cross-allele generalization.
+The single concrete future lever is [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) (Zhao HCC sequence recovery, A\*11:01 / A\*24:02); the standing splice-immunogenicity watch remains allele-alert for new non-A\*02 functional reports.
 
 ### Junction-mapping coverage (#735)
 
@@ -115,7 +169,7 @@ The scheme codifies the existing adversarially-verified curation exactly; all `e
 - **IR-CRC (Manoharan) provenance = healthy-donor IVS, not patient:** the 3 positives (CHD7/FERMT3/TPCN2) and 8 negatives were measured in **healthy-donor moDC-primed T cells** (in-vitro sensitization), *not* patient T cells → positives graded `medium` (a peptide that *can* prime ≠ primed in a patient). FERMT3/RQDPAPQQV was functionally restricted on **A\*02:01** only (A\*24:07 predicted, not used).
 - **Merlotti (exon-TE) confidence split:** 3 with cloned-TCR functional validation (`high`); 7 with **patient tetramer-DETECTION only** (`medium` - no per-peptide IFN-γ/killing). ~10 further single-replicate patient tetramer⁺ hits were **not** folded as scorable rows (recorded in PROVENANCE as candidates).
 - **Bigot 2021 (SF3B1-UM) confidence split (#734):** 5 with effector function (IFN-γ / cytotoxicity / granzyme B / CD107 / TNF-α) **and** S8 alternative-mRNA-junction validation (frameshift+NMD) → `high` (NF1, USP39, NET1, ATP8B2, MAPK8IP2). The other 30 are **patient ex-vivo tetramer-DETECTION only** → `medium`; their splice origin rests on the A2:N panel design (all SF3B1-aberrant-splicing-predicted) + IEDB source-gene curation, not a per-peptide junction shown in the supplements we hold. Sequences are `direct` from local supplementary **Table S2**, cross-confirmed against IEDB (35/35) and - for the 5 `high` - JEM 2024 (PMC10986814). **The published Correction (PMID 35257149 / CD-22-0009) could not be obtained; its content is unread.** Sequence risk is mitigated by the two/three-way cross-confirmation, but the correction should be reviewed before citing.
-- **A\*02:01 skew (worsened sharply by #734, again by #838):** **73/97 rows are A\*02:01** - the Bigot SF3B1-UM panel (35), the IR-CRC positives, the Merlotti exon-TE set, and the #838 Kim mis-splicing fold (13) are all A2. The HLA-C/allele-diversity story is a small fraction of the whole; weight scoring analyses accordingly. **Actively rebalancing is tracked in [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)** (source non-A\*02:01 splice-neoantigens).
+- **A\*02:01 skew (worsened sharply by #734, again by #838):** **73/97 rows are A\*02:01** (73/82 = 89% of scorable positives) - the Bigot SF3B1-UM panel (35), the IR-CRC positives, the Merlotti exon-TE set, and the #838 Kim mis-splicing fold (13) are all A2. The HLA-C/allele-diversity story is a small fraction of the whole; weight scoring analyses accordingly. **The [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839) allele-targeted rebalance sweep (2026-07-09) returned a documented null** - no new foldable non-A\*02 functional splice-neoantigens exist in currently-published data (full per-allele table + sweep outcome under "Per-allele coverage and the A\*02:01 scoring skew (#839)"). The one live lever is [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) (Zhao HCC A\*11:01/A\*24:02, sequence-blocked); scope all generalizability claims to A\*02:01.
 
 ## Decoy-negative tiers (#735)
 
