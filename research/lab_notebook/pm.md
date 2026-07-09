@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-09
+
+### 12:10 UTC - Editor: PM
+
+#### [Issue #1074](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1074) - autonomy envelope: closure ([PR #1087](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1087))
+
+**What.** Closed out the spike opened 2026-07-08. The sole open gate was #1074 AC 1's memory half, which sat in the personas repo awaiting the Memory Manager's commit.
+
+**Resolution.** The memory half landed as personas `bd1ed87` ("drain(shared): coordinator autonomy envelope - PM #1074 spike memory-half"). Verified `shared/feedback_coordinator_autonomy_envelope.md` **and** its `shared/MEMORY.md` index line are present in personas `origin/main` - not merely on disk. That direct check was deliberate: `feedback_verify_drain_state_before_deferring_close.md` records the inverse failure on #553, where I planned around a drain that had in fact already committed + pushed.
+
+**Closure.** All four #1074 ACs verified individually and ticked, plus the PR's memory-half box. AC 1 reads "documented (memory + CLAUDE.md)" and `CLAUDE.md` is a symlink to `AGENTS.md`, whose "Coordinator autonomy envelope" section carries the boundary statement + act->tier table - so the AC is literally, not interpretively, met.
+
+**Note.** Left the 2026-07-08 entry's now-stale "awaits MM commit" line untouched: entries are immutable once committed (it shipped in `97beb18`), and it is a correct point-in-time record.
+
+**Symmetry worth recording.** The first act governed by this envelope was the merge of the envelope itself - merge is **Tier B** (run the chain autonomously, human performs the irreversible act), so the chain ran to the gate and stopped for Jin-Ho's call. The policy's first live exercise was on its own PR.
+
+**State.** Merged. Unblocks [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072)'s dispatch rungs 3-5, which reference it as governing policy.
+
 ## 2026-07-08
 
 ### 16:40 UTC - Editor: PM
