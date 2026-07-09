@@ -52,7 +52,10 @@ uv pip install --python "$PY" \
 # crashes. 2.2.x is torch-backed and is what our pipeline runs. pvactools shells out
 # to the `mhcflurry-predict` CLI, whose contract is unchanged, so the override is safe.
 # --- Gotcha 5: setuptools<81 above, because mhcflurry still imports pkg_resources.
-uv pip install --python "$PY" 'mhcflurry>=2.1'
+# Bounded upward on purpose: the mhcflurry version is load-bearing here (2.0.6 is the
+# exact thing being dodged), and a future major could change the `mhcflurry-predict`
+# CLI contract or its output column names and silently break reproduction.
+uv pip install --python "$PY" 'mhcflurry>=2.1,<3'
 
 # --- Gotcha 6: pvactools invokes the BARE name `mhcflurry-predict` via PATH. Calling
 # pvacbind by absolute path is not enough; without this the run dies with
@@ -85,6 +88,12 @@ pvacseq run "$WORK/example/pvacseq_example_data/annotated.expression.vcf.gz" \
 
 echo
 echo "=== committed-vs-fresh comparison ==="
+# By default this is ADVISORY: it reports MATCH/DIFFER but does not fail the run, because
+# float jitter across MHCflurry/torch builds and platforms is expected and is not a defect.
+# A zero exit therefore means "both modules ran open-only", NOT "outputs were byte-identical".
+# Set STRICT=1 to make divergence a hard failure (that is the mode used to substantiate the
+# byte-identical claim in README.md, on the authoring machine).
+divergences=0
 for pair in \
   "out_pvacbind/MHC_Class_I/spike1048.MHC_I.filtered.tsv:outputs/pvacbind.MHC_I.filtered.tsv" \
   "out_pvacseq/MHC_Class_I/HCC1395_TUMOR_DNA.MHC_I.filtered.tsv:outputs/pvacseq.MHC_I.filtered.tsv"; do
@@ -93,8 +102,17 @@ for pair in \
     echo "  MATCH  ${pair##*:}"
   else
     echo "  DIFFER ${pair##*:} (float jitter across MHCflurry/torch builds is expected; inspect before alarm)"
+    divergences=$((divergences + 1))
   fi
 done
 
+if [[ "${STRICT:-0}" == "1" && "$divergences" -gt 0 ]]; then
+  echo "FATAL: STRICT=1 and $divergences output(s) diverged from the committed copies." >&2
+  exit 1
+fi
+
 echo
 echo "GREEN: pvacbind + pvacseq both completed class-I predictions on MHCflurry alone."
+if [[ "$divergences" -gt 0 ]]; then
+  echo "NOTE: $divergences output(s) differed from the committed copies (advisory; re-run with STRICT=1 to gate on this)."
+fi

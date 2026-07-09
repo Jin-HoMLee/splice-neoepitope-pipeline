@@ -23,7 +23,8 @@ Run on macOS arm64 (Apple M1), CPU-only, 2026-07-09.
 ### Biological sanity check (not just plumbing)
 
 The `pvacbind` fixture ([`fixtures/peptides.fa`](fixtures/peptides.fa)) embeds three known HLA-A\*02:01 epitopes inside longer sequences.
-Of the 37 scored 9-mers, exactly the three canonical binders survive filtering:
+Of the 37 scored 9-mers, exactly the three canonical **binders (by IC50)** survive filtering.
+"Binder" is the right word here and not a vocabulary slip: pVACtools filters on **affinity** (`ic50`), which is precisely the quantity the house presentation vocabulary distinguishes itself from (see "Wrapper surface" below).
 
 | Epitope | Source |
 |---------|--------|
@@ -81,6 +82,7 @@ Notes for the wrapper:
 - Output lands at `<outdir>/MHC_Class_I/<sample>.MHC_I.{all_epitopes,filtered,all_epitopes.aggregated}.tsv`.
 - `--iedb-install-directory` is **not** required when only MHCflurry is selected. Despite the internal method being named `call_iedb()`, no IEDB call occurs.
 - pVACtools emits `ic50` / `percentile`, i.e. **affinity** semantics. Our house vocabulary is presentation (`presentation_score`, `presentation_percentile`). A wrapper that adopts pVACtools' columns must not silently rename them into our presentation vocabulary; they are the affinity-only quantities. Prefer `MHCflurryEL` plus our own `Class1PresentationPredictor` pass for the ranked output.
+- This spike ran `-e1 9` (9-mers only), which is sufficient for a feasibility proof but is **not** the production setting. The wrapper must pass the full range from `config.yaml` `translation.peptide_lengths`, currently `[8, 9, 10]`, as `-e1 8 9 10`.
 
 ## Not tested (scope boundary, and the honest gap)
 
@@ -92,8 +94,11 @@ Notes for the wrapper:
 ## Reproduce
 
 ```bash
-bash reproduce.sh          # builds the venv, runs both modules, diffs against outputs/
+bash reproduce.sh              # builds the venv, runs both modules, diffs against outputs/
+STRICT=1 bash reproduce.sh     # additionally FAILS if a fresh output diverges from outputs/
 ```
+
+A plain `bash reproduce.sh` exiting 0 means **"both modules ran open-only"**, not "the outputs were byte-identical" - the committed-vs-fresh diff is advisory by default, because float jitter across MHCflurry/torch builds and platforms is expected and is not a defect. The byte-identical claim below was substantiated with `STRICT=1` on the authoring machine (macOS arm64, `env_lock.txt` versions); reproduce it that way if you want the same guarantee.
 
 Environment is pinned in [`env_lock.txt`](env_lock.txt) (92 packages). Note the lock is a *record*, not a constraint file consumed by `reproduce.sh`; the script pins only the load-bearing versions so the resolver stays free elsewhere.
 
