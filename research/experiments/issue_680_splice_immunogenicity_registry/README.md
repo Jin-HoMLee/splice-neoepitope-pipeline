@@ -80,14 +80,16 @@ Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence
 
 - **Alleles (11 distinct `hla` values + 4 HLA-unresolved):** HLA-A\*02:01 (73), A\*11:01 (9), A\*24:02 (2), **C\*04 (2), C\*08** (HLA-C breadth from SNAF supplements), + A\*34:01, A\*31:01, A\*24:07, A\*02:07, A\*02:06 (allele *diversity* added by IR-CRC), + the 2-digit **A\*02** (the `TEFQTRRAM` prevalence row), + **4 blank** (the #838 long-read-UM rows with no per-peptide HLA published). **A\*02:01 skew deepened to 73/97** - the Bigot 2021 SF3B1-UM panel (+35), the IR-CRC positives, the Merlotti exon-TE set, and now the #838 Kim mis-splicing fold (+13) are all A\*02:01/A2 (see Caveats; per-allele table + scoring implication in "Per-allele coverage and the A\*02:01 scoring skew (#839)" below; rebalance tracked in [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)).
 - **Splice mechanisms:** + `alt_3p_ss` (Bigot SF3B1 aberrant 3′SS, 30) and `neojunction_frameshift` (Bigot S8-junction-validated frameshift+NMD, 5) dominate alongside `exon_te_junction` (Merlotti, 10) and `intron_retention` (IR-CRC, 12); the #838 Kim fold adds 13 `alt_splice_junction`/`alt_5p_ss` rows (skipped-exon, constitutive-intron, mxe, a5ss events).
-- **Sources (11 studies, 14 source strings):** SNAF (Li 2024), IRIS (Pan), Kim 2025 (SF-mutant leukemia, expanded +13 via #838), Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, Manoharan 2026 (IR-CRC), Merlotti 2023 (NSCLC exon-TE), Bigot 2021 (SF3B1 uveal melanoma, +35 - #734 IEDB mine), **Long-read UM 2023 (Cancer Immunol Res, SEPTIN6/AMZ2P1/MZT2B, +4 non-scorable - #838)**. (The Kim source string was canonicalized to one value in #838; SNAF/IRIS/Xiong still carry a pre-existing 2-string split each - left for a future source-key hygiene pass.)
+- **Sources (12 studies, 15 source strings):** SNAF (Li 2024), IRIS (Pan), Kim 2025 (SF-mutant leukemia, expanded +13 via #838), Xiong 2025 (RCAN1-4), Fisher 2026, Kwok 2024, POSTN-203, Manoharan 2026 (IR-CRC), Merlotti 2023 (NSCLC exon-TE), Bigot 2021 (SF3B1 uveal melanoma, +35 - #734 IEDB mine), **Long-read UM 2023 (Cancer Immunol Res, SEPTIN6/AMZ2P1/MZT2B, +4 non-scorable - #838)**, Kim GB 2022 (STM, COL6A3 tumor-stroma, +1 - #680 standing watch). (The Kim source string was canonicalized to one value in #838; SNAF/IRIS/Xiong still carry a pre-existing 2-string split each - left for a future source-key hygiene pass. The count was refreshed 11→12 studies / 14→15 strings here for the COL6A3/Kim-2022 fold, matching the Coverage header.)
 - **Genes (75 distinct strings):** + Bigot SF3B1-UM source genes - NF1, USP39, NET1, ATP8B2, MAPK8IP2 (the 5 S8-junction-validated), plus ZFYVE27, SRSF1, SF3A2, SEPSECS, UBA1, CTDNEP1, ARIH1, MRPS10, VPS51, MINDY4, ZDHHC16, SOAT1, OXA1L, HADHA, SLC3A2, RNF38, ATP5MC2, VARS2 (tetramer-only); + the #838 Kim genes USF1, AP4B1, EZH2, BIN3, CASP2, SLC20A1, RHOT2, NCOA7, LTBR, MAN2C1, SH3GL1 + the long-read-UM genes SEPTIN6, AMZ2P1, MZT2B + COL6A3 (Kim/Immatics tumor-stroma). (5 Bigot tetramer-only peptides have no source gene in IEDB → `not-named`.)
 
 ### Per-allele coverage and the A\*02:01 scoring skew (#839)
 
 Per-row `hla` tallied across all 97 rows, split by scorability.
 The **scoring-relevant** column is the 82 `functional-scorable` positives (the set a predictor is actually scored on); the total column includes the negative tiers and the 4 HLA-unresolved rows.
-(Recompute: `conda activate snakemake` then `python -c "import csv,collections; rows=list(csv.DictReader(open('registry.tsv'),delimiter=chr(9))); import collections as c; print(c.Counter((r['hla'].strip() or '(unresolved)') for r in rows))"` from this directory.)
+(Recompute from this directory (`conda activate snakemake` first). Both columns, including the load-bearing scorable split (`label=='positive' and tier=='functional-scorable'`, per [`LABELING_SCHEME.md`](LABELING_SCHEME.md)):
+`python -c "import csv,collections as c; rows=list(csv.DictReader(open('registry.tsv'),delimiter=chr(9))); tot=c.Counter((r['hla'].strip() or '(unresolved)') for r in rows); sco=c.Counter(r['hla'].strip() for r in rows if r['label']=='positive' and r['tier']=='functional-scorable'); print('total',dict(tot)); print('scorable',dict(sco))"`
+The second Counter reproduces the 73/82 A\*02:01 and 8/82 non-A\*02 figures the analysis pivots on; the first reproduces the Registry-rows column.)
 
 | Allele | Registry rows | Scorable positives | Role of the non-scorable rows |
 |---|---:|---:|---|
@@ -123,7 +125,7 @@ The field's functionally-validated splice-immunogenicity is genuinely A\*02:01-d
 
 Sweep performed:
 - Zotero `Z38GTJNW` re-scan (our curated splice-immunogenicity shelf).
-- Re-check of the #734 IEDB free-text recovered-candidate list ([`issue_734_db_audit/recovered_candidates.tsv`](issue_734_db_audit/)) - zero unfolded non-A\*02 functional rows.
+- Re-check of the #734 IEDB free-text recovered-candidate list ([`issue_734_db_audit/recovered_candidates.tsv`](issue_734_db_audit/recovered_candidates.tsv)) - zero unfolded non-A\*02 functional rows.
 - Live IEDB `tcell_search` free-text mine (reference title matching `splic`), with proteasome-*cis*-spliced-peptide papers excluded (also gate-1-excluded); schema confirmed, endpoint rate-limited before exhaustive allele-stratified enumeration, so the completed #734 audit remains the authoritative IEDB splice coverage.
 - Recency web sweep (2025-2026) for non-A\*02 functional splice-neoantigen reports.
 
