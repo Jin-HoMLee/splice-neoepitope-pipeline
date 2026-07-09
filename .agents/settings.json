@@ -34,6 +34,11 @@
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_no_cd_outside_cwd.py",
             "if": "Bash(cd*)",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_memory_path_cwd_drift.py",
+            "timeout": 5
           }
         ]
       },
@@ -43,6 +48,11 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_no_emdash.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_memory_path_cwd_drift.py",
             "timeout": 5
           }
         ]
