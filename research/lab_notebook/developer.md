@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
+
+### 12:06 UTC - Editor: Developer - merge-gate pass, cross-repo companion, and a proxy-shaped gate
+
+**Ship.**
+[PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) cleared the gate with all four CI checks green (`ci-tools-pytest`, `pipeline-pytest`, `pipeline-conda-env-solve`, `pipeline-snakemake-dry-run`), `mergeStateStatus: CLEAN`, bot review addressed in `99414ea`, and no unticked boxes on either the PR test plan or #1053's acceptance criteria. Its cross-repo companion [personas PR #126](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/pull/126) (strip the now-obsolete `pm/MEMORY.md` stopgap bullet) merges alongside, per AC#4 - the stopgap says "guard not yet landed", so it must not outlive the guard.
+
+**The lab-notebook gate is keyed on a proxy, and today it bit.**
+Yesterday's entry for this exact PR was written post-review, pre-merge - textbook adherence to `shared/feedback_lab_notebook.md` "Entry timing". But the merge slipped past midnight UTC, and `check_lab_notebook` demands a `## <merge-date>` header, so a correctly-written entry read as a *missing* one. The two escapes were both bad: re-date the committed 07-08 entry (violates this notebook's own "entries are immutable once committed" rule, line 5) or stamp a hollow bypass marker on a PR that is anything but routine. So this entry exists partly because the gate asked for a header, which is the tell.
+
+The gate is checking *"was an entry written on the merge date"* when the intent is *"does an entry exist for this unit of work, written after review and before merge."* Any PR whose review straddles a UTC midnight - i.e. any overnight review, which is the normal case for a bot review requested late - hits this. The fix is to accept an entry in a small window ending at the merge date, or to key on the `#PR`/`#Issue` reference across recent date blocks rather than on one exact header. Filed as a follow-up; not fixed inline, because a gate change wants its own tests and its own review rather than riding a merge it is currently blocking.
+
+**Lesson.** A gate that forces you to choose between violating a second rule and faking a bypass is not enforcing its intent - it is enforcing its proxy. Same shape as the AC-heading lint (`ac_section_lint.py`), which stayed keyed to one canonical heading precisely to avoid guessing. The tell that you are on the wrong side of it: the artifact you are creating exists to satisfy the check, not the reader.
+
+---
+
 ## 2026-07-08 - memory-path cwd-drift guard ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
 
 ### Editor: Developer - narrow PreToolUse guard for relative memory ops under a drifted cwd
