@@ -6,6 +6,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-09
+
+### 09:43 UTC - Editor: Scientist
+
+#### [PR #1091](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1091) - per-allele coverage table + A\*02:01 rebalance null. Closes [Issue #839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839).
+
+**Context.** Morning warm-up pull: [#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839), rebalance the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) splice-immunogenicity registry off its HLA-A\*02:01 skew (a [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity-analysis payoff). The Issue cited a stale 59/79; the registry has since grown to 97 rows.
+
+**AC1 - coverage table + the sharper number.** Added a per-allele coverage table to the registry README, split by scorability. The load-bearing figure is on the **scoring-relevant set** (82 `functional-scorable` positives, not all 97 rows): **73/82 (89%) are A\*02:01, 74/82 (90%) counting the whole A\*02 family**. Only **8 non-A\*02 scorable rows** exist, across just 4 alleles (A\*11:01=4, C\*04=2, A\*24:02=1, C\*08=1); A\*11:01 is the only non-A\*02 allele with >2. Scoring implication documented: any metric is effectively A\*02:01-specific, and the only defensible stratification is A\*02:01-vs-pooled-rest (73 vs 8), itself too thin to estimate.
+
+**AC2/AC3 - allele-targeted sweep → documented null.** Ran an allele-targeted hunt: Zotero `Z38GTJNW`, the #734 IEDB recovered-candidate list, a live IEDB `tcell_search` free-text mine (schema confirmed; rate-limited before exhaustive enumeration, so the completed #734 audit stays authoritative), and a 2025-2026 web sweep. **No new foldable non-A\*02 functional splice-neoantigens.** Every non-A\*02 signal was already accounted for: **already folded** (RCAN1-4/Xiong A\*24:02, POSTN-203 A\*11:01, SNAF HLA-C), **sequence-blocked** (Zhao HCC A\*11:01/A\*24:02, tracked in [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) - the one live rebalance lever), or **gate-1-excluded**.
+
+**Judgment call - survivin-2B excluded.** The field's most prominent non-A\*02 splice-restricted functional epitope, survivin-2B (`AYACNTSTL`, HLA-A\*24, CTL killing), was **excluded on gate-1**: survivin-2B is a naturally-occurring physiological alternative isoform of the canonical shared TAA survivin (a peptide-vaccine target; expression *decreases* in late-stage tumors), tumor-associated via overexpression, not a tumor-specific aberrant-splicing neojunction. Flagged explicitly in the PR as the one call worth a second look.
+
+**Bot review - LGTM.** Independently recomputed every number from `registry.tsv` (all match) and **concurred with the survivin-2B exclusion**, grounding it in both the letter (`canonical-TAA` is an explicit gate-1 token, `LABELING_SCHEME.md:20`) and the intent (`PROVENANCE.md:50`: tumor-specificity via the junction, not overexpression). Three non-blocking items, all addressed in `82bbffc`: (1) the recompute one-liner reproduced only the total column, not the load-bearing 73/82 split - extended it; (2) a link-text/href mismatch - fixed; (3) a header-vs-bullet study-count discrepancy - I verified the current count is **12 studies / 15 source strings** (the header was right, the Sources bullet was stale post the 2026-07-07 COL6A3/Kim-2022 fold), reconciled the bullet and added the missing source.
+
+**Also this session (non-#839).** Morning news: added the Wan et al. MHC-II multi-scale benchmark (arXiv 2512.14011) to Zotero (`E8QZE2VA`) + forward-noted it on [#1049](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1049). Fielded a question on the slide-deck cadence gap (last deck 2026-06-30; work-mix shift to curation/tooling, plus one real lapse - the #547 calibration experiment closed without a deck).
+
 ## 2026-07-08
 
 ### 15:53 UTC - Editor: Scientist
