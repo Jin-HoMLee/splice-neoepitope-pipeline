@@ -253,6 +253,22 @@ def test_active_slate_guideline_is_tunable(tmp_path):
     assert "NOTE cap" not in proc.stdout
 
 
+def test_non_numeric_guideline_falls_back_to_default(tmp_path):
+    # A garbage override must not make an *advisory* knob misbehave: fall back to 3,
+    # warn, and still emit the NOTE for the 4-arc slate.
+    proc, log = _run(
+        tmp_path, _FOUR_ACTIVE,
+        arclabels="arc:a arc:b arc:c arc:d",
+        members={},
+        check=True,
+        extra_env={"ACTIVE_SLATE_GUIDELINE": "2x"},
+    )
+    assert proc.returncode == 0
+    assert "not a non-negative integer" in proc.stderr
+    assert "NOTE cap" in proc.stdout
+    assert "value too great for base" not in proc.stderr  # no raw bash arith error
+
+
 def test_over_guideline_does_not_mask_real_drift(tmp_path):
     # The advisory NOTE must coexist with genuine drift without swallowing its exit 2.
     # #5 is a member of arc:a but carries the wrong arc-phase, which is real drift.

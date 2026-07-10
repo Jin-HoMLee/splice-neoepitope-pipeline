@@ -46,7 +46,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Advisory focus-slate guideline (Issue #1102). Not a gate: exceeding it prints a
 # NOTE and never affects the exit code. Tunable for a deliberate wide slate.
+# A non-numeric override would make `[[ n -gt $G ]]` emit a cryptic bash error and
+# silently skip the NOTE (it does NOT abort -- an `if` condition is exempt from
+# set -e). Fall back to the default rather than let an advisory knob misbehave.
 ACTIVE_SLATE_GUIDELINE="${ACTIVE_SLATE_GUIDELINE:-3}"
+if ! [[ "$ACTIVE_SLATE_GUIDELINE" =~ ^[0-9]+$ ]]; then
+  echo "  WARN: ACTIVE_SLATE_GUIDELINE='$ACTIVE_SLATE_GUIDELINE' is not a non-negative integer; using 3" >&2
+  ACTIVE_SLATE_GUIDELINE=3
+fi
 
 CHECK=0
 MANIFEST=""
