@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""PostToolUse hook: when a bot review is requested on a PR, advance its linked
-Issue's board Status to "In review".
+"""PostToolUse hook: when a bot review is requested on a PR, advance BOTH the PR's
+own board card and its linked Issue's card to "In review".
 
 Sibling of `post_gh_pr_create.py`. That hook sets a fresh PR's linked-issue card
 to "Ready for review"; the "Ready for review" -> "In review" hop (when a review
@@ -12,7 +12,15 @@ Fires on the two local commands that start a review:
   - `gh pr comment <ref> --body "@claude review"`  (the canonical bot trigger)
   - `gh pr review <ref> ...`                         (a direct review action)
 It resolves the PR's linked Issue(s) via `closingIssuesReferences` and sets each
-one's Status on project #9 to "In review".
+one's Status on project #9 to "In review", **and** sets the PR's own card too.
+
+Why both (Issue #1108): `post_gh_pr_create` parks the PR card at "Ready for
+review" and nothing ever advanced it, so the PR and its Issue split across two
+columns and the PR's column depended on whether a human happened to drag it.
+GitHub Docs endorse boarding PRs for review tracking, and no built-in automation
+covers a review request (only closed -> Done and merged -> Done are native), so
+this hook owns the transition for both cards. The PR flip is NOT gated on having
+a linked Issue: a `--no-issue` companion PR still belongs in the review column.
 
 Residual (documented, not solved here): a human reviewing directly on github.com
 emits no local command, so a local PostToolUse hook cannot see it - that path
@@ -182,31 +190,39 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def _pr_linked_issues(ref: str) -> tuple[str, str, list[int]] | None:
-    """Resolve a PR ref to (owner, repo, [linked issue numbers]).
+def _pr_linked_issues(ref: str) -> tuple[str, str, int, list[int]] | None:
+    """Resolve a PR ref to (owner, repo, pr_number, [linked issue numbers]).
 
     `gh pr view <ref>` accepts a number (resolved against the cwd repo), a URL, or
     a branch, so this works from any tracked clone. Returns None if the URL can't
-    be parsed (repo unresolvable).
+    be parsed (repo unresolvable). The PR's own number is returned so its board
+    card can be advanced alongside its linked Issues (Issue #1108) -- the linked
+    list may legitimately be empty (a `--no-issue` companion PR).
     """
     res = _gh("pr", "view", ref, "--json", "url,closingIssuesReferences")
     data = json.loads(res.stdout)
     parsed = parse_pr_url(data.get("url") or "")
     if parsed is None:
         return None
-    owner, repo, _ = parsed
+    owner, repo, pr_number = parsed
     issues = [
         n for n in (
             (r or {}).get("number") for r in data.get("closingIssuesReferences") or []
         ) if isinstance(n, int)
     ]
-    return owner, repo, issues
+    return owner, repo, pr_number, issues
 
 
-def _issue_item_and_status(issue: int, owner: str, repo: str) -> tuple[str | None, str | None]:
-    """Return (project-item id on #9, current Status name) for `issue` in `owner/repo`.
+def _item_and_status(
+    kind: str, number: int, owner: str, repo: str
+) -> tuple[str | None, str | None]:
+    """Return (project-item id on #9, current Status name) for an Issue or PR.
 
-    (None, None) if the issue is not on the board. Mirrors recheck_dispatch's
+    `kind` is the GraphQL field name: "issue" or "pullRequest". Both content types
+    expose `projectItems`, so one resolver serves the linked Issue *and* the PR's
+    own card -- keeping a single source of truth for the field-name matching.
+
+    (None, None) if the item is not on the board. Mirrors recheck_dispatch's
     projectItems resolution. The repo is threaded from the PR (not hardcoded) so a
     tracked personas-repo PR resolves its OWN board items rather than a
     same-numbered pipeline issue (`closingIssuesReferences` is same-repo-only, so
@@ -214,15 +230,15 @@ def _issue_item_and_status(issue: int, owner: str, repo: str) -> tuple[str | Non
     """
     query = (
         'query { repository(owner: "' + owner + '", name: "' + repo + '") '
-        '{ issue(number: ' + str(issue) + ') { projectItems(first: 10) { nodes { '
+        '{ ' + kind + '(number: ' + str(number) + ') { projectItems(first: 10) { nodes { '
         'id project { number } fieldValues(first: 20) { nodes { '
         '... on ProjectV2ItemFieldSingleSelectValue { name field { '
         '... on ProjectV2FieldCommon { name } } } } } } } } } }'
     )
     res = _gh("api", "graphql", "-f", f"query={query}")
     data = json.loads(res.stdout)
-    issue_node = ((data.get("data") or {}).get("repository") or {}).get("issue") or {}
-    for item in (issue_node.get("projectItems") or {}).get("nodes") or []:
+    node = ((data.get("data") or {}).get("repository") or {}).get(kind) or {}
+    for item in (node.get("projectItems") or {}).get("nodes") or []:
         if ((item.get("project") or {}).get("number")) != PROJECT_NUMBER:
             continue
         item_id = item.get("id")
@@ -244,11 +260,16 @@ def _set_status(item_id: str, option_id: str) -> None:
     )
 
 
-def _log_fire(issues: list[int], repo: str) -> None:
-    """Append one fire-log line (Issue #453 infra). Never raises."""
+def _log_fire(pr: int | None, issues: list[int], repo: str) -> None:
+    """Append one fire-log line (Issue #453 infra). Never raises.
+
+    `pr` is the PR number when its own card was flipped, else None (already
+    In review / Done / not on the board).
+    """
     payload = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "hook": "post_gh_pr_review_request",
+        "pr": pr,
         "issues": issues,
         "repo": repo,
         "action": "status:In review",
@@ -276,37 +297,55 @@ def main() -> int:
     if ref is None:
         return 0
 
+    # Accumulate what actually flipped OUTSIDE the try, so a mid-sequence gh error
+    # still logs + surfaces the board mutations that already landed. The fire-log is
+    # the audit trail the review-debt/health tooling reads, so a real flip that goes
+    # unrecorded is a silent board/log divergence (Issue #1108 review, finding 2).
+    owner = repo = None
+    flipped_pr = None
+    flipped: list[int] = []
     try:
         resolved = _pr_linked_issues(ref)
         if resolved is None:
             return 0
-        owner, repo, issues = resolved
-        if not should_track(owner, repo) or not issues:
+        owner, repo, pr_number, issues = resolved
+        if not should_track(owner, repo):
             return 0
-        flipped = []
+
+        # The PR's OWN card first (Issue #1108). Deliberately NOT gated on `issues`:
+        # a `--no-issue` companion PR has no linked Issue but still belongs in the
+        # review column. Previously the empty-`issues` early-return skipped it.
+        pr_item, pr_status = _item_and_status("pullRequest", pr_number, owner, repo)
+        if pr_item is not None and should_flip(pr_status):
+            _set_status(pr_item, IN_REVIEW_OPTION)
+            flipped_pr = pr_number
+
         for issue in issues:
-            item_id, status = _issue_item_and_status(issue, owner, repo)
+            item_id, status = _item_and_status("issue", issue, owner, repo)
             if item_id is None or not should_flip(status):
                 continue
             _set_status(item_id, IN_REVIEW_OPTION)
             flipped.append(issue)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             json.JSONDecodeError, FileNotFoundError):
-        return 0  # fail open - never break the user's flow on a gh hiccup
+        pass  # fail open - fall through to log/surface whatever already flipped
 
-    if not flipped:
+    # `owner is None` means we failed before resolving the repo, so nothing flipped.
+    if owner is None or (flipped_pr is None and not flipped):
         return 0
 
-    _log_fire(flipped, f"{owner}/{repo}")
-    issue_list = ", ".join(f"#{n}" for n in flipped)
-    ref_url = parse_pr_url(ref)  # ref may be a bare number or a full PR URL
-    pr_display = ref_url[2] if ref_url else ref
+    _log_fire(flipped_pr, flipped, f"{owner}/{repo}")
+    parts = []
+    if flipped_pr is not None:
+        parts.append(f"PR #{flipped_pr}")
+    if flipped:
+        parts.append("linked Issue(s) " + ", ".join(f"#{n}" for n in flipped))
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
             "additionalContext": (
-                f"post_gh_pr_review_request: review requested on PR #{pr_display} "
-                f"({owner}/{repo}) - linked Issue(s) {issue_list} Status -> In review."
+                f"post_gh_pr_review_request: review requested on PR #{pr_number} "
+                f"({owner}/{repo}) - {' + '.join(parts)} Status -> In review."
             ),
         }
     }))
