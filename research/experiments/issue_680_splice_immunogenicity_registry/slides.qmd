@@ -58,7 +58,7 @@ The HLA-A\*02:01 skew comes from the field, not our curation: the two biggest st
 
 ![](figures/fig_identity_matrix.png){fig-align="center" width="62%"}
 
-Every row used to need the peptide's amino-acid sequence just to exist. But a splice study's native output is the **junction** - where the gene was cut and rejoined - not the peptide. Zhao 2025 [@zhao2025hcc] clears both of our bars, yet lists its 139 antigens **by genome location with no sequences** - so it added **zero rows**.
+Every row used to need the peptide's amino-acid sequence just to exist. But a splice study's native output is the **junction** - where the gene was cut and rejoined - not the peptide. Zhao 2025 [@zhao2025hcc] clears both of our bars, yet lists its 139 antigens (Supplementary Table S1) **by genome location with no sequences** - so it added **zero rows**.
 
 ## Letting a row key on its junction *or* its peptide lets those studies in {.smaller}
 
@@ -117,4 +117,4 @@ The bot review and the tests cover the code. These are the **judgment calls I ma
 ::: {#refs}
 :::
 
-**Where this lives:** `registry.tsv` (97 rows) · `LABELING_SCHEME.md` §7 · `validate_registry.py` + `registry_dedup.py` · 34 tests. Every figure is redrawn from `registry.tsv` by `figures/_regenerate_figures.py`, so the table is the single source and no number on these slides was typed by hand.
+**Where this lives:** `registry.tsv` (97 rows) · `LABELING_SCHEME.md` §7 · `validate_registry.py` + `registry_dedup.py` · 34 tests. Every figure is redrawn from `registry.tsv` by `figures/_regenerate_figures.py`, so the table is the single source and no *registry-derived* number here was typed by hand. (The lone exception is Zhao's 139, which can't come from the table - it contributes zero rows - and is cited to its Supplementary Table S1.)

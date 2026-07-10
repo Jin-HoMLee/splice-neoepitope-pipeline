@@ -3,9 +3,11 @@
 
 Run: research/.venv/bin/python research/experiments/issue_680_splice_immunogenicity_registry/figures/_regenerate_figures.py
 
-The registry is canonical: every number on a slide comes from here, so no figure and
-no prose number is hand-typed (Sandve et al. 2013, rules 1/7/9). Deterministic - no
-randomness, no network. Re-run after any registry.tsv edit and commit the PNGs.
+The registry is canonical: every registry-derived number on a slide comes from here, so
+no such figure or prose number is hand-typed (Sandve et al. 2013, rules 1/7/9). The one
+non-registry number is Zhao's 139 candidate antigens (it contributes zero registry rows),
+hardcoded below and cited to its Supplementary Table S1. Deterministic - no randomness,
+no network. Re-run after any registry.tsv edit and commit the PNGs.
 """
 import sys
 from pathlib import Path
