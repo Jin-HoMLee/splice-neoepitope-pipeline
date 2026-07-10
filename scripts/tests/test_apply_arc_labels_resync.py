@@ -51,7 +51,7 @@ _FAKE_GH = (
 )
 
 
-def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, check=False, fail_edits=None):
+def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, check=False, fail_edits=None, extra_env=None):
     gh = tmp_path / "gh"
     gh.write_text(_FAKE_GH)
     gh.chmod(0o755)
@@ -69,6 +69,7 @@ def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, ch
         env[f"LABELS_{n}"] = lbls
     for n in (fail_edits or []):
         env[f"FAIL_EDIT_{n}"] = "1"
+    env.update(extra_env or {})
     cmd = ["bash", str(SCRIPT), str(manifest)]
     if check:
         cmd.insert(2, "--check")
@@ -215,23 +216,56 @@ def test_invalid_phase_in_manifest_fails_fast(tmp_path):
     assert log == ""  # bailed before any edit
 
 
-def test_more_than_three_active_flagged(tmp_path):
-    # The focus slate is capped at 3 active arcs; a 4th is drift.
-    manifest = (
-        "arc:a\tactive\tA\n"
-        "arc:b\tactive\tB\n"
-        "arc:c\tactive\tC\n"
-        "arc:d\tactive\tD\n"
-    )
+_FOUR_ACTIVE = (
+    "arc:a\tactive\tA\n"
+    "arc:b\tactive\tB\n"
+    "arc:c\tactive\tC\n"
+    "arc:d\tactive\tD\n"
+)
+
+
+def test_more_than_three_active_is_advisory_not_drift(tmp_path):
+    # Issue #1102: the focus slate is a ~3 GUIDELINE, not a cap. Exceeding it prints
+    # an advisory NOTE and must not affect the exit code -- `active` was measured not
+    # to predict throughput, so a 4th active arc is a legitimate state, not drift.
     proc, log = _run(
-        tmp_path, manifest,
+        tmp_path, _FOUR_ACTIVE,
         arclabels="arc:a arc:b arc:c arc:d",
-        members={},  # no members needed; the cap is a manifest-level check
+        members={},  # no members needed; the guideline is a manifest-level check
+        check=True,
+    )
+    assert proc.returncode == 0
+    assert "NOTE cap" in proc.stdout
+    assert "4 arcs marked 'active'" in proc.stdout
+    assert "DRIFT cap" not in proc.stdout
+
+
+def test_active_slate_guideline_is_tunable(tmp_path):
+    # Raising the guideline suppresses the NOTE entirely; exit code is unchanged.
+    proc, log = _run(
+        tmp_path, _FOUR_ACTIVE,
+        arclabels="arc:a arc:b arc:c arc:d",
+        members={},
+        check=True,
+        extra_env={"ACTIVE_SLATE_GUIDELINE": "99"},
+    )
+    assert proc.returncode == 0
+    assert "NOTE cap" not in proc.stdout
+
+
+def test_over_guideline_does_not_mask_real_drift(tmp_path):
+    # The advisory NOTE must coexist with genuine drift without swallowing its exit 2.
+    # #5 is a member of arc:a but carries the wrong arc-phase, which is real drift.
+    proc, log = _run(
+        tmp_path, _FOUR_ACTIVE,
+        arclabels="arc:a arc:b arc:c arc:d",
+        members={"arc:a": "5"},
+        labels={5: "arc:a arc-phase:later"},
         check=True,
     )
     assert proc.returncode == 2
-    assert "DRIFT cap" in proc.stdout
-    assert "4 arcs marked 'active'" in proc.stdout
+    assert "NOTE cap" in proc.stdout
+    assert "DRIFT phase" in proc.stdout
 
 
 def test_multi_arc_reported_once_across_arcs(tmp_path):
