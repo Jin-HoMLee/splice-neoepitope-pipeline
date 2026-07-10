@@ -142,9 +142,74 @@ If the source published only an event identifier, the grade is `event-id`, not `
 This rule is strict: the `coords` grade is reserved for coordinates the source explicitly provides (or that map trivially and verifiably 1:1 to a published coordinate, such as a supplement table row whose coordinate and sequence both appear).
 Coordinate sparsity - most rows landing at `gene-mechanism` or `none` - is a documented finding about the field's publication practices, not a gap to paper over.
 
+### Grade records the source, the column records what we hold (#1086)
+
+A `coords` or `event-id` grade asserts the source published a junction identifier, so `junction_id` must carry it.
+The converse is **not** enforced: a `gene-mechanism` or `none` row **may** carry a `junction_id` recovered later from an authoritative source.
+The original rule forbade this, which barred 64% of rows (the 62 `gene-mechanism`/`none` rows) from ever gaining a junction.
+The grade keeps recording what the *source* published; the column records what we hold.
+The no-inference rule above is untouched and still bars deriving a junction from a peptide.
+
 ---
 
-## 7. Decoy-negative construction
+## 7. Registry identity - two resolutions, one coalesced key (#1086)
+
+The registry was peptide-keyed: every row needed an amino-acid sequence to exist.
+That locked out an entire class of otherwise-eligible sources, because the junction - not the peptide - is the *natively published* unit of a splice-neoantigen study.
+The triggering case is Zhao et al. 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)), whose Supp Table S1 publishes 139 candidate AS antigens by genomic coordinate with **zero** peptide sequences anywhere in the supplement.
+
+**Both `junction_id` and `peptide` are nullable, under an at-least-one-non-null invariant.**
+Row identity is the coalesced key `COALESCE(junction_id, peptide)`, disambiguated by `hla` where present.
+A row must carry a junction (coordinate-first sources), a peptide (sequence-first sources), or both; a row with neither is rejected.
+
+An always-present `junction_id` was the first instinct and does not survive contact with the data: filling in the 62 `gene-mechanism`/`none` rows would be exactly the coordinate fabrication section 6 forbids.
+The mirror case (junction present, peptide absent) and the existing case (peptide present, junction absent) each need their key column nullable, so a coalesced identity is the only framing that holds for both.
+
+### `peptide_status` - a missing peptide is a *typed* null, never a bare blank
+
+A blank cell conflates at least three states that demand different follow-up:
+
+| value | meaning | follow-up |
+|---|---|---|
+| `published-recovered` | sequence in hand from an authoritative source | none |
+| `published-pending` | sequence exists, not yet obtained (e.g. Zhao, awaiting authors) | keep chasing |
+| `unpublished-idonly` | source only ever gave coordinates / internal IDs | author contact only |
+| `na-junction-level` | never a peptide (e.g. a normal-tissue true-negative junction) | none |
+
+**Harmonization with the existing axes** (validator-enforced, so `peptide_status` cannot drift into a third redundant status column):
+
+- A peptide-bearing row is **always** `published-recovered`, and its `length` must equal the sequence length.
+- A peptide-null row takes one of the other three values, and **nulls its derivatives**: `length` empty, and never the `functional-scorable` tier (the benchmark keys on sequence).
+- A peptide-null row is identified *by* its junction, so it requires a `coords` or `event-id` grade - a gene-name-only row with no sequence identifies nothing.
+
+This extends an existing convention rather than inventing one: the long-read-UM rows (SEPTIN6, AMZ2P1) already carry an empty `hla` + `functional-nonscorable` because the *HLA restriction* was unpublished.
+A null peptide is the same move one column over, with an explicit reason code attached.
+
+### Dedup and merge
+
+Dedup keys on the full `(junction_id, peptide, hla)` triple, with either identity column allowed null - **not** on the coalesced identity alone.
+One junction legitimately yields several distinct peptides: the Kim 2025 constitutive-intron event `ci@16:719606:720123:+|16:719606:719607:+` carries three A\*02:01 peptides (`FLWPGLGPS`, `FLWPGLGPSV`, `ILGSLTWSC`) in the live registry today.
+Immunogenicity is a property of the peptide-HLA pair and is irreducible, so those are three rows and the merge rule must not collapse them.
+Junction-level consumers get that grouping from `registry_dedup.junction_view()` instead, which maps each `junction_id` to its peptides (empty list for a wholly peptide-null junction - a real junction-level positive, not a missing value).
+
+### ⚠️ `junction_id` is source-verbatim; there is no canonical scheme yet
+
+`junction_id` currently stores each source's **native** identifier, unnormalized, and **no genome build is recorded anywhere in the registry**.
+The 17 `coords`-grade rows span four incompatible formats, two of which encode multi-junction *events* rather than single junctions:
+
+| source | example | shape |
+|---|---|---|
+| SNAF (Li 2024) | `chr5:33954504-33963931(-)` | one junction |
+| IRIS (Pan 2023) | `chr15:-:75655550:75655631:75655089:75656828` | six coordinates (rMATS-style event) |
+| Kim 2025 | `se@8:22480210:22481428:-\|8:22479081:22481428:-` | two junctions (inclusion + exclusion) |
+
+Collapsing an `se@`/`mxe@` event to "the" junction means choosing which junction generates the neoepitope - inference the no-inference rule bars.
+So **cross-source junction comparison is not yet possible**, and `junction_view()` groups on the verbatim string.
+Designing the canonical scheme (and auditing each source's genome build, which requires reading their methods sections) is tracked separately in [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100).
+
+---
+
+## 8. Decoy-negative construction
 
 The benchmark's negative set is built from three tiers of decreasing claim strength.
 Each tier is defined here; Tier 1 and Tier 2 are materialized within this issue; Tier 3 generation is deferred to the scoring harness ([#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736)).

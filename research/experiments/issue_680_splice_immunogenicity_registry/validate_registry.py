@@ -14,13 +14,16 @@ from pathlib import Path
 
 from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, EFFECTOR,
                                 DETECTION, IVS_MARKER, VENUE_BY_SOURCE_SUBSTR,
-                                ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS)
+                                ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS,
+                                PEPTIDE_STATUSES, PEPTIDE_STATUS_PRESENT, PEPTIDE_NULL_STATUSES,
+                                JUNCTION_EVIDENCE_GRADES, SCORABLE_TIER)
+from registry_dedup import duplicate_keys, row_identity
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
 
 REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade",
-                     "assay_context", "venue_type"]
+                     "assay_context", "venue_type", "peptide_status"]
 
 
 def violations(df: pd.DataFrame) -> list[str]:
@@ -32,7 +35,16 @@ def violations(df: pd.DataFrame) -> list[str]:
         return out  # schema not yet present; stop here
 
     for i, r in df.iterrows():
-        rid = f"row {i} ({r['peptide']})"
+        pep = str(r["peptide"]).strip()
+        jid = str(r["junction_id"]).strip()
+        # name the row by its coalesced identity: a peptide-null row is nameable by
+        # its junction, and a row with neither is named as such rather than blank.
+        try:
+            rid = f"row {i} ({row_identity(r)})"
+        except ValueError:
+            rid = f"row {i} (<no identity>)"
+            out.append(f"{rid}: at-least-one-non-null violated - a row needs a "
+                       f"junction_id, a peptide, or both")
         if r["junction_mapping_grade"] not in GRADES:
             out.append(f"{rid}: bad junction_mapping_grade {r['junction_mapping_grade']!r}")
         if r["evidence_strength"] not in STRENGTHS:
@@ -65,13 +77,42 @@ def violations(df: pd.DataFrame) -> list[str]:
         # positive rows must not resolve to na evidence_strength
         if r["label"] == "positive" and r["evidence_strength"] == "na":
             out.append(f"{rid}: positive row resolved to na evidence_strength (needs manual review)")
-        # grade <-> junction_id consistency
+        # grade -> junction_id consistency (#1086). A `coords`/`event-id` grade asserts
+        # the source published a junction identifier, so the column must carry it. The
+        # converse block is deliberately gone: it used to forbid a `gene-mechanism`/
+        # `none` row from EVER carrying a junction_id, which barred 64% of rows from
+        # gaining one from a later authoritative recovery. The grade records what the
+        # *source* published; the column records what we hold. The no-inference rule
+        # (LABELING_SCHEME.md section 6) still bars deriving a junction from a peptide.
         grade = r["junction_mapping_grade"]
-        jid = str(r["junction_id"]).strip()
-        if grade in {"coords", "event-id"} and not jid:
+        if grade in JUNCTION_EVIDENCE_GRADES and not jid:
             out.append(f"{rid}: {grade} grade with empty junction_id")
-        if grade in {"gene-mechanism", "none"} and jid:
-            out.append(f"{rid}: {grade} grade with non-empty junction_id")
+        # peptide_status (#1086): a typed null, harmonized with length / tier / grade
+        ps = r["peptide_status"]
+        if ps not in PEPTIDE_STATUSES:
+            out.append(f"{rid}: bad peptide_status {ps!r}")
+        length = str(r["length"]).strip()
+        if pep:
+            if ps != PEPTIDE_STATUS_PRESENT:
+                out.append(f"{rid}: peptide present but peptide_status {ps!r} "
+                           f"(must be {PEPTIDE_STATUS_PRESENT!r})")
+            if length != str(len(pep)):
+                out.append(f"{rid}: peptide present but length {length!r} disagrees with "
+                           f"len(peptide)={len(pep)}")
+        else:
+            if ps not in PEPTIDE_NULL_STATUSES:
+                out.append(f"{rid}: peptide absent but peptide_status {ps!r} (must be one "
+                           f"of {sorted(PEPTIDE_NULL_STATUSES)})")
+            # a null peptide nulls its derivatives
+            if length:
+                out.append(f"{rid}: peptide absent but non-empty length {length!r}")
+            if r["tier"] == SCORABLE_TIER:
+                out.append(f"{rid}: peptide absent but tier {SCORABLE_TIER!r} - the "
+                           f"benchmark keys on sequence, so this row cannot be scored")
+            # with no sequence the junction IS the row, so it needs real junction evidence
+            if grade not in JUNCTION_EVIDENCE_GRADES:
+                out.append(f"{rid}: peptide-null row needs a coords/event-id grade, "
+                           f"got {grade!r}")
         # assay_context (#823): controlled vocabulary + cross-checks
         ac = r["assay_context"]
         if ac not in ASSAY_CONTEXTS:
@@ -98,6 +139,11 @@ def violations(df: pd.DataFrame) -> list[str]:
         if r["venue_type"] != "preprint" and any(m in src_l for m in PREPRINT_MARKERS):
             out.append(f"{rid}: source names a preprint server but venue_type is "
                        f"{r['venue_type']!r} (map it as 'preprint' in labeling_constants.py)")
+
+    # dedup on the full identity triple (#1086). Not on the coalesced identity alone:
+    # one junction legitimately carries several distinct peptides.
+    for key in duplicate_keys(df):
+        out.append(f"duplicate identity key (junction_id, peptide, hla) = {key}")
     return out
 
 
