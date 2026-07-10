@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-10 - NH-uniqueness filter for the HISAT2 path + STAR local-runnability investigation ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112))
+
+### 18:40 UTC - Editor: Developer - built the filter, then chased "can STAR run locally" into two premise busts
+
+**Work in progress (not yet PR'd): [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) NH-uniqueness junction prefilter.**
+Branch `feat/developer/issue-919-nh-uniqueness-filter` (commits `ae7cae9`, `adbad49`), Issue moved to In progress.
+Opt-in `alignment.uniqueness_filter.enabled` (default off) gating a `samtools view -e '[NH]==1'` BAM prefilter feeding regtools; new pure helper `workflow/scripts/uniqueness_filter.py`.
+The knob is read at parse time, so the filtered BAM is a *declared* output only when on - "default off writes no filtered BAM" is provable: rendering the default target against `origin/main` yields a byte-identical shell command.
+45 new tests across a pure-helper layer and a rule-render layer; full 5-directory pytest sweep green (1583 passed).
+
+**Mutation-tested my own tests and caught a non-load-bearing one.**
+A naive `"<filtered_bam> \\" in stdout` assertion also matched the prefilter's own `-o <filtered_bam> \\` line, so it passed even when `regtools_input_bam` was mutated to feed regtools the wrong BAM.
+Rewrote it to parse regtools' *positional* argument; now both the pure and rule layers fail under that mutation.
+
+**chr22 measurements contradicted two of the issue's own premises.**
+(a) The `-q 2` collateral loss the issue predicted (unique-but-low-MAPQ reads) is **zero** on real HISAT2 output - every `NH==1` read has MAPQ 60, every multimapper has MAPQ 0/1, so `[NH]==1` and `-q 2` select the identical set. NH is still right, but by construction, not by measured advantage.
+(b) AC 6's "no genuine-junction loss in IGLV/IGKV" is falsified: 4 annotated single-read `IGLV2` junctions are dropped (paralog multimapping). Mitigated - annotated junctions are discarded before prediction anyway, so 0 candidates are lost. Filter removes 251/1550 (16.2%) of `tumor_exclusive` candidates, 86% single-read, 0 gained; losses are 3.7x depleted in annotated junctions (working as intended).
+Proposed AC 3/5/6 rewordings on the issue.
+
+**Investigation ([Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112)): "is there a good way to run STAR locally?" - two busted premises.**
+1. **"STAR needs >8 GB, unusable locally" is false at chromosome scale.** Measured on the M1: chr22 STAR index builds at **730 MB peak / 14 s** (arm64), 436 MB (Rosetta x86_64); align 500k reads <1 s. The 32 GB figure is the *whole-genome* suffix array. The CLAUDE.md note conflates the two.
+2. **The bioconda macOS STAR builds are broken for alignment.** Both `osx-arm64` 2.7.11b and Rosetta `osx-64` install fine and build the index correctly, but on alignment report **0 input reads** for every FASTQ - real, gzipped, and a synthetic read cut from the chr22 reference itself. Log shows `end of input stream, nextChar=-1` on the first byte (opens the file - a nonexistent path errors correctly - but the read parser returns instant EOF). Reproducible across two architecture builds and input-independent, so it's the build, not our data. No public report found naming this exact signature.
+Secondary: `workflow/envs/star.yaml` pins `star=2.7.10b`, which **has no osx-arm64 build** (bioconda's only arm64 STAR is 2.7.11b) - the env is unsolvable on Apple Silicon as written.
+
+**The load-bearing finding, filed as the reframe on [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) + the decision on [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112):** our STAR path (`star_sj_to_junctions.py:112`) has **always** been unique-reads-only (reads `SJ.out.tab` col 7, never col 8), while the HISAT2 path counts all reads.
+So the two aligners already produce junction sets with different semantics, and flipping `alignment.aligner` silently changes what reaches prediction.
+The [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) filter isn't adding novel behavior to HISAT2 - it's closing that asymmetry. Strongest argument on the AC 9 default-on side; still shipped default-off (flipping it needs the Scientist's ground-truth call, not a unilateral Dev flip).
+
+**Also surfaced (on [Issue #1098](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1098)):** `scripts/setup_cloud.sh` no longer exists (folded into `setup_vm.sh:52`), yet is still named in 5 files incl. `hisat2.yaml` + `CLAUDE.md:159`; and #1098's board Priority (P1) disagrees with its own body rationale (P2). Flagged for PM, didn't edit the field.
+
+**Verified premise (samtools `-e`):** filter expressions landed in samtools **1.12** ([release notes](https://github.com/samtools/samtools/releases/tag/1.12)); Ubuntu 22.04 apt ships **1.13-4** with `-e, --expr` documented. So [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919)'s lever works on the production VM binary - **not** blocked on [#1098](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1098).
+
+**Open loops for next session:** [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) still needs the RepeatMasker fetch rule (AC 4/7), a fresh full chr22 integration run with the knob on, and its AC 9 lab-notebook decision entry, before it's PR-ready. [#1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) awaits PM triage + a Scientist science sign-off on the aligner choice.
+
+---
+
 ## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
 
 ### 12:06 UTC - Editor: Developer - merge-gate pass, cross-repo companion, and a proxy-shaped gate
