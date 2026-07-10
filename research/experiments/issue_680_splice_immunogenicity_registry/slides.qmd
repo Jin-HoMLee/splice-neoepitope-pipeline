@@ -29,93 +29,92 @@ execute:
 
 ## 97 rows from 12 studies is the entire field-wide ground truth {.smaller}
 
-Every splice-junction-derived neoepitope with a **published functional T-cell assay on that exact peptide**, curated adversarially from the literature. Not a sample of the field - as far as we can find, it *is* the field.
+Every splice-derived tumor peptide that someone has actually tested on real T cells, gathered from the published literature. This is not a sample of the field - as far as we can find, it **is** the field.
 
 | tier | rows | what it means |
 |---|---:|---|
-| `functional-scorable` | 82 | splice-derived + functional assay + exact sequence & allele |
-| `candidate-negative` | 8 | tested negative in healthy-donor in-vitro sensitization (*soft*) |
-| `functional-nonscorable` | 4 | validated, but no per-peptide HLA published |
-| `hard-negative-true-splice` | 1 | MS-presented, functionally non-immunogenic (*hard*) |
-| `presentation-prevalence` | 1 | presented + prevalent, never functionally tested |
-| `negative-control-not-splice` | 1 | constitutive control (fails the splice gate) |
+| `functional-scorable` | 82 | splice-derived, tested on T cells, and we know its exact sequence + allele |
+| `candidate-negative` | 8 | tested negative, but only in a lab-donor priming assay (a *weak* no) |
+| `functional-nonscorable` | 4 | tested, but the presenting allele was never published |
+| `hard-negative-true-splice` | 1 | shown on the cell surface, yet T cells did not react (a *strong* no) |
+| `presentation-prevalence` | 1 | shown on the surface and common in tumors, but never tested on T cells |
+| `negative-control-not-splice` | 1 | a normal control peptide (not splice-derived at all) |
 
-This is a **probe, not a powered benchmark**. Any metric computed on it must name which negative tier it used.
+This is a **probe, not a full benchmark**. Any score you compute must say which negatives it used.
 
-## 82 positives are checked by only 9 experimental negatives
+## 82 positives are checked by only 9 real negatives
 
 ![](figures/fig_evidence_balance.png){fig-align="center" width="72%"}
 
-The negative set is the **binding constraint**, and it is worse than the count suggests: 8 of the 9 are *soft* - a peptide that failed to prime healthy-donor T cells in vitro [@manoharan2026ircrc], which does not establish that it is non-immunogenic in a tumor-bearing patient. Exactly **one** row is a gold-standard discrimination negative.
+Negatives are what's scarce, and it's worse than the count looks: 8 of the 9 are only *weak* no's - a peptide that failed to wake up T cells taken from a healthy donor in a dish [@manoharan2026ircrc], which doesn't prove it would stay quiet in a real patient. Exactly **one** row is a clean, strong negative.
 
-## Three quarters of the registry is one allele, and the rebalance found nothing to add {.smaller}
+## Three quarters of the registry is a single allele {.smaller}
 
 ![](figures/fig_allele_skew.png){fig-align="center" width="70%"}
 
-HLA-A\*02:01 dominance is inherited from the field, not from our curation: the SF3B1-uveal-melanoma panel [@bigot2021sf3b1] and the SF-mutant-leukemia fold [@kim2025sfmutant] are A\*02:01 by construction. The #839 rebalance sweep returned a **null result** - no registry-eligible non-A\*02:01 rows exist to fold. A scorer tuned on this set is tuned on A\*02:01.
+The HLA-A\*02:01 skew comes from the field, not our curation: the two biggest studies [@bigot2021sf3b1; @kim2025sfmutant] only looked at that allele. When we went hunting for other alleles to even it out (#839), we found **none** that qualify. So a scorer trained here is really a scorer for A\*02:01.
 
-## Peptide-keying made an entire class of sources unrepresentable
+## Keying on the peptide locked out a whole class of studies
 
 ![](figures/fig_identity_matrix.png){fig-align="center" width="62%"}
 
-Every row needed an amino-acid sequence to *exist*. But the **junction**, not the peptide, is what a splice-neoantigen study natively publishes. Zhao 2025 [@zhao2025hcc] passes both registry gates and publishes 139 candidate antigens **by genomic coordinate, with zero sequences** - so it contributed **0 rows**.
+Every row used to need the peptide's amino-acid sequence just to exist. But a splice study's native output is the **junction** - where the gene was cut and rejoined - not the peptide. Zhao 2025 [@zhao2025hcc] clears both of our bars, yet lists its 139 antigens **by genome location with no sequences** - so it added **zero rows**.
 
-## Nullable identity plus a typed `peptide_status` lets coordinate-first sources fold {.smaller}
+## Letting a row key on its junction *or* its peptide lets those studies in {.smaller}
 
-`junction_id` and `peptide` are now **both nullable** under an at-least-one-non-null invariant. Row identity is the coalesced key `COALESCE(junction_id, peptide)`, disambiguated by `hla`.
+Now a row can be identified by its `junction_id`, its `peptide`, or both - it just needs at least one of the two. If both are present, the junction is the identity.
 
-A missing peptide is a **typed** null, never a bare blank - because a blank conflates three states needing different follow-up:
+And a missing peptide isn't a bare blank; it says **why** it's missing, because the follow-up differs:
 
 | `peptide_status` | meaning | follow-up |
 |---|---|---|
 | `published-recovered` | sequence in hand (all 97 rows today) | none |
-| `published-pending` | exists, not yet obtained (Zhao, awaiting authors) | keep chasing |
-| `unpublished-idonly` | source only ever gave coordinates | author contact |
-| `na-junction-level` | never a peptide (a true-negative junction) | none |
+| `published-pending` | sequence exists, not yet obtained (Zhao, asked authors) | keep chasing |
+| `unpublished-idonly` | study only ever gave locations | ask the authors |
+| `na-junction-level` | never had a peptide (a plain junction) | none |
 
-The validator enforces the harmonization: a null peptide nulls its `length`, can never be `functional-scorable`, and needs a `coords`/`event-id` grade. **Verified end to end** - a Zhao-shaped row now folds clean.
+A checker keeps these consistent: no peptide means no length, it can't sit in the scorable set, and it must carry a real junction location. **Tested end to end** - a Zhao-style row now goes in clean.
 
-## One junction can carry three peptides, so dedup keys on the triple {.smaller}
+## One junction can produce several peptides, so we don't merge on the junction {.smaller}
 
-The obvious identity - "one junction, one row" - is wrong, and the registry already contains the counterexample. A single Kim 2025 constitutive-intron event [@kim2025sfmutant]:
+The tempting rule - "one junction, one row" - is wrong, and the registry already has the counterexample. A single Kim 2025 event [@kim2025sfmutant] yields three different peptides:
 
 ```
-ci@16:719606:720123:+|16:719606:719607:+
-    -> FLWPGLGPS      (9-mer)
-    -> FLWPGLGPSV     (10-mer, nested)
-    -> ILGSLTWSC
+junction ci@16:719606:720123:+  ->  FLWPGLGPS   (9 residues)
+                                     FLWPGLGPSV  (10 residues, the same plus one)
+                                     ILGSLTWSC
 ```
 
-Immunogenicity is a property of the **peptide-HLA pair** and is irreducible. So dedup keys on `(junction_id, peptide, hla)`, not on the coalesced identity, and the merge rule must **not** collapse these into one row. Junction-level consumers get the grouping from `junction_view()` instead - where one peptide on two alleles correctly collapses to one peptide.
+Whether a peptide is immunogenic depends on the exact peptide + allele pair - you can't boil it down to the junction. So a row counts as a duplicate only if its junction, peptide, **and** allele all match. When we *do* want a junction-level view, a separate helper rolls the peptides up under their junction.
 
-## Coordinates cannot be compared across sources, because no genome build is recorded {.smaller}
+## We can't yet compare coordinates across studies - the genome version isn't recorded {.smaller}
 
-The plan was a canonical `chr:donor-acceptor:strand` key on GRCh38. **Both of its premises fail against the data.**
+The plan was one tidy coordinate format for every junction. **Two facts kill it.**
 
-**No genome build is recorded anywhere** - not in `registry.tsv`, `PROVENANCE.md`, `README.md`, or `LABELING_SCHEME.md`. You cannot lift over coordinates whose build is unknown.
+**Nobody wrote down which genome version the coordinates use** - it's absent from every file we hold. You can't line up coordinates when you don't know the reference they're on.
 
-**And the 17 `coords` rows are four formats, two of them multi-junction *events*:**
+**And the 17 with real coordinates come in four shapes, two of which bundle more than one junction:**
 
-| source | example | shape |
+| study | example | shape |
 |---|---|---|
 | SNAF [@li2024snaf] | <code>chr5:33954504-33963931(-)</code> | one junction |
-| IRIS [@pan2023iris] | <code>chr15:-:75655550:75655631:&hellip;</code> | six coords (rMATS event) |
+| IRIS [@pan2023iris] | <code>chr15:-:75655550:75655631:&hellip;</code> | a six-number event |
 | Kim 2025 [@kim2025sfmutant] | <code>se@8:22480210:22481428:-&#124;&hellip;</code> | two junctions |
 
-Collapsing an `se@` event to "the" junction means choosing which junction makes the neoepitope - the exact inference our no-inference rule bars. So `junction_id` stays **source-verbatim**, cross-source comparison is not yet possible, and the build audit is carved out to #1100.
+Picking "the" junction out of a two-junction event means guessing which one made the peptide - the kind of guessing we've banned. So we keep each study's coordinate **exactly as it was published**, cross-study comparison waits, and the cleanup is its own task (#1100).
 
 ## What needs your judgment {.smaller}
 
-The bot review and the test suite cover the code. These are the calls **I made** that you should contest:
+The bot review and the tests cover the code. These are the **judgment calls I made** that you should push back on:
 
-1. **Deferring the canonical junction scheme (#1100) rather than inventing one.** I judged that nothing queued depends on it - the ingests (#1089, #911) need nullable identity, not a coordinate key. If you think a junction-level detection benchmark (#679) is nearer than I assumed, this was the wrong call.
-2. **Keeping `gene-mechanism` on a row that later gains a recovered `junction_id`.** The grade records what the *source* published; the column records what we hold. Defensible, but it means grade and column can disagree, and a reader may find that surprising.
-3. **Not guarding `na-junction-level` against `label=positive`.** It is currently a legal, nonsensical combination. I routed it to #911 to be written against real data rather than speculation.
-4. **Calling the A\*02:01 rebalance a true null** rather than a search that was not hard enough. It rests on our inclusion gates; loosen them and rows appear.
+1. **Putting off the tidy coordinate format (#1100) instead of inventing one now.** I decided nothing waiting on us needs it yet. If you think the junction-level detection benchmark (#679) is closer than I assumed, that was the wrong call.
+2. **Letting a row's "how well is the junction known" grade lag behind a location we recovered later.** The grade reflects what the *study* published; the location column reflects what we hold. Defensible, but the two can disagree, which may surprise a reader.
+3. **Not blocking the nonsense combo "no peptide, yet labeled positive".** It's currently allowed. I sent the guard to #911 so it gets written against real data, not a guess.
+4. **Calling the allele-rebalance a real dead end** rather than a search I didn't push hard enough. It depends on our inclusion rules; loosen them and rows might appear.
 
 ## References {.smaller}
 
 ::: {#refs}
 :::
 
-**Artifacts:** `registry.tsv` (97 rows) · `LABELING_SCHEME.md` §7 · `validate_registry.py` + `registry_dedup.py` · 34 unit tests. Figures regenerate from `registry.tsv` via `figures/_regenerate_figures.py` - the registry is canonical and no number on these slides is hand-typed.
+**Where this lives:** `registry.tsv` (97 rows) · `LABELING_SCHEME.md` §7 · `validate_registry.py` + `registry_dedup.py` · 34 tests. Every figure is redrawn from `registry.tsv` by `figures/_regenerate_figures.py`, so the table is the single source and no number on these slides was typed by hand.

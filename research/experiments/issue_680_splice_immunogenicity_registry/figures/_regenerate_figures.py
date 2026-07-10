@@ -62,7 +62,7 @@ def fig_identity_matrix(df: pd.DataFrame) -> None:
             ax.text(c + .5, 1 - r + .60, str(n), ha="center", va="center",
                     fontsize=30, color=ACCENT if blocked else INK, fontweight="bold")
             if blocked:
-                ax.text(c + .5, 1 - r + .27, "was unrepresentable\n(Zhao 2025: 139 rows)",
+                ax.text(c + .5, 1 - r + .27, "used to be impossible to store\n(Zhao 2025: 139 rows)",
                         ha="center", va="center", fontsize=10.5, color=ACCENT)
 
     ax.set_xticks([.5, 1.5]); ax.set_xticklabels(["junction_id present", "junction_id absent"])
