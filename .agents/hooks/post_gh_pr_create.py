@@ -245,8 +245,8 @@ def main() -> int:
             "additionalContext": (
                 f"✅ post_gh_pr_create: PR #{number} ({owner}/{repo}) added to "
                 f"board #{PROJECT_NUMBER} + Status → {label}. Remaining manual "
-                f"checklist steps: `**Created by:**` body attribution + mirror "
-                f"the linked Issue's Status on review request."
+                f"checklist step: `**Created by:**` body attribution (the review-request "
+                f"Status mirror is automated by post_gh_pr_review_request.py)."
             ),
         }
     }))

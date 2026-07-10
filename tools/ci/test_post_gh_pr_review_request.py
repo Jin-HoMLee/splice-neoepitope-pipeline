@@ -357,3 +357,50 @@ class TestPrCardFlip:
         )
         assert h.main() == 0
         assert capsys.readouterr().out.strip() == ""
+
+    def test_mid_sequence_error_still_logs_the_pr_flip_that_landed(self, monkeypatch, capsys):
+        # Issue #1108 review, finding 2: the PR card flips, then the linked-Issue
+        # _set_status raises. The PR mutation really happened, so it must still be
+        # logged + surfaced, not silently dropped by the fail-open return.
+        import io
+        logged = []
+        monkeypatch.setattr(
+            h, "_pr_linked_issues", lambda ref: (_OWNER, _REPO, 1104, [1102])
+        )
+        monkeypatch.setattr(
+            h, "_item_and_status", lambda k, n, o, r: (f"item-{k}-{n}", "Ready for review")
+        )
+
+        def flip_pr_then_boom(item_id, opt):
+            if item_id == "item-pullRequest-1104":
+                return  # PR flip succeeds
+            raise subprocess.CalledProcessError(1, ["gh"])  # Issue flip fails
+
+        monkeypatch.setattr(h, "_set_status", flip_pr_then_boom)
+        monkeypatch.setattr(h, "_log_fire", lambda pr, issues, repo: logged.append((pr, issues)))
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+        )
+        assert h.main() == 0
+        assert logged == [(1104, [])]  # PR logged, Issue correctly absent (its flip failed)
+        assert "PR #1104" in capsys.readouterr().out
+
+    def test_error_before_repo_resolves_logs_nothing(self, monkeypatch, capsys):
+        # The `owner is None` guard: a failure before the repo is resolved must not
+        # log or surface (nothing flipped, and no repo string to format).
+        import io
+        logged = []
+
+        def boom(*a, **k):
+            raise subprocess.CalledProcessError(1, ["gh"])
+
+        monkeypatch.setattr(h, "_pr_linked_issues", boom)
+        monkeypatch.setattr(h, "_log_fire", lambda *a, **k: logged.append(a))
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+        )
+        assert h.main() == 0
+        assert logged == []
+        assert capsys.readouterr().out.strip() == ""

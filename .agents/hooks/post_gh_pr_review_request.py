@@ -297,6 +297,13 @@ def main() -> int:
     if ref is None:
         return 0
 
+    # Accumulate what actually flipped OUTSIDE the try, so a mid-sequence gh error
+    # still logs + surfaces the board mutations that already landed. The fire-log is
+    # the audit trail the review-debt/health tooling reads, so a real flip that goes
+    # unrecorded is a silent board/log divergence (Issue #1108 review, finding 2).
+    owner = repo = None
+    flipped_pr = None
+    flipped: list[int] = []
     try:
         resolved = _pr_linked_issues(ref)
         if resolved is None:
@@ -308,13 +315,11 @@ def main() -> int:
         # The PR's OWN card first (Issue #1108). Deliberately NOT gated on `issues`:
         # a `--no-issue` companion PR has no linked Issue but still belongs in the
         # review column. Previously the empty-`issues` early-return skipped it.
-        flipped_pr = None
         pr_item, pr_status = _item_and_status("pullRequest", pr_number, owner, repo)
         if pr_item is not None and should_flip(pr_status):
             _set_status(pr_item, IN_REVIEW_OPTION)
             flipped_pr = pr_number
 
-        flipped = []
         for issue in issues:
             item_id, status = _item_and_status("issue", issue, owner, repo)
             if item_id is None or not should_flip(status):
@@ -323,9 +328,10 @@ def main() -> int:
             flipped.append(issue)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             json.JSONDecodeError, FileNotFoundError):
-        return 0  # fail open - never break the user's flow on a gh hiccup
+        pass  # fail open - fall through to log/surface whatever already flipped
 
-    if flipped_pr is None and not flipped:
+    # `owner is None` means we failed before resolving the repo, so nothing flipped.
+    if owner is None or (flipped_pr is None and not flipped):
         return 0
 
     _log_fire(flipped_pr, flipped, f"{owner}/{repo}")
