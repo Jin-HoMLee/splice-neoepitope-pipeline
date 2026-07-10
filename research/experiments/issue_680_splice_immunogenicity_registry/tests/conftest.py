@@ -30,9 +30,9 @@ _TEMPLATE = {
     "label_rationale": "effector readout -> strong positive.",
     "junction_id": "chr5:33954504-33963931(-)",
     "junction_mapping_grade": "coords",
+    "peptide_status": "published-recovered",
     "assay_context": "unspecified",
     "venue_type": "journal",
-    "peptide_status": "published-recovered",
 }
 
 

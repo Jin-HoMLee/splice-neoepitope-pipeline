@@ -129,6 +129,15 @@ def test_null_peptide_needs_real_junction_evidence(row, frame):
     _fails_with(frame(row), "peptide-null row needs a coords/event-id grade")
 
 
+# --- AC6: dedup surfaces through the validator, not only via duplicate_keys() ------
+
+
+def test_duplicate_row_surfaces_as_a_validator_violation(row, frame):
+    """duplicate_keys() is unit-tested directly, but the live-registry run only ever
+    exercises its no-duplicates branch; pin the wiring into violations()."""
+    _fails_with(frame(row, dict(row)), "duplicate identity key")
+
+
 # --- AC5: no regression on the live registry --------------------------------------
 
 

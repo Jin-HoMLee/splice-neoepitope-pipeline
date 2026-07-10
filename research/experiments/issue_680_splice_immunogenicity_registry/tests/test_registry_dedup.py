@@ -87,6 +87,14 @@ def test_junction_view_groups_peptides_under_their_junction():
     assert view["chr1:1-2:+"] == []
 
 
+def test_junction_view_dedupes_a_peptide_presented_on_two_alleles():
+    """Two registry rows, one peptide: immunogenicity is per peptide-HLA pair, but at
+    junction resolution the allele is gone and the peptide must not be double-listed."""
+    df = _rows((CI_JUNCTION, "FLWPGLGPS", "HLA-A*02:01"),
+               (CI_JUNCTION, "FLWPGLGPS", "HLA-B*07:02"))
+    assert junction_view(df)[CI_JUNCTION] == ["FLWPGLGPS"]
+
+
 def test_junction_view_omits_rows_with_no_junction():
     df = _rows(("", "AAAAAAAAA", "HLA-A*02:01"))
     assert junction_view(df) == {}

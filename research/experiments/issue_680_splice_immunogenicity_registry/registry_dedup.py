@@ -55,13 +55,16 @@ def junction_view(df: pd.DataFrame) -> dict[str, list[str]]:
     Rows with no junction_id are omitted (they have no junction-level identity). A
     junction whose rows are all peptide-null maps to an empty list, which is a real
     junction-level positive - not a missing value.
+
+    Peptides are de-duplicated: one peptide presented on two alleles is two registry
+    rows but one peptide at junction resolution.
     """
-    view: dict[str, list[str]] = defaultdict(list)
+    view: dict[str, set[str]] = defaultdict(set)
     for row in df.to_dict("records"):
         junction, peptide = _s(row.get("junction_id")), _s(row.get("peptide"))
         if not junction:
             continue
         peptides = view[junction]  # touch, so a wholly peptide-null junction still appears
         if peptide:
-            peptides.append(peptide)
+            peptides.add(peptide)
     return {j: sorted(p) for j, p in view.items()}
