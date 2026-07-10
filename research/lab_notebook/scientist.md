@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-10
+
+### Editor: Scientist - #680 registry arc slide deck, and a corrected model for what a deck is
+
+**What landed.** [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109) (closes [#1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105)) - a 10-slide Quarto deck over the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry arc, co-located at `research/experiments/issue_680_splice_immunogenicity_registry/slides.qmd`. Three figures regenerate from `registry.tsv` via `figures/_regenerate_figures.py`; the load-bearing one is the identity 2x2 whose empty cell (junction published, sequence withheld) is the shape the old peptide-keyed schema could not store.
+
+**The real finding was about the convention, not the deck.** Jin-Ho asked me to pressure-test our slide conventions against the scientific-communication literature. Reading the primary sources (Naegle 2021 PLOS Comp Biol; Alley assertion-evidence + its Garner 2013 empirical basis, comprehension+recall p<.01; Sandve 2013 reproducibility rules; Tufte) and mechanically auditing all 14 in-repo decks surfaced that **139 of 146 slide headings (95%) were topic phrases, not assertions** - violating the one rule with controlled-experiment support. Deeper: the mandate had the wrong trigger. `research/slides/README.md` claimed a "lab seminar / ~20-25 min talk" audience, but **no deck of the 14 was ever presented**, and deck creation collapsed after a 12-day burst. Jin-Ho corrected the audience: it is **him, reading silently for 5-10 min, as an abstracted PR review gate** - the machine layer (agent + bot review) covers code, the deck covers narrative/decisions/interpretation. That reframe (a) withdrew my slide-budget finding (8-10 slides = ~1 slide/min at that audience, which is correct), and (b) *upgraded* the assertion-headline finding to mandatory (no speaker -> the headline is the whole message channel). Captured as role memory `feedback_slides_are_the_human_review_gate.md`; convention-revision proposal on [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107) (governance, proposed not applied).
+
+**Deck design choices.** Every heading is a full-sentence assertion; slides deliberately stand alone (a named deviation from assertion-evidence's sparse-body rule, which assumes a speaker); a closing "what needs your judgment" slide names the four interpretive calls a bot review structurally cannot validate. After a second request, plain-worded all body prose while keeping genuine domain terms and literal column/value names verbatim.
+
+**Two data-quality findings surfaced while building figures.** (1) `registry.tsv` has **15 `source` strings for 12 studies** (three studies spelled two ways) - no guard catches it because the derivations key on lowercased substrings, so it silently inflates study-level counts - [#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106). (2) The genome-build gap already tracked in [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100) is the deck's caveat slide.
+
+**Verification.** `quarto render` green; **every one of the 10 slides screenshotted in headless Chrome** and inspected - caught + fixed a literal backslash from an escaped table pipe and a left-shifted figure before the first commit.
+
+**Bot review:** clean, no blockers; independently reproduced every registry-derived number. Its one substantive nit was fair - the `139` (Zhao) is the sole number that *can't* come from `registry.tsv` (Zhao contributes zero rows), so "no number is hand-typed" overclaimed. Narrowed to "no *registry-derived* number," cited the 139 to Zhao Supp Table S1, fixed a refs.bib et-al comma - `146f50f`. Nit 2 (PNG byte-metadata non-determinism) acknowledged as a future-CI note, no action.
+
+Refs: [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109), [#1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105), [#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106), [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107), [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100), [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
+
+---
+
 ## 2026-07-09
 
 ### 09:43 UTC - Editor: Scientist
