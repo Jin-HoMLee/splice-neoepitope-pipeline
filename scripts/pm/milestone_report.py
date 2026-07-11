@@ -176,6 +176,22 @@ def throughput_per_week(n_delivered: int, duration_days: Optional[float]) -> Opt
 # pure functions bucket delivered issues into trailing weeks so the report can
 # show a throughput + cycle-time TREND, not just a single-window snapshot.
 
+def normalize_until(until: datetime) -> datetime:
+    """Anchor a window end on the last instant of its UTC day.
+
+    The trend is bucketed with datetime precision but *sourced* from GitHub's
+    ``closed:A..B`` search operator, which is day-granular. A mid-day anchor (what
+    ``datetime.now()`` yields in a live run) therefore puts every bucket edge at a
+    time-of-day the source data cannot resolve, which both displaces issues into
+    adjacent buckets and strands those past the final edge. Snapping the anchor to
+    the day boundary makes the bucket grid agree with the granularity of the data
+    it buckets. Idempotent. Issue #1099.
+    """
+    return until.astimezone(timezone.utc).replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    )
+
+
 def week_windows(until: datetime, n_weeks: int) -> list[tuple[datetime, datetime]]:
     """``n_weeks`` trailing 7-day ``(start, end]`` windows ending at ``until``.
 
@@ -188,6 +204,21 @@ def week_windows(until: datetime, n_weeks: int) -> list[tuple[datetime, datetime
         for i in range(max(n_weeks, 1))
     ]
     return list(reversed(windows))
+
+
+def fetch_span(until: datetime, n_weeks: int) -> tuple[str, str]:
+    """ISO date range whose whole-day coverage exactly matches ``week_windows``.
+
+    Buckets are **half-open at the start** (``(span_start, end]``), and with a
+    normalized ``until`` the ``span_start`` edge sits at the *last instant* of its
+    own day - so that day belongs to no bucket. Fetching from ``span_start.date()``
+    would pull a full day of issues that nothing can count, which is the bottom-edge
+    leak behind Issue #1099. Start the fetch the day after instead, so every issue
+    the fetch returns lands in exactly one bucket (conservation).
+    """
+    span_start = week_windows(until, n_weeks)[0][0]
+    since = (span_start + timedelta(days=1)).date()
+    return since.isoformat(), until.date().isoformat()
 
 
 def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list[dict]:
@@ -207,12 +238,21 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
     (dates as ISO ``YYYY-MM-DD``), chronological. Throughput + cycle time key off
     *delivered* issues (a descoped close is not shipped work), consistent with
     the milestone-mode metrics.
+
+    ``week_start`` names the **first day the bucket actually covers**, not the
+    half-open ``(start`` edge - which, with a normalized ``until``, is the last
+    instant of the *preceding* day. Rendered as ``week_start..week_end`` the pair
+    reads as an inclusive day range, so it must be one: a reader who cross-checks a
+    row with ``closed:<week_start>..<week_end>`` has to get that row's number back.
+    Naming the raw edge instead put a day the bucket does not hold into the label,
+    and that mismatch is precisely what produced the bogus reference counts in
+    Issue #1099.
     """
     series = []
     for start, end in week_windows(until, n_weeks):
         delivered = delivered_issues(closed_in_window(issues, start, end))
         series.append({
-            "week_start": start.date().isoformat(),
+            "week_start": (start + timedelta(days=1)).date().isoformat(),
             "week_end": end.date().isoformat(),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
@@ -610,8 +650,12 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
                      trend_weeks: int, out_dir: Optional[Path], dry_run: bool) -> int:
     """Weekly meta-work SDR. Reporting week = the most recent 7-day window; the
     trend spans ``n_weeks`` back. Skips a reporting week with nothing closed."""
-    until_dt = (_parse_date_arg(ap, "--until", until).replace(hour=23, minute=59, second=59)
-                if until else datetime.now(timezone.utc))
+    # Normalize BOTH paths to the end of the UTC day. The explicit --until already
+    # did; the default (live `now()`) path did not, so a real run bucketed on
+    # mid-day edges the day-granular source data cannot resolve (Issue #1099).
+    until_dt = normalize_until(
+        _parse_date_arg(ap, "--until", until) if until else datetime.now(timezone.utc)
+    )
     # --since sets the TREND SPAN: derive the week count from since..until so the
     # trend actually reaches back to --since (overriding --trend-weeks). Deriving
     # a single span-start without this would only clip the fetch and could
@@ -627,7 +671,7 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
     windows = week_windows(until_dt, n_weeks)
     report_start, report_end = windows[-1]
 
-    all_issues = fetch_window_issues(windows[0][0].date().isoformat(), until_dt.date().isoformat())
+    all_issues = fetch_window_issues(*fetch_span(until_dt, n_weeks))
     week_issues = closed_in_window(all_issues, report_start, report_end)
     metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
 
