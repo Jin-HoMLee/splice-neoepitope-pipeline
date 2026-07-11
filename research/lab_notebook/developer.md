@@ -6,6 +6,37 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11 - AC 9 decision: keep the NH-uniqueness filter opt-in, default off ([PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) closes [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919))
+
+### 15:40 UTC - Editor: Developer - the RepeatMasker half, a null result, and the finding that the fixture cannot test the filter
+
+**Decision (AC 9): keep opt-in, default off.** Shipped in [PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) with the RepeatMasker fetch rule (`download_rmsk_chrom`, 79,521 chr22 repeats into gitignored `references/`) and the A/B comparison tool (`junction_repeat_overlap.py`). 1630 tests green.
+
+**AC 4 returned a null, and the null is the result.**
+Naively the filter looks vindicated: junctions it removes are 92.9% repeat-overlapping vs 82.6% for those it keeps, a 1.13x enrichment.
+That number is a **composition artifact**. Stratifying by annotation status dissolves it: within the unannotated pool - which is what the filter actually draws from - lost junctions are 96.9% repeat-overlapping and retained are 99.0%. **Enrichment 0.98x: none.** The lost set merely contains fewer annotated junctions (4.1% vs 17.2%), and annotated junctions are repeat-poor. Read depth agrees there is nothing to see: 85.8% of lost are single-read vs 87.8% of retained. By both probes available, what the filter removes is indistinguishable from what it keeps.
+
+**Why - and this is the load-bearing finding: `NH` is index-relative, so chr22 test data cannot validate this filter in principle.**
+With a chr22-only index, a read from a repeat copy on another chromosome has nowhere else to map. It aligns **uniquely** to a chr22 copy and is tagged `NH=1`. A single-chromosome index therefore converts genome-wide multimappers into apparent unique mappers, deflating `NH` and blinding the filter to exactly the population it exists to catch. The data shows the damage: only 8% of reads map, and the unannotated junction pool is **99% repeat-overlapping** against a 51.9% random-position null and 17.5% for GENCODE-annotated splice sites. The pool is saturated - there is no headroom for the filter to be enriched for repeats, because everything in it already is.
+This is not a weak test of the filter. It is **not a test of the filter**. No refinement of the A/B fixes it, and it promotes [Issue #1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095) (whole-genome) from a completeness check to the only run that can decide the question.
+*(Probe validated before trusting any of it: the interval index agrees with brute force exactly, and its 51.9% random rate is recovered independently from union-coverage arithmetic once chr22's 10.5 Mb N-gap is out of the denominator - 20,908,038 / 40,308,468.)*
+
+**Web cross-check (run late - it should have preceded the recommendation, not followed it).**
+It reframed the decision rather than confirming it.
+- **Unique-only junction counting is mainstream, and our HISAT2 path is the outlier.** [LeafCutter](https://davidaknowles.github.io/leafcutter/articles/Usage.html) - which extracts junctions with a `regtools junctions extract` command essentially identical to ours - states "our most restrictive filter is the requirement that reads considered be uniquely mapped". STAR ships `--outSJfilterReads Unique` and separates unique (col 7) from multi-mapping (col 8) reads, and **our own STAR path already reads col 7 only**. So the status quo (HISAT2 counting multimappers) is what diverges from practice. That is an argument for default-ON I did not have from our own evidence.
+- **But the good tools do not hard-gate.** [FineSplice](https://pmc.ncbi.nlm.nih.gov/articles/PMC4005686/) drops multireads *temporarily* then rescues those with "a unique location after filtering"; [Portcullis](https://academic.oup.com/gigascience/article/7/12/giy131/5173486) uses the uniquely-mapped-read ratio as a classifier *feature*, not a gate. Our `[NH]==1` is the crudest form of an accepted practice - which is precisely why it dropped 4 annotated `IGLV2` junctions with no recourse.
+- That loss is the **canonical documented failure mode** in our own domain: "most mapping tools are ill-equipped to handle Ig sequences", HLA likewise. chr22 carries only the lambda orphons, so we measured the mildest possible version; HLA (chr6) and TCR (chr7/chr14) are unmeasured.
+
+**So the decision is default-off but the reasoning is narrower than "the filter is dubious".** Field practice endorses uniqueness filtering; what we cannot endorse is *this* implementation, whose effect we cannot measure on the only fixture we can run and whose known cost lands on the loci this pipeline exists to serve. Flipping the default is a Scientist call on ground truth, and the gap is closed by a rescue step or a scoring approach, **not by flipping a boolean** - filed as [Issue #1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116).
+
+**The one lever that is not blocked on compute.** Portcullis flags repeat-driven junctions by Hamming distance between the anchor and the opposite side of the intron - a **pure sequence test on the junction that never consults the index**, so it is immune to the false-unique artifact that made our A/B degenerate. It could discriminate spurious from genuine junctions *on the chr22 fixture we already have*. That is the core of [#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116), and the reason to do it before #1095.
+
+**Bot review caught a real defect in the reusable path.** `format_report` shipped only the unstratified enrichment - i.e. the 1.13x trap - in a tool explicitly framed as reusable for #1095, so the next operator would have re-walked the exact confound. Now stratifies (`--annotated-bed`, reusing `filter_junctions._load_reference_junctions` so "annotated" has one definition), leads with the within-pool number, marks the naive one CONFOUNDED, and warns loudly when run without annotation. Also hoisted the samtools preflight above the aligner: it sat after align+sort+index, so a too-old samtools burned a full alignment before aborting - the rule tests now assert *order*, since presence alone did not catch it.
+
+**Process notes.** (1) I wrote a **fabricated comment permalink** into the #919 body before the comment existed; caught and corrected, but it was a real error, not a near-miss. (2) The web cross-check came *after* I had already recommended - my own memory rule says it precedes the recommendation and at design forks. Both worth remembering.
+
+---
+
 ## 2026-07-10 - NH-uniqueness filter for the HISAT2 path + STAR local-runnability investigation ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112))
 
 ### 18:40 UTC - Editor: Developer - built the filter, then chased "can STAR run locally" into two premise busts
