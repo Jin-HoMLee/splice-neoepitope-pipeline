@@ -32,6 +32,8 @@ import re
 import subprocess
 import sys
 from collections.abc import Collection
+from datetime import date as _date
+from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
@@ -229,28 +231,108 @@ def check_priority_rationale(body: str) -> str | None:
     return "no 'Priority rationale' line in issue body"
 
 
+LAB_NOTEBOOK_LOOKBACK_DAYS = 7
+
+# A dated entry header. BOTH live conventions must parse:
+#   pm.md / scientist.md : `## 2026-07-11`
+#   developer.md         : `## 2026-07-09 - ship the guard pair ([PR #1088] ...)`
+# The date is anchored at line start; a trailing description is tolerated.
+#
+# Do NOT re-anchor with `\s*$`. That skips every description-suffixed header, so
+# _dated_blocks() silently drops developer.md's recent entries and the gate
+# false-blocks every developer PR forever - strictly WORSE than the #1092 bug it
+# replaced. Caught in review of PR #1121; the old substring check tolerated both
+# shapes, and all our fixtures were bare-date, so nothing caught it.
+# The lookahead still rejects `## 2026-07-11x` while allowing ` - anything`.
+_DATE_BLOCK = re.compile(r"^## (\d{4}-\d{2}-\d{2})(?=\s|$)", re.MULTILINE)
+
+
+def _dated_blocks(text: str) -> list[tuple[_date, str]]:
+    """Every `## YYYY-MM-DD` block in `text`, as (date, body) pairs.
+
+    A malformed date under an otherwise well-formed header is skipped rather
+    than raising - a notebook typo must not crash the merge gate.
+    """
+    blocks: list[tuple[_date, str]] = []
+    matches = list(_DATE_BLOCK.finditer(text))
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        try:
+            d = _date.fromisoformat(m.group(1))
+        except ValueError:
+            continue
+        blocks.append((d, text[m.end():end]))
+    return blocks
+
+
+def _references(block: str, n: int) -> bool:
+    """True if `block` cites issue/PR `#n`, digit-bounded.
+
+    A plain `f"#{n}" in block` substring test collides on decimal prefixes:
+    `"#112" in "#1121"` is True, so gating #112 would pass on a notebook that
+    only ever mentions #1121. The negative lookahead requires the next character
+    to be a non-digit (or end of string), while still allowing the punctuation
+    that really follows a reference: `#1121.`, `#1121)`, `#1121,`, `#1121](url)`.
+    """
+    return re.search(rf"#{n}(?!\d)", block) is not None
+
+
 def check_lab_notebook(
-    text: str, date: str, number: int, also_accept: Collection[int] = ()
+    text: str,
+    date: str,
+    number: int,
+    also_accept: Collection[int] = (),
+    lookback_days: int = LAB_NOTEBOOK_LOOKBACK_DAYS,
 ) -> str | None:
-    """Gap unless the `## date` block references `#number` OR any `#also_accept`.
+    """Gap unless some *recent* dated block references `#number` or `#also_accept`.
+
+    The gate's intent is "an entry exists for this unit of work, written after
+    review and before merge". It used to key that on the *merge* date, requiring
+    a `## <today>` block. That proxy does not hold: entry timing is
+    commit -> push -> PR -> review -> entry -> merge, so whenever review and
+    merge straddle a UTC midnight (the normal case - merge is a human act and a
+    PR sits at the gate overnight) the entry is dated *yesterday* and the gate
+    false-blocked a PR whose author followed the rule exactly (#1092).
+
+    So we keep the **reference** key and relax the **date** key: scan every block
+    dated within `lookback_days` of `date` (newest first) and accept the first
+    that references this unit of work. The window stays bounded, so a months-old
+    entry cannot satisfy the gate, and a block dated *after* `date` is ignored.
 
     `also_accept` carries the PR's closing-Issue numbers (see #495): entries
-    written before the PR exists reference the Issue, not the PR number — both
+    written before the PR exists reference the Issue, not the PR number - both
     are semantically the same unit of work.
     """
-    header = f"## {date}"
-    if header not in text:
-        return f"no '## {date}' header in notebook"
-    start = text.index(header)
-    rest = text[start + len(header):]
-    nxt = re.search(r"^## ", rest, re.MULTILINE)
-    block = rest[:nxt.start()] if nxt else rest
-    if not re.search(r"^### ", block, re.MULTILINE):
-        return f"'## {date}' has no '### HH:MM UTC — Editor: …' sub-section"
+    gate_date = _date.fromisoformat(date)
+    floor = gate_date - timedelta(days=lookback_days)
     accepted = [number, *also_accept]
-    if not any(f"#{n}" in block for n in accepted):
-        refs = " or ".join(f"'#{n}'" for n in accepted)
-        return f"'## {date}' block does not reference {refs}"
+    refs = " or ".join(f"'#{n}'" for n in accepted)
+
+    in_window = [
+        (d, block) for d, block in _dated_blocks(text) if floor <= d <= gate_date
+    ]
+    in_window.sort(key=lambda pair: pair[0], reverse=True)
+
+    referencing = [
+        (d, block)
+        for d, block in in_window
+        if any(_references(block, n) for n in accepted)
+    ]
+    if not referencing:
+        return (
+            f"no block dated within {lookback_days} days of {date} references {refs}"
+        )
+
+    # A block naming this work but with no timed sub-section is a malformed entry,
+    # not a missing one - say so precisely rather than reporting it as absent.
+    if not any(
+        re.search(r"^### ", block, re.MULTILINE) for _, block in referencing
+    ):
+        newest = referencing[0][0].isoformat()
+        return (
+            f"'## {newest}' references {refs} but has no "
+            "'### HH:MM UTC - Editor: ...' sub-section"
+        )
     return None
 
 
