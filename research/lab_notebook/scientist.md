@@ -8,6 +8,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-11
 
+### 21:21 UTC - Editor: Scientist
+
+#### [PR #1127](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1127) - the freshness check killed the pull. [Issue #1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089) becomes a retraction.
+
+**What I set out to do.** Pull [Issue #1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089): ingest Zhao 2025's Supplementary Table S1 ("~139 AS antigens by coordinate") as the first coordinate-native fold enabled by the two-resolution schema I shipped yesterday ([Issue #1086](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1086)). It was the natural next pull on the registry arc and the first real exercise of the new schema.
+
+**The pre-start freshness check falsified four of its five premises**, so nothing was ingested. What Table S1 actually is:
+
+- **Predicted candidates, not measured antigens.** Its only readouts are `avg_rank`, `PHBR_avg`, and per-allele affinity - predicted *binding*, which is neither immunogenicity nor presentation. Every row is `label=untested` and **no tier fits it**. That is the finding that matters: nullable identity was necessary to admit a coordinate-first source but is **not sufficient**, because the row still needs a legal `(label, tier)`. The schema opened a door the labeling scheme still keeps shut.
+- **"139" is a peptide count, not a junction count** - 103 distinct junctions, 65 rows sharing a coordinate. Those are distinct peptides on one junction with the sequences withheld, indistinguishable under the coalesced key.
+- No genome build appears in any supplement; the canonical `junction_id` scheme AC2 leaned on was never shipped (it is [Issue #1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100)).
+- **The prize is not reachable.** Zhao's *validated* antigens are the FISH probes in Supp Table 2, which carries no coordinate and no gene column. So the validated set cannot be joined to Table S1 from anything we hold. The tempting `pA02-28 -> row 28` mapping is nowhere in the source; taking it would have been fabrication dressed as a join.
+
+**What I make of it.** The finding **vindicates the #1086 design while retracting its payoff estimate**. The one-junction-to-many-peptides asymmetry that collapses 139 to 103 is *exactly* the argument `design_junction_resolution_axis.md` makes for a coalesced key - the doc simply never noticed the argument applied to its own headline number. That is the shape I want to remember: a design can be right and its business case wrong, and the business case is the part nobody re-checks after the design is approved.
+
+**The miss, and it is a real one.** My first push had counts that did not reconcile (`139 - 103 = 36` but `63 - 28 = 35`), and the bot review caught it. Root cause was not a typo: Table S1 spans two PDF pages, `pdftotext -layout` prefixes the first row of page 2 with a form feed, and my `awk '$1 ~ /^[0-9]+$/'` filter **silently dropped exactly that one row**. Every count was computed on 138 rows. I had *seen* the discrepancy during extraction ("138 parsed, last row no: 139") and moved on without chasing it - the same trusting-my-own-output failure I wrote up in yesterday's episode, one day later, in the very PR whose entire value proposition is rigor. Two further notes: the bot's *proposed* fix (`28 -> 27`) was also wrong, so accepting a plausible reviewer patch would have papered over the parse bug; and my headline numbers survived only because the dropped row happened to be a duplicate coordinate rather than a unique one. That is luck, not method. The gotcha is now recorded in `PROVENANCE.md`, and arithmetic reconciliation is an explicit test-plan line rather than something a reviewer must derive.
+
+**Also fixed on review:** the #1105 deck still said Zhao "clears both of our bars, yet lists its 139 antigens" - attaching the validated set's gate-2 pass to the predicted set, the exact conflation this branch retracts. Deferring it was offered and declined: it is the one artifact a human actually reads, so shipping a correction whose own deck contradicts it was not an option. Slide reframed, figure regenerated, slide visually checked.
+
+**Outcome routing.** No registry rows added (still 97, validator + 34 tests green). The ingest question is **not dropped** - it is routed to [Issue #1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125): does the registry admit a **predicted-only tier**? That is a gate-2 relaxation by typing, the shape Jin-Ho sanctioned on [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680#issuecomment-4947065345). Declining is a legitimate answer: admitting it would put 103 predictions into a 97-row registry of measurements, make predictions the majority of the file, and advance the scorable set by zero.
+
+---
+
 ### 15:56 UTC - Editor: Scientist
 
 #### [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109) - ship day. Closes [Issue #1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105). The deck's judgment slide did its job.
