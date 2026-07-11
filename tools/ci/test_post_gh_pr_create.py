@@ -8,6 +8,7 @@ The full add+flip path is inherently a live-`gh` integration and is verified by
 dogfooding the hook against this Issue's own PR, not in this suite.
 """
 
+import io
 import json
 import subprocess
 import sys
@@ -113,6 +114,83 @@ def test_status_for_draft():
     assert h.status_for_draft(False) == ("Ready for review", "8bf9192f")
 
 
+class TestSkipBotReviewMarker:
+    """The trivial-PR opt-out (Issue #1073 AC 2).
+
+    Mirrors the existing `<!-- skip-lab-notebook: routine -->` marker convention
+    (`closure_audit._SKIP_LAB_NOTEBOOK`) rather than inventing new vocabulary.
+    """
+
+    def test_canonical_marker(self):
+        assert h.has_skip_bot_review("body\n<!-- skip-bot-review: trivial -->\n") is True
+
+    def test_case_and_space_tolerant(self):
+        assert h.has_skip_bot_review("<!--   SKIP-BOT-REVIEW: trivial   -->") is True
+
+    def test_any_reason_accepted(self):
+        # The reason is documentation for the human, not a parsed enum.
+        assert h.has_skip_bot_review("<!-- skip-bot-review: docs-only typo -->") is True
+
+    def test_absent(self):
+        assert h.has_skip_bot_review("A normal PR body. Closes #1073.") is False
+
+    def test_empty_body(self):
+        assert h.has_skip_bot_review("") is False
+        assert h.has_skip_bot_review(None) is False
+
+    def test_mention_without_comment_syntax_does_not_match(self):
+        # Prose *discussing* the marker must not silently opt the PR out.
+        assert h.has_skip_bot_review("We could add skip-bot-review here someday.") is False
+
+
+class TestShouldRequestReview:
+    """AC 1 + AC 2: non-trivial PRs auto-request; drafts and opt-outs do not."""
+
+    def test_non_draft_plain_body_requests(self):
+        assert h.should_request_review(is_draft=False, body="Closes #1073.") is True
+
+    def test_draft_does_not_request(self):
+        # A draft is not up for review yet - the hook's own existing semantic.
+        assert h.should_request_review(is_draft=True, body="Closes #1073.") is False
+
+    def test_skip_marker_does_not_request(self):
+        assert h.should_request_review(
+            is_draft=False, body="<!-- skip-bot-review: trivial -->"
+        ) is False
+
+    def test_draft_and_marker_does_not_request(self):
+        assert h.should_request_review(
+            is_draft=True, body="<!-- skip-bot-review: trivial -->"
+        ) is False
+
+
+class TestTriggerReconciliation:
+    """AC 4: no double-request against the merge-time `bot_review_offer.py` gate.
+
+    The gate is a *detector*: `audit_and_merge.sh` prompts only when the literal
+    trigger is absent from the PR's comments. So the reconciliation is not a code
+    path - it holds iff the string this hook posts is a string that gate detects.
+    Assert exactly that, across the module boundary.
+
+    The falsifier is real: change the hook's trigger to the hyphenated reference
+    form `@-claude review` (which does NOT fire the GitHub Action) and this test
+    goes red - which is the bug it exists to catch.
+    """
+
+    def test_hook_trigger_is_detected_by_the_merge_gate(self):
+        sys.path.insert(0, str(Path(__file__).parent))
+        import bot_review_offer as gate  # noqa: PLC0415
+
+        posted_comment = {"body": h.REVIEW_TRIGGER}
+        assert gate.has_bot_review_offer([posted_comment]) is True
+
+    def test_hook_trigger_is_the_real_action_trigger(self):
+        # The hyphenated `@-claude review` reference form must never be posted:
+        # it does not fire the Action, so an auto-"requested" PR would merge
+        # un-reviewed. Guard the literal.
+        assert h.REVIEW_TRIGGER == "@claude review"
+
+
 def test_extract_output_handles_shapes():
     # bare string
     assert "pull/9" in h.extract_output("done https://github.com/a/b/pull/9")
@@ -140,6 +218,81 @@ def _run(stdin_payload: str):
 
 def _payload(command: str, output: str = "") -> str:
     return json.dumps({"tool_input": {"command": command}, "tool_response": output})
+
+
+class TestAutoRequestPath:
+    """Matched-pair control over the auto-request decision (Issue #1073).
+
+    Identical inputs, one variable flipped, opposite expected outcomes. If the
+    auto-request path were dead, a lone "draft does not request" assertion would
+    still pass - the pair is what makes this a check rather than a ritual.
+
+    Also pins the Status consequence: when the hook auto-requests, the card must
+    NOT be parked at `Ready for review`. The sibling flip-to-`In review` hook only
+    sees Claude's Bash calls, so it cannot see this hook's subprocess comment; if
+    this hook set `Ready for review` and posted the trigger, the card would sit in
+    the wrong column for the whole review - the exact stranding Issue #996 fixed.
+    """
+
+    def _drive(self, monkeypatch, is_draft, body):
+        calls = {"comment": [], "flip": [], "status": []}
+        monkeypatch.setattr(h, "_pr_view", lambda url: (is_draft, body))
+        monkeypatch.setattr(h, "_add_to_board", lambda url: "ITEM_1")
+        monkeypatch.setattr(h, "_set_status", lambda item, opt: calls["status"].append(opt))
+        monkeypatch.setattr(h, "_request_bot_review", lambda url: calls["comment"].append(url))
+        monkeypatch.setattr(h, "_apply_review_request", lambda url: calls["flip"].append(url))
+        monkeypatch.setattr(h, "_log_fire", lambda *a, **k: None)
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload(
+                "gh pr create --fill",
+                "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124",
+            )),
+        )
+        assert h.main() == 0
+        return calls
+
+    def test_non_draft_requests_review_and_delegates_the_in_review_flip(self, monkeypatch):
+        calls = self._drive(monkeypatch, is_draft=False, body="Closes #1073.")
+        assert calls["comment"] == [
+            "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124"
+        ]
+        assert len(calls["flip"]) == 1
+        # Status delegated to the In-review flip; NOT set to Ready for review here.
+        assert calls["status"] == []
+
+    def test_draft_does_not_request_and_stays_in_progress(self, monkeypatch):
+        calls = self._drive(monkeypatch, is_draft=True, body="Closes #1073.")
+        assert calls["comment"] == []
+        assert calls["flip"] == []
+        assert calls["status"] == [h.IN_PROGRESS_OPTION]
+
+    def test_skip_marker_does_not_request_and_stays_ready_for_review(self, monkeypatch):
+        calls = self._drive(
+            monkeypatch, is_draft=False, body="<!-- skip-bot-review: trivial -->"
+        )
+        assert calls["comment"] == []
+        assert calls["flip"] == []
+        assert calls["status"] == [h.READY_FOR_REVIEW_OPTION]
+
+    def test_review_request_failure_is_fail_open(self, monkeypatch):
+        # A gh hiccup posting the trigger must never break the user's flow: the
+        # board add already landed, and the merge-time offer gate still catches
+        # the missing review. Degrades to today's behavior, never worse.
+        def boom(url):
+            raise subprocess.CalledProcessError(1, ["gh"])
+
+        monkeypatch.setattr(h, "_pr_view", lambda url: (False, "Closes #1073."))
+        monkeypatch.setattr(h, "_add_to_board", lambda url: "ITEM_1")
+        monkeypatch.setattr(h, "_request_bot_review", boom)
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload(
+                "gh pr create --fill",
+                "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124",
+            )),
+        )
+        assert h.main() == 0
 
 
 class TestSubprocessNoOp:
