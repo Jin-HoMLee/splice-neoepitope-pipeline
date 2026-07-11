@@ -1,8 +1,13 @@
 """Tests for closure_audit. Lean — focuses on parsing & format edge cases."""
 
 import json
+import re
+
+import pytest
 
 import closure_audit as ca
+
+REPO_ROOT = ca.REPO_ROOT
 
 
 # --- #607: REPO threading through the gh I/O layer ---
@@ -89,8 +94,13 @@ def test_audit_pr_pre_merge_forwards_repo_to_both_gh_calls(monkeypatch):
     assert all(_repo_arg(c) == "fork/repo" for c in calls)
 
 
-def test_lab_notebook_slices_block_correctly():
-    """Block lookup must stop at next '## ' header — must not match later dates."""
+def test_lab_notebook_accepts_prior_day_block_within_window():
+    """A block from a prior day, inside the window, satisfies the gate (#1092).
+
+    This test previously asserted the OPPOSITE - that yesterday's block must not
+    satisfy today's gate. That assertion encoded the #1092 bug, so it is inverted
+    here rather than deleted, and renamed to describe the contract it now checks.
+    """
     text = """# Lab Notebook
 
 ## 2026-05-11
@@ -103,15 +113,197 @@ Today's entry. Refs PR #100.
 ### 17:00 UTC — Editor: Developer
 Old entry. Refs PR #999.
 """
-    # #999 is in the 05-10 block, not the 05-11 block → should report gap
-    assert ca.check_lab_notebook(text, "2026-05-11", 999) is not None
-    # #100 is in the 05-11 block → no gap
+    # #999 sits in the 05-10 block, one day before the gate date. Under #1092 that
+    # is ACCEPTED: the entry exists for that unit of work and lies in the lookback
+    # window. (Pre-#1092 this asserted a gap - that assertion encoded the bug.)
+    assert ca.check_lab_notebook(text, "2026-05-11", 999) is None
+    # #100 is in the 05-11 block -> no gap
     assert ca.check_lab_notebook(text, "2026-05-11", 100) is None
 
 
 def test_lab_notebook_no_date_header_is_gap():
-    text = "# Lab Notebook\n\n## 2026-05-10\n\n### 17:00 UTC — Editor: Developer\nOld.\n"
+    """No block references #100 in any scanned block -> gap."""
+    text = "# Lab Notebook\n\n## 2026-05-10\n\n### 17:00 UTC - Editor: Developer\nOld.\n"
     assert ca.check_lab_notebook(text, "2026-05-11", 100) is not None
+
+
+# --- #1092: the gate must not key on the *merge* date ------------------------
+#
+# Entry timing is commit -> push -> PR -> review -> entry -> merge, so the entry
+# is written after review and before merge. Whenever those straddle a UTC
+# midnight (the normal case, since merge is a human act and PRs sit at the gate)
+# the entry is dated *yesterday* and a today-keyed gate false-blocks a PR whose
+# author followed the rule exactly.
+
+
+def test_lab_notebook_accepts_entry_written_before_the_merge_date():
+    """The straddling-midnight case: entry dated earlier, merge lands today."""
+    text = (
+        "## 2026-07-09\n\n"
+        "### 16:00 UTC - Editor: Scientist\n"
+        "pVACtools spike shipped. Refs PR #1093.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is None
+
+
+def test_lab_notebook_accepts_prior_day_entry_via_also_accept():
+    """A prior-day entry naming only the closing Issue still passes."""
+    text = "## 2026-07-09\n\n### 16:00 UTC - Editor: Scientist\nSpike (Issue #1048).\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093, also_accept=[1048]) is None
+
+
+def test_lab_notebook_today_block_for_other_work_does_not_decide():
+    """A today-dated block for *different* work must not decide the outcome.
+
+    The exact #1093 shape: scientist.md had a `## 2026-07-11` block (for #1101)
+    while #1093's real entry sat in the 07-09 block. Neither the presence of a
+    today block nor its wrong reference may short-circuit the scan - only a block
+    that actually references this unit of work passes.
+    """
+    text = (
+        "## 2026-07-11\n\n### 09:00 UTC - Editor: Scientist\nRegistry schema. Refs PR #1101.\n\n"
+        "## 2026-07-09\n\n### 16:00 UTC - Editor: Scientist\nSpike. Refs PR #1093.\n"
+    )
+    # #1093 is found in the older block -> pass
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is None
+    # #1234 is referenced nowhere -> gap, despite a today block existing
+    assert ca.check_lab_notebook(text, "2026-07-11", 1234) is not None
+
+
+def test_lab_notebook_gap_when_wrong_reference_in_every_scanned_block():
+    """An entry for a different unit of work still fails, in every block scanned."""
+    text = (
+        "## 2026-07-11\n\n### 09:00 UTC - Editor: PM\nRefs PR #111.\n\n"
+        "## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #222.\n\n"
+        "## 2026-07-09\n\n### 09:00 UTC - Editor: PM\nRefs PR #333.\n"
+    )
+    gap = ca.check_lab_notebook(text, "2026-07-11", 999, also_accept=[888])
+    assert gap is not None
+    assert "#999" in gap and "#888" in gap
+
+
+def test_lab_notebook_gap_when_no_entry_at_all():
+    """A PR with no lab-notebook entry whatsoever still fails, unchanged."""
+    assert ca.check_lab_notebook("# Lab Notebook\n", "2026-07-11", 1093) is not None
+
+
+def test_lab_notebook_entry_older_than_the_window_is_a_gap():
+    """The window is bounded: a months-old block must not satisfy the gate."""
+    text = "## 2026-01-02\n\n### 16:00 UTC - Editor: Scientist\nAncient. Refs PR #1093.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is not None
+
+
+def test_lab_notebook_matched_block_still_needs_a_time_subsection():
+    """The '### HH:MM UTC - Editor: ...' requirement survives into the window scan."""
+    text = "## 2026-07-10\n\nRefs PR #1093 but with no time sub-section.\n"
+    gap = ca.check_lab_notebook(text, "2026-07-11", 1093)
+    assert gap is not None
+    assert "###" in gap
+
+
+def test_lab_notebook_ignores_blocks_dated_after_the_gate_date():
+    """A future-dated block is not a valid entry for this merge."""
+    text = "## 2026-07-20\n\n### 16:00 UTC - Editor: PM\nRefs PR #1093.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is not None
+
+
+# --- Both LIVE header conventions must parse ---------------------------------
+#
+# pm.md and scientist.md use a bare `## YYYY-MM-DD`. developer.md suffixes a
+# description: `## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088] ...)`.
+# The old substring check (`f"## {date}" in text`) tolerated both. An anchored
+# regex demanding a bare date silently skips every developer block, false-blocking
+# every developer PR forever - strictly WORSE than the bug being fixed. Caught in
+# review of PR #1121; every fixture above uses a bare date, which is exactly why
+# it slipped. These lock both live shapes in.
+
+
+def test_lab_notebook_accepts_description_suffixed_header():
+    """The real developer.md shape: `## <date> - <description>`."""
+    text = (
+        "## 2026-07-09 - ship the cwd-drift guard pair "
+        "([PR #1088](https://example.com) closes [Issue #1053](https://example.com))\n\n"
+        "### 14:00 UTC - Editor: Developer\nShipped.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 1088, also_accept=[1053]) is None
+
+
+def test_lab_notebook_suffixed_header_still_gaps_on_wrong_ref():
+    """A suffixed header must not become a blanket pass - the reference key still binds."""
+    text = (
+        "## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://example.com))\n\n"
+        "### 14:00 UTC - Editor: Developer\nShipped.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 9999, also_accept=[8888]) is not None
+
+
+def test_dated_blocks_parses_both_live_conventions():
+    """Both shapes are found, and a suffixed block does not swallow the next one."""
+    text = (
+        "## 2026-07-10 - suffixed header ([PR #1](https://example.com))\n\nbody A\n\n"
+        "## 2026-07-09\n\nbody B\n"
+    )
+    blocks = ca._dated_blocks(text)
+    assert [d.isoformat() for d, _ in blocks] == ["2026-07-10", "2026-07-09"]
+    assert "body A" in blocks[0][1] and "body B" not in blocks[0][1]
+    assert "body B" in blocks[1][1]
+
+
+def test_dated_blocks_ignores_non_date_h2():
+    """`## Acceptance criteria` and friends are not date blocks."""
+    assert ca._dated_blocks("## Acceptance criteria\n\n- [ ] x\n") == []
+
+
+def test_lab_notebook_reference_match_is_digit_bounded():
+    """`#112` must not match `#1121` (decimal-prefix collision).
+
+    Pre-existing in the old substring check, but amplified by the #1092 window:
+    the scan went from one exact-date block to up to a week of them, so more
+    blocks are exposed to a spurious prefix hit. A gate that passes because a
+    *different* Issue's number happens to start with the gated one is not gating.
+    """
+    text = "## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #1121.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 112) is not None   # prefix
+    assert ca.check_lab_notebook(text, "2026-07-11", 1121) is None      # exact
+    # also_accept must be boundary-bound too, not just `number`
+    assert ca.check_lab_notebook(text, "2026-07-11", 999, also_accept=[112]) is not None
+
+
+def test_lab_notebook_reference_match_allows_trailing_punctuation():
+    """A boundary is a non-digit, so `#1121.` / `#1121)` / `#1121,` still match."""
+    for tail in [".", ")", ",", "]", " "]:
+        text = f"## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #1121{tail}\n"
+        assert ca.check_lab_notebook(text, "2026-07-11", 1121) is None, tail
+
+
+def test_dated_blocks_skips_a_malformed_date_rather_than_raising():
+    """A notebook typo must not crash the merge gate."""
+    text = "## 2026-13-45\n\nbad month/day\n\n## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs #1.\n"
+    parsed = [d.isoformat() for d, _ in ca._dated_blocks(text)]
+    assert parsed == ["2026-07-10"]
+
+
+@pytest.mark.parametrize("role", ["developer", "pm", "scientist"])
+def test_every_dated_header_in_the_real_notebooks_parses(role):
+    """Regression lock against the live notebooks, not curated fixtures.
+
+    Asserts EVERY `## <date>...` header in each real notebook is parsed - not
+    merely that *some* block was found. That weaker form passes vacuously on
+    developer.md, whose older entries are bare-date while its recent ones carry a
+    description suffix; only the suffixed ones regressed in PR #1121. A guard that
+    can be satisfied by the un-regressed half of a file is not a guard.
+    """
+    nb = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
+    if not nb.exists():
+        pytest.skip(f"{role}.md not present")
+    text = nb.read_text()
+
+    # Every line that a human would read as a dated entry header.
+    written = re.findall(r"^## (\d{4}-\d{2}-\d{2})", text, re.MULTILINE)
+    parsed = [d.isoformat() for d, _ in ca._dated_blocks(text)]
+    assert written, f"no dated headers found in {role}.md at all"
+    missed = [d for d in written if d not in parsed]
+    assert not missed, f"{role}.md: _dated_blocks missed {len(missed)} header(s): {missed[:3]}"
 
 
 # --- #495: accept the PR number OR any closing-Issue number (`also_accept`) ---
