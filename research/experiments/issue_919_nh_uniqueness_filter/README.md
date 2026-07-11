@@ -77,7 +77,9 @@ All committed: ~380 KB total, well inside the <10 MB band, and offline-regenerab
 
 ## Slide deck
 
-`slides.qmd` (17 slides, experiment tier - see `docs/research_artifact_conventions.md`). It presents Developer's **evidence**, not a scientific verdict: the interpretation and the default are [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist). It also carries the two claims retracted along the way, deliberately - both had reached an Issue, a PR comment, and an earlier version of this deck before being caught. Renders to reveal.js:
+`slides.qmd` - experiment tier, **10 slides** (title + 8 content + references), per the 8-10 band in `docs/research_artifact_conventions.md`. Seven backup slides sit behind an **Appendix** divider, marked `{visibility="uncounted"}` so they stay reachable in the talk without inflating the slide counter: the saturation probe, the mismatch table, read depth, the paralog-loss detail, the field-practice comparison, the retractions, and the caveats.
+
+It presents Developer's **evidence**, not a scientific verdict: the interpretation and the default are [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist). The two claims retracted along the way are kept in the appendix deliberately - both had reached an Issue, a PR comment, and an earlier version of this deck before being caught. Renders to reveal.js:
 
 ```bash
 cd research/experiments/issue_919_nh_uniqueness_filter/

@@ -83,84 +83,22 @@ The lost set is **annotation-poor**, and annotated junctions are **repeat-poor**
 
 Inside the unannotated pool - the pool the filter actually draws from - **0.98x**. The matched normal independently gives **1.00x**.
 
-## Read depth says the same thing
-
-If the filter were really just removing low-coverage calls, the lost set would be depleted of well-supported junctions. It is not:
-
-| set | single-read junctions |
-|---|---|
-| lost to the filter | 85.8% |
-| retained | 87.8% |
-
-**By both probes available, what the filter removes is indistinguishable from what it keeps.**
-
-## Why: the pool is saturated
-
-![](figures/fig_saturation.png)
-
-No headroom left - essentially everything in the pool already is a repeat.
-
 ## The mechanism: `NH` is relative to the index
 
 ![](figures/fig_index_relative_nh.png)
 
-**Case 4 is the sting.** The only multimapping a chr22-only index can *see* is chr22-internal paralogy - so that is the only thing the filter can act on here, and it is exactly where the four `IGLV2` losses came from.
-
-## The mismatch data pins down *which* reads
-
-Mismatch count (`NM`) of spliced alignments, chr22 tumor BAM:
-
-| spliced alignments | n | NM=0 | NM=1 | NM≥2 |
-|---|---|---|---|---|
-| `NH=1`, annotated junction | 435 | 91.7% | 8.0% | 0.2% |
-| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
-| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
-
-::: {.callout-warning}
-## What this rules OUT
-Force-mapping a **diverged** copy (5-15% divergence) would leave **5-15 mismatches**. `NM≥2` is ~1%. **It does not happen** - diverged reads simply fail the score threshold and go unmapped (hence 92% unmapped).
-:::
-
-`NM` of 0-1 is the signature of **near-identical** copies - which is exactly the population the filter is *for*, and exactly the one chr22 renders `NH=1`.
+**Case 3 is what the filter is *for*; case 4 is all it can *see* here** - which is exactly where the four `IGLV2` losses came from. <small>(Mismatch evidence: appendix.)</small>
 
 ## So chr22 cannot test this filter - in principle
 
 ::: {.callout-important}
 ## Not a weak test. Not a test.
-The fixture cannot make the filter fire on the population it exists to remove. The chr22 A/B measures it on **chr22-internal paralogy only** (which is why the `IGLV2` losses are what it found).
+The fixture cannot make the filter fire on the population it exists to remove. The chr22 A/B measures it on **chr22-internal paralogy only** - which is why the four annotated `IGLV2` junctions it drops are the *only* thing it found. That is a **recall cost**, not evidence the filter works.
 :::
 
-**Also note:** `NH>1` unannotated is statistically **indistinguishable** from `NH=1` unannotated (52.7/46.7 vs 49.9/48.7). The multimappers the filter removes are **not** a dirtier population than the unique reads it keeps - consistent with the 0.98x null.
+**And the multimappers it removes are not even a dirtier population** than the unique reads it keeps (`NM` profiles are indistinguishable) - consistent with the 0.98x null.
 
 **Consequence:** the whole-genome run ([#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)) is promoted from a completeness check to **the only run that can decide this**.
-
-## And the filter is not free: paralog loss
-
-Four **GENCODE-annotated** junctions lost, all single-read, all in one paralogous family:
-
-| junction | gene | annotated |
-|---|---|---|
-| `chr22:22734666-22734781+` | *IGLV2-18* | yes |
-| `chr22:22758787-22758903+` | *IGLV2-14* | yes |
-| `chr22:22792579-22792695+` | *IGLV2-11* | yes |
-| `chr22:22822867-22822981+` | *IGLV2-8* | yes |
-
-One read maps equally well to four near-identical V-gene introns; the read is real, the *attribution* is not recoverable.
-
-**Mitigating:** annotated junctions are discarded before prediction anyway - so **0 candidates** are lost. chr22 carries only the lambda orphons; **HLA is chr6, TCR is chr7/chr14 - unmeasured.**
-
-## Field practice: we are the outlier, but our lever is the crudest
-
-| tool | multimappers at junction level |
-|---|---|
-| **LeafCutter** [@li2018leafcutter] | "our most restrictive filter is the requirement that reads considered be uniquely mapped" - and it calls `regtools` [@cotto2023regtools] with **essentially our command** |
-| **STAR** [@dobin2013star] | separates unique (col 7) from multi-mapping (col 8); ships `--outSJfilterReads Unique` |
-| **our STAR path** | already unique-only |
-| **our HISAT2 path** | counts **all** reads |
-
-. . .
-
-**But nobody hard-gates.** FineSplice [@gatto2014finesplice] drops multireads *temporarily*, then **rescues** those with "a unique location after filtering". Portcullis [@mapleson2018portcullis] uses the uniquely-mapped ratio as a **classifier feature**, not a gate.
 
 ## The bigger defect this uncovered
 
@@ -187,19 +125,88 @@ So the `IGLV2` paralog loss is **not a new risk this filter introduces** - the S
 An **opt-in** knob, **default off**, a provable no-op (byte-identical junctions, no filtered BAM written). The pipeline's behavior is **unchanged**. That is a *conservative engineering default* - deliberately **not** a scientific decision.
 :::
 
-**The scientific decision is [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist):** what *are* these multimapped reads, and is unique-only the right semantic for a pipeline whose target domain is precisely the paralog-rich HLA / IG / TCR loci - the one place the field-standard default may be wrong?
+**The decision is [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist):** is unique-only right for a pipeline whose domain *is* the paralog-rich HLA / IG / TCR loci - the one place the field-standard default may be wrong? <small>(Field practice + the rescue/score alternatives: appendix.)</small>
 
 **Sequenced behind it:**
 
-1. **[#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118)** (P1) - make the two aligners mean the same thing. *Precedes everything else*: the rest tunes a filter whose semantics are currently incoherent.
-2. **[#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)** - score/rescue instead of gating. Its Portcullis-style Hamming probe is **index-independent**, so it *would* work on the fixture we already have.
+1. **[#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118)** (P1) - make the two aligners mean the same thing. *Precedes everything else.*
+2. **[#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)** - score/rescue, don't gate. Its Hamming probe is **index-independent** - it *would* work on the fixture we have.
 3. **[#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)** - the whole-genome run: the only place `NH` means what we think it means.
 
-## Two claims retracted along the way
+## References
 
-These were **wrong and are withdrawn** - flagged here because both survived into an Issue, a PR comment, and an earlier version of this deck before being caught:
+::: {#refs}
+:::
 
-1. ~~"A chr22-only index converts genome-wide multimappers into false-unique reads."~~ Too coarse. A **diverged** copy maps uniquely and *correctly* genome-wide, and simply goes **unmapped** on a chr22 index. Only **near-identical** families are affected (slide 8).
+# Appendix {visibility="uncounted"}
+
+Backup slides: the supporting probes, the field-practice table, the retractions, and the caveats.
+
+## Why the probe is uninformative: the pool is saturated {visibility="uncounted"}
+
+![](figures/fig_saturation.png)
+
+No headroom left - essentially everything in the pool already is a repeat.
+
+## The mismatch data pins down *which* reads {visibility="uncounted"}
+
+Mismatch count (`NM`) of spliced alignments, chr22 tumor BAM:
+
+| spliced alignments | n | NM=0 | NM=1 | NM≥2 |
+|---|---|---|---|---|
+| `NH=1`, annotated junction | 435 | 91.7% | 8.0% | 0.2% |
+| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
+| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
+
+::: {.callout-warning}
+## What this rules OUT
+Force-mapping a **diverged** copy (5-15% divergence) would leave **5-15 mismatches**. `NM≥2` is ~1%. **It does not happen** - diverged reads simply fail the score threshold and go unmapped (hence 92% unmapped).
+:::
+
+`NM` of 0-1 is the signature of **near-identical** copies - exactly the population the filter is *for*, and exactly the one chr22 renders `NH=1`.
+
+## Read depth says the same thing {visibility="uncounted"}
+
+If the filter were really just removing low-coverage calls, the lost set would be depleted of well-supported junctions. It is not:
+
+| set | single-read junctions |
+|---|---|
+| lost to the filter | 85.8% |
+| retained | 87.8% |
+
+**By both probes available, what the filter removes is indistinguishable from what it keeps.**
+
+## The filter is not free: paralog loss {visibility="uncounted"}
+
+Four **GENCODE-annotated** junctions lost, all single-read, all in one paralogous family:
+
+| junction | gene | annotated |
+|---|---|---|
+| `chr22:22734666-22734781+` | *IGLV2-18* | yes |
+| `chr22:22758787-22758903+` | *IGLV2-14* | yes |
+| `chr22:22792579-22792695+` | *IGLV2-11* | yes |
+| `chr22:22822867-22822981+` | *IGLV2-8* | yes |
+
+One read maps equally well to four near-identical V-gene introns; the read is real, the *attribution* is not recoverable.
+
+**Mitigating:** annotated junctions are discarded before prediction anyway - so **0 candidates** are lost. chr22 carries only the lambda orphons; **HLA is chr6, TCR is chr7/chr14 - unmeasured.**
+
+## Field practice: we are the outlier, but our lever is the crudest {visibility="uncounted"}
+
+| tool | multimappers at junction level |
+|---|---|
+| **LeafCutter** [@li2018leafcutter] | "our most restrictive filter is the requirement that reads considered be uniquely mapped" - and it calls `regtools` [@cotto2023regtools] with **essentially our command** |
+| **STAR** [@dobin2013star] | separates unique (col 7) from multi-mapping (col 8); ships `--outSJfilterReads Unique` |
+| **our STAR path** | already unique-only |
+| **our HISAT2 path** | counts **all** reads |
+
+**But nobody hard-gates.** FineSplice [@gatto2014finesplice] drops multireads *temporarily*, then **rescues** those with "a unique location after filtering". Portcullis [@mapleson2018portcullis] uses the uniquely-mapped ratio as a **classifier feature**, not a gate.
+
+## Two claims retracted along the way {visibility="uncounted"}
+
+These were **wrong and are withdrawn** - kept here because both survived into an Issue, a PR comment, and an earlier version of this deck before being caught:
+
+1. ~~"A chr22-only index converts genome-wide multimappers into false-unique reads."~~ Too coarse. A **diverged** copy maps uniquely and *correctly* genome-wide, and simply goes **unmapped** on a chr22 index. Only **near-identical** families are affected.
 2. ~~"Elevated `NM` is the fingerprint of force-mapped foreign reads."~~ Force-mapping predicts `NM` **≫ 2**; observed `NM ≥ 2` is ~1%. The number was real; the reading was not.
 
 ::: {.callout-warning}
@@ -207,15 +214,10 @@ These were **wrong and are withdrawn** - flagged here because both survived into
 Both were a number in the right *direction* with an **unexamined magnitude**. So was the 1.13x. State what the value *would be* if the hypothesis were true - **before** calling it confirmation.
 :::
 
-## Caveats before citing this
+## Caveats before citing this {visibility="uncounted"}
 
 - **The null is chr22-specific.** The 51.9% random-position baseline excludes chr22's 10.5 Mb acrocentric N-gap; including it dilutes the null to 41% and the saturation argument gets *stronger*, not weaker.
 - **`[NH]==1` assumes the tag is present.** HISAT2 always emits it (verified: all 41,634 mapped records). An aligner that omits it would have every read silently dropped.
 - **The `-q 2` MAPQ alternative is set-identical here** (collateral loss: **0**), so `NH` is right by construction, not by measured advantage - contrary to what the Issue originally predicted.
 - **Single sample pair, one chromosome, 500K reads.** Nothing here generalizes to HLA or TCR loci.
 - **This deck is Developer's evidence, not a scientific verdict.** The interpretation and the default are [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist).
-
-## References
-
-::: {#refs}
-:::
