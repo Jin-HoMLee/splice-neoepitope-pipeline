@@ -5,6 +5,8 @@
 **Issue:** tracked by [Issue #633](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/633) (`role:pm` — board governance review: parent-as-milestone-anchor, Milestones vs Iteration field, deferral tracking, WIP limits). This spec is the design output of that review's arc/milestone strand.
 **Author:** PM session (Claude) + Jin-Ho Lee
 
+> **Amended 2026-07-10 ([Issue #1102](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1102)):** the `active` slate is **no longer capped at 3**. It is an **advisory `~3` guideline** that prints a `NOTE` and never gates. `active` was measured not to predict throughput, and a WIP limit belongs on work in flight, not on categories. Where this spec says "cap `active` at 3" or "re-picks the ≤3 `active`" (§5.1, §6), read "aim for ~3, and never demote a productive arc merely to satisfy the number." The rest of the design stands.
+
 ## 1. Goal
 
 Give the work a **narrative throughline that outlives a single milestone** and let the four asynchronous persona sessions (Dev, Sci, PM, MM) **pull from a shared current focus** without coupling them. Today work feels stand-alone day-to-day and the four sessions feel like separate workstreams — the symptom the user named.
@@ -57,7 +59,7 @@ Arcs are **not** the lifecycle stages relabeled. A real arc moves *through* stag
 ### 4.3 Carriers — label-only MVP
 
 1. **`arc:<name>` label** is the **load-bearing carrier.** The async cron/remote persona sessions read raw issue *text* (labels are in the REST issue payload; a Projects v2 board field is not). MVP = label only.
-2. **`arc-phase:active | next | later` label** — the focus marker. **Cap `active` at 3.**
+2. **`arc-phase:active | next | later` label** — the focus marker. **Aim for ~3 `active`** (advisory guideline since [#1102](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1102); originally a hard cap of 3).
 3. *Optional later (only if missed):* a Projects v2 single-select `Arc` field (board grouping/views) and/or one never-closed `ARC: <name>` tracking issue per arc carrying the prose narrative. **Do not build all three carriers up front** — that is three sync-prone artifacts for one concept; start with the single text-readable label.
 
 ## 5. The arc taxonomy (validated against all 75 open issues, 2026-06-05)
@@ -124,7 +126,7 @@ Arcs are the **most fluid** of the three axes by design. "Never closes" ≠ "fix
 | Retire | drop from the active/next/later rotation; optionally `arc:archived/<name>`; history preserved |
 | Spawn | new thread emerges → new label, starts `later` |
 
-**The one discipline — change on a cadence, not continuously.** Stable between reviews (that stability *is* the throughline); revised at a periodic **arc review** (monthly, or when the active slate feels stale) that deliberately decides splits/merges/retirements and re-picks the ≤3 `active`. This mirrors Shape Up's "re-bet each cycle." **PM-coordinated**, like the commitment act (portfolio-level call). The `arc-phase` markers churn fast (every review); the arc taxonomy churns slowly.
+**The one discipline — change on a cadence, not continuously.** Stable between reviews (that stability *is* the throughline); revised at a periodic **arc review** (monthly, or when the active slate feels stale) that deliberately decides splits/merges/retirements and re-picks the `active` slate (aim ~3, advisory since [#1102](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1102); promote on evidence, demote only a finished or stalled arc). This mirrors Shape Up's "re-bet each cycle." **PM-coordinated**, like the commitment act (portfolio-level call). The `arc-phase` markers churn fast (every review); the arc taxonomy churns slowly.
 
 **The Unfiled lane is the nursery and the graveyard:** new arcs gestate there (when several Unfiled issues share a thread, an arc is born); a retired arc's stragglers drop back into it. **Never fold Unfiled items into the biggest arc** — that re-bloats it toward catch-all.
 

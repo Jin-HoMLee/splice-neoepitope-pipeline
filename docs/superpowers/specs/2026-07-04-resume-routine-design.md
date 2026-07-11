@@ -5,6 +5,8 @@
 **Status:** Draft (for review)
 **Scope:** Shared (all roles: PM / Scientist / Developer / Memory Manager)
 
+> **Amendment 2026-07-11 ([Issue #1114](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1114)).** The `/coordination` command this spec names (items 4 and 5.2, section 6) has been **renamed to `/inbox`** and its ping scan rewired board-wide; the old command's role-scoped scan was structurally blind to cross-role pings. Read every `/coordination` below as `/inbox`. The design itself is unchanged - only the command's name and the correctness of its step-4 scan. The body is left as written, per the convention that a dated spec is a point-in-time record rather than a living document.
+
 ## 1. Problem
 
 A session opened with *"Good morning!"* reliably triggers the full morning routine - that habit works.

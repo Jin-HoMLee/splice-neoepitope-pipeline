@@ -6,6 +6,86 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11
+
+### 15:56 UTC - Editor: Scientist
+
+#### [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109) - ship day. Closes [Issue #1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105). The deck's judgment slide did its job.
+
+**Why a second entry.** The 2026-07-10 entry below records the deck as built. It then drifted substantially in review, and the drift is the part worth keeping: the deck's closing "what needs your judgment" slide was answered, and answering it produced a corrected fact, two new schema defects, and a documented null nobody in the field appears to have written down.
+
+**Typography - a shared-stylesheet defect, not a slide slip.** Jin-Ho found the slide-7 code cell unreadable. Root cause was *compounding*: `{.smaller}` scales a whole slide to `0.7em` and `.reveal pre code` added its own `0.7em` on top, landing the cell near 16px. My first fix dropped `{.smaller}` from that slide - which enlarged its prose too, making body size an artifact of how much content a slide holds. Jin-Ho rejected that ("size should mean emphasis, not whitespace filling") and was right. A web cross-check against the canon (Butterick; Curtis/EightShapes) **partially refuted my own rationale**: size encodes *structural level*; emphasis belongs to weight/space/color, and reserving a second body size for emphasis would add a second body token the canon warns against. Surviving rule: *body size uniform and set once; emphasis never a resize.* Landed uniform `{.smaller}` across all 9 content slides + fixed code in the stylesheet (`0.95em`, plus a `.smaller pre code` rule that undoes the slide scale), corrected the SCSS comment so the tree stops asserting the refuted claim, and routed the real refactor (set body once, strip the 9 per-slide overrides, sweep all decks) to [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107) facet 5 as governance.
+
+**The gate decision - the two registry gates are not symmetric** (recorded on [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680#issuecomment-4947065345)). The judgment slide asked whether the A\*02:01 "dead end" was real or an under-search. Neither: it exposed that **gate 1 (splice origin) is the *definition of the object of study*** - loosening it (survivin-2B, the field's most prominent non-A\*02 splice-restricted epitope) would pool tumor-specific-via-junction with tumor-associated-via-overexpression, an irreversible semantic corruption - while **gate 2 (functional assay) is an *evidence bar*, relaxable by typing rather than lowering**. And gate 2 is a **band, not a floor**, mis-shaped in both directions: below it, presentation-only evidence already has `tier=presentation-prevalence` (1 row) and just needs populating ([#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681), re-scoped - it is also the benchmark that actually matches `Class1PresentationPredictor`, and the *non-corrupting* route to allele breadth); above it, an in-human clinical response has **no band at all** ([#1119](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1119)). Orthogonally, `assay_context` has no animal-model value though 2 live rows carry `in vivo` readouts ([#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120)).
+
+**The above-gate-2 search - documented NULL, and it re-values the registry.** Jin-Ho asked whether we had ever searched *above* gate 2 (a clinical response would be a hard positive with no in-vitro assay). **We had not, and structurally could not have:** the standing watch's search key ("splice neoantigens with *measured T-cell immunogenicity*") **mirrors the inclusion gate**, so that cell was guaranteed to read empty rather than observed to be. Ran it (Zotero `Z38GTJNW` + 4 web sweeps): **no splice-derived antigen has an in-human clinical response attributable to it.** IMA204/COL6A3 is **preclinical** - IND announced for 2021, delayed to prioritize IMA203/PRAME, never reached Phase 1 (this corrects "clinical-stage", which I had asserted from recall *into a filed Issue* - a verify-against-source miss, corrected in place). The neoantigen TCR-T trials with real objective responses (KRAS G12D 72% PR; p53 R175H -55%; MMRp CRC 3/7) all target **mutations**. Zhao's tumor regression is a **mouse** result; SF3B1/Bigot's vaccine trials only supplied leukaphereses as a T-cell *source*. **Consequence: our 82 `functional-scorable` rows are the top of the field's evidence ladder, not a middle rung** - now stated on slide 2. #1119 demoted P1 -> P2 by me, since its P1 rationale ("we may be missing the field's strongest rows") is exactly what the search disproved.
+
+**Second bot review (drift pass) - no blockers, one sharp catch.** It caught the slide-2 claim **with the deck's own thesis**: with no speaker the bold assertion is the whole message channel, and the bold read as a universal negative (`no splice-derived antigen has yet helped a patient in a trial`) while the hedge that makes it honest sat in the prose beside it. Content was fine; the *scope was in the wrong place*. Fixed in `a366019` - the assertion now **is** the search result ("Our search found no...") with the limitation on-slide ("literature only, no trial-registry sweep"), and "are the best" softened to "look like the best". It also caught my blast-radius count (I checked 2 decks; there are 11 mermaid decks) - **but its own recount missed that `research/slides/_template.qmd` carries a plain code fence**, which resolves *opposite* to its conclusion and **strengthens** the change: the plain-fence path is template-inherited, so the shared stylesheet is the right home for the fix, not a deck-local override. Declined its slide-2 density suggestion with reasons (the ceiling claim is load-bearing *in context*, next to the counts it reframes).
+
+**Method trap worth keeping.** *When a search key mirrors an inclusion rule, it can only ever confirm the rule.* Widening the watch key is AC5 on #1119 and ships regardless of whether the band is built.
+
+**Merge-gate note.** This PR sat overnight and its 2026-07-10 entry then false-blocked the closure gate, which demands a `## <today-UTC>` heading - [#1092](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1092), reproduced today on this PR *and* #1093, evidence posted there. This entry is **not** a gate workaround: the drift above is real content, which is exactly the condition #1092 names as the legitimate case for a second dated entry. The defect itself stands and still wants fixing.
+
+Refs: [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109), [#1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105), [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680), [#1119](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1119), [#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120), [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681), [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107), [#1092](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1092).
+
+### 12:56 UTC - Editor: Scientist
+
+#### [PR #1101](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1101) - two-resolution registry schema (nullable identity + typed `peptide_status`). Closes [Issue #1086](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1086).
+
+**Context.** Implements the design note merged in [PR #1085](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1085).
+The [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry was **peptide-keyed**: a row could not exist without an amino-acid sequence, which locked out every coordinate-first source.
+That single constraint is why Zhao 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) contributes 0 rows today despite passing both registry gates - it published 139 AS antigens by coordinate and withheld the sequences.
+
+**What shipped.** Both identity columns (`junction_id`, `peptide`) are now nullable under an at-least-one-non-null invariant, with row identity a coalesced `COALESCE(junction_id, peptide)` disambiguated by `hla`.
+A typed `peptide_status` (`published-recovered | published-pending | unpublished-idonly | na-junction-level`) replaces the blank cell that used to conflate "the sequence exists, keep chasing the authors" with "this source only ever gave coordinates"; all 97 existing rows backfill to `published-recovered`.
+The validator enforces harmonization in both directions (a null peptide nulls its `length`, can never be `functional-scorable`, and needs a `coords`/`event-id` grade).
+The grade->`junction_id` rule was **replaced, not relaxed**: `coords`/`event-id` rows still require a junction, but the converse bar is gone, so a `gene-mechanism`/`none` row may carry a junction recovered later from an authoritative source (the old rule barred 62 of 97 rows, 64%, from ever gaining one).
+Dedup keys on the full `(junction_id, peptide, hla)` **triple** rather than the coalesced identity, because one junction legitimately yields several distinct peptides; `registry_dedup.junction_view()` serves junction-level consumers.
+CI (`registry-validate.yml`) now runs the unit tests, not just the validator.
+
+**Why the tests carry the weight here.** The live registry has **zero** peptide-null rows, so every new null-peptide invariant would pass *vacuously* against real data alone.
+The 32 tests (written failing-first: 12 red for the reason each names, then green) are the only thing exercising the schema this PR exists to enable, which is why wiring pytest into CI was part of the change rather than a follow-up.
+
+**AC4 deferred to [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100), with evidence.** AC4 asked for a canonical `chr:donor-acceptor:strand` scheme on GRCh38; implementation surfaced that **both its premises fail against the data**.
+(1) **No genome build is recorded anywhere** - not in the registry, PROVENANCE, README, or LABELING_SCHEME - and coordinates of unknown build cannot be lifted over; establishing it means reading three papers' methods sections.
+(2) The 17 `coords` rows span **four formats**, two of them encoding multi-junction *events* (IRIS's six-coordinate rMATS event; Kim 2025's two-junction `se@`/`mxe@`/`ci@`/`a5ss@`), and collapsing one to "the" junction is precisely the inference `LABELING_SCHEME.md` §6 bars.
+Nothing queued depends on it: the ingests AC4 was bundled with (#817/[#1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089), [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)) ship on this foundation alone.
+Carved into #1100 (sub-issue of #680) with a caveat in `LABELING_SCHEME.md`; 5/6 ACs ticked, AC4 struck through.
+
+**Bot review - no correctness bugs, 4 non-blocking nits, all addressed in `ffe7014`** (34 tests green, validator still `PASS: 97 rows valid`).
+(1) `junction_view()` returned `sorted(p)`, so a peptide presented on two alleles was double-listed - fixed by switching the accumulator to a `set`, plus a covering test.
+The semantics are worth naming: one peptide on two alleles is **two registry rows** (immunogenicity is a property of the peptide-HLA pair) but **one peptide at junction resolution**, because the allele is gone from the key.
+(2) The dedup->`violations()` wiring was untested (the live-registry test only ever hits the no-duplicates branch, so it could rot silently - the same vacuous-pass shape as above) - added a test feeding a duplicate through `violations()`.
+(3) `na-junction-level` + `label=positive` is a legal nonsense combo, and my own fixture encodes it by inheriting `label` from the template.
+Real signal, but **routed, not fixed here**: the guard belongs on #911, where the first real coordinate-native true-negative rows land and it can be written against data rather than speculation.
+(4) Fixture column order now matches `registry.tsv` byte-for-byte.
+
+**One place I landed opposite to the review's implied read.** The reviewer observed that the harmonization invariants make the explicit at-least-one-non-null check hold *structurally* for the null-peptide shape - i.e. unreachable for any row that passes the others.
+Correct, and I kept the check anyway rather than deleting it as dead code: it is the *stated* schema invariant, and it is the check that produces a comprehensible error for the both-columns-empty row instead of a confusing grade complaint.
+Redundant by construction, load-bearing by intent.
+
+**Held at the merge gate** for Jin-Ho's final look. PR Test plan + #1086 ACs verified and ticked.
+
+## 2026-07-10
+
+### Editor: Scientist - #680 registry arc slide deck, and a corrected model for what a deck is
+
+**What landed.** [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109) (closes [#1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105)) - a 10-slide Quarto deck over the [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry arc, co-located at `research/experiments/issue_680_splice_immunogenicity_registry/slides.qmd`. Three figures regenerate from `registry.tsv` via `figures/_regenerate_figures.py`; the load-bearing one is the identity 2x2 whose empty cell (junction published, sequence withheld) is the shape the old peptide-keyed schema could not store.
+
+**The real finding was about the convention, not the deck.** Jin-Ho asked me to pressure-test our slide conventions against the scientific-communication literature. Reading the primary sources (Naegle 2021 PLOS Comp Biol; Alley assertion-evidence + its Garner 2013 empirical basis, comprehension+recall p<.01; Sandve 2013 reproducibility rules; Tufte) and mechanically auditing all 14 in-repo decks surfaced that **139 of 146 slide headings (95%) were topic phrases, not assertions** - violating the one rule with controlled-experiment support. Deeper: the mandate had the wrong trigger. `research/slides/README.md` claimed a "lab seminar / ~20-25 min talk" audience, but **no deck of the 14 was ever presented**, and deck creation collapsed after a 12-day burst. Jin-Ho corrected the audience: it is **him, reading silently for 5-10 min, as an abstracted PR review gate** - the machine layer (agent + bot review) covers code, the deck covers narrative/decisions/interpretation. That reframe (a) withdrew my slide-budget finding (8-10 slides = ~1 slide/min at that audience, which is correct), and (b) *upgraded* the assertion-headline finding to mandatory (no speaker -> the headline is the whole message channel). Captured as role memory `feedback_slides_are_the_human_review_gate.md`; convention-revision proposal on [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107) (governance, proposed not applied).
+
+**Deck design choices.** Every heading is a full-sentence assertion; slides deliberately stand alone (a named deviation from assertion-evidence's sparse-body rule, which assumes a speaker); a closing "what needs your judgment" slide names the four interpretive calls a bot review structurally cannot validate. After a second request, plain-worded all body prose while keeping genuine domain terms and literal column/value names verbatim.
+
+**Two data-quality findings surfaced while building figures.** (1) `registry.tsv` has **15 `source` strings for 12 studies** (three studies spelled two ways) - no guard catches it because the derivations key on lowercased substrings, so it silently inflates study-level counts - [#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106). (2) The genome-build gap already tracked in [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100) is the deck's caveat slide.
+
+**Verification.** `quarto render` green; **every one of the 10 slides screenshotted in headless Chrome** and inspected - caught + fixed a literal backslash from an escaped table pipe and a left-shifted figure before the first commit.
+
+**Bot review:** clean, no blockers; independently reproduced every registry-derived number. Its one substantive nit was fair - the `139` (Zhao) is the sole number that *can't* come from `registry.tsv` (Zhao contributes zero rows), so "no number is hand-typed" overclaimed. Narrowed to "no *registry-derived* number," cited the 139 to Zhao Supp Table S1, fixed a refs.bib et-al comma - `146f50f`. Nit 2 (PNG byte-metadata non-determinism) acknowledged as a future-CI note, no action.
+
+Refs: [PR #1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109), [#1105](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1105), [#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106), [#1107](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1107), [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100), [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680).
+
+---
+
 ## 2026-07-09
 
 ### 13:20 UTC - Editor: Scientist

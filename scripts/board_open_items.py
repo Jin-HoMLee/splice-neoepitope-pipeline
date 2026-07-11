@@ -214,22 +214,30 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
     role = next((l for l in labels if l.startswith("role:")), None)
     arc_labels = [l for l in labels if l.startswith("arc:")]
-    if len(arc_labels) > 1:
+    # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
+    # no summary for) have no subIssuesSummary block -> treated as a leaf. Mirrors
+    # `.agents/hooks/check_gh_issue_develop_parent.py` (total > 0 -> parent).
+    # Computed BEFORE the multi-arc warning: multi-arc is drift on a leaf but
+    # legal on a parent (#1103).
+    sub_summary = content.get("subIssuesSummary") or {}
+    is_parent = (sub_summary.get("total") or 0) > 0
+    # One arc per LEAF; a parent/initiative may legitimately span themes (#1103).
+    # #1036 spans scoring-tcr-pmhc + immunogenicity-benchmark, and warning on it
+    # pushed toward stripping a true label to satisfy the checker.
+    if len(arc_labels) > 1 and not is_parent:
         print(
             f"Warning: issue #{content.get('number')} has multiple arc labels: {arc_labels}",
             file=sys.stderr,
         )
+    # `arc` keeps the first for single-value consumers (filters, the Arc column);
+    # `arcs` carries the full set so a multi-arc parent is not silently truncated.
     arc = arc_labels[0] if arc_labels else None
     arc_phase = next(
         (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
         None,
     )
-    # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
-    # no summary for) have no subIssuesSummary block → treated as a leaf. Mirrors
-    # `.agents/hooks/check_gh_issue_develop_parent.py` (total > 0 → parent).
-    sub_summary = content.get("subIssuesSummary") or {}
-    is_parent = (sub_summary.get("total") or 0) > 0
     return {
+        "arcs": arc_labels,
         "number": content.get("number"),
         "title": content.get("title", ""),
         "url": content.get("url", ""),
@@ -342,7 +350,12 @@ def matches_filter(it: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if args.arc:
         want = args.arc if args.arc.startswith("arc:") else f"arc:{args.arc}"
-        if it["arc"] != want:
+        # Membership in the FULL set, not equality with the first arc. A parent may
+        # legitimately carry several arcs (#1103), and GitHub returns labels in an
+        # UNSTABLE order - so matching only `it["arc"]` (= arc_labels[0]) would find
+        # a multi-arc parent under one of its arcs and silently miss it under the
+        # other, nondeterministically. That makes an arc census quietly wrong.
+        if want not in it["arcs"]:
             return False
     if args.arc_phase and it["arc_phase"] != args.arc_phase:
         return False
@@ -382,7 +395,13 @@ def format_table(
         title = (it["title"] or "")[:60]
         age = age_label(it.get("updated_at"), now)
         if arc_columns:
-            arc = (it["arc"] or "—").removeprefix("arc:")[:17]
+            # A multi-arc parent (#1103) gets a `+N` marker. `--arc <slug>` matches
+            # membership in the FULL set, so without this a row matched via its
+            # second arc would display only its first and read as though it did not
+            # match the filter that returned it.
+            extra = max(len(it.get("arcs") or []) - 1, 0)
+            suffix = f" +{extra}" if extra else ""
+            arc = (it["arc"] or "—").removeprefix("arc:")[: 17 - len(suffix)] + suffix
             phase = it["arc_phase"] or "—"  # fixed vocab: active/next/later
             arc_cell = f"{arc:<18} {phase:<7} "
         else:

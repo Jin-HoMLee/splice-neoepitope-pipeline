@@ -22,7 +22,12 @@
 #   - phase mismatch : an open arc member whose arc-phase != its arc's manifest phase.
 #   - multi-arc      : >1 arc:<slug> label -> ambiguous phase; skipped, never auto-set.
 #   - unknown-slug   : a defined arc:<slug> label absent from the manifest roster.
-#   - cap            : >3 arcs marked `active` (the focus slate is capped at 3).
+#
+# ADVISORY NOTE (printed, never affects the exit code):
+#   - cap            : more arcs marked `active` than ACTIVE_SLATE_GUIDELINE (default 3).
+#                      Softened from a hard gate in Issue #1102: `active` was measured
+#                      not to predict throughput, and a WIP limit belongs on work in
+#                      flight, not on categories. Real WIP guards: check_ready_queue.sh.
 #
 # MANIFEST DEFECTS fail fast (exit 2, both modes): a phase outside {active,next,later}
 # is a typo that would make every `gh issue edit --add-label arc-phase:<typo>` fail,
@@ -38,6 +43,17 @@
 set -euo pipefail
 REPO="Jin-HoMLee/splice-neoepitope-pipeline"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Advisory focus-slate guideline (Issue #1102). Not a gate: exceeding it prints a
+# NOTE and never affects the exit code. Tunable for a deliberate wide slate.
+# A non-numeric override would make `[[ n -gt $G ]]` emit a cryptic bash error and
+# silently skip the NOTE (it does NOT abort -- an `if` condition is exempt from
+# set -e). Fall back to the default rather than let an advisory knob misbehave.
+ACTIVE_SLATE_GUIDELINE="${ACTIVE_SLATE_GUIDELINE:-3}"
+if ! [[ "$ACTIVE_SLATE_GUIDELINE" =~ ^[0-9]+$ ]]; then
+  echo "  WARN: ACTIVE_SLATE_GUIDELINE='$ACTIVE_SLATE_GUIDELINE' is not a non-negative integer; using 3" >&2
+  ACTIVE_SLATE_GUIDELINE=3
+fi
 
 CHECK=0
 MANIFEST=""
@@ -56,8 +72,9 @@ echo "arc taxonomy reconcile [$mode] <- $MANIFEST"
 drift=0
 failed=0
 seen_multi=" "
+seen_parent=" "
 
-# --- manifest pass: roster + phase-vocab validation + active-slate cap ---
+# --- manifest pass: roster + phase-vocab validation + advisory active-slate note ---
 roster=" "
 active_count=0
 while read -r arc phase rest || [[ -n "${arc:-}" ]]; do
@@ -70,9 +87,8 @@ while read -r arc phase rest || [[ -n "${arc:-}" ]]; do
   [[ "$phase" == "active" ]] && active_count=$((active_count + 1))
 done < "$MANIFEST"
 
-if [[ $active_count -gt 3 ]]; then
-  echo "  DRIFT cap: $active_count arcs marked 'active' (the focus slate is capped at 3)"
-  drift=1
+if [[ $active_count -gt $ACTIVE_SLATE_GUIDELINE ]]; then
+  echo "  NOTE cap: $active_count arcs marked 'active' (focus-slate guideline is ~$ACTIVE_SLATE_GUIDELINE; advisory)"
 fi
 
 # --- unknown-slug guard: any defined arc:* label not in the roster ---
@@ -84,6 +100,37 @@ while IFS= read -r lbl; do
   esac
 done < <(gh label list --repo "$REPO" --limit 200 --json name \
           --jq '.[].name | select(startswith("arc:"))')
+
+# --- parent set (Issue #1103) ---
+# Parents/epics are parked in the `Epic` Status and are never pulled, so an
+# arc-phase focus marker is meaningless on them: they carry NONE. And because a
+# parent legitimately spans themes (#1036 spans scoring-tcr-pmhc +
+# immunogenicity-benchmark), multi-arc is LEGAL at the parent tier - the
+# one-arc rule binds leaves only. Fetched once (one paginated query), not per
+# issue, so the reconcile stays O(arcs) reads.
+# Owner/name derived from $REPO rather than re-hardcoded, so the identity lives in
+# exactly one place and cannot drift if REPO ever becomes configurable.
+# `-f` (always-string), NOT `-F`: gh's -F coerces a numeric-looking value to a JSON
+# number, and a GitHub repo name may be all-digits (`owner/123`). That would hand an
+# int to a `String!` variable, error the query, leave PARENTS empty, and silently
+# degrade every parent into a leaf (spurious multi-arc drift) - the exact class of
+# drift this derivation exists to prevent.
+REPO_OWNER="${REPO%%/*}"
+REPO_NAME="${REPO##*/}"
+PARENTS=" "
+while IFS= read -r pn; do
+  [[ -n "${pn:-}" ]] && PARENTS="${PARENTS}${pn} "
+done < <(gh api graphql --paginate \
+  -f owner="$REPO_OWNER" -f name="$REPO_NAME" \
+  -f query='
+  query($owner: String!, $name: String!, $endCursor: String) {
+    repository(owner: $owner, name: $name) {
+      issues(states: OPEN, first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { number subIssuesSummary { total } }
+      }
+    }
+  }' --jq '.data.repository.issues.nodes[] | select(.subIssuesSummary.total > 0) | .number')
 
 # --- per-arc phase reconcile (membership discovered live via labels) ---
 # One list call per arc returns each member's number + its arc/arc-phase labels
@@ -105,13 +152,43 @@ while read -r arc phase rest || [[ -n "${arc:-}" ]]; do
       esac
     done
 
+    # --- parent tier (#1103): multi-arc is legal, and NO arc-phase is carried ---
+    # A parent is parked in `Epic` Status and never pulled, so the focus marker is
+    # meaningless on it. Multi-arc on a parent is therefore not ambiguous - it is
+    # simply unphased. The one-arc rule binds LEAVES.
+    if [[ "$PARENTS" == *" $n "* ]]; then
+      if [[ -n "$cur_phases" ]]; then
+        case "$seen_parent" in
+          *" $n "*) : ;;  # already handled via another of its arcs
+          *)
+            drift=1
+            seen_parent="${seen_parent}${n} "
+            cur_csv="${cur_phases# }"; cur_csv="${cur_csv// /,}"
+            if [[ $CHECK -eq 1 ]]; then
+              echo "  DRIFT parent-phase: #$n has [$cur_csv], wants none (parents carry no arc-phase)"
+            else
+              remove_args=()
+              for p in $cur_phases; do remove_args+=(--remove-label "$p"); done
+              echo "  fix #$n -> strip arc-phase (parent; removing:$cur_phases)"
+              if ! gh issue edit "$n" --repo "$REPO" "${remove_args[@]}"; then
+                echo "  WARN: edit #$n failed (transient?); re-run to retry"
+                failed=$((failed + 1))
+              fi
+            fi
+            ;;
+        esac
+      fi
+      continue
+    fi
+
+    # --- leaf tier: exactly one arc ---
     if [[ $n_arcs -gt 1 ]]; then
       drift=1
       case "$seen_multi" in
         *" $n "*) : ;;  # already reported for another arc
         *)
           arcs_csv="${arcs_list# }"; arcs_csv="${arcs_csv// /,}"
-          echo "  DRIFT multi-arc: #$n carries $n_arcs arc labels ($arcs_csv) -> ambiguous phase, skipping (resolve at arc review)"
+          echo "  DRIFT multi-arc: #$n carries $n_arcs arc labels ($arcs_csv) -> one arc per leaf (multi-arc is legal only on a parent, #1103)"
           seen_multi="${seen_multi}${n} "
           ;;
       esac

@@ -5,7 +5,9 @@
 # apply_arc_labels.sh discovers members live via `gh issue list --label arc:<slug>`
 # and DERIVES each member's arc-phase:<phase> label from the phase below.
 # Columns (whitespace-delimited): arc_slug  arc-phase  description...
-# Constraint: at most 3 arcs may be `active` (the focus slate).
+# Guideline (ADVISORY, not a gate): ~3 arcs `active` (the focus slate). Exceeding it
+# prints a NOTE, never DRIFT -- `active` was measured not to predict throughput
+# (Issue #1102), and WIP limits belong on work in flight, not on categories.
 arc:aligner-junctions      active  Aligner + junction-extraction correctness (HISAT2/STAR/regtools)
 arc:junction-filtering     later   Junction filtering + classification (annotated / normal-shared / tumor-exclusive)
 arc:variant-cohort         later   Variant calling + patient-cohort processing
@@ -14,4 +16,4 @@ arc:results-reporting      later   Results assembly + report.html + reproducibil
 arc:cloud-reproducibility  next    Cloud/GPU infra, cost posture, environment reproducibility
 arc:memory-methodology     later   Memory curation + multi-role methodology + governance research
 arc:board-governance       active  Board/Kanban governance, hooks, closure ritual, PM tooling
-arc:immunogenicity-benchmark next  Splice-immunogenicity ground-truth registry + caller/scorer benchmark
+arc:immunogenicity-benchmark active  Splice-immunogenicity ground-truth registry + caller/scorer benchmark

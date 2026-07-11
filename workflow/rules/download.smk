@@ -147,6 +147,44 @@ if _GTEX_CFG.get("enabled", False) and _GTEX_REF.startswith("gs://"):
 # IMGT germline download via stitchrdl — Issue #204
 # =============================================================================
 
+rule download_rmsk_chrom:
+    """Fetch one chromosome's UCSC RepeatMasker track as BED (Issue #919).
+
+    Used to categorize junctions by repeat overlap when evaluating the
+    NH-uniqueness prefilter (alignment.uniqueness_filter): the filter claims to
+    remove multimapper-driven calls at repeat copies, and this is what lets us
+    check that the junctions it removes are in fact repeat-overlapping.
+
+    Not part of the default DAG - request the BED explicitly:
+
+        snakemake --cores 1 -- references/rmsk/hg38/rmsk.chr22.bed
+
+    Lands in references/ (gitignored) rather than resources/test/, because it is
+    downloaded reference data, not a committed fixture. Idempotent: no inputs, so
+    Snakemake will not re-fetch once the BED exists. No conda env - the fetcher is
+    stdlib-only, matching the sibling download rules above. The fetcher fails
+    loudly on a truncated UCSC response rather than writing a short BED that would
+    silently understate repeat overlap.
+    """
+    output:
+        bed="references/rmsk/{ucsc_genome}/rmsk.{chrom}.bed",
+    log:
+        os.path.join(_SHARED_LOG, "download", "rmsk_{ucsc_genome}_{chrom}.log"),
+    wildcard_constraints:
+        ucsc_genome=r"[A-Za-z0-9]+",
+        chrom=r"chr[0-9A-Za-z_]+",
+    shell:
+        """
+        set -euo pipefail
+        mkdir -p "$(dirname {log})"
+        python workflow/scripts/fetch_rmsk.py \
+            --genome {wildcards.ucsc_genome} \
+            --chrom {wildcards.chrom} \
+            --output {output.bed} \
+            > {log} 2>&1
+        """
+
+
 rule download_imgt_germlines:
     """Download IMGT germline reference data via stitchrdl.
 

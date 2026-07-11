@@ -182,39 +182,46 @@ class TestSubprocessNoOp:
 
 
 class TestMainFlipPath:
-    def test_trigger_flips_linked_issue(self, monkeypatch, capsys):
+    def test_trigger_flips_pr_and_linked_issue(self, monkeypatch, capsys):
         import io
         flips = []
         lookups = []
         monkeypatch.setattr(sys, "stdin",
-                            io.StringIO(_payload('gh pr comment 996 --body "@claude review"')))
+                            io.StringIO(_payload('gh pr comment 900 --body "@claude review"')))
         monkeypatch.setattr(
             h, "_pr_linked_issues",
-            lambda ref: ("Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline", [996]))
+            lambda ref: ("Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline", 900, [996]))
 
-        def fake_lookup(issue, owner, repo):
-            lookups.append((issue, owner, repo))
-            return ("ITEM_996", "Ready for review")
+        def fake_lookup(kind, number, owner, repo):
+            lookups.append((kind, number, owner, repo))
+            return (f"ITEM_{number}", "Ready for review")
 
-        monkeypatch.setattr(h, "_issue_item_and_status", fake_lookup)
+        monkeypatch.setattr(h, "_item_and_status", fake_lookup)
         monkeypatch.setattr(h, "_set_status", lambda item_id, opt: flips.append((item_id, opt)))
         monkeypatch.setattr(h, "_log_fire", lambda *a: None)
         assert h.main() == 0
-        assert flips == [("ITEM_996", h.IN_REVIEW_OPTION)]
-        # the PR's real owner/repo is threaded into the issue lookup (not hardcoded)
-        assert lookups == [(996, "Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline")]
+        # Issue #1108: BOTH the PR's own card and the linked Issue's card advance.
+        assert flips == [
+            ("ITEM_900", h.IN_REVIEW_OPTION),
+            ("ITEM_996", h.IN_REVIEW_OPTION),
+        ]
+        # the PR's real owner/repo is threaded into both lookups (not hardcoded)
+        assert lookups == [
+            ("pullRequest", 900, "Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline"),
+            ("issue", 996, "Jin-HoMLee", "claude-personas-splice-neoepitope-pipeline"),
+        ]
         assert "In review" in capsys.readouterr().out
 
     def test_already_in_review_is_noop(self, monkeypatch, capsys):
         import io
         flips = []
         monkeypatch.setattr(sys, "stdin",
-                            io.StringIO(_payload("gh pr review 996 --approve")))
+                            io.StringIO(_payload("gh pr review 900 --approve")))
         monkeypatch.setattr(
             h, "_pr_linked_issues",
-            lambda ref: ("Jin-HoMLee", "splice-neoepitope-pipeline", [996]))
+            lambda ref: ("Jin-HoMLee", "splice-neoepitope-pipeline", 900, [996]))
         monkeypatch.setattr(
-            h, "_issue_item_and_status", lambda issue, owner, repo: ("ITEM_996", "In review"))
+            h, "_item_and_status", lambda kind, n, owner, repo: (f"ITEM_{n}", "In review"))
         monkeypatch.setattr(h, "_set_status", lambda item_id, opt: flips.append(opt))
         assert h.main() == 0
         assert flips == []
@@ -224,9 +231,9 @@ class TestMainFlipPath:
         import io
         flips = []
         monkeypatch.setattr(sys, "stdin",
-                            io.StringIO(_payload("gh pr review 996")))
+                            io.StringIO(_payload("gh pr review 900")))
         monkeypatch.setattr(
-            h, "_pr_linked_issues", lambda ref: ("someone-else", "other-repo", [1]))
+            h, "_pr_linked_issues", lambda ref: ("someone-else", "other-repo", 900, [1]))
         monkeypatch.setattr(h, "_set_status", lambda item_id, opt: flips.append(opt))
         assert h.main() == 0
         assert flips == []
@@ -241,4 +248,159 @@ class TestMainFlipPath:
 
         monkeypatch.setattr(h, "_gh", boom)
         assert h.main() == 0
+        assert capsys.readouterr().out.strip() == ""
+
+
+# --- orchestration: PR card + linked Issue card (Issue #1108) -----------------
+#
+# The pre-#1108 hook flipped only the linked Issue, so a review-requested PR and
+# its Issue split across two board columns. These tests monkeypatch the two gh
+# boundaries (`_pr_linked_issues`, `_item_and_status`) and record `_set_status`
+# calls, so `main()`'s branching is covered without a live board.
+
+_OWNER, _REPO = "Jin-HoMLee", "splice-neoepitope-pipeline"
+
+
+def _drive_main(monkeypatch, *, pr=1104, issues=(1102,), statuses=None,
+                owner=_OWNER, repo=_REPO):
+    """Run main() against stubbed gh boundaries; return (rc, [(item_id, opt)...]).
+
+    `statuses` maps (kind, number) -> current Status name. A missing key means the
+    item is not on the board (resolver returns (None, None)).
+    """
+    import io
+    statuses = statuses or {}
+    monkeypatch.setattr(
+        h, "_pr_linked_issues", lambda ref: (owner, repo, pr, list(issues))
+    )
+
+    def fake_item(kind, number, o, r):
+        if (kind, number) not in statuses:
+            return None, None
+        return f"item-{kind}-{number}", statuses[(kind, number)]
+
+    calls = []
+    monkeypatch.setattr(h, "_item_and_status", fake_item)
+    monkeypatch.setattr(h, "_set_status", lambda i, o: calls.append((i, o)))
+    monkeypatch.setattr(h, "_log_fire", lambda *a, **k: None)
+    monkeypatch.setattr(
+        sys, "stdin", io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+    )
+    return h.main(), calls
+
+
+class TestPrCardFlip:
+    def test_pr_card_flipped_alongside_linked_issue(self, monkeypatch):
+        rc, calls = _drive_main(monkeypatch, statuses={
+            ("pullRequest", 1104): "Ready for review",
+            ("issue", 1102): "Ready for review",
+        })
+        assert rc == 0
+        assert ("item-pullRequest-1104", h.IN_REVIEW_OPTION) in calls
+        assert ("item-issue-1102", h.IN_REVIEW_OPTION) in calls
+
+    def test_pr_with_no_linked_issue_still_flips(self, monkeypatch):
+        # Regression: the old `not issues` early-return skipped a --no-issue
+        # companion PR entirely, so its card could never advance.
+        rc, calls = _drive_main(monkeypatch, issues=(), statuses={
+            ("pullRequest", 1104): "Ready for review",
+        })
+        assert rc == 0
+        assert calls == [("item-pullRequest-1104", h.IN_REVIEW_OPTION)]
+
+    def test_already_in_review_pr_is_a_noop_issue_still_flips(self, monkeypatch):
+        rc, calls = _drive_main(monkeypatch, statuses={
+            ("pullRequest", 1104): "In review",
+            ("issue", 1102): "Ready for review",
+        })
+        assert rc == 0
+        assert calls == [("item-issue-1102", h.IN_REVIEW_OPTION)]
+
+    def test_done_and_epic_never_overwritten(self, monkeypatch):
+        rc, calls = _drive_main(monkeypatch, statuses={
+            ("pullRequest", 1104): "Done",
+            ("issue", 1102): "Epic",
+        })
+        assert rc == 0
+        assert calls == []
+
+    def test_pr_not_on_board_issue_still_flips(self, monkeypatch):
+        rc, calls = _drive_main(monkeypatch, statuses={
+            ("issue", 1102): "Ready for review",
+        })
+        assert rc == 0
+        assert calls == [("item-issue-1102", h.IN_REVIEW_OPTION)]
+
+    def test_untracked_repo_touches_nothing(self, monkeypatch):
+        rc, calls = _drive_main(monkeypatch, owner="someone-else", statuses={
+            ("pullRequest", 1104): "Ready for review",
+        })
+        assert rc == 0
+        assert calls == []
+
+    def test_fail_open_when_set_status_errors(self, monkeypatch, capsys):
+        import io
+        monkeypatch.setattr(
+            h, "_pr_linked_issues", lambda ref: (_OWNER, _REPO, 1104, [1102])
+        )
+        monkeypatch.setattr(
+            h, "_item_and_status", lambda k, n, o, r: (f"item-{k}-{n}", "Ready for review")
+        )
+
+        def boom(*a, **k):
+            raise subprocess.CalledProcessError(1, ["gh"])
+
+        monkeypatch.setattr(h, "_set_status", boom)
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+        )
+        assert h.main() == 0
+        assert capsys.readouterr().out.strip() == ""
+
+    def test_mid_sequence_error_still_logs_the_pr_flip_that_landed(self, monkeypatch, capsys):
+        # Issue #1108 review, finding 2: the PR card flips, then the linked-Issue
+        # _set_status raises. The PR mutation really happened, so it must still be
+        # logged + surfaced, not silently dropped by the fail-open return.
+        import io
+        logged = []
+        monkeypatch.setattr(
+            h, "_pr_linked_issues", lambda ref: (_OWNER, _REPO, 1104, [1102])
+        )
+        monkeypatch.setattr(
+            h, "_item_and_status", lambda k, n, o, r: (f"item-{k}-{n}", "Ready for review")
+        )
+
+        def flip_pr_then_boom(item_id, opt):
+            if item_id == "item-pullRequest-1104":
+                return  # PR flip succeeds
+            raise subprocess.CalledProcessError(1, ["gh"])  # Issue flip fails
+
+        monkeypatch.setattr(h, "_set_status", flip_pr_then_boom)
+        monkeypatch.setattr(h, "_log_fire", lambda pr, issues, repo: logged.append((pr, issues)))
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+        )
+        assert h.main() == 0
+        assert logged == [(1104, [])]  # PR logged, Issue correctly absent (its flip failed)
+        assert "PR #1104" in capsys.readouterr().out
+
+    def test_error_before_repo_resolves_logs_nothing(self, monkeypatch, capsys):
+        # The `owner is None` guard: a failure before the repo is resolved must not
+        # log or surface (nothing flipped, and no repo string to format).
+        import io
+        logged = []
+
+        def boom(*a, **k):
+            raise subprocess.CalledProcessError(1, ["gh"])
+
+        monkeypatch.setattr(h, "_pr_linked_issues", boom)
+        monkeypatch.setattr(h, "_log_fire", lambda *a, **k: logged.append(a))
+        monkeypatch.setattr(
+            sys, "stdin",
+            io.StringIO(_payload('gh pr comment 1104 --body "@claude review"'))
+        )
+        assert h.main() == 0
+        assert logged == []
         assert capsys.readouterr().out.strip() == ""
