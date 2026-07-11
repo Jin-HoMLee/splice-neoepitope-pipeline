@@ -42,7 +42,7 @@ Every splice-derived tumor peptide that someone has actually tested on real T ce
 
 This is a **probe, not a full benchmark**. Any score you compute must say which negatives it used.
 
-But thin is not second-rate. We looked for stronger evidence and found none: **no splice-derived antigen has yet helped a patient in a trial** - every therapy aimed at one is still preclinical, and the neoantigen treatments that *have* shrunk tumors target mutations, not splicing. These 82 rows are the best human evidence the field has ([#1119](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1119), searched 2026-07-11).
+But thin is not second-rate. **Our search found no splice-derived antigen that has helped a patient in a trial** - every therapy aimed at one is still preclinical, and the neoantigen treatments that *have* shrunk tumors target mutations, not splicing. So these 82 rows look like the best human evidence the field has (searched 2026-07-11; literature only, no trial-registry sweep - [#1119](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1119)).
 
 ## 82 positives are checked by only 9 real negatives {.smaller}
 
