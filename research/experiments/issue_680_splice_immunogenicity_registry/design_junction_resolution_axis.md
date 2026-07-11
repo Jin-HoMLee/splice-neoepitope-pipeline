@@ -10,9 +10,16 @@ The registry is peptide-keyed: every row needs an amino-acid sequence to exist.
 That makes a whole class of otherwise-eligible sources unusable.
 
 The triggering case is Zhao et al. 2025 (*Cell Research*, DOI `10.1038/s41422-025-01199-0`, [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)).
-Its Supplementary Table S1 lists **139 candidate AS antigens by genomic coordinate + gene + per-allele HLA affinity**, with **zero peptide sequences** anywhere in the supplement.
+Its Supplementary Table S1 lists **candidate AS antigens by genomic coordinate + gene + per-allele HLA affinity**, with **zero peptide sequences** anywhere in the supplement.
 The sequences are only in the paywalled main text or unpublished; recovery is gated behind an author request.
-Peptide-keyed, Zhao contributes 0 rows today. Junction-keyed, it contributes 139 candidate rows immediately.
+Peptide-keyed, Zhao contributes 0 rows today.
+
+> **⚠️ Correction 2026-07-11 ([#1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089)).** This document originally claimed Zhao "contributes 139 candidate rows immediately" once the registry is junction-keyed. The first-hand audit of Table S1 refuted that on two counts, and **it contributes 0 rows today even junction-keyed**:
+>
+> 1. **The rows are predicted, not measured.** Table S1's readouts are `avg_rank` / `PHBR_avg` / per-allele affinity, i.e. predicted binding. Every row is `label=untested` and **no tier fits it** ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 4 - note the existing `candidate` tier is a *contested positive*, not an untested prediction). Nullable identity was necessary to admit a coordinate-first source, but not sufficient: the row still needs a legal `(label, tier)`. Whether a new predicted-only tier is created is [#1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125).
+> 2. **139 is a peptide count, not a junction count.** The 139 rows resolve to **103 distinct junctions** (65 rows share a coordinate). Under the coalesced key those co-located peptide-null rows are indistinguishable, so the ceiling is 103.
+>
+> The design decision below (nullable identity, coalesced key, no inference) **still stands** and was independently vindicated: point 2 is exactly the one-junction-to-many-peptides asymmetry the argument predicts. Only the *payoff estimate* was wrong. Full audit: [`PROVENANCE.md`](PROVENANCE.md).
 
 ## The asymmetry (and why the naive framing is a red herring)
 
@@ -79,7 +86,7 @@ Switching the *scorer* benchmark target from peptide to coordinate would quietly
 
 ## Payoffs
 
-- **Unblocks Zhao today** at junction resolution (139 candidate rows), independent of the sequence recovery.
+- ~~**Unblocks Zhao today** at junction resolution (139 candidate rows), independent of the sequence recovery.~~ **Retracted 2026-07-11** (see the correction above): Zhao's Table S1 rows are predicted candidates with no legal tier, and they resolve to 103 junctions, not 139. This benefit did not materialize. The remaining benefits below are unaffected.
 - **Attacks the scarcest reagent, measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).**
   Junctions present in normal tissue (GTEx and friends) are coordinate-native and abundant; peptide-keyed, true-negatives are near-unsourceable.
 - **Aligns with how the field's tools evaluate.**

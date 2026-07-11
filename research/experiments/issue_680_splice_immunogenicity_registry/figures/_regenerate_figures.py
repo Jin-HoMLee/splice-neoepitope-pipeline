@@ -45,7 +45,9 @@ def fig_identity_matrix(df: pd.DataFrame) -> None:
     """The 2x2 that explains the whole schema change: which identity columns a row has.
 
     The bottom-left cell (junction published, sequence withheld) is the shape the old
-    peptide-keyed schema could not represent at all. Zhao 2025 sits there, 139 rows deep.
+    peptide-keyed schema could not represent at all. Zhao 2025's Table S1 is the motivating
+    case (103 junctions), but it is still unfolded: those rows are predicted-only, so they
+    have no legal (label, tier) yet. See PROVENANCE.md and issue 1125.
     """
     has_pep = df.peptide.str.strip() != ""
     has_jun = df.junction_id.str.strip() != ""
@@ -64,8 +66,8 @@ def fig_identity_matrix(df: pd.DataFrame) -> None:
             ax.text(c + .5, 1 - r + .60, str(n), ha="center", va="center",
                     fontsize=30, color=ACCENT if blocked else INK, fontweight="bold")
             if blocked:
-                ax.text(c + .5, 1 - r + .27, "used to be impossible to store\n(Zhao 2025: 139 rows)",
-                        ha="center", va="center", fontsize=10.5, color=ACCENT)
+                ax.text(c + .5, 1 - r + .27, "used to be impossible to store\n(Zhao 2025: 103 junctions,\npredicted-only, still unfolded)",
+                        ha="center", va="center", fontsize=9.5, color=ACCENT)
 
     ax.set_xticks([.5, 1.5]); ax.set_xticklabels(["junction_id present", "junction_id absent"])
     ax.set_yticks([1.5, .5]); ax.set_yticklabels(["peptide\npresent", "peptide\nabsent"])
