@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-11
 
+### 13:55 UTC - Editor: PM
+
+#### Scope addition: `/inbox` command -> Agent Skill (vendor-agnosticism), [PR #1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115)
+
+Jin-Ho asked whether skills or commands are more vendor-agnostic. Web-verified against the primary source rather than answered from memory, and the answer was decisive enough to change the PR.
+
+**Finding.** `.claude/commands/*.md` is a **Claude-Code-proprietary** format (Claude Code's own docs: custom commands have been *"merged into skills"*). The **Agent Skills** format (`SKILL.md`) is an [open standard](https://agentskills.io) - verbatim, *"originally developed by Anthropic, released as an open standard"* - implemented by ~45 agents including OpenAI Codex, Gemini CLI, Cursor, GitHub Copilot, VS Code, OpenCode, Goose. Deliberately did **not** repeat the governance/adoption-timeline claims a web search surfaced (Linux Foundation stewardship, marketplace sizes): those came from secondary blogs I never fetched, and a search digest is zero sources.
+
+**Why it was load-bearing, not cosmetic.** Jin-Ho's global `CLAUDE.md` already instructs **Codex/OpenCode** to read the memory index, so both are *live* harnesses against these repos. As a command, `/inbox` would not exist in either - and with it, the entire board-wide-not-role-scoped discipline this PR exists to encode. `scan_addressed_comments.py` would still run; the rule around it would be invisible. **Encoding a hard-won correctness lesson in a single-vendor format is how you lose it a second time.** It also squared the last inconsistency with the [`.claude` -> `.agents` migration](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/861), itself a vendor-neutrality move. Repo now: **3 skills, 0 commands.**
+
+**It fixed the original complaint as a side effect.** A command's auto-invoke description is the *truncated first line of the file*. A skill has a real `description` field - so `/inbox` now advertises its actual trigger phrases ("check my inbox", "is anything waiting on me"). The harness re-registered it live with the full description the moment the frontmatter landed. The thing Jin-Ho could not remember now announces what it is for.
+
+**Naming: declined `github-inbox`** when asked. Reasons, in order of weight: (1) it names the *transport*, not the question - the same drift that made `/standup` and `/coordination` both fail at recall; (2) it disambiguates against nothing (there is exactly one inbox) - YAGNI; (3) a transport prefix quietly pre-authorizes `slack-inbox`/`email-inbox` siblings, i.e. one question with N implementations - **the exact shape of the bug this PR just killed.** If a channel is ever added, *widen the one inbox*. Division of labour: **the name carries the question, the description carries the medium** (and auto-invocation matches on the description anyway).
+
+**Second review: clean, mergeable.** Two takes: (a) the last live surface still calling the skill by its retired name (`dispatch_digest.py:38`, "the coordination skill") - fixed; (b) **my PR body was wrong** that the empty `.agents/commands/` dir was "left in place". Checked both layers because they disagreed: it is **absent from the git tree** (git cannot track an empty dir) and therefore gone for every other clone - what I saw was an empty husk on my local disk only. Corrected the body and `rmdir`'d it. That is twice in one PR that the reviewer caught me asserting a property of git instead of running the command (cf. the `git mv --follow` claim in the 13:30 entry). **The pattern is mine, not git's: I narrate tool behavior from expectation.**
+
 ### 13:30 UTC - Editor: PM
 
 #### A naming question turned out to be a blind coordination scan ([Issue #1114](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1114) / [PR #1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115))
