@@ -76,7 +76,17 @@ REVIEW_TRIGGER = "@claude review"
 # Trivial-PR opt-out. Mirrors the existing `<!-- skip-lab-notebook: routine -->`
 # marker (`closure_audit._SKIP_LAB_NOTEBOOK`) rather than inventing new syntax;
 # the reason text is documentation for the human, not a parsed enum.
-_SKIP_BOT_REVIEW_RE = re.compile(r"<!--\s*skip-bot-review\b[^>]*-->", re.IGNORECASE)
+#
+# The marker must sit **on its own line** (leading/trailing whitespace allowed).
+# The unanchored form bit immediately: a PR body that merely *documents* the
+# marker in prose - backtick-quoted, mid-sentence - matched, and this feature's
+# own PR (#1124) silently opted itself out of the review it exists to request.
+# Anchoring is what separates "using the directive" from "talking about it", and
+# it is the deliberate divergence from `_SKIP_LAB_NOTEBOOK`, which is unanchored
+# and carries the same latent hazard.
+_SKIP_BOT_REVIEW_RE = re.compile(
+    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+)
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")

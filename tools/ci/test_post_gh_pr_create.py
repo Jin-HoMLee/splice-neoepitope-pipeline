@@ -127,6 +127,9 @@ class TestSkipBotReviewMarker:
     def test_case_and_space_tolerant(self):
         assert h.has_skip_bot_review("<!--   SKIP-BOT-REVIEW: trivial   -->") is True
 
+    def test_indented_marker_line(self):
+        assert h.has_skip_bot_review("intro\n   <!-- skip-bot-review: trivial -->   \n") is True
+
     def test_any_reason_accepted(self):
         # The reason is documentation for the human, not a parsed enum.
         assert h.has_skip_bot_review("<!-- skip-bot-review: docs-only typo -->") is True
@@ -141,6 +144,28 @@ class TestSkipBotReviewMarker:
     def test_mention_without_comment_syntax_does_not_match(self):
         # Prose *discussing* the marker must not silently opt the PR out.
         assert h.has_skip_bot_review("We could add skip-bot-review here someday.") is False
+
+    def test_documenting_the_marker_in_prose_does_not_opt_out(self):
+        """Regression: the marker must be USED (own line), not merely DISCUSSED.
+
+        The unanchored regex matched a backtick-quoted, mid-sentence mention, so
+        this feature's own PR (#1124) - whose body documents the opt-out - silently
+        opted itself out of the review it exists to auto-request. Verbatim from the
+        body that actually failed.
+        """
+        real_body_line = (
+            "Two paths, no new vocabulary: **drafts** are excluded for free, and "
+            "**`<!-- skip-bot-review: trivial -->`** in the body, mirroring the "
+            "existing `<!-- skip-lab-notebook: routine -->` marker."
+        )
+        assert h.has_skip_bot_review(real_body_line) is False
+        assert h.should_request_review(is_draft=False, body=real_body_line) is True
+
+    def test_marker_inside_a_sentence_does_not_opt_out(self):
+        # Same shape, no backticks: still prose, still must not opt out.
+        assert h.has_skip_bot_review(
+            "Add <!-- skip-bot-review: trivial --> to skip the review."
+        ) is False
 
 
 class TestShouldRequestReview:
