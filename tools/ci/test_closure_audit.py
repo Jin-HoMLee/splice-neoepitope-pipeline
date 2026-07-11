@@ -103,15 +103,98 @@ Today's entry. Refs PR #100.
 ### 17:00 UTC — Editor: Developer
 Old entry. Refs PR #999.
 """
-    # #999 is in the 05-10 block, not the 05-11 block → should report gap
-    assert ca.check_lab_notebook(text, "2026-05-11", 999) is not None
-    # #100 is in the 05-11 block → no gap
+    # #999 sits in the 05-10 block, one day before the gate date. Under #1092 that
+    # is ACCEPTED: the entry exists for that unit of work and lies in the lookback
+    # window. (Pre-#1092 this asserted a gap - that assertion encoded the bug.)
+    assert ca.check_lab_notebook(text, "2026-05-11", 999) is None
+    # #100 is in the 05-11 block -> no gap
     assert ca.check_lab_notebook(text, "2026-05-11", 100) is None
 
 
 def test_lab_notebook_no_date_header_is_gap():
-    text = "# Lab Notebook\n\n## 2026-05-10\n\n### 17:00 UTC — Editor: Developer\nOld.\n"
+    """No block references #100 in any scanned block -> gap."""
+    text = "# Lab Notebook\n\n## 2026-05-10\n\n### 17:00 UTC - Editor: Developer\nOld.\n"
     assert ca.check_lab_notebook(text, "2026-05-11", 100) is not None
+
+
+# --- #1092: the gate must not key on the *merge* date ------------------------
+#
+# Entry timing is commit -> push -> PR -> review -> entry -> merge, so the entry
+# is written after review and before merge. Whenever those straddle a UTC
+# midnight (the normal case, since merge is a human act and PRs sit at the gate)
+# the entry is dated *yesterday* and a today-keyed gate false-blocks a PR whose
+# author followed the rule exactly.
+
+
+def test_lab_notebook_accepts_entry_written_before_the_merge_date():
+    """The straddling-midnight case: entry dated earlier, merge lands today."""
+    text = (
+        "## 2026-07-09\n\n"
+        "### 16:00 UTC - Editor: Scientist\n"
+        "pVACtools spike shipped. Refs PR #1093.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is None
+
+
+def test_lab_notebook_accepts_prior_day_entry_via_also_accept():
+    """A prior-day entry naming only the closing Issue still passes."""
+    text = "## 2026-07-09\n\n### 16:00 UTC - Editor: Scientist\nSpike (Issue #1048).\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093, also_accept=[1048]) is None
+
+
+def test_lab_notebook_today_block_for_other_work_does_not_decide():
+    """A today-dated block for *different* work must not decide the outcome.
+
+    The exact #1093 shape: scientist.md had a `## 2026-07-11` block (for #1101)
+    while #1093's real entry sat in the 07-09 block. Neither the presence of a
+    today block nor its wrong reference may short-circuit the scan - only a block
+    that actually references this unit of work passes.
+    """
+    text = (
+        "## 2026-07-11\n\n### 09:00 UTC - Editor: Scientist\nRegistry schema. Refs PR #1101.\n\n"
+        "## 2026-07-09\n\n### 16:00 UTC - Editor: Scientist\nSpike. Refs PR #1093.\n"
+    )
+    # #1093 is found in the older block -> pass
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is None
+    # #1234 is referenced nowhere -> gap, despite a today block existing
+    assert ca.check_lab_notebook(text, "2026-07-11", 1234) is not None
+
+
+def test_lab_notebook_gap_when_wrong_reference_in_every_scanned_block():
+    """An entry for a different unit of work still fails, in every block scanned."""
+    text = (
+        "## 2026-07-11\n\n### 09:00 UTC - Editor: PM\nRefs PR #111.\n\n"
+        "## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #222.\n\n"
+        "## 2026-07-09\n\n### 09:00 UTC - Editor: PM\nRefs PR #333.\n"
+    )
+    gap = ca.check_lab_notebook(text, "2026-07-11", 999, also_accept=[888])
+    assert gap is not None
+    assert "#999" in gap and "#888" in gap
+
+
+def test_lab_notebook_gap_when_no_entry_at_all():
+    """A PR with no lab-notebook entry whatsoever still fails, unchanged."""
+    assert ca.check_lab_notebook("# Lab Notebook\n", "2026-07-11", 1093) is not None
+
+
+def test_lab_notebook_entry_older_than_the_window_is_a_gap():
+    """The window is bounded: a months-old block must not satisfy the gate."""
+    text = "## 2026-01-02\n\n### 16:00 UTC - Editor: Scientist\nAncient. Refs PR #1093.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is not None
+
+
+def test_lab_notebook_matched_block_still_needs_a_time_subsection():
+    """The '### HH:MM UTC - Editor: ...' requirement survives into the window scan."""
+    text = "## 2026-07-10\n\nRefs PR #1093 but with no time sub-section.\n"
+    gap = ca.check_lab_notebook(text, "2026-07-11", 1093)
+    assert gap is not None
+    assert "###" in gap
+
+
+def test_lab_notebook_ignores_blocks_dated_after_the_gate_date():
+    """A future-dated block is not a valid entry for this merge."""
+    text = "## 2026-07-20\n\n### 16:00 UTC - Editor: PM\nRefs PR #1093.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 1093) is not None
 
 
 # --- #495: accept the PR number OR any closing-Issue number (`also_accept`) ---
