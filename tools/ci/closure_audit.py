@@ -68,8 +68,17 @@ _NOTEBOOK_EXEMPT_ROLES = {"memory_manager"}
 # introducing the auto-review opted itself out of the review it exists to request.
 # Anchoring to a whole line is what separates *using* the directive from *talking
 # about* it (Issue #1126).
+#
+# The trailing class must absorb a **carriage return**. Python's `$` matches only
+# before a `\n`, never before a `\r`, so under CRLF the end-anchor fails and a
+# correctly-placed marker **silently does not register**. Not theoretical: a PR
+# body authored or edited in the GitHub **web UI** comes back from the API with
+# CRLF, and adding a routine-ship opt-out in the browser is a natural path. The
+# failure is fail-closed (the gate blocks rather than bypasses), so it is not a
+# hole - just a baffling false negative for an author who did everything right.
+# Verified empirically on both markers before fixing (PR #1129 review, finding 1).
 _SKIP_LAB_NOTEBOOK = re.compile(
-    r"^[ \t]*<!--\s*skip-lab-notebook\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+    r"^[ \t]*<!--\s*skip-lab-notebook\b[^>]*-->[ \t\r]*$", re.IGNORECASE | re.MULTILINE
 )
 
 

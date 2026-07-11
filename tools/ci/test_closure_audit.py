@@ -976,3 +976,22 @@ class TestCollectCrossRepoAcGaps:
 
         monkeypatch.setattr(ca, "fetch_issue", boom)
         assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
+
+
+def test_skip_lab_notebook_marker_crlf_own_line():
+    """CRLF regression (#1126, PR #1129 review finding 1).
+
+    A PR body authored or edited in the GitHub **web UI** comes back from the API
+    with CRLF. Python's `$` matches only before a `\\n`, never before a `\\r`, so
+    the own-line end-anchor failed and a correctly-placed marker silently did not
+    register. Fail-closed (the gate blocks rather than bypasses), but a baffling
+    false negative for an author who did everything right.
+
+    Falsifier: revert the trailing class to `[ \\t]*$` and this goes red while the
+    LF tests stay green - which is exactly why the LF-only suite missed it.
+    """
+    crlf = "Routine ship.\r\n\r\n<!-- skip-lab-notebook: routine -->\r\n"
+    assert ca.skip_lab_notebook(crlf) is True
+    # And the prose-mention guard still holds under CRLF.
+    prose = "Put `<!-- skip-lab-notebook: routine -->` in the body.\r\n"
+    assert ca.skip_lab_notebook(prose) is False
