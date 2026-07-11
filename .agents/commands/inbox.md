@@ -33,6 +33,11 @@ Two foot-guns, each of which broke this hand-rolled scan on 2026-06-29:
 1. The shell is **zsh**, which does **not** word-split an unquoted `$nums`. Use a `while read -r n` pipe, **never** `for n in $nums` (it iterates once over the whole blob).
 2. Match with jq `contains("To:** <Role>")` (literal substring), **not** a `test()` regex - the `\*` / `\b` escaping silently matches nothing.
 
+**The fallback is a strictly weaker net than the helper. Prefer the helper whenever it runs.** Two known gaps, both of which lose exactly the cross-role pings this command exists to catch:
+
+- **Only the first-listed addressee matches.** `contains("To:** PM")` is a raw substring, so `**To:** Scientist, PM` does **not** match PM (the text after the marker is ` Scientist, PM`). The helper's `_word_bounded` flattens punctuation and matches whole words, so it catches every recipient in a multi-addressee field.
+- **Issues only, no PRs.** `gh issue list` does not return PRs, so a `To:` ping on a PR comment is invisible here. The helper's `recently_updated()` makes a second `gh pr list` call precisely to cover them.
+
 ## 2. Open Discussions - Team Coordination category
 
 Open means it still needs attention.
