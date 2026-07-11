@@ -156,7 +156,9 @@ The no-inference rule above is untouched and still bars deriving a junction from
 
 The registry was peptide-keyed: every row needed an amino-acid sequence to exist.
 That locked out an entire class of otherwise-eligible sources, because the junction - not the peptide - is the *natively published* unit of a splice-neoantigen study.
-The triggering case is Zhao et al. 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)), whose Supp Table S1 publishes 139 candidate AS antigens by genomic coordinate with **zero** peptide sequences anywhere in the supplement.
+The triggering case is Zhao et al. 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)), whose Supp Table S1 publishes candidate AS antigens by genomic coordinate with **zero** peptide sequences anywhere in the supplement.
+
+> **⚠️ Zhao Table S1 motivated this schema but is not admitted by it.** The first-hand audit ([#1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089)) found its 139 rows carry only *predicted* binding (`avg_rank` / `PHBR_avg` / per-allele affinity), so every row is `label=untested` and **no tier in section 4 fits it**; and the 139 rows resolve to only **103 distinct junctions** (63 rows share a coordinate). Nullable identity is necessary for a coordinate-first source but not sufficient to admit one - the row still needs a legal `(label, tier)`. Whether the registry takes a predicted-only candidate tier is [#1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125). Full audit: [`PROVENANCE.md`](PROVENANCE.md).
 
 **Both `junction_id` and `peptide` are nullable, under an at-least-one-non-null invariant.**
 Row identity is the coalesced key `COALESCE(junction_id, peptide)`, disambiguated by `hla` where present.

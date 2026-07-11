@@ -125,8 +125,30 @@ Sequence source = S7 "Characteristics of predicted pJETs used for in-vitro assay
 
 **NOT folded — single-replicate patient tetramer⁺ candidates (recorded only here; below the scorable bar):** `ILTASITSI`/ERO1LB (3134-2), `AMDGKELSL`/MAST4 (1146), `CLIDEMPEA`/HDGF (3479), `ILPKANTVV`/DCBLD2 (W13; register-shifted vs 4111), `LLHLESFLV`/SLC39A11 (W2; vs 1375), `MLMKTVWQA`/RLN3 (3443), `GLLNISHTA`/CUL4B (2368), `ILHSLVTGV`/ERO1LB (3134-1), `YLQGLPLPL`/FUT8 (1000), `FLGTRVTRV`/COL28A1 (2914). Re-assess on a bar change. (Fig 4D donor-1–6 reactivity is **healthy-donor** screening, not patient — not used for eligibility.)
 
-## Zhao et al. 2025 — AS-derived mRNA-vaccine neoantigens, HCC (#733 AC#3 — registry-eligible, sequence-blocked)
-Zotero `B2MJ776X` (19 local supplements; **main paper PDF not local**). Gate-1 (alternative splicing) + gate-2 (human per-peptide IFN-γ ELISpot / tetramer / 4-1BB on HCC patient TILs, A\*02:01/A\*11:01/A\*24:02) **both pass** — but the 19 supplements reference peptides only by internal ID (pA02-28, pA11-10, …); the amino-acid strings are not present locally (MOESM19 is an ssGSEA gene list, not the peptide table). **No rows folded** — sequences must be recovered from the main text / a peptide-sequence table before entry. Do NOT translate Table-S1 junction coordinates (inference). Tracked in README "Next steps".
+## Zhao et al. 2025 - AS-derived mRNA-vaccine neoantigens, HCC (#733 AC#3 - sequence-blocked; **zero rows folded**)
+Zotero `B2MJ776X` (19 local supplements; **main paper PDF not local**). Gate-1 (alternative splicing) + gate-2 (human per-peptide IFN-γ ELISpot / tetramer / 4-1BB on HCC patient TILs, A\*02:01/A\*11:01/A\*24:02) **both pass** at the paper level, but the 19 supplements reference the validated peptides only by internal ID (pA02-28, pA11-10, …); the amino-acid strings are not present locally (MOESM19 is an ssGSEA gene list, not the peptide table). **No rows folded** - sequences must be recovered from the main text / a peptide-sequence table before entry. Do NOT translate Table-S1 junction coordinates (inference). Peptide-sequence recovery is tracked in [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817).
+
+### What Supplementary Table S1 actually contains (audited first-hand, [#1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089))
+
+Table S1 was long cited here and in the design docs as "139 AS antigens by coordinate", i.e. as a coordinate-native source that the two-resolution schema ([#1086](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1086)) would let us fold immediately. **It is not.** Read first-hand from the bytes (Zotero parent `B2MJ776X` -> attachment `U5RGIZM8` = `41422_2025_1199_MOESM16_ESM.pdf`, *"Supplementary information, Table S1. Candidate AS antigen information and HLA affinity"*):
+
+| Property | Value |
+|---|---|
+| Numbered rows | **139** |
+| Distinct junction coordinates | **103** (63 rows share a coordinate, across 28 coordinates carrying 2-4 rows each) |
+| Distinct genes | **90** (Ensembl `ENSG` ids) |
+| Coordinate format | uniformly single-junction `chrN:start-end` (139/139; **no** multi-junction event strings) |
+| Genome build | **not stated** in any of the 18 supplement PDFs (grepped `hg19` / `hg38` / `GRCh37` / `GRCh38`: zero hits) |
+| Columns | `No.`, `AS_neoantigen`, `gene`, `avg_rank`, `PHBR_avg`, then per-allele affinity for HLA-A\*02:01, A\*02:07, A\*11:01, A\*24:02, A\*33:03 |
+| Peptide sequences | **zero** |
+
+**Why zero rows were folded, even at junction resolution.** Table S1's only readouts are `avg_rank`, `PHBR_avg`, and per-allele affinity. That is **predicted binding**, not measured T-cell immunogenicity, and not presentation evidence either (the affinity-vs-presentation distinction this project is strict about). Every row is therefore `label=untested`, and **no tier in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) fits it**: `presentation-prevalence` (section 4) requires MHC-presentation evidence and/or tumor-prevalence / survival signal, which these rows do not have. These are the *input* to Zhao's selection funnel, upstream of validation.
+
+Note also that the schema's peptide-null junction rows were designed for junction-level **positives** ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 7: *"a real junction-level positive, not a missing value"*). Table S1 does not supply those. Admitting it would require a **new predicted-only candidate tier**, which is a gate-2 relaxation by typing and therefore a governance decision: routed to [#1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125).
+
+**If it is ever admitted, it is 103 rows, not 139.** The 63 co-located rows differ only in their affinity vectors, so they are distinct peptides on a shared junction whose sequences are withheld. Under the coalesced identity key `COALESCE(junction_id, peptide)` disambiguated by `hla`, two peptide-null rows on the same junction with the same allele set are indistinguishable, and dedup collapses them. Inserting 139 would require inventing a synthetic disambiguator, which is inference. The lost multiplicity is genuinely unknown information, not a bug.
+
+**The validated antigens are not joinable to Table S1.** Zhao's functionally validated set is the FISH-probe panel in Supplementary Table 2 (`MOESM17`, attachment `NF9227W5`): `pA02-28/35/38/54`, `pA11-10/23/24/27`, and the `pA24-*` set. That table carries probe name, coupled fluorophore, and FISH detection rates **only - no coordinate column and no gene column**. So the validated probes cannot be mapped onto Table S1's coordinates from anything we hold. The superficially tempting `pA02-28 -> Table S1 row 28` mapping is **nowhere stated in the source**, and asserting it would be exactly the fabrication the no-inference rule bars ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 6). Recovering that linkage, like recovering the sequences, needs the main text ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)).
 
 ## Bigot et al. 2021 — SF3B1-mutant uveal melanoma (#734, IEDB free-text recovery)
 Zotero `DJAS2BJ2` (supp tables S1–S9 + methods local; **main-text PDF not local**; Correction `EMSRGMQZ` / PMID 35257149 **has no attachment — unread**). Recovered via the #734 IEDB IQ-API free-text mine (reference 1040678). All **HLA-A\*02:01**.
