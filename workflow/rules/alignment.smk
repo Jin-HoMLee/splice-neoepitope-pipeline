@@ -79,6 +79,20 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
     from strandness import get_strandness_from_row
     from hisat2_command import build_read_args
+    from uniqueness_filter import (
+        build_preflight_gate,
+        build_prefilter_gate,
+        filtered_bam_outputs,
+        is_enabled as _uniqueness_filter_enabled,
+        regtools_input_bam,
+    )
+
+    # NH-uniqueness prefilter (Issue #919). Read at parse time, not job time, so
+    # the filtered BAM is a *declared* output only when the knob is on - that is
+    # what makes "default off writes no filtered BAM" checkable rather than
+    # merely intended. Pure helpers are unit-tested in test_uniqueness_filter.py.
+    _UNIQ_ENABLED = _uniqueness_filter_enabled(config)
+    _HISAT2_BAM = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam")
 
     def _get_hisat2_read_args(wildcards, input):
         """Resolve the HISAT2 read-input args (`-U` vs `-1/-2`) for one sample.
@@ -173,6 +187,68 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
                 """
 
 
+    # Composed at parse time rather than branched at job time: the uniqueness
+    # prefilter reads `{output.filtered_bam}`, which only exists as an output
+    # when the knob is on. Plain concatenation (never `str.format`) keeps the
+    # Snakemake placeholders literal for Snakemake to expand at job time.
+    _HISAT2_ALIGN_SHELL = (
+        """
+        set -euo pipefail
+        mkdir -p $(dirname {output.junctions})
+
+        # Fail fast if the index is missing - avoids samtools hanging on a
+        # broken pipe, which would prevent Snakemake from writing the error
+        # to pipeline.log and leave the orchestrator polling indefinitely.
+        if [[ ! -f "{params.index_prefix}.1.ht2" ]]; then
+            echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
+            exit 1
+        fi
+        """
+        # Preflight BEFORE the aligner: the probe costs milliseconds, so there is
+        # no reason to burn a full align+sort+index before discovering samtools
+        # cannot honor the knob. Empty when the knob is off.
+        + build_preflight_gate(_UNIQ_ENABLED)
+        + """
+        STRANDNESS_ARGS=""
+        if [[ -n "{params.strandness}" ]]; then
+            STRANDNESS_ARGS="--rna-strandness {params.strandness}"
+        fi
+
+        hisat2 \\
+            -p {threads} \\
+            -x {params.index_prefix} \\
+            $STRANDNESS_ARGS \\
+            {params.read_args} \\
+            2>> {log} | \\
+            samtools sort -@ {threads} -m 1G -o {output.bam} - 2>> {log}
+
+        samtools index {output.bam} 2>> {log}
+        """
+        + build_prefilter_gate(_UNIQ_ENABLED)
+        + """
+        regtools junctions extract \\
+            -s XS \\
+            -a 8 \\
+            -m 50 \\
+            -M 500000 \\
+            -o {output.bed} \\
+            """
+        + regtools_input_bam(_UNIQ_ENABLED)
+        + """ \\
+            2>> {log}
+
+        # regtools BED12 cols 2-3 are anchor outer boundaries, NOT intron
+        # donor/acceptor - see Issue #370. The helper derives the real
+        # intron coords from blockSizes/blockStarts.
+        python workflow/scripts/bed12_to_junctions.py \\
+            --input {output.bed} \\
+            --output {output.junctions} \\
+            2>> {log}
+
+        echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
+        """
+    )
+
     rule hisat2_align:
         """Run HISAT2 alignment on a single sample.
 
@@ -192,9 +268,11 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         output:
             junctions=_JUNCTION_OUTPUT,
             done=touch(_JUNCTION_DONE),
-            bam=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam"),
+            bam=_HISAT2_BAM,
             bai=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam.bai"),
             bed=os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}_junctions.bed"),
+            # Empty dict when the knob is off, so no filtered BAM is declared.
+            **filtered_bam_outputs(_UNIQ_ENABLED, _HISAT2_BAM),
         log:
             os.path.join(_LOGS, "{patient_id}", "alignment", "{sample}_align.log"),
         params:
@@ -207,52 +285,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
         conda:
             "../envs/hisat2.yaml"
         shell:
-            """
-            set -euo pipefail
-            mkdir -p $(dirname {output.junctions})
-
-            # Fail fast if the index is missing — avoids samtools hanging on a
-            # broken pipe, which would prevent Snakemake from writing the error
-            # to pipeline.log and leave the orchestrator polling indefinitely.
-            if [[ ! -f "{params.index_prefix}.1.ht2" ]]; then
-                echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
-                exit 1
-            fi
-
-            STRANDNESS_ARGS=""
-            if [[ -n "{params.strandness}" ]]; then
-                STRANDNESS_ARGS="--rna-strandness {params.strandness}"
-            fi
-
-            hisat2 \\
-                -p {threads} \\
-                -x {params.index_prefix} \\
-                $STRANDNESS_ARGS \\
-                {params.read_args} \\
-                2>> {log} | \\
-                samtools sort -@ {threads} -m 1G -o {output.bam} - 2>> {log}
-
-            samtools index {output.bam} 2>> {log}
-
-            regtools junctions extract \\
-                -s XS \\
-                -a 8 \\
-                -m 50 \\
-                -M 500000 \\
-                -o {output.bed} \\
-                {output.bam} \\
-                2>> {log}
-
-            # regtools BED12 cols 2-3 are anchor outer boundaries, NOT intron
-            # donor/acceptor — see Issue #370. The helper derives the real
-            # intron coords from blockSizes/blockStarts.
-            python workflow/scripts/bed12_to_junctions.py \\
-                --input {output.bed} \\
-                --output {output.junctions} \\
-                2>> {log}
-
-            echo "Extracted $(wc -l < {output.junctions}) junctions from HISAT2 output" >> {log}
-            """
+            _HISAT2_ALIGN_SHELL
 
 
 # ── STAR ─────────────────────────────────────────────────────────────────────
