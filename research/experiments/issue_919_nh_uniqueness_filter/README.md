@@ -28,9 +28,26 @@ An **unstratified** comparison instead reads 1.13x, which looks like a mild win 
 
 **`NH` is computed relative to the index, so chr22 test data cannot validate this filter in principle.**
 
-With a chr22-only index, a read from a repeat copy on another chromosome has nowhere else to map. It aligns **uniquely** to a chr22 copy and is tagged `NH=1`. A single-chromosome index therefore converts genome-wide multimappers into apparent unique mappers, deflating `NH` and blinding the filter to exactly the population it exists to catch.
+The mechanism turns on **how diverged** the off-chromosome copy is, and an earlier version of this note got it wrong (corrected 2026-07-11, after Jin-Ho pushed on it):
 
-The data shows the damage. Only 8% of reads map at all, and the unannotated junction pool is repeat-**saturated**:
+- **Diverged copy (say 5-15%):** with a whole-genome index the read maps **uniquely and correctly to its true locus** - the true copy wins by a wide margin, so it never becomes a multimapper. With a chr22-only index no chr22 copy is close enough to clear the alignment-score threshold, so the read is simply **unmapped**. **Harmless either way** - it never contaminates chr22. (This is the case the first version of the mechanism figure got wrong.)
+- **Near-identical copy family (young AluY, recent duplications, paralog families):** whole-genome, the read is **genuinely ambiguous** -> `NH>1` -> **the filter catches it**. On a chr22-only index only one such copy is visible -> `NH=1` -> **the filter is blind to it**.
+
+So the false-unique population is specifically **reads from near-identical families whose siblings lie off-chr22** - precisely the population the filter exists to remove, and precisely the one the fixture renders invisible.
+
+**The mismatch data confirms this, and refutes the coarser story.** Force-mapping a diverged copy would leave 5-15 mismatches; `NM>=2` is ~1% of mapped spliced alignments. It does not happen.
+
+| spliced alignments | n | NM=0 | NM=1 | NM>=2 |
+|---|---|---|---|---|
+| `NH=1`, annotated junction | 435 | 91.7% | 8.0% | 0.2% |
+| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
+| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
+
+`NM` of 0-1 is the signature of near-identical copies. Note also that `NH>1` unannotated is **statistically indistinguishable** from `NH=1` unannotated - the multimappers the filter removes are *not* a dirtier population than the unique reads it keeps, which is consistent with the 0.98x null.
+
+The consequence: the chr22 A/B measures the filter on **chr22-internal paralogy only** (which is exactly why the `IGLV2` losses are what it found), never on the noise it is meant to catch.
+
+Only 8% of reads map at all, and the unannotated junction pool is repeat-**saturated**:
 
 | reference rate | splice site in a repeat |
 |---|---|

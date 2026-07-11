@@ -104,15 +104,31 @@ No headroom left - essentially everything in the pool already is a repeat.
 
 ![](figures/fig_index_relative_nh.png)
 
+## The mismatch data pins down *which* reads
+
+Mismatch count (`NM`) of spliced alignments, chr22 tumor BAM:
+
+| spliced alignments | n | NM=0 | NM=1 | NM≥2 |
+|---|---|---|---|---|
+| `NH=1`, annotated junction | 435 | 91.7% | 8.0% | 0.2% |
+| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
+| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
+
+::: {.callout-warning}
+## What this rules OUT
+Force-mapping a **diverged** copy (5-15% divergence) would leave **5-15 mismatches**. `NM≥2` is ~1%. **It does not happen** - diverged reads simply fail the score threshold and go unmapped (hence 92% unmapped).
+:::
+
+`NM` of 0-1 is the signature of **near-identical** copies - which is exactly the population the filter is *for*, and exactly the one chr22 renders `NH=1`.
+
 ## So chr22 cannot test this filter - in principle
 
 ::: {.callout-important}
 ## Not a weak test. Not a test.
-A single-chromosome index **manufactures false-unique alignments**. No refinement of the A/B fixes this - it is a property of the fixture.
+The fixture cannot make the filter fire on the population it exists to remove. The chr22 A/B measures it on **chr22-internal paralogy only** (which is why the `IGLV2` losses are what it found).
 :::
 
-- Only **8%** of reads map at all (41,634 / 500,000)
-- 1,926 spliced alignments carry `NH=1` - yet the unannotated junctions they yield are **99% repeat-overlapping** against a **51.9%** null
+**Also note:** `NH>1` unannotated is statistically **indistinguishable** from `NH=1` unannotated (52.7/46.7 vs 49.9/48.7). The multimappers the filter removes are **not** a dirtier population than the unique reads it keeps - consistent with the 0.98x null.
 
 **Consequence:** the whole-genome run ([#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)) is promoted from a completeness check to **the only run that can decide this**.
 

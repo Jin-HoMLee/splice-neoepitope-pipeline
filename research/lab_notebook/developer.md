@@ -8,6 +8,36 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-11 - AC 9 decision: keep the NH-uniqueness filter opt-in, default off ([PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) closes [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919))
 
+### 17:30 UTC - Editor: Developer - MECHANISM CORRECTION: my "false-unique" story was wrong, and two supporting claims are retracted ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118))
+
+**Jin-Ho asked: "with a whole-genome index, won't there always be one Alu that best-matches the chr14 Alu?" He was right, and it broke my mechanism as stated.**
+
+**What I claimed:** a chr22-only index "converts genome-wide multimappers into apparent unique mappers" - i.e. a read from another chromosome's Alu gets force-mapped onto a chr22 Alu, `NH=1`, invisible to the filter.
+
+**Why it is wrong:** for a *diverged* copy the true locus wins by a wide margin genome-wide, so the read maps **uniquely and correctly** to chr14 - it never was a multimapper. And on a chr22-only index it doesn't get force-mapped at all: no chr22 copy clears the alignment-score threshold, so it goes **unmapped** (which is what the 92%-unmapped rate is).
+
+**The corrected mechanism is narrower and turns on copy divergence:**
+- **Diverged copy:** whole-genome -> unique + correct at the true locus. chr22-only -> unmapped. **Harmless either way.**
+- **Near-identical copy family** (young AluY, recent dups, paralog families): whole-genome -> genuinely ambiguous, `NH>1`, **filter catches it**. chr22-only -> only one such copy visible -> `NH=1`, **filter blind**.
+
+So the false-unique population is specifically *reads from near-identical families whose siblings lie off-chr22* - exactly the population the filter exists to remove, exactly the one the fixture hides. **The conclusion (chr22 cannot validate this filter, in principle) survives and is sharper**: the chr22 A/B can only ever measure the filter on **chr22-internal paralogy**, which is precisely why the only thing it found was the 4 `IGLV2` losses.
+
+**Two retractions - both were me over-reading the `NM` data:**
+1. I told Jin-Ho that elevated `NM` was "the fingerprint of reads force-mapped from a locus not in the index". **No.** Force-mapping a 5-15% diverged copy over a 100bp read leaves **5-15 mismatches**; `NM>=2` is ~1% of mapped spliced alignments. `NM` 0-1 is instead the signature of **near-identical** copies - which is what the corrected mechanism predicts, so the data fits the *narrow* story and refutes the *coarse* one I told.
+2. I asserted on [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) that "the reads HISAT2 additionally counts are the junk population". **Also no.** `NH>1` unannotated (52.7% NM=0 / 46.7% NM=1) is statistically **indistinguishable** from `NH=1` unannotated (49.9 / 48.7). The multimappers are not dirtier than the unique reads - they are the *same* population. Struck from the issue body.
+
+| spliced alignments | n | NM=0 | NM=1 | NM>=2 |
+|---|---|---|---|---|
+| `NH=1`, annotated | 435 | 91.7% | 8.0% | 0.2% |
+| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
+| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
+
+**Artifacts corrected:** the mechanism figure (it *asserted* the false claim in a hero diagram), the experiment README, the deck (slides 8-10, re-rendered + re-inspected), and #1118's evidence section. Correction comment on #919.
+
+**The lesson, and it is the sharp one from today.** I produced a *confirmation* (`NM` elevated 5.7x -> "force-mapped foreign reads!") and shipped it into an issue, a PR comment, and a slide deck without ever asking what the effect size *should* be under my own hypothesis. Force-mapping predicts NM>>2; I observed NM<=1 and read it as support anyway. **A quantitative prediction I never wrote down cannot be falsified by data I never checked it against.** The 5.7x ratio was real - it just does not mean what I said. Next time: before calling a number confirmation, state what the number would have to be if the hypothesis were *true*, and what would falsify it. (This is the same failure as the 1.13x composition artifact, one layer up: a real number, an unexamined interpretation.)
+
+---
+
 ### 16:20 UTC - Editor: Developer - filing correction: the experiment was mis-shelved, had no record, and its tests were about to fall out of CI ([Issue #1117](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1117))
 
 **Prompted by a single question from Jin-Ho - "is [PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) an experiment or an implementation?" - which turned out to expose three defects.** It is both: ~1,050 lines of experiment apparatus against ~690 of pipeline capability, and the capability is *default-off*, so merging changes pipeline behavior by exactly zero. What ships is a switch nobody flips plus the rig for deciding whether to flip it. That is fine - you cannot A/B a filter you have not built - but the parts were filed wrong.

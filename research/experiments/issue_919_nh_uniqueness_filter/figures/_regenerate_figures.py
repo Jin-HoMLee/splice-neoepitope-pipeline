@@ -206,18 +206,32 @@ def fig_saturation(rows):
 
 
 def fig_index_relative_nh():
-    """The mechanism, hand-drawn: a chr22-only index manufactures false-unique reads.
+    """The mechanism, hand-drawn - and it turns on *how diverged* the copies are.
+
+    An earlier version of this figure claimed any off-chromosome repeat read becomes
+    a genome-wide multimapper. That is wrong, and the data refutes it: a read from a
+    *diverged* copy maps uniquely and correctly to its true locus genome-wide, and
+    on a chr22-only index it fails the alignment-score threshold outright (which is
+    why 92% of this library is unmapped) - it never contaminates anything. Force-
+    mapping a 5-15% diverged copy would leave 5-15 mismatches, and NM>=2 is 1.4% of
+    mapped spliced reads. It does not happen.
+
+    The false-unique population is narrower: reads from *near-identical* copies
+    whose siblings lie off-chr22. Genome-wide those are genuinely ambiguous (NH>1,
+    caught); on a chr22-only index only one such copy is visible, so they read as
+    NH=1 and the filter is blind to exactly the population it exists to remove.
+    Near-identical copies also predict NM 0-1, which is what we observe.
 
     A schematic, not data - matplotlib rather than mermaid because it is a frozen
     'hero' diagram and needs to match the deck palette exactly.
     """
-    fig, ax = plt.subplots(figsize=(11, 4.6))
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 4.6)
+    fig, ax = plt.subplots(figsize=(11.5, 5.4))
+    ax.set_xlim(0, 11.5)
+    ax.set_ylim(0, 5.4)
     ax.axis("off")
     fig.set_facecolor(SURFACE)
 
-    def box(x, y, w, h, text, color, fill, fs=11):
+    def box(x, y, w, h, text, color, fill, fs=10.5):
         ax.add_patch(Rectangle((x, y), w, h, facecolor=fill, edgecolor=color,
                                linewidth=1.6, zorder=2, joinstyle="round"))
         ax.text(x + w / 2, y + h / 2, text, ha="center", va="center",
@@ -225,31 +239,41 @@ def fig_index_relative_nh():
 
     def arrow(x1, y1, x2, y2, color=MUTED):
         ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="-|>",
-                                     mutation_scale=15, color=color, linewidth=1.4, zorder=1))
+                                     mutation_scale=14, color=color, linewidth=1.4, zorder=1))
 
-    ax.text(0, 4.3, "A read from a repeat copy on another chromosome",
+    ax.text(0, 5.1, "It depends on how diverged the off-chromosome copy is",
             fontsize=13, color=INK, fontweight="700")
 
-    box(0.1, 2.55, 2.5, 1.0, "spliced read\nfrom a chr14 Alu", BLUE, "#eaf1fa")
+    ax.text(0.1, 4.55, "whole-genome index", fontsize=10.5, color=MUTED, style="italic")
+    ax.text(6.15, 4.55, "chr22-only index (our fixture)", fontsize=10.5, color=MUTED, style="italic")
+    ax.plot([5.95, 5.95], [0.95, 4.75], color=MUTED, linewidth=0.9, linestyle=(0, (4, 4)))
 
-    # Truth: whole-genome index -> multimapper -> the filter catches it.
-    box(3.6, 3.05, 3.0, 1.0, "whole-genome index\nmaps to many Alus", BLUE, "#eaf1fa")
-    box(7.7, 3.05, 3.1, 1.0, "NH > 1  ->  multimapper\nfilter removes it", BLUE, "#eaf1fa")
-    arrow(2.6, 3.3, 3.6, 3.5)
-    arrow(6.6, 3.55, 7.7, 3.55)
-    ax.text(10.85, 3.55, "✓", fontsize=17, color=BLUE, va="center", fontweight="700")
+    # Case 1 - diverged copy: harmless either way. This is the case the earlier
+    # version of the figure got wrong.
+    box(0.1, 3.15, 5.5, 1.15,
+        "read from a DIVERGED chr14 Alu\nmaps uniquely + correctly to chr14  (NH=1, NM~0)",
+        BLUE, "#eaf1fa")
+    box(6.15, 3.15, 5.2, 1.15,
+        "no chr22 copy is close enough\n-> UNMAPPED (92% of the library)",
+        BLUE, "#eaf1fa")
+    arrow(5.6, 3.72, 6.15, 3.72)
+    ax.text(2.85, 2.82, "harmless - never contaminates chr22", fontsize=10, color=MUTED,
+            ha="center", style="italic")
 
-    # Our fixture: chr22-only index -> nowhere else to map -> false-unique.
-    box(3.6, 1.15, 3.0, 1.0, "chr22-only index\nno other Alu to map to", GOLD, "#faf3e3")
-    box(7.7, 1.15, 3.1, 1.0, "NH = 1  ->  looks unique\nfilter cannot see it", GOLD, "#faf3e3")
-    arrow(2.6, 2.8, 3.6, 1.9, GOLD)
-    arrow(6.6, 1.65, 7.7, 1.65, GOLD)
-    ax.text(10.85, 1.65, "✗", fontsize=17, color=GOLD, va="center", fontweight="700")
+    # Case 2 - near-identical copy: the population the filter exists for, made
+    # invisible by the fixture.
+    box(0.1, 1.15, 5.5, 1.15,
+        "read from a NEAR-IDENTICAL copy family\ngenuinely ambiguous  ->  NH > 1  ->  FILTER CATCHES IT",
+        GOLD, "#faf3e3")
+    box(6.15, 1.15, 5.2, 1.15,
+        "only one such copy is on chr22\n-> NH = 1  ->  FILTER IS BLIND",
+        GOLD, "#faf3e3")
+    arrow(5.6, 1.72, 6.15, 1.72, GOLD)
 
-    ax.text(0.1, 0.35,
-            "NH is computed relative to the index. Restricting the index to one chromosome converts\n"
-            "genome-wide multimappers into apparent unique mappers - destroying the evidence the filter keys on.",
-            fontsize=11.5, color=INK, linespacing=1.5)
+    ax.text(0.1, 0.25,
+            "NH is relative to the index. The fixture cannot make the filter fire on the very population it exists to remove,\n"
+            "so the chr22 A/B measures the filter on chr22-internal paralogy only - not on the noise it is meant to catch.",
+            fontsize=11, color=INK, linespacing=1.5)
 
     fig.tight_layout()
     fig.savefig(HERE / "fig_index_relative_nh.png", dpi=200)
