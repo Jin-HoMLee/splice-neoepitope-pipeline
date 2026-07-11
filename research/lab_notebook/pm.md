@@ -6,6 +6,63 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11
+
+### 13:55 UTC - Editor: PM
+
+#### Scope addition: `/inbox` command -> Agent Skill (vendor-agnosticism), [PR #1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115)
+
+Jin-Ho asked whether skills or commands are more vendor-agnostic. Web-verified against the primary source rather than answered from memory, and the answer was decisive enough to change the PR.
+
+**Finding.** `.claude/commands/*.md` is a **Claude-Code-proprietary** format (Claude Code's own docs: custom commands have been *"merged into skills"*). The **Agent Skills** format (`SKILL.md`) is an [open standard](https://agentskills.io) - verbatim, *"originally developed by Anthropic, released as an open standard"* - implemented by ~45 agents including OpenAI Codex, Gemini CLI, Cursor, GitHub Copilot, VS Code, OpenCode, Goose. Deliberately did **not** repeat the governance/adoption-timeline claims a web search surfaced (Linux Foundation stewardship, marketplace sizes): those came from secondary blogs I never fetched, and a search digest is zero sources.
+
+**Why it was load-bearing, not cosmetic.** Jin-Ho's global `CLAUDE.md` already instructs **Codex/OpenCode** to read the memory index, so both are *live* harnesses against these repos. As a command, `/inbox` would not exist in either - and with it, the entire board-wide-not-role-scoped discipline this PR exists to encode. `scan_addressed_comments.py` would still run; the rule around it would be invisible. **Encoding a hard-won correctness lesson in a single-vendor format is how you lose it a second time.** It also squared the last inconsistency with the [`.claude` -> `.agents` migration](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/861), itself a vendor-neutrality move. Repo now: **3 skills, 0 commands.**
+
+**It fixed the original complaint as a side effect.** A command's auto-invoke description is the *truncated first line of the file*. A skill has a real `description` field - so `/inbox` now advertises its actual trigger phrases ("check my inbox", "is anything waiting on me"). The harness re-registered it live with the full description the moment the frontmatter landed. The thing Jin-Ho could not remember now announces what it is for.
+
+**Naming: declined `github-inbox`** when asked. Reasons, in order of weight: (1) it names the *transport*, not the question - the same drift that made `/standup` and `/coordination` both fail at recall; (2) it disambiguates against nothing (there is exactly one inbox) - YAGNI; (3) a transport prefix quietly pre-authorizes `slack-inbox`/`email-inbox` siblings, i.e. one question with N implementations - **the exact shape of the bug this PR just killed.** If a channel is ever added, *widen the one inbox*. Division of labour: **the name carries the question, the description carries the medium** (and auto-invocation matches on the description anyway).
+
+**Second review: clean, mergeable.** Two takes: (a) the last live surface still calling the skill by its retired name (`dispatch_digest.py:38`, "the coordination skill") - fixed; (b) **my PR body was wrong** that the empty `.agents/commands/` dir was "left in place". Checked both layers because they disagreed: it is **absent from the git tree** (git cannot track an empty dir) and therefore gone for every other clone - what I saw was an empty husk on my local disk only. Corrected the body and `rmdir`'d it. That is twice in one PR that the reviewer caught me asserting a property of git instead of running the command (cf. the `git mv --follow` claim in the 13:30 entry). **The pattern is mine, not git's: I narrate tool behavior from expectation.**
+
+### 13:30 UTC - Editor: PM
+
+#### A naming question turned out to be a blind coordination scan ([Issue #1114](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1114) / [PR #1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115))
+
+**What was asked.** Jin-Ho asked whether `/coordination` should be renamed, or modularized into smaller skills, because he could never remember what it did at session start.
+
+**Both proposals were wrong, and the second was actively wrong.** The command was 8 lines and 2 steps: there was nothing hidden inside to modularize, and splitting it would have added a *second* name to remember - worsening the exact complaint. Declining the user's own framing was the right call and it is what surfaced the real defect.
+
+**The real defect.** `/coordination` scanned board pings **role-scoped** (`board_open_items.py --role <role>`). A `**To:** <role>` comment lands on *any* Issue regardless of its `role:*` label, so the command could not see a cross-role ping *even in principle*. Measured on the live board: all six Issues carrying `To: PM` pings in the 7-day window (#547, #626, #665, #679, #1017, #1086) are labelled `role:scientist` or `role:developer` and **not one carries `role:pm`**. Miss rate on cross-role pings: **100%**. It was blind, not degraded.
+
+**Reproduced on myself.** I ran `/coordination` at session start and told Jin-Ho nothing was waiting on him. It held only because those six pings happened to be settled acks - luck, not correctness.
+
+**How it rotted - the transferable lesson.** `scan_addressed_comments.py` ([#901](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/901)) landed board-wide on 2026-07-04 *precisely* to fix this, after a real ping was lost on [#887](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/887). The morning routine adopted it. The command did not. **One scan, two implementations, one fix.** The duplication was in *prose* (memory files restating mechanics a command already owned), and prose duplication has no test to catch drift. `/inbox` is now the single definition and both routines delegate to it; the fix is the consolidation, not the rename.
+
+**Rename treated as cosmetic, on evidence.** `/coordination` was *already* a rename (`/standup` -> `/coordination`, [#740](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/740), 2026-06-13) and it still failed at recall. So a rename has demonstrably failed at this job once. `/inbox` names the *question* ("is anyone waiting on me?") rather than the domain, which is a different class of name - but I shipped it as a nicety and the structural fixes as the remedy.
+
+#### The bigger find: the resume routine has never fired ([Issue #1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026))
+
+Jin-Ho's greeting was *"Hey :) let's continue"* - a **documented trigger** of `shared/feedback_resume_routine.md`, which I authored on 2026-07-04. It did not fire. I improvised instead.
+
+**Root cause (verified, not inferred).** The session-memory dir is a **symlink** to personas `pm/`, and `pm/MEMORY.md` is the same inode as the file injected into context. `shared/MEMORY.md` is reachable **only via a link** and is *never auto-loaded*. The greeting selector lived at `shared/MEMORY.md:50`; the *morning* trigger had been **inlined** into each role's always-loaded block. So "good morning" fires and "let's continue" reaches an agent that has never read the rule telling it to do anything. Chicken-and-egg: knowing to run the routine requires having read the file that is not loaded.
+
+**This is the mechanism-over-memory ladder failing at rung 0:** the rule was written at a tier that does not load. A rule's *tier* is part of its correctness, not a filing detail. #1026's first two ACs were already satisfied on disk; the one that failed was the behavioral one ("greeting classification routes correctly") - which is exactly why an AC should gate the behavior and not its documentation (`feedback_ac_gates_intent_not_proxy.md`, again).
+
+**Fix:** widened the existing "on good morning" bullet into a greeting *selector* in `pm|scientist|developer/MEMORY.md` - **widened, not added**, so the always-loaded rule count stays flat and does not cross the ~14-rule adherence cliff MM's own memory documents. MM excluded deliberately: it has no morning routine to mis-fire into, and already sits at 16 rules. Personas edits authored + left uncommitted for MM, per convention.
+
+#### Review + process notes
+
+Bot review: **LGTM, mergeable**, 4 minor findings, **all four verified against source before acting** and all four held.
+
+- Claimed `git mv` preserved history. **It does not** - `git log --follow` stops at this PR (8 to 62 lines is under the rename-similarity threshold). Claim **withdrawn** in the PR body rather than quietly dropped. I asserted a property of the tool instead of running it.
+- The hand-rolled fallback I *moved verbatim* carries a milder version of the same bug: `contains("To:** PM")` MISSES `**To:** Scientist, PM` (verified by running the predicate), and `gh issue list` returns no PRs. Both lose cross-role pings. **I moved that prose without auditing it** - the same reflex that caused the original drift. Now labelled a strictly weaker net with both gaps named.
+
+**Caught by my own guards, twice:** the no-`cd` hook blocked an out-of-tree `cd`, and the commit/push chain guard blocked a chained `git commit && git push`. Both fired correctly.
+
+**Footgun re-confirmed:** `new_branch.sh` wraps `gh issue develop`, whose dev-link auto-populates `closingIssuesReferences` - so #1115 **will** auto-close #1114 despite a body saying "Refs". I had written the body claiming otherwise; corrected. Here the coupling is *right* (the closure gate now forces MM's memory commit to land before merge), but the rule from `feedback_gh_develop_nonclosing_followup.md` holds: the body cannot make a dev-linked PR non-closing.
+
+**Flagged to Jin-Ho:** [#1092](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1092) (lab-notebook gate keys on *today's* UTC date, while entry-timing writes the entry post-review/pre-merge) is now false-blocking **three** PRs at the merge gate ([#1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109), [#1093](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1093), and this one if held overnight). Its own priority rationale says "not expedite-class" - written when it had bitten once. I argued for a bump and said so explicitly rather than restating my read as fact.
+
 ## 2026-07-10
 
 ### 15:50 UTC - Editor: PM
