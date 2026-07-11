@@ -14,6 +14,25 @@ It reads the session watermark itself (1-day overlap, 7-day floor when the marke
 
 Do **not** substitute `board_open_items.py --role <role>` here. That is the role-scoped scan this command used until [Issue #1114](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1114); it silently drops cross-role pings.
 
+### Fallback, only if the helper is unavailable
+
+Windowed by the last-session watermark ([Issue #886](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/886)), with a conservative 7-day floor when the marker is absent:
+
+```bash
+gh issue list --repo Jin-HoMLee/splice-neoepitope-pipeline --state all --search "updated:>=<floor>" --limit 80 --json number --jq '.[].number' \
+| while read -r n; do
+    gh issue view "$n" --repo Jin-HoMLee/splice-neoepitope-pipeline --json number,comments --jq '
+      .number as $n | .comments[] | select(.createdAt >= "<floor>T00:00:00Z")
+      | select(.body | contains("To:** <Role>"))
+      | "#\($n)  [\(.author.login) \(.createdAt[0:16])]  \(.body | gsub("\n";" ") | .[0:70])"'
+  done
+```
+
+Two foot-guns, each of which broke this hand-rolled scan on 2026-06-29:
+
+1. The shell is **zsh**, which does **not** word-split an unquoted `$nums`. Use a `while read -r n` pipe, **never** `for n in $nums` (it iterates once over the whole blob).
+2. Match with jq `contains("To:** <Role>")` (literal substring), **not** a `test()` regex - the `\*` / `\b` escaping silently matches nothing.
+
 ## 2. Open Discussions - Team Coordination category
 
 Open means it still needs attention.
