@@ -16,9 +16,10 @@ sys.path.insert(0, str(REPO_ROOT / "workflow" / "scripts"))
 from uniqueness_filter import (  # noqa: E402
     MIN_SAMTOOLS_VERSION,
     NH_UNIQUE_EXPR,
-    build_junction_extraction_block,
     build_prefilter_block,
+    build_prefilter_gate,
     build_preflight_block,
+    build_preflight_gate,
     filtered_bam_outputs,
     filtered_bam_path,
     is_enabled,
@@ -102,9 +103,10 @@ def test_min_version_matches_upstream_introduction():
 
 # ── block composition: off ───────────────────────────────────────────────────
 
-def test_block_empty_when_disabled():
+def test_both_gates_empty_when_disabled():
     """Off must contribute no shell at all, so the command is a provable no-op."""
-    assert build_junction_extraction_block(False) == ""
+    assert build_preflight_gate(False) == ""
+    assert build_prefilter_gate(False) == ""
 
 
 def test_regtools_reads_unfiltered_bam_when_disabled():
@@ -128,17 +130,26 @@ def test_filtered_outputs_when_enabled():
     assert out["filtered_bai"] == out["filtered_bam"] + ".bai"
 
 
-def test_enabled_block_carries_preflight_and_prefilter():
-    block = build_junction_extraction_block(True)
-    assert build_preflight_block() in block
-    assert build_prefilter_block() in block
+def test_enabled_gates_carry_preflight_and_prefilter_separately():
+    """The two gates are emitted at different points in the shell: the preflight
+    before the aligner (so a bad samtools fails fast) and the prefilter after it."""
+    assert build_preflight_gate(True) == build_preflight_block()
+    assert build_prefilter_gate(True) == build_prefilter_block()
 
 
-def test_enabled_block_uses_nh_expression_not_mapq_floor():
+def test_preflight_gate_carries_no_prefilter():
+    """Regression guard on the hoist: if the preflight gate also emitted the
+    prefilter, the filter would run before the BAM it reads exists."""
+    gate = build_preflight_gate(True)
+    assert "--expr" in gate
+    assert "{output.filtered_bam}" not in gate
+
+
+def test_enabled_gate_uses_nh_expression_not_mapq_floor():
     """NH is the primary lever; a `-q` MAPQ floor would drop unique low-MAPQ reads."""
-    block = build_junction_extraction_block(True)
-    assert "-e '[NH]==1'" in block
-    assert "-q 2" not in block
+    gate = build_prefilter_gate(True)
+    assert "-e '[NH]==1'" in gate
+    assert "-q 2" not in gate
 
 
 def test_preflight_probes_capability_and_exits_nonzero():
@@ -168,5 +179,6 @@ def test_every_placeholder_in_enabled_block_is_resolvable():
     the block must name something the `hisat2_align` rule actually provides.
     """
     allowed = {"log", "threads", "output.bam", "output.filtered_bam"}
-    found = set(re.findall(r"\{([^{}]*)\}", build_junction_extraction_block(True)))
+    shell = build_preflight_gate(True) + build_prefilter_gate(True)
+    found = set(re.findall(r"\{([^{}]*)\}", shell))
     assert found <= allowed, f"unresolvable placeholders: {sorted(found - allowed)}"

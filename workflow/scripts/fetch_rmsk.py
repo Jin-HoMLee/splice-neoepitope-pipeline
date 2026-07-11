@@ -34,7 +34,7 @@ import json
 import logging
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 logging.basicConfig(
     level=logging.INFO,

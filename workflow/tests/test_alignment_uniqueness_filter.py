@@ -131,6 +131,26 @@ def test_on_preflights_samtools_expression_support(rendered_on):
     assert "exit 1" in rendered_on
 
 
+def test_on_preflight_runs_before_the_aligner(rendered_on):
+    """Fail fast: a too-old samtools must abort before HISAT2 burns an alignment.
+
+    Asserting on order, not just presence - the preflight was originally emitted
+    after align+sort+index, where it still 'worked' but only after wasting the
+    expensive step it exists to protect.
+    """
+    preflight = rendered_on.index("--expr")
+    aligner = rendered_on.index("hisat2 \\")
+    assert preflight < aligner, "preflight must precede the hisat2 invocation"
+
+
+def test_on_prefilter_runs_after_the_bam_is_indexed(rendered_on):
+    """The converse of the hoist: the prefilter reads the sorted BAM, so it must
+    still come after `samtools index`, not get hoisted along with the preflight."""
+    index_cmd = rendered_on.index("samtools index results")
+    prefilter = rendered_on.index("-e '[NH]==1'")
+    assert index_cmd < prefilter
+
+
 def test_on_prefilters_on_nh_tag(rendered_on):
     assert "-e '[NH]==1'" in rendered_on
 

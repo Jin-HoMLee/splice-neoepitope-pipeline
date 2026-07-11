@@ -40,6 +40,7 @@ Usage:
 import argparse
 import bisect
 import logging
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple
@@ -233,35 +234,111 @@ def class_counter(junctions: Sequence[Junction], index: RepeatIndex) -> Counter:
 
 
 def _pct(hits: int, total: int) -> str:
-    return f"{hits}/{total} ({100 * hits / total:.1f}%)" if total else f"0/0 (n/a)"
+    return f"{hits}/{total} ({100 * hits / total:.1f}%)" if total else "0/0 (n/a)"
 
 
-def format_report(comparison: Comparison, index: RepeatIndex, label: str) -> str:
-    """Markdown report: does the filter remove repeat-overlapping junctions?"""
+def _enrichment(lost_frac: float, kept_frac: float) -> str:
+    """Ratio of repeat-overlap rates, or n/a on a degenerate (zero-rate) set."""
+    if not kept_frac:
+        return "n/a"
+    return f"{lost_frac / kept_frac:.2f}x"
+
+
+def load_annotated(bed_path: Path) -> frozenset:
+    """Annotated introns as (chrom, start, end, strand), from the pipeline's own BED.
+
+    Reuses `filter_junctions._load_reference_junctions` so "annotated" means here
+    exactly what it means in the pipeline - re-deriving it from a GTF would risk a
+    second, subtly different definition.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from filter_junctions import _load_reference_junctions
+
+    return _load_reference_junctions(bed_path)
+
+
+def is_annotated(junction: Junction, annotated: frozenset) -> bool:
+    return (junction.chrom, junction.start, junction.end, junction.strand) in annotated
+
+
+def format_report(
+    comparison: Comparison,
+    index: RepeatIndex,
+    label: str,
+    annotated: Optional[frozenset] = None,
+) -> str:
+    """Markdown report: does the filter remove repeat-overlapping junctions?
+
+    Stratifies by annotation status when an annotated set is supplied, because the
+    **unstratified enrichment is a composition artifact** and must not be read as
+    the answer. On the #919 chr22 run it reads 1.13x (looks like a mild win) purely
+    because the lost set is annotation-poor and annotated junctions are repeat-poor;
+    within the unannotated pool the true enrichment is 0.98x, i.e. none.
+
+    Without an annotated set the report still prints, but it says so loudly rather
+    than letting the confounded headline stand unqualified.
+    """
     lost_hits, lost_n, lost_frac = repeat_rate(comparison.lost, index)
     kept_hits, kept_n, kept_frac = repeat_rate(comparison.retained, index)
-    enrichment = (lost_frac / kept_frac) if kept_frac else float("inf")
 
     lines = [
         f"## Junction/repeat overlap - {label}",
         "",
-        f"| set | junctions | splice site in a repeat |",
-        f"|---|---|---|",
+        "| set | junctions | splice site in a repeat |",
+        "|---|---|---|",
         f"| lost to the filter | {lost_n} | {_pct(lost_hits, lost_n)} |",
         f"| retained | {kept_n} | {_pct(kept_hits, kept_n)} |",
         f"| gained (should be 0) | {len(comparison.gained)} | - |",
         "",
-        f"**Enrichment of repeat overlap among lost junctions: {enrichment:.2f}x**",
+        f"Unstratified enrichment among lost junctions: "
+        f"**{_enrichment(lost_frac, kept_frac)}** "
+        f"{'(CONFOUNDED - see below)' if annotated is not None else ''}",
         "",
     ]
 
+    if annotated is None:
+        lines.extend([
+            "> **This number is composition-confounded and is not the answer.**",
+            "> Annotated junctions are repeat-poor, so any difference in annotated",
+            "> content between the lost and retained sets moves this ratio on its own.",
+            "> Pass `--annotated-bed` to stratify and get the enrichment that means",
+            "> something. (On the #919 chr22 run the unstratified number reads 1.13x",
+            "> while the true within-pool enrichment is 0.98x - no enrichment at all.)",
+            "",
+        ])
+    else:
+        lines.extend([
+            "### Stratified by annotation status (this is the one to read)",
+            "",
+            "| stratum | junctions | splice site in a repeat |",
+            "|---|---|---|",
+        ])
+        strata = {}
+        for fate, junctions in (("lost", comparison.lost), ("retained", comparison.retained)):
+            for status in ("annotated", "unannotated"):
+                want = status == "annotated"
+                subset = [j for j in junctions if is_annotated(j, annotated) is want]
+                hits, total, frac = repeat_rate(subset, index)
+                strata[(fate, status)] = frac
+                lines.append(f"| {fate}, {status} | {total} | {_pct(hits, total)} |")
+        lines.extend([
+            "",
+            f"**Enrichment within the unannotated pool: "
+            f"{_enrichment(strata[('lost', 'unannotated')], strata[('retained', 'unannotated')])}** "
+            f"- the unannotated pool is what the filter actually draws from, so this is "
+            f"the number that says whether it targets repeats.",
+            "",
+        ])
+
     single_read_lost = sum(1 for j in comparison.lost if j.reads == 1)
+    single_read_kept = sum(1 for j in comparison.retained if j.reads == 1)
     if comparison.lost:
-        lines.append(
-            f"Single-read junctions among the lost: "
-            f"{_pct(single_read_lost, len(comparison.lost))}"
-        )
-        lines.append("")
+        lines.extend([
+            f"Single-read junctions: {_pct(single_read_lost, len(comparison.lost))} of lost "
+            f"vs {_pct(single_read_kept, len(comparison.retained))} of retained "
+            f"(a large gap would mean the filter is really just removing low-coverage calls).",
+            "",
+        ])
 
     lost_classes = class_counter(comparison.lost, index)
     kept_classes = class_counter(comparison.retained, index)
@@ -301,10 +378,25 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--rmsk", required=True, type=Path, help="RepeatMasker BED from fetch_rmsk.py")
     parser.add_argument("--label", default="chr22", help="Label for the report heading")
     parser.add_argument("--output-tsv", type=Path, help="Optional per-junction categorization TSV")
+    parser.add_argument(
+        "--annotated-bed",
+        type=Path,
+        help="Reference junction BED (config reference.junction_bed). Strongly "
+             "recommended: without it the enrichment is composition-confounded.",
+    )
     args = parser.parse_args(argv)
 
     index = load_rmsk(args.rmsk)
     log.info("Loaded %d repeats across %s", len(index), ", ".join(index.chromosomes))
+
+    annotated = None
+    if args.annotated_bed:
+        annotated = load_annotated(args.annotated_bed)
+    else:
+        log.warning(
+            "No --annotated-bed given: the reported enrichment is composition-confounded "
+            "and must not be read as the answer (see the report's caveat)."
+        )
 
     off = load_junctions(args.junctions_off)
     on = load_junctions(args.junctions_on)
@@ -320,7 +412,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             len(comparison.gained),
         )
 
-    print(format_report(comparison, index, args.label))
+    print(format_report(comparison, index, args.label, annotated))
 
     if args.output_tsv:
         write_tsv(comparison, index, args.output_tsv)

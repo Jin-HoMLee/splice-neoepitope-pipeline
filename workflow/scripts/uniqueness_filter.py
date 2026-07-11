@@ -13,13 +13,25 @@ branch, i.e. a uniquely-placed but low-confidence alignment. A `-q 2` floor
 therefore discards genuine unique alignments as collateral. The `NH` tag
 separates the two exactly, so `[NH]==1` is the primary lever.
 
-Why a preflight
----------------
+Why a preflight, and why it runs *first*
+----------------------------------------
 The filter-expression engine (`samtools view -e/--expr`) landed in samtools
 1.12. Production provisions samtools via `apt-get` in `scripts/setup_vm.sh`,
 which on Ubuntu 22.04 yields 1.13 - new enough, but only by one release. An
 older binary must fail loudly rather than silently emit an unfiltered BED12
 that looks like a successful filtered run.
+
+The gate is emitted at the **top** of the rule's shell, before HISAT2 runs. The
+capability probe is pure and costs milliseconds, so there is no reason to burn
+an entire alignment before discovering that the binary cannot honor the knob.
+
+The `NH` tag is assumed present
+-------------------------------
+`[NH]==1` evaluates false for a record with no `NH` tag, so an aligner that omits
+it would have every read silently dropped. HISAT2 always emits `NH` (verified on
+the chr22 run: all 41,634 mapped records carry it), which is why this is safe
+today - but the assumption is load-bearing, and whoever wires the STAR lever must
+re-check it rather than inherit it.
 
 These helpers build shell text rather than run anything, so the rendered
 `hisat2_align` command is unit-testable without a BAM. Snakemake placeholders
@@ -28,6 +40,13 @@ at job time; nothing here may be passed through `str.format`.
 """
 
 # Filter expressions (`samtools view -e`) were introduced in samtools 1.12.
+#
+# MIN_SAMTOOLS_VERSION and the two version helpers below are a *spec* of that
+# floor, not the live gate: the rendered preflight capability-probes the binary
+# (`samtools view --help | grep -- --expr`) instead, so a vendored or backported
+# build is judged on what it can actually do rather than on how it numbers itself.
+# They are kept, and tested, because the floor is the thing the error message
+# cites and the thing a future reader will want to check against upstream.
 MIN_SAMTOOLS_VERSION = (1, 12)
 
 # Keep brace-free: this string is embedded in a Snakemake shell template, and a
@@ -143,16 +162,23 @@ def build_prefilter_block(expr=NH_UNIQUE_EXPR):
     )
 
 
-def build_junction_extraction_block(enabled, expr=NH_UNIQUE_EXPR):
-    """Full shell between `samtools index` and the BED12 conversion.
+def build_preflight_gate(enabled):
+    """Shell emitted at the TOP of the rule, before HISAT2 runs.
 
-    When `enabled` is False this returns the empty string, so the rendered
-    command is byte-identical to the pre-#919 one and no filtered BAM is
-    written. When True it returns preflight + prefilter.
+    Empty when the knob is off. When on, aborts before any expensive work if the
+    binary cannot honor the filter - failing after align+sort+index would waste
+    the whole alignment to learn something a millisecond probe can tell us.
     """
-    if not enabled:
-        return ""
-    return build_preflight_block() + build_prefilter_block(expr)
+    return build_preflight_block() if enabled else ""
+
+
+def build_prefilter_gate(enabled, expr=NH_UNIQUE_EXPR):
+    """Shell emitted between `samtools index` and the BED12 conversion.
+
+    Empty when the knob is off, so the rendered command is byte-identical to the
+    pre-#919 one and no filtered BAM is written.
+    """
+    return build_prefilter_block(expr) if enabled else ""
 
 
 def regtools_input_bam(enabled):

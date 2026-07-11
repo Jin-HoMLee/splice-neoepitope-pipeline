@@ -80,7 +80,8 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     from strandness import get_strandness_from_row
     from hisat2_command import build_read_args
     from uniqueness_filter import (
-        build_junction_extraction_block,
+        build_preflight_gate,
+        build_prefilter_gate,
         filtered_bam_outputs,
         is_enabled as _uniqueness_filter_enabled,
         regtools_input_bam,
@@ -202,7 +203,12 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
             echo "ERROR: HISAT2 index not found at {params.index_prefix}.*.ht2" | tee -a {log}
             exit 1
         fi
-
+        """
+        # Preflight BEFORE the aligner: the probe costs milliseconds, so there is
+        # no reason to burn a full align+sort+index before discovering samtools
+        # cannot honor the knob. Empty when the knob is off.
+        + build_preflight_gate(_UNIQ_ENABLED)
+        + """
         STRANDNESS_ARGS=""
         if [[ -n "{params.strandness}" ]]; then
             STRANDNESS_ARGS="--rna-strandness {params.strandness}"
@@ -218,7 +224,7 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
 
         samtools index {output.bam} 2>> {log}
         """
-        + build_junction_extraction_block(_UNIQ_ENABLED)
+        + build_prefilter_gate(_UNIQ_ENABLED)
         + """
         regtools junctions extract \\
             -s XS \\

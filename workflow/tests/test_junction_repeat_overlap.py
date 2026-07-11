@@ -21,6 +21,7 @@ from junction_repeat_overlap import (  # noqa: E402
     classify,
     compare,
     format_report,
+    is_annotated,
     load_junctions,
     load_rmsk,
     overlaps_repeat,
@@ -201,5 +202,65 @@ def test_report_names_the_enrichment(tmp_path):
     off = _jset("chr22:151:900:+", "chr22:801:900:+")
     on = _jset("chr22:801:900:+")
     report = format_report(compare(off, on), _index((100, 200)), "test")
-    assert "Enrichment" in report
+    assert "enrichment" in report.lower()
     assert "lost to the filter" in report
+
+
+# -- the composition-artifact guard -------------------------------------------
+#
+# The unstratified enrichment is the number that made the #919 chr22 result look
+# like a mild win (1.13x) when the true within-pool enrichment was 0.98x. This
+# script is explicitly reusable for the whole-genome re-run (#1095), so it must
+# not hand the next operator that same confounded headline unqualified.
+
+def test_report_without_annotation_warns_that_enrichment_is_confounded():
+    off = _jset("chr22:151:900:+", "chr22:801:900:+")
+    on = _jset("chr22:801:900:+")
+    report = format_report(compare(off, on), _index((100, 200)), "test", annotated=None)
+    assert "composition-confounded" in report
+    assert "--annotated-bed" in report
+
+
+def test_report_with_annotation_stratifies_and_flags_the_naive_number():
+    off = _jset("chr22:151:900:+", "chr22:801:900:+")
+    on = _jset("chr22:801:900:+")
+    annotated = frozenset({("chr22", 800, 900, "+")})
+    report = format_report(compare(off, on), _index((100, 200)), "test", annotated=annotated)
+    assert "CONFOUNDED" in report
+    assert "Stratified by annotation status" in report
+    assert "Enrichment within the unannotated pool" in report
+    assert "lost, unannotated" in report
+
+
+def test_stratified_enrichment_dissolves_a_pure_composition_artifact():
+    """The regression this whole guard exists for.
+
+    Construct the #919 shape: every junction, lost or retained, is repeat-overlapping
+    when unannotated and repeat-free when annotated. The filter is doing *nothing*
+    repeat-selective - but the lost set is annotation-poor, so the naive ratio still
+    reads as an enrichment. Stratified, it must come out at exactly 1.00x (none).
+    """
+    index = _index((100, 200), (300, 400))
+    # lost: 1 unannotated (in repeat). retained: 1 unannotated (in repeat) + 1 annotated (not).
+    off = _jset("chr22:151:900:+", "chr22:351:950:+", "chr22:501:990:+")
+    on = _jset("chr22:351:950:+", "chr22:501:990:+")
+    annotated = frozenset({("chr22", 500, 990, "+")})
+    report = format_report(compare(off, on), index, "test", annotated=annotated)
+    # Naive: lost 100% vs retained 50% -> 2.00x, a pure artifact of annotated content.
+    assert "**2.00x** (CONFOUNDED" in report
+    # Stratified within the unannotated pool: 100% vs 100% -> no enrichment.
+    assert "Enrichment within the unannotated pool: 1.00x" in report
+
+
+def test_enrichment_is_not_inf_on_a_degenerate_set():
+    """A retained set with zero repeat overlap must read n/a, not `inf`."""
+    off = _jset("chr22:151:900:+", "chr22:801:900:+")
+    on = _jset("chr22:801:900:+")
+    report = format_report(compare(off, on), _index((100, 200)), "test")
+    assert "inf" not in report
+
+
+def test_is_annotated_matches_on_the_intron_interval():
+    j = parse_junction_id("chr22:101:200:+")
+    assert is_annotated(j, frozenset({("chr22", 100, 200, "+")}))
+    assert not is_annotated(j, frozenset({("chr22", 100, 200, "-")}))
