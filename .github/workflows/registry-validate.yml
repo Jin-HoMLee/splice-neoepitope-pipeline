@@ -21,8 +21,10 @@ on:
       - research/experiments/issue_680_splice_immunogenicity_registry/decoy_negatives/presented_decoys_681.tsv
       - research/experiments/issue_680_splice_immunogenicity_registry/validate_registry.py
       - research/experiments/issue_680_splice_immunogenicity_registry/labeling_constants.py
+      - research/experiments/issue_680_splice_immunogenicity_registry/registry_dedup.py
       - research/experiments/issue_680_splice_immunogenicity_registry/derive_assay_context.py
       - research/experiments/issue_680_splice_immunogenicity_registry/derive_evidence_strength.py
+      - research/experiments/issue_680_splice_immunogenicity_registry/tests/**
       - .github/workflows/registry-validate.yml
   pull_request:
     branches: [main]
@@ -40,12 +42,21 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install pandas
-        # Sole runtime dependency of the validator (matches research/requirements.txt).
-        run: pip install "pandas>=2.0"
+      - name: Install pandas + pytest
+        # pandas is the validator's sole runtime dependency (matches
+        # research/requirements.txt); pytest runs the schema invariant suite.
+        run: pip install "pandas>=2.0" pytest
 
       - name: Validate registry against the labeling scheme
         # The validator resolves registry.tsv + the decoy seed relative to its own
         # __file__, and imports labeling_constants from its own directory (added to
         # sys.path[0] when run as a script), so it runs correctly from the repo root.
+        # No ZOTERO_* creds here, so the venue cross-check cleanly skips (hermetic).
         run: python research/experiments/issue_680_splice_immunogenicity_registry/validate_registry.py
+
+      - name: Run registry schema unit tests
+        # The #1086 two-resolution invariants (nullable identity, typed peptide_status,
+        # dedup on the coalesced key) are enforced by unit tests, not by the live-data
+        # validator run above: the live registry carries no peptide-null row yet, so a
+        # regression in those rules would otherwise pass vacuously.
+        run: pytest research/experiments/issue_680_splice_immunogenicity_registry/tests/ -q

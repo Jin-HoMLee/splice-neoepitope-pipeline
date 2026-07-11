@@ -3,10 +3,11 @@
 its Status to match the PR's review-readiness.
 
 Automates the deterministic steps of the PR-open 4-step checklist
-(`feedback_pr_open_checklist.md`); steps 3 (`**Created by:**` attribution) and 4
-(Issue mirror on review request) stay manual — they need author judgment a hook
-can't infer. Sibling of `scripts/audit_and_merge.sh` (closure-ritual gate on
-`gh pr merge`).
+(`feedback_pr_open_checklist.md`). Step 3 (`**Created by:**` attribution) stays
+manual — it needs author judgment a hook can't infer. Step 4 (Issue mirror on
+review request) is NO LONGER manual: `post_gh_pr_review_request.py` automated it
+(Issue #996), and since Issue #1108 that hook advances the PR's own card too.
+Sibling of `scripts/audit_and_merge.sh` (closure-ritual gate on `gh pr merge`).
 
 Status is **draft-aware**: a non-draft PR-open is the review request, so Status
 → "Ready for review"; a draft PR is opened mid-In-progress (CI / shareable URL,
@@ -244,8 +245,8 @@ def main() -> int:
             "additionalContext": (
                 f"✅ post_gh_pr_create: PR #{number} ({owner}/{repo}) added to "
                 f"board #{PROJECT_NUMBER} + Status → {label}. Remaining manual "
-                f"checklist steps: `**Created by:**` body attribution + mirror "
-                f"the linked Issue's Status on review request."
+                f"checklist step: `**Created by:**` body attribution (the review-request "
+                f"Status mirror is automated by post_gh_pr_review_request.py)."
             ),
         }
     }))
