@@ -44,6 +44,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 # Project #9 ("JH M Lee Lab") - user-level project, IDs stable + repo-independent
 # (same values as post_gh_pr_create.py / recheck_dispatch.py).
 PROJECT_ID = "PVT_kwHOB17eGc4BSomP"
@@ -77,9 +80,18 @@ _ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
 def _tokenize(cmd: str) -> list[str] | None:
-    """shlex-tokenize honoring quotes + shell punctuation, or None if unbalanced."""
+    """shlex-tokenize honoring quotes + shell punctuation, or None if unbalanced.
+
+    Normalized first (Issue #1130) - heredoc bodies stripped, unquoted newlines
+    turned into separators - so a review request written as
+    `cat > c.md <<'EOF' ... EOF; gh pr comment N --body-file c.md` is seen. The
+    sibling `post_gh_pr_create.py` had the identical gap, which left it silently
+    dead on every heredoc-created PR; single-sourcing the normalizer is what keeps
+    the two matchers from drifting apart on it again.
+    """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         return list(lex)
     except ValueError:
