@@ -71,7 +71,7 @@ All committed: ~380 KB total, well inside the <10 MB band, and offline-regenerab
 
 ## Slide deck
 
-`slides.qmd` (14 slides, experiment tier - see `docs/research_artifact_conventions.md`). Renders to reveal.js:
+`slides.qmd` (17 slides, experiment tier - see `docs/research_artifact_conventions.md`). It presents Developer's **evidence**, not a scientific verdict: the interpretation and the default are [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist). It also carries the two claims retracted along the way, deliberately - both had reached an Issue, a PR comment, and an earlier version of this deck before being caught. Renders to reveal.js:
 
 ```bash
 cd research/experiments/issue_919_nh_uniqueness_filter/

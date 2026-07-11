@@ -160,19 +160,50 @@ One read maps equally well to four near-identical V-gene introns; the read is re
 
 **But nobody hard-gates.** FineSplice [@gatto2014finesplice] drops multireads *temporarily*, then **rescues** those with "a unique location after filtering". Portcullis [@mapleson2018portcullis] uses the uniquely-mapped ratio as a **classifier feature**, not a gate.
 
-## Decision: keep opt-in, default off
+## The bigger defect this uncovered
 
-::: {.callout-note}
-## Shipped default-off in PR #1113
-The mechanism is **unconfirmed, not confirmed**. Turning it on would remove **16.2%** of the `tumor_exclusive` candidate set on an unvalidated mechanism, with a demonstrated cost at immune loci.
+Our two aligners **already disagree**, and nothing warns you:
+
+| path | multimappers at junction level |
+|---|---|
+| **HISAT2** (regtools) | counts **all** reads |
+| **STAR** (`star_sj_to_junctions.py:112`) | col 7 only - **and drops junctions with `reads <= 0`** |
+
+::: {.callout-important}
+## `alignment.aligner` silently changes the science
+Same FASTQ, same reference, **different candidate set**. Not a tuning difference - two definitions of "a junction exists".
 :::
 
-**What would actually decide it:**
+So the `IGLV2` paralog loss is **not a new risk this filter introduces** - the STAR path already pays it, silently, today, and pays it harder.
 
-1. **[#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095) - whole-genome index.** The only run where `NH` means what we think it means.
-2. **[#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116) - score, don't gate.** A Portcullis-style anchor-vs-intron Hamming test is a **pure sequence test**: it never consults the index, so it *would* work on the fixture we already have.
+**The status quo is not the safe option. It is the incoherent one.** → [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) (P1): one knob, one semantic, both aligners.
 
-Flipping the default is a call on ground truth - not a boolean flip.
+## Where this lands
+
+::: {.callout-note}
+## What Developer shipped (PR #1113): the instrument, not the verdict
+An **opt-in** knob, **default off**, a provable no-op (byte-identical junctions, no filtered BAM written). The pipeline's behavior is **unchanged**. That is a *conservative engineering default* - deliberately **not** a scientific decision.
+:::
+
+**The scientific decision is [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist):** what *are* these multimapped reads, and is unique-only the right semantic for a pipeline whose target domain is precisely the paralog-rich HLA / IG / TCR loci - the one place the field-standard default may be wrong?
+
+**Sequenced behind it:**
+
+1. **[#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118)** (P1) - make the two aligners mean the same thing. *Precedes everything else*: the rest tunes a filter whose semantics are currently incoherent.
+2. **[#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)** - score/rescue instead of gating. Its Portcullis-style Hamming probe is **index-independent**, so it *would* work on the fixture we already have.
+3. **[#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)** - the whole-genome run: the only place `NH` means what we think it means.
+
+## Two claims retracted along the way
+
+These were **wrong and are withdrawn** - flagged here because both survived into an Issue, a PR comment, and an earlier version of this deck before being caught:
+
+1. ~~"A chr22-only index converts genome-wide multimappers into false-unique reads."~~ Too coarse. A **diverged** copy maps uniquely and *correctly* genome-wide, and simply goes **unmapped** on a chr22 index. Only **near-identical** families are affected (slide 8).
+2. ~~"Elevated `NM` is the fingerprint of force-mapped foreign reads."~~ Force-mapping predicts `NM` **≫ 2**; observed `NM ≥ 2` is ~1%. The number was real; the reading was not.
+
+::: {.callout-warning}
+## The pattern
+Both were a number in the right *direction* with an **unexamined magnitude**. So was the 1.13x. State what the value *would be* if the hypothesis were true - **before** calling it confirmation.
+:::
 
 ## Caveats before citing this
 
@@ -180,6 +211,7 @@ Flipping the default is a call on ground truth - not a boolean flip.
 - **`[NH]==1` assumes the tag is present.** HISAT2 always emits it (verified: all 41,634 mapped records). An aligner that omits it would have every read silently dropped.
 - **The `-q 2` MAPQ alternative is set-identical here** (collateral loss: **0**), so `NH` is right by construction, not by measured advantage - contrary to what the Issue originally predicted.
 - **Single sample pair, one chromosome, 500K reads.** Nothing here generalizes to HLA or TCR loci.
+- **This deck is Developer's evidence, not a scientific verdict.** The interpretation and the default are [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) (Scientist).
 
 ## References
 
