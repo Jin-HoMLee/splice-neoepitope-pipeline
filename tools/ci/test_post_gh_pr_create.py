@@ -259,13 +259,20 @@ class TestAutoRequestPath:
     the wrong column for the whole review - the exact stranding Issue #996 fixed.
     """
 
-    def _drive(self, monkeypatch, is_draft, body):
+    # A delegate return meaning "I flipped the PR's own card" (the happy path).
+    _FLIPPED = {"flipped_pr": 1124, "flipped": [1073], "owner": "o", "repo": "r",
+                "pr_number": 1124}
+
+    def _drive(self, monkeypatch, is_draft, body, delegate_result=_FLIPPED):
         calls = {"comment": [], "flip": [], "status": []}
         monkeypatch.setattr(h, "_pr_view", lambda url: (is_draft, body))
         monkeypatch.setattr(h, "_add_to_board", lambda url: "ITEM_1")
         monkeypatch.setattr(h, "_set_status", lambda item, opt: calls["status"].append(opt))
         monkeypatch.setattr(h, "_request_bot_review", lambda url: calls["comment"].append(url))
-        monkeypatch.setattr(h, "_apply_review_request", lambda url: calls["flip"].append(url))
+        monkeypatch.setattr(
+            h, "_apply_review_request",
+            lambda url: (calls["flip"].append(url), delegate_result)[1],
+        )
         monkeypatch.setattr(h, "_log_fire", lambda *a, **k: None)
         monkeypatch.setattr(
             sys, "stdin",
@@ -283,8 +290,36 @@ class TestAutoRequestPath:
             "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124"
         ]
         assert len(calls["flip"]) == 1
-        # Status delegated to the In-review flip; NOT set to Ready for review here.
+        # Delegate flipped the PR card, so no direct write is needed - and above all
+        # the card must NOT be parked at Ready for review.
         assert calls["status"] == []
+
+    def test_lagging_board_read_falls_back_to_a_direct_in_review_write(self, monkeypatch):
+        """Issue #406 eventual consistency: the delegate's read can miss a fresh card.
+
+        `_add_to_board` is a strongly-consistent write that hands back an item id,
+        but the delegate re-resolves the card through a `projectItems` READ. If that
+        read lags, the delegate flips nothing and returns None. Without the fallback
+        the card sits at **No Status** for the whole review - and it raises no
+        exception, so the fail-open handler never sees it. (PR #1124 review.)
+
+        Falsifier: drop the fallback and this goes red while every other test here
+        stays green - which is exactly how the bug shipped past the first round.
+        """
+        calls = self._drive(
+            monkeypatch, is_draft=False, body="Closes #1073.", delegate_result=None
+        )
+        assert calls["comment"]  # the review WAS requested
+        assert calls["status"] == [h.IN_REVIEW_OPTION]  # ...and the card still landed
+
+    def test_delegate_flipped_only_linked_issues_still_writes_the_pr_card(self, monkeypatch):
+        # Partial success: linked Issues resolved, the PR's own card did not.
+        partial = {"flipped_pr": None, "flipped": [1073], "owner": "o", "repo": "r",
+                   "pr_number": 1124}
+        calls = self._drive(
+            monkeypatch, is_draft=False, body="Closes #1073.", delegate_result=partial
+        )
+        assert calls["status"] == [h.IN_REVIEW_OPTION]
 
     def test_draft_does_not_request_and_stays_in_progress(self, monkeypatch):
         calls = self._drive(monkeypatch, is_draft=True, body="Closes #1073.")

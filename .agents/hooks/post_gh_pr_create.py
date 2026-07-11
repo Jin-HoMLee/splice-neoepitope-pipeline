@@ -57,6 +57,7 @@ PROJECT_OWNER = "Jin-HoMLee"
 STATUS_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHFf8"
 IN_PROGRESS_OPTION = "47fc9ee4"
 READY_FOR_REVIEW_OPTION = "8bf9192f"
+IN_REVIEW_OPTION = "df73e18b"  # same value as post_gh_pr_review_request.py
 
 # Only PRs in these repos feed project #9. A guard against accidentally boarding
 # an unrelated PR the session happens to open elsewhere.
@@ -320,7 +321,21 @@ def main() -> int:
             # or there is no card for that hook to find.
             _request_bot_review(pr_url)
             requested = True
-            _apply_review_request(pr_url)
+
+            # Belt-and-suspenders on the PR's OWN card. The delegate re-resolves it
+            # through a `projectItems` READ, and Projects V2 reads lag their writes
+            # (Issue #406; `recheck_milestone.py` carries explicit retries for this
+            # class). On a lagging read the delegate finds no item, flips nothing,
+            # and returns None - and since this branch skips the `else` below, the
+            # freshly-added card would sit at **No Status** for the whole review:
+            # the very stranding the delegation exists to prevent, arriving via lag
+            # instead of a missed drag, on a path that raises no exception so the
+            # fail-open handler never sees it. `_add_to_board` already handed us a
+            # strongly-consistent `item_id`, so fall back to a direct write (no
+            # read-back). Linked-Issue flips stay delegated. (PR #1124 review.)
+            result = _apply_review_request(pr_url)
+            if result is None or result.get("flipped_pr") is None:
+                _set_status(item_id, IN_REVIEW_OPTION)
             label = "In review"
         else:
             _set_status(item_id, option)
