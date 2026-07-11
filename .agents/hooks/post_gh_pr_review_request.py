@@ -286,31 +286,36 @@ def _log_fire(pr: int | None, issues: list[int], repo: str) -> None:
 # --- orchestration ---
 
 
-def main() -> int:
-    try:
-        payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
-        return 0  # fail open
+def apply_review_request(ref: str) -> dict | None:
+    """Flip the PR's own card + every linked Issue to `In review`. Fails open.
 
-    cmd = (payload.get("tool_input") or {}).get("command", "")
-    ref = matches_review_request(cmd)
-    if ref is None:
-        return 0
+    Extracted from `main()` so it has two callers and stays single-sourced:
 
+    1. `main()` - a review requested from the shell, which this hook sees as a
+       Bash tool-call.
+    2. `post_gh_pr_create.py` - which auto-requests the review at PR-open time
+       (Issue #1073). That request is a *subprocess* `gh pr comment`, not a Claude
+       tool-call, so this hook's PostToolUse matcher never sees it. Without a
+       shared entry point the auto-requested PR would sit at `Ready for review`
+       for its whole review - re-creating the exact stranding Issue #996 fixed.
+
+    Returns a summary dict of what flipped, or None when nothing did.
+    """
     # Accumulate what actually flipped OUTSIDE the try, so a mid-sequence gh error
     # still logs + surfaces the board mutations that already landed. The fire-log is
     # the audit trail the review-debt/health tooling reads, so a real flip that goes
     # unrecorded is a silent board/log divergence (Issue #1108 review, finding 2).
     owner = repo = None
+    pr_number = None
     flipped_pr = None
     flipped: list[int] = []
     try:
         resolved = _pr_linked_issues(ref)
         if resolved is None:
-            return 0
+            return None
         owner, repo, pr_number, issues = resolved
         if not should_track(owner, repo):
-            return 0
+            return None
 
         # The PR's OWN card first (Issue #1108). Deliberately NOT gated on `issues`:
         # a `--no-issue` companion PR has no linked Issue but still belongs in the
@@ -332,20 +337,47 @@ def main() -> int:
 
     # `owner is None` means we failed before resolving the repo, so nothing flipped.
     if owner is None or (flipped_pr is None and not flipped):
-        return 0
+        return None
 
     _log_fire(flipped_pr, flipped, f"{owner}/{repo}")
+    return {
+        "owner": owner,
+        "repo": repo,
+        "pr_number": pr_number,
+        "flipped_pr": flipped_pr,
+        "flipped": flipped,
+    }
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        return 0  # fail open
+
+    cmd = (payload.get("tool_input") or {}).get("command", "")
+    ref = matches_review_request(cmd)
+    if ref is None:
+        return 0
+
+    result = apply_review_request(ref)
+    if result is None:
+        return 0
+
     parts = []
-    if flipped_pr is not None:
-        parts.append(f"PR #{flipped_pr}")
-    if flipped:
-        parts.append("linked Issue(s) " + ", ".join(f"#{n}" for n in flipped))
+    if result["flipped_pr"] is not None:
+        parts.append(f"PR #{result['flipped_pr']}")
+    if result["flipped"]:
+        parts.append(
+            "linked Issue(s) " + ", ".join(f"#{n}" for n in result["flipped"])
+        )
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
             "additionalContext": (
-                f"post_gh_pr_review_request: review requested on PR #{pr_number} "
-                f"({owner}/{repo}) - {' + '.join(parts)} Status -> In review."
+                f"post_gh_pr_review_request: review requested on PR "
+                f"#{result['pr_number']} ({result['owner']}/{result['repo']}) - "
+                f"{' + '.join(parts)} Status -> In review."
             ),
         }
     }))

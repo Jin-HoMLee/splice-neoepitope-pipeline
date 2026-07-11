@@ -17,6 +17,20 @@ because the rule lived in memory, not a mechanism) was about board-absence.
 Draft-ness is read from the PR's authoritative `isDraft` field, not the command
 string, so `--draft`, `-d`, and repo defaults are all covered.
 
+Since Issue #1073 the hook also **auto-requests the first-pass bot review** on a
+non-trivial PR-open, so review no longer waits on a human remembering to offer
+it. Human review bandwidth is this team's binding throughput constraint, and the
+bot is the autonomous first pass that widens it; the human `gh pr merge` gate is
+untouched, so the bot is never a merge authority. Non-trivial = non-draft AND no
+`<!-- skip-bot-review: ... -->` marker in the body. When it fires, the Status flip
+is delegated to `post_gh_pr_review_request.apply_review_request` ("In review" on
+the PR card + every linked Issue) instead of "Ready for review": that hook only
+sees Claude's Bash calls and so cannot observe this hook's subprocess comment, and
+leaving the card at "Ready for review" through a live review would re-create the
+stranding Issue #996 fixed. No double-request against the merge-time
+`bot_review_offer.py` gate: that gate is a detector keyed on the same literal
+trigger, so it simply sees the review as already offered.
+
 Reads PostToolUse hook JSON on stdin, parses the PR URL from the tool output,
 then runs the `gh` mutations. Fails OPEN on any parse miss, untracked repo, or
 `gh` error — a board-automation hook must never break the user's flow. On a
@@ -43,6 +57,7 @@ PROJECT_OWNER = "Jin-HoMLee"
 STATUS_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHFf8"
 IN_PROGRESS_OPTION = "47fc9ee4"
 READY_FOR_REVIEW_OPTION = "8bf9192f"
+IN_REVIEW_OPTION = "df73e18b"  # same value as post_gh_pr_review_request.py
 
 # Only PRs in these repos feed project #9. A guard against accidentally boarding
 # an unrelated PR the session happens to open elsewhere.
@@ -50,6 +65,29 @@ TRACKED_REPOS = {
     "splice-neoepitope-pipeline",
     "claude-personas-splice-neoepitope-pipeline",
 }
+
+# The canonical bot-review trigger the GitHub Action fires on (Issue #1073).
+# Must stay the LITERAL string: the hyphenated `@-claude review` reference form
+# does NOT fire the Action, so posting that instead would mark a PR as reviewed
+# while no review ever ran. `tools/ci/bot_review_offer.py` detects this same
+# string at merge time, which is what makes the two mechanisms compose without a
+# double-request (Issue #1073 AC 4) - a cross-module test pins the agreement.
+REVIEW_TRIGGER = "@claude review"
+
+# Trivial-PR opt-out. Mirrors the existing `<!-- skip-lab-notebook: routine -->`
+# marker (`closure_audit._SKIP_LAB_NOTEBOOK`) rather than inventing new syntax;
+# the reason text is documentation for the human, not a parsed enum.
+#
+# The marker must sit **on its own line** (leading/trailing whitespace allowed).
+# The unanchored form bit immediately: a PR body that merely *documents* the
+# marker in prose - backtick-quoted, mid-sentence - matched, and this feature's
+# own PR (#1124) silently opted itself out of the review it exists to request.
+# Anchoring is what separates "using the directive" from "talking about it", and
+# it is the deliberate divergence from `_SKIP_LAB_NOTEBOOK`, which is unanchored
+# and carries the same latent hazard.
+_SKIP_BOT_REVIEW_RE = re.compile(
+    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+)
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
@@ -127,6 +165,23 @@ def status_for_draft(is_draft: bool) -> tuple[str, str]:
     return "Ready for review", READY_FOR_REVIEW_OPTION
 
 
+def has_skip_bot_review(body: str | None) -> bool:
+    """True if the PR body opts out of the automatic bot review (Issue #1073 AC 2)."""
+    return bool(_SKIP_BOT_REVIEW_RE.search(body or ""))
+
+
+def should_request_review(is_draft: bool, body: str | None) -> bool:
+    """True if this PR-open should auto-request a first-pass bot review.
+
+    Two exclusions, no new vocabulary for either:
+
+    - **Draft PRs.** A draft is opened mid-In-progress (CI, a shareable URL), not
+      up for review - which is already this hook's own Status semantic.
+    - **The `<!-- skip-bot-review: ... -->` marker.** The explicit trivial opt-out.
+    """
+    return not is_draft and not has_skip_bot_review(body)
+
+
 def extract_output(tool_response) -> str:
     """Coax a searchable string out of the PostToolUse `tool_response`.
 
@@ -154,9 +209,30 @@ def _gh(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def _pr_is_draft(pr_url: str) -> bool:
-    res = _gh("pr", "view", pr_url, "--json", "isDraft")
-    return bool(json.loads(res.stdout).get("isDraft"))
+def _pr_view(pr_url: str) -> tuple[bool, str]:
+    """(isDraft, body) in one `gh` call - both drive the auto-request decision."""
+    res = _gh("pr", "view", pr_url, "--json", "isDraft,body")
+    data = json.loads(res.stdout)
+    return bool(data.get("isDraft")), data.get("body") or ""
+
+
+def _request_bot_review(pr_url: str) -> None:
+    """Post the first-pass bot-review trigger as a PR comment (Issue #1073)."""
+    _gh("pr", "comment", pr_url, "--body", REVIEW_TRIGGER)
+
+
+def _apply_review_request(pr_url: str):
+    """Delegate the `In review` Status flip to the review-request hook.
+
+    Imported lazily (module-scope import would run on every PR-open, including the
+    no-op paths) and single-sourced deliberately: that hook owns the PR-card +
+    linked-Issue flip, and it cannot see the subprocess comment above because its
+    PostToolUse matcher only fires on Claude's own Bash calls.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import post_gh_pr_review_request as rr  # noqa: PLC0415
+
+    return rr.apply_review_request(pr_url)
 
 
 def _add_to_board(pr_url: str) -> str | None:
@@ -228,25 +304,62 @@ def main() -> int:
         return 0
 
     pr_url = f"https://github.com/{owner}/{repo}/pull/{number}"
+    requested = False
     try:
-        label, option = status_for_draft(_pr_is_draft(pr_url))
+        is_draft, body = _pr_view(pr_url)
+        label, option = status_for_draft(is_draft)
         item_id = _add_to_board(pr_url)
         if not item_id:
             return 0
-        _set_status(item_id, option)
+
+        if should_request_review(is_draft, body):
+            # Auto-request the first-pass bot review (Issue #1073), then hand the
+            # Status flip to the review-request hook, which sets `In review` on the
+            # PR card AND every linked Issue. Setting `Ready for review` here would
+            # strand the card in the wrong column for the whole review, so the flip
+            # is delegated rather than duplicated - the board add must come first,
+            # or there is no card for that hook to find.
+            _request_bot_review(pr_url)
+            requested = True
+
+            # Belt-and-suspenders on the PR's OWN card. The delegate re-resolves it
+            # through a `projectItems` READ, and Projects V2 reads lag their writes
+            # (Issue #406; `recheck_milestone.py` carries explicit retries for this
+            # class). On a lagging read the delegate finds no item, flips nothing,
+            # and returns None - and since this branch skips the `else` below, the
+            # freshly-added card would sit at **No Status** for the whole review:
+            # the very stranding the delegation exists to prevent, arriving via lag
+            # instead of a missed drag, on a path that raises no exception so the
+            # fail-open handler never sees it. `_add_to_board` already handed us a
+            # strongly-consistent `item_id`, so fall back to a direct write (no
+            # read-back). Linked-Issue flips stay delegated. (PR #1124 review.)
+            result = _apply_review_request(pr_url)
+            if result is None or result.get("flipped_pr") is None:
+                _set_status(item_id, IN_REVIEW_OPTION)
+            label = "In review"
+        else:
+            _set_status(item_id, option)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             json.JSONDecodeError, FileNotFoundError):
-        return 0  # fail open — never break the user's flow on a gh hiccup
+        # Fail open - never break the user's flow on a gh hiccup. A failure here
+        # degrades to today's behavior, never worse: the merge-time
+        # `bot_review_offer.py` gate still catches a PR with no bot review.
+        return 0
 
     _log_fire(number, f"{owner}/{repo}", label)
+    review_note = (
+        " Bot review auto-requested (first-pass); the human `gh pr merge` gate is "
+        "unchanged."
+        if requested
+        else " No bot review requested (draft, or `<!-- skip-bot-review: ... -->`)."
+    )
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PostToolUse",
             "additionalContext": (
                 f"✅ post_gh_pr_create: PR #{number} ({owner}/{repo}) added to "
-                f"board #{PROJECT_NUMBER} + Status → {label}. Remaining manual "
-                f"checklist step: `**Created by:**` body attribution (the review-request "
-                f"Status mirror is automated by post_gh_pr_review_request.py)."
+                f"board #{PROJECT_NUMBER} + Status → {label}.{review_note} Remaining "
+                f"manual checklist step: `**Created by:**` body attribution."
             ),
         }
     }))

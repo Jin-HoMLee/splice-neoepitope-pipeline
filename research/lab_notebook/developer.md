@@ -6,6 +6,47 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11 - Auto-request the first-pass bot review ([PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) closes [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073))
+
+### 21:10 UTC - Editor: Developer - the mechanism opted itself out of its own review
+
+Shipped the highest-leverage rung of [epic #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072): the PR-open hook now auto-posts the bot-review trigger, so the first-pass review no longer waits on a human remembering to offer it.
+Human review bandwidth is our binding throughput constraint, so this widens the gate that caps everything else.
+The `gh pr merge` gate is untouched - the bot is first-pass, never a merge authority.
+
+**AC 4's fork resolved before any code, and it dissolved on inspection.**
+`bot_review_offer.py` is a *detector*, not a prompter: `audit_and_merge.sh` prompts only when the literal trigger is absent from the PR's comments.
+So once the hook posts that string, the gate reads OFFERED and skips its prompt - the two mechanisms compose with **no change to the gate**, because they agree on one string.
+A cross-module test pins exactly that agreement, and its falsifier is real (swap in the non-firing `@-claude review` reference form and it reddens).
+Chose the hook over the PR-open *checklist* on ladder grounds: the checklist is a memory rule, and this exact rule already slipped twice on it ([PR #441](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/441) + [PR #442](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/442), one morning) - which is *why* `bot_review_offer.py` exists. Answering a memory slip with more memory is the wrong rung.
+
+**The Issue's ACs missed an interaction that would have re-created [Issue #996](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/996).**
+The sibling hook that flips cards to `In review` fires only on *Claude's Bash calls*, so it structurally cannot see this hook's **subprocess** `gh pr comment`.
+Shipped naively, every auto-reviewed PR would have sat at `Ready for review` for its whole review - the exact stranding #996 fixed, re-created by the mechanism meant to help.
+Extracted `apply_review_request()` so the flip has one owner rather than two copies.
+
+**The dogfood caught a real bug, and it is the entry worth keeping.**
+Opening the PR fired the modified hook (hooks hot-reload), and it *declined to request a review*.
+Cause: the PR body **documents** the opt-out marker, and my unanchored regex matched that backtick-quoted, mid-sentence mention.
+**The PR introducing the auto-review silently opted itself out of the review it exists to request.**
+The mechanism did exactly what I wrote; it just took the wrong branch.
+Anchoring the marker to its own line is what separates *using* a directive from *talking about* it - and no unit test would have caught this, because I would have written the same wrong assumption into the test.
+A mechanism whose own documentation disables it is a shape I want to remember, not just a regex bug.
+
+**Then the bot review caught the thing my dogfood could not.**
+Finding 1: the delegated flip re-resolves the fresh card through a `projectItems` **read**, and Projects V2 reads lag their writes ([Issue #406](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/406); `recheck_milestone.py` carries retries for this class).
+On a lagging read the delegate flips nothing and returns None - and because that branch skipped the `else`, the card would sit at **No Status** for the whole review, on a path that raises no exception so fail-open never sees it.
+I verified both claims against the code before accepting them (`_item_and_status` really does return `(None, None)` on a miss; the #406 precedent is really in-repo).
+Fixed by falling back to the strongly-consistent `item_id` `_add_to_board` already returned.
+
+The lesson sits right on top of the one I wrote yesterday: **"the dogfood proves it works once" is not "it is race-free."**
+My live smoke was a genuine end-to-end check and it was still not sufficient - it exercised the happy path and could not have failed on the lag path.
+Checked the new tests can fail: with the fallback disabled, exactly the 2 new tests go red and the other 4 stay green, which is precisely how the bug shipped past round 1.
+
+Filed [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126) for the latent twin the reviewer spotted: `_SKIP_LAB_NOTEBOOK` is unanchored the same way, so a PR body quoting *that* marker inline would silently skip the lab-notebook gate. It has not bitten only because no body has happened to quote it - and the more we document the convention, the likelier that gets.
+
+---
+
 ## 2026-07-11 - AC 9 decision: keep the NH-uniqueness filter opt-in, default off ([PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) closes [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919))
 
 ### 17:30 UTC - Editor: Developer - MECHANISM CORRECTION: my "false-unique" story was wrong, and two supporting claims are retracted ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118))
