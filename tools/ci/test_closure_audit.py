@@ -1,8 +1,13 @@
 """Tests for closure_audit. Lean — focuses on parsing & format edge cases."""
 
 import json
+import re
+
+import pytest
 
 import closure_audit as ca
+
+REPO_ROOT = ca.REPO_ROOT
 
 
 # --- #607: REPO threading through the gh I/O layer ---
@@ -89,8 +94,13 @@ def test_audit_pr_pre_merge_forwards_repo_to_both_gh_calls(monkeypatch):
     assert all(_repo_arg(c) == "fork/repo" for c in calls)
 
 
-def test_lab_notebook_slices_block_correctly():
-    """Block lookup must stop at next '## ' header — must not match later dates."""
+def test_lab_notebook_accepts_prior_day_block_within_window():
+    """A block from a prior day, inside the window, satisfies the gate (#1092).
+
+    This test previously asserted the OPPOSITE - that yesterday's block must not
+    satisfy today's gate. That assertion encoded the #1092 bug, so it is inverted
+    here rather than deleted, and renamed to describe the contract it now checks.
+    """
     text = """# Lab Notebook
 
 ## 2026-05-11
@@ -195,6 +205,76 @@ def test_lab_notebook_ignores_blocks_dated_after_the_gate_date():
     """A future-dated block is not a valid entry for this merge."""
     text = "## 2026-07-20\n\n### 16:00 UTC - Editor: PM\nRefs PR #1093.\n"
     assert ca.check_lab_notebook(text, "2026-07-11", 1093) is not None
+
+
+# --- Both LIVE header conventions must parse ---------------------------------
+#
+# pm.md and scientist.md use a bare `## YYYY-MM-DD`. developer.md suffixes a
+# description: `## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088] ...)`.
+# The old substring check (`f"## {date}" in text`) tolerated both. An anchored
+# regex demanding a bare date silently skips every developer block, false-blocking
+# every developer PR forever - strictly WORSE than the bug being fixed. Caught in
+# review of PR #1121; every fixture above uses a bare date, which is exactly why
+# it slipped. These lock both live shapes in.
+
+
+def test_lab_notebook_accepts_description_suffixed_header():
+    """The real developer.md shape: `## <date> - <description>`."""
+    text = (
+        "## 2026-07-09 - ship the cwd-drift guard pair "
+        "([PR #1088](https://example.com) closes [Issue #1053](https://example.com))\n\n"
+        "### 14:00 UTC - Editor: Developer\nShipped.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 1088, also_accept=[1053]) is None
+
+
+def test_lab_notebook_suffixed_header_still_gaps_on_wrong_ref():
+    """A suffixed header must not become a blanket pass - the reference key still binds."""
+    text = (
+        "## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://example.com))\n\n"
+        "### 14:00 UTC - Editor: Developer\nShipped.\n"
+    )
+    assert ca.check_lab_notebook(text, "2026-07-11", 9999, also_accept=[8888]) is not None
+
+
+def test_dated_blocks_parses_both_live_conventions():
+    """Both shapes are found, and a suffixed block does not swallow the next one."""
+    text = (
+        "## 2026-07-10 - suffixed header ([PR #1](https://example.com))\n\nbody A\n\n"
+        "## 2026-07-09\n\nbody B\n"
+    )
+    blocks = ca._dated_blocks(text)
+    assert [d.isoformat() for d, _ in blocks] == ["2026-07-10", "2026-07-09"]
+    assert "body A" in blocks[0][1] and "body B" not in blocks[0][1]
+    assert "body B" in blocks[1][1]
+
+
+def test_dated_blocks_ignores_non_date_h2():
+    """`## Acceptance criteria` and friends are not date blocks."""
+    assert ca._dated_blocks("## Acceptance criteria\n\n- [ ] x\n") == []
+
+
+@pytest.mark.parametrize("role", ["developer", "pm", "scientist"])
+def test_every_dated_header_in_the_real_notebooks_parses(role):
+    """Regression lock against the live notebooks, not curated fixtures.
+
+    Asserts EVERY `## <date>...` header in each real notebook is parsed - not
+    merely that *some* block was found. That weaker form passes vacuously on
+    developer.md, whose older entries are bare-date while its recent ones carry a
+    description suffix; only the suffixed ones regressed in PR #1121. A guard that
+    can be satisfied by the un-regressed half of a file is not a guard.
+    """
+    nb = REPO_ROOT / "research" / "lab_notebook" / f"{role}.md"
+    if not nb.exists():
+        pytest.skip(f"{role}.md not present")
+    text = nb.read_text()
+
+    # Every line that a human would read as a dated entry header.
+    written = re.findall(r"^## (\d{4}-\d{2}-\d{2})", text, re.MULTILINE)
+    parsed = [d.isoformat() for d, _ in ca._dated_blocks(text)]
+    assert written, f"no dated headers found in {role}.md at all"
+    missed = [d for d in written if d not in parsed]
+    assert not missed, f"{role}.md: _dated_blocks missed {len(missed)} header(s): {missed[:3]}"
 
 
 # --- #495: accept the PR number OR any closing-Issue number (`also_accept`) ---

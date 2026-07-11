@@ -233,7 +233,18 @@ def check_priority_rationale(body: str) -> str | None:
 
 LAB_NOTEBOOK_LOOKBACK_DAYS = 7
 
-_DATE_BLOCK = re.compile(r"^## (\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE)
+# A dated entry header. BOTH live conventions must parse:
+#   pm.md / scientist.md : `## 2026-07-11`
+#   developer.md         : `## 2026-07-09 - ship the guard pair ([PR #1088] ...)`
+# The date is anchored at line start; a trailing description is tolerated.
+#
+# Do NOT re-anchor with `\s*$`. That skips every description-suffixed header, so
+# _dated_blocks() silently drops developer.md's recent entries and the gate
+# false-blocks every developer PR forever - strictly WORSE than the #1092 bug it
+# replaced. Caught in review of PR #1121; the old substring check tolerated both
+# shapes, and all our fixtures were bare-date, so nothing caught it.
+# The lookahead still rejects `## 2026-07-11x` while allowing ` - anything`.
+_DATE_BLOCK = re.compile(r"^## (\d{4}-\d{2}-\d{2})(?=\s|$)", re.MULTILINE)
 
 
 def _dated_blocks(text: str) -> list[tuple[_date, str]]:
