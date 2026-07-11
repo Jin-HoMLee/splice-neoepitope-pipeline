@@ -42,7 +42,7 @@ Every splice-derived tumor peptide that someone has actually tested on real T ce
 
 This is a **probe, not a full benchmark**. Any score you compute must say which negatives it used.
 
-## 82 positives are checked by only 9 real negatives
+## 82 positives are checked by only 9 real negatives {.smaller}
 
 ![](figures/fig_evidence_balance.png){fig-align="center" width="72%"}
 
@@ -54,7 +54,7 @@ Negatives are what's scarce, and it's worse than the count looks: 8 of the 9 are
 
 The HLA-A\*02:01 skew comes from the field, not our curation: the two biggest studies [@bigot2021sf3b1; @kim2025sfmutant] only looked at that allele. When we went hunting for other alleles to even it out (#839), we found **none** that qualify. So a scorer trained here is really a scorer for A\*02:01.
 
-## Keying on the peptide locked out a whole class of studies
+## Keying on the peptide locked out a whole class of studies {.smaller}
 
 ![](figures/fig_identity_matrix.png){fig-align="center" width="62%"}
 
@@ -75,7 +75,7 @@ And a missing peptide isn't a bare blank; it says **why** it's missing, because 
 
 A checker keeps these consistent: no peptide means no length, it can't sit in the scorable set, and it must carry a real junction location. **Tested end to end** - a Zhao-style row now goes in clean.
 
-## One junction can produce several peptides, so we don't merge on the junction
+## One junction can produce several peptides, so we don't merge on the junction {.smaller}
 
 The tempting rule - "one junction, one row" - is wrong, and the registry already has the counterexample. A single Kim 2025 event [@kim2025sfmutant] yields three different peptides:
 

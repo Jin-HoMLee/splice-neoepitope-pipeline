@@ -208,10 +208,14 @@ $link-color-hover: lighten($primary-color, 12%);
 
 // A `.smaller` slide scales its whole body down, and an em-sized code block
 // compounds that scale on top of its own - which is how a code cell ends up
-// unreadable at the real audience distance (one reader, on a screen). Size code
-// on a `.smaller` slide back up so it lands near the slide's own body text.
+// unreadable at the real audience distance (one reader, on a screen). Undo the
+// slide scale for code so it stays legible wherever it sits.
+//
+// Body text size is a deliberate emphasis signal, not a whitespace filler, so a
+// slide's `.smaller` must never be dropped just to enlarge a cramped code cell -
+// fix the code here instead, and leave the prose scale saying what it means.
 .reveal .smaller pre code {
-  font-size: 1.1em;
+  font-size: 1.2em;
 }
 
 .reveal :not(pre) > code {
