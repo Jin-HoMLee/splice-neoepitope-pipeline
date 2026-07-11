@@ -395,7 +395,13 @@ def format_table(
         title = (it["title"] or "")[:60]
         age = age_label(it.get("updated_at"), now)
         if arc_columns:
-            arc = (it["arc"] or "—").removeprefix("arc:")[:17]
+            # A multi-arc parent (#1103) gets a `+N` marker. `--arc <slug>` matches
+            # membership in the FULL set, so without this a row matched via its
+            # second arc would display only its first and read as though it did not
+            # match the filter that returned it.
+            extra = max(len(it.get("arcs") or []) - 1, 0)
+            suffix = f" +{extra}" if extra else ""
+            arc = (it["arc"] or "—").removeprefix("arc:")[: 17 - len(suffix)] + suffix
             phase = it["arc_phase"] or "—"  # fixed vocab: active/next/later
             arc_cell = f"{arc:<18} {phase:<7} "
         else:

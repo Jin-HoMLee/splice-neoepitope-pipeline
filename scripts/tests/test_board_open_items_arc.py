@@ -142,3 +142,20 @@ def test_format_table_arc_columns_handle_missing_arc():
     out = b.format_table([it], arc_columns=True)
     assert "Arc" in out.splitlines()[0]
     assert "—" in out  # placeholder, no crash
+
+
+def test_arc_column_marks_a_multi_arc_parent():
+    """A row matched by --arc via its 2nd arc must not *display* only its 1st.
+
+    Otherwise `--arc immunogenicity-benchmark` returns #1036 while its Arc cell
+    reads `scoring-tcr-pmhc` - a row that looks like it does not match the filter
+    it matched. Show a `+N` marker so the cell is honest about the full set.
+    """
+    parent = _item(["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"], children=2)
+    out = b.format_table([b.normalize(parent)], arc_columns=True)
+    assert "+1" in out, out
+
+
+def test_arc_column_unmarked_for_a_single_arc_item():
+    out = b.format_table([b.normalize(_item(["arc:board-governance"]))], arc_columns=True)
+    assert "+1" not in out

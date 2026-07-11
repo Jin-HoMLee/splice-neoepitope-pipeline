@@ -110,13 +110,18 @@ done < <(gh label list --repo "$REPO" --limit 200 --json name \
 # issue, so the reconcile stays O(arcs) reads.
 # Owner/name derived from $REPO rather than re-hardcoded, so the identity lives in
 # exactly one place and cannot drift if REPO ever becomes configurable.
+# `-f` (always-string), NOT `-F`: gh's -F coerces a numeric-looking value to a JSON
+# number, and a GitHub repo name may be all-digits (`owner/123`). That would hand an
+# int to a `String!` variable, error the query, leave PARENTS empty, and silently
+# degrade every parent into a leaf (spurious multi-arc drift) - the exact class of
+# drift this derivation exists to prevent.
 REPO_OWNER="${REPO%%/*}"
 REPO_NAME="${REPO##*/}"
 PARENTS=" "
 while IFS= read -r pn; do
   [[ -n "${pn:-}" ]] && PARENTS="${PARENTS}${pn} "
 done < <(gh api graphql --paginate \
-  -F owner="$REPO_OWNER" -F name="$REPO_NAME" \
+  -f owner="$REPO_OWNER" -f name="$REPO_NAME" \
   -f query='
   query($owner: String!, $name: String!, $endCursor: String) {
     repository(owner: $owner, name: $name) {
