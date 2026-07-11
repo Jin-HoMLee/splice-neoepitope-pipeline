@@ -52,6 +52,23 @@ Consequence: [#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/is
 
 All committed: ~380 KB total, well inside the <10 MB band, and offline-regenerable from committed inputs plus the `rmsk` fetch below.
 
+## Slide deck
+
+`slides.qmd` (14 slides, experiment tier - see `docs/research_artifact_conventions.md`). Renders to reveal.js:
+
+```bash
+cd research/experiments/issue_919_nh_uniqueness_filter/
+quarto render slides.qmd --to revealjs        # -> slides.html (gitignored)
+```
+
+Figures are **not** hand-drawn numbers: `figures/_regenerate_figures.py` recomputes every plotted value from `outputs/junction_repeat_categorization.*.tsv` plus the `rmsk` BED, so the analysis stays canonical and the deck can never drift from it. Re-run it after re-running the analysis:
+
+```bash
+research/.venv/bin/python research/experiments/issue_919_nh_uniqueness_filter/figures/_regenerate_figures.py
+```
+
+(The research venv, not the snakemake env - matplotlib lives there, per `research/requirements.txt`.)
+
 ## Reproducing
 
 ```bash
