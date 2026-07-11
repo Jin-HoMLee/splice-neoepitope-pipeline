@@ -30,7 +30,7 @@ import re
 import statistics
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -186,10 +186,30 @@ def normalize_until(until: datetime) -> datetime:
     adjacent buckets and strands those past the final edge. Snapping the anchor to
     the day boundary makes the bucket grid agree with the granularity of the data
     it buckets. Idempotent. Issue #1099.
+
+    ``until`` must be timezone-aware. A naive datetime would be read as *local*
+    time by ``astimezone``, silently shifting every bucket edge by the host's UTC
+    offset - the exact class of bug this function exists to remove.
     """
+    if until.tzinfo is None:
+        raise ValueError(
+            "normalize_until requires a timezone-aware datetime; a naive one would "
+            "be interpreted as local time and shift every bucket edge."
+        )
     return until.astimezone(timezone.utc).replace(
         hour=23, minute=59, second=59, microsecond=999999
     )
+
+
+def _first_covered_day(span_start: datetime) -> date:
+    """The first whole day a ``(span_start, ...]`` bucket actually holds.
+
+    ``span_start`` is an **exclusive** edge sitting at the last instant of its own
+    day, so that day belongs to no bucket. Both the fetch range and the rendered
+    row label must key off the day *after* it, and they must agree - hence one
+    helper rather than the same ``+ 1 day`` written twice. Issue #1099.
+    """
+    return (span_start + timedelta(days=1)).date()
 
 
 def week_windows(until: datetime, n_weeks: int) -> list[tuple[datetime, datetime]]:
@@ -217,8 +237,7 @@ def fetch_span(until: datetime, n_weeks: int) -> tuple[str, str]:
     the fetch returns lands in exactly one bucket (conservation).
     """
     span_start = week_windows(until, n_weeks)[0][0]
-    since = (span_start + timedelta(days=1)).date()
-    return since.isoformat(), until.date().isoformat()
+    return _first_covered_day(span_start).isoformat(), until.date().isoformat()
 
 
 def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list[dict]:
@@ -252,7 +271,7 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
     for start, end in week_windows(until, n_weeks):
         delivered = delivered_issues(closed_in_window(issues, start, end))
         series.append({
-            "week_start": (start + timedelta(days=1)).date().isoformat(),
+            "week_start": _first_covered_day(start).isoformat(),
             "week_end": end.date().isoformat(),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
@@ -702,8 +721,12 @@ def main() -> int:
     ap.add_argument("--weekly", action="store_true",
                     help="force weekly SDR window mode even if a milestone arg is present")
     ap.add_argument("--since", help="SDR trend-span start (YYYY-MM-DD); sets the trend length "
-                                    "from since..until, overriding --trend-weeks")
-    ap.add_argument("--until", help="SDR window end (YYYY-MM-DD); default = today")
+                                    "from since..until, overriding --trend-weeks. Reaches back AT "
+                                    "LEAST this far, rounded outward to whole 7-day weeks, so the "
+                                    "first row may begin a few days before this date")
+    ap.add_argument("--until", help="SDR window end (YYYY-MM-DD); default = today. Anchored to the "
+                                    "end of that UTC day, matching the day-granular `closed:` search "
+                                    "the trend is sourced from")
     ap.add_argument("--trend-weeks", type=int, default=DEFAULT_TREND_WEEKS,
                     help=f"SDR trailing weeks shown in the trend (default {DEFAULT_TREND_WEEKS})")
     ap.add_argument("--out-dir", type=Path, default=None,

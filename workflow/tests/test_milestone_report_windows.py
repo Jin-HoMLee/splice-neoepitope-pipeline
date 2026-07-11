@@ -49,6 +49,13 @@ def test_normalize_until_is_idempotent():
     assert mr.normalize_until(once) == once
 
 
+def test_normalize_until_rejects_a_naive_datetime():
+    """A naive datetime would be read as *local* time and shift every bucket edge by
+    the host's UTC offset - the same class of silent grid drift this helper removes."""
+    with pytest.raises(ValueError, match="timezone-aware"):
+        mr.normalize_until(datetime(2026, 7, 10, 14, 30, 0))
+
+
 # --- fetch_span must match what the buckets actually cover -------------------
 
 def test_fetch_span_starts_the_day_after_the_first_bucket_opens():
