@@ -350,7 +350,12 @@ def matches_filter(it: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if args.arc:
         want = args.arc if args.arc.startswith("arc:") else f"arc:{args.arc}"
-        if it["arc"] != want:
+        # Membership in the FULL set, not equality with the first arc. A parent may
+        # legitimately carry several arcs (#1103), and GitHub returns labels in an
+        # UNSTABLE order - so matching only `it["arc"]` (= arc_labels[0]) would find
+        # a multi-arc parent under one of its arcs and silently miss it under the
+        # other, nondeterministically. That makes an arc census quietly wrong.
+        if want not in it["arcs"]:
             return False
     if args.arc_phase and it["arc_phase"] != args.arc_phase:
         return False

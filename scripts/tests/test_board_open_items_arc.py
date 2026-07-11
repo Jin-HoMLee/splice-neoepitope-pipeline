@@ -80,6 +80,32 @@ def test_normalize_no_arc_has_empty_arcs():
     assert b.normalize(_item(["role:pm"]))["arcs"] == []
 
 
+def test_arc_filter_matches_ANY_arc_of_a_multi_arc_parent():
+    """`--arc <slug>` must find a multi-arc parent by *any* of its arcs.
+
+    Matching only the first makes an arc census silently wrong: GitHub returns
+    labels in an UNSTABLE order, so `--arc immunogenicity-benchmark` would find
+    #1036 or not depending on which label happened to come first. Latent before
+    #1103 (multi-arc was drift to be swept); a live wrong answer now that a
+    multi-arc parent is a permanent, legitimate state.
+    """
+    parent = b.normalize(
+        _item(["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"], children=2)
+    )
+    assert b.matches_filter(parent, _args(arc="scoring-tcr-pmhc"))           # first
+    assert b.matches_filter(parent, _args(arc="immunogenicity-benchmark"))   # second
+    assert b.matches_filter(parent, _args(arc="arc:immunogenicity-benchmark"))
+    assert not b.matches_filter(parent, _args(arc="board-governance"))
+
+
+def test_arc_filter_is_label_order_independent():
+    """Reversing label order must not change which arcs match."""
+    a = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"], children=2))
+    z = b.normalize(_item(["arc:immunogenicity-benchmark", "arc:scoring-tcr-pmhc"], children=2))
+    for slug in ("scoring-tcr-pmhc", "immunogenicity-benchmark"):
+        assert b.matches_filter(a, _args(arc=slug)) == b.matches_filter(z, _args(arc=slug))
+
+
 def test_filter_by_arc_phase():
     it = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc-phase:active"]))
     assert b.matches_filter(it, _args(arc_phase="active"))

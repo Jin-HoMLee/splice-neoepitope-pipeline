@@ -108,12 +108,18 @@ done < <(gh label list --repo "$REPO" --limit 200 --json name \
 # immunogenicity-benchmark), multi-arc is LEGAL at the parent tier - the
 # one-arc rule binds leaves only. Fetched once (one paginated query), not per
 # issue, so the reconcile stays O(arcs) reads.
+# Owner/name derived from $REPO rather than re-hardcoded, so the identity lives in
+# exactly one place and cannot drift if REPO ever becomes configurable.
+REPO_OWNER="${REPO%%/*}"
+REPO_NAME="${REPO##*/}"
 PARENTS=" "
 while IFS= read -r pn; do
   [[ -n "${pn:-}" ]] && PARENTS="${PARENTS}${pn} "
-done < <(gh api graphql --paginate -f query='
-  query($endCursor: String) {
-    repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") {
+done < <(gh api graphql --paginate \
+  -F owner="$REPO_OWNER" -F name="$REPO_NAME" \
+  -f query='
+  query($owner: String!, $name: String!, $endCursor: String) {
+    repository(owner: $owner, name: $name) {
       issues(states: OPEN, first: 100, after: $endCursor) {
         pageInfo { hasNextPage endCursor }
         nodes { number subIssuesSummary { total } }
