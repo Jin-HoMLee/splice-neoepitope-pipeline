@@ -8,6 +8,7 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent / "scripts" / "pm"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import recheck_parent_status as rps
+from closure_audit import scan_ac_boxes
 
 
 class TestStatusLadder:
@@ -517,3 +518,81 @@ class TestNotPlannedDrift:
         rc = rps.run_all_mode()
         assert rc == 2
         assert "Status: [COMPLETION DRIFT]" in capsys.readouterr().out
+
+
+# --- #1067: full native sub-bar, unticked body ACs --------------------------
+#
+# Under the A2 park, parent progress is read off the native sub-issue bar, so a
+# full bar reads as "done" at a glance. Body scope routinely exceeds the filed
+# sub-issues (design/docs children close first; implementation ACs remain), so a
+# full bar with unticked body ACs is an INVISIBLE drift class - the bar says
+# complete, the body says otherwise. Advisory, mirroring the #632 softening.
+
+
+class TestBodyAcReview:
+    def test_full_bar_with_unticked_body_boxes_flags_review(self):
+        drift = rps.classify_drift(
+            "Epic", [], body_unticked_count=4, body_unticked_where="4 under 'Sub-issues'"
+        )
+        assert drift is not None
+        assert "4 body box(es) still unticked" in drift
+        assert "Sub-issues" in drift          # names WHERE, so a human can judge
+        assert drift != "COMPLETION DRIFT"
+
+    def test_full_bar_with_everything_ticked_is_still_ready_to_close(self):
+        # Matched-pair control: same inputs, box count flipped, opposite outcome.
+        # If the new branch were dead, BOTH would return COMPLETION DRIFT.
+        assert rps.classify_drift("Epic", [], body_unticked_count=0) == "COMPLETION DRIFT"
+
+    def test_the_real_859_body_shape_fires(self):
+        """The regression that the first design silently would NOT have caught.
+
+        #859 is a motivating case named in Issue #1067, and its four unticked boxes
+        live under `## Sub-issues`, not `## Acceptance criteria`. Keying the flag on
+        AC boxes alone returned **zero on its own motivating example** - a no-op that
+        looked green. Caught by running it against the live board before shipping.
+
+        Falsifier: key `body_unticked` on `scan.ac_unticked` only and this goes red.
+        """
+        body = (
+            "## Triage (28 sections, 4 verdicts)\n\nsome prose\n\n"
+            "## Sub-issues (one PR each)\n\n"
+            "- [ ] Pilot: authoring-research-decks + stub\n"
+            "- [ ] running-snakemake, splice-pipeline-gotchas\n"
+            "- [ ] Trim pass: Safety Wrappers to pointers\n"
+            "- [ ] Final: prune AGENTS.md\n"
+        )
+        scan = scan_ac_boxes(body)
+        assert scan.ac_unticked == 0, "the boxes are NOT under an AC heading"
+        assert scan.stray_unticked == 4, "...but there are four of them"
+        # So the flag must key on the total, not on ac_unticked.
+        total = scan.ac_unticked + scan.stray_unticked
+        drift = rps.classify_drift("Epic", [], body_unticked_count=total,
+                                   body_unticked_where="4 under 'Sub-issues'")
+        assert drift is not None and drift.startswith("REVIEW:")
+
+    def test_not_planned_child_outranks_the_body_prompt(self):
+        # Deferred scope is the stronger reason to distrust "done", so #632 wins.
+        drift = rps.classify_drift(
+            "Epic", [], has_not_planned=True, body_unticked_count=3
+        )
+        assert drift == rps.NOT_PLANNED_REVIEW
+
+    def test_cross_repo_parent_with_invisible_children_is_not_flagged(self):
+        # AC 3. "All children closed" and "no children visible" both arrive as an
+        # empty list; without the guard we would flag a bar we never actually read.
+        assert rps.classify_drift(
+            "Epic", [], body_unticked_count=4, has_known_children=False
+        ) == "COMPLETION DRIFT"
+
+    def test_body_boxes_do_not_affect_a_parent_with_open_children(self):
+        open_kids = [{"number": 1, "status": "In progress"}]
+        assert rps.classify_drift("Epic", open_kids, body_unticked_count=9) is None
+
+    def test_closed_parent_stays_clean(self):
+        assert rps.classify_drift("Done", [], body_unticked_count=5) is None
+
+    def test_advisory_never_blocks(self):
+        drift = rps.classify_drift("Epic", [], body_unticked_count=1,
+                                   body_unticked_where="1 under 'Tasks'")
+        assert drift.startswith("REVIEW:")

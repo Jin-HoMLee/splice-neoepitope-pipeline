@@ -19,6 +19,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_client import GhError, gh  # noqa: E402
 
+# Single-source the AC-box scan from the closure gates (Issue #1067). Re-implementing
+# checkbox parsing here would let this flag and the merge/close gates drift on what
+# counts as an AC box - the exact drift the `## Acceptance criteria` convention and
+# the #730 stray-box lint exist to prevent.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "ci"))
+from closure_audit import scan_ac_boxes  # noqa: E402
+
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 PROJECT_NUMBER = 9
 
@@ -54,6 +61,30 @@ NOT_PLANNED_REVIEW = (
     "REVIEW: parent has a not-planned child — verify scope was delivered, not deferred"
 )
 
+# Issue #1067. Under the A2 park a parent's progress is read off GitHub's native
+# sub-issue bar, so a **full bar** reads as "done" at a glance. But body scope
+# legitimately exceeds the filed sub-issues (design/docs children close first while
+# implementation ACs, or references to sibling Issues, remain), so a full bar with
+# unticked body ACs is a real and *invisible* drift class: the bar says complete,
+# the body says otherwise. Live cases at filing: #527 (7/7 native, AC gated on a
+# then-open sibling), #859 (2/2 native, 4 unticked implementation ACs), #665 (2/2
+# native, 2 unticked "proper-fix" ACs). Advisory only, mirroring the #632 softening.
+#
+# Keyed on ANY unticked box in the parent body, not only boxes under a canonical
+# `## Acceptance criteria` heading - a correction forced by running it against the
+# live cases before shipping. #859's four unticked boxes sit under `## Sub-issues`,
+# so an AC-only flag returns **zero on its own motivating example**: a no-op that
+# would have looked green. And that is not an authoring mistake to be linted away:
+# a parent body IS a roadmap, so an unticked `## Sub-issues` line is *precisely*
+# the "body scope exceeds the filed sub-issues" signal this flag exists to catch.
+# The message names the heading, so a human can tell a real gating box from an
+# exploratory plan step. (The #730 stray-box lint stays the merge-time authority on
+# *where* boxes belong; this is a different question - does the bar tell the truth.)
+BODY_AC_REVIEW = (
+    "REVIEW: native sub-bar is full but {n} body box(es) still unticked ({where}) - "
+    "body scope exceeds the filed sub-issues; verify before closing"
+)
+
 
 def collective_state(open_children: list[dict]) -> str:
     """Max-rank status across open children. Empty list → 'Done'."""
@@ -67,17 +98,33 @@ def classify_drift(
     parent_status: str | None,
     open_children: list[dict],
     has_not_planned: bool = False,
+    body_unticked_count: int = 0,
+    body_unticked_where: str = "",
+    has_known_children: bool = True,
 ) -> str | None:
     """Classify drift for a parent vs its open children.
 
     Returns one of: 'FORWARD DRIFT', 'BACKWARD DRIFT', 'COMPLETION DRIFT',
-    NOT_PLANNED_REVIEW, or None.
+    NOT_PLANNED_REVIEW, BODY_AC_REVIEW, or None.
 
     ``has_not_planned`` is True when the parent has ≥1 sub-issue closed
     NOT_PLANNED. It only matters when every child is closed (``open_children``
     empty): a NOT_PLANNED child carries deferred scope, so "all closed" does
     not imply "complete" — emit the softer verify prompt instead of a confident
     rollup-close suggestion (Issue #632).
+
+    ``body_unticked_count`` is the count of unticked boxes anywhere in the parent
+    body, AC and non-AC alike (Issue #1067); ``body_unticked_where`` names their
+    headings. It matters only when every child is closed: a full native sub-bar
+    reads as "done", but body scope routinely exceeds the filed sub-issues, so any
+    unticked body box means the bar is lying. Emits a verify prompt rather than the
+    confident rollup-close.
+
+    ``has_known_children`` is False when the sub-issue list came back empty, i.e.
+    we cannot actually see any children (a cross-repo parent's sub-issues are
+    invisible to this repo's API). "All children closed" and "no children visible"
+    are indistinguishable from an empty list, so the body-AC prompt is suppressed
+    there rather than false-flagged on a bar we never actually read (AC 3).
     """
     p_rank = rank(parent_status)
     if not open_children:
@@ -87,8 +134,15 @@ def classify_drift(
         if p_rank == STATUS_LADDER["Done"]:
             return None
         # A NOT_PLANNED child means the completion claim is unverified; downgrade
-        # the bare COMPLETION DRIFT to a verify prompt (Issue #632).
-        return NOT_PLANNED_REVIEW if has_not_planned else "COMPLETION DRIFT"
+        # the bare COMPLETION DRIFT to a verify prompt (Issue #632). It outranks the
+        # body-AC prompt: deferred scope is the stronger reason not to trust "done".
+        if has_not_planned:
+            return NOT_PLANNED_REVIEW
+        if body_unticked_count > 0 and has_known_children:
+            return BODY_AC_REVIEW.format(
+                n=body_unticked_count, where=body_unticked_where
+            )
+        return "COMPLETION DRIFT"
     if parent_status == EPIC_STATUS:
         # A2 epic-park (#776 / #794): a parent parked in the off-ladder `Epic`
         # Status no longer mirrors its children's collective ladder rank — progress
@@ -171,6 +225,36 @@ def status_for_issue(issue_number: int) -> str | None:
     return None
 
 
+def body_unticked(issue_number: int) -> tuple[int, str]:
+    """(count, where) of ALL unticked boxes in the issue body: AC + non-AC alike.
+
+    Single-sources `closure_audit.scan_ac_boxes` rather than re-implementing
+    checkbox parsing, so the two agree on what a checkbox is. But it sums BOTH
+    partitions, because the question here is not "are the ACs done" - it is "does
+    the full native sub-bar tell the truth". A parent body is a roadmap, so an
+    unticked `## Sub-issues` line is exactly the body-scope-exceeds-children signal
+    (see BODY_AC_REVIEW). `where` names the headings so a human can distinguish a
+    real gating box from an exploratory plan step.
+
+    Returns (0, "") on any gh/parse error - advisory only, never break the sweep.
+    """
+    try:
+        data = gh("api", f"repos/{REPO}/issues/{issue_number}")
+        scan = scan_ac_boxes(data.get("body") or "")
+    except Exception:  # noqa: BLE001 - advisory only; never break the sweep
+        return 0, ""
+    total = scan.ac_unticked + scan.stray_unticked
+    if not total:
+        return 0, ""
+    where: list[str] = []
+    if scan.ac_unticked:
+        where.append(f"{scan.ac_unticked} under 'Acceptance criteria'")
+    if scan.stray_unticked:
+        headings = ", ".join(f"'{h}'" for h in scan.stray_headings)
+        where.append(f"{scan.stray_unticked} under {headings}")
+    return total, "; ".join(where)
+
+
 def audit_parent_chain(issue_number: int) -> list[dict]:
     """Walk up the parent chain from issue_number; audit drift at each level.
 
@@ -187,15 +271,31 @@ def audit_parent_chain(issue_number: int) -> list[dict]:
         # Enrich children with their Status
         enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
                     for c in children]
-        # Only consult close reasons when every child is closed — that's the one
-        # case classify_drift uses the flag, and it saves an API call otherwise.
-        has_np = not enriched and has_not_planned_child(cursor)
+        # Only consult close reasons + the body ACs when every child is closed —
+        # that's the one case classify_drift uses them, and it saves API calls
+        # otherwise.
+        all_closed = not enriched
+        has_np = all_closed and has_not_planned_child(cursor)
+        # `has_known_children` distinguishes "the bar is full" from "we cannot see
+        # the bar" (a cross-repo parent's sub-issues are invisible here). Both
+        # arrive as an empty open-children list, so without this the body-AC prompt
+        # would fire on a parent whose children we never actually read (AC 3).
+        known_children = bool(all_sub_issues(cursor)) if all_closed else True
+        unticked, where = (
+            body_unticked(cursor) if all_closed and known_children else (0, "")
+        )
         chain.append({
             "issue": cursor,
             "status": parent_status,
             "open_children": enriched,
             "collective": collective_state(enriched),
-            "drift": classify_drift(parent_status, enriched, has_not_planned=has_np),
+            "drift": classify_drift(
+                parent_status, enriched,
+                has_not_planned=has_np,
+                body_unticked_count=unticked,
+                body_unticked_where=where,
+                has_known_children=known_children,
+            ),
         })
         cursor = parent_issue_number(cursor)
     return chain
