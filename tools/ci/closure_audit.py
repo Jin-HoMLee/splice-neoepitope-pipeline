@@ -265,6 +265,18 @@ def _dated_blocks(text: str) -> list[tuple[_date, str]]:
     return blocks
 
 
+def _references(block: str, n: int) -> bool:
+    """True if `block` cites issue/PR `#n`, digit-bounded.
+
+    A plain `f"#{n}" in block` substring test collides on decimal prefixes:
+    `"#112" in "#1121"` is True, so gating #112 would pass on a notebook that
+    only ever mentions #1121. The negative lookahead requires the next character
+    to be a non-digit (or end of string), while still allowing the punctuation
+    that really follows a reference: `#1121.`, `#1121)`, `#1121,`, `#1121](url)`.
+    """
+    return re.search(rf"#{n}(?!\d)", block) is not None
+
+
 def check_lab_notebook(
     text: str,
     date: str,
@@ -304,7 +316,7 @@ def check_lab_notebook(
     referencing = [
         (d, block)
         for d, block in in_window
-        if any(f"#{n}" in block for n in accepted)
+        if any(_references(block, n) for n in accepted)
     ]
     if not referencing:
         return (

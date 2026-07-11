@@ -254,6 +254,35 @@ def test_dated_blocks_ignores_non_date_h2():
     assert ca._dated_blocks("## Acceptance criteria\n\n- [ ] x\n") == []
 
 
+def test_lab_notebook_reference_match_is_digit_bounded():
+    """`#112` must not match `#1121` (decimal-prefix collision).
+
+    Pre-existing in the old substring check, but amplified by the #1092 window:
+    the scan went from one exact-date block to up to a week of them, so more
+    blocks are exposed to a spurious prefix hit. A gate that passes because a
+    *different* Issue's number happens to start with the gated one is not gating.
+    """
+    text = "## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #1121.\n"
+    assert ca.check_lab_notebook(text, "2026-07-11", 112) is not None   # prefix
+    assert ca.check_lab_notebook(text, "2026-07-11", 1121) is None      # exact
+    # also_accept must be boundary-bound too, not just `number`
+    assert ca.check_lab_notebook(text, "2026-07-11", 999, also_accept=[112]) is not None
+
+
+def test_lab_notebook_reference_match_allows_trailing_punctuation():
+    """A boundary is a non-digit, so `#1121.` / `#1121)` / `#1121,` still match."""
+    for tail in [".", ")", ",", "]", " "]:
+        text = f"## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs PR #1121{tail}\n"
+        assert ca.check_lab_notebook(text, "2026-07-11", 1121) is None, tail
+
+
+def test_dated_blocks_skips_a_malformed_date_rather_than_raising():
+    """A notebook typo must not crash the merge gate."""
+    text = "## 2026-13-45\n\nbad month/day\n\n## 2026-07-10\n\n### 09:00 UTC - Editor: PM\nRefs #1.\n"
+    parsed = [d.isoformat() for d, _ in ca._dated_blocks(text)]
+    assert parsed == ["2026-07-10"]
+
+
 @pytest.mark.parametrize("role", ["developer", "pm", "scientist"])
 def test_every_dated_header_in_the_real_notebooks_parses(role):
     """Regression lock against the live notebooks, not curated fixtures.
