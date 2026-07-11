@@ -198,11 +198,20 @@ $link-color-hover: lighten($primary-color, 12%);
 }
 
 .reveal pre code {
-  font-size: 0.7em;
+  font-size: 0.95em;
+  line-height: 1.35;
   border-radius: 4px;
   background-color: $bg-tint;
   border: 1px solid $border-color;
   padding: 0.6em 0.8em;
+}
+
+// A `.smaller` slide scales its whole body down, and an em-sized code block
+// compounds that scale on top of its own - which is how a code cell ends up
+// unreadable at the real audience distance (one reader, on a screen). Size code
+// on a `.smaller` slide back up so it lands near the slide's own body text.
+.reveal .smaller pre code {
+  font-size: 1.1em;
 }
 
 .reveal :not(pre) > code {

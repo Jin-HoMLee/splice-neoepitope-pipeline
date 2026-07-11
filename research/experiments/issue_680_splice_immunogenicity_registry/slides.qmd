@@ -75,7 +75,7 @@ And a missing peptide isn't a bare blank; it says **why** it's missing, because 
 
 A checker keeps these consistent: no peptide means no length, it can't sit in the scorable set, and it must carry a real junction location. **Tested end to end** - a Zhao-style row now goes in clean.
 
-## One junction can produce several peptides, so we don't merge on the junction {.smaller}
+## One junction can produce several peptides, so we don't merge on the junction
 
 The tempting rule - "one junction, one row" - is wrong, and the registry already has the counterexample. A single Kim 2025 event [@kim2025sfmutant] yields three different peptides:
 
