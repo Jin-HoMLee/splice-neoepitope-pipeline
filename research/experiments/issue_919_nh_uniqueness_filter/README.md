@@ -28,12 +28,18 @@ An **unstratified** comparison instead reads 1.13x, which looks like a mild win 
 
 **`NH` is computed relative to the index, so chr22 test data cannot validate this filter in principle.**
 
-The mechanism turns on **how diverged** the off-chromosome copy is, and an earlier version of this note got it wrong (corrected 2026-07-11, after Jin-Ho pushed on it):
+The mechanism turns on **how diverged** the off-chromosome copy is and then on **how many copies land on chr22**. An earlier version of this note got it wrong twice, both times after Jin-Ho pushed on it (corrected 2026-07-11). Full taxonomy for a spliced read from an off-chr22 repeat copy:
 
-- **Diverged copy (say 5-15%):** with a whole-genome index the read maps **uniquely and correctly to its true locus** - the true copy wins by a wide margin, so it never becomes a multimapper. With a chr22-only index no chr22 copy is close enough to clear the alignment-score threshold, so the read is simply **unmapped**. **Harmless either way** - it never contaminates chr22. (This is the case the first version of the mechanism figure got wrong.)
-- **Near-identical copy family (young AluY, recent duplications, paralog families):** whole-genome, the read is **genuinely ambiguous** -> `NH>1` -> **the filter catches it**. On a chr22-only index only one such copy is visible -> `NH=1` -> **the filter is blind to it**.
+| # | case | chr22-only index does | verdict |
+|---|---|---|---|
+| 1 | **diverged** copy (5-15%) | no chr22 copy clears the alignment-score threshold -> **unmapped** (this is the 92%-unmapped rate) | harmless |
+| 2 | **near-identical**, **zero** copies on chr22 | nothing to map to -> **unmapped** | harmless |
+| 3 | **near-identical**, **exactly one** copy on chr22 | maps there, `NH=1` -> **false-unique, the filter is blind** | **the contamination** |
+| 4 | **near-identical**, **two or more** copies on chr22 | `NH>1` -> **the filter fires** - but this is *chr22-internal paralogy* | the recall cost |
 
-So the false-unique population is specifically **reads from near-identical families whose siblings lie off-chr22** - precisely the population the filter exists to remove, and precisely the one the fixture renders invisible.
+Under a **whole-genome** index, case 1 maps uniquely and *correctly* to its true locus (the true copy wins by a wide margin - it never was a multimapper; this is the half the first figure got wrong), and cases 2-4 collapse into one genuinely-ambiguous `NH>1` population that the filter removes as designed.
+
+**So the fixture inverts the filter.** Its target population is case 3, which chr22 renders invisible. The only case it *can* fire on here is case 4 - chr22-internal paralogy - which is exactly why the chr22 A/B found nothing but the four `IGLV2` losses, and why those losses are a *recall cost* rather than a demonstration that the filter works.
 
 **The mismatch data confirms this, and refutes the coarser story.** Force-mapping a diverged copy would leave 5-15 mismatches; `NM>=2` is ~1% of mapped spliced alignments. It does not happen.
 

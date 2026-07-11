@@ -5,6 +5,8 @@ that the `hisat2_align` rule actually calls these helpers, so an edit dropping
 the block from the rule fails there rather than passing silently here.
 """
 import re
+import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -157,6 +159,59 @@ def test_preflight_probes_capability_and_exits_nonzero():
     block = build_preflight_block()
     assert "--expr" in block
     assert "exit 1" in block
+
+
+# ── the preflight actually EXECUTED, under pipefail ──────────────────────────
+#
+# These run the rendered block in a real bash with a stub `samtools`, because the
+# bug they guard is invisible to a string assertion. The block is concatenated
+# into a shell opening with `set -euo pipefail`; under pipefail a pipeline takes
+# the exit status of its rightmost failing component, so a samtools whose `--help`
+# exits non-zero propagated that code even when grep matched - and the preflight
+# aborted claiming "no filter-expression support" about a binary that HAS it.
+# Caught in review on PR #1113. A dry-run cannot see this (samtools never runs).
+
+def _run_preflight(tmp_path, help_output, help_exit):
+    """Execute the rendered preflight under `set -euo pipefail` with a stub samtools.
+
+    Returns the block's exit code: 0 = passed the gate, 1 = aborted.
+    """
+    log = tmp_path / "align.log"
+    script = tmp_path / "preflight.sh"
+    stub = (
+        "samtools() {\n"
+        f"    printf '%s\\n' {shlex.quote(help_output)}\n"
+        f"    return {help_exit}\n"
+        "}\n"
+    )
+    # Mirrors alignment.smk: the rule's shell opens with `set -euo pipefail`.
+    body = build_preflight_block().replace("{log}", str(log))
+    script.write_text("set -euo pipefail\n" + stub + body + "\nexit 0\n")
+    return subprocess.run(
+        ["/bin/bash", str(script)], capture_output=True, text=True, check=False
+    ).returncode
+
+
+def test_preflight_survives_a_samtools_whose_help_exits_nonzero(tmp_path):
+    """The regression this guard exists for.
+
+    A samtools that SUPPORTS `--expr` but exits non-zero from `--help` - exactly the
+    build the docstring says exists - must pass the gate. Before the `|| true`,
+    pipefail propagated samtools' exit code and this aborted: a false negative that
+    printed the opposite of the truth.
+    """
+    assert _run_preflight(tmp_path, "  -e, --expr STR   filter expression", 1) == 0
+
+
+def test_preflight_passes_when_samtools_supports_expr_and_exits_zero(tmp_path):
+    assert _run_preflight(tmp_path, "  -e, --expr STR   filter expression", 0) == 0
+
+
+@pytest.mark.parametrize("help_exit", [0, 1])
+def test_preflight_aborts_on_a_samtools_without_expr(tmp_path, help_exit):
+    """The gate must still fire for a genuinely too-old binary - regardless of its
+    exit code. Neutralizing samtools' status must not neuter the check itself."""
+    assert _run_preflight(tmp_path, "  usage: samtools view [options] <in.bam>", help_exit) == 1
 
 
 def test_prefilter_writes_and_indexes_the_filtered_bam():

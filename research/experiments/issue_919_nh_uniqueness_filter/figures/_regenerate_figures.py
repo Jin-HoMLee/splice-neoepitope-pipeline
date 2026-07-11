@@ -225,55 +225,69 @@ def fig_index_relative_nh():
     A schematic, not data - matplotlib rather than mermaid because it is a frozen
     'hero' diagram and needs to match the deck palette exactly.
     """
-    fig, ax = plt.subplots(figsize=(11.5, 5.4))
-    ax.set_xlim(0, 11.5)
-    ax.set_ylim(0, 5.4)
+    GREY_FILL, GREY = "#eef0f2", "#6b7280"
+    fig, ax = plt.subplots(figsize=(12.2, 6.4))
+    ax.set_xlim(0, 12.2)
+    ax.set_ylim(0, 6.4)
     ax.axis("off")
     fig.set_facecolor(SURFACE)
 
-    def box(x, y, w, h, text, color, fill, fs=10.5):
+    def box(x, y, w, h, text, color, fill, fs=10.5, weight="normal"):
         ax.add_patch(Rectangle((x, y), w, h, facecolor=fill, edgecolor=color,
                                linewidth=1.6, zorder=2, joinstyle="round"))
-        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center",
+        ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontweight=weight,
                 fontsize=fs, color=INK, zorder=3, linespacing=1.45)
 
     def arrow(x1, y1, x2, y2, color=MUTED):
         ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle="-|>",
-                                     mutation_scale=14, color=color, linewidth=1.4, zorder=1))
+                                     mutation_scale=13, color=color, linewidth=1.3, zorder=1))
 
-    ax.text(0, 5.1, "It depends on how diverged the off-chromosome copy is",
+    ax.text(0, 6.05, "What a chr22-only index does with an off-chromosome repeat read",
             fontsize=13, color=INK, fontweight="700")
 
-    ax.text(0.1, 4.55, "whole-genome index", fontsize=10.5, color=MUTED, style="italic")
-    ax.text(6.15, 4.55, "chr22-only index (our fixture)", fontsize=10.5, color=MUTED, style="italic")
-    ax.plot([5.95, 5.95], [0.95, 4.75], color=MUTED, linewidth=0.9, linestyle=(0, (4, 4)))
+    box(0.05, 3.05, 2.35, 1.0, "spliced read\nfrom an off-chr22\nrepeat copy", BLUE, "#eaf1fa")
 
-    # Case 1 - diverged copy: harmless either way. This is the case the earlier
-    # version of the figure got wrong.
-    box(0.1, 3.15, 5.5, 1.15,
-        "read from a DIVERGED chr14 Alu\nmaps uniquely + correctly to chr14  (NH=1, NM~0)",
+    # The split is on divergence, then - for near-identical copies - on how many
+    # copies happen to land on chr22. That second split is the whole story.
+    # 1. Diverged -> no chr22 match clears the score threshold -> unmapped.
+    box(3.05, 4.75, 4.6, 0.95, "DIVERGED (5-15%)\nno chr22 copy is close enough",
+        GREY, GREY_FILL)
+    box(8.1, 4.75, 3.55, 0.95, "UNMAPPED\n(92% of the library)", GREY, GREY_FILL)
+    arrow(2.4, 3.75, 3.05, 5.15)
+    arrow(7.65, 5.22, 8.1, 5.22, GREY)
+    ax.text(12.15, 5.22, "harmless", fontsize=9.5, color=GREY, va="center", ha="right")
+
+    ax.text(3.05, 4.35, "NEAR-IDENTICAL copy family  ->  how many copies on chr22?",
+            fontsize=10.5, color=INK, fontweight="700")
+
+    # 2. Near-identical, zero chr22 copies -> also unmapped. (The rare third case.)
+    box(3.05, 3.25, 4.6, 0.85, "ZERO copies on chr22", GREY, GREY_FILL)
+    box(8.1, 3.25, 3.55, 0.85, "UNMAPPED", GREY, GREY_FILL)
+    arrow(7.65, 3.67, 8.1, 3.67, GREY)
+    ax.text(12.15, 3.67, "harmless", fontsize=9.5, color=GREY, va="center", ha="right")
+
+    # 3. Near-identical, exactly one chr22 copy -> false-unique. THE problem.
+    box(3.05, 1.95, 4.6, 0.95, "EXACTLY ONE copy on chr22", GOLD, "#faf3e3", weight="700")
+    box(8.1, 1.95, 3.55, 0.95, "NH = 1  ->  looks unique\nFILTER IS BLIND", GOLD, "#faf3e3",
+        weight="700")
+    arrow(7.65, 2.42, 8.1, 2.42, GOLD)
+
+    # 4. Near-identical, two or more chr22 copies -> NH>1 -> the filter fires. This is
+    # chr22-INTERNAL paralogy, and it is the only thing the fixture lets the filter act
+    # on - which is exactly why the A/B found only the IGLV2 losses.
+    box(3.05, 0.75, 4.6, 0.95, "TWO OR MORE copies on chr22", BLUE, "#eaf1fa")
+    box(8.1, 0.75, 3.55, 0.95, "NH > 1  ->  filter catches it\n(chr22-internal paralogy)",
         BLUE, "#eaf1fa")
-    box(6.15, 3.15, 5.2, 1.15,
-        "no chr22 copy is close enough\n-> UNMAPPED (92% of the library)",
-        BLUE, "#eaf1fa")
-    arrow(5.6, 3.72, 6.15, 3.72)
-    ax.text(2.85, 2.82, "harmless - never contaminates chr22", fontsize=10, color=MUTED,
-            ha="center", style="italic")
+    arrow(7.65, 1.22, 8.1, 1.22, MUTED)
 
-    # Case 2 - near-identical copy: the population the filter exists for, made
-    # invisible by the fixture.
-    box(0.1, 1.15, 5.5, 1.15,
-        "read from a NEAR-IDENTICAL copy family\ngenuinely ambiguous  ->  NH > 1  ->  FILTER CATCHES IT",
-        GOLD, "#faf3e3")
-    box(6.15, 1.15, 5.2, 1.15,
-        "only one such copy is on chr22\n-> NH = 1  ->  FILTER IS BLIND",
-        GOLD, "#faf3e3")
-    arrow(5.6, 1.72, 6.15, 1.72, GOLD)
+    arrow(2.4, 3.4, 3.05, 3.67)
+    arrow(2.4, 3.3, 3.05, 2.42, GOLD)
+    arrow(2.4, 3.2, 3.05, 1.22)
 
-    ax.text(0.1, 0.25,
-            "NH is relative to the index. The fixture cannot make the filter fire on the very population it exists to remove,\n"
-            "so the chr22 A/B measures the filter on chr22-internal paralogy only - not on the noise it is meant to catch.",
-            fontsize=11, color=INK, linespacing=1.5)
+    ax.text(0.05, 0.15,
+            "The filter's target population is case 3 - and the fixture makes it invisible. The only case it CAN fire on here is\n"
+            "case 4, chr22-internal paralogy - which is exactly why the chr22 A/B found nothing but the four IGLV2 losses.",
+            fontsize=10.5, color=INK, linespacing=1.5)
 
     fig.tight_layout()
     fig.savefig(HERE / "fig_index_relative_nh.png", dpi=200)

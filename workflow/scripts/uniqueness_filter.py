@@ -114,13 +114,38 @@ def build_preflight_block():
     parsing a version string, so a vendored or backported build is judged on
     what it can do. `--help` exits non-zero on some builds, hence the pipe into
     grep rather than a bare exit-code test.
+
+    The `|| true` is load-bearing, not defensive noise. This block runs inside a
+    shell that opens with `set -euo pipefail`, and under `pipefail` a pipeline
+    takes the exit status of its rightmost *failing* component - so a samtools
+    whose `--help` exits non-zero would propagate that code even when grep
+    matched, `if !` would fire, and the preflight would abort claiming "no
+    filter-expression support" about a binary that has it. `pipefail` silently
+    re-couples the probe to the very exit code the pipe-into-grep was chosen to
+    ignore. Neutralizing samtools' status keeps grep authoritative, which is the
+    whole point of the design. (Caught in review on PR #1113; behaviour locked in
+    by test_preflight_survives_a_samtools_whose_help_exits_nonzero.)
+
+    The status is neutralized by **capturing into a variable**, not by the more
+    obvious `if ! { samtools ...|| true; } | grep`: a brace group would be read by
+    Snakemake as a placeholder and fail to expand at job time (the same trap the
+    brace-free `NH_UNIQUE_EXPR` avoids). `$(...)` and `"$SAMTOOLS_HELP"` are
+    brace-free, and capturing also sidesteps any SIGPIPE edge from `grep -q`
+    closing the pipe early.
     """
     return (
         "\n"
         "# Preflight: `samtools view -e` (filter expressions) landed in samtools 1.12.\n"
         "# Fail loudly - a silent fallback would emit an unfiltered BED12 that is\n"
         "# indistinguishable from a successful filtered run.\n"
-        'if ! samtools view --help 2>&1 | grep -q -- "--expr"; then\n'
+        "#\n"
+        "# Capture first, THEN grep. Under `set -o pipefail` a pipeline takes the exit\n"
+        "# status of its rightmost failing component, so piping a `--help` that exits\n"
+        "# non-zero straight into grep would falsely abort on a samtools that DOES\n"
+        "# support --expr. `|| true` keeps grep authoritative. Captured into a var\n"
+        "# rather than a brace group, which Snakemake would read as a placeholder.\n"
+        'SAMTOOLS_HELP="$(samtools view --help 2>&1 || true)"\n'
+        'if ! printf \'%s\\n\' "$SAMTOOLS_HELP" | grep -q -- "--expr"; then\n'
         '    echo "ERROR: alignment.uniqueness_filter.enabled is true, but this samtools"'
         " | tee -a {log}\n"
         '    echo "       has no filter-expression support (samtools view -e/--expr)."'

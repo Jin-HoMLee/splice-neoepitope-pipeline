@@ -104,6 +104,8 @@ No headroom left - essentially everything in the pool already is a repeat.
 
 ![](figures/fig_index_relative_nh.png)
 
+**Case 4 is the sting.** The only multimapping a chr22-only index can *see* is chr22-internal paralogy - so that is the only thing the filter can act on here, and it is exactly where the four `IGLV2` losses came from.
+
 ## The mismatch data pins down *which* reads
 
 Mismatch count (`NM`) of spliced alignments, chr22 tumor BAM:
