@@ -6,6 +6,40 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11 - unblock the merge gate: lab-notebook window ([PR #1121](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1121) closes [Issue #1092](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1092))
+
+### 15:45 UTC - Editor: PM (cross-role pickup; Developer owns the lane)
+
+**Attribution.** This is `role:developer` work implemented by **PM**, at Jin-Ho's direction. It was false-blocking three PRs at once and PM had full context from an adjacent thread. Entry lands in the Developer notebook because the work is Developer-lane; the Developer keeps ownership.
+
+#### The defect: a gate that punished following the rule
+
+`lab_notebook_gate.py:49` keyed on `datetime.now(timezone.utc)` and `check_lab_notebook` hard-required a `## <that-date>` header. But entry timing is **commit -> push -> PR -> review -> entry -> merge**: the entry is written *after* review, *before* merge. When those straddle a UTC midnight the entry is dated **yesterday** and the gate blocked a PR whose author had followed the rule **exactly**.
+
+And the overnight hold is not an edge case - it is the **normal posture**, because merge is Jin-Ho's act. Every PR any role hands to the gate is a candidate. It was blocking [#1109](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1109), [#1093](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1093) and [#1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115) simultaneously.
+
+**The gate asked "was an entry written on the merge date?" when it meant "does an entry exist for this work, written after review and before merge?"** The date was a proxy for the second clause and it did not hold. Both escape hatches corrupt something real (re-dating breaks notebook immutability; `skip-lab-notebook: routine` lies about a substantive PR) - **a gate whose only green path is a wrong edit is a gate that gets ignored.** That is why this was worth fixing rather than working around. Priority bumped P2 -> P1 with Jin-Ho, explicitly *against* the Issue's own written rationale (which was right when it had bitten once, not three times).
+
+**Fix:** keep the reference key, relax the date key. Scan dated blocks within a bounded 7-day window, newest first, accept the first that references the PR or a closing Issue. Both gate paths already funnel through `check_lab_notebook`, so they stay single-sourced.
+
+#### The lesson, which cost more than the fix: I shipped a regression worse than the bug
+
+The bot review caught a **blocking** defect I had verified my way past. My new `_DATE_BLOCK` regex anchored `\s*$`, demanding a **bare** `## YYYY-MM-DD`. But `developer.md` suffixes a description (`## 2026-07-09 - ship the cwd-drift guard pair (...)`). The parser silently dropped **39 of 58** blocks in this very file, and the gate reported "no entry" for entries plainly present. **Every `role:developer` PR would have been false-blocked, permanently** - I traded "breaks on a midnight straddle" for "never passes", for one whole role.
+
+**Why it slipped is the transferable part.** I verified against `scientist.md` and `pm.md`. Both use bare dates. Every fixture I wrote used a bare date. **The production shape was never exercised.** That is exactly the *"curated fixtures hide a production shape"* class our own `CLAUDE.md` lists under "what dry-run does NOT catch". I walked into a documented trap while believing I had verified.
+
+**And the sharper one:** my first regression lock asserted `_dated_blocks(real_file)` was non-empty - and **it passed while the code was still broken**, because developer.md's *older* entries happen to be bare-date. **A guard satisfiable by the un-regressed half of a file is not a guard.** The lock now compares the full set of human-readable `## <date>` headers against what the parser found and names the misses. Verification has to be able to fail.
+
+#### Also fixed (found by review, pre-existing, amplified by this change)
+
+`f"#{n}" in block` collides on decimal prefixes - `"#112" in "#1121"` is `True`, so gating #112 passed on a notebook mentioning only #1121. Pre-existing, but the window widened the exposure from one block to seven days of them. Fixed with a digit-bounded `#{n}(?!\d)` rather than deferred, per the standing "fix what you find" rule. Also covered the malformed-date skip path (`## 2026-13-45` must skip, not crash the gate).
+
+#### Verification
+
+Bug reproduced E2E first (`lab_notebook_gate.py 1093` -> exit 1). Tests written red-first (5 failed against the unfixed code). Verified against **real notebooks, not fixtures**: developer PR #1088 and scientist PR #1093 both pass; an unrelated `#9999`, a prefix-collision `#108`, and a 90-day-stale merge date all still block. Five-dir sweep: **1534 passed**.
+
+One existing test (`test_lab_notebook_slices_block_correctly`) asserted the *old* contract - that yesterday's block must not satisfy the gate. That assertion **encoded the bug**; inverted, renamed, and called out in the PR rather than quietly edited.
+
 ## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
 
 ### 12:06 UTC - Editor: Developer - merge-gate pass, cross-repo companion, and a proxy-shaped gate
