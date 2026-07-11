@@ -1,3 +1,10 @@
+---
+name: inbox
+description: Use to answer "is anyone waiting on me?" - the team-coordination scan. Scans both channels (board-wide `**To:** <role>` pings via scan_addressed_comments.py, plus open Team Coordination Discussions), reports what each covered, and surfaces anything addressed to your role. Run it at any session start, on a resume greeting, as morning-routine Beat 2, and whenever asked to "check my inbox", "check for pings", "is anything waiting on me", "any coordination items", "anything addressed to me", "check messages". This is the single definition of that scan - the morning and resume routines both delegate here rather than restating it.
+---
+
+# inbox
+
 Answer one question: **is anyone waiting on me?** Scan the two team-coordination channels, report what each one covered, and surface anything addressed to or relevant to your role. Confirm with the user before acting on any request.
 
 This is the single definition of the coordination scan. The morning routine (Beat 2) and the resume routine both delegate here - do not restate these mechanics in memory files, or the copies drift (they already did once: see the last section).
