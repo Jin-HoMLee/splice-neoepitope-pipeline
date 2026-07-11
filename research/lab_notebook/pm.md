@@ -8,6 +8,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-11
 
+### 21:30 UTC - Editor: PM
+
+#### The SDR trend bug was real, but the Issue I filed about it was wrong ([Issue #1099](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1099) / [PR #1128](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1128))
+
+**The headline finding is not the fix. It is that my own measurement was more wrong than the code I filed it against.**
+
+[#1099](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1099) reported the weekly-SDR trend under-counting history against a "direct count" reference (9/7/19/68 vs 10/13/28/68), and argued the skew would corrupt the WIP-limit retune the SDR is supposed to inform. AC1 - deliberately - asked whoever picked it up to **discriminate displacement from loss before fixing**. That instruction is the only reason this landed correctly.
+
+**The reference was the broken instrument.** I had built it by querying `closed:A..B` per week with consecutive weeks sharing a boundary day. GitHub's `closed:` range is **inclusive on both endpoints**, so every boundary day was counted twice. Proof, not inference: [Issue #798](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/798) (closed 06-19T22:29) is returned by *both* `closed:2026-06-12..2026-06-19` and `closed:2026-06-19..2026-06-26`.
+
+| Series | Weeks | Sum |
+|---|---|---|
+| My "direct count" (overlapping, inflated) | 10 / 13 / 28 / 68 | 119 |
+| True disjoint day-granular count | 6 / 12 / 22 / 61 | 101 |
+| Old script | 8 / 10 / 19 / 65 | 102 |
+| Fixed script | **6 / 12 / 22 / 61** | **101** |
+
+**The old script was already far closer to the truth than the yardstick I measured it against.** Had I done the obvious thing - "make the trend match the direct count" - I would have shipped double-counting into the governance metric. The Issue's "why it matters" section does not survive either: it claimed the trend implied a 3.5x jump where reality was a smooth ramp; the true ramp (6 to 61) is *steeper* than the buggy one.
+
+**A real defect did exist underneath, and it is two.** (1) `_run_window_mode` normalized an explicit `--until` to end-of-day but left the live `datetime.now()` path mid-day, so every bucket edge sat at a time-of-day the day-granular source data cannot resolve. (2) Buckets are half-open at the start, so the `span_start` edge is the *last instant* of its day and that whole day belongs to no bucket - yet the fetch started at `span_start.date()`, pulling a day nothing could count. Pinned by a **matched-pair control**: flipping only the fetch-span rule, the old drops exactly 24 hourly synthetic issues, the new drops 0. Both could not have passed.
+
+**What I make of it.** This is the day's rule - *a check must be able to fail* - biting on its author, twice more, inside the very session that promoted it:
+
+- The `closed:A..B` reference: I never asked whether my measuring stick could be the thing that was wrong.
+- Then, in the fix itself, I wrote "milestone_report.py has **zero** test coverage" - from a grep scoped to `workflow/tests/` and `scripts/`. The suite lives in `tools/ci/` (**39 tests**, already covering `week_windows`/`closed_in_window`/`weekly_series`). A search that could not have found it can only ever confirm what I already believed. The bot caught it by casually citing the file.
+
+Sightings **7** and **8**, both today, both after writing the rule down. That settles the open question from this morning's episode: **the memory rule does not bite at claim time.** It fires at reflection, which is too late - the claim is already in a commit message, a PR body, an Issue comment. The escalation signal is met; the next move is a mechanism, not a ninth bullet. Candidate shape: assert against `HEAD`/the real search space, never the convenient sample.
+
+**Ship state.** Bot review: no blocking findings, boundary math independently traced, conservation test confirmed a genuine regression lock. 3 of 4 polish items taken (shared `_first_covered_day`, a naive-datetime **raise** on `normalize_until`, help-text); declined deduping a pure list-comp. Full suite **746 passed, 0 failed**; the pre-existing 39 still green. Every rendered row now returns its own number when cross-checked with the query its label implies. Corrections are on the record in the PR body (which becomes the squash commit), the Issue, and the follow-up commit - not quietly patched out.
+
+---
+
 ### 16:05 UTC - Editor: PM
 
 #### Relax one-arc-per-issue at the parent tier ([Issue #1103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1103) / [PR #1123](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1123))
