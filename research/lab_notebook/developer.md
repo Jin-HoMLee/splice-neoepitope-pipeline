@@ -6,6 +6,81 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11 - AC 9 decision: keep the NH-uniqueness filter opt-in, default off ([PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) closes [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919))
+
+### 17:30 UTC - Editor: Developer - MECHANISM CORRECTION: my "false-unique" story was wrong, and two supporting claims are retracted ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118))
+
+**Jin-Ho asked: "with a whole-genome index, won't there always be one Alu that best-matches the chr14 Alu?" He was right, and it broke my mechanism as stated.**
+
+**What I claimed:** a chr22-only index "converts genome-wide multimappers into apparent unique mappers" - i.e. a read from another chromosome's Alu gets force-mapped onto a chr22 Alu, `NH=1`, invisible to the filter.
+
+**Why it is wrong:** for a *diverged* copy the true locus wins by a wide margin genome-wide, so the read maps **uniquely and correctly** to chr14 - it never was a multimapper. And on a chr22-only index it doesn't get force-mapped at all: no chr22 copy clears the alignment-score threshold, so it goes **unmapped** (which is what the 92%-unmapped rate is).
+
+**The corrected mechanism is narrower and turns on copy divergence:**
+- **Diverged copy:** whole-genome -> unique + correct at the true locus. chr22-only -> unmapped. **Harmless either way.**
+- **Near-identical copy family** (young AluY, recent dups, paralog families): whole-genome -> genuinely ambiguous, `NH>1`, **filter catches it**. chr22-only -> only one such copy visible -> `NH=1`, **filter blind**.
+
+So the false-unique population is specifically *reads from near-identical families whose siblings lie off-chr22* - exactly the population the filter exists to remove, exactly the one the fixture hides. **The conclusion (chr22 cannot validate this filter, in principle) survives and is sharper**: the chr22 A/B can only ever measure the filter on **chr22-internal paralogy**, which is precisely why the only thing it found was the 4 `IGLV2` losses.
+
+**Two retractions - both were me over-reading the `NM` data:**
+1. I told Jin-Ho that elevated `NM` was "the fingerprint of reads force-mapped from a locus not in the index". **No.** Force-mapping a 5-15% diverged copy over a 100bp read leaves **5-15 mismatches**; `NM>=2` is ~1% of mapped spliced alignments. `NM` 0-1 is instead the signature of **near-identical** copies - which is what the corrected mechanism predicts, so the data fits the *narrow* story and refutes the *coarse* one I told.
+2. I asserted on [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) that "the reads HISAT2 additionally counts are the junk population". **Also no.** `NH>1` unannotated (52.7% NM=0 / 46.7% NM=1) is statistically **indistinguishable** from `NH=1` unannotated (49.9 / 48.7). The multimappers are not dirtier than the unique reads - they are the *same* population. Struck from the issue body.
+
+| spliced alignments | n | NM=0 | NM=1 | NM>=2 |
+|---|---|---|---|---|
+| `NH=1`, annotated | 435 | 91.7% | 8.0% | 0.2% |
+| `NH=1`, unannotated | 1,504 | 49.9% | 48.7% | 1.4% |
+| `NH>1`, unannotated | 338 | 52.7% | 46.7% | 0.6% |
+
+**Artifacts corrected:** the mechanism figure (it *asserted* the false claim in a hero diagram), the experiment README, the deck (slides 8-10, re-rendered + re-inspected), and #1118's evidence section. Correction comment on #919.
+
+**The lesson, and it is the sharp one from today.** I produced a *confirmation* (`NM` elevated 5.7x -> "force-mapped foreign reads!") and shipped it into an issue, a PR comment, and a slide deck without ever asking what the effect size *should* be under my own hypothesis. Force-mapping predicts NM>>2; I observed NM<=1 and read it as support anyway. **A quantitative prediction I never wrote down cannot be falsified by data I never checked it against.** The 5.7x ratio was real - it just does not mean what I said. Next time: before calling a number confirmation, state what the number would have to be if the hypothesis were *true*, and what would falsify it. (This is the same failure as the 1.13x composition artifact, one layer up: a real number, an unexamined interpretation.)
+
+---
+
+### 16:20 UTC - Editor: Developer - filing correction: the experiment was mis-shelved, had no record, and its tests were about to fall out of CI ([Issue #1117](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1117))
+
+**Prompted by a single question from Jin-Ho - "is [PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) an experiment or an implementation?" - which turned out to expose three defects.** It is both: ~1,050 lines of experiment apparatus against ~690 of pipeline capability, and the capability is *default-off*, so merging changes pipeline behavior by exactly zero. What ships is a switch nobody flips plus the rig for deciding whether to flip it. That is fine - you cannot A/B a filter you have not built - but the parts were filed wrong.
+
+**1. Mis-shelved.** `junction_repeat_overlap.py` (the largest file in the PR) sat in `workflow/scripts/`, which per CLAUDE.md is for Python *a Snakemake rule invokes*. No rule invokes it. I had talked myself into that location out loud earlier in the session - "it's a pipeline evaluation tool" - which is true of its purpose and false of its category. Moved to `research/experiments/issue_919_nh_uniqueness_filter/`, the established per-Issue home (the `issue_547` shape: tooling `.py` + `tests/` + `outputs/`). The two genuinely-production pieces stay put: the `uniqueness_filter` knob (the DAG runs it) and `download_rmsk_chrom` (it fetches a *reference input* into `references/` - rule 4 of our own conventions doc, and a sibling of `download_vdjdb_release`).
+
+**2. The experiment had no record - the sharpest miss.** I ran an experiment and left no experiment folder. The stratified table, the 0.98x, the saturation diagnosis existed only as *prose in GitHub comments*, and the actual A/B junction sets were sitting in a scratch tmpdir one cleanup away from being gone. Nobody could have reproduced the numbers. Now committed: README (goal, result, repro) + `outputs/` with both samples' A/B junction sets, the per-junction categorization, and the rendered reports (~380 KB, inside the <10 MB band, offline-regenerable). Regenerating from the moved script reproduced the tumor result exactly (**0.98x**) and added the matched normal (**1.00x**) - an independent corroboration of the null on a second sample that I had not previously run.
+
+**3. Research tests were CI-invisible, and moving the tests would have silently dropped them.** No CI job has ever run *anything* under `research/`, despite `research/requirements.txt` declaring `pytest` all along. That is **121 passing tests** unguarded - including `issue_547`'s calibrator suite, whose fitted artifact (`models/calibrator_v1.joblib`) the **default DAG consumes**. Third recurrence of the shape already fixed for `tools/project_map` ([#713](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/713)) and `scripts/tests` ([#901](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/901)): a test home nobody wires into a job rots silently. Added a `research-pytest` job (it needs numpy/scipy/sklearn, so it cannot join the pytest-only tooling job) - green in CI at 45s. Filed + closed as [#1117](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1117).
+
+**The generalizable lesson (worth memory):** `workflow/scripts/` means *rule-invoked*, and an experiment needs an experiment folder even when its apparatus looks like production code. The tell I ignored: **nothing in the DAG referenced the file I was putting next to DAG code.** A one-line grep (`grep -rn <script> workflow/rules/`) would have caught it before the PR, and it is the check to run whenever a new file lands in `workflow/scripts/`. Best-practice grounding ([Cookiecutter Data Science](https://cookiecutter-data-science.drivendata.org/opinions/)): the direction of travel is exploration -> "refactor the good parts into source code", because source "is more portable, can be tested more easily, and is easier to code review" - so a *tested, reused* tool correctly stays source code; what it must not do is masquerade as pipeline code. Convention now recorded in `docs/research_artifact_conventions.md` so the next person does not re-derive it.
+
+---
+
+### 15:40 UTC - Editor: Developer - the RepeatMasker half, a null result, and the finding that the fixture cannot test the filter
+
+**Decision (AC 9): keep opt-in, default off.** Shipped in [PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) with the RepeatMasker fetch rule (`download_rmsk_chrom`, 79,521 chr22 repeats into gitignored `references/`) and the A/B comparison tool (`junction_repeat_overlap.py`). 1630 tests green.
+
+**AC 4 returned a null, and the null is the result.**
+Naively the filter looks vindicated: junctions it removes are 92.9% repeat-overlapping vs 82.6% for those it keeps, a 1.13x enrichment.
+That number is a **composition artifact**. Stratifying by annotation status dissolves it: within the unannotated pool - which is what the filter actually draws from - lost junctions are 96.9% repeat-overlapping and retained are 99.0%. **Enrichment 0.98x: none.** The lost set merely contains fewer annotated junctions (4.1% vs 17.2%), and annotated junctions are repeat-poor. Read depth agrees there is nothing to see: 85.8% of lost are single-read vs 87.8% of retained. By both probes available, what the filter removes is indistinguishable from what it keeps.
+
+**Why - and this is the load-bearing finding: `NH` is index-relative, so chr22 test data cannot validate this filter in principle.**
+With a chr22-only index, a read from a repeat copy on another chromosome has nowhere else to map. It aligns **uniquely** to a chr22 copy and is tagged `NH=1`. A single-chromosome index therefore converts genome-wide multimappers into apparent unique mappers, deflating `NH` and blinding the filter to exactly the population it exists to catch. The data shows the damage: only 8% of reads map, and the unannotated junction pool is **99% repeat-overlapping** against a 51.9% random-position null and 17.5% for GENCODE-annotated splice sites. The pool is saturated - there is no headroom for the filter to be enriched for repeats, because everything in it already is.
+This is not a weak test of the filter. It is **not a test of the filter**. No refinement of the A/B fixes it, and it promotes [Issue #1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095) (whole-genome) from a completeness check to the only run that can decide the question.
+*(Probe validated before trusting any of it: the interval index agrees with brute force exactly, and its 51.9% random rate is recovered independently from union-coverage arithmetic once chr22's 10.5 Mb N-gap is out of the denominator - 20,908,038 / 40,308,468.)*
+
+**Web cross-check (run late - it should have preceded the recommendation, not followed it).**
+It reframed the decision rather than confirming it.
+- **Unique-only junction counting is mainstream, and our HISAT2 path is the outlier.** [LeafCutter](https://davidaknowles.github.io/leafcutter/articles/Usage.html) - which extracts junctions with a `regtools junctions extract` command essentially identical to ours - states "our most restrictive filter is the requirement that reads considered be uniquely mapped". STAR ships `--outSJfilterReads Unique` and separates unique (col 7) from multi-mapping (col 8) reads, and **our own STAR path already reads col 7 only**. So the status quo (HISAT2 counting multimappers) is what diverges from practice. That is an argument for default-ON I did not have from our own evidence.
+- **But the good tools do not hard-gate.** [FineSplice](https://pmc.ncbi.nlm.nih.gov/articles/PMC4005686/) drops multireads *temporarily* then rescues those with "a unique location after filtering"; [Portcullis](https://academic.oup.com/gigascience/article/7/12/giy131/5173486) uses the uniquely-mapped-read ratio as a classifier *feature*, not a gate. Our `[NH]==1` is the crudest form of an accepted practice - which is precisely why it dropped 4 annotated `IGLV2` junctions with no recourse.
+- That loss is the **canonical documented failure mode** in our own domain: "most mapping tools are ill-equipped to handle Ig sequences", HLA likewise. chr22 carries only the lambda orphons, so we measured the mildest possible version; HLA (chr6) and TCR (chr7/chr14) are unmeasured.
+
+**So the decision is default-off but the reasoning is narrower than "the filter is dubious".** Field practice endorses uniqueness filtering; what we cannot endorse is *this* implementation, whose effect we cannot measure on the only fixture we can run and whose known cost lands on the loci this pipeline exists to serve. Flipping the default is a Scientist call on ground truth, and the gap is closed by a rescue step or a scoring approach, **not by flipping a boolean** - filed as [Issue #1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116).
+
+**The one lever that is not blocked on compute.** Portcullis flags repeat-driven junctions by Hamming distance between the anchor and the opposite side of the intron - a **pure sequence test on the junction that never consults the index**, so it is immune to the false-unique artifact that made our A/B degenerate. It could discriminate spurious from genuine junctions *on the chr22 fixture we already have*. That is the core of [#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116), and the reason to do it before #1095.
+
+**Bot review caught a real defect in the reusable path.** `format_report` shipped only the unstratified enrichment - i.e. the 1.13x trap - in a tool explicitly framed as reusable for #1095, so the next operator would have re-walked the exact confound. Now stratifies (`--annotated-bed`, reusing `filter_junctions._load_reference_junctions` so "annotated" has one definition), leads with the within-pool number, marks the naive one CONFOUNDED, and warns loudly when run without annotation. Also hoisted the samtools preflight above the aligner: it sat after align+sort+index, so a too-old samtools burned a full alignment before aborting - the rule tests now assert *order*, since presence alone did not catch it.
+
+**Process notes.** (1) I wrote a **fabricated comment permalink** into the #919 body before the comment existed; caught and corrected, but it was a real error, not a near-miss. (2) The web cross-check came *after* I had already recommended - my own memory rule says it precedes the recommendation and at design forks. Both worth remembering.
+
+---
+
 ## 2026-07-11 - unblock the merge gate: lab-notebook window ([PR #1121](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1121) closes [Issue #1092](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1092))
 
 ### 15:45 UTC - Editor: PM (cross-role pickup; Developer owns the lane)
@@ -39,6 +114,41 @@ The bot review caught a **blocking** defect I had verified my way past. My new `
 Bug reproduced E2E first (`lab_notebook_gate.py 1093` -> exit 1). Tests written red-first (5 failed against the unfixed code). Verified against **real notebooks, not fixtures**: developer PR #1088 and scientist PR #1093 both pass; an unrelated `#9999`, a prefix-collision `#108`, and a 90-day-stale merge date all still block. Five-dir sweep: **1534 passed**.
 
 One existing test (`test_lab_notebook_slices_block_correctly`) asserted the *old* contract - that yesterday's block must not satisfy the gate. That assertion **encoded the bug**; inverted, renamed, and called out in the PR rather than quietly edited.
+## 2026-07-10 - NH-uniqueness filter for the HISAT2 path + STAR local-runnability investigation ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112))
+
+### 18:40 UTC - Editor: Developer - built the filter, then chased "can STAR run locally" into two premise busts
+
+**Work in progress (not yet PR'd): [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) NH-uniqueness junction prefilter.**
+Branch `feat/developer/issue-919-nh-uniqueness-filter` (commits `ae7cae9`, `adbad49`), Issue moved to In progress.
+Opt-in `alignment.uniqueness_filter.enabled` (default off) gating a `samtools view -e '[NH]==1'` BAM prefilter feeding regtools; new pure helper `workflow/scripts/uniqueness_filter.py`.
+The knob is read at parse time, so the filtered BAM is a *declared* output only when on - "default off writes no filtered BAM" is provable: rendering the default target against `origin/main` yields a byte-identical shell command.
+45 new tests across a pure-helper layer and a rule-render layer; full 5-directory pytest sweep green (1583 passed).
+
+**Mutation-tested my own tests and caught a non-load-bearing one.**
+A naive `"<filtered_bam> \\" in stdout` assertion also matched the prefilter's own `-o <filtered_bam> \\` line, so it passed even when `regtools_input_bam` was mutated to feed regtools the wrong BAM.
+Rewrote it to parse regtools' *positional* argument; now both the pure and rule layers fail under that mutation.
+
+**chr22 measurements contradicted two of the issue's own premises.**
+(a) The `-q 2` collateral loss the issue predicted (unique-but-low-MAPQ reads) is **zero** on real HISAT2 output - every `NH==1` read has MAPQ 60, every multimapper has MAPQ 0/1, so `[NH]==1` and `-q 2` select the identical set. NH is still right, but by construction, not by measured advantage.
+(b) AC 6's "no genuine-junction loss in IGLV/IGKV" is falsified: 4 annotated single-read `IGLV2` junctions are dropped (paralog multimapping). Mitigated - annotated junctions are discarded before prediction anyway, so 0 candidates are lost. Filter removes 251/1550 (16.2%) of `tumor_exclusive` candidates, 86% single-read, 0 gained; losses are 3.7x depleted in annotated junctions (working as intended).
+Proposed AC 3/5/6 rewordings on the issue.
+
+**Investigation ([Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112)): "is there a good way to run STAR locally?" - two busted premises.**
+1. **"STAR needs >8 GB, unusable locally" is false at chromosome scale.** Measured on the M1: chr22 STAR index builds at **730 MB peak / 14 s** (arm64), 436 MB (Rosetta x86_64); align 500k reads <1 s. The 32 GB figure is the *whole-genome* suffix array. The CLAUDE.md note conflates the two.
+2. **The bioconda macOS STAR builds are broken for alignment.** Both `osx-arm64` 2.7.11b and Rosetta `osx-64` install fine and build the index correctly, but on alignment report **0 input reads** for every FASTQ - real, gzipped, and a synthetic read cut from the chr22 reference itself. Log shows `end of input stream, nextChar=-1` on the first byte (opens the file - a nonexistent path errors correctly - but the read parser returns instant EOF). Reproducible across two architecture builds and input-independent, so it's the build, not our data. No public report found naming this exact signature.
+Secondary: `workflow/envs/star.yaml` pins `star=2.7.10b`, which **has no osx-arm64 build** (bioconda's only arm64 STAR is 2.7.11b) - the env is unsolvable on Apple Silicon as written.
+
+**The load-bearing finding, filed as the reframe on [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) + the decision on [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112):** our STAR path (`star_sj_to_junctions.py:112`) has **always** been unique-reads-only (reads `SJ.out.tab` col 7, never col 8), while the HISAT2 path counts all reads.
+So the two aligners already produce junction sets with different semantics, and flipping `alignment.aligner` silently changes what reaches prediction.
+The [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) filter isn't adding novel behavior to HISAT2 - it's closing that asymmetry. Strongest argument on the AC 9 default-on side; still shipped default-off (flipping it needs the Scientist's ground-truth call, not a unilateral Dev flip).
+
+**Also surfaced (on [Issue #1098](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1098)):** `scripts/setup_cloud.sh` no longer exists (folded into `setup_vm.sh:52`), yet is still named in 5 files incl. `hisat2.yaml` + `CLAUDE.md:159`; and #1098's board Priority (P1) disagrees with its own body rationale (P2). Flagged for PM, didn't edit the field.
+
+**Verified premise (samtools `-e`):** filter expressions landed in samtools **1.12** ([release notes](https://github.com/samtools/samtools/releases/tag/1.12)); Ubuntu 22.04 apt ships **1.13-4** with `-e, --expr` documented. So [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919)'s lever works on the production VM binary - **not** blocked on [#1098](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1098).
+
+**Open loops for next session:** [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) still needs the RepeatMasker fetch rule (AC 4/7), a fresh full chr22 integration run with the knob on, and its AC 9 lab-notebook decision entry, before it's PR-ready. [#1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) awaits PM triage + a Scientist science sign-off on the aligner choice.
+
+---
 
 ## 2026-07-09 - ship the cwd-drift guard pair ([PR #1088](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1088) closes [Issue #1053](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1053))
 

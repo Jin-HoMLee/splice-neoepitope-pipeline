@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import board_open_items as boi  # noqa: E402
 
 # The Team Coordination Discussions category on the project repo (constant id -
-# same one used in shared/feedback_team_coordination.md / the coordination skill).
+# same one used in shared/feedback_team_coordination.md / the /inbox skill).
 DISCUSSION_CATEGORY_ID = "DIC_kwDORwn9EM4C-Jo6"
 DISCUSSION_REPO_OWNER = "Jin-HoMLee"
 DISCUSSION_REPO_NAME = "splice-neoepitope-pipeline"
