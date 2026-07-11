@@ -6,6 +6,46 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11
+
+### 12:56 UTC - Editor: Scientist
+
+#### [PR #1101](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1101) - two-resolution registry schema (nullable identity + typed `peptide_status`). Closes [Issue #1086](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1086).
+
+**Context.** Implements the design note merged in [PR #1085](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1085).
+The [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) registry was **peptide-keyed**: a row could not exist without an amino-acid sequence, which locked out every coordinate-first source.
+That single constraint is why Zhao 2025 ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) contributes 0 rows today despite passing both registry gates - it published 139 AS antigens by coordinate and withheld the sequences.
+
+**What shipped.** Both identity columns (`junction_id`, `peptide`) are now nullable under an at-least-one-non-null invariant, with row identity a coalesced `COALESCE(junction_id, peptide)` disambiguated by `hla`.
+A typed `peptide_status` (`published-recovered | published-pending | unpublished-idonly | na-junction-level`) replaces the blank cell that used to conflate "the sequence exists, keep chasing the authors" with "this source only ever gave coordinates"; all 97 existing rows backfill to `published-recovered`.
+The validator enforces harmonization in both directions (a null peptide nulls its `length`, can never be `functional-scorable`, and needs a `coords`/`event-id` grade).
+The grade->`junction_id` rule was **replaced, not relaxed**: `coords`/`event-id` rows still require a junction, but the converse bar is gone, so a `gene-mechanism`/`none` row may carry a junction recovered later from an authoritative source (the old rule barred 62 of 97 rows, 64%, from ever gaining one).
+Dedup keys on the full `(junction_id, peptide, hla)` **triple** rather than the coalesced identity, because one junction legitimately yields several distinct peptides; `registry_dedup.junction_view()` serves junction-level consumers.
+CI (`registry-validate.yml`) now runs the unit tests, not just the validator.
+
+**Why the tests carry the weight here.** The live registry has **zero** peptide-null rows, so every new null-peptide invariant would pass *vacuously* against real data alone.
+The 32 tests (written failing-first: 12 red for the reason each names, then green) are the only thing exercising the schema this PR exists to enable, which is why wiring pytest into CI was part of the change rather than a follow-up.
+
+**AC4 deferred to [#1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100), with evidence.** AC4 asked for a canonical `chr:donor-acceptor:strand` scheme on GRCh38; implementation surfaced that **both its premises fail against the data**.
+(1) **No genome build is recorded anywhere** - not in the registry, PROVENANCE, README, or LABELING_SCHEME - and coordinates of unknown build cannot be lifted over; establishing it means reading three papers' methods sections.
+(2) The 17 `coords` rows span **four formats**, two of them encoding multi-junction *events* (IRIS's six-coordinate rMATS event; Kim 2025's two-junction `se@`/`mxe@`/`ci@`/`a5ss@`), and collapsing one to "the" junction is precisely the inference `LABELING_SCHEME.md` §6 bars.
+Nothing queued depends on it: the ingests AC4 was bundled with (#817/[#1089](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1089), [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)) ship on this foundation alone.
+Carved into #1100 (sub-issue of #680) with a caveat in `LABELING_SCHEME.md`; 5/6 ACs ticked, AC4 struck through.
+
+**Bot review - no correctness bugs, 4 non-blocking nits, all addressed in `ffe7014`** (34 tests green, validator still `PASS: 97 rows valid`).
+(1) `junction_view()` returned `sorted(p)`, so a peptide presented on two alleles was double-listed - fixed by switching the accumulator to a `set`, plus a covering test.
+The semantics are worth naming: one peptide on two alleles is **two registry rows** (immunogenicity is a property of the peptide-HLA pair) but **one peptide at junction resolution**, because the allele is gone from the key.
+(2) The dedup->`violations()` wiring was untested (the live-registry test only ever hits the no-duplicates branch, so it could rot silently - the same vacuous-pass shape as above) - added a test feeding a duplicate through `violations()`.
+(3) `na-junction-level` + `label=positive` is a legal nonsense combo, and my own fixture encodes it by inheriting `label` from the template.
+Real signal, but **routed, not fixed here**: the guard belongs on #911, where the first real coordinate-native true-negative rows land and it can be written against data rather than speculation.
+(4) Fixture column order now matches `registry.tsv` byte-for-byte.
+
+**One place I landed opposite to the review's implied read.** The reviewer observed that the harmonization invariants make the explicit at-least-one-non-null check hold *structurally* for the null-peptide shape - i.e. unreachable for any row that passes the others.
+Correct, and I kept the check anyway rather than deleting it as dead code: it is the *stated* schema invariant, and it is the check that produces a comprehensible error for the both-columns-empty row instead of a confusing grade complaint.
+Redundant by construction, load-bearing by intent.
+
+**Held at the merge gate** for Jin-Ho's final look. PR Test plan + #1086 ACs verified and ticked.
+
 ## 2026-07-09
 
 ### 09:43 UTC - Editor: Scientist

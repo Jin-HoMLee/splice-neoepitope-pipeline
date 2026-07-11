@@ -11,6 +11,29 @@ both scripts and kept in sync only by a manual checklist item.)
 GRADES = {"coords", "event-id", "gene-mechanism", "none"}
 STRENGTHS = {"strong", "weak", "hard", "soft", "na"}
 
+# The two grades that mean the source published a junction identifier for the row.
+# A peptide-null row is identified *by* its junction, so it must sit on one of these.
+JUNCTION_EVIDENCE_GRADES = {"coords", "event-id"}
+
+# Controlled vocabulary for the #1086 peptide_status column. The registry became
+# two-resolution (junction- or peptide-keyed) when coordinate-first sources like
+# Zhao 2025 turned out to publish junctions and withhold sequences. A blank peptide
+# cell conflates three states that demand different follow-up, so absence is typed:
+# the reason code says whether a sequence exists at all, and if so whether to keep
+# chasing it. `published-recovered` is the only value a peptide-bearing row may take.
+PEPTIDE_STATUSES = {
+    "published-recovered",  # sequence in hand from an authoritative source
+    "published-pending",    # sequence exists but is not yet obtained (e.g. Zhao, awaiting authors)
+    "unpublished-idonly",   # source only ever gave coordinates / internal IDs
+    "na-junction-level",    # never a peptide (e.g. a normal-tissue true-negative junction)
+}
+PEPTIDE_STATUS_PRESENT = "published-recovered"
+PEPTIDE_NULL_STATUSES = PEPTIDE_STATUSES - {PEPTIDE_STATUS_PRESENT}
+
+# The benchmark keys on sequence, so a peptide-null row can never enter the scored
+# set (LABELING_SCHEME.md section 4's consumer note).
+SCORABLE_TIER = "functional-scorable"
+
 # Controlled vocabulary for the #823 assay_context column. Captures *which
 # immunological system* produced the functional readout, so a scoring run can
 # weight rows by assay realism (patient ex-vivo detection > healthy-donor IVS
