@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-12 - ADR-0002: cloud storage vs compute ([PR #1133](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1133) closes [Issue #887](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/887))
+
+### 00:20 UTC - Editor: Developer - ratifying a decision that was already governing us
+
+Wrote ADR-0002 for the post-decommission cloud posture. The decision itself is not new - it has been silently governing every re-scope since the GCP teardown - but it lived only in an Issue thread and project memory, which means each new re-scope was re-deriving it.
+
+**Do not build a bespoke cloud-agnostic framework.** Abstracting against one dead provider and zero active ones is premature generality; there is no second implementation to validate the abstraction against. Split the concerns instead, because they abstract very differently: **storage** (GCS/S3/R2 are ~the same shape) neutralizes cheaply via `storage.remote_prefix` + `rclone` - rclone *is* the agnostic layer, so we configure one rather than build one - while **compute** (drivers, provisioning, executors) does not abstract at all, and keeps per-provider runbooks. The P100/cu126 saga is the standing evidence: those details resisted abstraction the first time, which is precisely why the archived recipe exists.
+
+The sentence I most wanted on the record: *adding a storage backend is an `rclone` config change, not code. If you find yourself writing a `StorageBackend` interface, this ADR is the thing you are contradicting.* An ADR that cannot be contradicted by a future action isn't doing any work.
+
+**Freshness paid off again.** The Issue's body ACs 2-5 (a disposition sweep) had already been executed by PM on 2026-07-02. Had I worked the ACs as written I would have re-done a completed sweep. Checked before starting; ticked them as historical.
+
+The bot review caught a genuine honesty bug in my `CLAUDE.md` pointer: I wrote "storage neutralized via `storage.remote_prefix` + `rclone`" in the present tense, but **neither exists** - the helper is deliberately deferred (YAGNI). A future agent would have grepped for the config key, found nothing, and been confused. Fixed to state the *approach*, and to say plainly that it is not built. A reference file that describes an intention as a fact is worse than one that says nothing.
+
+---
+
 ## 2026-07-11 - Auto-request the first-pass bot review ([PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) closes [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073))
 
 ### 21:10 UTC - Editor: Developer - the mechanism opted itself out of its own review

@@ -1,7 +1,7 @@
 # ADR-0002: Treat cloud storage and compute differently after the GCP decommission
 
 - **Status:** Accepted
-- **Date:** 2026-07-08 (ratified 2026-07-12)
+- **Date:** 2026-07-08 (decision date; ratified on merge of [PR #1133](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1133))
 - **Deciders:** Developer, PM
 
 ## Context
