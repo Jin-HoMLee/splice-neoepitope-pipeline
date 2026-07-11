@@ -77,6 +77,15 @@ def newlines_to_separators(cmd: str) -> str:
     that happened to begin `gh pr create ...` would then read as a real command -
     reintroducing exactly the PR #558 false positive these matchers exist to
     avoid. Inside quotes, a newline stays a newline and the string stays one token.
+
+    Known limit (PR #1131 review, finding 4): the quote tracker is **not
+    backslash-escape aware**, so an odd number of escaped quotes (`\\"`) before an
+    in-quote newline can desync the flag and convert that newline to a separator.
+    That is the one path here that could *weaken* rather than strengthen the
+    false-positive guard. Left as-is deliberately: it needs an escaped quote, then
+    a newline, then a literal `gh pr create` at the start of a line, all inside one
+    quoted `--body` - and even then the hooks fail open downstream. Recorded rather
+    than fixed, so the next reader knows it is a known edge and not an oversight.
     """
     out: list[str] = []
     quote: str | None = None

@@ -72,7 +72,7 @@ TRACKED_REPOS = {
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
-_PUNCT = set("();<>|&")  # shell punctuation_chars -> standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
@@ -83,11 +83,16 @@ def _tokenize(cmd: str) -> list[str] | None:
     """shlex-tokenize honoring quotes + shell punctuation, or None if unbalanced.
 
     Normalized first (Issue #1130) - heredoc bodies stripped, unquoted newlines
-    turned into separators - so a review request written as
-    `cat > c.md <<'EOF' ... EOF; gh pr comment N --body-file c.md` is seen. The
-    sibling `post_gh_pr_create.py` had the identical gap, which left it silently
-    dead on every heredoc-created PR; single-sourcing the normalizer is what keeps
-    the two matchers from drifting apart on it again.
+    turned into separators. The sibling `post_gh_pr_create.py` had the identical
+    gap, which left it silently dead on every heredoc-created PR; single-sourcing
+    the normalizer is what keeps the two matchers from drifting apart on it again.
+
+    What this newly matches: an unquoted-newline-separated `gh pr review 42`, and
+    an inline `gh pr comment N --body "@claude review"` after a newline or heredoc.
+    What it deliberately does NOT match: a trigger living only inside a heredoc
+    body or a `--body-file` - that text is stripped and never reaches the command
+    line, so there is no trigger to see. (PR #1131 review, finding 3: an earlier
+    draft of this docstring wrongly implied the `--body-file` form was detected.)
     """
     try:
         lex = shlex.shlex(_shell_parse.normalize_command(cmd),

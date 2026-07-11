@@ -95,7 +95,7 @@ _SKIP_BOT_REVIEW_RE = re.compile(
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
 _PR_CREATE_PREFIX = ("gh", "pr", "create")
-_PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 # A leading `VAR=value` assignment at a command-start position (shlex strips the
 # quotes in posix mode, so `B="x"` arrives as the token `B=x`). Mirrors the
 # harness's subcommand-aware Bash matcher, which strips such prefixes.
