@@ -211,9 +211,12 @@ $link-color-hover: lighten($primary-color, 12%);
 // unreadable at the real audience distance (one reader, on a screen). Undo the
 // slide scale for code so it stays legible wherever it sits.
 //
-// Body text size is a deliberate emphasis signal, not a whitespace filler, so a
-// slide's `.smaller` must never be dropped just to enlarge a cramped code cell -
-// fix the code here instead, and leave the prose scale saying what it means.
+// Keep code legible HERE, so nobody is tempted to fix a cramped code cell by
+// dropping the slide's `.smaller` - that would resize the prose too, making body
+// size an artifact of how much content a slide happens to hold. Body size should
+// be uniform and set once; emphasis belongs to weight, spacing and color, not to
+// a size change (Butterick, practicaltypography.com; Curtis, "Typography in
+// Design Systems"). Full rule + the pending refactor: Issue #1107.
 .reveal .smaller pre code {
   font-size: 1.2em;
 }
