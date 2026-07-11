@@ -6,14 +6,10 @@ rate a few percent in a way no assertion on the report would catch, and the
 whole point of the analysis is to compare two rates that differ by a few
 percent. So the boundary and nesting cases are tested directly.
 """
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "workflow" / "scripts"))
-
+# conftest.py puts the experiment dir (which holds junction_repeat_overlap.py) on
+# sys.path - same pattern as the issue_547 experiment.
 from junction_repeat_overlap import (  # noqa: E402
     Junction,
     Repeat,

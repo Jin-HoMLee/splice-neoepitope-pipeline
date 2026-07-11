@@ -29,12 +29,21 @@ Junction IDs are the ``chrom:donor:acceptor:strand`` form emitted by
 0-based-exclusive, so the intron is ``[donor - 1, acceptor)`` in 0-based
 half-open coordinates.
 
+This is experiment apparatus, not pipeline code: no Snakemake rule invokes it, and
+it lives beside the experiment whose question it answers. The `rmsk` BED it reads
+*is* fetched by a production rule (`download_rmsk_chrom`), because a downloaded
+reference input belongs in `references/`.
+
 Usage:
-    python workflow/scripts/junction_repeat_overlap.py \\
-        --junctions-off results/.../raw_junctions.tsv \\
-        --junctions-on  results/.../raw_junctions.filtered.tsv \\
+    python research/experiments/issue_919_nh_uniqueness_filter/junction_repeat_overlap.py \\
+        --junctions-off outputs/raw_junctions.tumor.filter_off.tsv \\
+        --junctions-on  outputs/raw_junctions.tumor.filter_on.tsv \\
         --rmsk references/rmsk/hg38/rmsk.chr22.bed \\
+        --annotated-bed resources/test/chr22_reference_junctions.bed \\
         --label "tumor (SRR9143066)"
+
+Pass `--annotated-bed`. Without it the report can only give the unstratified
+enrichment, which is a composition artifact (see `format_report`).
 """
 
 import argparse
@@ -247,11 +256,14 @@ def _enrichment(lost_frac: float, kept_frac: float) -> str:
 def load_annotated(bed_path: Path) -> frozenset:
     """Annotated introns as (chrom, start, end, strand), from the pipeline's own BED.
 
-    Reuses `filter_junctions._load_reference_junctions` so "annotated" means here
-    exactly what it means in the pipeline - re-deriving it from a GTF would risk a
-    second, subtly different definition.
+    Reuses `filter_junctions._load_reference_junctions` from the production
+    workflow so "annotated" means here exactly what it means in the pipeline -
+    re-deriving it from a GTF would risk a second, subtly different definition,
+    and the whole point of the stratification is that the annotated/unannotated
+    split is the axis the result turns on.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    repo_root = Path(__file__).resolve().parents[3]
+    sys.path.insert(0, str(repo_root / "workflow" / "scripts"))
     from filter_junctions import _load_reference_junctions
 
     return _load_reference_junctions(bed_path)
