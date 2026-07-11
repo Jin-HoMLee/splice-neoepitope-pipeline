@@ -60,7 +60,7 @@ The HLA-A\*02:01 skew comes from the field, not our curation: the two biggest st
 
 ![](figures/fig_identity_matrix.png){fig-align="center" width="62%"}
 
-Every row used to need the peptide's amino-acid sequence just to exist. But a splice study's native output is the **junction** - where the gene was cut and rejoined - not the peptide. Zhao 2025 [@zhao2025hcc] clears both of our bars, yet lists its 139 antigens (Supplementary Table S1) **by genome location with no sequences** - so it added **zero rows**.
+Every row used to need the peptide's amino-acid sequence just to exist. But a splice study's native output is the **junction** - where the gene was cut and rejoined - not the peptide. Zhao 2025 [@zhao2025hcc] publishes its candidates (Supplementary Table S1) **by genome location with no sequences**, so the old peptide-keyed schema could not represent them at all. It still adds **zero rows** - the audit found those candidates are *predicted only*, and Zhao's separately validated antigens cannot be joined to them.
 
 ## Letting a row key on its junction *or* its peptide lets those studies in {.smaller}
 

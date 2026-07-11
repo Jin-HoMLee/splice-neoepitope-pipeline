@@ -135,18 +135,28 @@ Table S1 was long cited here and in the design docs as "139 AS antigens by coord
 | Property | Value |
 |---|---|
 | Numbered rows | **139** |
-| Distinct junction coordinates | **103** (63 rows share a coordinate, across 28 coordinates carrying 2-4 rows each) |
+| Distinct junction coordinates | **103** (65 rows share a coordinate, across 29 coordinates carrying 2-4 rows each) |
 | Distinct genes | **90** (Ensembl `ENSG` ids) |
 | Coordinate format | uniformly single-junction `chrN:start-end` (139/139; **no** multi-junction event strings) |
-| Genome build | **not stated** in any of the 18 supplement PDFs (grepped `hg19` / `hg38` / `GRCh37` / `GRCh38`: zero hits) |
+| Genome build | **not stated** in any of the 18 supplement PDFs (the 19th supplement, MOESM19, is an ssGSEA gene-list `.xlsx`, not a PDF). Grepped `hg19` / `hg38` / `GRCh37` / `GRCh38`: zero hits |
+
+The counts reconcile: `139 rows - 103 distinct = 36`, and `65 rows on shared coordinates - 29 such coordinates = 36`.
+
+> **Extraction gotcha, recorded so the next reader does not repeat it.** Table S1 spans two PDF pages, and `pdftotext -layout` prefixes the first row of page 2 (row **106**) with a form-feed (`\f`), so a naive `awk '$1 ~ /^[0-9]+$/'` row filter **silently drops exactly that one row** and every count comes out computed on 138 rows. Pipe through `tr -d '\f'` first. The first version of this audit made that error, and the counts above are the corrected ones (the distinct-junction and distinct-gene totals were unaffected; the shared-coordinate histogram was not).
 | Columns | `No.`, `AS_neoantigen`, `gene`, `avg_rank`, `PHBR_avg`, then per-allele affinity for HLA-A\*02:01, A\*02:07, A\*11:01, A\*24:02, A\*33:03 |
 | Peptide sequences | **zero** |
 
-**Why zero rows were folded, even at junction resolution.** Table S1's only readouts are `avg_rank`, `PHBR_avg`, and per-allele affinity. That is **predicted binding**, not measured T-cell immunogenicity, and not presentation evidence either (the affinity-vs-presentation distinction this project is strict about). Every row is therefore `label=untested`, and **no tier in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) fits it**: `presentation-prevalence` (section 4) requires MHC-presentation evidence and/or tumor-prevalence / survival signal, which these rows do not have. These are the *input* to Zhao's selection funnel, upstream of validation.
+**Why zero rows were folded, even at junction resolution.** Table S1's only readouts are `avg_rank`, `PHBR_avg`, and per-allele affinity. That is **predicted binding**, not measured T-cell immunogenicity, and not presentation evidence either (the affinity-vs-presentation distinction this project is strict about). Every row is therefore `label=untested`, and **no tier in [`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 4 fits it**, including the two that look closest:
 
-Note also that the schema's peptide-null junction rows were designed for junction-level **positives** ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 7: *"a real junction-level positive, not a missing value"*). Table S1 does not supply those. Admitting it would require a **new predicted-only candidate tier**, which is a gate-2 relaxation by typing and therefore a governance decision: routed to [#1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125).
+- `presentation-prevalence` requires MHC-**presentation** evidence and/or tumor-prevalence / survival signal. A predicted affinity is none of those.
+- `tier=candidate` holds a row *"initially proposed as `label=positive`"* whose adversarial-verify pass did not confirm it, i.e. a **contested positive**. It presupposes a functional claim that someone made and someone else doubted. Zhao's rows were never asserted positive at all; they are untested predictions, so this tier does not fit either.
+- `functional-nonscorable` requires the row to *have passed* both gates with only the sequence missing. Table S1's rows have not passed gate 2.
 
-**If it is ever admitted, it is 103 rows, not 139.** The 63 co-located rows differ only in their affinity vectors, so they are distinct peptides on a shared junction whose sequences are withheld. Under the coalesced identity key `COALESCE(junction_id, peptide)` disambiguated by `hla`, two peptide-null rows on the same junction with the same allele set are indistinguishable, and dedup collapses them. Inserting 139 would require inventing a synthetic disambiguator, which is inference. The lost multiplicity is genuinely unknown information, not a bug.
+These are the *input* to Zhao's selection funnel, upstream of validation.
+
+Note also that the schema's peptide-null junction rows were designed for junction-level **positives** ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 7: *"a real junction-level positive, not a missing value"*). Table S1 does not supply those. Admitting it would require a **new predicted-only tier** - distinct from the existing `candidate` tier above, which holds contested *positives*, not untested predictions - and that is a gate-2 relaxation by typing, therefore a governance decision: routed to [#1125](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1125).
+
+**If it is ever admitted, it is 103 rows, not 139.** The 65 co-located rows differ only in their affinity vectors, so they are distinct peptides on a shared junction whose sequences are withheld. Under the coalesced identity key `COALESCE(junction_id, peptide)` disambiguated by `hla`, two peptide-null rows on the same junction with the same allele set are indistinguishable, and dedup collapses them. Inserting 139 would require inventing a synthetic disambiguator, which is inference. The lost multiplicity is genuinely unknown information, not a bug.
 
 **The validated antigens are not joinable to Table S1.** Zhao's functionally validated set is the FISH-probe panel in Supplementary Table 2 (`MOESM17`, attachment `NF9227W5`): `pA02-28/35/38/54`, `pA11-10/23/24/27`, and the `pA24-*` set. That table carries probe name, coupled fluorophore, and FISH detection rates **only - no coordinate column and no gene column**. So the validated probes cannot be mapped onto Table S1's coordinates from anything we hold. The superficially tempting `pA02-28 -> Table S1 row 28` mapping is **nowhere stated in the source**, and asserting it would be exactly the fabrication the no-inference rule bars ([`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 6). Recovering that linkage, like recovering the sequences, needs the main text ([#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)).
 
