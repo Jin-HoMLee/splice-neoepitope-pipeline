@@ -596,3 +596,63 @@ class TestBodyAcReview:
         drift = rps.classify_drift("Epic", [], body_unticked_count=1,
                                    body_unticked_where="1 under 'Tasks'")
         assert drift.startswith("REVIEW:")
+
+
+class TestAllModeBodyScope:
+    """The --all sweep must fire the #1067 flag too (PR #1132 review, finding 1).
+
+    The flag was wired into `audit_parent_chain` (--issue) but NOT `run_all_mode`
+    (--all), which inlined its own `classify_drift` call and so silently defaulted
+    every new argument. --all is the **proactive board-wide discovery mode** - the
+    mode that surfaces pre-existing full-bar/unticked-body parents, and the very one
+    used to find this feature's motivating cases. Shipping it blind would have made a
+    board sweep report clean while #859 and #527 sat right there.
+
+    Mirrors `test_all_mode_emits_review_for_not_planned`, whose existence is exactly
+    why the NOT_PLANNED flag did not slip the same way.
+    """
+
+    @patch("recheck_parent_status.body_unticked")
+    @patch("recheck_parent_status.all_sub_issues")
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_all_mode_emits_body_scope_review(
+        self, mock_parents, mock_open, mock_status, mock_np, mock_all, mock_body, capsys
+    ):
+        mock_parents.return_value = [859]
+        mock_open.return_value = []                       # native bar full
+        mock_all.return_value = [{"number": 1, "state": "closed"}]  # children ARE visible
+        mock_status.return_value = "Epic"
+        mock_np.return_value = False
+        mock_body.return_value = (4, "4 under 'Sub-issues'")
+
+        rc = rps.run_all_mode()
+        out = capsys.readouterr().out
+        assert rc == 2, "a REVIEW is a non-None drift and must be counted"
+        assert "4 body box(es) still unticked" in out
+        assert "Sub-issues" in out
+
+    @patch("recheck_parent_status.body_unticked")
+    @patch("recheck_parent_status.all_sub_issues")
+    @patch("recheck_parent_status.has_not_planned_child")
+    @patch("recheck_parent_status.status_for_issue")
+    @patch("recheck_parent_status.open_sub_issues")
+    @patch("recheck_parent_status.all_parent_issues")
+    def test_all_mode_clean_body_still_completion_drift(
+        self, mock_parents, mock_open, mock_status, mock_np, mock_all, mock_body, capsys
+    ):
+        # Matched pair: identical sweep, box count flipped -> the OTHER outcome.
+        # If run_all_mode were still unwired, both cases would print COMPLETION DRIFT.
+        mock_parents.return_value = [859]
+        mock_open.return_value = []
+        mock_all.return_value = [{"number": 1, "state": "closed"}]
+        mock_status.return_value = "Epic"
+        mock_np.return_value = False
+        mock_body.return_value = (0, "")
+
+        rps.run_all_mode()
+        out = capsys.readouterr().out
+        assert "COMPLETION DRIFT" in out
+        assert "still unticked" not in out

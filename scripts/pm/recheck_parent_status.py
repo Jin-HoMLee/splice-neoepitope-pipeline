@@ -255,6 +255,55 @@ def body_unticked(issue_number: int) -> tuple[int, str]:
     return total, "; ".join(where)
 
 
+def audit_one_parent(parent: int) -> dict:
+    """Build the full audit record for ONE parent. The single source for both modes.
+
+    Extracted because the duplication was the bug (PR #1132 review): the `--issue`
+    chain walk and the `--all` board sweep each built this record with their own
+    inline `classify_drift` call, so the Issue #1067 body-scope flag was wired into
+    one and silently not the other - leaving `--all`, the **proactive board-wide
+    discovery mode**, unable to emit it. A sweep would have reported clean while
+    #859 and #527 sat right there. One builder, so the two modes cannot diverge again.
+
+    Deliberately keeps the existing `open_sub_issues` / `has_not_planned_child` call
+    seams rather than collapsing the all-closed path's `/sub_issues` fetches into one
+    (PR #1132 review, nit 2). The collapse is a real but small win on an advisory
+    tool, and taking it would re-point every mock seam in the existing suite - churn
+    with a real chance of masking a regression, for no behavior change. Recorded as a
+    known inefficiency instead of smuggled into a correctness fix.
+    """
+    parent_status = status_for_issue(parent)
+    children = open_sub_issues(parent)
+    enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
+                for c in children]
+
+    all_closed = not enriched
+    has_np = all_closed and has_not_planned_child(parent)
+    # `has_known_children` distinguishes "the bar is full" from "we cannot see the
+    # bar" (a cross-repo parent's sub-issues are invisible to this repo's API). Both
+    # arrive as an empty open-children list, so without this the body-scope prompt
+    # would fire on a bar we never actually read (AC 3).
+    known_children = bool(all_sub_issues(parent)) if all_closed else True
+    # count and `where` are produced together, so a positive count always carries a
+    # non-empty `where` and the message can never render empty parens (review nit 3).
+    unticked, where = (
+        body_unticked(parent) if all_closed and known_children else (0, "")
+    )
+    return {
+        "issue": parent,
+        "status": parent_status,
+        "open_children": enriched,
+        "collective": collective_state(enriched),
+        "drift": classify_drift(
+            parent_status, enriched,
+            has_not_planned=has_np,
+            body_unticked_count=unticked,
+            body_unticked_where=where,
+            has_known_children=known_children,
+        ),
+    }
+
+
 def audit_parent_chain(issue_number: int) -> list[dict]:
     """Walk up the parent chain from issue_number; audit drift at each level.
 
@@ -266,37 +315,7 @@ def audit_parent_chain(issue_number: int) -> list[dict]:
     seen = {issue_number}
     while cursor is not None and cursor not in seen:
         seen.add(cursor)
-        parent_status = status_for_issue(cursor)
-        children = open_sub_issues(cursor)
-        # Enrich children with their Status
-        enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
-                    for c in children]
-        # Only consult close reasons + the body ACs when every child is closed —
-        # that's the one case classify_drift uses them, and it saves API calls
-        # otherwise.
-        all_closed = not enriched
-        has_np = all_closed and has_not_planned_child(cursor)
-        # `has_known_children` distinguishes "the bar is full" from "we cannot see
-        # the bar" (a cross-repo parent's sub-issues are invisible here). Both
-        # arrive as an empty open-children list, so without this the body-AC prompt
-        # would fire on a parent whose children we never actually read (AC 3).
-        known_children = bool(all_sub_issues(cursor)) if all_closed else True
-        unticked, where = (
-            body_unticked(cursor) if all_closed and known_children else (0, "")
-        )
-        chain.append({
-            "issue": cursor,
-            "status": parent_status,
-            "open_children": enriched,
-            "collective": collective_state(enriched),
-            "drift": classify_drift(
-                parent_status, enriched,
-                has_not_planned=has_np,
-                body_unticked_count=unticked,
-                body_unticked_where=where,
-                has_known_children=known_children,
-            ),
-        })
+        chain.append(audit_one_parent(cursor))
         cursor = parent_issue_number(cursor)
     return chain
 
@@ -377,24 +396,17 @@ def run_all_mode() -> int:
     drift_blocks: list[str] = []
     for p in parents:
         try:
-            parent_status = status_for_issue(p)
-            children = open_sub_issues(p)
-            enriched = [{"number": c["number"], "status": status_for_issue(c["number"])}
-                        for c in children]
-            has_np = not enriched and has_not_planned_child(p)
+            # The SAME builder the --issue path uses (PR #1132 review). This site
+            # previously inlined its own classify_drift call and so silently missed
+            # every argument added since - which left the board-wide sweep, the mode
+            # that exists to DISCOVER drift, unable to emit the #1067 body-scope flag.
+            record = audit_one_parent(p)
         except GhError as e:
             # Per-item isolation (Issue #1017): one parent's terminal gh failure
             # skips that parent, it does not abort the remaining audit.
             skipped_count += 1
             print(f"  [skipped #{p}: gh error during audit - {e}]", file=sys.stderr)
             continue
-        record = {
-            "issue": p,
-            "status": parent_status,
-            "open_children": enriched,
-            "collective": collective_state(enriched),
-            "drift": classify_drift(parent_status, enriched, has_not_planned=has_np),
-        }
         if record["drift"] is not None:
             drifted_count += 1
             drift_blocks.append(format_record(record))
