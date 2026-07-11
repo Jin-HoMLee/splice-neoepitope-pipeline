@@ -214,22 +214,30 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
     role = next((l for l in labels if l.startswith("role:")), None)
     arc_labels = [l for l in labels if l.startswith("arc:")]
-    if len(arc_labels) > 1:
+    # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
+    # no summary for) have no subIssuesSummary block -> treated as a leaf. Mirrors
+    # `.agents/hooks/check_gh_issue_develop_parent.py` (total > 0 -> parent).
+    # Computed BEFORE the multi-arc warning: multi-arc is drift on a leaf but
+    # legal on a parent (#1103).
+    sub_summary = content.get("subIssuesSummary") or {}
+    is_parent = (sub_summary.get("total") or 0) > 0
+    # One arc per LEAF; a parent/initiative may legitimately span themes (#1103).
+    # #1036 spans scoring-tcr-pmhc + immunogenicity-benchmark, and warning on it
+    # pushed toward stripping a true label to satisfy the checker.
+    if len(arc_labels) > 1 and not is_parent:
         print(
             f"Warning: issue #{content.get('number')} has multiple arc labels: {arc_labels}",
             file=sys.stderr,
         )
+    # `arc` keeps the first for single-value consumers (filters, the Arc column);
+    # `arcs` carries the full set so a multi-arc parent is not silently truncated.
     arc = arc_labels[0] if arc_labels else None
     arc_phase = next(
         (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
         None,
     )
-    # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
-    # no summary for) have no subIssuesSummary block → treated as a leaf. Mirrors
-    # `.agents/hooks/check_gh_issue_develop_parent.py` (total > 0 → parent).
-    sub_summary = content.get("subIssuesSummary") or {}
-    is_parent = (sub_summary.get("total") or 0) > 0
     return {
+        "arcs": arc_labels,
         "number": content.get("number"),
         "title": content.get("title", ""),
         "url": content.get("url", ""),

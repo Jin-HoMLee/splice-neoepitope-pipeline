@@ -7,13 +7,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import board_open_items as b  # noqa: E402
 
 
-def _item(labels):
+def _item(labels, children=0):
+    content = {
+        "__typename": "Issue", "number": 1, "title": "t", "url": "u", "state": "OPEN",
+        "createdAt": None, "updatedAt": None, "closedAt": None,
+        "labels": {"nodes": [{"name": n} for n in labels]},
+    }
+    if children:
+        content["subIssuesSummary"] = {"total": children}
     return {
-        "content": {
-            "__typename": "Issue", "number": 1, "title": "t", "url": "u", "state": "OPEN",
-            "createdAt": None, "updatedAt": None, "closedAt": None,
-            "labels": {"nodes": [{"name": n} for n in labels]},
-        },
+        "content": content,
         "fieldValues": {"nodes": [{"name": "Ready", "field": {"name": "Status"}}]},
     }
 
@@ -40,10 +43,41 @@ def test_arc_phase_label_not_mistaken_for_arc():
     assert n["arc"] is None and n["arc_phase"] == "later"
 
 
-def test_normalize_multi_arc_picks_first_and_warns(capsys):
+def test_normalize_multi_arc_on_a_leaf_picks_first_and_warns(capsys):
+    """One arc per LEAF is still the rule - a multi-arc leaf is drift."""
     n = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc:board-governance"]))
     assert n["arc"] == "arc:scoring-tcr-pmhc"
     assert "multiple arc labels" in capsys.readouterr().err
+
+
+# --- #1103: multi-arc is legal at the parent/initiative tier -----------------
+#
+# A parent/epic may legitimately span themes (#1036 spans scoring-tcr-pmhc and
+# immunogenicity-benchmark). Standard practice permits overlapping labels there
+# (Cohn: "theme and epic are labels, not an implied hierarchy"). Warning on it
+# pushed toward stripping a true label to satisfy a checker.
+
+
+def test_normalize_multi_arc_on_a_parent_does_not_warn(capsys):
+    n = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"], children=2))
+    assert n["is_parent"] is True
+    assert "multiple arc labels" not in capsys.readouterr().err
+
+
+def test_normalize_multi_arc_parent_still_exposes_all_arcs():
+    """`arc` keeps the first (single-value consumers), `arcs` carries the full set."""
+    n = b.normalize(_item(["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"], children=2))
+    assert n["arc"] == "arc:scoring-tcr-pmhc"
+    assert n["arcs"] == ["arc:scoring-tcr-pmhc", "arc:immunogenicity-benchmark"]
+
+
+def test_normalize_single_arc_leaf_exposes_arcs_too():
+    n = b.normalize(_item(["arc:board-governance"]))
+    assert n["arcs"] == ["arc:board-governance"]
+
+
+def test_normalize_no_arc_has_empty_arcs():
+    assert b.normalize(_item(["role:pm"]))["arcs"] == []
 
 
 def test_filter_by_arc_phase():

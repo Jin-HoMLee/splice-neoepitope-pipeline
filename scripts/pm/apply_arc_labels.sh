@@ -72,6 +72,7 @@ echo "arc taxonomy reconcile [$mode] <- $MANIFEST"
 drift=0
 failed=0
 seen_multi=" "
+seen_parent=" "
 
 # --- manifest pass: roster + phase-vocab validation + advisory active-slate note ---
 roster=" "
@@ -100,6 +101,26 @@ while IFS= read -r lbl; do
 done < <(gh label list --repo "$REPO" --limit 200 --json name \
           --jq '.[].name | select(startswith("arc:"))')
 
+# --- parent set (Issue #1103) ---
+# Parents/epics are parked in the `Epic` Status and are never pulled, so an
+# arc-phase focus marker is meaningless on them: they carry NONE. And because a
+# parent legitimately spans themes (#1036 spans scoring-tcr-pmhc +
+# immunogenicity-benchmark), multi-arc is LEGAL at the parent tier - the
+# one-arc rule binds leaves only. Fetched once (one paginated query), not per
+# issue, so the reconcile stays O(arcs) reads.
+PARENTS=" "
+while IFS= read -r pn; do
+  [[ -n "${pn:-}" ]] && PARENTS="${PARENTS}${pn} "
+done < <(gh api graphql --paginate -f query='
+  query($endCursor: String) {
+    repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") {
+      issues(states: OPEN, first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { number subIssuesSummary { total } }
+      }
+    }
+  }' --jq '.data.repository.issues.nodes[] | select(.subIssuesSummary.total > 0) | .number')
+
 # --- per-arc phase reconcile (membership discovered live via labels) ---
 # One list call per arc returns each member's number + its arc/arc-phase labels
 # inline (O(arcs) reads, not O(members)); --limit 1000 avoids gh's default 30-row
@@ -120,13 +141,43 @@ while read -r arc phase rest || [[ -n "${arc:-}" ]]; do
       esac
     done
 
+    # --- parent tier (#1103): multi-arc is legal, and NO arc-phase is carried ---
+    # A parent is parked in `Epic` Status and never pulled, so the focus marker is
+    # meaningless on it. Multi-arc on a parent is therefore not ambiguous - it is
+    # simply unphased. The one-arc rule binds LEAVES.
+    if [[ "$PARENTS" == *" $n "* ]]; then
+      if [[ -n "$cur_phases" ]]; then
+        case "$seen_parent" in
+          *" $n "*) : ;;  # already handled via another of its arcs
+          *)
+            drift=1
+            seen_parent="${seen_parent}${n} "
+            cur_csv="${cur_phases# }"; cur_csv="${cur_csv// /,}"
+            if [[ $CHECK -eq 1 ]]; then
+              echo "  DRIFT parent-phase: #$n has [$cur_csv], wants none (parents carry no arc-phase)"
+            else
+              remove_args=()
+              for p in $cur_phases; do remove_args+=(--remove-label "$p"); done
+              echo "  fix #$n -> strip arc-phase (parent; removing:$cur_phases)"
+              if ! gh issue edit "$n" --repo "$REPO" "${remove_args[@]}"; then
+                echo "  WARN: edit #$n failed (transient?); re-run to retry"
+                failed=$((failed + 1))
+              fi
+            fi
+            ;;
+        esac
+      fi
+      continue
+    fi
+
+    # --- leaf tier: exactly one arc ---
     if [[ $n_arcs -gt 1 ]]; then
       drift=1
       case "$seen_multi" in
         *" $n "*) : ;;  # already reported for another arc
         *)
           arcs_csv="${arcs_list# }"; arcs_csv="${arcs_csv// /,}"
-          echo "  DRIFT multi-arc: #$n carries $n_arcs arc labels ($arcs_csv) -> ambiguous phase, skipping (resolve at arc review)"
+          echo "  DRIFT multi-arc: #$n carries $n_arcs arc labels ($arcs_csv) -> one arc per leaf (multi-arc is legal only on a parent, #1103)"
           seen_multi="${seen_multi}${n} "
           ;;
       esac
