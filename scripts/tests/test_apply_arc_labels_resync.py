@@ -47,11 +47,19 @@ _FAKE_GH = (
     '  [[ -n "${!failvar:-}" ]] && exit 1\n'
     "  exit 0\n"
     "fi\n"
+    # The parent-set query (#1103). Without this branch the fake `gh` fell through
+    # to the catch-all `exit 0`, PARENTS stayed empty, and the ENTIRE parent tier
+    # was unreachable in every test - the leaf paths passed and proved nothing
+    # about the half this feature actually changed. Caught in review of PR #1123.
+    'if [[ "$1" == "api" && "$2" == "graphql" ]]; then\n'
+    "  for n in ${PARENTS_STUB:-}; do printf '%s\\n' \"$n\"; done\n"
+    "  exit 0\n"
+    "fi\n"
     "exit 0\n"
 )
 
 
-def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, check=False, fail_edits=None, extra_env=None):
+def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, check=False, fail_edits=None, parents="", extra_env=None):
     gh = tmp_path / "gh"
     gh.write_text(_FAKE_GH)
     gh.chmod(0o755)
@@ -69,6 +77,7 @@ def _run(tmp_path, manifest_text, *, arclabels="", members=None, labels=None, ch
         env[f"LABELS_{n}"] = lbls
     for n in (fail_edits or []):
         env[f"FAIL_EDIT_{n}"] = "1"
+    env["PARENTS_STUB"] = parents
     env.update(extra_env or {})
     cmd = ["bash", str(SCRIPT), str(manifest)]
     if check:
@@ -301,3 +310,118 @@ def test_multi_arc_reported_once_across_arcs(tmp_path):
 def test_member_query_uses_limit_1000(tmp_path):
     # Guard against gh issue list's silent default --limit 30 truncation.
     assert "--limit 1000" in SCRIPT.read_text()
+
+
+# --- #1103: the parent tier -------------------------------------------------
+#
+# Multi-arc is LEGAL on a parent (subIssuesSummary.total > 0) and a parent carries
+# NO arc-phase (it is parked in `Epic` and never pulled, so a focus marker is
+# meaningless). Both remain drift on a LEAF.
+#
+# Every test below was unreachable before PR #1123's review: the fake `gh` had no
+# `api graphql` branch, so PARENTS was always empty and the parent code never ran.
+
+_TWO_ARC_MANIFEST = (
+    "arc:board-governance\tactive\tBoard governance\n"
+    "arc:memory-methodology\tlater\tMemory methodology\n"
+)
+
+
+def test_multi_arc_parent_is_not_drift(tmp_path):
+    """The #1036 case: a parent spanning two arcs is legal, not multi-arc drift."""
+    proc, log = _run(
+        tmp_path, _TWO_ARC_MANIFEST,
+        arclabels="arc:board-governance arc:memory-methodology",
+        members={"arc:board-governance": "1036", "arc:memory-methodology": "1036"},
+        labels={"1036": "arc:board-governance arc:memory-methodology"},
+        parents="1036",
+        check=True,
+    )
+    assert "multi-arc" not in proc.stdout, proc.stdout
+    assert proc.returncode == 0, f"guard should be CLEAN\n{proc.stdout}"
+    assert log == "", "a clean parent must not be edited"
+
+
+def test_multi_arc_LEAF_is_still_drift(tmp_path):
+    """Control: the same two arcs on a LEAF are still drift. The relaxation is
+    scoped to parents - if this ever passes, the rule has been over-relaxed."""
+    proc, _ = _run(
+        tmp_path, _TWO_ARC_MANIFEST,
+        arclabels="arc:board-governance arc:memory-methodology",
+        members={"arc:board-governance": "1036", "arc:memory-methodology": "1036"},
+        labels={"1036": "arc:board-governance arc:memory-methodology"},
+        parents="",  # NOT a parent
+        check=True,
+    )
+    assert "multi-arc" in proc.stdout, proc.stdout
+    assert proc.returncode == 2
+
+
+def test_parent_carrying_a_phase_is_stripped(tmp_path):
+    """A parent with an arc-phase is drift; apply-mode removes it."""
+    proc, log = _run(
+        tmp_path, _MANIFEST,
+        arclabels="arc:board-governance",
+        members={"arc:board-governance": "680"},
+        labels={"680": "arc:board-governance arc-phase:active"},
+        parents="680",
+    )
+    assert "strip arc-phase (parent" in proc.stdout, proc.stdout
+    assert "--remove-label arc-phase:active" in log, log
+    assert "--add-label" not in log, "a parent must never be GIVEN a phase"
+
+
+def test_parent_carrying_a_phase_is_reported_in_check_mode(tmp_path):
+    """--check reports it read-only, exits 2, and edits nothing."""
+    proc, log = _run(
+        tmp_path, _MANIFEST,
+        arclabels="arc:board-governance",
+        members={"arc:board-governance": "680"},
+        labels={"680": "arc:board-governance arc-phase:active"},
+        parents="680",
+        check=True,
+    )
+    assert "DRIFT parent-phase: #680" in proc.stdout, proc.stdout
+    assert proc.returncode == 2
+    assert log == "", "--check must not mutate"
+
+
+def test_multi_arc_parent_with_a_phase_is_reported_once(tmp_path):
+    """seen_parent dedup: a parent found under 2 arcs is reported/stripped once."""
+    proc, log = _run(
+        tmp_path, _TWO_ARC_MANIFEST,
+        arclabels="arc:board-governance arc:memory-methodology",
+        members={"arc:board-governance": "1036", "arc:memory-methodology": "1036"},
+        labels={"1036": "arc:board-governance arc:memory-methodology arc-phase:active"},
+        parents="1036",
+    )
+    assert proc.stdout.count("strip arc-phase (parent") == 1, proc.stdout
+    assert log.count("--remove-label") == 1, log
+
+
+def test_clean_parent_is_a_no_op(tmp_path):
+    """A parent with arcs and no phase: no drift, no edit, exit 0."""
+    proc, log = _run(
+        tmp_path, _MANIFEST,
+        arclabels="arc:board-governance",
+        members={"arc:board-governance": "680"},
+        labels={"680": "arc:board-governance"},
+        parents="680",
+        check=True,
+    )
+    assert proc.returncode == 0, proc.stdout
+    assert "DRIFT" not in proc.stdout, proc.stdout
+    assert log == ""
+
+
+def test_leaf_phase_reconcile_still_works_alongside_a_parent(tmp_path):
+    """A parent and a leaf in the same arc: leaf gets its phase, parent gets none."""
+    proc, log = _run(
+        tmp_path, _MANIFEST,
+        arclabels="arc:board-governance",
+        members={"arc:board-governance": "680 999"},
+        labels={"680": "arc:board-governance arc-phase:active", "999": "arc:board-governance"},
+        parents="680",
+    )
+    assert "--add-label arc-phase:active" in log and "999" in log, log      # leaf phased
+    assert "--remove-label arc-phase:active" in log and "680" in log, log   # parent stripped

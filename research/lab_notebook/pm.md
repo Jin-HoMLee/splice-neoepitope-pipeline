@@ -8,6 +8,38 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-11
 
+### 16:05 UTC - Editor: PM
+
+#### Relax one-arc-per-issue at the parent tier ([Issue #1103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1103) / [PR #1123](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1123))
+
+**A guard whose only green path was a wrong edit.** With every routine finding cleared, [#1036](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1036) was `apply_arc_labels.sh --check`'s **sole** remaining drift, so it exited 2 permanently. #1036 is an open parent (2 sub-issues) that genuinely spans `scoring-tcr-pmhc` + `immunogenicity-benchmark`. Under the old rule the **only** way to green the guard was to strip one of two legitimate arcs - the exact sweep the Scientist warned against (*"I would rather it be counted than quietly dropped"*).
+
+**The rule was the bug, not the data.** Three independent signals, each checked rather than leaning on the one I liked:
+- Our own **watch-for anticipated it** and set the trigger at recurrence; it fired at **n=2** (#678, then #1036). The rule working as designed, not an exception carved for an awkward Issue.
+- **External practice already permits it** - Cohn, verified against the primary source in [Discussion #949](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/949): *"theme and epic are labels, not an implied hierarchy."* **#1036 violated our local constraint, not the underlying practice.**
+- It is the shape in `feedback_verify_premise_before_mechanizing.md`: when a rule declares a **natural** state a violation, fix the rule.
+
+**The elegant part.** Parents carry **no `arc-phase` at all** - a parent sits in `Epic` and is never pulled, so a focus marker was always meaningless on it. And *that* is why multi-arc is unambiguous there: **with no phase to derive, there is nothing to disambiguate.** The one-arc constraint existed *only* to keep phase derivation well-defined, so removing the phase removes the reason for the constraint. Not a carve-out - the constraint's premise expiring.
+
+**I checked the "nearly free" claim instead of trusting it.** The Issue called option (a) nearly free, but it **strips a label from 9 parents**. Traced every consumer: `is_arc_phase_incoherent` fires only on a *committed* status or a milestone; `Epic` is not in `COMMITTED_STATUSES` and parents are un-milestoned ([#690](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/690)) - so it never fired on parents anyway. The claim held. But I would otherwise have deleted 9 labels on faith.
+
+#### The pattern of the day, and the one I actually need to fix
+
+Bot review caught **two** real defects here, and the first is the one worth keeping.
+
+**The parent tier had ZERO test coverage.** The fake `gh` harness had no `api graphql` branch, so it fell through to a catch-all `exit 0`, `PARENTS` was **always empty**, and the entire parent branch was **unreachable in every test**. My "102 passed" exercised leaf paths only and proved **nothing** about the feature the PR exists to deliver. The fix is not just the new tests but the **control**: two tests now pass identical labels/arcs, differing *only* in `parents`, asserting **opposite** exit codes - if the branch weren't executing, they could not both pass.
+
+**And `--arc` matched only the first arc** - a real bug my own change made reachable. GitHub returns labels in an **unstable order**, so `--arc immunogenicity-benchmark` would find #1036 or silently miss it depending on which label sorted first. Latent while multi-arc was drift to be swept; a live **nondeterministic wrong answer** once multi-arc parents became permanent - and an arc census is exactly what `--arc` is *for*.
+
+**Four times today an adversarial reader caught me asserting something I had not run** (the `git mv` history claim; the "left in place" directory; the bare-date regex that would have false-blocked every developer PR forever; this test suite). Every one I had called "verified".
+
+The common shape is not carelessness. **I kept choosing verifications that could only confirm.** I checked `scientist.md` (bare dates) and not `developer.md` (suffixed). I asserted `_dated_blocks()` was non-empty on a file whose older half still parsed. I ran 102 tests through a harness that stubbed the branch under test out of existence. Each check *passed*, and each was hollow.
+
+**The rule to keep: before trusting a check, ask what result would make it fail. If you cannot answer, it is not a check.** Candidate for its own memory file - it is more general than any of the four incidents, and it bit in git, in docs, in code, and in tests on the same day.
+
+#### Session arc
+
+A question about a **skill name** surfaced: a coordination scan **100% blind** to cross-role pings for three weeks; a resume routine that had **never once fired** (its trigger lived in a file that is never auto-loaded); a merge gate that **punished following the rules**; and a board guard whose only green path was vandalism. None were on any list this morning. What found them was declining the user's own framing (rename? modularize?) and asking what was actually broken.
 ### 13:55 UTC - Editor: PM
 
 #### Scope addition: `/inbox` command -> Agent Skill (vendor-agnosticism), [PR #1115](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1115)
