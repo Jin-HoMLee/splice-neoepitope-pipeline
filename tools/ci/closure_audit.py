@@ -60,7 +60,17 @@ _NOTEBOOK_EXEMPT_ROLES = {"memory_manager"}
 # not coerce an entry the lab-notebook rule says is unnecessary. The value after
 # the colon (e.g. `routine`) is free-text rationale with no `>` (the regex stops
 # at the first `>`); presence of the marker is what matters, not the value.
-_SKIP_LAB_NOTEBOOK = re.compile(r"<!--\s*skip-lab-notebook\b[^>]*-->", re.IGNORECASE)
+# The marker must sit **on its own line** (leading/trailing whitespace allowed).
+# The unanchored form matched any occurrence anywhere in the body, so a PR body
+# that merely *documents* the opt-out - backtick-quoted, mid-sentence - silently
+# skipped this gate. Not hypothetical: the identical shape in the sibling
+# `skip-bot-review` marker fired on its very first PR (#1124), where the PR
+# introducing the auto-review opted itself out of the review it exists to request.
+# Anchoring to a whole line is what separates *using* the directive from *talking
+# about* it (Issue #1126).
+_SKIP_LAB_NOTEBOOK = re.compile(
+    r"^[ \t]*<!--\s*skip-lab-notebook\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+)
 
 
 # --- pure checks ---
