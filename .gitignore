@@ -255,6 +255,10 @@ research/experiments/issue_547_immunogenicity_calibration/outputs/*.parquet
 # notebook artifacts (concordance tables/figures) live elsewhere under outputs/.
 research/experiments/issue_566_asneo_crosscheck/outputs/chr22_run/
 
+# #1048 spike: reproduce.sh builds a ~1.4 GB pvactools venv + example data into its
+# default workdir. Regenerable via `bash reproduce.sh`; the committed record is env_lock.txt.
+research/experiments/issue_1048_pvactools_mhcflurry_spike/.spike_run/
+
 # Quarto slide-deck build artefacts — regenerable via `quarto render`
 research/slides/**/*.html
 research/slides/**/*.pdf
