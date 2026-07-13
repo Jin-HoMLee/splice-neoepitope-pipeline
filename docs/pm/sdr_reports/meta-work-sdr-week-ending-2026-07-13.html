@@ -56,25 +56,25 @@
   <!-- Section 2: At-a-glance (script-generated) -->
   <h2>At a glance</h2>
   <div class="cards">
-    <div class="card"><div class="n">25</div><div class="l">Delivered</div></div>
+    <div class="card"><div class="n">26</div><div class="l">Delivered</div></div>
     <div class="card"><div class="n">2</div><div class="l">Descoped</div></div>
     <div class="card"><div class="n">0</div><div class="l">Carried forward</div></div>
-    <div class="card"><div class="n">25.0</div><div class="l">Delivered / week</div></div>
-    <div class="card"><div class="n">7.0</div><div class="l">Avg cycle (days)</div></div>
-    <div class="card"><div class="n">2.9</div><div class="l">Median cycle (days)</div></div>
+    <div class="card"><div class="n">26.0</div><div class="l">Delivered / week</div></div>
+    <div class="card"><div class="n">6.8</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">2.5</div><div class="l">Median cycle (days)</div></div>
     <div class="card"><div class="n">0%</div><div class="l">Unplanned share</div></div>
   </div>
 
   <!-- Throughput breakdown by arrival (Issue #811): committed = crossed Backlog -> Ready;
        unplanned = barged in mid-session. Arrival, not urgency - priority cannot express it. -->
   <div class="rolebar">
-    <span class="pill">committed · <strong>25</strong></span>
+    <span class="pill">committed · <strong>26</strong></span>
     <span class="pill">unplanned · <strong>0</strong></span>
     
   </div>
   <div class="rolebar">
     
-      <span class="pill">role:developer · <strong>9</strong></span>
+      <span class="pill">role:developer · <strong>10</strong></span>
     
       <span class="pill">role:pm · <strong>10</strong></span>
     
@@ -95,7 +95,7 @@
       
       <tr><td>2026-07-06</td><td>70</td><td>70</td><td>0</td><td>0%</td><td>2.0</td></tr>
       
-      <tr><td>2026-07-13</td><td>25</td><td>25</td><td>0</td><td>0%</td><td>2.9</td></tr>
+      <tr><td>2026-07-13</td><td>26</td><td>26</td><td>0</td><td>0%</td><td>2.5</td></tr>
       
     </tbody>
   </table>
@@ -107,6 +107,14 @@
      The script regenerates the HTML from this file + fresh board data;
      it never overwrites this sidecar once it exists. -->
 
+<blockquote>
+<h3>⚠️ READ THIS BEFORE THE NUMBERS ABOVE</h3>
+<p><strong>The <code>0% unplanned</code> in the cards and the trend table is NOT a measurement. Do not read it, and do not retune WIP against it.</strong>
+The <code>unplanned</code> label has been applied to <strong>zero issues repo-wide</strong> (it shipped hours before this report), so the arrival axis is <strong>"no data"</strong>, not a measured zero.
+The report cannot currently tell those two apart: it guards the empty-window case and not this one, so an unused marker renders as a clean, confident <code>0.0%</code>.
+Tracked as <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144">Issue #1144</a>; this week is its first live instance.
+<strong>Every other number in this report is real.</strong> The arrival axis alone is unusable.</p>
+</blockquote>
 <h2>Deliverables (Review layer)</h2>
 <p><strong>25 delivered, evenly split across the three lanes</strong> (PM 10, Developer 9, Scientist 8).
 The full list is in the Inventory appendix; the week has a single dominant theme and it is worth naming rather than enumerating.</p>
@@ -178,6 +186,16 @@ A fourth instance stops this being three bugs and makes it an architectural find
       <tr class="closed">
         <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130">#1130</a></td>
         <td>fix(hooks): post_gh_pr_create never fires on heredoc-created PRs (matches_pr_create tokenization gap)</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>—</td>
+        <td>—</td>
+        <td>2026-07-13</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126">#1126</a></td>
+        <td>fix(ci): anchor the skip-lab-notebook marker - a prose mention silently skips the merge gate</td>
         <td>Done</td>
         <td>developer</td>
         <td>—</td>

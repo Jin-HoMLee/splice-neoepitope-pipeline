@@ -2,6 +2,14 @@
      The script regenerates the HTML from this file + fresh board data;
      it never overwrites this sidecar once it exists. -->
 
+> ### ⚠️ READ THIS BEFORE THE NUMBERS ABOVE
+>
+> **The `0% unplanned` in the cards and the trend table is NOT a measurement. Do not read it, and do not retune WIP against it.**
+> The `unplanned` label has been applied to **zero issues repo-wide** (it shipped hours before this report), so the arrival axis is **"no data"**, not a measured zero.
+> The report cannot currently tell those two apart: it guards the empty-window case and not this one, so an unused marker renders as a clean, confident `0.0%`.
+> Tracked as [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144); this week is its first live instance.
+> **Every other number in this report is real.** The arrival axis alone is unusable.
+
 ## Deliverables (Review layer)
 
 **25 delivered, evenly split across the three lanes** (PM 10, Developer 9, Scientist 8).
