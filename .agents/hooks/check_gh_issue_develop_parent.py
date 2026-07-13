@@ -29,9 +29,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
-_PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _DEVELOP_PREFIX = ("gh", "issue", "develop")
 # `gh issue develop` flags that consume the following token as their value.
 _VALUE_FLAGS = {"-b", "--base", "--branch-repo", "-n", "--name", "-R", "--repo"}
@@ -51,9 +54,18 @@ def develop_args(cmd: str) -> list[str] | None:
     Args are collected up to the next shell separator, so a trailing
     `&& other-cmd` doesn't leak its tokens in. Untokenizable input (unbalanced
     quotes) fails safe → None.
+
+    The command is **normalized first** (Issue #1142): heredoc bodies are stripped
+    and unquoted newlines become separators. Without that, a `gh issue develop` on
+    the second line of a multi-line command sat after an ordinary word rather than
+    a separator, so `at_command_start` was False and the parent guard silently
+    allowed branching off an epic - the exact auto-close footgun it exists to stop.
+    A newline IS a command separator in shell; shlex does not treat it as one.
+    Same defect class as `matches_pr_create` (Issue #1130), same shared fix.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:
