@@ -85,11 +85,18 @@ REVIEW_TRIGGER = "@claude review"
 # The unanchored form bit immediately: a PR body that merely *documents* the
 # marker in prose - backtick-quoted, mid-sentence - matched, and this feature's
 # own PR (#1124) silently opted itself out of the review it exists to request.
-# Anchoring is what separates "using the directive" from "talking about it", and
-# it is the deliberate divergence from `_SKIP_LAB_NOTEBOOK`, which is unanchored
-# and carries the same latent hazard.
+# Anchoring is what separates "using the directive" from "talking about it".
+# `_SKIP_LAB_NOTEBOOK` in `closure_audit.py` now carries the identical pattern
+# (Issue #1126), so the two markers share one rule.
+#
+# The trailing class must absorb a **carriage return**. Python's `$` matches only
+# before a `\n`, never before a `\r`, so under CRLF the end-anchor fails and a
+# correctly-placed marker **silently does not register** - and a PR body authored
+# or edited in the GitHub **web UI** comes back from the API with CRLF. Fail-closed
+# (the PR just gets a bot review it tried to skip), but baffling for an author who
+# did it right. Verified empirically before fixing (PR #1129 review, finding 1).
 _SKIP_BOT_REVIEW_RE = re.compile(
-    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t\r]*$", re.IGNORECASE | re.MULTILINE
 )
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"

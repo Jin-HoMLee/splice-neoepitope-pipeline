@@ -430,3 +430,16 @@ class TestSubprocessNoOp:
             _payload("gh pr create --fill", "https://github.com/someone-else/other/pull/3")
         )
         assert rc == 0 and out.strip() == ""
+
+
+def test_skip_bot_review_marker_crlf_own_line():
+    """CRLF regression, sibling marker (PR #1129 review finding 1).
+
+    Same defect as `_SKIP_LAB_NOTEBOOK`: a web-UI-edited PR body arrives with CRLF
+    and the own-line end-anchor fails, so a correctly-placed opt-out silently does
+    not register and the PR gets a bot review it explicitly tried to skip. Both
+    markers now share the fix, as they share the rule.
+    """
+    crlf = "Trivial.\r\n\r\n<!-- skip-bot-review: trivial -->\r\n"
+    assert h.has_skip_bot_review(crlf) is True
+    assert h.should_request_review(is_draft=False, body=crlf) is False

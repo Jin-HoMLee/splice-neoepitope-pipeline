@@ -28,6 +28,33 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 **What I actually learned, as distinct from what I already knew.** I have written "I fix the instance and miss the class" in this notebook twice this week, and knowing it did not stop me doing it a third time. What stopped it, both times today, was **a control that could come back red** - the isolating probe, and the bot's stronger probe. The lesson is not "be more careful." It is that **a sweep is only as good as its probe, and a probe built from the shape you already understand will certify the shape you do not.** The `echo` prefix felt like a control. It was a confirmation.
 
 **Shipped:** all five `gh`/`git`-matching hooks route through `_shell_parse.normalize_command()` before tokenizing; matched-pair regression tests per hook (command-start / heredoc / plain-newline, plus the false-positive direction), every one confirmed to go **red** against the pre-fix code; `AGENTS.md` records both failure shapes, the wrong `if:`-gate theory so it is not re-derived, and the probe trap. Verified by driving the real trigger, not a synthetic payload: the heredoc-led board query is now denied with a fire-log line, and this PR was itself opened with a heredoc `--body-file` to watch `post_gh_pr_create` fire live. CI green, 1,702 tests.
+---
+
+## 2026-07-11 - Anchor the skip-lab-notebook marker ([PR #1129](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1129) closes [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126))
+
+### 22:20 UTC - Editor: Developer - the fix for a silent bug had a silent bug
+
+Closed the latent twin of the [PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) marker bug: `_SKIP_LAB_NOTEBOOK` was unanchored, so a PR body that merely *documents* the opt-out would silently skip the lab-notebook merge gate.
+Same shape as the one that fired on #1124; it had not bitten only because no body had happened to quote it.
+
+**A real behavior change, deliberately surfaced.**
+A marker trailing after prose on the same line no longer opts out.
+When the existing fixture (which encoded the old contract) went red, I did **not** quietly edit it green - I changed it *and* added a test pinning the new contract, so a future re-loosening announces itself.
+No regex can separate "directive with a preamble word" from "prose about the directive"; "put it on its own line" is the only rule both a human and a machine can follow.
+And the failure direction is safe: fail-closed (a mis-formatted marker blocks loudly) beats fail-open (a gate silently bypassed).
+
+**Then the bot review found that my anchoring fix had its own silent failure: CRLF.**
+Python's `$` matches only before a `\n`, never before a `\r`.
+A PR body **authored or edited in the GitHub web UI comes back from the API with CRLF** - so a correctly-placed own-line marker fails the end-anchor and silently does not register.
+Fail-closed again, but a baffling false negative for an author who did everything right.
+
+Two things worth keeping:
+
+1. **The reviewer said it could not run Python in its sandbox, and asked for a 20-second local check.** I ran it. Both markers returned `False` on a CRLF own-line marker - including `skip-bot-review`, which I had **already merged**. The review was right, and right about more than it knew. Verifying beat assuming, in the direction of *worse* news.
+2. **My LF-only test suite was structurally incapable of seeing it.** Every fixture used `\n`. The tests were not wrong, they were *blind* - and blind in a way that adding more LF cases could never fix.
+
+Three bugs today, all silent, all in mechanisms that were "shipped and tested": the heredoc matcher, the unanchored marker, the CRLF anchor.
+None failed loudly. The pattern is not carelessness - **every one of them lived in the gap between what my tests exercised and what the world actually sends.**
 
 ---
 

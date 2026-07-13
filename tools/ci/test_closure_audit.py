@@ -369,6 +369,36 @@ def test_skip_lab_notebook_marker_tolerates_whitespace_and_case():
     assert ca.skip_lab_notebook("<!--   SKIP-LAB-NOTEBOOK : routine  -->") is True
 
 
+def test_skip_lab_notebook_marker_indented_own_line():
+    """Leading/trailing whitespace on the marker's own line → still honored."""
+    assert ca.skip_lab_notebook("intro\n   <!-- skip-lab-notebook: routine -->  \n") is True
+
+
+def test_skip_lab_notebook_prose_mention_does_not_skip():
+    """Regression (#1126): the marker must be USED, not merely DISCUSSED.
+
+    The unanchored regex matched any occurrence anywhere in the body, so a PR
+    body that *documents* the opt-out - backtick-quoted, mid-sentence - silently
+    skipped the lab-notebook merge gate. Not hypothetical: the identical shape in
+    the sibling `skip-bot-review` marker fired on its very first PR (#1124), where
+    the PR introducing the auto-review opted itself out of its own review.
+
+    Anchoring to a whole line is what separates using the directive from talking
+    about it. Falsifier: drop the anchors and this test goes red.
+    """
+    body = (
+        "This PR adds the opt-out. To skip the gate, put "
+        "`<!-- skip-lab-notebook: routine -->` in the PR body."
+    )
+    assert ca.skip_lab_notebook(body) is False
+
+
+def test_skip_lab_notebook_marker_inside_a_sentence_does_not_skip():
+    """Same shape without backticks: still prose, still must not skip the gate."""
+    body = "Add <!-- skip-lab-notebook: routine --> to opt out of the check."
+    assert ca.skip_lab_notebook(body) is False
+
+
 def test_skip_lab_notebook_marker_absent():
     """No marker → not skipped (check runs normally)."""
     body = "Real feature work that needs a journal entry.\n"
@@ -946,3 +976,22 @@ class TestCollectCrossRepoAcGaps:
 
         monkeypatch.setattr(ca, "fetch_issue", boom)
         assert ca.collect_cross_repo_ac_gaps(99, repo=THIS_REPO) == []
+
+
+def test_skip_lab_notebook_marker_crlf_own_line():
+    """CRLF regression (#1126, PR #1129 review finding 1).
+
+    A PR body authored or edited in the GitHub **web UI** comes back from the API
+    with CRLF. Python's `$` matches only before a `\\n`, never before a `\\r`, so
+    the own-line end-anchor failed and a correctly-placed marker silently did not
+    register. Fail-closed (the gate blocks rather than bypasses), but a baffling
+    false negative for an author who did everything right.
+
+    Falsifier: revert the trailing class to `[ \\t]*$` and this goes red while the
+    LF tests stay green - which is exactly why the LF-only suite missed it.
+    """
+    crlf = "Routine ship.\r\n\r\n<!-- skip-lab-notebook: routine -->\r\n"
+    assert ca.skip_lab_notebook(crlf) is True
+    # And the prose-mention guard still holds under CRLF.
+    prose = "Put `<!-- skip-lab-notebook: routine -->` in the body.\r\n"
+    assert ca.skip_lab_notebook(prose) is False
