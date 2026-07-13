@@ -6,6 +6,55 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-13
+
+### 15:10 UTC - Editor: PM
+
+#### I verified the measurement and shipped an unfalsifiable input ([Issue #811](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/811) / [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) / [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144))
+
+The SDR now splits delivered throughput by **arrival** (committed vs unplanned), because [Issue #902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902) makes that same SDR the forum for the WIP-limit retune, and the retune was being asked to run on a number that hides exactly the thing it needs to see.
+The PR also corrects facet 3 of #902 in `AGENTS.md`: it claimed `P0`-`P3` "already carries the same signal", and it does not.
+Urgency (how costly is delay) and arrival (did it cross the `Backlog -> Ready` commitment act) are orthogonal axes.
+A P2 same-day fix is unplanned; a P1 committed item is planned; the band cannot tell them apart.
+
+**What I got right, I got right for a specific reason.**
+The live SDR run reported `0 unplanned` in every week.
+That output is precisely what a never-read marker would print, so it could only come back green, and I could not tell a working split from a dead one by looking at it.
+So I built a matched-pair control on the real board: label a genuinely closed Issue, watch the week move `24 [24+0]` to `24 [23+1]`, remove the label, watch it move back, conservation holding throughout.
+That is the first time I have constructed the falsifier **before** being embarrassed into it rather than after.
+
+**And then the bot review found that I had done it at exactly one level too shallow.**
+
+The finding: the `unplanned` label is applied **by hand, at close, by the author of the closing PR**.
+A missing label is **indistinguishable from committed work**.
+There is no third state, so the failure mode is silent *and* directional: a forgotten label can only bias the unplanned share **downward**, and the consumer (the WIP retune) would therefore **under-correct** on a number that looks clean.
+A low unplanned share is precisely what a never-applied marker prints.
+
+That is the same sentence I wrote three paragraphs above about the metric.
+I proved the *reading* mechanism could fail, and shipped a *writing* mechanism that cannot.
+The verification instinct fired on the code, which is the part I was looking at, and stopped at the boundary of the code, which is not where the epistemics stop.
+The number is not currently falsifiable, and I would not have noticed, because every check I ran was downstream of the label.
+
+Filed as [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144), with one deliberate departure from the reviewer's suggested remedy.
+The bot proposed a closure-time hook or an `audit_and_merge.sh` nudge.
+I declined to file it that way: the mechanism-over-memory ladder escalates to a mechanism after a rule slips **twice on the same shape**, and this convention is days old with **zero** observed slips.
+Mechanizing now would be mechanizing an unverified premise, which is the exact error `feedback_verify_premise_before_mechanizing.md` exists to stop.
+So #1144 asks first for **detectability**: cross-check delivered Issues against the board's own `Backlog -> Ready` transition, so an item that never crossed the commitment act yet carries no label gets **flagged** rather than absorbed.
+That measures the slip rate instead of assuming it, and lets the evidence decide whether a gate is earned.
+Sequencing: [Issue #1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138) (the SDR labels lead time as "cycle time" because it cannot see the commitment point) wants the same `Backlog -> Ready` timestamp, so if it lands first, #1144 gets most of its answer for free.
+
+**The pattern worth keeping.**
+Both #1138 and #1144 are the same defect wearing different clothes: the SDR's inputs do not know the board's own semantics.
+The board has a commitment act, and not one of the SDR's headline numbers can see it.
+Sibling of [Issue #1139](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1139) (dispatch digest under-counts multi-role Ready items), filed yesterday, which is the same shape a third time: a governance instrument that does not implement the governance model it reports on.
+If a fourth turns up, this stops being three bugs and starts being an architectural finding about how the PM tooling reads the board.
+
+Review otherwise LGTM.
+Fixed the one code finding (the `weekly_series` docstring had drifted from the shape the `throughput_breakdown` spread actually returns, `bf27940`); declined the nit (`delivered_issues()` computed twice, which keeps `throughput_breakdown` pure and is O(n) at n <= 1000).
+Holding at the merge gate: the `AGENTS.md` edit is a governance surface, so the merge is Jin-Ho's authorizing act, not a routine ship.
+
+---
+
 ## 2026-07-11
 
 ### 21:30 UTC - Editor: PM
