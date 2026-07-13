@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-13
+
+### 18:05 UTC - Editor: Scientist
+
+#### [Issue #1096](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1096) - pvacsplice's VCF is a variant *filter*. It is a comparator, never a component.
+
+Settled the [#1048](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1048) follow-up question by reading pVACtools' source rather than its docs, which AC-2 explicitly permits when the empirical answer would be ambiguous. It is not ambiguous. Three separate code paths drop a variant-free junction:
+
+1. `filter_regtools_results.py` calls `.dropna()` on the junctions frame. A junction with no `variant_info` (the column `regtools junctions annotate` fills from the VEP VCF) is deleted before anything else runs.
+2. The same file then keeps only junctions whose variant lies within `--variant-distance` of the junction window - **default 100 bp** (`run_argument_parser.py`), help text: *"Maximum distance window (upstream and downstream) for a variant outside the junction."*
+3. `combine_inputs.py` inner-joins junctions to variants on `variant_info` (pandas' default `how='inner'`), printing *"present in the junctions file, but not in the VEP-annotated VCF. Skipping."*
+
+Our candidates are `tumor_exclusive` junctions with **no associated somatic variant** - the junction *is* the lesion - so they filter to zero at step 1, before a single peptide is generated. A variant-free VEP VCF does not rescue this; it makes the drop total rather than partial.
+
+The distinction that matters: the variant is not *transcript context* (possibility A), it is the object pvacsplice is **keyed on** (possibility B). That is a contract mismatch, not a format mismatch, so no wrapper can close it. pvacsplice is therefore a **partial-fit comparator** for the [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) benchmark and is **out of the [#1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) toolkit as a Layer-A component**. Both routed on the respective Issues.
+
+Worth stating explicitly on the benchmark, because it is an easy category error to make later: if pvacsplice is run on our candidates it returns **zero**, and that zero describes its input contract, not its performance. It must be scored on the variant-associated subset it was built for, or excluded with the reason given.
+
+Free finding, folded onto [#685](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/685): this also confirms pvacsplice cannot cover intron retention or MXE, since its junction model is anchored on a variant-proximal event. Two mature open callers (pvacsplice, splice2neo) both walking away from IR is a real gap and a citable differentiation point for us.
+
+AC-1 (execute a run to completion) is ticked as **obsolete rather than done**, with the reason recorded on the Issue: it was the route to the answer, not the answer, and the source gives a stronger answer than the run would - a run shows *that* nothing survives, the source shows *why*.
+
+---
+
 ## 2026-07-11
 
 ### 21:21 UTC - Editor: Scientist
