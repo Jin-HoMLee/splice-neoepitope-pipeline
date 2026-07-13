@@ -226,7 +226,13 @@ class TestHeredocForm:
 
     def test_unpaginated_after_plain_newline_denies(self):
         # No heredoc, no redirection punctuation - just a second line.
-        assert h.api_args("echo setting up\n" + _UNPAGINATED) is not None
+        # Asserts the full deny decision, not merely that api_args() matched:
+        # the matched-pair claim is "the SAME input must deny", so the assertion
+        # has to be the same as its command-start and heredoc siblings.
+        # (PR #1145 bot review, Finding 2.)
+        rc, out, _ = _run_subprocess(_payload("echo setting up\n" + _UNPAGINATED))
+        assert rc == 0
+        assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
 
     def test_paginated_after_heredoc_still_allowed(self):
         # The fix must not turn the guard into an over-blocker: a real cursor loop

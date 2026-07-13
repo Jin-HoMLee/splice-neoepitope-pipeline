@@ -108,3 +108,27 @@ def test_hook_is_executable():
     # The harness execs the hook by bare path; a non-executable file EACCESes
     # before the shebang (the blocker caught on PR #1029).
     assert os.access(HOOK, os.X_OK), f"{HOOK} must be committed executable (100755)"
+
+
+class TestNewlineForm:
+    """Issue #1142: the `&&` chain was caught, the two-line form was not.
+
+    A newline is a command separator in shell but not in `shlex`, so before the
+    `normalize_command()` fix `git commit -m x` and `git push` written on two
+    lines merged into ONE token block. The commit and push indices then collapsed
+    to the same position, `min(commit) < max(push)` was `0 < 0` -> False, and the
+    guard silently allowed the exact chain it exists to refuse. Only the `&&`
+    spelling was ever enforced.
+    """
+
+    def test_newline_separated_commit_then_push_is_caught(self):
+        assert h.chained_violation("git commit -m x\ngit push") is not None
+
+    def test_ampersand_form_still_caught(self):
+        assert h.chained_violation("git commit -m x && git push") is not None
+
+    def test_commit_alone_still_allowed(self):
+        assert h.chained_violation("git commit -m x") is None
+
+    def test_push_alone_still_allowed(self):
+        assert h.chained_violation("git push") is None

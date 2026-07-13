@@ -42,9 +42,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
-_PUNCT = set("();<>|&")  # shell punctuation_chars -> standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _TRUTHY = {"1", "true", "yes", "on"}
 
 
@@ -58,9 +61,18 @@ def split_subcommands(cmd: str) -> list[list[str]] | None:
     tokenization failure (unbalanced quotes) -> caller fails open. Quoted strings
     survive as single tokens; `&&`/`||`/`;`/`|`/`&`/`(`/`)` arrive as standalone
     separator tokens.
+
+    The command is **normalized first** (Issue #1142): heredoc bodies are stripped
+    and unquoted newlines become separators. A newline is a command separator in
+    shell but not in shlex, so without this `git commit -m x` and `git push` written
+    on two lines MERGED into one token block, the commit and push indices collapsed
+    to the same position, and the guard silently allowed the exact chain it exists
+    to refuse. Only the `&&` spelling was ever caught - writing the two commands on
+    separate lines walked straight through.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:
