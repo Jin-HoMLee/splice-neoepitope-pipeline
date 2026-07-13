@@ -121,6 +121,19 @@ def load_systemhc_nonuniprot(html_path, with_meta=False):
     return valid(r["peptide"] for r in recs)
 
 
+def load_caatlas(gz):
+    """caAtlas peptides, harvested per-gene by harvest_caatlas.py (see its docstring).
+
+    **Ceiling warning, measured not assumed:** all 557,450 harvested records carry
+    `source: UniProt` - there is not one non-UniProt row. caAtlas's gene-indexed surface can
+    therefore only report peptides that map to a canonical protein, so a *genuinely novel*
+    junction-spanning peptide is unreportable there by construction. A null against caAtlas is
+    method-guaranteed for the novel class and must never be read as biological absence.
+    """
+    with gzip.open(gz, "rt") as fh:
+        return valid(line.strip() for line in fh if line.strip())
+
+
 def main():
     snaf_xlsx = Path(
         os.path.expanduser(
@@ -132,9 +145,16 @@ def main():
 
     atlas = load_hla_ligand_atlas(DATA / "hla_ligand_atlas_aggregated.tsv.gz")
     systemhc = load_systemhc_nonuniprot(DATA / "systemhc_nonuniprot.html")
+    caatlas = load_caatlas(OUT / "caatlas_peptides.txt.gz")
 
     panel = {"ours": ours, "snaf_pred": snaf_pred, "snaf_ms": snaf_ms}
-    refs = {"hla_ligand_atlas": atlas, "systemhc_nonuniprot": systemhc}
+    # Ordered by search database, which is the axis that turns out to matter: the first two are
+    # canonical-proteome searches, the third is the only non-canonical one.
+    refs = {
+        "hla_ligand_atlas": atlas,      # benign tissue, canonical search
+        "caatlas": caatlas,             # tumor, 100% UniProt-mapped (canonical by construction)
+        "systemhc_nonuniprot": systemhc,  # tumor, NON-canonical by construction
+    }
 
     print("PANEL (unique peptides)")
     for k, v in panel.items():

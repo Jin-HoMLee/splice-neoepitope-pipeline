@@ -6,6 +6,7 @@
   },
   "reference_sizes": {
     "hla_ligand_atlas": 95318,
+    "caatlas": 195217,
     "systemhc_nonuniprot": 8911
   },
   "control_join_atlas_x_systemhc": 143,

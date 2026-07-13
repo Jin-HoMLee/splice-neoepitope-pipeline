@@ -34,29 +34,54 @@ across sources**. That is a control on the machinery, not on the ceiling. See
 
 ## Results
 
-The two references differ in the way that matters: **HLA Ligand Atlas is benign tissue**, while the
-**SysteMHC non-UniProt set is tumor** (Lymphoma 11,020 rows, Metastatic 4,580, Lung cancer 647,
-Melanoma 387). So they are not two samples of one thing - they are the negative and positive halves of
-a specificity contrast.
+**The axis that decides everything is the reference's SEARCH DATABASE, not its tissue.** This was not
+obvious going in - the natural framing is benign-vs-tumor - and it only became visible once caAtlas was
+added as a third reference.
 
-| panel | vs HLA Ligand Atlas (**benign**) | vs SysteMHC non-UniProt (**tumor**) |
-|---|---|---|
-| `snaf_pred` (87,258) | 79 (0.091%) | 29 (0.033%) |
-| `snaf_ms` (4,715) | **0** (expected 4.3) | **4** (0.085%) |
-| `ours` (2,156) | 0 (expected 2.0) | 0 (expected 0.7) |
+| reference | tissue | search database | n (class-I) |
+|---|---|---|---|
+| HLA Ligand Atlas | **benign** | canonical proteome | 95,318 |
+| caAtlas | **tumor** | **100% UniProt-mapped** (measured: 557,450/557,450 records) | 195,217 |
+| SysteMHC non-UniProt | **tumor** | **non-canonical by construction** | 8,911 |
+
+| panel | vs HLA Ligand Atlas (canonical) | vs caAtlas (canonical) | vs SysteMHC non-UniProt (**non-canonical**) |
+|---|---|---|---|
+| `snaf_pred` (87,258) | 79 (0.091%) | 188 (0.215%) | 29 (0.033%) |
+| `snaf_ms` - **MS-confirmed** (4,715) | **0** (exp. 4.3) | **0** (exp. 10.1) | **4** (0.085%) |
+| `ours` (2,156) | 0 (exp. 2.0) | 0 (exp. 4.6) | 0 (exp. 0.7) |
+
+**Read the middle row.** These are 4,715 splice-junction peptides that real immunopeptidomics *did*
+detect - they exist, they are presented, SNAF found them in melanoma MS. They score **zero against both
+canonical-search references** (Fisher p = 0.035 and p = 8.8e-05 against the predicted-set base rate) and
+are found **only** in the one non-canonical reference. That is not biology. That is the reference's
+search database deciding in advance what it is able to report: a peptide spanning a novel junction is
+not in UniProt, so a UniProt-restricted search cannot return it, however abundantly it is presented.
+
+**Consequence for AC-2, which is the real finding of this experiment:** an exact-match intersection
+against a canonical-search atlas has a **structural ceiling of ~zero for genuinely novel
+splice-junction peptides**. Every hit such an atlas *does* return (the 79, the 188) is by definition a
+peptide that is **not novel** - a predicted "neoantigen" whose sequence coincides with a canonical
+protein. Those hits are worth having (they are tumor-specificity failures of the prediction step, see
+below), but they are the opposite of what AC-2 was reaching for. The only productive reference class is
+one built from a **non-canonical / open search** - SysteMHC's non-UniProt set today, or re-searching raw
+spectra ourselves, which is exactly what the AC-10 Comet stretch goal proposes.
 
 1. **Our zero is underpowered, not a specificity pass.** At SNAF's empirical base rate (0.091%) our
    2,156-peptide panel expects 1.95 hits against the benign atlas, and `P(0 | 1.95) = 0.14`. A zero is
    fully consistent with our `tumor_exclusive` filter being *exactly as leaky as SNAF's*. The panel is
    ~40x too small to tell. (This retracts the "specificity pass" reading first posted on the Issue,
-   2026-07-13.)
-2. **One leg of the dissociation holds, one does not.** MS-confirmed splice antigens are **depleted** in
-   the benign atlas (0 vs 4.3 expected, Fisher p = 0.035). They are enriched 2.6x in the tumor reference,
-   but at **p = 0.087 that leg is not significant** (n = 4 hits). Direction matches the biology; the
-   evidence does not yet carry it. Do not report this as a double dissociation.
-3. **The 79 benign-atlas hits are tumor-specificity failures of the prediction step:** predicted
-   "neoantigens" that are in fact presented on healthy tissue. Genuine ligand-like sequences (mean Shannon
-   entropy 2.67 bits), not low-complexity artifacts. A natural feed for the AC-9 decoy seed.
+   2026-07-13.) Against caAtlas the expected count is 4.6 and `P(0) = 0.010`, which *looks* significant -
+   but read it with the ceiling in mind: it says our peptides coincide with canonical sequences *less*
+   often than SNAF's do, which is a statement about novelty, not about specificity. Some of that may
+   simply be the low-complexity junk in our panel ([Issue #1147](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1147)) matching nothing anywhere.
+2. **The benign-vs-tumor dissociation I first reported does not survive the third reference.** I had read
+   `snaf_ms` depletion-in-benign + enrichment-in-tumor as a specificity contrast. caAtlas is *tumor* and
+   yields **0** - so the contrast was never benign-vs-tumor. It is canonical-vs-non-canonical, and the
+   enrichment leg was never significant anyway (2.6x, p = 0.087, n = 4). Superseded.
+3. **The 79 (and 188) canonical-atlas hits are tumor-specificity failures of the prediction step:**
+   predicted "neoantigens" that are in fact presented on healthy tissue, or that are simply not novel.
+   Genuine ligand-like sequences (mean Shannon entropy 2.67 bits), not low-complexity artifacts. A natural
+   feed for the AC-9 decoy seed.
 
 ## SpliceMutr publishes no peptide set
 
