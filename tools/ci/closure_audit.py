@@ -60,7 +60,26 @@ _NOTEBOOK_EXEMPT_ROLES = {"memory_manager"}
 # not coerce an entry the lab-notebook rule says is unnecessary. The value after
 # the colon (e.g. `routine`) is free-text rationale with no `>` (the regex stops
 # at the first `>`); presence of the marker is what matters, not the value.
-_SKIP_LAB_NOTEBOOK = re.compile(r"<!--\s*skip-lab-notebook\b[^>]*-->", re.IGNORECASE)
+# The marker must sit **on its own line** (leading/trailing whitespace allowed).
+# The unanchored form matched any occurrence anywhere in the body, so a PR body
+# that merely *documents* the opt-out - backtick-quoted, mid-sentence - silently
+# skipped this gate. Not hypothetical: the identical shape in the sibling
+# `skip-bot-review` marker fired on its very first PR (#1124), where the PR
+# introducing the auto-review opted itself out of the review it exists to request.
+# Anchoring to a whole line is what separates *using* the directive from *talking
+# about* it (Issue #1126).
+#
+# The trailing class must absorb a **carriage return**. Python's `$` matches only
+# before a `\n`, never before a `\r`, so under CRLF the end-anchor fails and a
+# correctly-placed marker **silently does not register**. Not theoretical: a PR
+# body authored or edited in the GitHub **web UI** comes back from the API with
+# CRLF, and adding a routine-ship opt-out in the browser is a natural path. The
+# failure is fail-closed (the gate blocks rather than bypasses), so it is not a
+# hole - just a baffling false negative for an author who did everything right.
+# Verified empirically on both markers before fixing (PR #1129 review, finding 1).
+_SKIP_LAB_NOTEBOOK = re.compile(
+    r"^[ \t]*<!--\s*skip-lab-notebook\b[^>]*-->[ \t\r]*$", re.IGNORECASE | re.MULTILINE
+)
 
 
 # --- pure checks ---

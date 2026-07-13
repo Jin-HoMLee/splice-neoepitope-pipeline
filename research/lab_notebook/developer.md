@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-11 - Anchor the skip-lab-notebook marker ([PR #1129](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1129) closes [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126))
+
+### 22:20 UTC - Editor: Developer - the fix for a silent bug had a silent bug
+
+Closed the latent twin of the [PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) marker bug: `_SKIP_LAB_NOTEBOOK` was unanchored, so a PR body that merely *documents* the opt-out would silently skip the lab-notebook merge gate.
+Same shape as the one that fired on #1124; it had not bitten only because no body had happened to quote it.
+
+**A real behavior change, deliberately surfaced.**
+A marker trailing after prose on the same line no longer opts out.
+When the existing fixture (which encoded the old contract) went red, I did **not** quietly edit it green - I changed it *and* added a test pinning the new contract, so a future re-loosening announces itself.
+No regex can separate "directive with a preamble word" from "prose about the directive"; "put it on its own line" is the only rule both a human and a machine can follow.
+And the failure direction is safe: fail-closed (a mis-formatted marker blocks loudly) beats fail-open (a gate silently bypassed).
+
+**Then the bot review found that my anchoring fix had its own silent failure: CRLF.**
+Python's `$` matches only before a `\n`, never before a `\r`.
+A PR body **authored or edited in the GitHub web UI comes back from the API with CRLF** - so a correctly-placed own-line marker fails the end-anchor and silently does not register.
+Fail-closed again, but a baffling false negative for an author who did everything right.
+
+Two things worth keeping:
+
+1. **The reviewer said it could not run Python in its sandbox, and asked for a 20-second local check.** I ran it. Both markers returned `False` on a CRLF own-line marker - including `skip-bot-review`, which I had **already merged**. The review was right, and right about more than it knew. Verifying beat assuming, in the direction of *worse* news.
+2. **My LF-only test suite was structurally incapable of seeing it.** Every fixture used `\n`. The tests were not wrong, they were *blind* - and blind in a way that adding more LF cases could never fix.
+
+Three bugs today, all silent, all in mechanisms that were "shipped and tested": the heredoc matcher, the unanchored marker, the CRLF anchor.
+None failed loudly. The pattern is not carelessness - **every one of them lived in the gap between what my tests exercised and what the world actually sends.**
+
+---
+
 ## 2026-07-11 - Auto-request the first-pass bot review ([PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) closes [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073))
 
 ### 21:10 UTC - Editor: Developer - the mechanism opted itself out of its own review
