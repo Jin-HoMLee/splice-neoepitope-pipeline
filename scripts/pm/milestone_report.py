@@ -43,6 +43,8 @@ DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "pm" / "milestone_reports"
 DEFAULT_SDR_OUT_DIR = REPO_ROOT / "docs" / "pm" / "sdr_reports"
 DEFAULT_TREND_WEEKS = 4
 TEMPLATE_PATH = HERE / "templates" / "milestone_report.html.j2"
+# Arrival marker (Issue #811): the item shipped without crossing Backlog -> Ready.
+UNPLANNED_LABEL = "unplanned"
 
 
 # --- slug -------------------------------------------------------------------
@@ -105,6 +107,46 @@ def delivered_issues(issues: list[dict]) -> list[dict]:
     data without ``stateReason`` is never silently dropped from the count.
     """
     return [i for i in issues if i.get("state") == "CLOSED" and not is_descoped(i)]
+
+
+def is_unplanned(issue: dict) -> bool:
+    """True when the issue shipped without crossing the Backlog -> Ready commitment.
+
+    This is the **arrival** axis, not urgency (Issue #811). Priority (P0-P3) says
+    how costly delay is; it cannot say whether the item was committed or barged
+    in mid-session, so a P2 same-day fix and a P1 committed item are
+    indistinguishable by band. The marker is the only thing that separates them,
+    which is why the throughput split cannot be derived from priority.
+    """
+    return UNPLANNED_LABEL in issue.get("labels", [])
+
+
+def unplanned_issues(issues: list[dict]) -> list[dict]:
+    return [i for i in issues if is_unplanned(i)]
+
+
+def committed_issues(issues: list[dict]) -> list[dict]:
+    return [i for i in issues if not is_unplanned(i)]
+
+
+def throughput_breakdown(issues: list[dict]) -> dict[str, Any]:
+    """Split *delivered* work by arrival: committed vs unplanned.
+
+    The Kanban Throughput Breakdown Chart, reduced to the one split we actually
+    need. Keyed off delivered (not raw closed) for the same reason throughput and
+    cycle time are: a descoped issue is not shipped work.
+
+    ``pct_unplanned`` is None (not 0.0) on an empty delivered set, so a zero-ship
+    week reads as "no data" rather than as a truthful-looking 0% unplanned.
+    """
+    delivered = delivered_issues(issues)
+    n_unplanned = len(unplanned_issues(delivered))
+    n_delivered = len(delivered)
+    return {
+        "n_committed": n_delivered - n_unplanned,
+        "n_unplanned": n_unplanned,
+        "pct_unplanned": (100.0 * n_unplanned / n_delivered) if n_delivered else None,
+    }
 
 
 def cycle_time_days(issue: dict) -> Optional[float]:
@@ -269,10 +311,12 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
     """
     series = []
     for start, end in week_windows(until, n_weeks):
-        delivered = delivered_issues(closed_in_window(issues, start, end))
+        in_window = closed_in_window(issues, start, end)
+        delivered = delivered_issues(in_window)
         series.append({
             "week_start": _first_covered_day(start).isoformat(),
             "week_end": end.date().isoformat(),
+            **throughput_breakdown(in_window),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
         })
@@ -302,6 +346,7 @@ def compute_window_metrics(
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
         "per_role_counts": per_role_counts(week_issues),
+        **throughput_breakdown(week_issues),
         "weekly_series": weekly_series(all_issues, until, n_weeks),
     }
 
@@ -328,6 +373,7 @@ def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
         "per_role_counts": per_role_counts(issues),
+        **throughput_breakdown(issues),
     }
 
 
@@ -419,6 +465,7 @@ def _normalize_issue(it: dict, board: dict[int, dict]) -> dict:
         "state_reason": reason.upper() if reason else None,
         "created_at": it.get("createdAt"),
         "closed_at": it.get("closedAt"),
+        "labels": labels,
         "roles": [l for l in labels if l.startswith("role:")],
         "arcs": [l for l in labels if l.startswith("arc:")],
         "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
@@ -614,6 +661,10 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
           f"{metrics['n_total']} / {metrics['n_closed']} / {metrics['n_carried_forward']}")
     print(f"  delivered / descoped (closed)    : "
           f"{metrics['n_delivered']} / {metrics['n_descoped']}")
+    pct = metrics.get("pct_unplanned")
+    print(f"  arrival: committed / unplanned   : "
+          f"{metrics['n_committed']} / {metrics['n_unplanned']}"
+          f"{f'  ({pct:.0f}% unplanned)' if pct is not None else '  (no delivered work)'}")
     print(f"  duration (days)                  : {_fmt(metrics['duration_days'])}")
     print(f"  throughput (delivered/week)      : {_fmt(metrics['throughput_per_week'])}")
     print(f"  cycle time avg / median (days)   : "
@@ -621,10 +672,11 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
     series = metrics.get("weekly_series")
     if series:
-        print("  weekly trend (delivered / median cycle days):")
+        print("  weekly trend (delivered [committed+unplanned] / median cycle days):")
         for w in series:
             print(f"    {w['week_start']}..{w['week_end']} : "
-                  f"{w['n_delivered']} / {_fmt(w['median_cycle_time_days'])}")
+                  f"{w['n_delivered']} [{w['n_committed']}+{w['n_unplanned']}] / "
+                  f"{_fmt(w['median_cycle_time_days'])}")
 
 
 # --- orchestration ----------------------------------------------------------
