@@ -12,6 +12,12 @@ guard fires, exits 0 silently otherwise (the harness treats no-output as allow).
 import json
 import re
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
+_GH_COMMENT_RE = re.compile(r"(^|[;&|]\s*)gh\s+(pr|issue)\s+(comment|create|edit)\b")
 
 
 def main() -> int:
@@ -22,7 +28,16 @@ def main() -> int:
 
     cmd = data.get("tool_input", {}).get("command", "")
 
-    if not re.search(r"(^|[;&|]\s*)gh\s+(pr|issue)\s+(comment|create|edit)\b", cmd):
+    # Detect the command on the NORMALIZED text (Issue #1130): the anchor only
+    # accepted a command at string-start or after `;&|`, so a `gh pr comment`
+    # following a heredoc - the dominant way a long body is written - never
+    # matched, and this guard was silently dead on that path. Normalizing turns an
+    # unquoted newline into a separator so the anchor sees the command.
+    #
+    # Scan for the mention on the RAW command, NOT the normalized one: normalizing
+    # strips heredoc bodies, and for this guard the heredoc body is exactly the
+    # text we need to inspect. Detect on normalized, inspect on raw.
+    if not _GH_COMMENT_RE.search(_shell_parse.normalize_command(cmd)):
         return 0
 
     if "@claude" not in cmd:

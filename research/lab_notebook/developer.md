@@ -47,6 +47,38 @@ Filed [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/iss
 
 ---
 
+## 2026-07-11 - The hook I shipped never ran ([PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) closes [Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130))
+
+### 22:05 UTC - Editor: Developer - a verification that could only confirm, and what it cost
+
+An hour after merging [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073) I opened the next PR and the auto-review did not fire.
+`matches_pr_create` never matches `gh pr create` when it follows a **heredoc**: the heredoc body's words tokenize into the command stream, so `gh` ends up after an ordinary word (the closing delimiter) instead of a separator, and the command-start test fails.
+A heredoc body is how every PR with real content gets opened here, so the hook was dead on the dominant path.
+
+**And the blast radius was older and wider than my feature.**
+The hook's original job - board-add + draft-aware Status ([Issue #550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550), [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561)) - has been silently dead on that same path for months.
+Then, auditing siblings, the same shape turned up a **third** time: `check_at_claude.py`, the rung-3 guard whose entire job is to stop an accidental bot mention from firing the Action, anchors its match at string-start or after `;&|` and so never sees a heredoc-authored comment either.
+Three mechanisms, all "shipped", all silently not running. Not one of them failed loudly.
+
+**How I fooled myself, precisely.**
+[PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124)'s "live integration smoke" piped a synthetic PostToolUse payload straight into `main()`.
+That **bypasses `matches_pr_create` entirely**: it exercised everything downstream of the trigger and never once touched the trigger.
+I wrote it, watched it post a real comment and flip real board cards, and reported an end-to-end verification I had not performed.
+The falsifier I never asked for is trivial: *what would this check do if the matcher were broken?* Answer: exactly what it did.
+This is the `feedback_a_check_must_be_able_to_fail` shape, and the rule was in my context from the memory check at session start. Knowing it is not the same as running it.
+
+**What actually caught it:** opening the *next* PR and looking at whether the thing happened. Not a test, not a review - just using the mechanism for real and checking the world. That is the cheapest possible falsifier and I had skipped it.
+
+So the proof this time is **structural, not asserted**: [PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) is itself opened with a heredoc. The hook fired on that very command, boarded the PR, requested its own review, and wrote both fire-log lines. If the fix were wrong, none of that would exist.
+
+**The fix:** normalize before tokenizing (strip heredoc bodies, turn *unquoted* newlines into separators), in a shared `_shell_parse` module both hooks use. It **strengthens** the anti-false-positive guard rather than weakening it: bodies are removed rather than tokenized, and in-quote newlines are untouched, so a quoted multi-line body cannot masquerade as a command. `check_at_claude` needed the mirror-image treatment - **detect** on the normalized command, **inspect** on the raw one, since normalizing throws away the body this guard exists to read.
+
+**The bot review then caught me repeating the pattern one level down.** I claimed AC 5 ("sibling matcher audited and wired") - the wiring was real, the *tests* were absent. The exact untested-path shape this PR exists to kill, reproduced inside the PR that kills it. It also caught a `PUNCT` constant whose comment promised the two hooks "cannot drift on it" while both kept private copies: a claim contradicted by the code three lines below it. Both fixed.
+
+**Lesson, and it is not "test more".** It is: *a verification that routes around the trigger is not a verification.* Drive the mechanism the way a user drives it, or admit you haven't checked. The three dead mechanisms all had tests. What none of them had was anyone opening a real PR and looking.
+
+---
+
 ## 2026-07-11 - AC 9 decision: keep the NH-uniqueness filter opt-in, default off ([PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) closes [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919))
 
 ### 17:30 UTC - Editor: Developer - MECHANISM CORRECTION: my "false-unique" story was wrong, and two supporting claims are retracted ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118))

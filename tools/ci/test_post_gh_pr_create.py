@@ -77,6 +77,57 @@ class TestMatchesPrCreate:
         assert h.matches_pr_create('gh pr comment 1 --body "oops') is False
 
 
+class TestHeredocForm:
+    """Issue #1130: the dominant PR-creation shape never matched.
+
+    `matches_pr_create` walked shlex tokens for `gh pr create` at a command start,
+    but a heredoc body tokenizes INTO that stream, so the token before `gh` was the
+    closing delimiter (an ordinary word) and the match never fired. The hook was
+    therefore silently dead on every PR opened with a real body - killing both the
+    board-add/Status automation (#550/#561) and the auto-requested bot review
+    (#1073). No error, no fire-log line, just nothing.
+    """
+
+    def test_the_real_pr_creation_shape_matches(self):
+        cmd = (
+            'S=/tmp/x\n'
+            'cat > "$S/pr.md" <<\'EOF\'\n'
+            'PR body with (parens) and prose.\n'
+            'EOF\n'
+            'gh pr create --title "t" --body-file "$S/pr.md" --base main'
+        )
+        assert h.matches_pr_create(cmd) is True
+
+    def test_plain_newline_separated_commands_match(self):
+        assert h.matches_pr_create("git push -u origin br\ngh pr create --fill") is True
+
+    def test_heredoc_body_mentioning_the_command_does_not_match(self):
+        """The anti-false-positive property, preserved and in fact strengthened.
+
+        A PR/comment body that *discusses* `gh pr create` must not read as an
+        invocation (the PR #558 shape). The body is now REMOVED rather than
+        tokenized, so it cannot match at all.
+        """
+        cmd = (
+            "cat > /tmp/c.md <<'EOF'\n"
+            "We should run gh pr create --fill after pushing.\n"
+            "EOF\n"
+            "gh pr comment 558 --body-file /tmp/c.md"
+        )
+        assert h.matches_pr_create(cmd) is False
+
+    def test_quoted_multiline_body_line_starting_with_the_command_does_not_match(self):
+        # Newlines INSIDE quotes are not turned into separators, so a body line
+        # beginning "gh pr create" stays part of one quoted token.
+        cmd = 'gh pr comment 1 --body "notes:\ngh pr create --fill\nend"'
+        assert h.matches_pr_create(cmd) is False
+
+    def test_quoted_argument_still_does_not_match(self):
+        # The original PR #558 regression, unchanged.
+        cmd = 'gh pr comment 558 --body "... git push && gh pr create --fill ..."'
+        assert h.matches_pr_create(cmd) is False
+
+
 class TestParsePrUrl:
     def test_basic_url(self):
         assert h.parse_pr_url(
