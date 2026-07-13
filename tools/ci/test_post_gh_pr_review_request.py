@@ -404,3 +404,44 @@ class TestPrCardFlip:
         assert h.main() == 0
         assert logged == []
         assert capsys.readouterr().out.strip() == ""
+
+
+# --- #1130: heredoc + unquoted-newline forms on the SIBLING matcher ----------
+#
+# AC 5. The wiring landed without tests, which is precisely the "untested path"
+# shape this PR exists to kill - caught by the PR #1131 bot review, finding 1.
+# The newline path is a genuine behavior change, so it gets pinned here rather
+# than riding solely on test_shell_parse.py exercising the normalizer in isolation.
+
+
+class TestHeredocAndNewlineForms:
+    def test_newline_separated_review_now_matches(self):
+        # Pre-fix: `gh` sat after the ordinary word `br` -> no match.
+        assert h.matches_review_request("git push -u origin br\ngh pr review 42 --approve") == "42"
+
+    def test_inline_trigger_after_a_heredoc_matches(self):
+        cmd = (
+            "cat > /tmp/notes.md <<'EOF'\n"
+            "Some notes for later.\n"
+            "EOF\n"
+            'gh pr comment 1131 --body "@claude review"'
+        )
+        assert h.matches_review_request(cmd) == "1131"
+
+    def test_trigger_only_inside_a_heredoc_body_does_not_match(self):
+        # The body is stripped, and a --body-file trigger is not visible on the
+        # command line - so this correctly does NOT match. Pins the real contract
+        # (PR #1131 review, finding 3: the docstring had implied otherwise).
+        cmd = (
+            "cat > /tmp/c.md <<'EOF'\n"
+            "@claude review\n"
+            "EOF\n"
+            "gh pr comment 1131 --body-file /tmp/c.md"
+        )
+        assert h.matches_review_request(cmd) is None
+
+    def test_quoted_multiline_body_mentioning_the_trigger_does_not_match(self):
+        # In-quote newlines are preserved, so the body stays one token and cannot
+        # masquerade as a separate `gh pr review` command.
+        cmd = 'echo "notes:\ngh pr review 9 --approve\nend"'
+        assert h.matches_review_request(cmd) is None

@@ -67,6 +67,15 @@
     <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "—" }}</div><div class="l">Delivered / week</div></div>
     <div class="card"><div class="n">{{ "%.1f"|format(metrics.avg_cycle_time_days) if metrics.avg_cycle_time_days is not none else "—" }}</div><div class="l">Avg cycle (days)</div></div>
     <div class="card"><div class="n">{{ "%.1f"|format(metrics.median_cycle_time_days) if metrics.median_cycle_time_days is not none else "—" }}</div><div class="l">Median cycle (days)</div></div>
+    <div class="card"><div class="n">{{ "%.0f%%"|format(metrics.pct_unplanned) if metrics.pct_unplanned is not none else "-" }}</div><div class="l">Unplanned share</div></div>
+  </div>
+
+  <!-- Throughput breakdown by arrival (Issue #811): committed = crossed Backlog -> Ready;
+       unplanned = barged in mid-session. Arrival, not urgency - priority cannot express it. -->
+  <div class="rolebar">
+    <span class="pill">committed · <strong>{{ metrics.n_committed }}</strong></span>
+    <span class="pill">unplanned · <strong>{{ metrics.n_unplanned }}</strong></span>
+    {% if metrics.pct_unplanned is none %}<span class="sub">no delivered work in window</span>{% endif %}
   </div>
   <div class="rolebar">
     {% for role, count in metrics.per_role_counts.items() %}
@@ -80,10 +89,10 @@
   <!-- Weekly trend (SDR window mode; script-generated) -->
   <h2>Weekly trend</h2>
   <table>
-    <thead><tr><th>Week ending</th><th>Delivered</th><th>Median cycle (days)</th></tr></thead>
+    <thead><tr><th>Week ending</th><th>Delivered</th><th>Committed</th><th>Unplanned</th><th>Unplanned %</th><th>Median cycle (days)</th></tr></thead>
     <tbody>
       {% for w in metrics.weekly_series %}
-      <tr><td>{{ w.week_end }}</td><td>{{ w.n_delivered }}</td><td>{{ "%.1f"|format(w.median_cycle_time_days) if w.median_cycle_time_days is not none else "-" }}</td></tr>
+      <tr><td>{{ w.week_end }}</td><td>{{ w.n_delivered }}</td><td>{{ w.n_committed }}</td><td>{{ w.n_unplanned }}</td><td>{{ "%.0f%%"|format(w.pct_unplanned) if w.pct_unplanned is not none else "-" }}</td><td>{{ "%.1f"|format(w.median_cycle_time_days) if w.median_cycle_time_days is not none else "-" }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -22,6 +22,34 @@ The bot review caught a genuine honesty bug in my `CLAUDE.md` pointer: I wrote "
 
 ---
 
+## 2026-07-11 - Anchor the skip-lab-notebook marker ([PR #1129](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1129) closes [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126))
+
+### 22:20 UTC - Editor: Developer - the fix for a silent bug had a silent bug
+
+Closed the latent twin of the [PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) marker bug: `_SKIP_LAB_NOTEBOOK` was unanchored, so a PR body that merely *documents* the opt-out would silently skip the lab-notebook merge gate.
+Same shape as the one that fired on #1124; it had not bitten only because no body had happened to quote it.
+
+**A real behavior change, deliberately surfaced.**
+A marker trailing after prose on the same line no longer opts out.
+When the existing fixture (which encoded the old contract) went red, I did **not** quietly edit it green - I changed it *and* added a test pinning the new contract, so a future re-loosening announces itself.
+No regex can separate "directive with a preamble word" from "prose about the directive"; "put it on its own line" is the only rule both a human and a machine can follow.
+And the failure direction is safe: fail-closed (a mis-formatted marker blocks loudly) beats fail-open (a gate silently bypassed).
+
+**Then the bot review found that my anchoring fix had its own silent failure: CRLF.**
+Python's `$` matches only before a `\n`, never before a `\r`.
+A PR body **authored or edited in the GitHub web UI comes back from the API with CRLF** - so a correctly-placed own-line marker fails the end-anchor and silently does not register.
+Fail-closed again, but a baffling false negative for an author who did everything right.
+
+Two things worth keeping:
+
+1. **The reviewer said it could not run Python in its sandbox, and asked for a 20-second local check.** I ran it. Both markers returned `False` on a CRLF own-line marker - including `skip-bot-review`, which I had **already merged**. The review was right, and right about more than it knew. Verifying beat assuming, in the direction of *worse* news.
+2. **My LF-only test suite was structurally incapable of seeing it.** Every fixture used `\n`. The tests were not wrong, they were *blind* - and blind in a way that adding more LF cases could never fix.
+
+Three bugs today, all silent, all in mechanisms that were "shipped and tested": the heredoc matcher, the unanchored marker, the CRLF anchor.
+None failed loudly. The pattern is not carelessness - **every one of them lived in the gap between what my tests exercised and what the world actually sends.**
+
+---
+
 ## 2026-07-11 - Auto-request the first-pass bot review ([PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) closes [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073))
 
 ### 21:10 UTC - Editor: Developer - the mechanism opted itself out of its own review
@@ -60,6 +88,38 @@ My live smoke was a genuine end-to-end check and it was still not sufficient - i
 Checked the new tests can fail: with the fallback disabled, exactly the 2 new tests go red and the other 4 stay green, which is precisely how the bug shipped past round 1.
 
 Filed [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126) for the latent twin the reviewer spotted: `_SKIP_LAB_NOTEBOOK` is unanchored the same way, so a PR body quoting *that* marker inline would silently skip the lab-notebook gate. It has not bitten only because no body has happened to quote it - and the more we document the convention, the likelier that gets.
+
+---
+
+## 2026-07-11 - The hook I shipped never ran ([PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) closes [Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130))
+
+### 22:05 UTC - Editor: Developer - a verification that could only confirm, and what it cost
+
+An hour after merging [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073) I opened the next PR and the auto-review did not fire.
+`matches_pr_create` never matches `gh pr create` when it follows a **heredoc**: the heredoc body's words tokenize into the command stream, so `gh` ends up after an ordinary word (the closing delimiter) instead of a separator, and the command-start test fails.
+A heredoc body is how every PR with real content gets opened here, so the hook was dead on the dominant path.
+
+**And the blast radius was older and wider than my feature.**
+The hook's original job - board-add + draft-aware Status ([Issue #550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550), [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561)) - has been silently dead on that same path for months.
+Then, auditing siblings, the same shape turned up a **third** time: `check_at_claude.py`, the rung-3 guard whose entire job is to stop an accidental bot mention from firing the Action, anchors its match at string-start or after `;&|` and so never sees a heredoc-authored comment either.
+Three mechanisms, all "shipped", all silently not running. Not one of them failed loudly.
+
+**How I fooled myself, precisely.**
+[PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124)'s "live integration smoke" piped a synthetic PostToolUse payload straight into `main()`.
+That **bypasses `matches_pr_create` entirely**: it exercised everything downstream of the trigger and never once touched the trigger.
+I wrote it, watched it post a real comment and flip real board cards, and reported an end-to-end verification I had not performed.
+The falsifier I never asked for is trivial: *what would this check do if the matcher were broken?* Answer: exactly what it did.
+This is the `feedback_a_check_must_be_able_to_fail` shape, and the rule was in my context from the memory check at session start. Knowing it is not the same as running it.
+
+**What actually caught it:** opening the *next* PR and looking at whether the thing happened. Not a test, not a review - just using the mechanism for real and checking the world. That is the cheapest possible falsifier and I had skipped it.
+
+So the proof this time is **structural, not asserted**: [PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) is itself opened with a heredoc. The hook fired on that very command, boarded the PR, requested its own review, and wrote both fire-log lines. If the fix were wrong, none of that would exist.
+
+**The fix:** normalize before tokenizing (strip heredoc bodies, turn *unquoted* newlines into separators), in a shared `_shell_parse` module both hooks use. It **strengthens** the anti-false-positive guard rather than weakening it: bodies are removed rather than tokenized, and in-quote newlines are untouched, so a quoted multi-line body cannot masquerade as a command. `check_at_claude` needed the mirror-image treatment - **detect** on the normalized command, **inspect** on the raw one, since normalizing throws away the body this guard exists to read.
+
+**The bot review then caught me repeating the pattern one level down.** I claimed AC 5 ("sibling matcher audited and wired") - the wiring was real, the *tests* were absent. The exact untested-path shape this PR exists to kill, reproduced inside the PR that kills it. It also caught a `PUNCT` constant whose comment promised the two hooks "cannot drift on it" while both kept private copies: a claim contradicted by the code three lines below it. Both fixed.
+
+**Lesson, and it is not "test more".** It is: *a verification that routes around the trigger is not a verification.* Drive the mechanism the way a user drives it, or admit you haven't checked. The three dead mechanisms all had tests. What none of them had was anyone opening a real PR and looking.
 
 ---
 
