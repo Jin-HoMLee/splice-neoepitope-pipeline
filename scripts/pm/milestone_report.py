@@ -296,9 +296,10 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
     """Per-week throughput + median cycle-time trend over the trailing weeks.
 
     Each entry: ``{week_start, week_end, n_delivered, median_cycle_time_days}``
-    (dates as ISO ``YYYY-MM-DD``), chronological. Throughput + cycle time key off
-    *delivered* issues (a descoped close is not shipped work), consistent with
-    the milestone-mode metrics.
+    plus the arrival split ``throughput_breakdown`` contributes
+    (``{n_committed, n_unplanned, pct_unplanned}``) - dates as ISO ``YYYY-MM-DD``,
+    chronological. Throughput + cycle time key off *delivered* issues (a descoped
+    close is not shipped work), consistent with the milestone-mode metrics.
 
     ``week_start`` names the **first day the bucket actually covers**, not the
     half-open ``(start`` edge - which, with a normalized ``until``, is the last
