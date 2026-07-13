@@ -96,9 +96,27 @@ def test_file_exempt_returns_clean(monkeypatch):
 
 
 def test_skip_marker_returns_clean(monkeypatch):
-    pr = _pr(body="routine ship <!-- skip-lab-notebook: routine -->")
+    # The marker must be on its OWN line (Issue #1126). This fixture previously
+    # trailed it after prose on the same line; that form no longer opts out, and
+    # the change is deliberate - an unanchored match let a PR body that merely
+    # *documents* the marker skip this gate silently. The failure direction is
+    # safe: a mis-formatted marker now blocks the merge loudly rather than
+    # bypassing the check quietly.
+    pr = _pr(body="routine ship\n\n<!-- skip-lab-notebook: routine -->\n")
     _fake_io(monkeypatch, pr, {42: _issue()}, {"scientist": None})
     assert ca.audit_pr_pre_merge(99, DATE) == []
+
+
+def test_skip_marker_trailing_after_prose_no_longer_opts_out(monkeypatch):
+    """The behavior change, pinned (Issue #1126).
+
+    A marker trailing on a prose line used to opt out; it no longer does. Pinning
+    it makes the contract change explicit rather than an accident of a fixture
+    edit - if someone re-loosens the regex, this test says so.
+    """
+    pr = _pr(body="routine ship <!-- skip-lab-notebook: routine -->")
+    _fake_io(monkeypatch, pr, {42: _issue()}, {"scientist": None})
+    assert ca.audit_pr_pre_merge(99, DATE) != []
 
 
 def test_no_role_label_returns_clean(monkeypatch):
