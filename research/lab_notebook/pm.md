@@ -58,7 +58,7 @@ I blamed the board twice today for the same reason both times: **the board is th
 
 Two dead ends recorded there so nobody re-walks them: **token rotation** does nothing (the bucket is keyed on the user, not the token), and a **GitHub App** buys nothing (the 10,000-point tier is Enterprise-Cloud-only; we are a personal account with one user and two repos).
 
-The uncomfortable symmetry: the morning entry, three hours earlier, was titled *"a mechanism that reports success while doing nothing."* This afternoon I produced a confident, well-sourced, primary-doc-cited analysis that was wrong in its central number, and the only thing that caught it was running the query and reading what came back. **Not care. A second instrument.**
+The uncomfortable symmetry: the morning entry, an hour earlier, was titled *"a mechanism that reports success while doing nothing."* This afternoon I produced a confident, well-sourced, primary-doc-cited analysis that was wrong in its central number, and the only thing that caught it was running the query and reading what came back. **Not care. A second instrument.**
 
 ### 13:30 UTC - Editor: PM
 
