@@ -514,6 +514,31 @@ class TestMarkerNotInUse:
         assert series[0]["n_committed"] is None
         assert series[0]["n_unclassifiable"] == 2
 
+    def test_console_trend_row_never_leaks_a_none_sentinel(self):
+        """The RENDERED row, not just the metrics dict.
+
+        `n_committed=None` is honest in the data, but the console loop f-stringed it
+        straight out as the literal `[None+None]` on every row. Asserting on the dict
+        (the test above) passes happily while the human-facing output is garbage - so
+        this one asserts on what a person actually reads.
+
+        It survived my own live check because that check grepped the output for
+        `arrival` - the line I had just fixed. A verification aimed only at what you
+        changed cannot show you what you missed.
+        """
+        until = datetime(2026, 6, 8, tzinfo=timezone.utc)
+        series = mr.weekly_series(NO_MARKER_ANYWHERE, until, 1, marker_in_use=False)
+
+        rendered = mr._fmt_arrival(series[0])
+        assert "None" not in rendered, "internal sentinel leaked into a human-facing row"
+        assert rendered == "unclassifiable"
+
+    def test_console_trend_row_still_shows_the_split_when_in_use(self):
+        """Matched pair: same row, marker in use -> the real split, not 'unclassifiable'."""
+        until = datetime(2026, 6, 8, tzinfo=timezone.utc)
+        series = mr.weekly_series(ARRIVAL, until, 1, marker_in_use=True)
+        assert mr._fmt_arrival(series[0]) == "1+1"
+
     def test_compute_metrics_propagates_unclassifiable(self):
         m = mr.compute_metrics(NO_MARKER_ANYWHERE, {"closed_at": None, "created_at": None},
                                marker_in_use=False)
@@ -566,17 +591,34 @@ class TestGeneratedHtmlHasNoEmDash:
                 if doc:
                     docstrings.add(doc)
 
+        # A dash inside a `.lstrip(...)`/`.strip(...)` argument is a char-class being
+        # stripped OFF INPUT - it emits nothing. Identify those by their AST CONTEXT
+        # (an argument to a strip call), not by their value.
+        #
+        # The first cut skipped them with `text.startswith("#*->")`, which the review
+        # correctly called out: that is a value-heuristic, so a future *emitted* string
+        # that happened to start with those characters would be silently exempted. Using
+        # an approximate match inside a test written to reject approximate matching would
+        # have been a poor joke to ship.
+        stripped_args = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in {"strip", "lstrip", "rstrip"}):
+                for arg in node.args:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                        stripped_args.add(id(arg))
+
         offenders = []
         for node in ast.walk(tree):
             if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            if id(node) in stripped_args:
                 continue
             text = node.value
             if text in docstrings:
                 continue
             if EM_DASH in text or EN_DASH in text:
-                # `.lstrip("#*->-- ")` strips dashes OFF INPUT; it emits nothing.
-                if text.startswith("#*->"):
-                    continue
                 offenders.append(f"line {node.lineno}: {text[:60]!r}")
 
         assert not offenders, (

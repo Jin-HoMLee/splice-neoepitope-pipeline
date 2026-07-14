@@ -762,8 +762,26 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
         print("  weekly trend (delivered [committed+unplanned] / median cycle days):")
         for w in series:
             print(f"    {w['week_start']}..{w['week_end']} : "
-                  f"{w['n_delivered']} [{w['n_committed']}+{w['n_unplanned']}] / "
+                  f"{w['n_delivered']} [{_fmt_arrival(w)}] / "
                   f"{_fmt(w['median_cycle_time_days'])}")
+
+
+def _fmt_arrival(w: dict) -> str:
+    """Render one weekly row's arrival split, or say it cannot be rendered.
+
+    Mirrors the headline `arrival:` line. Without this the row printed the literal
+    ``[None+None]`` whenever the marker was not in use - not a fabrication (None is at
+    least honest), but a leak of an internal sentinel into a human-facing report, and
+    inconsistent with every other surface this fix touched.
+
+    Caught in review, and worth recording HOW it survived: the live check that was
+    supposed to verify this fix grepped the output for `arrival` - i.e. for the line
+    already known to be fixed. A check aimed only at what you changed cannot show you
+    what you missed.
+    """
+    if w["n_committed"] is None:
+        return "unclassifiable"
+    return f"{w['n_committed']}+{w['n_unplanned']}"
 
 
 # --- orchestration ----------------------------------------------------------
