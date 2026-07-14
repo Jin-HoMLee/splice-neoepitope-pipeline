@@ -197,7 +197,7 @@ Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence
 
 It was not harmless: a study-level `groupby`/`nunique` counted **15 studies instead of 12**, and the [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity notebook was double-counting Xiong (its local `canon_study` collapse handled SNAF and IRIS but had no Xiong rule).
 
-Rewrite applied 2026-07-14, exact whole-field match on the `source` column (each stale spelling is a strict **prefix** of its canonical form, so a substring replace would have double-appended):
+Rewrite applied 2026-07-14, **exact whole-field match** on the `source` column - never a substring replace. For **IRIS** and **Xiong 2025** the stale spelling is a strict **prefix** of its canonical form (`IRIS` -> `IRIS (Pan/Xing, PNAS)`), so a naive `str.replace` would have **double-appended** on the rows that were already canonical. `SNAF (Li 2024)` is *not* a prefix (it diverges from `SNAF (Li 2024, Sci Transl Med)` at `)` vs `,`, so it is not even a contiguous substring) and would not have been corrupted - but whole-field match is **uniformly** safe, so it was applied to all three rather than reasoning per-study about which spellings happen to nest:
 
 | study | stale spelling (rows) | canonical spelling |
 |---|---|---|
