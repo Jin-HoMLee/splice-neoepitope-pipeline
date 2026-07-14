@@ -187,3 +187,71 @@ class TestSubprocess:
         cmd = "gh pr comment 1 --body \"use projectV2 items(first:100) carefully\""
         rc, out, _ = _run_subprocess(_payload(cmd))
         assert rc == 0 and out.strip() == ""
+
+
+class TestHeredocForm:
+    """Issue #1142: the guard was silently dead on any multi-line command.
+
+    `api_args` walked shlex tokens for a command-start `gh api`, but a newline is
+    not a shlex separator, so a `gh api` on the second line of a command (or after
+    a `cat <<'EOF'` heredoc) sat after an ordinary word and read as NOT at a command
+    start. The guard then allowed the exact unpaginated board query it exists to
+    refuse - no error, no fire-log line, just nothing.
+
+    Same defect class as `matches_pr_create` (Issue #1130); both now normalize the
+    command through `_shell_parse.normalize_command` before tokenizing.
+
+    The matched pair is the point: the SAME query must deny at a command start AND
+    after a heredoc. Before the fix the first denied and the second ran, which is
+    precisely what made the bug invisible.
+    """
+
+    def test_unpaginated_after_heredoc_still_denies(self):
+        cmd = (
+            "cat > /tmp/note.md <<'EOF'\n"
+            "some prose that happens to precede the query\n"
+            "EOF\n"
+            + _UNPAGINATED
+        )
+        rc, out, _ = _run_subprocess(_payload(cmd))
+        assert rc == 0
+        assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    def test_unpaginated_at_command_start_still_denies(self):
+        # The control half of the matched pair. If this ever goes green while the
+        # heredoc case goes red, the regression is back.
+        rc, out, _ = _run_subprocess(_payload(_UNPAGINATED))
+        assert rc == 0
+        assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    def test_unpaginated_after_plain_newline_denies(self):
+        # No heredoc, no redirection punctuation - just a second line.
+        # Asserts the full deny decision, not merely that api_args() matched:
+        # the matched-pair claim is "the SAME input must deny", so the assertion
+        # has to be the same as its command-start and heredoc siblings.
+        # (PR #1145 bot review, Finding 2.)
+        rc, out, _ = _run_subprocess(_payload("echo setting up\n" + _UNPAGINATED))
+        assert rc == 0
+        assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    def test_paginated_after_heredoc_still_allowed(self):
+        # The fix must not turn the guard into an over-blocker: a real cursor loop
+        # stays allowed no matter where it sits in the command.
+        cmd = "cat > /tmp/n.md <<'EOF'\nprose\nEOF\n" + _PAGINATED
+        rc, out, _ = _run_subprocess(_payload(cmd))
+        assert rc == 0 and out.strip() == ""
+
+    def test_heredoc_body_discussing_the_query_does_not_match(self):
+        """Anti-false-positive, strengthened rather than weakened.
+
+        A body that *documents* the dangerous shape must not read as an invocation.
+        The heredoc body is now REMOVED before tokenizing, so it cannot match.
+        """
+        cmd = (
+            "cat > /tmp/doc.md <<'EOF'\n"
+            "Never run gh api graphql -f query='{ projectV2 { items(first: 100) } }'\n"
+            "EOF\n"
+            "gh pr comment 717 --body-file /tmp/doc.md"
+        )
+        rc, out, _ = _run_subprocess(_payload(cmd))
+        assert rc == 0 and out.strip() == ""

@@ -19,6 +19,8 @@ and give it the next free number: `NNNN-short-slug.md`.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-tcrdock-via-docker.md) | Run TCRdock in a Docker container, not a conda env | Accepted |
+| [0002](0002-cloud-storage-vs-compute.md) | Treat cloud storage and compute differently after the GCP decommission | Accepted |
+| [0003](0003-converge-on-star.md) | Converge on STAR as the single aligner, run locally via a linux-64 container | Accepted |
 
 ## Why this home exists (and the routing rule)
 
