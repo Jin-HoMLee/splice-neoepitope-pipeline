@@ -135,7 +135,7 @@ def test_week_label_names_the_days_the_bucket_actually_covers():
     Mislabelling this way is what produced the bogus reference counts in Issue #1099.
     """
     until = mr.normalize_until(datetime(2026, 7, 10, 14, 30, 0, tzinfo=UTC))
-    series = mr.weekly_series([], until, 4)
+    series = mr.weekly_series([], until, 4, marker_in_use=True)
 
     # Each row covers exactly 7 whole days, inclusive of both labelled endpoints.
     for w in series:
@@ -166,5 +166,5 @@ def test_weekly_series_totals_match_the_fetched_population():
         t += timedelta(hours=6)
         n += 1
 
-    series = mr.weekly_series(issues, until, 4)
+    series = mr.weekly_series(issues, until, 4, marker_in_use=True)
     assert sum(w["n_delivered"] for w in series) == len(mr.delivered_issues(issues))

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Milestone closure report — {{ milestone.title }}</title>
+<title>Milestone closure report - {{ milestone.title }}</title>
 <style>
   :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
           --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
@@ -64,18 +64,29 @@
     <div class="card"><div class="n">{{ metrics.n_delivered }}</div><div class="l">Delivered</div></div>
     {% if metrics.n_descoped %}<div class="card"><div class="n">{{ metrics.n_descoped }}</div><div class="l">Descoped</div></div>{% endif %}
     <div class="card"><div class="n">{{ metrics.n_carried_forward }}</div><div class="l">Carried forward</div></div>
-    <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "—" }}</div><div class="l">Delivered / week</div></div>
-    <div class="card"><div class="n">{{ "%.1f"|format(metrics.avg_cycle_time_days) if metrics.avg_cycle_time_days is not none else "—" }}</div><div class="l">Avg cycle (days)</div></div>
-    <div class="card"><div class="n">{{ "%.1f"|format(metrics.median_cycle_time_days) if metrics.median_cycle_time_days is not none else "—" }}</div><div class="l">Median cycle (days)</div></div>
-    <div class="card"><div class="n">{{ "%.0f%%"|format(metrics.pct_unplanned) if metrics.pct_unplanned is not none else "-" }}</div><div class="l">Unplanned share</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.throughput_per_week) if metrics.throughput_per_week is not none else "n/a" }}</div><div class="l">Delivered / week</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.avg_cycle_time_days) if metrics.avg_cycle_time_days is not none else "n/a" }}</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">{{ "%.1f"|format(metrics.median_cycle_time_days) if metrics.median_cycle_time_days is not none else "n/a" }}</div><div class="l">Median cycle (days)</div></div>
+    <div class="card"><div class="n">{{ "%.0f%%"|format(metrics.pct_unplanned) if metrics.pct_unplanned is not none else "n/a" }}</div><div class="l">Unplanned share</div></div>
   </div>
 
   <!-- Throughput breakdown by arrival (Issue #811): committed = crossed Backlog -> Ready;
-       unplanned = barged in mid-session. Arrival, not urgency - priority cannot express it. -->
+       unplanned = barged in mid-session. Arrival, not urgency - priority cannot express it.
+
+       The marker-not-in-use branch (Issue #1180) is load-bearing, not cosmetic: if the
+       `unplanned` label has never been applied repo-wide, NOTHING delivered can be
+       classified by arrival, and rendering "N committed / 0 unplanned / 0%" would be a
+       fabrication that looks exactly like a measurement. This card sits ABOVE the
+       narrative, so no prose caveat can outrank it - only the generator can. -->
   <div class="rolebar">
+    {% if metrics.marker_in_use is defined and not metrics.marker_in_use %}
+    <span class="pill">arrival · <strong>unclassifiable</strong></span>
+    <span class="sub">{{ metrics.n_unclassifiable }} delivered, none classifiable - the <code>unplanned</code> marker is not in use repo-wide, so a 0% here would be fabricated, not measured</span>
+    {% else %}
     <span class="pill">committed · <strong>{{ metrics.n_committed }}</strong></span>
     <span class="pill">unplanned · <strong>{{ metrics.n_unplanned }}</strong></span>
     {% if metrics.pct_unplanned is none %}<span class="sub">no delivered work in window</span>{% endif %}
+    {% endif %}
   </div>
   <div class="rolebar">
     {% for role, count in metrics.per_role_counts.items() %}
@@ -92,7 +103,7 @@
     <thead><tr><th>Week ending</th><th>Delivered</th><th>Committed</th><th>Unplanned</th><th>Unplanned %</th><th>Median cycle (days)</th></tr></thead>
     <tbody>
       {% for w in metrics.weekly_series %}
-      <tr><td>{{ w.week_end }}</td><td>{{ w.n_delivered }}</td><td>{{ w.n_committed }}</td><td>{{ w.n_unplanned }}</td><td>{{ "%.0f%%"|format(w.pct_unplanned) if w.pct_unplanned is not none else "-" }}</td><td>{{ "%.1f"|format(w.median_cycle_time_days) if w.median_cycle_time_days is not none else "-" }}</td></tr>
+      <tr><td>{{ w.week_end }}</td><td>{{ w.n_delivered }}</td><td>{{ w.n_committed if w.n_committed is not none else "n/a" }}</td><td>{{ w.n_unplanned if w.n_unplanned is not none else "n/a" }}</td><td>{{ "%.0f%%"|format(w.pct_unplanned) if w.pct_unplanned is not none else "n/a" }}</td><td>{{ "%.1f"|format(w.median_cycle_time_days) if w.median_cycle_time_days is not none else "n/a" }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -113,10 +124,10 @@
         <td><a href="{{ i.url }}">#{{ i.number }}</a></td>
         <td>{{ i.title }}</td>
         <td>{{ i.status }}{% if i.is_descoped %}<span class="badge descoped">descoped</span>{% endif %}</td>
-        <td>{{ i.roles|join(", ")|replace("role:", "") or "—" }}</td>
+        <td>{{ i.roles|join(", ")|replace("role:", "") or "n/a" }}</td>
         <td>{{ i.size }}</td>
         <td>{{ i.priority }}</td>
-        <td>{{ i.closed_at[:10] if i.closed_at else "—" }}</td>
+        <td>{{ i.closed_at[:10] if i.closed_at else "n/a" }}</td>
       </tr>
       {% endfor %}
     </tbody>

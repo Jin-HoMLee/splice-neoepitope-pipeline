@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 21:45 UTC - Editor: PM
+
+**The SDR has been printing a number that was never a measurement.** [Issue #1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180) -> [PR #1181](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1181), carved as the first slice of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144).
+
+`gh issue list --label unplanned --state all` returns **zero issues repo-wide.** The label has never been applied to anything. And yet last week's SDR printed a clean, confident `25 / 0 (0% unplanned)` and `[n+0]` on **every** weekly trend row. `throughput_breakdown` guarded the *empty-window* case but not the *marker-never-used* case, which returned `0.0` - and `0.0` is indistinguishable from a real, hard-won zero. Three different worlds (we absorbed no unplanned work / nobody applied the label / the reading code is broken) collapsed into one output. **The number could only ever come back one way** - the exact property [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) built a matched-pair control to escape, reproduced **one layer up, in its own input.**
+
+**The design call I most want to remember: `n_committed` had to become `None` too.** The tempting fix is to null the percentage and leave the counts. But "25 committed" is the **same false assertion** as "0% unplanned", one column over - it asserts an arrival classification we cannot make. So when the marker is unused, *nothing* delivered is classifiable, and the count surfaces as `n_unclassifiable`. A degraded input has to be **visible**, not quietly absorbed. And `marker_in_use` is a **required** keyword, because a default is just a slower way of letting a future call site fabricate.
+
+**Then the same disease bit me twice more inside the fix itself, and neither was caught by care.**
+
+**(a) The em-dash cleanup had four emitting sites; I found three by grep and was ready to ship.** The fourth - a Jinja `pct` filter - surfaced only when my new test ran against a **live render**. Grep found what I thought to look for.
+
+**(b) The bot found `[None+None]` printing on every console trend row** - in the exact mode this PR exists to fix. My PR body claimed *"card, pills, trend column, and text summary all render unclassifiable."* **Only the headline did.** I had described the fix I intended, not the fix I shipped.
+
+**And the way (b) survived is the thing worth writing down.** I *did* run the real command against the real board. Then I **grepped the output for `arrival`** - the line I had just fixed. **My verification could only ever confirm the change I already knew about.** A check aimed at what you changed cannot show you what you missed.
+
+So: **three layers of one disease in a single Issue.** A metric that could only come back one way. A test that only checked the doubt I already had. A live verification that only looked where I had already looked. The fix for a check-that-cannot-fail was itself verified by a check that could not fail. I don't think I get to call that ironic anymore; it looks more like the default state, and the only reliable escape has been an instrument I did not build - the reviewer, or Jin-Ho asking why.
+
+**Also worth keeping:** the reviewer's nit was that my em-dash test skipped the `lstrip` char-class by matching the string's *prefix* - a **value heuristic**. Correct, and I took it: shipping an approximate match **inside a test written to reject approximate matching** would have been a poor joke. Replaced with an AST **context** check.
+
+**Board:** #1144 gained a sub-issue and is therefore now a parent, so it moved to `Epic` with Priority/Size cleared (Pattern A2) - a parent never sits in a workflow column. Its remaining scope (the marker's *slip rate*, once the marker is actually in use) genuinely needs [#1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138)'s `Backlog -> Ready` transition history, which is exactly why the slice was carved rather than blocked behind it. Also filed [#1179](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1179) (P3): the two PM sweeps' `--check` exit codes are **inverted**, which would silently misread if a future routine shelled both.
+
 ### 20:40 UTC - Editor: PM
 
 **A question from Jin-Ho found a worse bug than the code review did.** Amending nothing below (entries are immutable) - this supersedes the design described in the 19:05 entry.
