@@ -26,6 +26,26 @@ This score reads **only the reference sequence and the junction coordinates**. N
 
 It is also the *shape* of signal [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) permits: a **junction-level score** that can be carried into the tumor/normal comparison, rather than a per-read gate applied to each arm independently (the property that got the NH filter disqualified).
 
+## The figure
+
+![Junction repeat-embedding score on chr22](figures/repeat_score_chr22.png)
+
+Four panels, four questions: **A** the result, **B** the falsifier, **C** why the NH gate is not a substitute, **D** the decision that is still open.
+
+**Panel D is the one to look at**, and it is drawn on the **real production candidate set** (the `tumor_exclusive` junctions from `novel_junctions.tsv`), not a proxy - because "85% of unannotated junctions" is abstract and "you would delete 108 of your 122 actual candidates" is not.
+
+It shows the dilemma in one crossing pair of lines. A `min_hamming > 2` filter would look **superb** on the known-real junctions - **99.3% survive**. And it would delete **88.5% of the candidate pool** (122 -> 14). Those two facts are the same fact, because our candidates are unannotated *by definition*, and unannotated is precisely where this score fires.
+
+| threshold | production candidates kept | known-real junctions kept |
+|---|---|---|
+| `> 0` | 68.9% | 99.7% |
+| `> 1` | 36.1% | 99.7% |
+| **`> 2`** | **11.5%** (14 of 122) | **99.3%** |
+| `> 3` | 6.6% | 98.3% |
+| `> 4` | 6.6% | 86.1% |
+
+A filter that keeps 99% of everything you can verify while deleting 89% of everything you are looking for is either the best filter in the pipeline or the worst. **The data cannot tell you which**, because the ground truth for a *novel* junction does not exist in GENCODE by construction. That is the whole reason this ships as a score.
+
 ## Results (chr22, tumor; `--anchor 10`)
 
 Coordinates are checked before anything is scored: **400/400** sampled introns read `GT..AG` / `CT..AC`, so the 1-based-inclusive offset convention is confirmed and the script does not proceed on a bad one.
