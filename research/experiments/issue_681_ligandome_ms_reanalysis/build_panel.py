@@ -31,6 +31,13 @@ HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
 OUT = HERE / "outputs"
 
+# SNAF's supplementary workbook. Read from local Zotero storage rather than committed: it is 29 MB
+# and is the publisher's file, not ours to redistribute. Single definition - recover_presented.py
+# imports this rather than re-declaring the path. See fetch_data.sh for how to obtain it.
+SNAF_XLSX = Path(
+    "~/Zotero/storage/WK4DHT6M/scitranslmed.ade2886_data_s1_to_s15.xlsx"
+).expanduser()
+
 
 def valid(seqs, lo=8, hi=11):
     """Keep canonical-alphabet peptides in the class-I length band."""
@@ -135,12 +142,7 @@ def load_caatlas(gz):
 
 
 def main():
-    snaf_xlsx = Path(
-        os.path.expanduser(
-            "~/Zotero/storage/WK4DHT6M/scitranslmed.ade2886_data_s1_to_s15.xlsx"
-        )
-    )
-    snaf_pred, snaf_ms = load_snaf(snaf_xlsx)
+    snaf_pred, snaf_ms = load_snaf(SNAF_XLSX)
     ours = load_ours(sorted(DATA.glob("patient_*_mhc.tsv")))
 
     atlas = load_hla_ligand_atlas(DATA / "hla_ligand_atlas_aggregated.tsv.gz")

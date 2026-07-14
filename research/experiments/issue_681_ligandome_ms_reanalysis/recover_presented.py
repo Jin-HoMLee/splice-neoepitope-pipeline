@@ -40,15 +40,12 @@ from pathlib import Path
 from build_panel import (
     DATA,
     OUT,
+    SNAF_XLSX,
     load_ours,
     load_snaf,
     load_systemhc_nonuniprot,
     valid,
 )
-
-SNAF_XLSX = Path(
-    "~/Zotero/storage/WK4DHT6M/scitranslmed.ade2886_data_s1_to_s15.xlsx"
-).expanduser()
 
 N_DECOY_REPLICATES = 200
 SEED = 681  # fixed so the null is reproducible; the number is the Issue, not a magic constant
@@ -65,11 +62,20 @@ def decoy_null(panel, reference, rng, replicates=N_DECOY_REPLICATES):
     """Hits recovered by composition-matched decoy panels. Returns (counts, mean, p_empirical).
 
     p_empirical = fraction of decoy replicates that recover AT LEAST the observed hit count.
+
+    **Iterate `sorted(panel)`, never the set itself.** Python hash-randomizes `str` hashing per
+    process (PYTHONHASHSEED), so set iteration order varies run to run. Drawing from `rng` in a
+    run-dependent order makes the decoy stream non-reproducible even with a fixed seed - the seed
+    pins the RNG, not the order it is consumed in. That is not cosmetic: it is what made the
+    reported `decoy_shuffle_mean` drift between runs (0.01 in one, 0.02 in the next), so a
+    committed number silently disagreed with the artifact that produced it. Sorting fixes the
+    consumption order and makes `seed=SEED` mean what the test plan claims it means.
     """
+    ordered = sorted(panel)
     observed = len(panel & reference)
     counts = []
     for _ in range(replicates):
-        decoy = {shuffled(p, rng) for p in panel}
+        decoy = {shuffled(p, rng) for p in ordered}
         counts.append(len(decoy & reference))
     ge = sum(1 for c in counts if c >= observed)
     return counts, statistics.mean(counts), (ge + 1) / (replicates + 1)
@@ -189,11 +195,20 @@ def main():
     # actually carry an allele (most do not: SysteMHC leaves the column NA/unclassified for the
     # large majority, and what remains leans on mono-allelic cell lines, which are allele-diverse
     # BY DESIGN).
+    # Count the background in the SAME UNIT as the recovered side: one count per unique
+    # (peptide, allele) pair, not per SysteMHC record. The recovered side is deduped per peptide
+    # (`by_pep` holds a SET of alleles), so a per-record background would mix a per-record rate
+    # with a per-(peptide, allele) count and the expectation would be comparing two different
+    # things. It does not move the verdict at this n, but a table that ever becomes load-bearing
+    # must have both sides counted the same way.
     unassigned = {"NA", "unclassified", ""}
-    allele_bg = Counter()
-    for r in recs:
-        if r["allele"] and r["allele"] not in unassigned:
-            allele_bg[r["allele"]] += 1
+    bg_pairs = {
+        (r["peptide"].upper(), r["allele"])
+        for r in recs
+        if r["allele"] and r["allele"] not in unassigned
+    }
+    allele_bg = Counter(a for _, a in bg_pairs)
+    bg_peptides_with_allele = len({p for p, _ in bg_pairs})
 
     print("\n" + "=" * 78)
     print("AC-7 - per-allele coverage of the recovered set")
@@ -220,27 +235,26 @@ def main():
         "counts": dict(allele_hits.most_common()),
         "a0201_assignments": a0201,
         "a0201_fraction": (a0201 / total) if total else None,
-        # the control:
+        # the control (same unit as above: unique (peptide, allele) pairs):
         "reference_rows_total": len(recs),
-        "reference_rows_with_allele": bg_total,
-        "reference_allele_assigned_fraction": bg_total / len(recs) if recs else None,
+        "reference_peptide_allele_pairs": bg_total,
+        "reference_peptides_with_allele": bg_peptides_with_allele,
         "reference_distinct_alleles": len(allele_bg),
         "reference_a0201_fraction": bg_frac,
         "expected_a0201_in_recovered_at_background_rate": expected_a0201,
         "reference_background_top": dict(allele_bg.most_common(10)),
     }
     print(
-        f"\n  recovered: {len(allele_hits)} distinct alleles over {total} assignments; "
+        f"\n  recovered: {len(allele_hits)} distinct alleles over {total} (peptide, allele) pairs; "
         f"{rows_without_allele}/{len(rows)} recovered peptides carry NO allele at all\n"
         f"  A*02:01 in recovered  : {a0201}/{total} "
         + (f"({a0201/total*100:.1f}%)" if total else "")
         + f"\n  A*02:01 in REFERENCE  : {bg_a0201}/{bg_total} "
         + (f"({bg_frac*100:.1f}%)" if bg_frac is not None else "")
-        + f"  <- the background this must be read against\n"
+        + "  <- the background this must be read against (same unit)\n"
         f"  expected A*02:01 in recovered at background rate: "
         + (f"{expected_a0201:.2f}" if expected_a0201 is not None else "NA")
-        + f"\n  reference is only {bg_total}/{len(recs)} "
-        f"({bg_total/len(recs)*100:.0f}%) allele-assigned, over "
+        + f"\n  reference: {bg_peptides_with_allele} of its peptides carry any allele, over "
         f"{len(allele_bg)} distinct alleles."
     )
     print(

@@ -105,7 +105,48 @@ def main(symbols_file):
                 print(f"  {i:,}/{len(todo):,} genes | {n_pep:,} peptide rows | {n_fail} failures", flush=True)
 
     print(f"done: {n_pep:,} peptide rows, {n_fail} failed genes -> {RAW}")
+    distill()
+
+
+def distill():
+    """caatlas_raw.jsonl (gitignored, ~60 MB) -> outputs/caatlas_peptides.txt.gz (committed, 0.9 MB).
+
+    This is the step that was missing from the first pass: the committed `.gz` is the AC-2
+    ceiling-control input (caAtlas returns 0 against SNAF's MS-confirmed splice peptides, one of the
+    two legs of the headline finding), so its provenance chain has to be in the repo, not in
+    somebody's shell history.
+
+    The `.gz` is committed on purpose (0.9 MB, well under the 10 MB size band, and network-derived
+    from a live site, so it is not offline-regenerable). The raw JSONL is not: it is 60 MB and this
+    is its only consumer.
+
+    Emits sorted unique peptides in the class-I 8-11mer band, which is exactly what build_panel's
+    `load_caatlas` then reads back.
+    """
+    import gzip
+
+    from build_panel import valid
+
+    peps = []
+    with RAW.open() as fh:
+        for line in fh:
+            rec = json.loads(line)
+            for p in rec.get("peptides") or []:
+                seq = p.get("Peptide_Sequence")
+                if seq:
+                    peps.append(seq)
+
+    kept = sorted(valid(peps))
+    dest = OUT / "caatlas_peptides.txt.gz"
+    # mtime=0 so the gzip header carries no timestamp: re-distilling identical input yields an
+    # identical file rather than a spurious diff.
+    with gzip.GzipFile(dest, "wb", mtime=0) as gz:
+        gz.write(("\n".join(kept) + "\n").encode())
+    print(f"distilled {len(peps):,} peptide rows -> {len(kept):,} unique class-I peptides -> {dest}")
 
 
 if __name__ == "__main__":
+    if "--distill-only" in sys.argv:
+        # Re-derive the committed .gz from an existing raw harvest, without re-hitting the site.
+        sys.exit(distill())
     sys.exit(main(sys.argv[1]))

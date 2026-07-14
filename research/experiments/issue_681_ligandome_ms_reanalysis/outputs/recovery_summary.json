@@ -30,26 +30,26 @@
       "HLA-C08:01": 1
     },
     "distinct_alleles": 25,
-    "expected_a0201_in_recovered_at_background_rate": 1.5757218621096052,
+    "expected_a0201_in_recovered_at_background_rate": 1.7664429530201344,
     "recovered_allele_assignments": 28,
     "recovered_rows_without_any_allele": 11,
-    "reference_a0201_fraction": 0.056275780789628756,
-    "reference_allele_assigned_fraction": 0.1697,
+    "reference_a0201_fraction": 0.06308724832214765,
     "reference_background_top": {
-      "HLA-A01:01": 117,
-      "HLA-A02:01": 191,
-      "HLA-A03:01": 244,
-      "HLA-A11:01": 167,
+      "HLA-A01:01": 75,
+      "HLA-A02:01": 188,
+      "HLA-A03:01": 189,
+      "HLA-A11:01": 133,
       "HLA-A11:02": 54,
-      "HLA-A68:01": 207,
-      "HLA-B07:02": 254,
-      "HLA-B08:01": 177,
-      "HLA-B27:05": 113,
-      "HLA-B35:03": 64
+      "HLA-A68:01": 197,
+      "HLA-B07:02": 177,
+      "HLA-B08:01": 93,
+      "HLA-B27:05": 108,
+      "HLA-B35:03": 61
     },
     "reference_distinct_alleles": 103,
-    "reference_rows_total": 20000,
-    "reference_rows_with_allele": 3394
+    "reference_peptide_allele_pairs": 2980,
+    "reference_peptides_with_allele": 2325,
+    "reference_rows_total": 20000
   },
   "panels": {
     "ours": {
@@ -77,7 +77,7 @@
     },
     "snaf_pred": {
       "decoy_reverse_hits": 3,
-      "decoy_shuffle_mean": 0.02,
+      "decoy_shuffle_mean": 0.01,
       "decoy_shuffle_p": 0.004975124378109453,
       "hit_rate": 0.0003323477503495381,
       "hits": 29,

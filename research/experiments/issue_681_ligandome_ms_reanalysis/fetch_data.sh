@@ -55,4 +55,51 @@ for p in ("001", "002"):
     print(f"fetched {key} -> {out}")
 PY
 
+# --- HGNC gene symbols: the drive list for harvest_caatlas.py. caAtlas is gene-indexed (no bulk
+# endpoint), so the harvest is driven by a symbol list.
+#
+# The filter is load-bearing, not cosmetic: the HGNC complete set carries 45,021 symbols, but the
+# harvest that produced the committed outputs used the 19,273 **protein-coding, Approved** ones.
+# Fetching the unfiltered set would harvest a completely different gene space. Verified 2026-07-14:
+# today's protein-coding+Approved set is 19,296 symbols and is a strict SUPERSET of the original
+# 19,273 (HGNC has added 23 since; zero were removed). The extra genes are harmless - harvest_caatlas
+# is resumable and simply appends them - but the peptide set will not be bit-identical to the
+# committed one if you re-harvest against a newer HGNC release. That is annotation drift, not a bug.
+curl -fsSL --retry 3 -o "$DATA/hgnc_complete_set.tsv" \
+  "https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.tsv"
+research/.venv/bin/python - "$DATA" <<'PY'
+import csv, os, sys
+d = sys.argv[1]
+with open(os.path.join(d, "hgnc_complete_set.tsv"), newline="") as fh:
+    rows = list(csv.DictReader(fh, delimiter="\t"))
+syms = sorted({
+    r["symbol"]
+    for r in rows
+    if r.get("symbol")
+    and r.get("locus_group") == "protein-coding gene"
+    and r.get("status") == "Approved"
+})
+with open(os.path.join(d, "hgnc_symbols.txt"), "w") as fh:
+    fh.write("\n".join(syms) + "\n")
+print(f"hgnc_symbols.txt: {len(syms):,} protein-coding approved symbols (harvest used 19,273)")
+PY
+
+# --- SNAF supplementary workbook: NOT fetched here, and deliberately not committed.
+#
+# Both build_panel.py and recover_presented.py hard-require it (SNAF_XLSX in build_panel.py). It is
+# the publisher's 29 MB file, so we neither redistribute it nor scrape it. Obtain it by hand:
+#
+#   paper : Li et al., SNAF. Sci Transl Med (2024). DOI 10.1126/scitranslmed.ade2886
+#   file  : Data S1-S15 (the supplementary workbook, ~29 MB .xlsx)
+#   place : ~/Zotero/storage/WK4DHT6M/scitranslmed.ade2886_data_s1_to_s15.xlsx
+#           (our Zotero item TZGPRIFK, attachment WK4DHT6M - any path works if you point
+#            SNAF_XLSX at it; the Zotero location is just where ours lives)
+#
+# Without it both scripts raise FileNotFoundError on the first line of the panel build. Flagged in
+# review of PR #1172: a third party running this script alone could not reproduce the panel.
+if [ ! -f "$HOME/Zotero/storage/WK4DHT6M/scitranslmed.ade2886_data_s1_to_s15.xlsx" ]; then
+  echo "NOTE: SNAF workbook not found - see the comment block above for how to obtain it." >&2
+  echo "      data/ is otherwise complete; build_panel.py will fail until it is in place." >&2
+fi
+
 echo "data/ rebuilt."

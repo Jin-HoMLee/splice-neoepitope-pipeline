@@ -101,15 +101,23 @@ independent decoys (200 replicates, seed 681):
 
 | panel | n | hits | decoy(shuffle) mean | p | decoy(reverse) |
 |---|---|---|---|---|---|
-| `snaf_pred` | 87,258 | **29** (0.033%) | 0.01 | 0.005 | 3 |
-| `snaf_ms` (MS-confirmed) | 4,715 | **4** (0.085%) | 0.00 | 0.005 | 0 |
-| `ours` | 2,156 | 0 | 0.00 | 1.000 | 0 |
+| `snaf_pred` | 87,258 | **29** (0.033%) | 0.010 | 0.005 | 3 |
+| `snaf_ms` (MS-confirmed) | 4,715 | **4** (0.085%) | 0.000 | 0.005 | 0 |
+| `ours` | 2,156 | 0 | 0.000 | 1.000 | 0 |
 
 `shuffle` permutes each panel peptide's residues (preserves length **and** composition exactly, destroys
 only sequence order) - the strict null. `reverse` is the conventional proteomics decoy and is weaker
 (it preserves order structure). The observed hits survive both, but note the reverse decoy recovers
 **3**, so the honest read is ~29 hits against a background of ~3, not against zero. `p = 0.005` is the
-floor of a 200-replicate empirical test (1/201), not a precise p-value.
+floor of a 200-replicate empirical test (the add-one estimator `(ge+1)/(replicates+1)` = 1/201), not a
+precise p-value.
+
+**The seed only pins the null if the RNG is consumed in a fixed order.** `decoy_null` iterates
+`sorted(panel)`, never the set itself: Python hash-randomizes `str` per process, so set-iteration order
+varies run to run and the decoy stream drifted even with `seed=681` - which is exactly how an earlier
+draft of this README quoted a `shuffle` mean of 0.01 while the JSON it was derived from said 0.02. Two
+runs under different `PYTHONHASHSEED` values now produce byte-identical output. (Caught in review of
+[PR #1172](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1172).)
 
 **Our own panel contributes nothing to this tier, and that is a power statement, not a result.** At
 SNAF's observed rate against this reference (0.033%), our 2,156 peptides expect **0.72** hits. A zero is
@@ -122,15 +130,19 @@ The tempting headline was available and is wrong. The recovered set spans **25 d
 allele-assignments**, with A\*02:01 at just **1/28 (3.6%)** - which looks like the A\*02:01 dominance of
 classical immunopeptidomics being broken. It is not, for three reasons, and the third is fatal:
 
-1. **The reference's own A\*02:01 share is 5.6%** (191/3,394 allele-assigned rows). At that background
-   the recovered set *expects* **1.58** A\*02:01 assignments and we observe **1**. There is no depletion
-   here - the recovered distribution is statistically indistinguishable from the reference's.
+1. **The reference's own A\*02:01 share is 6.3%** (188/2,980 unique `(peptide, allele)` pairs). At that
+   background the recovered set *expects* **1.77** A\*02:01 assignments and we observe **1**. There is no
+   depletion here - the recovered distribution is statistically indistinguishable from the reference's.
+   (Background and recovered are counted in the **same unit** - unique `(peptide, allele)` pairs, not raw
+   SysteMHC records - or the expectation would compare two different quantities.)
 2. **The reference is allele-diverse by construction.** SysteMHC leans on mono-allelic cell-line data,
    which spreads across 103 distinct alleles by design. Allele breadth is a property of how the atlas was
-   *built*, not of splice peptides.
-3. **Only 17% of the reference's rows carry an allele at all** (3,394/20,000; the rest are `NA` or
-   `unclassified`), and **11 of our 29 recovered peptides carry no allele whatsoever**. The coverage table
-   is computed on a minority of a minority.
+   *built*, not of splice peptides. And 28 assignments spread over a 103-allele reference is ~28 draws
+   from a 103-category multinomial, so *almost every cell is expected to be 0 or 1*: the "1 each" table
+   is what pure sampling noise looks like, and carries essentially no allele-specific signal.
+3. **Most of the reference carries no allele at all** (only 2,325 of its peptides have one; the rest are
+   `NA` or `unclassified`), and **11 of our 29 recovered peptides carry none**. The coverage table is
+   computed on a minority of a minority.
 
 So a per-allele table here mostly **restates the reference's allele composition** - the same failure shape
 as `feedback_search_key_must_not_mirror_the_gate.md` (a key that mirrors the gate can only confirm it).
@@ -159,6 +171,24 @@ rebuilds it.
 | `hla_ligand_atlas_aggregated.tsv.gz` | HLA Ligand Atlas `rel/2020.12/aggregated.tsv.gz` - 223,246 peptides, **benign** tissue (95,318 in the class-I 8-11mer band) |
 | `systemhc_nonuniprot.html` | SysteMHC Atlas v2.0 `/Non-UniProt` page - 20,000 rows, 15,130 unique peptides (8,911 class-I), **tumor** samples |
 | `patient_00{1,2}_mhc.tsv` | our `results/patient_00{1,2}/predictions/mhc_presentation.tsv`, from R2 |
+| `hgnc_symbols.txt` | HGNC complete set, filtered to **protein-coding + Approved** - the gene list driving the caAtlas harvest |
+| *(by hand)* `scitranslmed.ade2886_data_s1_to_s15.xlsx` | SNAF supplementary workbook, DOI `10.1126/scitranslmed.ade2886`. **Not fetched and not committed** (29 MB, publisher's file). `fetch_data.sh` documents where to put it; both scripts fail without it. |
+
+**The caAtlas provenance chain** (`harvest_caatlas.py`), because the committed `.gz` is the AC-2
+ceiling-control input and half the headline finding rests on it:
+
+```
+hgnc_symbols.txt (19,273 protein-coding genes)
+  -> harvest_caatlas.py            gene-by-gene fetch, resumable
+  -> outputs/caatlas_raw.jsonl     557,450 peptide rows (gitignored, 60 MB)
+  -> harvest_caatlas.py --distill-only
+  -> outputs/caatlas_peptides.txt.gz   195,217 unique class-I peptides (committed, 0.9 MB)
+```
+
+The `.gz` is committed deliberately (under the 10 MB band, and network-derived from a live site so it
+is not offline-regenerable); the raw JSONL is not (60 MB, single consumer). The distill step is written
+with `mtime=0` so re-running it on identical input yields an identical file rather than a spurious diff.
+**Verified 2026-07-14:** re-distilling the raw harvest reproduces the committed peptide set exactly.
 
 **Two traps in the SysteMHC scrape, both of which produced wrong numbers on the first pass (2026-07-13):**
 
