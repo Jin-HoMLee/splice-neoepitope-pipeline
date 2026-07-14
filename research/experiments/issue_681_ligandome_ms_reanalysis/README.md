@@ -4,6 +4,7 @@ Assembles the AC-1 splice-neoepitope panel and intersects it against public HLA-
 
 ```bash
 research/.venv/bin/python research/experiments/issue_681_ligandome_ms_reanalysis/build_panel.py
+research/.venv/bin/python research/experiments/issue_681_ligandome_ms_reanalysis/recover_presented.py
 ```
 
 ## The panel (89,415 unique peptides)
@@ -83,6 +84,59 @@ spectra ourselves, which is exactly what the AC-10 Comet stretch goal proposes.
    Genuine ligand-like sequences (mean Shannon entropy 2.67 bits), not low-complexity artifacts. A natural
    feed for the AC-9 decoy seed.
 
+## AC-4 - the recovered presentation tier (29 rows), and its null
+
+`recover_presented.py` -> `outputs/presented_untested_rows.tsv`, `outputs/recovery_summary.json`.
+
+Every row is conditioned on the one reference that *can* report this peptide class (SysteMHC's
+non-UniProt set, 8,911 class-I peptides). The rows land as `label=untested` /
+`tier=presentation-prevalence` / `assay_context=prevalence_only` and **must never be pooled into the
+functional positive set** (AC-5, AC-6): they are evidence of *presentation*, not of immunogenicity.
+Nobody T-cell-tested these.
+
+**The control is the content.** An exact 8-11mer match between an 87k panel and an 8.9k atlas is not
+self-evidently meaningful - class-I peptides are short, drawn from a 20-letter alphabet, and strongly
+composition-biased at anchor positions, so some collisions are expected from composition alone. Two
+independent decoys (200 replicates, seed 681):
+
+| panel | n | hits | decoy(shuffle) mean | p | decoy(reverse) |
+|---|---|---|---|---|---|
+| `snaf_pred` | 87,258 | **29** (0.033%) | 0.01 | 0.005 | 3 |
+| `snaf_ms` (MS-confirmed) | 4,715 | **4** (0.085%) | 0.00 | 0.005 | 0 |
+| `ours` | 2,156 | 0 | 0.00 | 1.000 | 0 |
+
+`shuffle` permutes each panel peptide's residues (preserves length **and** composition exactly, destroys
+only sequence order) - the strict null. `reverse` is the conventional proteomics decoy and is weaker
+(it preserves order structure). The observed hits survive both, but note the reverse decoy recovers
+**3**, so the honest read is ~29 hits against a background of ~3, not against zero. `p = 0.005` is the
+floor of a 200-replicate empirical test (1/201), not a precise p-value.
+
+**Our own panel contributes nothing to this tier, and that is a power statement, not a result.** At
+SNAF's observed rate against this reference (0.033%), our 2,156 peptides expect **0.72** hits. A zero is
+what you get from a panel this size whether our junctions are presented or not. Same shape as the
+retracted "specificity pass" - the honest label is *underpowered*.
+
+## AC-7 - per-allele coverage: the skew is NOT demonstrably broken
+
+The tempting headline was available and is wrong. The recovered set spans **25 distinct alleles over 28
+allele-assignments**, with A\*02:01 at just **1/28 (3.6%)** - which looks like the A\*02:01 dominance of
+classical immunopeptidomics being broken. It is not, for three reasons, and the third is fatal:
+
+1. **The reference's own A\*02:01 share is 5.6%** (191/3,394 allele-assigned rows). At that background
+   the recovered set *expects* **1.58** A\*02:01 assignments and we observe **1**. There is no depletion
+   here - the recovered distribution is statistically indistinguishable from the reference's.
+2. **The reference is allele-diverse by construction.** SysteMHC leans on mono-allelic cell-line data,
+   which spreads across 103 distinct alleles by design. Allele breadth is a property of how the atlas was
+   *built*, not of splice peptides.
+3. **Only 17% of the reference's rows carry an allele at all** (3,394/20,000; the rest are `NA` or
+   `unclassified`), and **11 of our 29 recovered peptides carry no allele whatsoever**. The coverage table
+   is computed on a minority of a minority.
+
+So a per-allele table here mostly **restates the reference's allele composition** - the same failure shape
+as `feedback_search_key_must_not_mirror_the_gate.md` (a key that mirrors the gate can only confirm it).
+**AC-7's answer is therefore: we cannot state that the A\*02:01 skew is broken.** Answering AC-7's actual
+question needs allele assignments from a re-search we control (AC-10), not from a borrowed column.
+
 ## SpliceMutr publishes no peptide set
 
 AC-1 originally read "our pipeline + SNAF/SpliceMutr public outputs". The SpliceMutr half of that premise
@@ -137,8 +191,11 @@ available, which is why that field's false-discovery dispute is unresolved.
 
 ## Still open
 
-- AC-4 tier rows: the 29 `snaf_pred` x SysteMHC non-UniProt hits are the presentation-prevalence candidates.
-- AC-7 per-allele coverage: the SysteMHC table carries allele/tissue/disease per peptide.
+- **AC-10 (the main event, promoted from stretch 2026-07-14):** re-search raw spectra against a
+  non-canonical database we build from our own junction panel. Everything above converges on this: a
+  borrowed atlas either *cannot* report our peptide class (canonical search: structural ceiling ~zero)
+  or reports it through a column we do not control (SysteMHC: 17% allele-assigned, 83% of the claimed
+  peptides never released). AC-2 and AC-7 both terminate in "you need your own search."
 - AC-9 decoy seed: the 79 + 188 canonical-atlas hits (predicted "neoantigens" presented on healthy tissue).
-- AC-2 / AC-10 re-scope: the non-canonical re-search is now the main event, not a stretch goal - see the
-  ceiling finding above. Awaiting a decision.
+- AC-3 SysteMHC splice-origin fraction, and the ~74k claimed-but-unreleased peptides (author request drafted).
+- AC-8 validator enforcement of the `tier`-not-`label` filter discipline, now that 29 presentation rows exist.
