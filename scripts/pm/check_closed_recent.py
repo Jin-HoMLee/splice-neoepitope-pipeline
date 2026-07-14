@@ -24,10 +24,12 @@ Exit 0 on a completed scan - finding nothing closed is not a failure. A hard `gh
 as a false "nothing closed". Issue #784.
 """
 import argparse
-import json
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_client import gh  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 UTC = timezone.utc
@@ -99,14 +101,19 @@ def is_within(when_ts, floor):
 # --- gh I/O ---
 
 
-def gh_json(*args):
-    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
-    return json.loads(result.stdout)
-
-
 def list_closed_issues(search):
-    """Closed Issues matching `search` (number, title, closedAt)."""
-    return gh_json(
+    """Closed Issues matching `search` (number, title, closedAt).
+
+    Goes through the shared `gh_client.gh` wrapper (Issue #1062), the last of the
+    hand-rolled `gh` helpers to converge. The local `gh_json()` was bare
+    `check=True` with no retry, so a transient 5xx / secondary-rate-limit /
+    replication blip raised - and in a *recap* that reads as "nothing closed",
+    which is the silent-wrong-answer this script already exists to prevent
+    (Issue #784). The wrapper retries transient failures with exponential backoff
+    and honors Retry-After, while still raising GhError on a terminal failure, so
+    the check=True contract callers rely on is preserved.
+    """
+    return gh(
         "issue", "list", "--repo", REPO, "--state", "closed",
         "--search", search, "--limit", "1000",
         "--json", "number,title,closedAt",
@@ -120,7 +127,7 @@ def list_merged_prs(search):
     PRs; only merged PRs belong in a shipped-work recap, so the unmerged ones
     (mergedAt is null) are dropped.
     """
-    rows = gh_json(
+    rows = gh(
         "pr", "list", "--repo", REPO, "--state", "all",
         "--search", search, "--limit", "1000",
         "--json", "number,title,mergedAt",
