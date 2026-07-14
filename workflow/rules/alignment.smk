@@ -65,6 +65,26 @@ def _get_fastq2(wildcards):
 _JUNCTION_OUTPUT = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "raw_junctions.tsv")
 _JUNCTION_DONE   = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "done")
 
+# ---- Uniqueness semantic: shared by BOTH aligners (Issue #1118) -------------
+#
+# One knob, one semantic. `alignment.uniqueness_filter.enabled` governs the
+# HISAT2 NH BAM prefilter (Issue #919) *and* the STAR SJ.out.tab col-7/col-8
+# read (Issue #1118), so the aligner choice can no longer silently change what
+# counts as junction support.
+#
+# Hoisted ABOVE the aligner fork on purpose: it was previously computed inside
+# the HISAT2 branch, so the name simply does not exist when `aligner: star`.
+# It is a config read, not a HISAT2 concern.
+import sys
+sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
+from uniqueness_filter import is_enabled as _uniqueness_filter_enabled
+
+# Read at parse time, not job time, so the filtered BAM is a *declared* output
+# only when the knob is on - that is what makes "default off writes no filtered
+# BAM" checkable rather than merely intended. Pure helpers are unit-tested in
+# test_uniqueness_filter.py.
+_UNIQ_ENABLED = _uniqueness_filter_enabled(config)
+
 # ── HISAT2 ───────────────────────────────────────────────────────────────────
 
 if config.get("alignment", {}).get("aligner") == "hisat2":
@@ -75,23 +95,17 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
     # in workflow/scripts/strandness.py and are unit-tested in test_strandness.py.
     # `srcdir()` is unavailable in Snakemake 8 — use `workflow.basedir` (which
     # points at the Snakefile's directory, i.e. the repo root here) instead.
-    import sys
-    sys.path.insert(0, os.path.join(workflow.basedir, "workflow", "scripts"))
     from strandness import get_strandness_from_row
     from hisat2_command import build_read_args
     from uniqueness_filter import (
         build_preflight_gate,
         build_prefilter_gate,
         filtered_bam_outputs,
-        is_enabled as _uniqueness_filter_enabled,
         regtools_input_bam,
     )
 
-    # NH-uniqueness prefilter (Issue #919). Read at parse time, not job time, so
-    # the filtered BAM is a *declared* output only when the knob is on - that is
-    # what makes "default off writes no filtered BAM" checkable rather than
-    # merely intended. Pure helpers are unit-tested in test_uniqueness_filter.py.
-    _UNIQ_ENABLED = _uniqueness_filter_enabled(config)
+    # `_UNIQ_ENABLED` (the NH-uniqueness knob, Issue #919) is now computed above
+    # the aligner fork, because Issue #1118 wires the same knob to the STAR path.
     _HISAT2_BAM = os.path.join(_RES, "{patient_id}", "alignment", "{sample}", "{sample}.bam")
 
     def _get_hisat2_read_args(wildcards, input):
@@ -356,6 +370,10 @@ elif config.get("alignment", {}).get("aligner") == "star":
             output_prefix=lambda wildcards: os.path.join(
                 _RES, wildcards.patient_id, "alignment", wildcards.sample, "star_"
             ),
+            # Issue #1118: the STAR path's read-support semantic is now governed
+            # by the same config knob as the HISAT2 NH prefilter (`_UNIQ_ENABLED`,
+            # from `uniqueness_filter.is_enabled`). Empty string = count all reads.
+            uniqueness_flag="--unique-only" if _UNIQ_ENABLED else "",
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
@@ -388,11 +406,19 @@ elif config.get("alignment", {}).get("aligner") == "star":
 
             # SJ.out.tab col 4=0 means STAR couldn't infer strand; rescue from
             # col 5 (intron motif) where possible, drop truly non-canonical —
-            # see Issue #374. The helper also handles the col 7 > 0 filter
-            # and emits the same raw_junctions.tsv format as the HISAT2 path.
+            # see Issue #374. The helper emits the same raw_junctions.tsv format
+            # as the HISAT2 path.
+            #
+            # Read-support semantic (Issue #1118): --unique-only is driven by the
+            # SAME `alignment.uniqueness_filter.enabled` knob that gates the
+            # HISAT2 NH prefilter, so one setting means one semantic on both
+            # paths. Default off = count all reads (col 7 + col 8); the previous
+            # hardwired col-7-only read silently applied the unique-only policy
+            # that Issue #1122 disqualified for a matched tumor/normal design.
             python workflow/scripts/star_sj_to_junctions.py \\
                 --input {params.output_prefix}SJ.out.tab \\
                 --output {output.junctions} \\
+                {params.uniqueness_flag} \\
                 2>&1 | tee -a {log}
             """
 

@@ -68,7 +68,23 @@ alignment:
   # cannot read a stream), which roughly doubles alignment storage for this
   # step, and requires samtools >= 1.12 for filter-expression support. The rule
   # preflights that and fails loudly rather than silently emitting unfiltered
-  # junctions. HISAT2-only for now; STAR's SJ.out.tab needs a separate lever.
+  # junctions.
+  #
+  # Governs BOTH aligners (Issue #1118). One knob, one semantic:
+  #   off (default): count ALL reads crossing a junction.
+  #                  HISAT2 -> regtools on the full BAM.
+  #                  STAR   -> SJ.out.tab col 7 + col 8.
+  #   on:            count uniquely-mapping reads only.
+  #                  HISAT2 -> samtools '[NH]==1' BAM prefilter.
+  #                  STAR   -> SJ.out.tab col 7 only.
+  #
+  # Keep it OFF unless you have a reason. Issue #1122 found the unique-only
+  # semantic structurally unsound for a matched tumor/normal design: it gates
+  # each arm independently, so it can destroy normal support while leaving
+  # tumor untouched, promoting a shared junction to a false `tumor_exclusive`
+  # candidate (demonstrated on the IGLJ3->IGLC3 junction, chr22 fixture). A
+  # uniqueness signal, if we want one, belongs at junction level AFTER pooling
+  # tumor and normal evidence - not as an independent per-read gate on each.
   uniqueness_filter:
     enabled: false
 
