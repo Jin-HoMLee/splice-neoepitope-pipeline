@@ -190,6 +190,18 @@ def test_live_registry_validates_green():
     assert violations(df) == []
 
 
+def test_venue_map_has_one_key_per_study():
+    """The venue map is keyed one-entry-per-study, and the registry now holds one
+    `source` string per study, so the two counts must agree. If they drift, either a
+    study was folded without a venue key (which the venue_type check catches) or a
+    study was re-split (which the collision guard catches) - this pins the pair."""
+    from labeling_constants import VENUE_BY_SOURCE_SUBSTR
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    assert len(VENUE_BY_SOURCE_SUBSTR) == df["source"].nunique() == 12
+
+
 def test_live_registry_has_one_source_string_per_study():
     """#1106 in its post-condition form: the registry carried 15 strings for 12
     studies, and no existing check could see it. This pins the invariant on the real

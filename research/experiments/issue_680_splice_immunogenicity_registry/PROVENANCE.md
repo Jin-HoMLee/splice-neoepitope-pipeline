@@ -20,7 +20,7 @@ Each sequence is graded by **how it was obtained**, so it can be re-verified man
 
 ## Venue audit (#1001) - the `venue_type` column
 
-Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 12 folded studies (15 distinct `source` strings, 97 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
+Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 12 folded studies (12 distinct `source` strings post-[#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106), 97 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
 
 | Source (key) | Venue | `venue_type` |
 |---|---|---|
