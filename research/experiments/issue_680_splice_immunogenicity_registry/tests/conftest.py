@@ -33,6 +33,7 @@ _TEMPLATE = {
     "peptide_status": "published-recovered",
     "assay_context": "unspecified",
     "venue_type": "journal",
+    "in_vivo_model": "none",
 }
 
 

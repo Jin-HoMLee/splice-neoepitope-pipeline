@@ -211,6 +211,21 @@ Rewrite applied 2026-07-14, **exact whole-field match** on the `source` column -
 
 **Downstream:** the [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity study count changes (Xiong collapses from 2 studies to 1). That recompute is owned by [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069) and must run **after** this lands.
 
+## In-vivo animal models ([#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120)) - the `in_vivo_model` column
+
+Two rows report an in-vivo animal readout. **Both are xenografts in immunodeficient mice with adoptively transferred human T cells** - established first-hand, not inferred from the readout string:
+
+| peptide | source | model | evidence (first-hand) |
+|---|---|---|---|
+| `IFSESETRAKF` | Xiong 2025 (GBM) | `xenograft` | Zotero `BU83EAXW` (PDF `JJZL6D84`), verbatim: *"Immunodeficient NSG mice were intracranially injected..."*; *"...xenograft murine model after TCR-T cell transfer"*; Methods *"Mouse orthotopic xenograft ... Female NOD.Cg-Prkdc-scid Il2rg-tm1WjI/SzJ (NSG) mice"*. |
+| `FLLDGSANV` | Kim GB 2022 STM (COL6A3) | `xenograft` | PMC10130759, verbatim: *"Six- to 12-week-old nonobese diabetic (NOD)/severe combined immunodeficient (SCID)/γ-chain−/− (NSG) mice ... After 8 to 10 days, expanded human primary T cells ... were infused."* |
+
+**Why this is a separate column and not an `assay_context` value.** [#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120) was filed asking for an "animal model" value inside `assay_context`. That is a **category error**: `assay_context` records the **T-cell source**, and **an NSG mouse cannot produce T cells at all**. In both rows above the responding T cells are *human* (TCR-T / engineered TCR); the mouse supplies a tumor bed and nothing immunological. Recording their T-cell source as "animal" would be false, and on `FLLDGSANV` it would have **overwritten `cloned_tcr`** - the exact fact the column exists to hold. There are **zero animal-only rows**, so the proposed value would have had no correct members.
+
+The genuine animal-T-cell-source case (`assay_context = animal_syngeneic`) is a **syngeneic, immunocompetent** host responding with its own T cells - the Burbage-2023 mouse exon-TE shape ([#699](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/699)). We hold no such row; the value exists so that fold does not have to re-litigate this.
+
+**`IFSESETRAKF`'s `assay_context` deliberately stays `unspecified`.** Its readout names TCR-T, which *suggests* `cloned_tcr`, but the no-guess rule bars promoting a context off a readout keyword - the pin must come from a first-hand read of which T cells produced *each* readout, which is [#895](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/895)'s pass. The Xiong PDF is now located (`JJZL6D84`) and the paper is titled *"...generates a potent TCR-T target..."*, so that pin should be quick; recorded here so #895 does not re-hunt it.
+
 ## Curation chain (how the registry was built)
 
 1. Adversarially-verified novelty check (25/25 claims held) — confirmed no prior open splice-immunogenicity benchmark exists.

@@ -41,15 +41,60 @@ SCORABLE_TIER = "functional-scorable"
 # rationale in PROVENANCE.md; `unspecified` is the honest value for rows whose
 # held provenance records the assay but NOT its T-cell source (no guessing -
 # verify-against-source rule). See derive_assay_context.py for the rule.
+#
+# assay_context is a **T-CELL-SOURCE** axis and nothing else (#1120): every value
+# below names *where the responding T cells came from*. It is NOT a setting axis -
+# whether an assay ran in a dish or in a living animal is recorded separately, in
+# `in_vivo_model`. Do not add a value here meaning "tested in a mouse": an animal is
+# a venue, not a T-cell source, and both of our in-vivo rows are human T cells inside
+# an immunodeficient mouse that has no T cells of its own (see IN_VIVO_MODELS).
 ASSAY_CONTEXTS = {
     "patient_exvivo",     # patient PBMC/blood ex-vivo tetramer+ or functional
     "patient_til",        # patient tumor-infiltrating (or draining-LN) lymphocytes
     "healthy_donor_ivs",  # healthy-donor in-vitro-sensitized (IVS) T cells
     "cloned_tcr",         # engineered/cloned-TCR functional readout (no primary patient/donor detection)
+    "animal_syngeneic",   # the responding T cells are the ANIMAL'S OWN (syngeneic, immunocompetent host).
+                          # 0 rows today - deliberately forward-looking, for a Burbage-2023-shaped mouse
+                          # exon-TE fold (#699). This is the ONLY sense in which an animal is a T-cell source.
     "prevalence_only",    # population prevalence / presentation, no per-peptide T-cell assay
     "unspecified",        # functional assay reported but T-cell source not determinable from held provenance
     "na",                 # not applicable (constitutive control / non-tested sequence)
 }
+
+# The SETTING axis (#1120): where the functional readout was obtained, orthogonal to
+# who the responding T cells were. A row can be `cloned_tcr` AND in-vivo-confirmed -
+# both of ours are - so collapsing these two facts into one column would lose the one
+# that matters in every case we actually hold.
+#
+# **These values describe the HOST, and ONLY the host.** They deliberately make no
+# claim about where the responding T cells came from - that is assay_context's job, and
+# letting it leak back in here would re-create, inside the fix, the very conflation this
+# split exists to remove. (The first draft of this vocabulary did exactly that: it
+# defined `syngeneic` as "responding with its OWN T cells", a T-cell-source claim.
+# Caught in the PR #1186 bot review.)
+#
+# The two axes are genuinely free to vary, and the combination that proves it is
+# `syngeneic` + `cloned_tcr`: an immunocompetent host receiving adoptively-transferred
+# cloned MOUSE TCR-T cells. That is a real and common design, and it is why
+# `in_vivo_model == syngeneic` does NOT imply `assay_context == animal_syngeneic`.
+# Only the forward direction holds (see validate_registry.py): the animal's own T cells
+# can only respond in an immunocompetent host.
+#
+# Realism ordering is NOT monotone in this column alone: a `xenograft` result is
+# powerful evidence of effector function but runs in an immunodeficient host, so it says
+# nothing about whether an intact immune system would mount the response. Read it WITH
+# assay_context, never instead.
+IN_VIVO_MODELS = {
+    "none",         # no in-vivo animal readout (the overwhelming default)
+    "xenograft",    # IMMUNODEFICIENT host (e.g. NSG) bearing a human tumor graft
+    "syngeneic",    # IMMUNOCOMPETENT host on a matched genetic background
+    "unspecified",  # in-vivo animal readout reported, model type not determinable from held provenance (no guess)
+}
+IN_VIVO_NONE = "none"
+
+# Matched as a lowercased substring of `readout` only. Both spellings, so a future
+# "in-vivo" hyphenation does not silently read as no-animal-model.
+IN_VIVO_MARKERS = ("in vivo", "in-vivo")
 
 # Controlled vocabulary for the #1001 venue_type column. Records the publication
 # venue class of each row's source so peer-reviewed evidence is queryable and

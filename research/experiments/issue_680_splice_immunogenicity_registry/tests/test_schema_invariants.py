@@ -179,6 +179,109 @@ def test_collision_is_reported_once_per_study_not_once_per_row(row, frame):
     assert len(hits) == 1, f"expected one collision violation, got {len(hits)}"
 
 
+# --- #1120: assay_context is a T-CELL-SOURCE axis; in_vivo_model is the SETTING ----
+#
+# The Issue originally asked for an "animal model" value inside assay_context. That is
+# a category error: an animal is a venue, not a T-cell source. Both of our in-vivo rows
+# are human T cells inside an immunodeficient NSG mouse - which has no T cells of its
+# own - so an "animal" T-cell source would be false for both, and would overwrite the
+# `cloned_tcr` fact on the COL6A3 row. These tests pin the split so it cannot be
+# quietly re-merged.
+
+
+def test_in_vivo_readout_requires_a_model(row, frame):
+    """A readout naming an in-vivo animal experiment cannot sit at `none`. This is what
+    a hand-edit into registry.tsv looks like, and the derivation cannot produce it."""
+    row.update(readout="engineered-TCR IFN-g + cytotoxicity + in vivo",
+               assay_context="cloned_tcr", in_vivo_model="none")
+    _fails_with(frame(row), "in-vivo animal readout but")
+
+
+def test_model_without_an_in_vivo_readout_is_rejected(row, frame):
+    """The other direction: a model stamped onto a row that reports no in-vivo readout."""
+    row.update(in_vivo_model="xenograft")  # template readout has no in-vivo term
+    _fails_with(frame(row), "no in-vivo readout")
+
+
+def test_bad_in_vivo_model_value_is_rejected(row, frame):
+    row.update(readout="IFN-g + in vivo", in_vivo_model="mouse")
+    _fails_with(frame(row), "bad in_vivo_model")
+
+
+def test_xenograft_may_not_claim_the_animal_as_the_t_cell_source(row, frame):
+    """**The test that would fail if the two axes were re-merged.**
+
+    A xenograft host is immunodeficient - it has no T cells to be the source of - so
+    `animal_syngeneic` (the one context in which the animal IS the T-cell source) is
+    incoherent with it. This is precisely the row #1120 would originally have created
+    for COL6A3, and it must not validate."""
+    row.update(readout="engineered-TCR IFN-g + cytotoxicity + in vivo",
+               assay_context="animal_syngeneic", in_vivo_model="xenograft")
+    _fails_with(frame(row), "requires in_vivo_model 'syngeneic'")
+
+
+def test_syngeneic_host_may_carry_an_engineered_tcr_source(row, frame):
+    """**The combination that proves the two axes are genuinely free to vary.**
+
+    An immunocompetent (syngeneic) host receiving adoptively-transferred cloned MOUSE
+    TCR-T cells: the *setting* is syngeneic, the *T-cell source* is an engineered clone.
+    Real, common design - and it must validate.
+
+    This is why `in_vivo_model == syngeneic` does NOT imply
+    `assay_context == animal_syngeneic`. A PR #1186 review finding proposed adding that
+    converse coupling on the grounds that the two are definitionally equivalent; they
+    were only equivalent because the *setting* vocabulary had wrongly been written as a
+    claim about T-cell origin. Fixing the definition to describe the host alone (which
+    is what a setting axis may say) makes this row representable, and makes the converse
+    coupling wrong. Enforcing it would forbid a legitimate experiment.
+    """
+    row.update(readout="cloned-TCR IFN-g + cytotoxicity + in vivo",
+               assay_context="cloned_tcr", in_vivo_model="syngeneic")
+    assert violations(frame(row)) == []
+
+
+def test_animal_syngeneic_is_valid_in_a_syngeneic_host(row, frame):
+    """The control: the genuine animal-T-cell-source case (a Burbage-2023-shaped mouse
+    fold) must validate, or the new context value would be unusable by construction."""
+    row.update(readout="IFN-g + cytotoxicity + in vivo",
+               assay_context="animal_syngeneic", in_vivo_model="syngeneic")
+    assert violations(frame(row)) == []
+
+
+def test_cloned_tcr_survives_an_in_vivo_readout(row, frame):
+    """The regression #1120 would originally have caused: an in-vivo confirmation must
+    NOT overwrite the T-cell source. A row can be `cloned_tcr` AND in-vivo-confirmed -
+    both of our real in-vivo rows are exactly that."""
+    row.update(readout="engineered-TCR IFN-g + cytotoxicity + in vivo",
+               assay_context="cloned_tcr", in_vivo_model="xenograft")
+    assert violations(frame(row)) == []
+
+
+def test_live_registry_keeps_col6a3_as_cloned_tcr():
+    """Pinned on the real artifact, because this is the exact regression the Issue's
+    original ACs would have shipped."""
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    col6a3 = df[df["peptide"] == "FLLDGSANV"]
+    assert len(col6a3) == 1
+    assert col6a3.iloc[0]["assay_context"] == "cloned_tcr"
+    assert col6a3.iloc[0]["in_vivo_model"] == "xenograft"
+
+
+def test_live_registry_in_vivo_rows_are_exactly_the_marked_ones():
+    """Both directions on the real registry: exactly the rows whose readout names an
+    in-vivo experiment carry a model, and no others."""
+    from labeling_constants import IN_VIVO_MARKERS, IN_VIVO_NONE
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    marked = df["readout"].str.lower().apply(lambda r: any(m in r for m in IN_VIVO_MARKERS))
+    stamped = df["in_vivo_model"] != IN_VIVO_NONE
+    assert (marked == stamped).all()
+    assert int(stamped.sum()) == 2, "expected exactly 2 in-vivo rows (RCAN1-4, COL6A3)"
+
+
 # --- AC5: no regression on the live registry --------------------------------------
 
 
