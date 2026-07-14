@@ -10,6 +10,7 @@ inside the render/aggregation functions so this test runs in the bare
 ``ci-tools-pytest`` env (pytest + pyyaml only).
 """
 
+import ast
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -179,6 +180,7 @@ class TestComputeMetrics:
         m = mr.compute_metrics(
             SAMPLE,
             {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
+            marker_in_use=True,
         )
         assert m["n_total"] == 4
         assert m["n_closed"] == 3
@@ -196,6 +198,7 @@ class TestComputeMetrics:
         m = mr.compute_metrics(
             MIXED,
             {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
+            marker_in_use=True,
         )
         assert m["n_closed"] == 4
         assert m["n_delivered"] == 2
@@ -211,12 +214,13 @@ class TestComputeMetrics:
     def test_partition_invariant(self):
         # delivered + descoped always exactly partitions closed.
         m = mr.compute_metrics(
-            MIXED, {"created_at": None, "closed_at": "2026-06-08T00:00:00Z"}
+            MIXED, {"created_at": None, "closed_at": "2026-06-08T00:00:00Z"},
+            marker_in_use=True,
         )
         assert m["n_delivered"] + m["n_descoped"] == m["n_closed"]
 
     def test_empty_milestone_degrades(self):
-        m = mr.compute_metrics([], {"created_at": None, "closed_at": None})
+        m = mr.compute_metrics([], {"created_at": None, "closed_at": None}, marker_in_use=True)
         assert m["n_total"] == m["n_closed"] == m["n_carried_forward"] == 0
         assert m["n_delivered"] == m["n_descoped"] == 0
         assert m["duration_days"] is None
@@ -274,7 +278,7 @@ class TestClosedInWindow:
 
 class TestWeeklySeries:
     def test_trend_buckets_and_medians(self):
-        s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4)
+        s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4, marker_in_use=True)
         assert [w["n_delivered"] for w in s] == [1, 0, 1, 2]   # w1, w2(empty), w3, w4
         assert s[1]["median_cycle_time_days"] is None          # empty week -> None
         assert s[0]["median_cycle_time_days"] == pytest.approx(2.0)   # #5
@@ -287,7 +291,7 @@ class TestComputeWindowMetrics:
     def test_headline_over_reporting_week_plus_trend(self):
         week_issues = mr.closed_in_window(
             WINDOW_ISSUES, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
-        m = mr.compute_window_metrics(week_issues, WINDOW_ISSUES, UNTIL, 4)
+        m = mr.compute_window_metrics(week_issues, WINDOW_ISSUES, UNTIL, 4, marker_in_use=True)
         assert m["n_total"] == 3            # #1, #2, #4 closed in the reporting week
         assert m["n_delivered"] == 2        # #1, #2 (descoped #4 excluded)
         assert m["n_descoped"] == 1         # #4 NOT_PLANNED
@@ -302,7 +306,7 @@ class TestComputeWindowMetrics:
         old = [_issue(20, "CLOSED", "2026-06-08T00:00:00Z", "2026-06-10T00:00:00Z", ["role:pm"], "COMPLETED")]
         week_issues = mr.closed_in_window(
             old, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
-        m = mr.compute_window_metrics(week_issues, old, UNTIL, 4)
+        m = mr.compute_window_metrics(week_issues, old, UNTIL, 4, marker_in_use=True)
         # main() gates the zero-ship skip on n_total == 0 (nothing closed in the
         # reporting week); delivered is 0 and cycle time is undefined.
         assert m["n_total"] == 0
@@ -376,7 +380,7 @@ class TestArrivalAxis:
     def test_matched_pair_lands_on_opposite_sides(self):
         # Identical but for the marker -> opposite sides. This is the control:
         # if the marker were ignored, both would land as committed and this fails.
-        b = mr.throughput_breakdown(ARRIVAL)
+        b = mr.throughput_breakdown(ARRIVAL, marker_in_use=True)
         assert b["n_committed"] == 1
         assert b["n_unplanned"] == 1
 
@@ -384,16 +388,16 @@ class TestArrivalAxis:
         # #3 carries the marker but closed NOT_PLANNED. It is not shipped work,
         # so it must not inflate the unplanned count - otherwise the "unplanned
         # share" would be measuring abandoned work, not absorbed capacity.
-        b = mr.throughput_breakdown(ARRIVAL)
+        b = mr.throughput_breakdown(ARRIVAL, marker_in_use=True)
         assert b["n_committed"] + b["n_unplanned"] == len(mr.delivered_issues(ARRIVAL)) == 2
 
     def test_pct_unplanned(self):
-        assert mr.throughput_breakdown(ARRIVAL)["pct_unplanned"] == pytest.approx(50.0)
+        assert mr.throughput_breakdown(ARRIVAL, marker_in_use=True)["pct_unplanned"] == pytest.approx(50.0)
 
     def test_pct_is_none_not_zero_on_empty_window(self):
         # A zero-ship week must read as "no data", not as a truthful-looking 0%
         # unplanned - the latter would be a number the WIP retune could act on.
-        assert mr.throughput_breakdown([])["pct_unplanned"] is None
+        assert mr.throughput_breakdown([], marker_in_use=True)["pct_unplanned"] is None
 
     def test_unlabelled_issue_is_committed(self):
         # Guards the back-compat assumption every pre-#811 fixture leans on.
@@ -407,18 +411,174 @@ class TestArrivalAxis:
                               ["role:pm"], "COMPLETED", ["P1"])
         p2_unplanned = _issue(11, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z",
                               ["role:pm"], "COMPLETED", ["P2", "unplanned"])
-        b = mr.throughput_breakdown([p1_committed, p2_unplanned])
+        b = mr.throughput_breakdown([p1_committed, p2_unplanned], marker_in_use=True)
         assert (b["n_committed"], b["n_unplanned"]) == (1, 1)
 
     def test_metrics_carry_the_split(self):
-        m = mr.compute_metrics(ARRIVAL, {"closed_at": None, "created_at": None})
+        m = mr.compute_metrics(ARRIVAL, {"closed_at": None, "created_at": None}, marker_in_use=True)
         assert m["n_committed"] == 1 and m["n_unplanned"] == 1
         assert m["pct_unplanned"] == pytest.approx(50.0)
 
     def test_weekly_series_carries_the_split(self):
         until = datetime(2026, 6, 8, tzinfo=timezone.utc)
-        series = mr.weekly_series(ARRIVAL, until, 1)
+        series = mr.weekly_series(ARRIVAL, until, 1, marker_in_use=True)
         assert series[0]["n_committed"] == 1
         assert series[0]["n_unplanned"] == 1
         # Conservation: the split must exactly partition the delivered count.
         assert series[0]["n_committed"] + series[0]["n_unplanned"] == series[0]["n_delivered"]
+
+
+# --- the marker's OWN falsifier (Issue #1180) --------------------------------
+
+# A window of delivered work in which NOT ONE issue carries the marker. From this
+# list alone, two completely different worlds are information-theoretically
+# identical:
+#   (a) the marker IS in use, and we genuinely absorbed no unplanned work -> a real 0%
+#   (b) the marker was NEVER applied to anything                          -> 0% is a fiction
+# The list cannot tell them apart. Only the injected `marker_in_use` fact can.
+NO_MARKER_ANYWHERE = [
+    _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+           ["role:pm"], "COMPLETED"),
+    _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+           ["role:dev"], "COMPLETED"),
+]
+
+# Built from codepoints, not typed: this file must CONTAIN no em/en dash (the repo
+# guard rejects one on sight) while still asserting their absence elsewhere.
+EM_DASH = chr(0x2014)
+EN_DASH = chr(0x2013)
+
+
+class TestMarkerNotInUse:
+    """The metric's own falsifier: a 0% that could only ever come back one way.
+
+    Before Issue #1180 the SDR printed a clean, confident `25 / 0 (0% unplanned)` on
+    every weekly row - while `gh issue list --label unplanned --state all` returned
+    ZERO issues repo-wide. The label had never been applied to anything. The
+    measurement shipped; the thing being measured did not.
+    """
+
+    def test_matched_pair_real_zero_vs_fabricated_zero(self):
+        """THE test. Identical input, one fact flipped, opposite outputs.
+
+        Without this pair the fix is unfalsifiable - which is precisely the disease
+        being cured, so shipping the cure without it would be self-refuting.
+        """
+        real_zero = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=True)
+        fabricated = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=False)
+
+        # In use + nobody was unplanned -> a genuine, hard-won zero. Report it.
+        assert real_zero["pct_unplanned"] == pytest.approx(0.0)
+        assert real_zero["n_committed"] == 2
+        assert real_zero["n_unclassifiable"] == 0
+
+        # Not in use -> the SAME list means nothing. Refuse to print a number.
+        assert fabricated["pct_unplanned"] is None
+        assert fabricated["n_committed"] is None, (
+            "'2 committed' is the same false assertion as '0% unplanned', one column over"
+        )
+        assert fabricated["n_unplanned"] is None
+        assert fabricated["n_unclassifiable"] == 2, "the degraded input must be VISIBLE"
+
+    def test_marker_in_use_is_zero_vs_nonzero_on_the_repo_count(self):
+        assert mr.is_marker_in_use(0) is False
+        assert mr.is_marker_in_use(1) is True
+
+    def test_the_two_none_worlds_stay_distinguishable(self):
+        """`pct_unplanned is None` now has two causes; they must not collapse.
+
+        Empty window (no delivered work) and marker-not-in-use both yield None, but
+        they are different failures and the report says different things about them -
+        so the `marker_in_use` flag has to survive into the metrics dict.
+        """
+        empty_window = mr.throughput_breakdown([], marker_in_use=True)
+        assert empty_window["pct_unplanned"] is None
+        assert empty_window["marker_in_use"] is True
+        assert empty_window["n_committed"] == 0     # honestly zero: there IS no work
+
+        not_in_use = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=False)
+        assert not_in_use["pct_unplanned"] is None
+        assert not_in_use["marker_in_use"] is False
+        assert not_in_use["n_committed"] is None    # unknowable: there IS work, unclassified
+
+    def test_marker_in_use_is_a_required_keyword(self):
+        """A default would let a new call site silently fabricate. It must decide."""
+        with pytest.raises(TypeError):
+            mr.throughput_breakdown(NO_MARKER_ANYWHERE)
+
+    def test_weekly_series_propagates_unclassifiable(self):
+        """The fabricated 0% appeared in EVERY trend row, not just the headline card."""
+        until = datetime(2026, 6, 8, tzinfo=timezone.utc)
+        series = mr.weekly_series(NO_MARKER_ANYWHERE, until, 1, marker_in_use=False)
+        assert series[0]["pct_unplanned"] is None
+        assert series[0]["n_committed"] is None
+        assert series[0]["n_unclassifiable"] == 2
+
+    def test_compute_metrics_propagates_unclassifiable(self):
+        m = mr.compute_metrics(NO_MARKER_ANYWHERE, {"closed_at": None, "created_at": None},
+                               marker_in_use=False)
+        assert m["marker_in_use"] is False
+        assert m["pct_unplanned"] is None
+        assert m["n_unclassifiable"] == 2
+        # The delivered headline is unaffected - we know WHAT shipped, not how it arrived.
+        assert m["n_delivered"] == 2
+
+
+class TestGeneratedHtmlHasNoEmDash:
+    """The report is machine-generated, so the PreToolUse no-em-dash guard cannot see
+    it - that guard scans Claude's edits, not a script's output. Left unchecked, every
+    report the script ever produces violates the house rule. Issue #1180.
+
+    **The rule is about AUTHORED strings, not the rendered artifact.** The report also
+    embeds *data* - Issue titles straight from GitHub, some of which genuinely contain
+    an em-dash (e.g. "fix(guards): cross-repo coverage - project-repo guards..."). Those
+    must pass through **verbatim**: a report that rewrites a real title is falsifying its
+    own source data, which is a far worse sin than a stray dash. So these tests assert
+    over what the *script writes*, never over the generated HTML as a whole.
+    """
+
+    def test_template_emits_no_em_dash(self):
+        template = mr.TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert EM_DASH not in template, "em-dash in the report template"
+        assert EN_DASH not in template, "en-dash in the report template"
+
+    def test_authored_output_strings_are_not_em_dashes(self):
+        """Every em-dash the SCRIPT emits, across all three emitters.
+
+        A template-only check passes while the HTML still carries them, because the
+        script emits authored strings from three separate places:
+          - the normalizer's Size/Pri/status placeholders (`or "..."` / `else "..."`)
+          - the `_fmt` None-placeholder
+          - the seeded-narrative boilerplate (comments, TBD suffixes)
+        The first live HTML render caught a fourth I had missed by grepping - a Jinja
+        `pct` filter - which is precisely why this asserts over the source, not a diff.
+        """
+        tree = ast.parse(Path(mr.__file__).read_text(encoding="utf-8"))
+
+        # Docstrings are prose ABOUT the code, never emitted into the artifact, so they
+        # are exempt (this file's own history: a line-based heuristic kept snagging them
+        # and had to be replaced by this AST walk - approximate matching on source text
+        # is exactly the class of bug the rest of this PR is about).
+        docstrings = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                doc = ast.get_docstring(node, clean=False)
+                if doc:
+                    docstrings.add(doc)
+
+        offenders = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            text = node.value
+            if text in docstrings:
+                continue
+            if EM_DASH in text or EN_DASH in text:
+                # `.lstrip("#*->-- ")` strips dashes OFF INPUT; it emits nothing.
+                if text.startswith("#*->"):
+                    continue
+                offenders.append(f"line {node.lineno}: {text[:60]!r}")
+
+        assert not offenders, (
+            "the script emits an em/en dash into the generated report: " + str(offenders)
+        )

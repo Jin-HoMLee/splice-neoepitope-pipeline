@@ -129,23 +129,76 @@ def committed_issues(issues: list[dict]) -> list[dict]:
     return [i for i in issues if not is_unplanned(i)]
 
 
-def throughput_breakdown(issues: list[dict]) -> dict[str, Any]:
+def is_marker_in_use(repo_label_count: int) -> bool:
+    """Is the arrival marker actually in use, repo-wide? Pure given the count.
+
+    The whole point of the arrival axis is to be falsifiable, and this is the fact
+    that makes it so. Split out as a pure function over an injected count (rather than
+    doing the ``gh`` call inline) so the fabricating case is unit-testable without a
+    network, which is exactly the property the metric was missing.
+
+    A count of 0 means the label has never been applied to anything - so the arrival
+    axis is **not in use**, and no delivered item can be classified by it. See
+    ``throughput_breakdown`` for why that must not render as 0%.
+    """
+    return repo_label_count > 0
+
+
+def throughput_breakdown(issues: list[dict], *, marker_in_use: bool) -> dict[str, Any]:
     """Split *delivered* work by arrival: committed vs unplanned.
 
     The Kanban Throughput Breakdown Chart, reduced to the one split we actually
     need. Keyed off delivered (not raw closed) for the same reason throughput and
     cycle time are: a descoped issue is not shipped work.
 
-    ``pct_unplanned`` is None (not 0.0) on an empty delivered set, so a zero-ship
-    week reads as "no data" rather than as a truthful-looking 0% unplanned.
+    **Two degenerate cases, both of which must NOT print a confident zero.**
+
+    1. *Empty window* - no delivered issues at all. ``pct_unplanned`` is None (not
+       0.0), so a zero-ship week reads as "no data". This guard already existed.
+
+    2. *The marker is not in use* (``marker_in_use=False``) - i.e. the ``unplanned``
+       label has never been applied to anything, repo-wide. This returned **0.0**,
+       and 0.0 is indistinguishable from a real, hard-won, measured zero:
+
+           | we genuinely absorbed no unplanned work | -> 0% |
+           | nobody ever applied the label           | -> 0% |
+           | the label-reading code is broken        | -> 0% |
+
+       Three different worlds, one confident output. The number could only ever come
+       back one way. That is not a measurement, it is a fabrication wearing a
+       measurement's clothes - the most dangerous state for a metric (Issue #1180).
+
+       When the marker is not in use, **nothing delivered can be classified by
+       arrival at all**, so ``n_committed`` is None too. Printing "25 committed"
+       would be exactly the same false assertion as "0% unplanned", one column over.
+       The delivered count is reported as ``n_unclassifiable`` instead, so a degraded
+       input is *visible* rather than silently absorbed.
+
+    ``marker_in_use`` is a **required keyword**, deliberately: it cannot be derived
+    from ``issues`` (from that list alone, "no delivered issue carries the label" is
+    information-theoretically identical in both worlds), and a default would let a
+    caller silently fall back into the fabricating behavior. Making it required means
+    a new call site must *decide*.
     """
     delivered = delivered_issues(issues)
-    n_unplanned = len(unplanned_issues(delivered))
     n_delivered = len(delivered)
+
+    if not marker_in_use:
+        return {
+            "n_committed": None,
+            "n_unplanned": None,
+            "n_unclassifiable": n_delivered,
+            "pct_unplanned": None,
+            "marker_in_use": False,
+        }
+
+    n_unplanned = len(unplanned_issues(delivered))
     return {
         "n_committed": n_delivered - n_unplanned,
         "n_unplanned": n_unplanned,
+        "n_unclassifiable": 0,
         "pct_unplanned": (100.0 * n_unplanned / n_delivered) if n_delivered else None,
+        "marker_in_use": True,
     }
 
 
@@ -292,7 +345,8 @@ def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list
     return out
 
 
-def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dict]:
+def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
+                  *, marker_in_use: bool) -> list[dict]:
     """Per-week throughput + median cycle-time trend over the trailing weeks.
 
     Each entry: ``{week_start, week_end, n_delivered, median_cycle_time_days}``
@@ -317,7 +371,7 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
         series.append({
             "week_start": _first_covered_day(start).isoformat(),
             "week_end": end.date().isoformat(),
-            **throughput_breakdown(in_window),
+            **throughput_breakdown(in_window, marker_in_use=marker_in_use),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
         })
@@ -325,7 +379,8 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
 
 
 def compute_window_metrics(
-    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int
+    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int,
+    *, marker_in_use: bool
 ) -> dict[str, Any]:
     """Headline (reporting-week) metrics + the weekly trend for SDR window mode.
 
@@ -347,12 +402,14 @@ def compute_window_metrics(
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
         "per_role_counts": per_role_counts(week_issues),
-        **throughput_breakdown(week_issues),
-        "weekly_series": weekly_series(all_issues, until, n_weeks),
+        **throughput_breakdown(week_issues, marker_in_use=marker_in_use),
+        "weekly_series": weekly_series(all_issues, until, n_weeks,
+                                       marker_in_use=marker_in_use),
     }
 
 
-def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
+def compute_metrics(issues: list[dict], milestone: dict,
+                    *, marker_in_use: bool) -> dict[str, Any]:
     """Assemble the headline metrics block from the data layer."""
     closed = closed_issues(issues)
     delivered = delivered_issues(issues)
@@ -374,7 +431,7 @@ def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
         "per_role_counts": per_role_counts(issues),
-        **throughput_breakdown(issues),
+        **throughput_breakdown(issues, marker_in_use=marker_in_use),
     }
 
 
@@ -469,14 +526,35 @@ def _normalize_issue(it: dict, board: dict[int, dict]) -> dict:
         "labels": labels,
         "roles": [l for l in labels if l.startswith("role:")],
         "arcs": [l for l in labels if l.startswith("arc:")],
-        "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
-        "priority": b.get("priority") or "—",
-        "size": b.get("size") or "—",
+        "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "n/a"),
+        # "n/a", not an em-dash: this string is emitted into the generated HTML,
+        # where the house no-em-dash rule applies and no guard can see it (the
+        # PreToolUse guard scans Claude's edits, not a script's output). Issue #1180.
+        "priority": b.get("priority") or "n/a",
+        "size": b.get("size") or "n/a",
     }
     # Single-source the descoped flag for the inventory badge (covers
     # NOT_PLANNED + DUPLICATE without the template hardcoding the set).
     issue["is_descoped"] = is_descoped(issue)
     return issue
+
+
+def fetch_marker_in_use() -> bool:
+    """Has the ``unplanned`` label EVER been applied, repo-wide?
+
+    The falsifier the arrival metric was missing. Deliberately repo-wide and
+    all-states: the question is not "did this window have unplanned work" (which the
+    issue list already answers, ambiguously) but "is the marker being used at all" -
+    a fact that no window of issues can supply about itself.
+
+    ``--limit 1`` because the count is irrelevant; only zero-vs-nonzero matters.
+    """
+    raw = _gh([
+        "issue", "list", "--repo", f"{OWNER}/{REPO}",
+        "--label", UNPLANNED_LABEL, "--state", "all", "--limit", "1",
+        "--json", "number",
+    ])
+    return is_marker_in_use(len(json.loads(raw)))
 
 
 def fetch_milestone_issues(name: str) -> list[dict]:
@@ -576,9 +654,9 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "",
         "<!-- Lead role: what shipped, grouped by deliverable, with PR + slide links.",
         f"     The {len(delivered)} delivered issues are listed in the Inventory appendix",
-        "     below — narrate the highlights here, don't re-list them. -->",
+        "     below - narrate the highlights here, don't re-list them. -->",
         "",
-        "_Seeded from the lead role's lab-notebook entries in the milestone window — "
+        "_Seeded from the lead role's lab-notebook entries in the milestone window - "
         "replace with the deliverables narrative._",
         "",
     ]
@@ -589,11 +667,11 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
             "## Descoped (closed NOT_PLANNED)",
             "",
             "<!-- These closed WITHOUT shipping (superseded / YAGNI / wontfix). They are",
-            "     excluded from the delivered count — record why each was dropped + where",
+            "     excluded from the delivered count - record why each was dropped + where",
             "     the need (if any) was routed, so the descope isn't silently masked. -->",
             "",
         ]
-        lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _why descoped: TBD_" for i in descoped]
+        lines += [f"- [#{i['number']}]({i['url']}) {i['title']} - _why descoped: TBD_" for i in descoped]
     lines += [
         "",
         "## Carried-forward & routing",
@@ -602,7 +680,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "     closure-routing decision (a/b/c/d). -->",
         "",
     ]
-    lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
+    lines += [f"- [#{i['number']}]({i['url']}) {i['title']} - _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
     lines += [
         "",
         "## Retrospective (process/health)",
@@ -630,7 +708,7 @@ def render_html(
         loader=FileSystemLoader(str(TEMPLATE_PATH.parent)),
         autoescape=select_autoescape(["html", "j2"]),
     )
-    env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "—"
+    env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "n/a"
     template = env.get_template(TEMPLATE_PATH.name)
     # Milestone-level arc(s) = the distinct arc labels across its issues (arc is
     # a per-issue label under the three-axis model, not a milestone property).
@@ -649,7 +727,7 @@ def render_html(
 
 
 def _fmt(v: Optional[float], unit: str = "") -> str:
-    return "—" if v is None else f"{v:.1f}{unit}"
+    return "n/a" if v is None else f"{v:.1f}{unit}"
 
 
 def print_metrics(milestone: dict, metrics: dict) -> None:
@@ -663,9 +741,17 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  delivered / descoped (closed)    : "
           f"{metrics['n_delivered']} / {metrics['n_descoped']}")
     pct = metrics.get("pct_unplanned")
-    print(f"  arrival: committed / unplanned   : "
-          f"{metrics['n_committed']} / {metrics['n_unplanned']}"
-          f"{f'  ({pct:.0f}% unplanned)' if pct is not None else '  (no delivered work)'}")
+    if not metrics.get("marker_in_use", True):
+        # The marker has never been applied repo-wide, so NOTHING delivered can be
+        # classified by arrival. Printing "N / 0  (0% unplanned)" here would be a
+        # fabrication wearing a measurement's clothes (Issue #1180).
+        print(f"  arrival: UNCLASSIFIABLE          : "
+              f"{metrics['n_unclassifiable']} delivered, none classifiable "
+              f"(the `{UNPLANNED_LABEL}` marker is not in use repo-wide)")
+    else:
+        print(f"  arrival: committed / unplanned   : "
+              f"{metrics['n_committed']} / {metrics['n_unplanned']}"
+              f"{f'  ({pct:.0f}% unplanned)' if pct is not None else '  (no delivered work)'}")
     print(f"  duration (days)                  : {_fmt(metrics['duration_days'])}")
     print(f"  throughput (delivered/week)      : {_fmt(metrics['throughput_per_week'])}")
     print(f"  cycle time avg / median (days)   : "
@@ -706,7 +792,7 @@ def _generate(milestone: dict, issues: list[dict], metrics: dict,
 def _run_milestone_mode(name: str, out_dir: Optional[Path], dry_run: bool) -> int:
     milestone = fetch_milestone(name)
     issues = fetch_milestone_issues(name)
-    metrics = compute_metrics(issues, milestone)
+    metrics = compute_metrics(issues, milestone, marker_in_use=fetch_marker_in_use())
     return _generate(milestone, issues, metrics, out_dir or DEFAULT_OUT_DIR, dry_run, "milestone")
 
 
@@ -745,7 +831,8 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
 
     all_issues = fetch_window_issues(*fetch_span(until_dt, n_weeks))
     week_issues = closed_in_window(all_issues, report_start, report_end)
-    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
+    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks,
+                                     marker_in_use=fetch_marker_in_use())
 
     if metrics["n_total"] == 0:  # nothing closed in the reporting week -> no artifact
         print(f"Meta-work SDR - week ending {report_end.date().isoformat()}: "
