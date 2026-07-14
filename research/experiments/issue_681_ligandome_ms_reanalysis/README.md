@@ -124,6 +124,31 @@ SNAF's observed rate against this reference (0.033%), our 2,156 peptides expect 
 what you get from a panel this size whether our junctions are presented or not. Same shape as the
 retracted "specificity pass" - the honest label is *underpowered*.
 
+### MS absence is not a negative
+
+**This tier yields positives only. It cannot produce a clean negative, and no row here should ever be
+read as one.** A peptide missing from an immunopeptidomics dataset has not been shown to be absent from
+the cell surface; it has failed to be *detected*, and mass spectrometry fails to detect presented
+peptides routinely and for reasons that have nothing to do with whether the peptide is there:
+
+- **Detection limit.** Immunopeptidomics samples the abundant end of the ligandome. A peptide presented
+  at a few copies per cell is real, immunogenic, and invisible.
+- **Sub-stoichiometric elution.** Recovery through immunoprecipitation, elution and clean-up is partial
+  and peptide-dependent, so absence is confounded with chemistry.
+- **Search-database ceiling** (measured here, and the reason AC-2 came back the way it did): a
+  canonical-search reference *cannot report* a junction-spanning peptide at all. Against those
+  references the null is guaranteed by the method rather than observed in the biology.
+
+So the 29 recovered rows are evidence **that** those peptides are presented. The peptides that did *not*
+turn up - including every one of ours - are **untested**, not negative. That is why the rows carry
+`label=untested` and why nothing in this experiment feeds the negative set.
+
+**Negatives are a different job with a different design**, tracked in
+[Issue #911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911). Treating an
+MS-absence as a negative would poison the registry's functional tier with a label the assay never
+earned - the mirror image of the "specificity pass" error retracted above, and the more dangerous
+direction, because a false negative is silent.
+
 ## AC-7 - per-allele coverage: the skew is NOT demonstrably broken
 
 The tempting headline was available and is wrong. The recovered set spans **25 distinct alleles over 28
