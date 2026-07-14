@@ -38,9 +38,16 @@ Three checks, in order of what they establish:
   3. `matched_asymmetry`    -- the disqualifying result: NH erodes the two arms
      independently, and one such erosion manufactures a false tumor-exclusive.
 
-Inputs are all committed or offline-derivable:
+Inputs are ALL COMMITTED -- this runs on a fresh clone, no network, no BAM, and no
+`prepare_test_data.sh`:
   - `issue_919_nh_uniqueness_filter/outputs/raw_junctions.{tumor,normal}.filter_{off,on}.tsv`
-  - `resources/test/chr22.gtf.gz`  (annotated introns + gene context)
+    (Developer's committed A/B junction sets)
+  - `inputs/chr22_annotated_introns.tsv` + `inputs/chr22_genes.tsv`
+    (derived here from GENCODE chr22; committed for exactly this reason, since
+    `resources/test/chr22.gtf.gz` is GITIGNORED and absent from a fresh clone)
+
+Regenerate the two annotation fixtures from the GTF (needs `prepare_test_data.sh`
+to have fetched it) with `--regenerate-annotation`.
 
 Run from the repo root:
     research/.venv/bin/python \
@@ -59,6 +66,14 @@ from pathlib import Path
 MIN_NORMAL_READS = 2
 
 AB = "research/experiments/issue_919_nh_uniqueness_filter/outputs/raw_junctions.{sample}.filter_{knob}.tsv"
+HERE = "research/experiments/issue_1122_multimapped_reads"
+INTRONS_TSV = f"{HERE}/inputs/chr22_annotated_introns.tsv"
+GENES_TSV = f"{HERE}/inputs/chr22_genes.tsv"
+
+# GITIGNORED (.gitignore: `resources/test/chr22*`) and fetched by
+# scripts/prepare_test_data.sh -- so it is ABSENT from a fresh clone. Only
+# `--regenerate-annotation` touches it; the committed fixtures above are what the
+# analysis actually reads.
 GTF = "resources/test/chr22.gtf.gz"
 
 
@@ -78,19 +93,54 @@ def load_junctions(sample, knob, root):
     return out
 
 
-def load_gtf(root):
-    """Return (annotated_intron_ids, genes).
+def load_annotation(root):
+    """Return (annotated_intron_ids, genes) from the COMMITTED fixtures."""
+    introns_path, genes_path = root / INTRONS_TSV, root / GENES_TSV
+    if not introns_path.exists() or not genes_path.exists():
+        raise SystemExit(
+            f"missing committed annotation fixture ({introns_path} / {genes_path}).\n"
+            "Regenerate with --regenerate-annotation (needs scripts/prepare_test_data.sh "
+            "to have fetched resources/test/chr22.gtf.gz, which is gitignored)."
+        )
+
+    annotated = set()
+    with open(introns_path) as fh:
+        next(fh)  # header
+        for line in fh:
+            if line.strip():
+                annotated.add(line.strip())
+
+    genes = []
+    with open(genes_path) as fh:
+        next(fh)  # header
+        for line in fh:
+            f = line.rstrip("\n").split("\t")
+            if len(f) >= 4:
+                genes.append((int(f[0]), int(f[1]), f[2] or None, f[3] or None))
+    genes.sort()
+    return annotated, genes
+
+
+def regenerate_annotation(root):
+    """Rebuild the committed fixtures from GENCODE chr22. Provenance for load_annotation().
 
     Junction IDs use the MIXED convention written by bed12_to_junctions.py:82 --
     `<chrom>:<donor_1BASED>:<acceptor_0based_exclusive>:<strand>`. Reading the donor
-    as 0-based (the obvious assumption) silently shifts every motif by one base. The
-    canonical-motif self-check below exists to catch exactly that.
+    as 0-based (the obvious assumption) silently shifts every motif by one base; the
+    canonical-motif falsifier (GENCODE introns must come back ~98% GT-AG) is what
+    catches it. Do not "simplify" the +1 away.
     """
     exons_by_tx = defaultdict(list)
     strand_by_tx = {}
     genes = []
 
-    with gzip.open(root / GTF, "rt") as fh:
+    gtf_path = root / GTF
+    if not gtf_path.exists():
+        raise SystemExit(
+            f"{gtf_path} not found -- it is gitignored; run scripts/prepare_test_data.sh first."
+        )
+
+    with gzip.open(gtf_path, "rt") as fh:
         for line in fh:
             if line.startswith("#"):
                 continue
@@ -126,6 +176,20 @@ def load_gtf(root):
             annotated.add(f"chr22:{e1 + 1}:{s2 - 1}:{st}")
 
     genes.sort()
+
+    introns_path, genes_path = root / INTRONS_TSV, root / GENES_TSV
+    introns_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(introns_path, "w") as fh:
+        fh.write("junction_id\n")
+        for j in sorted(annotated):
+            fh.write(j + "\n")
+    with open(genes_path, "w") as fh:
+        fh.write("start\tend\tgene_name\tgene_type\n")
+        for s, e, name, gtype in genes:
+            fh.write(f"{s}\t{e}\t{name or ''}\t{gtype or ''}\n")
+
+    print(f"regenerated {introns_path} ({len(annotated):,} introns)")
+    print(f"regenerated {genes_path} ({len(genes):,} genes)")
     return annotated, genes
 
 
@@ -150,6 +214,8 @@ def mean_filter_profile(tumor):
     """Reproduce filter_junctions.py:400 -- `keep if reads > mean(reads)`."""
     reads = list(tumor.values())
     n = len(reads)
+    if not n:
+        raise SystemExit("empty tumor junction file -- nothing to profile")
     mean = sum(reads) / n
     kept = [r for r in reads if r > mean]
     return {
@@ -175,6 +241,9 @@ def candidate_set(knob, root, annotated):
     """
     tumor = load_junctions("tumor", knob, root)
     normal = load_junctions("normal", knob, root)
+
+    if not tumor:
+        raise SystemExit(f"empty tumor junction file for knob={knob}")
 
     normal_set = {j for j, r in normal.items()
                   if j not in annotated and r >= MIN_NORMAL_READS}
@@ -210,12 +279,20 @@ def end_to_end_effect(root, annotated):
 # --------------------------------------------------------------------------
 # 3. the disqualifying result
 # --------------------------------------------------------------------------
-def matched_asymmetry(root, annotated, genes):
+def matched_asymmetry(root, annotated, genes, gained):
     """Does the filter erode the tumor and normal arms independently?
 
     A junction seen in BOTH libraries is one biological event. If the filter is a
     property of the JUNCTION, it must retain the same fraction of reads in both arms.
     If it is a property of the READS, it will not.
+
+    `gained` is the AUTHORITATIVE set of junctions promoted to tumor_exclusive by the
+    filter, computed by end_to_end_effect() through the full production path (mean
+    filter, GENCODE discard, normal subtraction). We take it as an argument rather than
+    re-deriving a local predicate: a hand-rolled "would this become a false positive?"
+    heuristic agrees with the real computation today and could silently drift from it on
+    the next fixture. The authoritative set is the one that decides; `normal_destroyed`
+    below only explains WHY, and is never the thing being claimed.
     """
     t_off = load_junctions("tumor", "off", root)
     t_on = load_junctions("tumor", "on", root)
@@ -229,19 +306,22 @@ def matched_asymmetry(root, annotated, genes):
         rn = n_on.get(j, 0) / n_off[j]
         if abs(rt - rn) < 0.01:
             continue
-        # Did the erosion destroy the NORMAL evidence while sparing the tumor?
-        # That is what promotes a junction to a false tumor_exclusive.
-        manufactures_fp = (n_off[j] >= MIN_NORMAL_READS
-                           and n_on.get(j, 0) < MIN_NORMAL_READS
-                           and t_on.get(j, 0) > 0)
+        # WHY it happens: the erosion destroyed the normal evidence while sparing the
+        # tumor. Explanatory only -- `promoted_to_tumor_exclusive` below is the claim.
+        normal_destroyed = (n_off[j] >= MIN_NORMAL_READS
+                            and n_on.get(j, 0) < MIN_NORMAL_READS
+                            and t_on.get(j, 0) > 0)
         _c, d, a, _s = j.split(":")
         rows.append({
             "junction": j,
             "tumor": (t_off[j], t_on.get(j, 0)),
             "normal": (n_off[j], n_on.get(j, 0)),
-            "manufactures_false_tumor_exclusive": manufactures_fp,
-            "donor_gene": nearest_gene(genes, int(d) - 1) or gene_at(genes, int(d) - 1),
-            "acceptor_gene": nearest_gene(genes, int(a) + 1) or gene_at(genes, int(a) + 1),
+            # THE CLAIM: membership in the authoritative `gained` set.
+            "promoted_to_tumor_exclusive": j in gained,
+            # THE EXPLANATION: never asserted on its own.
+            "normal_evidence_destroyed": normal_destroyed,
+            "donor_gene": nearest_gene(genes, int(d) - 1),
+            "acceptor_gene": nearest_gene(genes, int(a) + 1),
         })
     return {"n_shared": len(shared), "asymmetric": rows}
 
@@ -252,11 +332,18 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", default=".", type=Path, help="repo root")
     ap.add_argument("--json", type=Path, help="also write results as JSON")
+    ap.add_argument("--regenerate-annotation", action="store_true",
+                    help="rebuild inputs/chr22_{annotated_introns,genes}.tsv from the "
+                         "GENCODE GTF (gitignored; needs scripts/prepare_test_data.sh)")
     args = ap.parse_args()
     root = args.root
 
-    annotated, genes = load_gtf(root)
-    print(f"GENCODE chr22: {len(annotated):,} annotated introns, {len(genes):,} genes\n")
+    if args.regenerate_annotation:
+        annotated, genes = regenerate_annotation(root)
+    else:
+        annotated, genes = load_annotation(root)
+    print(f"GENCODE chr22: {len(annotated):,} annotated introns, {len(genes):,} genes "
+          f"(committed fixtures)\n")
 
     # --- 1 ---
     tumor = load_junctions("tumor", "off", root)
@@ -291,7 +378,7 @@ def main():
           f"should never ADD a candidate\n")
 
     # --- 3 ---
-    asym = matched_asymmetry(root, annotated, genes)
+    asym = matched_asymmetry(root, annotated, genes, eff["gained"])
     print("=" * 78)
     print("3. DOES THE FILTER ERODE TUMOR AND NORMAL INDEPENDENTLY?  (the disqualifier)")
     print("=" * 78)
@@ -299,14 +386,14 @@ def main():
     print(f"   junctions seen in BOTH arms (one biological event each): {asym['n_shared']}")
     print(f"   ... whose tumor:normal read ratio the filter CHANGES    : {len(rows)}\n")
     print(f"   {'junction':30s} {'tumor':>12s} {'normal':>12s}  locus")
-    for r in sorted(rows, key=lambda x: -x["manufactures_false_tumor_exclusive"]):
+    for r in sorted(rows, key=lambda x: -x["promoted_to_tumor_exclusive"]):
         t, n = r["tumor"], r["normal"]
         locus = f"{r['donor_gene'] or '?'} -> {r['acceptor_gene'] or '?'}"
-        flag = "  <== FALSE TUMOR-EXCLUSIVE" if r["manufactures_false_tumor_exclusive"] else ""
+        flag = "  <== FALSE TUMOR-EXCLUSIVE" if r["promoted_to_tumor_exclusive"] else ""
         print(f"   {r['junction']:30s} {t[0]:5.0f}->{t[1]:<5.0f} "
               f"{n[0]:5.0f}->{n[1]:<5.0f}  {locus}{flag}")
 
-    fps = [r for r in rows if r["manufactures_false_tumor_exclusive"]]
+    fps = [r for r in rows if r["promoted_to_tumor_exclusive"]]
     print(f"\n   {len(fps)} junction(s) had matched-normal evidence destroyed while the tumor")
     print("   arm was spared, and were promoted to TUMOR-EXCLUSIVE neoepitope candidates.")
     print("   This is an EXISTENCE PROOF, not a rate: n_shared is far too small to")

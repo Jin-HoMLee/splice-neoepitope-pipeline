@@ -60,7 +60,7 @@ Normal support drops below `min_normal_reads: 2` → the junction stops counting
 
 ## The mechanism, at read level
 
-In the two BAMs, the **same alignment of the same junction**:
+In the two BAMs [@danecek2021samtools], the **same alignment of the same junction**:
 
 ```
 TUMOR   pos=22905015  CIGAR=11M1316N39M   NH=1   ← filter keeps it
@@ -98,7 +98,7 @@ And **2 of the 4** asymmetries are immunoglobulin junctions - a striking concent
 
 ## The field default is right - for a different estimand
 
-Unique-only is standard and **not** cargo cult. LeafCutter: *"the most restrictive filter is the requirement that reads considered be uniquely mapped."* STAR institutionalises it (`SJ.out.tab` col 7 unique / col 8 multi).
+Unique-only is standard and **not** cargo cult. LeafCutter [@li2018leafcutter]: *"the most restrictive filter is the requirement that reads considered be uniquely mapped."* STAR [@dobin2013star] institutionalises it (`SJ.out.tab` col 7 unique / col 8 multi).
 
 | | **their** problem | **our** problem |
 |---|---|---|
@@ -153,7 +153,7 @@ We spent two Issues arguing about a filter with **14%** blast radius while an un
 
 > **All 1,872 junctions are GT-AG** - 999 `GT..AG` on `+`, 873 `CT..AC` on `-`, **zero** exceptions.
 
-HISAT2's `XS` tag is motif-derived and `regtools -s XS` consumes it, so the motif is **already an inclusion gate upstream**. A probe that restates a gate can only confirm it. *(Does not sink #1116: Portcullis-style anchor-vs-intron Hamming is a different signal.)*
+HISAT2's [@kim2019hisat2] `XS` tag is motif-derived and `regtools -s XS` [@cotto2023regtools] consumes it, so the motif is **already an inclusion gate upstream**. A probe that restates a gate can only confirm it. *(Does not sink #1116: Portcullis-style [@mapleson2018portcullis] anchor-vs-intron Hamming is a different signal.)*
 
 ::: {.fragment}
 **The NH filter does not clean up #1147's low-complexity artifacts.** It removes **0 of 267** low-complexity contigs and leaves all 9 behind. **#1122 = paralogy at alignment; #1147 = low-complexity at translation.** Orthogonal. One filter does not kill two problems.
@@ -165,7 +165,7 @@ HISAT2's `XS` tag is motif-derived and `regtools -s XS` consumes it, so the moti
 
 1. **Default stays OFF** - but because the filter *as applied* (an independent per-read gate on each library) is **structurally wrong for a matched design**, not merely because the A/B was unconvincing. It should not be promoted to default at **any** index or depth. **#1095 is not a prerequisite** (AC-4).
 
-2. **If we ever want a uniqueness signal**, it cannot be a per-library per-read gate. It must be a junction-level **score** carried into the comparison (#1116), or a decision made **after pooling** the two arms - never applied to them independently.
+2. **If we ever want a uniqueness signal**, it cannot be a per-library per-read gate. It must be a junction-level **score** carried into the comparison - the Portcullis [@mapleson2018portcullis] / FineSplice [@gatto2014finesplice] direction in #1116 - or a decision made **after pooling** the two arms, never applied to them independently.
 
 3. **The trap in #1112 / #1118.** `star_sj_to_junctions.py:112` reads `SJ.out.tab` **col 7 only** - that **is** the unique-only semantic. **Converging on STAR silently adopts, by construction, the policy this Issue disqualifies** - never as a decision, only as an artifact of which column a script reads. **Col 8 is right there.** Make it an explicit configurable policy; default **count all reads**.
 

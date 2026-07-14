@@ -68,7 +68,7 @@ Re-derived from the committed `issue_919` outputs, the two chr22 BAMs, and an an
 
 ## Reproducing
 
-Everything below runs from **committed inputs only** (the `issue_919` A/B outputs plus `resources/test/chr22.gtf.gz`) - no BAM, no network:
+The analysis runs from **committed inputs only** - it works on a fresh clone, with no network, no BAM, and without `scripts/prepare_test_data.sh`:
 
 ```bash
 research/.venv/bin/python \
@@ -76,21 +76,28 @@ research/.venv/bin/python \
   --json research/experiments/issue_1122_multimapped_reads/outputs/results.json
 ```
 
-The read-level `NH` evidence (the `11M1316N39M` read that is `NH=1` in tumor and `NH=2` in normal) needs the chr22 BAMs, which are gitignored. Regenerate them with the chr22 test pipeline, then:
+Those committed inputs are Developer's `issue_919` A/B junction TSVs plus the two annotation fixtures in `inputs/` (below). **`resources/test/chr22.gtf.gz` is gitignored** (`.gitignore`: `resources/test/chr22*`) and absent from a fresh clone, which is exactly why the annotation is committed in derived form rather than parsed from the GTF at run time. Only `--regenerate-annotation` touches the GTF, and it fails loudly with a pointer to `prepare_test_data.sh` if it is missing.
+
+*(Verified by matched-pair control: with the GTF moved away, the default run succeeds off the committed fixtures and `--regenerate-annotation` fails. Opposite outcomes, one variable flipped.)*
+
+The read-level `NH` evidence (the `11M1316N39M` read that is `NH=1` in tumor and `NH=2` in normal) is the one thing that **does** need the chr22 BAMs, which are gitignored. Regenerate them with the chr22 test pipeline, then:
 
 ```bash
 samtools view results/patient_001_test/alignment/SRR9143066_test/SRR9143066_test.bam \
   chr22:22904000-22907000 | awk '$6 ~ /N/'
 ```
 
-## Outputs
+## Files
 
-| file | what it is |
-|---|---|
-| `nh_matched_subtraction.py` | the analysis: the mean-filter profile, the end-to-end candidate cost, and the matched-arm asymmetry |
-| `outputs/results.json` | machine-readable results, including the full asymmetric-junction list |
+| file | what it is | committed? |
+|---|---|---|
+| `nh_matched_subtraction.py` | the analysis: mean-filter profile, end-to-end candidate cost, matched-arm asymmetry | yes |
+| `inputs/chr22_annotated_introns.tsv` | 7,731 GENCODE chr22 introns, in junction-ID space | yes (the GTF is not) |
+| `inputs/chr22_genes.tsv` | 1,748 chr22 gene spans, for locus naming (IGLJ3/IGLC3 etc.) | yes (the GTF is not) |
+| `outputs/results.json` | machine-readable results, including the full asymmetric-junction list | yes |
+| `slides.qmd` | the decision deck (11 slides) | yes (`slides.html` is gitignored, regenerable) |
 
 ## Cross-experiment deps
 
-- **Reads from:** [`issue_919_nh_uniqueness_filter/outputs/`](../issue_919_nh_uniqueness_filter/outputs/) (Developer's committed A/B junction sets) and `resources/test/chr22.gtf.gz`.
+- **Reads from:** [`issue_919_nh_uniqueness_filter/outputs/`](../issue_919_nh_uniqueness_filter/outputs/) (Developer's committed A/B junction sets). The GENCODE annotation is vendored into `inputs/` in derived form, so this experiment has **no gitignored run-time dependency**.
 - **Feeds:** [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) (the aligner-coherence defect - this decides its default), [#1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) (the STAR col-7 trap), [#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116) (which probe is viable), [#1161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1161) (the mean-reads gate).
