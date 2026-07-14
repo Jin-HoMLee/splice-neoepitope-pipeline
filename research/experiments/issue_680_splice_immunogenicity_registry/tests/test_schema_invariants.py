@@ -220,6 +220,26 @@ def test_xenograft_may_not_claim_the_animal_as_the_t_cell_source(row, frame):
     _fails_with(frame(row), "requires in_vivo_model 'syngeneic'")
 
 
+def test_syngeneic_host_may_carry_an_engineered_tcr_source(row, frame):
+    """**The combination that proves the two axes are genuinely free to vary.**
+
+    An immunocompetent (syngeneic) host receiving adoptively-transferred cloned MOUSE
+    TCR-T cells: the *setting* is syngeneic, the *T-cell source* is an engineered clone.
+    Real, common design - and it must validate.
+
+    This is why `in_vivo_model == syngeneic` does NOT imply
+    `assay_context == animal_syngeneic`. A PR #1186 review finding proposed adding that
+    converse coupling on the grounds that the two are definitionally equivalent; they
+    were only equivalent because the *setting* vocabulary had wrongly been written as a
+    claim about T-cell origin. Fixing the definition to describe the host alone (which
+    is what a setting axis may say) makes this row representable, and makes the converse
+    coupling wrong. Enforcing it would forbid a legitimate experiment.
+    """
+    row.update(readout="cloned-TCR IFN-g + cytotoxicity + in vivo",
+               assay_context="cloned_tcr", in_vivo_model="syngeneic")
+    assert violations(frame(row)) == []
+
+
 def test_animal_syngeneic_is_valid_in_a_syngeneic_host(row, frame):
     """The control: the genuine animal-T-cell-source case (a Burbage-2023-shaped mouse
     fold) must validate, or the new context value would be unusable by construction."""

@@ -66,14 +66,28 @@ ASSAY_CONTEXTS = {
 # both of ours are - so collapsing these two facts into one column would lose the one
 # that matters in every case we actually hold.
 #
+# **These values describe the HOST, and ONLY the host.** They deliberately make no
+# claim about where the responding T cells came from - that is assay_context's job, and
+# letting it leak back in here would re-create, inside the fix, the very conflation this
+# split exists to remove. (The first draft of this vocabulary did exactly that: it
+# defined `syngeneic` as "responding with its OWN T cells", a T-cell-source claim.
+# Caught in the PR #1186 bot review.)
+#
+# The two axes are genuinely free to vary, and the combination that proves it is
+# `syngeneic` + `cloned_tcr`: an immunocompetent host receiving adoptively-transferred
+# cloned MOUSE TCR-T cells. That is a real and common design, and it is why
+# `in_vivo_model == syngeneic` does NOT imply `assay_context == animal_syngeneic`.
+# Only the forward direction holds (see validate_registry.py): the animal's own T cells
+# can only respond in an immunocompetent host.
+#
 # Realism ordering is NOT monotone in this column alone: a `xenograft` result is
-# powerful evidence of effector function but runs in an immunodeficient host with
-# adoptively transferred human T cells, so it says nothing about whether an intact
-# immune system would mount the response. Read it WITH assay_context, never instead.
+# powerful evidence of effector function but runs in an immunodeficient host, so it says
+# nothing about whether an intact immune system would mount the response. Read it WITH
+# assay_context, never instead.
 IN_VIVO_MODELS = {
     "none",         # no in-vivo animal readout (the overwhelming default)
-    "xenograft",    # immunodeficient host (e.g. NSG) + adoptively transferred human T cells
-    "syngeneic",    # immunocompetent host responding with its OWN T cells
+    "xenograft",    # IMMUNODEFICIENT host (e.g. NSG) bearing a human tumor graft
+    "syngeneic",    # IMMUNOCOMPETENT host on a matched genetic background
     "unspecified",  # in-vivo animal readout reported, model type not determinable from held provenance (no guess)
 }
 IN_VIVO_NONE = "none"

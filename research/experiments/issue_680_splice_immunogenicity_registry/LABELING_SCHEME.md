@@ -126,9 +126,11 @@ Cross-checks: `healthy_donor_ivs` ⟺ the `IVS` marker in `readout` (ties to §3
 | value | meaning |
 |---|---|
 | `none` | no in-vivo animal readout (the default; 95/97 rows) |
-| `xenograft` | **immunodeficient** host (e.g. NSG) + **adoptively transferred human T cells** |
-| `syngeneic` | **immunocompetent** host responding with its **own** T cells |
+| `xenograft` | **immunodeficient** host (e.g. NSG) bearing a human tumor graft |
+| `syngeneic` | **immunocompetent** host on a matched genetic background |
 | `unspecified` | in-vivo animal readout reported, model type **not determinable from held provenance** (no guess) |
+
+**These values describe the HOST, and only the host** - they make no claim about where the responding T cells came from (that is `assay_context`'s job). Letting a T-cell-source claim leak back in here would re-create, inside the fix, the exact conflation this split removes. The combination that proves the axes are free to vary is **`syngeneic` + `cloned_tcr`**: an immunocompetent host receiving adoptively-transferred cloned *mouse* TCR-T cells. So the coupling holds in **one direction only** - `animal_syngeneic` ⟹ `syngeneic` (the animal's own T cells can only respond in an immunocompetent host), but **not** the converse.
 
 **The precedence rule: an in-vivo animal setting NEVER overrides the T-cell source.** Derivation in [`derive_in_vivo_model.py`](derive_in_vivo_model.py) (source-keyed, gated on the in-vivo marker in `readout` so a source's non-in-vivo rows - e.g. Xiong's constitutive `VFVDGLCRAKF` control - are never stamped). Never hand-edit it into `registry.tsv`; the next derivation run reverts it.
 

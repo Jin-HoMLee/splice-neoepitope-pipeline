@@ -90,6 +90,16 @@ def in_vivo_model(r) -> str:
 
 def main() -> int:
     df = pd.read_csv(REG, sep="\t", dtype=str).fillna("")
+
+    # Capture the ON-DISK column BEFORE deriving. This ordering is the whole point:
+    # the first draft of this script compared the *just-derived* column against the
+    # readout marker and called it a falsifier - but `df.apply` had already overwritten
+    # any hand-edit, so the comparison was the derivation checked against itself and
+    # was structurally green no matter what was in the file. A check that cannot fail
+    # is not a check. (Caught in the PR #1186 bot review; the real cross-check has
+    # always been the one in validate_registry.py, which reads the file fresh.)
+    on_disk = df["in_vivo_model"] if "in_vivo_model" in df.columns else None
+
     df["in_vivo_model"] = df.apply(in_vivo_model, axis=1)
 
     bad = set(df["in_vivo_model"]) - IN_VIVO_MODELS
@@ -97,21 +107,30 @@ def main() -> int:
         print(f"FAIL: derived out-of-vocabulary in_vivo_model {bad}", file=sys.stderr)
         return 1
 
+    # Real falsifier: a hand-edit is a row whose on-disk value disagrees with what the
+    # derivation produces. This script OWNS the column, so such an edit is about to be
+    # silently reverted - say so loudly instead of reverting it in silence.
+    reverted = []
+    if on_disk is not None:
+        drift = on_disk != df["in_vivo_model"]
+        for _, r in df[drift].iterrows():
+            reverted.append(f"  {r['peptide'] or r['junction_id']}: "
+                            f"{on_disk[r.name]!r} (on disk) -> {r['in_vivo_model']!r} (derived)")
+
     df.to_csv(REG, sep="\t", index=False)
     print(df["in_vivo_model"].value_counts().to_string())
 
-    # Falsifier, both directions: the column must agree with the readout marker.
-    # The derivation satisfies this by construction, so it can only fail on a
-    # hand-edited registry - which is exactly the failure it is here to catch
-    # (same shape as the healthy_donor_ivs <-> IVS cross-check).
-    marker = df["readout"].apply(has_in_vivo_readout)
-    stamped = df["in_vivo_model"] != IN_VIVO_NONE
-    mismatch = int((marker != stamped).sum())
-    print(f"\nin-vivo marker <-> in_vivo_model mismatches: {mismatch}")
-    for _, r in df[marker].iterrows():
+    if reverted:
+        print(f"\nWARNING: {len(reverted)} hand-edited in_vivo_model value(s) REVERTED "
+              f"by the derivation (this script owns the column):", file=sys.stderr)
+        for line in reverted:
+            print(line, file=sys.stderr)
+
+    print("\nin-vivo rows:")
+    for _, r in df[df["in_vivo_model"] != IN_VIVO_NONE].iterrows():
         print(f"  {r['peptide'] or r['junction_id']:<14} {r['source']:<32} "
               f"assay_context={r['assay_context']:<12} in_vivo_model={r['in_vivo_model']}")
-    return 1 if mismatch else 0
+    return 1 if reverted else 0
 
 
 if __name__ == "__main__":
