@@ -212,7 +212,16 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     if status == "Done":
         return None
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
-    role = next((l for l in labels if l.startswith("role:")), None)
+    # An Issue may carry several `role:` labels - the dual-role convention gives one
+    # role the Lead/DRI and scopes individual ACs to the other. Keep the FULL set, for
+    # the same reason `arcs` does (#1103): GitHub returns labels in an unstable order,
+    # so filtering on the first one alone hides a dual-role item under a role that
+    # varies between calls. #1153: that hid 12 open Issues from `--role developer`,
+    # including one where Developer was the Lead.
+    role_labels = [l for l in labels if l.startswith("role:")]
+    # `role` keeps the first for single-value consumers (the Role column, --json
+    # readers); `roles` carries the full set so the filter cannot silently truncate.
+    role = role_labels[0] if role_labels else None
     arc_labels = [l for l in labels if l.startswith("arc:")]
     # A parent/epic has >=1 sub-issue. PRs (and the rare node the query returned
     # no summary for) have no subIssuesSummary block -> treated as a leaf. Mirrors
@@ -255,6 +264,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "size": size,
         "target_date": target_date,
         "role": role,
+        "roles": role_labels,
         "arc": arc,
         "arc_phase": arc_phase,
         "labels": labels,
@@ -340,7 +350,12 @@ def apply_recency(
 def matches_filter(it: dict[str, Any], args: argparse.Namespace) -> bool:
     if args.role:
         want = args.role if args.role.startswith("role:") else f"role:{args.role}"
-        if it["role"] != want:
+        # Membership in the FULL set, not equality with the first role - same reason
+        # as the arc filter below (#1153 / #1103). A dual-role Issue must surface in
+        # BOTH lanes; matching `it["role"]` alone made it appear under one role and
+        # vanish under the other, nondeterministically (GitHub label order is
+        # unstable). A Lead could not see the work they were DRI for.
+        if want not in it["roles"]:
             return False
     if args.status and it["status"] != args.status:
         return False
@@ -388,7 +403,13 @@ def format_table(
         f"{'-' * 17} {'-' * 3} {'-' * 3} {'-' * 5} {'-' * 17} {'-' * 8} {'-' * 10} {arc_sep}{'-' * 60}",
     ]
     for it in items:
-        role = (it["role"] or "(none)").removeprefix("role:")[:16]
+        # A dual-role Issue (#1153) gets a `+N` marker, mirroring the multi-arc cell
+        # below. `--role <r>` matches membership in the FULL set, so without this a
+        # row matched via its SECOND role would display only its first and read as
+        # though it did not match the filter that returned it.
+        role_extra = max(len(it.get("roles") or []) - 1, 0)
+        role_suffix = f" +{role_extra}" if role_extra else ""
+        role = (it["role"] or "(none)").removeprefix("role:")[: 16 - len(role_suffix)] + role_suffix
         # "/D" = draft PR; "/P" = parent/epic Issue (mutually exclusive — a parent
         # is always an Issue, never a draft).
         kind = it["kind"] + ("/D" if it["is_draft"] else "") + ("/P" if it["is_parent"] else "")
