@@ -14,6 +14,11 @@ The HISAT2 path (`bed12_to_junctions.py`, via regtools) counts **all** reads cro
 The STAR path (`star_sj_to_junctions.py:112`) reads `SJ.out.tab` **column 7 only** (uniquely-mapping reads) and never column 8, so a junction supported only by multimappers is discarded outright.
 Flipping `alignment.aligner` therefore quietly changes which candidates reach neoepitope prediction.
 
+**The divergence is between *defaults*, not capabilities - and that sharpens the point rather than softening it.**
+[PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) (`b86160f`, merged 2026-07-11, closing [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919)) gave the HISAT2 path an **opt-in** `alignment.uniqueness_filter.enabled` NH-prefilter, **default off**.
+So both paths now have a uniqueness lever, and they are not the same *kind* of lever: on HISAT2 it is a **config surface** you can set, while on STAR it is **hardwired into which column a script reads**.
+The project therefore already treats uniqueness as a thing you *configure* - which is precisely what makes hardwiring it on the STAR path the inconsistency to fix, and is the strongest argument for the binding condition below.
+
 **Finding 2 - "STAR needs more than 8 GB, unusable locally" is false at chromosome scale.**
 Measured on the M1 (8 GB): a chr22 STAR index build peaks at **730 MB in 14 s**; aligning 500k reads peaks at ~230-380 MB.
 The ~30 GB figure is the whole-genome suffix array, not chr22. RAM was never the local blocker.
