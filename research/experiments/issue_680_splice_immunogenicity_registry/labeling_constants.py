@@ -72,9 +72,15 @@ VENUE_UNCLASSIFIED = "unclassified"  # out-of-vocab sentinel: forces classificat
 # `source` column (same convention as derive_assay_context.py). This is the
 # single source of truth for both the derivation (derive_venue_type.py reads
 # `venue`) and the offline-optional Zotero cross-check in validate_registry.py
-# (which reads `doi`). All 15 current sources are peer-reviewed journals (14 per
+# (which reads `doi`). All 12 current studies are peer-reviewed journals (11 per
 # the 2026-07-04 audit + COL6A3/STM verified 2026-07-07); DOIs verified against
 # Zotero collection Z38GTJNW.
+#
+# One key per study, and one `source` string per study (#1106): the substring
+# matching below will happily absorb two spellings of one study into one key, and
+# it silently did (15 strings / 12 studies). validate_registry.py now fails on that
+# collision, so this map's key count and the registry's distinct-`source` count must
+# stay equal - 12 and 12.
 VENUE_BY_SOURCE_SUBSTR = {
     "bigot":     {"venue": "journal", "doi": "10.1158/2159-8290.cd-20-0555"},   # Cancer Discovery
     "kim 2025":  {"venue": "journal", "doi": "10.1016/j.cell.2025.03.047"},     # Cell

@@ -20,7 +20,7 @@ Each sequence is graded by **how it was obtained**, so it can be re-verified man
 
 ## Venue audit (#1001) - the `venue_type` column
 
-Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 12 folded studies (15 distinct `source` strings, 97 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
+Publication venue class per source, resolved first-hand (2026-07-04) and recorded machine-readably in the `venue_type` column (`journal | preprint | db_recovered`; controlled vocab in [`labeling_constants.py`](labeling_constants.py), derivation in [`derive_venue_type.py`](derive_venue_type.py)). Venue is source-keyed; each source's venue is already named in its per-source section below. **Result: all 12 folded studies (12 distinct `source` strings post-[#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106), 97 rows) are peer-reviewed journal articles - 0 preprints, 0 db-recovered.**
 
 | Source (key) | Venue | `venue_type` |
 |---|---|---|
@@ -190,6 +190,26 @@ bioRxiv 2025.03.01.640928; Zotero `IJ55K4WH` (full 55-page PDF read 2026-06-22).
 The `junction_mapping_grade` column added in [#735](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/735) grades how specifically each peptide is traceable to its originating junction (`coords > event-id > gene-mechanism > none`).
 Grades are assigned strictly from evidence quoted in this file (PROVENANCE.md); no junction coordinate or identifier is ever inferred from the peptide sequence or a genome reference (no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §6).
 Per-source grade rationale: [`junction_evidence_by_source.md`](junction_evidence_by_source.md).
+
+## Source-string canonicalization ([#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106))
+
+`source` is the registry's **stable curation key** and its study group-by key, but it carried **15 distinct strings for 12 studies**: three studies were spelled two ways. No existing check could see it - every consumer (`derive_assay_context.py`, `derive_venue_type.py`, `validate_registry.py`'s Zotero venue cross-check) resolves `source` through a **lowercased-substring** map, so both spellings matched the same key and derived identically. The split was invisible precisely *because* the derivations were correct.
+
+It was not harmless: a study-level `groupby`/`nunique` counted **15 studies instead of 12**, and the [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity notebook was double-counting Xiong (its local `canon_study` collapse handled SNAF and IRIS but had no Xiong rule).
+
+Rewrite applied 2026-07-14, **exact whole-field match** on the `source` column - never a substring replace. For **IRIS** and **Xiong 2025** the stale spelling is a strict **prefix** of its canonical form (`IRIS` -> `IRIS (Pan/Xing, PNAS)`), so a naive `str.replace` would have **double-appended** on the rows that were already canonical. `SNAF (Li 2024)` is *not* a prefix (it diverges from `SNAF (Li 2024, Sci Transl Med)` at `)` vs `,`, so it is not even a contiguous substring) and would not have been corrupted - but whole-field match is **uniformly** safe, so it was applied to all three rather than reasoning per-study about which spellings happen to nest:
+
+| study | stale spelling (rows) | canonical spelling |
+|---|---|---|
+| SNAF / Li 2024 | `SNAF (Li 2024)` (5) | `SNAF (Li 2024, Sci Transl Med)` |
+| IRIS / Pan 2023 | `IRIS` (3) | `IRIS (Pan/Xing, PNAS)` |
+| Xiong 2025 | `Xiong 2025` (1) | `Xiong 2025 (GBM)` |
+
+9 rows rewritten; 97 rows unchanged in count; the more informative form was kept in each case. **No label, tier, evidence or peptide field was touched** - this is a spelling normalization of the curation key, nothing else.
+
+**Guard:** `validate_registry.py::source_key_violations` now fails when two distinct `source` strings resolve to the same `VENUE_BY_SOURCE_SUBSTR` key. It is a *registry-level* invariant (it cannot be seen from any single row, which is why a file dense with per-row guards never caught it), and it is verified red-on-the-real-defect: run against the pre-fix registry it reports all three collisions.
+
+**Downstream:** the [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity study count changes (Xiong collapses from 2 studies to 1). That recompute is owned by [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069) and must run **after** this lands.
 
 ## Curation chain (how the registry was built)
 

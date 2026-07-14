@@ -144,6 +144,53 @@ def violations(df: pd.DataFrame) -> list[str]:
     # one junction legitimately carries several distinct peptides.
     for key in duplicate_keys(df):
         out.append(f"duplicate identity key (junction_id, peptide, hla) = {key}")
+
+    out.extend(source_key_violations(df))
+    return out
+
+
+def source_key_violations(df: pd.DataFrame) -> list[str]:
+    """`source` must map 1:1 onto studies (#1106).
+
+    `source` is documented as the stable curation key, but every consumer resolves
+    it through a *lowercased substring* map (VENUE_BY_SOURCE_SUBSTR here,
+    derive_assay_context.py and derive_venue_type.py likewise). So two spellings of
+    one study ("IRIS" and "IRIS (Pan/Xing, PNAS)") both match the same key and derive
+    identically - the split is invisible to every other check in this file, and it
+    was: the registry carried 15 strings for 12 studies with nothing firing.
+
+    It is not harmless. `source` is also the group-by key for study-level analysis,
+    so a split study is silently double-counted (the #737 sparsity notebook was
+    counting Xiong twice), and a *future* source whose name is a substring of another
+    would mis-derive its venue and DOI outright.
+
+    So: fail when two distinct `source` strings collide on one substring key. This
+    is a registry-level invariant, not a row-level one - it cannot be expressed by
+    looking at any single row, which is why it lived undetected in a file otherwise
+    dense with per-row guards.
+    """
+    out = []
+    by_key: dict[str, set[str]] = {}
+    for src in sorted({str(s) for s in df["source"]}):
+        src_l = src.lower()
+        for substr in VENUE_BY_SOURCE_SUBSTR:
+            if substr in src_l:
+                by_key.setdefault(substr, set()).add(src)
+                break  # first match wins - mirrors derive_venue_type.py exactly
+        else:
+            # Unmapped source: already fails loudly via the venue_type check (it
+            # derives to the `unclassified` sentinel), so don't double-report here.
+            continue
+
+    for substr, sources in sorted(by_key.items()):
+        if len(sources) > 1:
+            spellings = " | ".join(repr(s) for s in sorted(sources))
+            out.append(
+                f"source key collision: {len(sources)} distinct `source` spellings "
+                f"resolve to the same key {substr!r} -> {spellings}. "
+                f"`source` is the curation key and the study group-by key; pick one "
+                f"spelling per study and record the rewrite in PROVENANCE.md."
+            )
     return out
 
 

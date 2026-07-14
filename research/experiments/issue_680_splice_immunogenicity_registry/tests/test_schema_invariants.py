@@ -138,6 +138,47 @@ def test_duplicate_row_surfaces_as_a_validator_violation(row, frame):
     _fails_with(frame(row, dict(row)), "duplicate identity key")
 
 
+# --- #1106: `source` must map 1:1 onto studies ------------------------------------
+#
+# Matched pair: the same two rows, differing only in whether the second row's
+# `source` is a second spelling of the first study. Same fixture, one variable
+# flipped, opposite expected outcomes - so the guard is shown to fire AND to stay
+# quiet. A test that only ever asserts the failure branch cannot distinguish a
+# working guard from one that flags everything.
+
+
+def test_two_spellings_of_one_study_are_rejected(row, frame):
+    """The defect this guard exists for: 'IRIS' and 'IRIS (Pan/Xing, PNAS)' both
+    match the 'iris' substring key, so every derivation agrees and nothing fires -
+    while a study-level group-by silently counts them as two studies."""
+    a = dict(row, source="IRIS (Pan/Xing, PNAS)", peptide="AAAAAAAAA")
+    b = dict(row, source="IRIS", peptide="CCCCCCCCC")
+    hits = _fails_with(frame(a, b), "source key collision")
+    assert "'iris'" in hits[0]
+    assert "IRIS (Pan/Xing, PNAS)" in hits[0] and "'IRIS'" in hits[0]
+
+
+def test_one_spelling_per_study_is_green(row, frame):
+    """The control. Two rows from two DIFFERENT studies, one spelling each, must not
+    trip the guard - otherwise it would flag every multi-study registry, which is
+    every registry we have."""
+    a = dict(row, source="IRIS (Pan/Xing, PNAS)", peptide="AAAAAAAAA")
+    b = dict(row, source="SNAF (Li 2024, Sci Transl Med)", peptide="CCCCCCCCC")
+    assert [v for v in violations(frame(a, b)) if "source key collision" in v] == []
+
+
+def test_collision_is_reported_once_per_study_not_once_per_row(row, frame):
+    """Three rows, two spellings, one study -> one violation naming both spellings.
+    Per-row reporting would bury the signal under duplicates on a large fold."""
+    rows = [
+        dict(row, source="Xiong 2025 (GBM)", peptide="AAAAAAAAA"),
+        dict(row, source="Xiong 2025", peptide="CCCCCCCCC"),
+        dict(row, source="Xiong 2025", peptide="DDDDDDDDD"),
+    ]
+    hits = _fails_with(frame(*rows), "source key collision")
+    assert len(hits) == 1, f"expected one collision violation, got {len(hits)}"
+
+
 # --- AC5: no regression on the live registry --------------------------------------
 
 
@@ -147,3 +188,29 @@ def test_live_registry_validates_green():
     df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
     assert len(df) == 97, "row count changed; update this guard deliberately"
     assert violations(df) == []
+
+
+def test_venue_map_has_one_key_per_study():
+    """The venue map is keyed one-entry-per-study, and the registry now holds one
+    `source` string per study, so the two counts must agree. If they drift, either a
+    study was folded without a venue key (which the venue_type check catches) or a
+    study was re-split (which the collision guard catches) - this pins the pair."""
+    from labeling_constants import VENUE_BY_SOURCE_SUBSTR
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    assert len(VENUE_BY_SOURCE_SUBSTR) == df["source"].nunique() == 12
+
+
+def test_live_registry_has_one_source_string_per_study():
+    """#1106 in its post-condition form: the registry carried 15 strings for 12
+    studies, and no existing check could see it. This pins the invariant on the real
+    artifact, so a future fold that re-splits a study fails here rather than silently
+    inflating a study-level count."""
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    assert df["source"].nunique() == 12, (
+        "distinct `source` strings != 12 studies; a fold either added a study "
+        "(update this number deliberately) or re-split an existing one (fix the spelling)"
+    )

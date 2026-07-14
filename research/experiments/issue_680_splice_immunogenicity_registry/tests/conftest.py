@@ -18,7 +18,7 @@ _TEMPLATE = {
     "length": "9",
     "splice_mechanism": "alt-5'",
     "splice_mechanism_canonical": "alt_5p_ss",
-    "source": "SNAF (Li 2024)",
+    "source": "SNAF (Li 2024, Sci Transl Med)",
     "readout": "IFN-g (41% CD8+) + MS",
     "label": "positive",
     "tier": "functional-scorable",
