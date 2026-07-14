@@ -47,9 +47,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
-_PUNCT = set("();<>|&")  # shell punctuation_chars -> standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _TRUTHY = {"1", "true", "yes", "on"}
 
 # A single-dash short-flag bundle containing 'f' (e.g. -f, -fq, -qf). Double-dash
@@ -74,9 +77,20 @@ def split_subcommands(cmd: str) -> list[list[str]] | None:
     command cannot be tokenized (unbalanced quotes) -> caller fails open. Uses
     shlex with punctuation_chars so quoted strings survive as single tokens and
     `&&`/`||`/`;`/`|`/`&`/`(`/`)` arrive as standalone separator tokens.
+
+    The command is **normalized first** (Issue #1142): heredoc bodies are stripped
+    and unquoted newlines become separators. A newline is a command separator in
+    shell but not in shlex, so without this two commands on two lines MERGE into a
+    single token block - and the merge silently defeats the guard. `git commit
+    --amend` on line 1 made `git_subcommand` resolve the merged block to `commit`,
+    so a `git push --force` on line 2 was never seen. It also cut the other way:
+    `git push origin main` then `git branch -f tmp` merged into one block that read
+    as a forced push, denying a legitimate command. Both directions are fixed by
+    splitting on newlines, which is what the shell itself does.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:

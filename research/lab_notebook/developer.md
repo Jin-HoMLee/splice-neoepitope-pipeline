@@ -6,6 +6,49 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-13 - I blamed the wrong layer, and the fix was one level in ([PR #1145](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1145) closes [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142))
+
+### 15:45 UTC - Editor: Developer - a probe that varies two things cannot tell you which one moved
+
+**I filed [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142) this morning with the wrong root cause, and spent the session disproving my own P1.** The Issue said the `if:` gate in `settings.json` was newline-blind, that nine hooks therefore never fire on a heredoc command, and that [PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) (merged an hour earlier) had not landed its fix. The proposed remedy was to drop every `if:` gate. **All three claims were wrong.**
+
+**The confound.** My probe used `check_board_query_pagination` (`if: "Bash(gh api *)"`). That hook's *inner* matcher is newline-blind **as well**. So when the heredoc form slipped through, the observation was consistent with the gate failing *or* the matcher failing, and I attributed it to the gate. Two variables, one observation. The evidence was real; the attribution never followed from it.
+
+**The isolating probe.** A throwaway hook with **no inner matcher at all** (plain substring match on a magic string), so the gate was the only thing left under test. `if: "Bash(echo *)"` and `if: "Bash(gh *)"` both **fired** after a heredoc and after a plain newline. The gate is subcommand-aware and innocent. De-gating would have added ~180 ms x 9 hooks to every Bash call (measured) and fixed nothing.
+
+**The actual bug: a newline is a command separator in shell but not in `shlex`.** It bites in two shapes, and I only found one of them myself:
+
+- **command-start walk** - the trigger lands after an ordinary word, the match never fires, the hook allows. This is what killed `post_gh_pr_create` ([Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130)), and it was still live in `check_board_query_pagination` and `check_gh_issue_develop_parent`.
+- **subcommand merge** - two commands on two lines merge into one token block and the guard is defeated *without any matcher failing*. `git commit --amend` + `git push --force` resolved to `commit`, so **a force push was never examined**. `git commit` + `git push` on two lines defeated the chain guard (only `&&` was ever enforced). A benign `cd /tmp` masked an escaping `cd /etc/secret`. It also false-positived: `git push` + `git branch -f` read as a forced push.
+
+**PM caught my error before I did.** They saw `post_gh_pr_create` fire on their own heredoc-authored [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) three minutes after I told them the mechanism had never fired on the real path, said plainly that two instruments disagreed, and named the correct reconciliation ("the failure is real but sits somewhere other than the `if:` gate") without having run the probe. They were right. I have retracted the bad correction on [Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130) and corrected the record on [Issue #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072).
+
+**Then the bot review caught the same class of error again, in my fix.** I swept the remaining hooks with a matched pair and declared four of them clean. My probe prefix was `echo setting up`. **The merge shape only bites when both lines are commands the hook cares about**, so `echo x` + `git push --force` passes while the real `git commit` + `git push --force` fails. The bot probed with a second *real* command and found three live hooks I had just certified. Two of them were safety guards that were silently off.
+
+**What I actually learned, as distinct from what I already knew.** I have written "I fix the instance and miss the class" in this notebook twice this week, and knowing it did not stop me doing it a third time. What stopped it, both times today, was **a control that could come back red** - the isolating probe, and the bot's stronger probe. The lesson is not "be more careful." It is that **a sweep is only as good as its probe, and a probe built from the shape you already understand will certify the shape you do not.** The `echo` prefix felt like a control. It was a confirmation.
+
+**Shipped:** all five `gh`/`git`-matching hooks route through `_shell_parse.normalize_command()` before tokenizing; matched-pair regression tests per hook (command-start / heredoc / plain-newline, plus the false-positive direction), every one confirmed to go **red** against the pre-fix code; `AGENTS.md` records both failure shapes, the wrong `if:`-gate theory so it is not re-derived, and the probe trap. Verified by driving the real trigger, not a synthetic payload: the heredoc-led board query is now denied with a fire-log line, and this PR was itself opened with a heredoc `--body-file` to watch `post_gh_pr_create` fire live. CI green, 1,702 tests.
+
+---
+
+## 2026-07-12 - Flag parents whose full sub-bar hides unticked body scope ([PR #1132](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1132) closes [Issue #1067](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1067))
+
+### 00:30 UTC - Editor: Developer - the same bug, twice, in one PR
+
+Under the A2 epic-park a parent's progress is read off GitHub's native sub-issue bar, so a **full bar reads as done**. But body scope routinely exceeds the filed sub-issues, which makes "full bar, unticked body" an invisible drift class. `classify_drift` now emits an advisory `[REVIEW]` naming the count and the heading.
+
+**Implemented exactly as specified, it was a no-op on its own motivating cases.** The Issue says "unticked **AC** boxes", so I keyed it on `scan_ac_boxes(...).ac_unticked`. Run against the live board: **zero on all three cited parents.** [Issue #859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859)'s four unticked boxes live under `## Sub-issues`, not `## Acceptance criteria`, so they are *stray* boxes and the AC-keyed count is legitimately 0. A feature that would have shipped green, passed review, and never fired.
+
+The fix was not to lint #859's headings into compliance. A parent body **is** a roadmap: an unticked `## Sub-issues` line *is* the "body scope exceeds the filed sub-issues" signal. So the flag keys on any unticked body box and names the heading, letting the human judge.
+
+**Then the bot review found I had done the same thing again, one layer up.** I wired the flag into `audit_parent_chain` (`--issue`) and left `run_all_mode` (`--all`) calling the old signature - so every new argument silently defaulted and **the board-wide sweep could never emit the flag.** And `--all` is the *proactive discovery* mode: the very mode I had used to find the motivating cases. A sweep would have reported a clean board while #859 and #527 sat right there. Root cause was duplication - two call sites each building the record inline - so the fix removes it: one `audit_one_parent()` builder, called by both. They cannot diverge on a new argument again.
+
+I declined its fetch-collapse nit. Taking it would re-point every mock seam in the existing suite: churn that could mask a regression, for zero behavior change on an advisory tool. Recorded as a known inefficiency instead of smuggled into a correctness fix.
+
+**The lesson is now unmistakable, because it happened three times today.** A mechanism can be *shipped, tested, reviewed, and completely inert*. Unit tests prove the logic; they say nothing about whether the trigger fires or the code path is reachable from the mode people actually run. The only check that catches this is the cheap one: **run the real thing, in the real mode, against the real world, and look.** Every bug I found today died to that check, and every bug I shipped survived one that could only confirm.
+
+---
+
 ## 2026-07-12 - ADR-0002: cloud storage vs compute ([PR #1133](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1133) closes [Issue #887](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/887))
 
 ### 00:20 UTC - Editor: Developer - ratifying a decision that was already governing us
@@ -19,6 +62,7 @@ The sentence I most wanted on the record: *adding a storage backend is an `rclon
 **Freshness paid off again.** The Issue's body ACs 2-5 (a disposition sweep) had already been executed by PM on 2026-07-02. Had I worked the ACs as written I would have re-done a completed sweep. Checked before starting; ticked them as historical.
 
 The bot review caught a genuine honesty bug in my `CLAUDE.md` pointer: I wrote "storage neutralized via `storage.remote_prefix` + `rclone`" in the present tense, but **neither exists** - the helper is deliberately deferred (YAGNI). A future agent would have grepped for the config key, found nothing, and been confused. Fixed to state the *approach*, and to say plainly that it is not built. A reference file that describes an intention as a fact is worse than one that says nothing.
+
 
 ---
 

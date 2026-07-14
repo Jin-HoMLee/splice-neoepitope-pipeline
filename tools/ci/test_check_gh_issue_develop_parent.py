@@ -218,3 +218,67 @@ class TestSubprocessNoOp:
         # no parseable selector → returns before any gh call
         rc, out, _ = _run_subprocess(_payload("gh issue develop --list"))
         assert rc == 0 and out.strip() == ""
+
+
+class TestHeredocForm:
+    """Issue #1142: the parent guard was silently dead on any multi-line command.
+
+    `develop_args` walked shlex tokens for a command-start `gh issue develop`, but
+    a newline is not a shlex separator. So a `gh issue develop` on the second line
+    of a command (or after a heredoc) sat after an ordinary word, read as NOT at a
+    command start, and the guard allowed branching off an epic - the exact
+    auto-close footgun it exists to stop (PR #543 -> parent Issue #538).
+
+    Same defect class as `matches_pr_create` (Issue #1130); both now normalize the
+    command through `_shell_parse.normalize_command` before tokenizing.
+
+    Matched pair: the SAME command must deny at a command start AND after a heredoc.
+    """
+
+    def test_parent_denied_after_heredoc(self, monkeypatch, capsys, tmp_path):
+        monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
+        cmd = (
+            "cat > /tmp/plan.md <<'EOF'\n"
+            "branching notes for the epic\n"
+            "EOF\n"
+            "gh issue develop 538 --name feat/x --checkout"
+        )
+        rc, out = _run_main(monkeypatch, capsys, cmd, total=5)
+        assert rc == 0
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "#538" in out["hookSpecificOutput"]["permissionDecisionReason"]
+
+    def test_parent_denied_at_command_start(self, monkeypatch, capsys, tmp_path):
+        # Control half of the matched pair.
+        monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
+        rc, out = _run_main(monkeypatch, capsys,
+                            "gh issue develop 538 --name feat/x --checkout", total=5)
+        assert rc == 0
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    def test_parent_denied_after_plain_newline(self, monkeypatch, capsys, tmp_path):
+        monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
+        rc, out = _run_main(monkeypatch, capsys,
+                            "git fetch origin\ngh issue develop 538", total=5)
+        assert rc == 0
+        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    def test_leaf_after_heredoc_still_allowed(self, monkeypatch, capsys, tmp_path):
+        # The fix must not turn the guard into an over-blocker.
+        monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
+        cmd = "cat > /tmp/p.md <<'EOF'\nnotes\nEOF\ngh issue develop 549"
+        rc, out = _run_main(monkeypatch, capsys, cmd, total=0)
+        assert rc == 0 and out is None
+
+    def test_heredoc_body_discussing_the_command_does_not_match(self):
+        """Anti-false-positive: a body that documents the command is not an invocation.
+
+        The heredoc body is REMOVED before tokenizing, so it cannot match at all.
+        """
+        cmd = (
+            "cat > /tmp/c.md <<'EOF'\n"
+            "Never run gh issue develop 538 on a parent epic.\n"
+            "EOF\n"
+            "gh pr comment 549 --body-file /tmp/c.md"
+        )
+        assert h.develop_args(cmd) is None
