@@ -39,12 +39,33 @@ software:
     feed_type: github
     feed: DaehwanKimLab/hisat2
 
+  # Issue #1097 asked for regtools to be "added" for the scientist role - but it was
+  # already tracked, for [developer]. The right move is to widen the existing entry's
+  # roles, not add a second entry for the same feed (two entries = two watermarks for
+  # one upstream = a delta surfaced twice, or missed once).
   - tool: regtools
     current_pin: ">=1.0.0"
-    roles: [developer]
+    roles: [developer, scientist]
     feed_type: github
     feed: griffithlab/regtools
-    note: "Drives the samtools/libdeflate conflict (TODO #237)."
+    note: >-
+      Drives the samtools/libdeflate conflict (TODO #237). Dual-role: a Developer owns
+      the conda pin, but regtools also DEFINES what a junction is on the HISAT2 path
+      (the BED12 anchor-outer semantic), so a release that changes that is a science
+      signal, not merely a config bump.
+
+  - tool: pvactools
+    current_pin: "7.0.1"
+    roles: [scientist]
+    feed_type: pypi
+    feed: pvactools
+    note: >-
+      Load-bearing for Layer A of Issue #1045 (wrapping pvacseq / pvacbind /
+      pvacsplice on our own MHCflurry stack). The coupling established by the
+      Issue #1048 spike is a subprocess CLI contract, so an upstream CLI change is a
+      silent-break risk for the wrapper - which is exactly the class the poller exists
+      to catch. Scope note: the mhcnuggets non-commercial licensing edge (also #1048)
+      is deliberately NOT tracked here; that is a separate question.
 
   - tool: STAR
     current_pin: ">=2.7.11"
