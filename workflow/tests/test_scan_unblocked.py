@@ -242,6 +242,73 @@ def test_fetch_paginates(monkeypatch):
     assert any("after=CUR1" in a for a in calls[1]), "cursor must be threaded into page 2"
 
 
+def test_query_uses_true_ceilings_not_samples():
+    """`first:` is a cap, not a filter, and GraphQL does not guarantee node order.
+
+    50 is GitHub's documented per-direction blocker ceiling, so it is a TRUE BOUND.
+    At a *sampling* cap, an issue could return N all-CLOSED blockers while a still-OPEN
+    one sorted past the cap - and classify() would fire a false 'freshly-unblocked'
+    finding on an issue that is genuinely still blocked. That is the worst failure this
+    sweep can have (it feeds 'never commit a blocked Issue to Ready' the exact input
+    that rule exists to prevent), so the bound is pinned here rather than left to review.
+    """
+    assert "blockedBy(first: 50)" in su._QUERY
+
+
+# ---------------------------------------------------------------------------
+# main() exit-code contract. The module docstring PROMISES fail-open-and-loud;
+# a promise with no test is a promise that can only be believed, not checked.
+# ---------------------------------------------------------------------------
+
+def test_main_fails_open_and_loud_on_gh_error(monkeypatch, capsys):
+    """A sweep that cannot reach GitHub must NOT masquerade as a clean board."""
+    def boom(**kwargs):
+        raise GhErrorStub("api is down")
+
+    monkeypatch.setattr(su, "sweep", boom)
+    monkeypatch.setattr(su, "GhError", GhErrorStub)
+    monkeypatch.setattr(sys, "argv", ["scan_unblocked.py"])
+
+    rc = su.main()
+    err = capsys.readouterr().err
+
+    assert rc == 2, "a failed sweep must exit 2, never 0 (0 would read as 'no findings')"
+    assert "FAILED" in err, "the failure must be loud on stderr, not silent"
+
+
+class GhErrorStub(Exception):
+    """Stand-in for gh_client.GhError so the test needs no network shape."""
+
+
+def test_main_check_flag_exits_1_on_finding(monkeypatch, capsys):
+    monkeypatch.setattr(su, "sweep", lambda **kw: [
+        classify(make_issue(number=594, blockers=[(211, "CLOSED", 2)]))
+    ])
+    monkeypatch.setattr(sys, "argv", ["scan_unblocked.py", "--check"])
+    assert su.main() == 1
+    assert "#594" in capsys.readouterr().out
+
+
+def test_main_is_advisory_without_check_flag(monkeypatch, capsys):
+    """Matched pair to the above: the SAME finding, without --check, must exit 0.
+
+    Advisory is the house style - the sweep surfaces, it never blocks.
+    """
+    monkeypatch.setattr(su, "sweep", lambda **kw: [
+        classify(make_issue(number=594, blockers=[(211, "CLOSED", 2)]))
+    ])
+    monkeypatch.setattr(sys, "argv", ["scan_unblocked.py"])
+    assert su.main() == 0, "advisory: a finding must not fail the beat unless --check"
+    assert "#594" in capsys.readouterr().out
+
+
+def test_main_clean_board_exits_0(monkeypatch, capsys):
+    monkeypatch.setattr(su, "sweep", lambda **kw: [])
+    monkeypatch.setattr(sys, "argv", ["scan_unblocked.py", "--check"])
+    assert su.main() == 0
+    assert "no findings" in capsys.readouterr().out
+
+
 def test_sweep_sorts_freshest_first(monkeypatch):
     monkeypatch.setattr(su, "fetch_open_issues", lambda: [
         make_issue(number=10, blockers=[(1, "CLOSED", 9)]),

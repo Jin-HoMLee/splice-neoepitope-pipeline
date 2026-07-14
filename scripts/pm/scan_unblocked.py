@@ -78,8 +78,21 @@ query($owner:String!, $name:String!, $after:String) {
         title
         url
         labels(first: 20) { nodes { name } }
-        blockedBy(first: 20) { nodes { number title state closedAt } }
-        projectItems(first: 5) {
+        # first: 50 is GitHub's documented per-direction ceiling for blockers, so this
+        # is a TRUE BOUND, not a sample (same reasoning + citation as
+        # scan_prose_deps.native_blockers). The distinction is load-bearing here: a cap
+        # is not a filter, and GraphQL does not guarantee node order, so a *sampling*
+        # cap could return N blockers that all read CLOSED while a still-OPEN one sorts
+        # past the cap - and classify() would then fire a false "freshly-unblocked"
+        # finding on an issue that is genuinely still blocked. That is the worst
+        # failure this sweep can have: it would feed "never commit a blocked Issue to
+        # Ready" the exact input that rule exists to prevent.
+        blockedBy(first: 50) { nodes { number title state closedAt } }
+        # Same cap-vs-filter reasoning, lower stakes: if an issue sat on more projects
+        # than this and board #9's item sorted last, board_status() would return None,
+        # which reads as "uncommitted" and could false-fire on an already-committed
+        # item. We run one project, so any bound clears it; 20 is free.
+        projectItems(first: 20) {
           nodes {
             project { number }
             fieldValues(first: 20) {
