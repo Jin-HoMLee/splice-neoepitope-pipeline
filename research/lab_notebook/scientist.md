@@ -12,7 +12,7 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 #### [Issue #1096](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1096) - pvacsplice's VCF is a variant *filter*. It is a comparator, never a component.
 
-Settled the [#1048](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1048) follow-up question by reading pVACtools' source rather than its docs, which AC-2 explicitly permits when the empirical answer would be ambiguous. It is not ambiguous.
+Settled **this** Issue - [#1096](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1096), filed 2026-07-09 as a follow-up spike that [#1048](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1048) deliberately left open (#1048 answered a *different* question - MHCflurry-only class-I prediction, GREEN - and closed 2026-07-11). The work below is #1096's, not #1048's. Answered by reading pVACtools' source rather than its docs, which AC-2 explicitly permits when the empirical answer would be ambiguous. It is not ambiguous.
 
 **Source pinned:** `griffithlab/pVACtools` @ `master@1c6c58b48905` (2026-06-09), release **v7.0.1**. The finding *is* the deliverable here and upstream drifts, so provenance of the source read is part of the output: a future reader must be able to tell which revision carried the predicates below.
 
