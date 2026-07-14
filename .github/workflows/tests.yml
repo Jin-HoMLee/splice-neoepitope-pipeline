@@ -95,6 +95,7 @@ jobs:
           pytest research/scripts/ -v
           pytest research/experiments/issue_547_immunogenicity_calibration/tests/ -v
           pytest research/experiments/issue_919_nh_uniqueness_filter/tests/ -v
+          pytest research/experiments/issue_1116_junction_repeat_score/tests/ -v
 
   ci-tools-pytest:
     runs-on: ubuntu-latest

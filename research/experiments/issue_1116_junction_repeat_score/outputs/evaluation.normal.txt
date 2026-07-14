@@ -1,0 +1,32 @@
+chr22 loaded: 50,818,468 bp
+
+junctions (filter off): 1,714
+junctions (filter on):  1,516
+removed by the NH gate: 198
+
+COORDINATE CHECK (canonical motif must dominate, else the offsets are wrong)
+  GT..AG  225
+  CT..AC  175
+  canonical GT..AG / CT..AC: 400/400 = 1.000
+  OK - 1-based inclusive intron coords confirmed.
+
+GENCODE chr22 introns: 7,731
+
+scored 1,714 junctions (skipped 0: short intron / contig edge)
+
+Q1  Does the score separate annotated from unannotated? (higher = less repeat-like)
+  GENCODE-annotated                  n=259   median=  6.0  mean= 5.99  frac_min<=2=0.004
+  unannotated                        n=1455  median=  1.0  mean= 1.40  frac_min<=2=0.848
+
+Q2  Does it agree with the NH gate? (agreement => gate removed repeat-embedded ones)
+  removed by NH gate                 n=198   median=  1.0  mean= 1.56  frac_min<=2=0.828
+  kept by NH gate                    n=1516  median=  1.0  mean= 2.17  frac_min<=2=0.706
+
+Q3  FALSIFIER: is the score measuring repeats at all?
+    Independent truth = RepeatMasker overlap (#919). If these two look the
+    same, the Hamming score is NOT a repeat detector and #1116's premise fails.
+  donor/acceptor IN a repeat         n=1448  median=  1.0  mean= 1.41  frac_min<=2=0.847
+  not in a repeat                    n=266   median=  6.0  mean= 5.82  frac_min<=2=0.030
+
+    median(non-repeat) - median(repeat) = +5.0
+    Expected if the score works: POSITIVE (repeat junctions score lower).
