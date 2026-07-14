@@ -59,11 +59,46 @@ def find_overdue(items: list[dict[str, Any]], today: date) -> list[dict[str, Any
     return [it for _, it in overdue]
 
 
+def _roles_of(it: dict[str, Any]) -> list[str]:
+    """Every `role:` label on an item, tolerating a legacy first-role-only dict.
+
+    Falls back to `[role]` when `roles` is absent rather than treating the item as
+    role-less. Reading `roles` alone would silently bucket every legacy-shaped item
+    into '(none)' - which is the same silent-wrong-answer class #1153 is about, so
+    the fix must not reintroduce it one level down.
+    """
+    roles = it.get("roles")
+    if roles:
+        return list(roles)
+    role = it.get("role")
+    return [role] if role else []
+
+
+def matches_role(it: dict[str, Any], want: str) -> bool:
+    """True if `want` is ANY of the item's role: labels, not merely the first.
+
+    Membership, not equality (#1153). An Issue may carry several `role:` labels
+    (the dual-role convention: one role Leads, the other owns scoped ACs), and
+    GitHub returns labels in an unstable order - so matching `it["role"]`
+    (= labels[0]) drops a dual-role item from one of its owners' views
+    nondeterministically. Mirrors `board_open_items.matches_filter`.
+    """
+    want = want if want.startswith("role:") else f"role:{want}"
+    return want in _roles_of(it)
+
+
 def group_by_role(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    """Bucket items by their role:* label; a missing role goes to '(none)'."""
+    """Bucket items by role:* label; a missing role goes to '(none)'.
+
+    An item with two roles appears under BOTH headings (#1153) - an overdue item
+    owned jointly by Sci and Dev is overdue for both of them, and bucketing it
+    under whichever label GitHub happened to return first means one of its owners
+    never sees it in this report.
+    """
     groups: dict[str, list[dict[str, Any]]] = {}
     for it in items:
-        groups.setdefault(it.get("role") or "(none)", []).append(it)
+        for role in _roles_of(it) or ["(none)"]:
+            groups.setdefault(role, []).append(it)
     return groups
 
 
@@ -104,8 +139,7 @@ def main() -> int:
     normalized = [n for it in raw if (n := boi.normalize(it)) is not None]
 
     if args.role:
-        want = args.role if args.role.startswith("role:") else f"role:{args.role}"
-        normalized = [it for it in normalized if it.get("role") == want]
+        normalized = [it for it in normalized if matches_role(it, args.role)]
 
     overdue = find_overdue(normalized, today)
 
