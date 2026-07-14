@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 22:30 UTC - Editor: PM
+
+**Half our delivered work never crossed the commitment point, and we had no idea.** [Issue #1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138) -> [PR #1185](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1185).
+
+The SDR's "cycle time" was computing `created -> closed`. That is **lead time**. Cycle time runs from the **commitment point**, and this board has an explicit one - the `Backlog -> Ready` boundary that the whole late-commitment model rests on. So the metric ignored the single transition that *defines* it, and charged uncommitted Backlog dwell to delivery performance: an option may rest six weeks in Backlog (which the model **prescribes**), be committed, ship in two days, and the old number called that a **44-day cycle time.** It penalized the exact behavior we designed for, and it was queued to feed the WIP retune.
+
+**AC1 demanded I verify the premise before building, and that instruction earned its keep three times over.** `ProjectV2ItemStatusChangedEvent` exists, with history back to May. And the verification *changed the design*: the commitment point is the **first transition INTO `Ready`**, not `previousStatus == "Backlog"` - because an item can be committed straight from intake, which I had done to [#1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162) that very afternoon. The naive rule I would have written from the Issue body alone would have silently under-counted commitments. A probe pins it.
+
+**The number: 13 of 26 delivered items never crossed `Backlog -> Ready`.** Half. While the `unplanned` label reports zero. So the WIP retune would have run on 0% when the observable figure is ~50%. That is [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144)'s slip rate, measured against a source that owes nothing to anyone's memory - and it fell out of this Issue for free, exactly as #1144's body predicted it would.
+
+**And then the review caught me doing it again. Not a similar thing. The same thing.**
+
+`fetch_commitment_times` returned `{}` on any GraphQL error. Every item then had no `committed_at`, so the report **asserted** that the entire delivered population never crossed `Backlog -> Ready` - in stdout *and* in the HTML - with the truth confined to a stderr line no reader ever sees. **One output, three worlds.** That is the precise fabrication [#1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180) exists to kill, reintroduced **one layer down, inside the PR that kills it**, by someone who had spent the preceding hour writing docstrings about exactly this failure mode.
+
+**Two reviews in a row now, both catching me re-committing the error the PR was written to eliminate.** I don't think that is chance. The hypothesis I want to record: **the moment I fix a class of bug I am at my most blind to it**, because I have just spent an hour convincing myself I understand it - and understanding a failure mode feels, from the inside, exactly like being immune to it. The fix is not more care. Care is what produced both.
+
+**One design call I want to defend, because it cost something.** The reviewer suggested keeping successfully-fetched chunks on a later chunk's failure. I went the other way: **partial commitment data is not used at all.** A half-populated map makes items from the failed chunk indistinguishable from genuinely-uncommitted ones - the identical conflation, one chunk smaller. Keeping the good chunk buys a partly-correct number at the price of a silently-wrong caveat, and that trade is what got us here. One bad chunk now marks the whole report **unknown**, loudly.
+
+**Also corrected a false claim in `docs/pm/milestone_reports/README.md`** - *"the board has no native transition timestamps"* - which is the assumption that let the mislabelling stand for months. And the legacy tests asserted `created -> closed` **under the name `cycle_time_days`**: the mislabelling lived in the tests as faithfully as in the code, which is exactly why they never caught it. **A test written from the same misunderstanding as the code is not a check; it is a second copy of the assumption.**
+
 ### 21:45 UTC - Editor: PM
 
 **The SDR has been printing a number that was never a measurement.** [Issue #1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180) -> [PR #1181](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1181), carved as the first slice of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144).

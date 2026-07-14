@@ -75,29 +75,43 @@ class TestSlugify:
 
 # --- cycle time -------------------------------------------------------------
 
-class TestCycleTime:
+class TestLeadTime:
+    """These were `TestCycleTime` and asserted `created -> closed` under that name.
+
+    They measure LEAD time, and always did (Issue #1138) - the mislabelling lived in the
+    tests as faithfully as in the code, which is why the tests never caught it. Renamed to
+    what they actually measure. The SAMPLE fixture carries no `committed_at`, so under the
+    corrected definitions its cycle times are all None - see TestCycleVsLeadTime.
+    """
+
     def test_closed_issue_days(self):
-        assert mr.cycle_time_days(SAMPLE[0]) == 2.0
-        assert mr.cycle_time_days(SAMPLE[1]) == 4.0
+        assert mr.lead_time_days(SAMPLE[0]) == 2.0
+        assert mr.lead_time_days(SAMPLE[1]) == 4.0
 
     def test_open_issue_is_none(self):
-        assert mr.cycle_time_days(SAMPLE[3]) is None
+        assert mr.lead_time_days(SAMPLE[3]) is None
 
     def test_missing_timestamp_is_none(self):
-        assert mr.cycle_time_days(_issue(9, "CLOSED", None, "2026-06-03T00:00:00Z", [])) is None
+        assert mr.lead_time_days(_issue(9, "CLOSED", None, "2026-06-03T00:00:00Z", [])) is None
 
-    def test_cycle_times_only_closed(self):
-        assert sorted(mr.cycle_times(SAMPLE)) == [2.0, 4.0, 6.0]
+    def test_lead_times_only_closed(self):
+        assert sorted(mr.lead_times(SAMPLE)) == [2.0, 4.0, 6.0]
 
-    def test_avg_cycle_time(self):
-        assert mr.avg_cycle_time(SAMPLE) == pytest.approx(4.0)  # (2+4+6)/3
+    def test_avg_lead_time(self):
+        assert mr.avg_lead_time(SAMPLE) == pytest.approx(4.0)  # (2+4+6)/3
 
-    def test_median_cycle_time(self):
-        assert mr.median_cycle_time(SAMPLE) == pytest.approx(4.0)
+    def test_median_lead_time(self):
+        assert mr.median_lead_time(SAMPLE) == pytest.approx(4.0)
 
     def test_avg_empty_is_none(self):
-        assert mr.avg_cycle_time([]) is None
-        assert mr.median_cycle_time([]) is None
+        assert mr.avg_lead_time([]) is None
+        assert mr.median_lead_time([]) is None
+
+    def test_uncommitted_sample_has_no_cycle_time_at_all(self):
+        """The corrected contract, stated on the legacy fixture: no commitment act
+        recorded -> cycle time is undefined for every one of them."""
+        assert mr.cycle_times(SAMPLE) == []
+        assert mr.avg_cycle_time(SAMPLE) is None
 
 
 # --- per-role counts --------------------------------------------------------
@@ -189,8 +203,9 @@ class TestComputeMetrics:
         assert m["n_carried_forward"] == 1
         assert m["duration_days"] == 7.0
         assert m["throughput_per_week"] == pytest.approx(3.0)
-        assert m["avg_cycle_time_days"] == pytest.approx(4.0)
-        assert m["median_cycle_time_days"] == pytest.approx(4.0)
+        assert m["avg_lead_time_days"] == pytest.approx(4.0)
+        assert m["avg_cycle_time_days"] is None   # fixture has no commitment act
+        assert m["median_lead_time_days"] == pytest.approx(4.0)
         assert m["per_role_counts"] == {"role:scientist": 2, "role:developer": 2}
 
     def test_split_counts_and_delivered_throughput(self):
@@ -208,8 +223,9 @@ class TestComputeMetrics:
         assert m["per_role_counts"] == {"role:scientist": 2, "role:developer": 1}
         # cycle time is over delivered only: #1=2d, #3=6d -> avg/median 4.0.
         # The descoped #2 (4d) and #5 (8d) must not skew it.
-        assert m["avg_cycle_time_days"] == pytest.approx(4.0)
-        assert m["median_cycle_time_days"] == pytest.approx(4.0)
+        assert m["avg_lead_time_days"] == pytest.approx(4.0)
+        assert m["avg_cycle_time_days"] is None   # fixture has no commitment act
+        assert m["median_lead_time_days"] == pytest.approx(4.0)
 
     def test_partition_invariant(self):
         # delivered + descoped always exactly partitions closed.
@@ -280,9 +296,11 @@ class TestWeeklySeries:
     def test_trend_buckets_and_medians(self):
         s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4, marker_in_use=True)
         assert [w["n_delivered"] for w in s] == [1, 0, 1, 2]   # w1, w2(empty), w3, w4
-        assert s[1]["median_cycle_time_days"] is None          # empty week -> None
-        assert s[0]["median_cycle_time_days"] == pytest.approx(2.0)   # #5
-        assert s[3]["median_cycle_time_days"] == pytest.approx(4.5)   # #1=2d, #2=7d
+        assert s[1]["median_lead_time_days"] is None          # empty week -> None
+        assert s[0]["median_lead_time_days"] == pytest.approx(2.0)   # #5
+        assert s[0]["median_cycle_time_days"] is None   # no commitment act
+        assert s[3]["median_lead_time_days"] == pytest.approx(4.5)   # #1=2d, #2=7d
+        assert s[3]["median_cycle_time_days"] is None   # no commitment act on the fixture
         # descoped #4 must not inflate the reporting-week bucket count.
         assert s[3]["week_end"] == "2026-07-03"
 
@@ -297,7 +315,8 @@ class TestComputeWindowMetrics:
         assert m["n_descoped"] == 1         # #4 NOT_PLANNED
         assert m["n_carried_forward"] == 0  # window mode has no carried concept
         assert m["throughput_per_week"] == pytest.approx(2.0)  # 2 delivered / 1 week
-        assert m["avg_cycle_time_days"] == pytest.approx(4.5)  # (2 + 7) / 2
+        assert m["avg_lead_time_days"] == pytest.approx(4.5)  # (2 + 7) / 2
+        assert m["avg_cycle_time_days"] is None   # fixture has no commitment act
         assert m["per_role_counts"] == {"role:pm": 1, "role:developer": 1}  # delivered only
         assert [w["n_delivered"] for w in m["weekly_series"]] == [1, 0, 1, 2]
 
@@ -547,6 +566,184 @@ class TestMarkerNotInUse:
         assert m["n_unclassifiable"] == 2
         # The delivered headline is unaffected - we know WHAT shipped, not how it arrived.
         assert m["n_delivered"] == 2
+
+
+class TestCycleVsLeadTime:
+    """Cycle time starts at the COMMITMENT POINT; lead time starts at creation.
+
+    The old metric computed created -> closed and called it "cycle time" (Issue #1138).
+    That charges uncommitted Backlog dwell to delivery performance: an option can rest in
+    Backlog for six weeks (which late-commitment Kanban actively PRESCRIBES), be
+    committed, and ship in two days - and the old number called that a 44-day cycle time.
+    It penalized the exact behavior the model is built on, and fed that to the WIP retune.
+    """
+
+    def test_the_44_day_scenario_the_issue_describes(self):
+        """The establishing case, as a number: 6 weeks resting + 2 days working."""
+        issue = _issue(1, "CLOSED", "2026-05-01T00:00:00Z", "2026-06-14T00:00:00Z",
+                       ["role:pm"], "COMPLETED")
+        issue["committed_at"] = "2026-06-12T00:00:00Z"
+
+        assert mr.lead_time_days(issue) == pytest.approx(44.0)   # what it used to report
+        assert mr.cycle_time_days(issue) == pytest.approx(2.0)   # what it actually took
+
+    def test_never_committed_cycle_time_is_undefined_not_zero(self):
+        """An item that never crossed into Ready has NO cycle time.
+
+        None, never 0.0. A zero would assert an instantaneous delivery; and silently
+        dropping it from the mean would bias the average toward exactly the committed
+        work - the same "can only come back one way" disease as the #1180 fabricated 0%.
+        """
+        issue = _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+                       ["role:pm"], "COMPLETED")   # no committed_at at all
+        assert mr.cycle_time_days(issue) is None
+        assert mr.lead_time_days(issue) == pytest.approx(2.0), "lead time is still defined"
+
+    def test_never_committed_are_counted_not_dropped(self):
+        committed = _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                           ["role:pm"], "COMPLETED")
+        committed["committed_at"] = "2026-06-03T00:00:00Z"
+        barged = _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                        ["role:pm"], "COMPLETED")   # never committed
+
+        assert [i["number"] for i in mr.never_committed_issues([committed, barged])] == [2]
+        # The cycle-time mean uses only the item that HAS a cycle time...
+        assert mr.avg_cycle_time([committed, barged]) == pytest.approx(2.0)
+        # ...which is exactly why the excluded one must be counted and surfaced.
+
+    def test_descoped_never_counted_as_never_committed(self):
+        """never_committed keys off DELIVERED, so a descoped close is not shipped work."""
+        descoped = _issue(3, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                          ["role:pm"], "NOT_PLANNED")
+        assert mr.never_committed_issues([descoped]) == []
+
+    def test_open_issue_has_neither(self):
+        opened = _issue(4, "OPEN", "2026-06-01T00:00:00Z", None, ["role:pm"])
+        opened["committed_at"] = "2026-06-02T00:00:00Z"
+        assert mr.cycle_time_days(opened) is None
+        assert mr.lead_time_days(opened) is None
+
+
+class TestCommitmentFetchFailureIsUnknownNotZero:
+    """A failed commitment fetch must read as UNKNOWN, never as "nobody committed".
+
+    Caught in review of PR #1185, and it is the sharpest possible instance: on a GraphQL
+    error `fetch_commitment_times` returned {}, so every item had no `committed_at`, and
+    the report then CONFIDENTLY asserted that the entire delivered population "never
+    crossed Backlog -> Ready" - contradicted only by a stderr line the reader never sees.
+
+    One output, three different worlds (nobody committed / we could not read the history /
+    the reader is being lied to). That is the exact fabrication #1180 exists to kill,
+    reintroduced one layer down, inside the PR that kills it.
+    """
+
+    def _delivered(self, n, committed=None, available=True):
+        i = _issue(n, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                   ["role:pm"], "COMPLETED")
+        if committed:
+            i["committed_at"] = committed
+        i["commitments_available"] = available
+        return i
+
+    def test_matched_pair_genuinely_uncommitted_vs_fetch_failed(self):
+        """THE control: identical issue lists, one flag flipped, opposite meanings."""
+        genuinely = [self._delivered(1, available=True),
+                     self._delivered(2, available=True)]
+        fetch_died = [self._delivered(1, available=False),
+                      self._delivered(2, available=False)]
+
+        # We CAN see the history, and neither crossed Ready -> a real finding.
+        assert len(mr.never_committed_issues(genuinely)) == 2
+
+        # We CANNOT see the history -> we know nothing. Asserting "2 never committed"
+        # here would state the opposite of the truth.
+        assert mr.never_committed_issues(fetch_died) == []
+        assert mr.commitments_available(fetch_died) is False
+
+    def test_metrics_render_never_committed_as_none_when_unavailable(self):
+        m = mr.compute_metrics(
+            [self._delivered(1, available=False)],
+            {"closed_at": None, "created_at": None}, marker_in_use=True)
+        assert m["commitments_available"] is False
+        assert m["n_never_committed"] is None, "a count here would be a fabricated caveat"
+        assert m["avg_cycle_time_days"] is None, "cycle time is unknown too, not zero"
+
+    def test_metrics_report_the_count_when_the_fetch_worked(self):
+        """Matched pair to the above: same shape, fetch succeeded -> report the number."""
+        m = mr.compute_metrics(
+            [self._delivered(1, available=True)],
+            {"closed_at": None, "created_at": None}, marker_in_use=True)
+        assert m["commitments_available"] is True
+        assert m["n_never_committed"] == 1
+
+    def test_availability_defaults_true_for_plain_fixtures(self):
+        """Absent flag = available, so pure fixtures behave as before."""
+        assert mr.commitments_available([_issue(1, "CLOSED", "a", "b", [])]) is True
+
+    def test_one_unavailable_item_taints_the_whole_report(self):
+        """Partial commitment data is deliberately NOT used.
+
+        A half-populated map makes the items from the failed chunk indistinguishable from
+        genuinely-uncommitted ones - the same conflation, one chunk smaller.
+        """
+        mixed = [self._delivered(1, available=True), self._delivered(2, available=False)]
+        assert mr.commitments_available(mixed) is False
+
+
+class TestNegativeCycleTimeIsDropped:
+    def test_committed_after_closed_is_not_a_fast_delivery(self):
+        """A close -> reopen -> re-commit can put committed_at AFTER closed_at.
+
+        A negative cycle time is not a fast delivery, it is a nonsense one, and left in it
+        would drag the mean below zero. Dropped, not clamped to 0 (a 0 would assert an
+        instantaneous delivery - the same lie in the other direction).
+        """
+        i = _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                   ["role:pm"], "COMPLETED")
+        i["committed_at"] = "2026-06-09T00:00:00Z"   # after the close
+        assert mr.cycle_time_days(i) is None
+        assert mr.avg_cycle_time([i]) is None
+
+
+class TestFirstReadyAt:
+    """Extracting the commitment act from the status-change timeline."""
+
+    def _ev(self, when, status, previous=None, project=mr.PROJECT_NUMBER):
+        return {"createdAt": when, "status": status, "previousStatus": previous,
+                "project": {"number": project}}
+
+    def test_commitment_is_first_entry_INTO_ready_whatever_preceded_it(self):
+        """NOT `previousStatus == "Backlog"`.
+
+        An item can be committed straight from intake (No Status -> Ready) - verified live
+        on Issue #1162. Keying on the previous status would silently MISS that commitment,
+        under-counting commitments and inflating the never-committed population.
+        """
+        events = [self._ev("2026-07-14T16:05:00Z", "Ready", previous=None)]
+        assert mr.first_ready_at(events) == "2026-07-14T16:05:00Z"
+
+    def test_earliest_ready_wins_when_the_item_bounces(self):
+        """Ready -> In progress -> Ready: the commitment act is the FIRST crossing."""
+        events = [
+            self._ev("2026-07-01T00:00:00Z", "Ready", "Backlog"),
+            self._ev("2026-07-02T00:00:00Z", "In progress", "Ready"),
+            self._ev("2026-07-03T00:00:00Z", "Ready", "In progress"),   # re-entry, not new
+        ]
+        assert mr.first_ready_at(events) == "2026-07-01T00:00:00Z"
+
+    def test_never_ready_is_none(self):
+        events = [
+            self._ev("2026-07-01T00:00:00Z", "Backlog", None),
+            self._ev("2026-07-02T00:00:00Z", "Done", "Backlog"),        # closed from Backlog
+        ]
+        assert mr.first_ready_at(events) is None
+
+    def test_another_projects_ready_does_not_count(self):
+        events = [self._ev("2026-07-01T00:00:00Z", "Ready", "Backlog", project=999)]
+        assert mr.first_ready_at(events) is None, "a Ready on another board is not our commitment"
+
+    def test_empty_timeline_is_none(self):
+        assert mr.first_ready_at([]) is None
 
 
 class TestGeneratedHtmlHasNoEmDash:
