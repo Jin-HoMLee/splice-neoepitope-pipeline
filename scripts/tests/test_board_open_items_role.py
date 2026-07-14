@@ -84,3 +84,22 @@ def test_role_filter_still_excludes_an_unrelated_role():
 def test_role_filter_accepts_the_prefixed_form():
     n = b.normalize(_item(["role:scientist", "role:developer"]))
     assert b.matches_filter(n, _args(role="role:developer")) is True
+
+
+# --- the Role column must SHOW that a row is dual-role -----------------------
+#
+# Mirrors the arc axis's own rendering pair (test_board_open_items_arc.py:
+# test_arc_column_marks_a_multi_arc_parent / ..._unmarked_for_a_single_arc_item).
+# Without the marker, a row matched via its SECOND role displays only its first
+# and reads as though it did not match the filter that returned it.
+
+def test_role_column_marks_a_dual_role_item():
+    n = b.normalize(_item(["role:scientist", "role:developer"]))
+    out = b.format_table([n])
+    assert "+1" in out
+
+
+def test_role_column_unmarked_for_a_single_role_item():
+    n = b.normalize(_item(["role:developer"]))
+    out = b.format_table([n])
+    assert "+1" not in out
