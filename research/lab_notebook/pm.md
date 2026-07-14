@@ -6,6 +6,166 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-14
+
+### 14:30 UTC - Editor: PM
+
+#### Closing the resume-routine Issue with the one check I could not run myself
+
+[Issue #1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) sat open for ten days on a single unticked box, and the box was not waiting on work.
+Everything was built: the spec merged, `shared/feedback_resume_routine.md` committed, the greeting-classification bullet wired into `shared/MEMORY.md`, the sole sub-issue closed.
+What it waited on was an *observation* - that a morning greeting still routes to the morning routine - and no session that already knew about the Issue could honestly produce it.
+
+This morning produced it. Jin-Ho opened with an unprompted "Good morining :)", the selector routed to the full morning routine, and all five beats ran.
+
+**The part worth recording is not that it passed. It is how I let it be able to fail.**
+
+The tempting evidence was my own recollection of the session, which is precisely the check that can only come back green: I am both the instrument and the reporter.
+So I went looking instead for artifacts the morning routine *alone* can produce, each timestamped and independently readable off the board: the SDR ([PR #1146](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1146), merged 13:10Z), the roadmap-health sweep (the [Issue #679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) comment clearing a stray Target date, which names its own origin: *"surfacing as 3d overdue in the morning roadmap sweep"*), and Replenishment plus Signals (five Issues filed today).
+
+The falsifier runs in the direction that can hurt: had the selector regressed, the greeting would have routed to the **resume** routine, whose defining property is that it runs *none* of the once-daily cadences.
+A resume routine cannot produce an SDR, cannot sweep the roadmap, cannot file a Replenishment Issue.
+Those artifacts are not merely consistent with the morning routine having run; they are **inconsistent with it not having run**.
+And they form a real matched pair with the resume limb ticked on 2026-07-11: same selector, one variable flipped, opposite predicted outcomes, both observed.
+
+Honest limitation, recorded rather than smoothed over: the greeting string itself lives in the session transcript and my episode file, not in a repo artifact.
+The proof is a two-link chain - the episode records *what the greeting was*, the board records *which routine ran that morning*.
+Neither link closes this alone.
+
+#### And then I did the exact thing this notebook has spent two days warning about
+
+Jin-Ho asked me to web-search alternatives for our GraphQL exhaustion, which had just stalled a second session.
+I read GitHub's primary docs, found the documented cost formula (nodes divided by 100), applied it to our board query, and reported with confidence that **a full board read costs ~700 points** of our 5,000/hr budget - therefore the 1,228-item board was the culprit, therefore [Issue #1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152) (auto-archive) was the fix, and therefore we should also right-size our nested `first:` caps.
+
+Then I measured it.
+
+| What I claimed | What it measures |
+|---|---|
+| full 13-page board read ~700 points | **26 points** |
+| one page (4,100 nodes) is expensive | **2 points** |
+| trimming `first:` caps saves real budget | **saves nothing** |
+
+**Wrong by a factor of 27.** The formula bills per *request needed to fulfil a connection*, not per node returned, so node count is nearly free and my whole recommendation was built on a number I had derived instead of observed.
+I had sourced it from the primary doc, which is exactly what makes it a good lesson: **reading the right source is not the same as measuring the thing.**
+
+The real cause only appeared because the measurement made no sense.
+The budget kept falling while I ran nothing - ~600 points/hour with this session **idle**, and ~1,100 points between two of my own commands.
+The GraphQL limit is **per GitHub user** (the error string says so: *"for user ID 123657753"*), and we had **seven concurrent `claude` processes** live as that one user, plus another repo's `while true` loop polling `gh pr checks` every 30s, plus the Scientist clone's board hooks shelling out to `gh api graphql`.
+
+**Our board reads are cheap. Our concurrency is not.** At 26 points we could afford ~190 full board reads an hour; we do nowhere near that.
+
+I blamed the board twice today for the same reason both times: **the board is the only consumer a session can see.** A shared bucket with no per-consumer visibility makes every individual session's accounting look innocent while the aggregate fails - the same defect class the [Issue #1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135) family keeps surfacing. Filed as [Issue #1165](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165); the false rationale is struck from [#1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152), which still stands on its truncation-bug argument.
+
+Two dead ends recorded there so nobody re-walks them: **token rotation** does nothing (the bucket is keyed on the user, not the token), and a **GitHub App** buys nothing (the 10,000-point tier is Enterprise-Cloud-only; we are a personal account with one user and two repos).
+
+The uncomfortable symmetry: the morning entry, an hour earlier, was titled *"a mechanism that reports success while doing nothing."* This afternoon I produced a confident, well-sourced, primary-doc-cited analysis that was wrong in its central number, and the only thing that caught it was running the query and reading what came back. **Not care. A second instrument.**
+
+### 13:30 UTC - Editor: PM
+
+#### Four findings, one defect: a mechanism that reports success while doing nothing
+
+The morning routine turned up four failures that arrived independently, in four different beats, and I did not notice until the fourth that they are the same defect.
+
+| Where | What it reported | What was true |
+|---|---|---|
+| `dispatch_digest.py:66` | Developer Ready = **3** (below floor) | Ready = **5** (at floor) - it buckets by the *first* `role:` label only |
+| Developer's hook fire-log | **zero fires** = "no violations" | ambiguous with "the matcher is dead" - which is what it was |
+| `gh project item-list --limit 1000` | 1,000 rows, **exit 0** | the board holds 1,228; [Issue #1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135), an **open** Issue, was not among them |
+| my own board-mutation script (2026-07-13) | `ok` for all 22 items | it had written **nothing** |
+
+Each one is a check that **could only come back green**. None of them errored. All four were believed.
+
+The digest one is the sharpest, because it is the only one that reached a decision before being caught. In the Daily Stand-up I reported "Developer at 3 against a floor of 5" and was ready to run a `[REPLENISH developer]` sweep. `check_ready_queue.sh` - which counts by role-label *membership* - said 5. Had the two not disagreed, I would have committed Backlog work into a lane that was already at floor. That is the cost: not a wrong number, a wrong **commitment**.
+
+This is why I read back every board write I made today instead of trusting its exit code. It is a slow habit and I do not love it, but the alternative is the row above.
+
+**Routing.** The Memory Manager had independently filed two of these as separate instances of "a check that cannot fail". He is right that they are not two instances - but I think he had the mechanism slightly wrong, and verifying it changed the fix. His claim was that *no single `gh` command returns both the issue identity and the board-item ID*. That is too strong: `gh project item-list` returns the board-item `id` **and** `content.number` in one payload. The phantom is specifically `content.id`, which a board-field mutation does not even need. But the one-call join that survives is a **silent-truncation trap in the other direction** (default `--limit` is 30; at 1,000 it drops open work off a Done-first board). So "found nothing" is ambiguous **three** ways - absent key, absent item, truncated read - and a helper guarding only his failure mode would still have confidently answered *"is #1135 on the board?"* with **no**. [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151) now demands **two** invariants and a two-directional falsifier.
+
+#### The parent model: I rejected my own proposal, and the reason was a correctness hole, not ergonomics
+
+[Issue #1031](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1031) proposed splitting "parent" into structural-epic vs tracking-issue, because the epic mold is heavy for small parents. I had written that proposal. On a second best-practice pass I rejected it, and adopted a third option instead.
+
+Two facts killed the split. **Native issue types are organization-only and we are a user account** (verified: `owner.type = User`; `organization(login:"Jin-HoMLee")` -> NOT_FOUND). So the discriminator would be a **hand-set label** - and it would discard the property that makes Pattern A2 ([#776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776)) drift-proof: `subIssuesSummary.total > 0` is *computed, never stored*. On a day defined by mechanisms that silently fail, adding one whose correctness depends on someone remembering a label was the wrong direction.
+
+But the status quo was not defensible either, and the reason is worse than the friction I filed it for. **The only sanctioned way to give a small parent a commit-point today is a plain `--no-issue` branch whose PR references but does not close it - and every gate in `audit_and_merge.sh` keys off `closingIssuesReferences` (L118).** So that path is audited by *none* of them: no AC audit, no priority-rationale check, no stray-closer scan, no lab-notebook gate. **A rule whose compliant path is less rigorous than its non-compliant one is inverted.** That is the defect, and it is not an ergonomics complaint.
+
+The fix follows from re-reading the original harm. [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) -> [#538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) was never *"a parent had a branch"*; it was **a PR auto-closing a parent while its children were open**. The harm lands at **merge**. We were guarding at **branch** - banning a safe reversible act to prevent an unsafe irreversible one. So: merge-time gate (blocking), branch-time guards downgraded to advisory. Carved into [#1155](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1155) (mechanism) + [#1156](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1156) (convention, `blockedBy` the first).
+
+Evidence that mattered: **6 of 12 open parents have <= 2 children**, and **4 sit at a full sub-bar while still open** - each carrying residual scope. And our tooling had already conceded the point: [#1067](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1067), merged this week, exists to flag *"parents with a full sub-bar but unticked body ACs"*. The code accepted that parents carry their own scope; only the convention had not caught up.
+
+#### Rested signal - do not re-float this (2026-07-14)
+
+**Claim: "sub-issues automatically inherit the parent issue's Projects and Milestones."** Surfaced by **two independent web searches** during the Signals beat. It is **FALSE**. It appears in neither the [July 2026 changelog index](https://github.blog/changelog/month/07-2026/) nor the [Issue-fields GA entry](https://github.blog/changelog/2026-07-02-issue-fields-are-now-generally-available/) it was attributed to - the search digest confabulated it. Recording it here because a *rested* signal leaves no trace in Zotero or the open Issues, so without a findable home it re-surfaces as fresh every morning. **Keywords for the dedup grep: sub-issue inherit parent project milestone inheritance.**
+
+It would have mattered had it been true (it cuts against our un-milestoned-parents rule), which is exactly why it was worth the two fetches. A confident answer to an unasked question is harder to catch than an obviously wrong one.
+
+**Related and verified true, so not rested:** GitHub shipped a [repo-wide auto-close toggle](https://github.blog/changelog/2025-04-23-users-can-now-choose-whether-merging-linked-pull-requests-automatically-closes-the-issue/) (2025-04-23). It is **all-or-nothing per repository**, not per-link, so it gives us no native "link without closing" and disabling it would break every leaf PR. Our rule that the per-link closing edge is non-removable **stands**.
+
+#### The board is 88% closed work, and it is not a tidiness problem
+
+Jin-Ho asked how to handle a board grown past 1,000 done items. Board 9 holds **1,228 items, ~150 open, sorted Done-first**, and every board read pages through all of them then discards the closed ones (`board_open_items.py` drops `CLOSED`/`MERGED` + `Status == Done`). We pay 13 GraphQL pages for data we delete.
+
+**That Done-first sort is the fuel for the whole silent-failure class above** - the `first: 100` query that reported "Ready is empty" (2026-06-12), the pagination guard hook built to stop it, and today's `--limit 1000` hiding an open Issue. Archive the closed work and the failure mode has no fuel.
+
+We already had a rule for this (`shared/feedback_archive_cadence.md`) and it is at the **wrong rung**: a manual PM runbook, evidently unrun for months, whose stated future is to *"convert this to a scheduled agent"* - i.e. build a robot to press a button GitHub already gives us. The native [auto-archive workflow](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/archiving-items-automatically) (`is:closed updated:@today-2w`) applies retroactively, costs nothing, and - verified - archived items are **not returned by the `ProjectV2.items` connection**, so the saving is real, not cosmetic. Checked before recommending: **nothing regresses** (`board_open_items.py` already discards Done; the SDR reads throughput off `gh issue list`, not the board). Filed as [#1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152).
+
+I found this out the expensive way: establishing those facts **exhausted the hourly GraphQL budget** (5,000 calls) and stalled the routine for ~17 minutes.
+
+#### Where I was wrong today
+
+I told Jin-Ho that `feedback_dependency_tracking.md` had the wrong argument name for `addBlockedBy`. It does not - it documents `blockingIssueId` correctly, in a snippet I would have seen had I read it instead of guessing at the API and then blaming the memory when my guess failed. Small, but it is the same shape as everything above: I asserted a state without checking it.
+
+---
+
+## 2026-07-13
+
+### 15:10 UTC - Editor: PM
+
+#### I verified the measurement and shipped an unfalsifiable input ([Issue #811](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/811) / [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) / [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144))
+
+The SDR now splits delivered throughput by **arrival** (committed vs unplanned), because [Issue #902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902) makes that same SDR the forum for the WIP-limit retune, and the retune was being asked to run on a number that hides exactly the thing it needs to see.
+The PR also corrects facet 3 of #902 in `AGENTS.md`: it claimed `P0`-`P3` "already carries the same signal", and it does not.
+Urgency (how costly is delay) and arrival (did it cross the `Backlog -> Ready` commitment act) are orthogonal axes.
+A P2 same-day fix is unplanned; a P1 committed item is planned; the band cannot tell them apart.
+
+**What I got right, I got right for a specific reason.**
+The live SDR run reported `0 unplanned` in every week.
+That output is precisely what a never-read marker would print, so it could only come back green, and I could not tell a working split from a dead one by looking at it.
+So I built a matched-pair control on the real board: label a genuinely closed Issue, watch the week move `24 [24+0]` to `24 [23+1]`, remove the label, watch it move back, conservation holding throughout.
+That is the first time I have constructed the falsifier **before** being embarrassed into it rather than after.
+
+**And then the bot review found that I had done it at exactly one level too shallow.**
+
+The finding: the `unplanned` label is applied **by hand, at close, by the author of the closing PR**.
+A missing label is **indistinguishable from committed work**.
+There is no third state, so the failure mode is silent *and* directional: a forgotten label can only bias the unplanned share **downward**, and the consumer (the WIP retune) would therefore **under-correct** on a number that looks clean.
+A low unplanned share is precisely what a never-applied marker prints.
+
+That is the same sentence I wrote three paragraphs above about the metric.
+I proved the *reading* mechanism could fail, and shipped a *writing* mechanism that cannot.
+The verification instinct fired on the code, which is the part I was looking at, and stopped at the boundary of the code, which is not where the epistemics stop.
+The number is not currently falsifiable, and I would not have noticed, because every check I ran was downstream of the label.
+
+Filed as [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144), with one deliberate departure from the reviewer's suggested remedy.
+The bot proposed a closure-time hook or an `audit_and_merge.sh` nudge.
+I declined to file it that way: the mechanism-over-memory ladder escalates to a mechanism after a rule slips **twice on the same shape**, and this convention is days old with **zero** observed slips.
+Mechanizing now would be mechanizing an unverified premise, which is the exact error `feedback_verify_premise_before_mechanizing.md` exists to stop.
+So #1144 asks first for **detectability**: cross-check delivered Issues against the board's own `Backlog -> Ready` transition, so an item that never crossed the commitment act yet carries no label gets **flagged** rather than absorbed.
+That measures the slip rate instead of assuming it, and lets the evidence decide whether a gate is earned.
+Sequencing: [Issue #1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138) (the SDR labels lead time as "cycle time" because it cannot see the commitment point) wants the same `Backlog -> Ready` timestamp, so if it lands first, #1144 gets most of its answer for free.
+
+**The pattern worth keeping.**
+Both #1138 and #1144 are the same defect wearing different clothes: the SDR's inputs do not know the board's own semantics.
+The board has a commitment act, and not one of the SDR's headline numbers can see it.
+Sibling of [Issue #1139](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1139) (dispatch digest under-counts multi-role Ready items), filed yesterday, which is the same shape a third time: a governance instrument that does not implement the governance model it reports on.
+If a fourth turns up, this stops being three bugs and starts being an architectural finding about how the PM tooling reads the board.
+
+Review otherwise LGTM.
+Fixed the one code finding (the `weekly_series` docstring had drifted from the shape the `throughput_breakdown` spread actually returns, `bf27940`); declined the nit (`delivered_issues()` computed twice, which keeps `throughput_breakdown` pure and is O(n) at n <= 1000).
+Holding at the merge gate: the `AGENTS.md` edit is a governance surface, so the merge is Jin-Ho's authorizing act, not a routine ship.
+
+---
+
 ## 2026-07-11
 
 ### 21:30 UTC - Editor: PM

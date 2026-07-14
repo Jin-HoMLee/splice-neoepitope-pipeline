@@ -6,6 +6,86 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-14
+
+### 16:55 UTC - Editor: Scientist
+
+**Web cross-check of [PR #1163](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1163) - the argument survives, one claim was imprecise, and the IG half turns out to be published** (addendum to the 14:40 entry, which is immutable)
+
+Jin-Ho asked for a last cross-check before merge. Four claims verified against primary sources, one refutation attempt run deliberately, and one wording defect found in my own artifact.
+
+- **The LeafCutter quote was a rule violation and I got lucky.** I had quoted *"our most restrictive filter is the requirement that reads considered be uniquely mapped"* verbatim in the deck, README, Issue and lab notebook - sourced from a **WebSearch summary**, which by my own rule (`feedback_never_quote_unreachable_source`) is **zero sources**. Fetched the primary page: the quote is **exactly right**. Correct outcome, bad process. A verbatim quote from a digest is a coin-flip I should not be taking.
+- **`NH`: my phrasing was loose in a way that UNDERSTATED my own argument.** I wrote that `NH` "counts where a read's sequence could otherwise land." The SAM spec (`hts-specs/SAMtags`) actually says: *"Number of **reported** alignments that contain the **query** in the current record."* Keyed on the **query** (so the per-read claim is now spec-backed rather than asserted) - but counting what the **aligner chose to report**, which makes `NH` *even less* a property of the junction than I claimed: it is one read under one aligner's reporting policy. Corrected across script, README and deck.
+- **The immunoglobulin half is independently published, and I did not know it.** Blachly et al., PNAS 2015 ([PMC4394264](https://pmc.ncbi.nlm.nih.gov/articles/PMC4394264/)): of RNA-seq reads mapping to the Ig locus, *"21-48% could not be clearly and unambiguously assigned to a single feature in the region"* - and their remedy is to abandon genome mapping there entirely. A unique-only filter deletes essentially that whole population. **So IGLJ3-IGLC3 is not a chr22 curiosity; it is the locally-visible tip of a quantified, genome-wide failure mode**, in a compartment (tumor-infiltrating plasma cells) every solid-tumor library contains. My n=1 existence proof now sits on top of someone else's n=large. (PNAS itself 403s; recovered the number from the open PMC mirror rather than quoting a digest.)
+- **The J-to-C splice is real biology, not a coordinate coincidence.** I had inferred "IGLJ3 -> IGLC3 is an antibody junction" purely from GENCODE coordinates. Confirmed: after V(D)J recombination the V-J transcript is joined to the constant region **by RNA splicing** across the J-C intron. It is the defining splice event of a functional light chain.
+- **Refutation attempt, run on purpose:** searched specifically for anyone showing unique-only filtering is *safe* in a matched design, which would have sunk the whole thesis. Nothing. The nearest canonical framing (GATK, *"Somatic calling is NOT simply a difference between two callsets"*) **supports** it - somatic calling contrasts *evidence* between the two arms, so a filter that perturbs evidence asymmetrically corrupts the contrast by construction.
+
+**Lesson:** *a correct conclusion reached by a sloppy route is still a process failure, and it will not stay correct.* The LeafCutter quote happened to be right; the `NH` phrasing happened to be wrong. Both came from the same habit - restating a source from a summary instead of reading it - and only one of them punished me. **I should not need the punishment to notice the habit.** The consolation is that the cross-check made the argument *stronger* on both flanks: the central claim is now spec-backed, and the IG failure mode is now corroborated at n=large by an independent group.
+
+---
+
+### 14:40 UTC - Editor: Scientist
+
+**`NH` is a property of a read, not of a junction - so the uniqueness filter breaks matched subtraction** ([Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122), [PR #1163](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1163))
+
+Developer handed over the interpretation of the NH-uniqueness filter after establishing - correctly, and this is the load-bearing part of his record - that **the chr22 fixture cannot measure the filter's precision**: `NH` is index-relative, so the population the filter exists to catch (a read whose true locus is off-chr22, landing on chr22's single copy with `NH=1`) is structurally invisible on a single-chromosome index. The natural conclusion was that the decision had to wait for the whole-genome run ([#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)).
+
+It does not, because there is a defect that is **structural rather than statistical**. `NH` counts where an individual read's *sequence* could otherwise land. It is a property of the **read**, not of the **junction**. Two libraries sampling the same biological junction draw different reads and therefore get different `NH` profiles by chance. So a junction gate built on `NH`, applied **independently to the tumor and the normal**, erodes the two arms independently - and a matched subtraction cannot survive that. No index, chromosome, or depth changes this.
+
+**The demonstration.** `chr22:22905026:22906341:+` is the **IGLJ3 -> IGLC3** junction: the canonical J-to-C join of a rearranged immunoglobulin lambda light chain, a functional antibody transcript from plasma cells, present in **both** arms. The filter leaves the tumor untouched (4 reads, all `NH=1`) and cuts the normal from 5 reads to 1. Normal support falls under `min_normal_reads: 2`, so the junction stops counting as "seen in normal" and its tumor copy is promoted `normal_shared` -> **`tumor_exclusive`**. A real antibody junction with five reads of matched-normal support becomes a candidate therapeutic target *because a precision filter was switched on*. At read level the same alignment (`pos=22905015`, `11M1316N39M`) is `NH=1` in the tumor BAM and `NH=2` in the normal - the mechanism, visible in two lines of `samtools view`.
+
+**Scope, held deliberately narrow:** 1 of 91 shared junctions. An **existence proof, not a rate**; 91 shared junctions cannot estimate a frequency and I refused to report n=1 as a percentage. It is sufficient anyway, because the cost function is asymmetric - a false `tumor_exclusive` is a *therapy*, not a slightly wrong number. Two of the four asymmetries are immunoglobulin junctions, in a locus that is a sliver of chr22.
+
+**AC-2, the literature position.** Unique-only is the genuine field standard (LeafCutter: *"the most restrictive filter is the requirement that reads considered be uniquely mapped"*; STAR's `SJ.out.tab` col 7 / col 8 split) and it is not cargo cult. But its justification is **quantification across replicates**, where multimapping noise is averaged over samples and the estimand is a ratio. Ours is a **single-pair binary subtraction** where nothing averages and the noise flips a binary call. **Paralogy (HLA/IG/TCR) determines *where* it fails; the single-pair design determines *that* it fails.** The field inherits its tooling from splice quantification and inherits filter defaults whose statistical justification does not survive the change of estimand - a real differentiation point, and a concrete mechanism for the 69-85% cross-pipeline divergence that [doi:10.1101/2025.09.10.674685](https://doi.org/10.1101/2025.09.10.674685) measures.
+
+**Two things found on the way, neither of them what I went looking for.**
+
+1. **The filter we have spent two Issues arguing about is not the one making the decisions.** `filter_junctions.py:400` gates tumor junctions on `reads > mean(reads)` - a *floating per-file mean*. Here the mean is 1.205, so it silently drops **1,638/1,872 (87.5%)**, against the NH filter's 14%. The threshold is a function of library depth, not a criterion; the code calls it "the silent mean threshold". It also makes the pipeline **non-monotonic** - a filter that only removes reads can *add* a candidate, which is precisely how the IGLJ3-IGLC3 false positive appears. Filed as [#1161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1161) (P1). It also means #919's headline was measured against a candidate set production never builds: the real set is **151**, not 1,550, and the filter's true cost is **43/151 = 28.5%**, not 16.2%.
+2. **The STAR trap now has an evidence base.** `star_sj_to_junctions.py:112` reads `SJ.out.tab` **col 7 only** - that *is* the unique-only semantic. Converging on STAR ([#1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112)) silently adopts, by construction, the policy this Issue disqualifies - never as a decision, only as an artifact of which column a script reads. This is the condition I attached when I declined the uniqueness half of the #1112 sign-off; it is no longer a hunch.
+
+**Developer's evidence, independently checked.** The stratified null (0.98x) reproduces **exactly** - I recover his precise partition (11 / 256 / 276 / 1,329) from a GENCODE-derived annotation set built independently of his BED. His mismatch table reconciles once its unit is read as *junction instances* rather than alignments (15 reads carry two introns; the header is mislabeled). Both of his retractions were correct: `NH>1` is **not** a dirtier population than `NH=1`, so the multimapped reads are largely **real RNA** - AC-1's answer, and the exact opposite of the filter's founding premise.
+
+**Method notes I want to keep.**
+
+- **The falsifier is the only reason this analysis is not inverted.** My first motif probe returned *0% canonical junctions*, top motif `TG-AG`. The junction ID's donor is **1-based** while its acceptor is 0-based-exclusive (`bed12_to_junctions.py:82`) and I had read both as 0-based. I caught it only because I had built in a falsifier - GENCODE introns must come back ~99% GT-AG - and it tripped. Without it I would have shipped a confident, exactly-wrong result.
+- **Then the corrected probe turned out to be void anyway.** All 1,872 junctions are GT-AG, because HISAT2's `XS` tag is motif-derived and `regtools -s XS` consumes it: **the motif is already an inclusion gate upstream**, so a motif probe restates the gate and can only return a null. I walked straight into my own "a search key must not mirror the gate" rule. Checking the *ceiling* rather than the floor is what surfaced it.
+- **A refuted hypothesis of my own:** I expected this filter might also clear [#1147](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1147)'s low-complexity artifacts. It removes **0 of 267**. #1122 is paralogy at the alignment stage; #1147 is low-complexity at the translation stage. Orthogonal.
+- **The bot review caught a real one**: I claimed the analysis "runs from committed inputs only" while naming a **gitignored** GTF among those inputs. I asserted a location fact without checking it. Fixed by making the claim *true* (vendoring the annotation in derived form, 272 KB) rather than by hedging it, and verified with a matched-pair control instead of by inspection - inspection is what caused it. My own test-plan tick, *"deck renders, no overflow"*, was simultaneously true and useless: it could never have caught the blank References slide, because a blank slide renders perfectly.
+
+**Decision (AC-3, AC-4).** Default stays **OFF** - but because the filter *as applied* is structurally wrong for a matched design, not because the A/B was unconvincing; it must not be promoted to default at any index or depth, and **#1095 is not a prerequisite**. If a uniqueness signal is ever wanted it must be a junction-level **score** carried into the comparison ([#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)), or a decision made **after pooling** the two arms - never applied to them independently. [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) inherits this as its default: **count all reads**, and make the col-7/col-8 choice explicit and configurable.
+
+---
+
+## 2026-07-13
+
+### 18:05 UTC - Editor: Scientist
+
+#### [Issue #1096](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1096) - pvacsplice's VCF is a variant *filter*. It is a comparator, never a component.
+
+Settled **this** Issue - [#1096](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1096), filed 2026-07-09 as a follow-up spike that [#1048](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1048) deliberately left open (#1048 answered a *different* question - MHCflurry-only class-I prediction, GREEN - and closed 2026-07-11). The work below is #1096's, not #1048's. Answered by reading pVACtools' source rather than its docs, which AC-2 explicitly permits when the empirical answer would be ambiguous. It is not ambiguous.
+
+**Source pinned:** `griffithlab/pVACtools` @ `master@1c6c58b48905` (2026-06-09), release **v7.0.1**. The finding *is* the deliverable here and upstream drifts, so provenance of the source read is part of the output: a future reader must be able to tell which revision carried the predicates below.
+
+Three **sequential** gates drop a variant-free junction. They are redundant, not independent - `FilterRegtoolsResults.execute()` runs before `CombineInputs` (`splice_pipeline.py`), so our junctions die at the first and never reach the rest:
+
+1. `filter_regtools_results.py:24` calls **a bare `.dropna()`** on the junctions frame. Precision worth keeping: a bare `.dropna()` drops any row with a NaN in *any* column, so the mechanism is wider than "drops variant-free junctions" - but a junction with no `variant_info` (the column `regtools` fills from the VEP VCF) is NaN there and dies here regardless. The next line would fail on it anyway (`.str.split()` on NA, then `.astype('int64')`).
+2. The same file then keeps only junctions whose variant lies within `--variant-distance` of the junction window - **default 100 bp** (`run_argument_parser.py`), help text: *"Maximum distance window (upstream and downstream) for a variant outside the junction."*
+3. `combine_inputs.py` inner-joins junctions to variants on `variant_info` (pandas' default `how='inner'`), printing *"present in the junctions file, but not in the VEP-annotated VCF. Skipping."*
+
+Our candidates are `tumor_exclusive` junctions with **no associated somatic variant** - the junction *is* the lesion - so they filter to zero at step 1, before a single peptide is generated. A variant-free VEP VCF does not rescue this; it makes the drop total rather than partial.
+
+The distinction that matters: the variant is not *transcript context* (possibility A), it is the object pvacsplice is **keyed on** (possibility B). That is a contract mismatch, not a format mismatch, so no wrapper can close it. pvacsplice is therefore a **partial-fit comparator** for the [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) benchmark and is **out of the [#1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) toolkit as a Layer-A component**. Both routed on the respective Issues.
+
+Worth stating explicitly on the benchmark, because it is an easy category error to make later: if pvacsplice is run on our candidates it returns **zero**, and that zero describes its input contract, not its performance. It must be scored on the variant-associated subset it was built for, or excluded with the reason given.
+
+**Why "partial-fit" and not "no-fit"** (the boundary is sharper than I first wrote it): some tumor-specific junctions genuinely *are* variant-driven - a somatic SNV in a splice site creates the junction - and those are exactly pvacsplice's target. Our `tumor_exclusive` set is defined by absence-in-normal, not by absence-of-variant, so the two candidate classes **overlap** rather than being disjoint by construction; what our pipeline does not do is *attach* the variant, which is the input pvacsplice keys on. That overlap is precisely what makes it a partial-fit comparator, and the [#679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) scoring boundary should be drawn on the variant-associated subset, not on tumor-specificity.
+
+Free finding, folded onto [#685](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/685): this also confirms pvacsplice cannot cover intron retention or MXE, since its junction model is anchored on a variant-proximal event. Two mature open callers (pvacsplice, splice2neo) both walking away from IR is a real gap and a citable differentiation point for us.
+
+AC-1 (execute a run to completion) is ticked as **obsolete rather than done**, with the reason recorded on the Issue: it was the route to the answer, not the answer, and the source gives a stronger answer than the run would - a run shows *that* nothing survives, the source shows *why*.
+
+---
+
 ## 2026-07-11
 
 ### 21:21 UTC - Editor: Scientist

@@ -139,3 +139,42 @@ class TestFailOpen:
     def test_malformed_json_allowed(self):
         rc, out, _ = _run("{not valid json")
         assert rc == 0 and out.strip() == ""
+
+
+# --- #1130: the heredoc form the guard was blind to -------------------------
+#
+# The command anchor only accepted a `gh pr comment` at string-start or after a
+# `;&|` separator, so a comment whose body is written by a heredoc - the dominant
+# way a long body is authored - never matched, and this rung-3 guard was silently
+# dead on that path. Detection now runs on the normalized command; the mention
+# scan still runs on the RAW command, because normalizing strips heredoc bodies
+# and the body is exactly what this guard must inspect.
+
+
+class TestHeredocForm:
+    def test_stray_mention_in_a_heredoc_body_is_denied(self):
+        cmd = (
+            "cat > /tmp/c.md <<'EOF'\n"
+            "Historical note: the @claude action ran here.\n"
+            "EOF\n"
+            "gh pr comment 1 --body-file /tmp/c.md"
+        )
+        rc, out, _ = _run(_payload(cmd))
+        assert rc == 0
+        assert "deny" in out, "guard must fire on a heredoc-authored body"
+
+    def test_clean_heredoc_body_is_allowed(self):
+        cmd = (
+            "cat > /tmp/c.md <<'EOF'\n"
+            "A normal comment with no bot mention.\n"
+            "EOF\n"
+            "gh pr comment 1 --body-file /tmp/c.md"
+        )
+        rc, out, _ = _run(_payload(cmd))
+        assert rc == 0 and out.strip() == ""
+
+    def test_canonical_trigger_after_a_newline_still_allowed(self):
+        # Newline-separated (not heredoc): the canonical trigger must still pass.
+        cmd = 'echo pushing\ngh pr comment 1 --body "@claude review"'
+        rc, out, _ = _run(_payload(cmd))
+        assert rc == 0 and out.strip() == ""

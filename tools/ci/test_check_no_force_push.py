@@ -219,3 +219,42 @@ def test_hook_is_executable():
     # subprocess tests above invoke via `sys.executable <hook>`, which bypasses
     # the exec bit, so this is the one check that exercises the real harness path.
     assert os.access(HOOK, os.X_OK), f"{HOOK} must be committed executable (100755)"
+
+
+class TestNewlineForm:
+    """Issue #1142: two commands on two lines MERGED into one token block.
+
+    A newline is a command separator in shell but not in `shlex`, so before the
+    `normalize_command()` fix `split_subcommands` returned a single merged block
+    for a two-line command. That broke this guard in BOTH directions:
+
+      - false negative: `git commit --amend` on line 1 made `git_subcommand`
+        resolve the merged block to `commit`, so the `git push --force` on line 2
+        was never examined - a force push walked straight through the guard;
+      - false positive: `git push origin main` + `git branch -f tmp` merged into
+        one block that read as a forced push, denying a legitimate command.
+
+    Found by the PR #1145 bot review, which probed with a *second real command*
+    where the author's probe had used a harmless `echo` prefix - the merge only
+    bites when both lines are git commands.
+    """
+
+    def test_force_push_after_a_commit_line_is_caught(self):
+        assert h.command_force_pushes(
+            "git commit --amend\ngit push --force-with-lease origin main") is True
+
+    def test_force_push_alone_still_caught(self):
+        assert h.command_force_pushes("git push --force-with-lease origin main") is True
+
+    def test_force_push_after_heredoc_is_caught(self):
+        cmd = ("cat > /tmp/msg.txt <<'EOF'\ncommit message\nEOF\n"
+               "git push --force origin main")
+        assert h.command_force_pushes(cmd) is True
+
+    def test_push_then_branch_force_is_not_a_force_push(self):
+        # The false-positive half. `git branch -f` is not a force PUSH.
+        assert h.command_force_pushes(
+            "git push origin main\ngit branch -f tmp HEAD") is False
+
+    def test_plain_push_still_allowed(self):
+        assert h.command_force_pushes("git push origin main") is False

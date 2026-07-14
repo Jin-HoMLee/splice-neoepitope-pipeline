@@ -25,11 +25,15 @@ import milestone_report as mr
 
 # --- fixtures ---------------------------------------------------------------
 
-def _issue(number, state, created_at, closed_at, roles, state_reason=None):
+def _issue(number, state, created_at, closed_at, roles, state_reason=None, labels=None):
     """Minimal normalized-issue dict carrying only what the metrics read.
 
     ``state_reason`` mirrors GitHub's ``stateReason`` (COMPLETED / NOT_PLANNED /
     None for open issues); a closed issue with no reason is treated as delivered.
+
+    ``labels`` carries the raw label names; the arrival axis (Issue #811) reads the
+    ``unplanned`` marker off it. Defaults to empty, so an issue with no labels is
+    committed work - which is what every pre-#811 fixture in this file relies on.
     """
     return {
         "number": number,
@@ -38,6 +42,7 @@ def _issue(number, state, created_at, closed_at, roles, state_reason=None):
         "closed_at": closed_at,
         "roles": roles,
         "state_reason": state_reason,
+        "labels": labels if labels is not None else [],
     }
 
 
@@ -347,3 +352,73 @@ class TestSeedNarrative:
         deliverables = self._seed().split("## Carried-forward")[0]
         assert "#5" not in deliverables          # closed #5 not re-listed
         assert "Inventory appendix" in deliverables  # points there instead
+
+
+# --- arrival axis: committed vs unplanned (Issue #811) -----------------------
+
+# The matched pair the AC asks for: same window, same delivered status, one
+# variable flipped (the `unplanned` marker) and opposite expected sides of the
+# split. Plus a descoped-and-unplanned issue, which must land on NEITHER side -
+# the breakdown keys off *delivered*, so a not-planned close is not shipped work
+# no matter how it arrived.
+ARRIVAL = [
+    _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+           ["role:pm"], "COMPLETED"),                                    # committed
+    _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+           ["role:pm"], "COMPLETED", ["unplanned"]),                     # unplanned
+    _issue(3, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-04T00:00:00Z",
+           ["role:dev"], "NOT_PLANNED", ["unplanned"]),                  # descoped: neither
+    _issue(4, "OPEN", "2026-06-02T00:00:00Z", None, ["role:pm"]),        # open: neither
+]
+
+
+class TestArrivalAxis:
+    def test_matched_pair_lands_on_opposite_sides(self):
+        # Identical but for the marker -> opposite sides. This is the control:
+        # if the marker were ignored, both would land as committed and this fails.
+        b = mr.throughput_breakdown(ARRIVAL)
+        assert b["n_committed"] == 1
+        assert b["n_unplanned"] == 1
+
+    def test_descoped_unplanned_counts_on_neither_side(self):
+        # #3 carries the marker but closed NOT_PLANNED. It is not shipped work,
+        # so it must not inflate the unplanned count - otherwise the "unplanned
+        # share" would be measuring abandoned work, not absorbed capacity.
+        b = mr.throughput_breakdown(ARRIVAL)
+        assert b["n_committed"] + b["n_unplanned"] == len(mr.delivered_issues(ARRIVAL)) == 2
+
+    def test_pct_unplanned(self):
+        assert mr.throughput_breakdown(ARRIVAL)["pct_unplanned"] == pytest.approx(50.0)
+
+    def test_pct_is_none_not_zero_on_empty_window(self):
+        # A zero-ship week must read as "no data", not as a truthful-looking 0%
+        # unplanned - the latter would be a number the WIP retune could act on.
+        assert mr.throughput_breakdown([])["pct_unplanned"] is None
+
+    def test_unlabelled_issue_is_committed(self):
+        # Guards the back-compat assumption every pre-#811 fixture leans on.
+        assert mr.is_unplanned(_issue(9, "CLOSED", None, None, [])) is False
+
+    def test_priority_cannot_substitute_for_the_marker(self):
+        # The whole premise of #811: urgency and arrival are orthogonal. A P2
+        # unplanned fix and a P1 committed item are indistinguishable by band,
+        # so the split must key off the marker and nothing else.
+        p1_committed = _issue(10, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z",
+                              ["role:pm"], "COMPLETED", ["P1"])
+        p2_unplanned = _issue(11, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z",
+                              ["role:pm"], "COMPLETED", ["P2", "unplanned"])
+        b = mr.throughput_breakdown([p1_committed, p2_unplanned])
+        assert (b["n_committed"], b["n_unplanned"]) == (1, 1)
+
+    def test_metrics_carry_the_split(self):
+        m = mr.compute_metrics(ARRIVAL, {"closed_at": None, "created_at": None})
+        assert m["n_committed"] == 1 and m["n_unplanned"] == 1
+        assert m["pct_unplanned"] == pytest.approx(50.0)
+
+    def test_weekly_series_carries_the_split(self):
+        until = datetime(2026, 6, 8, tzinfo=timezone.utc)
+        series = mr.weekly_series(ARRIVAL, until, 1)
+        assert series[0]["n_committed"] == 1
+        assert series[0]["n_unplanned"] == 1
+        # Conservation: the split must exactly partition the delivered count.
+        assert series[0]["n_committed"] + series[0]["n_unplanned"] == series[0]["n_delivered"]

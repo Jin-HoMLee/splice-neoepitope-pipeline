@@ -194,3 +194,32 @@ def test_hook_is_executable():
     # The harness execs the hook by bare path; a non-executable file EACCESes
     # before the shebang (the blocker caught on PR #1029).
     assert os.access(HOOK, os.X_OK), f"{HOOK} must be committed executable (100755)"
+
+
+class TestNewlineForm:
+    """Issue #1142: a benign first `cd` masked an escaping second one.
+
+    A newline is a command separator in shell but not in `shlex`, so before the
+    `normalize_command()` fix two `cd`s on two lines merged into one token block
+    and `cd_target` returned only the FIRST positional. A benign `cd /tmp` on
+    line 1 therefore hid an escaping `cd /etc/secret` on line 2 - the guard never
+    examined the one that mattered.
+    """
+
+    def test_escaping_cd_after_a_benign_cd_is_caught(self):
+        import os
+        target = h.first_escaping_cd(
+            "cd /tmp\ncd /etc/secret", os.getcwd(), h.PROJECT_ROOT, os.environ)
+        assert target is not None
+
+    def test_escaping_cd_alone_still_caught(self):
+        import os
+        target = h.first_escaping_cd(
+            "cd /etc/secret", os.getcwd(), h.PROJECT_ROOT, os.environ)
+        assert target is not None
+
+    def test_benign_cd_still_allowed(self):
+        import os
+        target = h.first_escaping_cd(
+            "cd /tmp", os.getcwd(), h.PROJECT_ROOT, os.environ)
+        assert target is None

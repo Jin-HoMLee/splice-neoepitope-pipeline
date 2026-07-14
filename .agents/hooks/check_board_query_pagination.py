@@ -45,9 +45,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
-_PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _API_PREFIX = ("gh", "api")
 # An `items(first: …)` connection, tolerant of whitespace/newlines in the query.
 _ITEMS_FIRST_RE = re.compile(r"items\s*\(\s*first\s*:", re.IGNORECASE)
@@ -75,9 +78,18 @@ def api_args(cmd: str) -> str | None:
     quote-protected and arrive as a single token — the surrounding quotes keep the
     punctuation_chars splitter from breaking the query apart. Untokenizable input
     (unbalanced quotes) fails safe → None.
+
+    The command is **normalized first** (Issue #1142): heredoc bodies are stripped
+    and unquoted newlines become separators. Without that, a `gh api` on the second
+    line of a multi-line command - or after a `cat <<'EOF'` heredoc - sat after an
+    ordinary word rather than a separator, so `at_command_start` was False and the
+    guard silently allowed the very unpaginated board query it exists to refuse.
+    A newline IS a command separator in shell; shlex does not treat it as one.
+    Same defect class as `matches_pr_create` (Issue #1130), same shared fix.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:

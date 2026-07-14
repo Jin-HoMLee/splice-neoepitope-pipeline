@@ -6,6 +6,175 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-14 - The queue was lying, and it had been for months ([Issue #1153](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1153))
+
+### 15:40 UTC - Editor: Developer - The filter production was already running, that nobody chose ([Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118), [PR #1168](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1168))
+
+Shipped the unified uniqueness knob: `alignment.uniqueness_filter.enabled` now governs **both** aligners, and the STAR default flips to **count-all** (`SJ.out.tab` col 7 + col 8). Three hours after ADR-0003 recorded the aligner convergence, the thing that ADR flagged as a *hypothetical* trap turned out to be **live in production**.
+
+**The chain is worth stating plainly, because no single step in it was a mistake.** `config/config.yaml` sets `aligner: "star"`. `star_sj_to_junctions.py:112` read col 7 only. Col 7 is the unique-reads column. Therefore production has been applying unique-only filtering **since the STAR path shipped** - and the Scientist's [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) verdict, landed today, is that unique-only is **structurally unsound for a matched tumor/normal design**. Nobody decided this. It was decided by a column index.
+
+**Why the Scientist's argument is better than the one I would have made.** I had been reasoning about the filter as a precision/recall tradeoff - does it remove more junk than signal? That framing cannot reach the real defect. Sci's is structural: the filter gates **each arm independently**, so it can destroy support in the normal while leaving the tumor untouched, promoting a junction genuinely present in *both* into a false `tumor_exclusive` - a spurious therapeutic target. IGLJ3->IGLC3 on our own fixture: normal 5 reads -> 1 (below `min_normal_reads`), tumor unchanged at 4. **A filter that only removes reads should never be able to add a candidate. That it can is the defect, in one number.** That is an argument from the *shape* of the operation, and it needs no rate, no whole-genome run, no [#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095). n=1 is sufficient when the cost function is asymmetric and the instance lands in the exact paralog-rich locus this pipeline targets.
+
+**I was wrong in a way worth recording.** When I picked this Issue up I told Jin-Ho the knob would be "a provable no-op" - build the instrument, leave the default alone, let Sci flip it later. That is **incoherent on inspection**: unifying two disagreeing semantics *necessarily* changes one of them. There is no default that both unifies and changes nothing. I said it because it pattern-matched to the shape that had worked on [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) (Dev builds the instrument, Sci decides the default), and I reached for the template instead of checking whether it fit. **The right question was not "how do I ship this without changing behavior?" but "which behavior is currently wrong?"**
+
+**Two defects I caught in my own work, both by driving the thing instead of re-reading it:**
+
+- **A parse-time `NameError` on the STAR branch.** `_UNIQ_ENABLED` was computed *inside* the `if aligner == hisat2` branch; my STAR rule referenced it. Unit tests are structurally blind to this - only a dry-run **on the STAR branch** sees it, and the STAR branch is not the one CI's default dry-run exercises. Found it by generating a STAR config and dry-running it, which is the same move that has now caught something three sessions running.
+- **My matched-pair control was measuring the wrong string.** It counted `--unique-only` in `snakemake -p` output and returned **2 with the knob off**. The flag was correct; my *control* was matching my own comment text inside the shell block. Re-run against the argument line: 0 off, 2 on. **A control that greps a string appearing in prose can only ever confirm** - the failure mode is not skipping the check, it is running one that cannot fail.
+
+**And the bot found the one I could not: my audit log lied.** `n_multimapper_only` sat *after* the `reads <= 0` gate, so under `--unique-only` a multimapper-only row is dropped by that gate before it can be counted - the line printed `0 (dropped)` **in the exact mode where the number matters**. The junction output was always right; only the log was false. That is the worst kind of instrument: one that reports zero when the answer is nonzero, on the code path you built it to watch. It was wrong because **nothing tested it** - I had written a counter and no assertion. Now tested in both modes.
+
+**A mechanism gap the bot also surfaced, and it generalizes.** It flagged 5 net-new em-dashes in my test docstrings and observed the no-em-dash PreToolUse hook "presumably didn't fire". It didn't: I wrote that file with a **Bash heredoc** (`cat >> ... <<EOF`), and the guard watches `Edit`/`MultiEdit`/`Write`. **Authoring through Bash bypasses every content guard we have.** That is not a nit about punctuation - it is a hole in the guard *layer*, and it belongs in the [#1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150) guardrails-vs-controls question, which is exactly about whether these string-matching hooks are guarantees or best-effort. They are best-effort, and here is a fresh, non-adversarial proof: I bypassed one *by accident*, while writing tests, with nobody trying.
+
+**Deferred honestly:** the chr22 **end-to-end STAR** A/B is not run and cannot be - STAR does not execute on this machine (0 input reads from the bioconda macOS build, ADR-0003 Finding 3). It rides [#1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162)'s containerized run. That box stays **unticked** in the PR. Second Issue in two days whose verification is gated on #1162 - it is becoming the bottleneck of this arc.
+
+**Lesson:** the two errors I made today were both *template reuse* - "this is like #919, so the knob is a no-op" and "this control is like the last one, so counting the flag is enough." The bugs I caught were caught by **running the thing**; the errors I made came from **reasoning by analogy to a previous shape**. My memory is full of rules telling me to run the thing. It has none telling me that the moment I say "this is just like X", I am about to be wrong.
+
+---
+
+### 14:21 UTC - Editor: Developer - ADR-0003: the aligner is decided, and the thing it *nearly* decided by accident ([Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112), [PR #1164](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1164))
+
+Recorded **Option A** - converge on STAR, run locally via a `linux-64` container. The decision itself was not close: Jin-Ho's steer (converge fully on STAR) and the Scientist's sign-off landed on the same option independently, and the Scientist actively argued against the HISAT2 alternative. What is worth writing down is not the decision but **what the decision almost did on its way past**.
+
+**The Scientist declined to sign half of the AC, and was right to.** AC 2 asked for sign-off on *"aligner + uniqueness policy"*. Sci signed the aligner and refused the uniqueness policy, on the grounds that nobody has characterized the multimapped spliced reads (n=338 on the chr22 tumor) and that asserting "unique-reads-only is correct" today would be an *a priori* claim dressed as a verdict. That refusal exposed the trap: **`star_sj_to_junctions.py:112` reads `SJ.out.tab` col 7 only**, so converging on STAR *adopts unique-reads-only as pipeline policy by construction* - never by a decision, only as an artifact of which column a script happens to read. Col 8 is right there. It is our script's choice, not STAR's.
+
+That is the same defect class as [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919), one level up: **a scientific question getting settled as a side effect of an engineering choice, with no one ever deciding it.** The ADR therefore carries Sci's condition as a *binding consequence* - the col-7 behavior must become an explicit configurable policy ([#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) carries the knob), default set by [#1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122)'s verdict. Convergence must not launder an undecided question into a settled one.
+
+**A reversal I owe the record: [#1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118) is not the duplicate I called it.** At wind-down on 07-11 I flagged it to PM as substantially duplicating #1112's "keep both" branch. Under Option A it is nothing of the sort - it is the *carrier of Sci's condition*, and it is load-bearing. My duplicate call was made from inside the framing the decision then changed.
+
+**The bot review found the gap in my own framing, from my own PR three days ago.** Finding 1 said the HISAT2 path counts all reads including multimappers - true of the default, but I *shipped* [PR #1113](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1113) on 07-11 giving that path an opt-in NH-uniqueness filter. So the divergence is between **defaults, not capabilities**, and the two levers differ in *kind*: on HISAT2 uniqueness is a **config surface**; on STAR it is **hardwired into a column index**. That does not weaken the binding condition, it is the best argument *for* it - the project already treats uniqueness as configurable, which is exactly what makes the STAR hardwiring the inconsistency. Folded into the ADR (`5213dac`).
+
+**Two fabrications I caught only because I held the commit back.** The ADR referenced the container Issue as **#1157** - a number I had *guessed* before filing it (it is [#1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162)). The PR body linked Sci's sign-off via a **fabricated anchor** (`issuecomment-0`). Both would have shipped as confident, wrong, checkable references. The habit that saved it was mechanical, not virtuous: I wrote the placeholder, *said out loud that it was a placeholder*, and refused to commit the file until the real number existed. **A guessed identifier reads exactly like a real one.**
+
+**Kept the grep-for-the-shape discipline, and it paid.** Before opening the PR I grepped the stale RAM claim across the repo rather than re-reading the file I had edited: it caught `docs/adr/README.md`, whose index table would otherwise have shipped without its 0003 row - the exact "fixed the file I was looking at, missed the file that indexes it" shape that has bitten three sessions running. The bot independently confirmed the rest of the correction map (`google_cloud_guide.md` and the manuscript line are whole-genome-scoped, hence consistent, not stale).
+
+**Role boundary held.** `research/manuscript/DISCUSSIONS.md:285` still argues HISAT2 is "retained as a low-memory alternative" on the RAM grounds this ADR retires. Manuscript files are Scientist territory - flagged on the Issue, not edited. The bot agreed this was the right call, which is the first time this week the boundary and the reviewer have agreed on the first pass.
+
+**Scope:** the container build itself is carved out to [#1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162) (distinct build, own PR, own integration run). Until it lands, **HISAT2 remains the working local aligner** and the two-path divergence stays live in the tree - so "we converged on STAR" is true as a decision today and true in the code only when #1162 ships. CLAUDE.md now says exactly that, so no one reads the ADR and assumes the tree already matches it.
+
+---
+
+### 15:05 UTC - Editor: Developer - I fixed the instance and missed the class. Again.
+
+The bot review on [PR #1154](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1154) found the **identical bug one file over**: `check_roadmap_health.py:108` imports `board_open_items`, reuses its `normalize()`, and then re-implements its own first-role-only `--role` filter. Character for character the same silent drop. My PR's own thesis was *"apply the fix we already made to the axis we forgot"* - and I shipped it with the axis still forgotten in the second consumer. Shipping it would have made *"the role axis is fixed"* look true while the undercount that hid work from a Lead kept running in the roadmap sweep.
+
+**This is the third consecutive session with the same shape.** 2026-07-12: fixed the flag in `audit_parent_chain`, missed `run_all_mode`. 2026-07-13: fixed the hook I probed, missed the three the probe couldn't see. Today: fixed the axis in the file I was looking at, missed the file that imports it. I have now written "I fix the instance and miss the class" in this notebook three times, and writing it a fourth time is not a plan.
+
+**What actually caught it, all three times, was an external reviewer with a different probe.** Never my own re-read. So the operational lesson is not "look harder" - it is: **when you fix a bug, grep for the *shape* before you open the PR.** I did that afterwards this time, and the sweep found a third site (`dispatch_digest._role_slug`) the bot had only mentioned in passing. That grep cost thirty seconds and would have caught everything the review did. It belongs *before* the PR, not after it.
+
+**And the fix for the review's finding contained the same bug class again.** My first cut read `it.get("roles")` alone, which silently bucketed every legacy-shaped dict (`role` present, `roles` absent) into `(none)`. A pre-existing test in `workflow/tests/` caught it - a directory my "sweep for all consumers" grep had not searched, because I searched `scripts/` and `tools/` and forgot the suite spans five directories. That is *also* a rule already in my memory ([[ci-pytest-runs-five-dirs-not-just-tools-ci]]). Two rules I have written down, both violated inside the fix for a bug about silently-wrong queries.
+
+**Honest limit on what I verified.** `board_open_items` is confirmed against the live board with a matched-pair control (12 hidden -> 0). `check_roadmap_health` is **not** - the board carries exactly one Target-dated item out of 164 open, and it is single-role, so no live dual-role overdue item exists to exercise. Its evidence is the red-first unit pair alone. Writing that down rather than letting "verified" cover both.
+
+**Shipped after review:** `matches_role()` membership matching + `group_by_role()` bucketing under both roles + `_roles_of()` legacy fallback in `check_roadmap_health`; the two `+N` rendering tests the review asked for (verified red against pre-fix code - they had passed on first write only because the fix was already in, which proves nothing); [Issue #1158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1158) filed for the third site. Suite: 1748 passed.
+
+### 13:10 UTC - Editor: Developer - found by a contradiction, not by a search
+
+`board_open_items.py --role X` kept only the **first** `role:` label on an item, so a dual-role Issue was invisible in the queue of whichever role was not listed first. Measured against the live board: **12 open Issues hidden from `--role developer`**, including [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) - an Issue on which **I am the Lead/DRI**. This script backs the morning routine's right-side sweep, `/inbox`, and the quick-win burndown, so the under-count propagated into every board scan I run.
+
+**Nobody went looking for this.** It surfaced in a routine Beat 2 as a *contradiction*: PM's comment said they had committed #1112 to `Ready` with me as Lead, and my own `Ready` queue did not contain it. Two instruments disagreed. The only reason I caught it is that I checked the board directly instead of trusting the scan that had just told me my queue was complete - and the scan had returned exit 0, no warning, a clean short list. **An under-count reads exactly like a small backlog.**
+
+**The corrective pattern already existed, one line away.** The `arc` axis had this identical bug and it was already corrected in [Issue #1103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1103): `arcs` carries the full label set alongside first-only `arc`, and the filter matches membership. Its code comment even spells out the reason - GitHub returns labels in an **unstable order**, so first-only matching hides an item *nondeterministically*, not merely "the second one". The `role` axis never got the same treatment because the dual-role convention post-dates the single-role assumption baked into the parse. So the fix is not invention, it is **applying a fix we already made to the axis we forgot**.
+
+**The falsifier, and why the matched pair mattered.** Against the pre-fix code the *first-role* test passes and the *second-role* test fails. A test that checked only the first role would have gone green and certified the bug. I also ran the integration check against stashed pre-fix code: **12 hidden before, 0 after**, same command, same board, one variable flipped. Without that control I would have had a green table proving nothing.
+
+**And my verification script had the bug I have already written down.** My first live-board reconciliation used `printf '%s\n' $SEEN` on a space-separated blob. **zsh does not word-split** - the whole blob printed as one line, every count came back `1`, and the table looked plausible enough to read past. Then I fed numerically-sorted input to `comm`, which needs lexicographic order, and got a "hidden" list that was pure garbage. Two silent-wrong-answer bugs, in the eleven lines I wrote to *check* for a silent-wrong-answer bug. Both are already in my memory as rules. Knowing them did not stop me writing them; the only thing that caught them was that the numbers were internally inconsistent (`scan=1` for every role; `hidden` items on a role whose scan count *exceeded* its labelled count) and I refused to let that stand.
+
+**The lesson is not new, it is just newly specific.** The check I write to validate a fix is written by the same person who wrote the fix, out of the same model of the world. It needs a falsifier as much as the code does. Today the tool under test and the tool doing the testing both silently returned a clean, empty, exit-0 answer - and *that shape* is the actual adversary here, not any particular line of code.
+
+**Shipped:** `roles[]` alongside first-only `role` (mirroring `arcs`/`arc`), membership matching in `matches_filter`, a `+N` marker in the Role column so a dual-role row reads as dual, and 8 tests including the matched pair. Verified by driving the real tool against the live board: all four roles now reconcile exactly against `gh issue list --label role:<r>` - zero hidden, zero extra. Suite green (1736 passed).
+
+---
+
+## 2026-07-13 - I blamed the wrong layer, and the fix was one level in ([PR #1145](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1145) closes [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142))
+
+### 15:45 UTC - Editor: Developer - a probe that varies two things cannot tell you which one moved
+
+**I filed [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142) this morning with the wrong root cause, and spent the session disproving my own P1.** The Issue said the `if:` gate in `settings.json` was newline-blind, that nine hooks therefore never fire on a heredoc command, and that [PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) (merged an hour earlier) had not landed its fix. The proposed remedy was to drop every `if:` gate. **All three claims were wrong.**
+
+**The confound.** My probe used `check_board_query_pagination` (`if: "Bash(gh api *)"`). That hook's *inner* matcher is newline-blind **as well**. So when the heredoc form slipped through, the observation was consistent with the gate failing *or* the matcher failing, and I attributed it to the gate. Two variables, one observation. The evidence was real; the attribution never followed from it.
+
+**The isolating probe.** A throwaway hook with **no inner matcher at all** (plain substring match on a magic string), so the gate was the only thing left under test. `if: "Bash(echo *)"` and `if: "Bash(gh *)"` both **fired** after a heredoc and after a plain newline. The gate is subcommand-aware and innocent. De-gating would have added ~180 ms x 9 hooks to every Bash call (measured) and fixed nothing.
+
+**The actual bug: a newline is a command separator in shell but not in `shlex`.** It bites in two shapes, and I only found one of them myself:
+
+- **command-start walk** - the trigger lands after an ordinary word, the match never fires, the hook allows. This is what killed `post_gh_pr_create` ([Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130)), and it was still live in `check_board_query_pagination` and `check_gh_issue_develop_parent`.
+- **subcommand merge** - two commands on two lines merge into one token block and the guard is defeated *without any matcher failing*. `git commit --amend` + `git push --force` resolved to `commit`, so **a force push was never examined**. `git commit` + `git push` on two lines defeated the chain guard (only `&&` was ever enforced). A benign `cd /tmp` masked an escaping `cd /etc/secret`. It also false-positived: `git push` + `git branch -f` read as a forced push.
+
+**PM caught my error before I did.** They saw `post_gh_pr_create` fire on their own heredoc-authored [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) three minutes after I told them the mechanism had never fired on the real path, said plainly that two instruments disagreed, and named the correct reconciliation ("the failure is real but sits somewhere other than the `if:` gate") without having run the probe. They were right. I have retracted the bad correction on [Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130) and corrected the record on [Issue #1072](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1072).
+
+**Then the bot review caught the same class of error again, in my fix.** I swept the remaining hooks with a matched pair and declared four of them clean. My probe prefix was `echo setting up`. **The merge shape only bites when both lines are commands the hook cares about**, so `echo x` + `git push --force` passes while the real `git commit` + `git push --force` fails. The bot probed with a second *real* command and found three live hooks I had just certified. Two of them were safety guards that were silently off.
+
+**What I actually learned, as distinct from what I already knew.** I have written "I fix the instance and miss the class" in this notebook twice this week, and knowing it did not stop me doing it a third time. What stopped it, both times today, was **a control that could come back red** - the isolating probe, and the bot's stronger probe. The lesson is not "be more careful." It is that **a sweep is only as good as its probe, and a probe built from the shape you already understand will certify the shape you do not.** The `echo` prefix felt like a control. It was a confirmation.
+
+**Shipped:** all five `gh`/`git`-matching hooks route through `_shell_parse.normalize_command()` before tokenizing; matched-pair regression tests per hook (command-start / heredoc / plain-newline, plus the false-positive direction), every one confirmed to go **red** against the pre-fix code; `AGENTS.md` records both failure shapes, the wrong `if:`-gate theory so it is not re-derived, and the probe trap. Verified by driving the real trigger, not a synthetic payload: the heredoc-led board query is now denied with a fire-log line, and this PR was itself opened with a heredoc `--body-file` to watch `post_gh_pr_create` fire live. CI green, 1,702 tests.
+
+---
+
+## 2026-07-12 - Flag parents whose full sub-bar hides unticked body scope ([PR #1132](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1132) closes [Issue #1067](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1067))
+
+### 00:30 UTC - Editor: Developer - the same bug, twice, in one PR
+
+Under the A2 epic-park a parent's progress is read off GitHub's native sub-issue bar, so a **full bar reads as done**. But body scope routinely exceeds the filed sub-issues, which makes "full bar, unticked body" an invisible drift class. `classify_drift` now emits an advisory `[REVIEW]` naming the count and the heading.
+
+**Implemented exactly as specified, it was a no-op on its own motivating cases.** The Issue says "unticked **AC** boxes", so I keyed it on `scan_ac_boxes(...).ac_unticked`. Run against the live board: **zero on all three cited parents.** [Issue #859](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/859)'s four unticked boxes live under `## Sub-issues`, not `## Acceptance criteria`, so they are *stray* boxes and the AC-keyed count is legitimately 0. A feature that would have shipped green, passed review, and never fired.
+
+The fix was not to lint #859's headings into compliance. A parent body **is** a roadmap: an unticked `## Sub-issues` line *is* the "body scope exceeds the filed sub-issues" signal. So the flag keys on any unticked body box and names the heading, letting the human judge.
+
+**Then the bot review found I had done the same thing again, one layer up.** I wired the flag into `audit_parent_chain` (`--issue`) and left `run_all_mode` (`--all`) calling the old signature - so every new argument silently defaulted and **the board-wide sweep could never emit the flag.** And `--all` is the *proactive discovery* mode: the very mode I had used to find the motivating cases. A sweep would have reported a clean board while #859 and #527 sat right there. Root cause was duplication - two call sites each building the record inline - so the fix removes it: one `audit_one_parent()` builder, called by both. They cannot diverge on a new argument again.
+
+I declined its fetch-collapse nit. Taking it would re-point every mock seam in the existing suite: churn that could mask a regression, for zero behavior change on an advisory tool. Recorded as a known inefficiency instead of smuggled into a correctness fix.
+
+**The lesson is now unmistakable, because it happened three times today.** A mechanism can be *shipped, tested, reviewed, and completely inert*. Unit tests prove the logic; they say nothing about whether the trigger fires or the code path is reachable from the mode people actually run. The only check that catches this is the cheap one: **run the real thing, in the real mode, against the real world, and look.** Every bug I found today died to that check, and every bug I shipped survived one that could only confirm.
+
+---
+
+## 2026-07-12 - ADR-0002: cloud storage vs compute ([PR #1133](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1133) closes [Issue #887](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/887))
+
+### 00:20 UTC - Editor: Developer - ratifying a decision that was already governing us
+
+Wrote ADR-0002 for the post-decommission cloud posture. The decision itself is not new - it has been silently governing every re-scope since the GCP teardown - but it lived only in an Issue thread and project memory, which means each new re-scope was re-deriving it.
+
+**Do not build a bespoke cloud-agnostic framework.** Abstracting against one dead provider and zero active ones is premature generality; there is no second implementation to validate the abstraction against. Split the concerns instead, because they abstract very differently: **storage** (GCS/S3/R2 are ~the same shape) neutralizes cheaply via `storage.remote_prefix` + `rclone` - rclone *is* the agnostic layer, so we configure one rather than build one - while **compute** (drivers, provisioning, executors) does not abstract at all, and keeps per-provider runbooks. The P100/cu126 saga is the standing evidence: those details resisted abstraction the first time, which is precisely why the archived recipe exists.
+
+The sentence I most wanted on the record: *adding a storage backend is an `rclone` config change, not code. If you find yourself writing a `StorageBackend` interface, this ADR is the thing you are contradicting.* An ADR that cannot be contradicted by a future action isn't doing any work.
+
+**Freshness paid off again.** The Issue's body ACs 2-5 (a disposition sweep) had already been executed by PM on 2026-07-02. Had I worked the ACs as written I would have re-done a completed sweep. Checked before starting; ticked them as historical.
+
+The bot review caught a genuine honesty bug in my `CLAUDE.md` pointer: I wrote "storage neutralized via `storage.remote_prefix` + `rclone`" in the present tense, but **neither exists** - the helper is deliberately deferred (YAGNI). A future agent would have grepped for the config key, found nothing, and been confused. Fixed to state the *approach*, and to say plainly that it is not built. A reference file that describes an intention as a fact is worse than one that says nothing.
+
+
+---
+
+## 2026-07-11 - Anchor the skip-lab-notebook marker ([PR #1129](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1129) closes [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126))
+
+### 22:20 UTC - Editor: Developer - the fix for a silent bug had a silent bug
+
+Closed the latent twin of the [PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) marker bug: `_SKIP_LAB_NOTEBOOK` was unanchored, so a PR body that merely *documents* the opt-out would silently skip the lab-notebook merge gate.
+Same shape as the one that fired on #1124; it had not bitten only because no body had happened to quote it.
+
+**A real behavior change, deliberately surfaced.**
+A marker trailing after prose on the same line no longer opts out.
+When the existing fixture (which encoded the old contract) went red, I did **not** quietly edit it green - I changed it *and* added a test pinning the new contract, so a future re-loosening announces itself.
+No regex can separate "directive with a preamble word" from "prose about the directive"; "put it on its own line" is the only rule both a human and a machine can follow.
+And the failure direction is safe: fail-closed (a mis-formatted marker blocks loudly) beats fail-open (a gate silently bypassed).
+
+**Then the bot review found that my anchoring fix had its own silent failure: CRLF.**
+Python's `$` matches only before a `\n`, never before a `\r`.
+A PR body **authored or edited in the GitHub web UI comes back from the API with CRLF** - so a correctly-placed own-line marker fails the end-anchor and silently does not register.
+Fail-closed again, but a baffling false negative for an author who did everything right.
+
+Two things worth keeping:
+
+1. **The reviewer said it could not run Python in its sandbox, and asked for a 20-second local check.** I ran it. Both markers returned `False` on a CRLF own-line marker - including `skip-bot-review`, which I had **already merged**. The review was right, and right about more than it knew. Verifying beat assuming, in the direction of *worse* news.
+2. **My LF-only test suite was structurally incapable of seeing it.** Every fixture used `\n`. The tests were not wrong, they were *blind* - and blind in a way that adding more LF cases could never fix.
+
+Three bugs today, all silent, all in mechanisms that were "shipped and tested": the heredoc matcher, the unanchored marker, the CRLF anchor.
+None failed loudly. The pattern is not carelessness - **every one of them lived in the gap between what my tests exercised and what the world actually sends.**
+
+---
+
 ## 2026-07-11 - Auto-request the first-pass bot review ([PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124) closes [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073))
 
 ### 21:10 UTC - Editor: Developer - the mechanism opted itself out of its own review
@@ -44,6 +213,38 @@ My live smoke was a genuine end-to-end check and it was still not sufficient - i
 Checked the new tests can fail: with the fallback disabled, exactly the 2 new tests go red and the other 4 stay green, which is precisely how the bug shipped past round 1.
 
 Filed [Issue #1126](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1126) for the latent twin the reviewer spotted: `_SKIP_LAB_NOTEBOOK` is unanchored the same way, so a PR body quoting *that* marker inline would silently skip the lab-notebook gate. It has not bitten only because no body has happened to quote it - and the more we document the convention, the likelier that gets.
+
+---
+
+## 2026-07-11 - The hook I shipped never ran ([PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) closes [Issue #1130](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1130))
+
+### 22:05 UTC - Editor: Developer - a verification that could only confirm, and what it cost
+
+An hour after merging [Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073) I opened the next PR and the auto-review did not fire.
+`matches_pr_create` never matches `gh pr create` when it follows a **heredoc**: the heredoc body's words tokenize into the command stream, so `gh` ends up after an ordinary word (the closing delimiter) instead of a separator, and the command-start test fails.
+A heredoc body is how every PR with real content gets opened here, so the hook was dead on the dominant path.
+
+**And the blast radius was older and wider than my feature.**
+The hook's original job - board-add + draft-aware Status ([Issue #550](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/550), [Issue #561](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/561)) - has been silently dead on that same path for months.
+Then, auditing siblings, the same shape turned up a **third** time: `check_at_claude.py`, the rung-3 guard whose entire job is to stop an accidental bot mention from firing the Action, anchors its match at string-start or after `;&|` and so never sees a heredoc-authored comment either.
+Three mechanisms, all "shipped", all silently not running. Not one of them failed loudly.
+
+**How I fooled myself, precisely.**
+[PR #1124](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1124)'s "live integration smoke" piped a synthetic PostToolUse payload straight into `main()`.
+That **bypasses `matches_pr_create` entirely**: it exercised everything downstream of the trigger and never once touched the trigger.
+I wrote it, watched it post a real comment and flip real board cards, and reported an end-to-end verification I had not performed.
+The falsifier I never asked for is trivial: *what would this check do if the matcher were broken?* Answer: exactly what it did.
+This is the `feedback_a_check_must_be_able_to_fail` shape, and the rule was in my context from the memory check at session start. Knowing it is not the same as running it.
+
+**What actually caught it:** opening the *next* PR and looking at whether the thing happened. Not a test, not a review - just using the mechanism for real and checking the world. That is the cheapest possible falsifier and I had skipped it.
+
+So the proof this time is **structural, not asserted**: [PR #1131](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1131) is itself opened with a heredoc. The hook fired on that very command, boarded the PR, requested its own review, and wrote both fire-log lines. If the fix were wrong, none of that would exist.
+
+**The fix:** normalize before tokenizing (strip heredoc bodies, turn *unquoted* newlines into separators), in a shared `_shell_parse` module both hooks use. It **strengthens** the anti-false-positive guard rather than weakening it: bodies are removed rather than tokenized, and in-quote newlines are untouched, so a quoted multi-line body cannot masquerade as a command. `check_at_claude` needed the mirror-image treatment - **detect** on the normalized command, **inspect** on the raw one, since normalizing throws away the body this guard exists to read.
+
+**The bot review then caught me repeating the pattern one level down.** I claimed AC 5 ("sibling matcher audited and wired") - the wiring was real, the *tests* were absent. The exact untested-path shape this PR exists to kill, reproduced inside the PR that kills it. It also caught a `PUNCT` constant whose comment promised the two hooks "cannot drift on it" while both kept private copies: a claim contradicted by the code three lines below it. Both fixed.
+
+**Lesson, and it is not "test more".** It is: *a verification that routes around the trigger is not a verification.* Drive the mechanism the way a user drives it, or admit you haven't checked. The three dead mechanisms all had tests. What none of them had was anyone opening a real PR and looking.
 
 ---
 

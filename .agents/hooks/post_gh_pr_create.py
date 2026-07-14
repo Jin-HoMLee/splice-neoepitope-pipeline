@@ -49,6 +49,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 # Project #9 ("JH M Lee Lab") — a user-level project, so these IDs are stable
 # and repo-independent (same values used by recheck_dispatch.py).
 PROJECT_ID = "PVT_kwHOB17eGc4BSomP"
@@ -82,17 +85,24 @@ REVIEW_TRIGGER = "@claude review"
 # The unanchored form bit immediately: a PR body that merely *documents* the
 # marker in prose - backtick-quoted, mid-sentence - matched, and this feature's
 # own PR (#1124) silently opted itself out of the review it exists to request.
-# Anchoring is what separates "using the directive" from "talking about it", and
-# it is the deliberate divergence from `_SKIP_LAB_NOTEBOOK`, which is unanchored
-# and carries the same latent hazard.
+# Anchoring is what separates "using the directive" from "talking about it".
+# `_SKIP_LAB_NOTEBOOK` in `closure_audit.py` now carries the identical pattern
+# (Issue #1126), so the two markers share one rule.
+#
+# The trailing class must absorb a **carriage return**. Python's `$` matches only
+# before a `\n`, never before a `\r`, so under CRLF the end-anchor fails and a
+# correctly-placed marker **silently does not register** - and a PR body authored
+# or edited in the GitHub **web UI** comes back from the API with CRLF. Fail-closed
+# (the PR just gets a bot review it tried to skip), but baffling for an author who
+# did it right. Verified empirically before fixing (PR #1129 review, finding 1).
 _SKIP_BOT_REVIEW_RE = re.compile(
-    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t]*$", re.IGNORECASE | re.MULTILINE
+    r"^[ \t]*<!--\s*skip-bot-review\b[^>]*-->[ \t\r]*$", re.IGNORECASE | re.MULTILINE
 )
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)")
 _PR_CREATE_PREFIX = ("gh", "pr", "create")
-_PUNCT = set("();<>|&")  # shell punctuation_chars → standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 # A leading `VAR=value` assignment at a command-start position (shlex strips the
 # quotes in posix mode, so `B="x"` arrives as the token `B=x`). Mirrors the
 # harness's subcommand-aware Bash matcher, which strips such prefixes.
@@ -117,9 +127,20 @@ def matches_pr_create(cmd: str) -> bool:
     command start is found after them (the harness Bash matcher does the same) —
     `B="x" gh pr create …` and its `VAR=…`-newline-`gh pr create` form both match.
     Untokenizable input (unbalanced quotes) fails safe → no match.
+
+    The command is **normalized first** (Issue #1130): heredoc bodies are stripped
+    and unquoted newlines become separators. Without that, `cat > body.md <<'EOF'
+    ... EOF` followed by `gh pr create --body-file body.md` - the way essentially
+    every PR with a real body is opened - never matched, because the heredoc body's
+    words tokenized into the stream and left `gh` sitting after an ordinary word
+    rather than a separator. The hook was silently dead on the dominant path.
+    Normalization strengthens the quoted-argument guard above rather than weakening
+    it: a heredoc body is *removed* instead of tokenized, and newlines inside quotes
+    are left alone, so a multi-line quoted body still cannot masquerade as a command.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:
