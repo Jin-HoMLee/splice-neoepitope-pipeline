@@ -9,22 +9,52 @@ available. The establishing incident is Issue #594 - its prerequisites (#211,
 #212) closed on 2026-06-11 and it sat un-pulled for 4 days, caught only by a
 manual dig during the morning routine.
 
-## Why the obvious rule is WRONG
+## LEVEL-TRIGGERED, not edge-inferring - and why that distinction is the whole design
 
-The naive detector - *"unblocked AND still in Backlog"* - would fight our own
-model. Under late-commitment Kanban (`shared/feedback_board_hygiene.md`), sitting
-uncommitted in Backlog is the **normal, correct** resting state of an option, not
-drift. Flagging it would emit a permanent nag against items that are exactly where
-they belong, and a nag that can only say one thing is a hollow check.
+The naive detector - *"unblocked AND still in Backlog"* - is wrong: under
+late-commitment Kanban (`shared/feedback_board_hygiene.md`), sitting uncommitted in
+Backlog is the **normal, correct** resting state of an option, not drift. Flagging it
+would nag forever about items that are exactly where they belong.
 
-The real signal is the **state change**, not the standing state:
+The **first** cut of this script fixed that with a time window: fire only if a blocker
+closed within the last N days. That was an **edge-inferring** design - it reconstructed
+"an event happened" from a state snapshot - and it carried a silent-data-loss bug:
 
-    a blocker closed RECENTLY, and the dependent it was blocking is STILL uncommitted.
+    if the sweep did not RUN inside the window, the finding was dropped FOREVER.
 
-That is the #594 shape precisely (the clear went unnoticed for 4 days), and it is
-a **replenishment input** - "this is newly available, reconsider it" - never an
-instruction to commit. Advisory by house style: it surfaces, it never blocks and
-never auto-commits.
+Two weeks of not running the morning routine and an unblock event vanishes with no
+trace. That is exactly the failure mode the webhook/event literature exists to warn
+about, and it is worse than the bug it was written to avoid.
+
+So the window is **gone**. This is now a proper **level-triggered reconciliation loop**
+(the Kubernetes/Flux pattern): it does not care about events at all, it looks at the
+world *right now* and asks whether it is in the desired state. The desired state is:
+
+    every unblocked Issue has HAD its commitment decision.
+
+and the condition for a finding is a pure statement about the present:
+
+    >=1 wired blocker, ALL of them CLOSED, still uncommitted, and NOT yet acknowledged.
+
+**No time window. Nothing can expire. Missing a run costs nothing** - the next run sees
+exactly the same world and reports exactly the same thing.
+
+## Why an acknowledgement label, and why this is not a nag
+
+A level-triggered loop keeps reporting until the world reaches the desired state, so
+each finding needs a **terminal action**. There are exactly two, and both are honest:
+
+- **Commit it** -> board Status leaves the uncommitted set -> the finding clears itself.
+- **Decline it** (deliberately leave it resting) -> apply the `unblock-ack` label ->
+  the finding clears.
+
+That is the difference between a to-do list and a nag: a nag is a warning you cannot
+make stop. Here every finding has a definite way to stop, and the way to stop it *is*
+the decision we wanted made. An item keeps appearing precisely as long as nobody has
+decided about it - which is the point, not a defect.
+
+The output is still **advisory** (house style): it surfaces, it never blocks, and it
+never auto-commits. `--ack` records a decline; it does not make one.
 
 ## Scope note
 
@@ -36,10 +66,10 @@ fire on the empty set, i.e. a check that cannot fail. See the Issue for the numb
 
 Usage::
 
-    python3 scripts/pm/scan_unblocked.py                 # sweep, human-readable
-    python3 scripts/pm/scan_unblocked.py --since-days 30 # widen the lookback
-    python3 scripts/pm/scan_unblocked.py --json          # machine-readable
-    python3 scripts/pm/scan_unblocked.py --check         # exit 1 on any finding
+    python3 scripts/pm/scan_unblocked.py                    # sweep, human-readable
+    python3 scripts/pm/scan_unblocked.py --json             # machine-readable
+    python3 scripts/pm/scan_unblocked.py --check            # exit 1 on any finding
+    python3 scripts/pm/scan_unblocked.py --ack 594 --reason "resting on purpose: ..."
 """
 from __future__ import annotations
 
@@ -56,11 +86,13 @@ REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 OWNER, NAME = REPO.split("/")
 PROJECT_NUMBER = 9
 
-# How recently a blocker must have closed for the clear to count as a *state
-# change* rather than a standing state. 14d comfortably covers a weekly
-# Replenishment cadence (a clear cannot slip through between two sweeps) without
-# re-flagging options that have simply been resting for a month.
-DEFAULT_SINCE_DAYS = 14
+# The acknowledgement marker: "we looked at this cleared blocker and deliberately
+# chose to leave the Issue resting." It is what lets this loop be level-triggered
+# WITHOUT nagging - the decline is recorded in the world, so the loop can read it
+# back and go quiet. A time window would have done the same job by *forgetting*,
+# which silently loses any finding the sweep did not happen to run in time to see.
+# Remove the label and the finding legitimately returns (the decision is revoked).
+ACK_LABEL = "unblock-ack"
 
 # Board Statuses that mean "not yet committed". A cleared blocker only matters if
 # nobody has since pulled the dependent. `Epic` is deliberately absent: a parent is
@@ -139,18 +171,28 @@ def board_status(item_nodes, project_number=PROJECT_NUMBER):
     return None
 
 
-def classify(issue, *, now, since_days):
-    """Decide whether one issue is a freshly-unblocked finding. Pure.
+def classify(issue, *, now=None):
+    """Decide whether one issue is an unblocked-but-undecided finding. Pure.
+
+    A statement about the world RIGHT NOW - no event history, no clock dependency.
+    `now` is used only to *describe* how long a finding has been waiting; it never
+    decides anything, so a sweep run today and the same sweep run in a year return
+    the same findings. That is what makes this level-triggered.
 
     Returns a finding dict, or None. Four ways to be silent, each load-bearing:
 
-    1. **No wired blocker ever.** Nothing cleared, so there is no state change.
+    1. **No wired blocker ever.** Nothing to clear; most of the board.
     2. **A blocker is still open.** Genuinely still blocked - not our business.
-    3. **The last blocker cleared outside the window.** The clear is old news; the
-       item is now simply a resting uncommitted option, and flagging it forever is
-       the nag this sweep exists NOT to be.
-    4. **Already committed** (Ready / In progress / review / Done / Epic). Somebody
+    3. **Already committed** (Ready / In progress / review / Done / Epic). Somebody
        pulled it after the clear - the system worked, say nothing.
+    4. **Acknowledged** (`unblock-ack`). Somebody looked and deliberately chose to
+       leave it resting. That is a decision, and the decision is what we wanted; the
+       loop records it and goes quiet. Remove the label and it legitimately returns.
+
+    Note what is NOT here: a time window. The first cut expired a finding after N days,
+    which meant a sweep that did not RUN in time dropped it forever. Silent loss is a
+    worse failure than a repeat mention, and a level-triggered loop does not need to
+    remember anything - it just re-reads the world.
     """
     blockers = ((issue.get("blockedBy") or {}).get("nodes")) or []
     if not blockers:
@@ -158,20 +200,23 @@ def classify(issue, *, now, since_days):
     if any(b.get("state") != "CLOSED" for b in blockers):
         return None                                            # (2)
 
-    closed_ats = [ts for ts in (parse_ts(b.get("closedAt")) for b in blockers) if ts]
-    if not closed_ats:
-        # All blockers report CLOSED but none carries a closedAt. We cannot date the
-        # state change, so we cannot honour the window. Stay silent rather than
-        # invent a timestamp - a finding we cannot justify is worse than a miss.
-        return None
-    cleared_at = max(closed_ats)
-    age_days = (now - cleared_at).total_seconds() / 86400.0
-    if age_days > since_days:
-        return None                                            # (3)
-
     status = board_status((issue.get("projectItems") or {}).get("nodes"))
     if status not in UNCOMMITTED_STATUSES:
+        return None                                            # (3)
+
+    labels = [lb.get("name", "") for lb in (((issue.get("labels") or {}).get("nodes")) or [])]
+    if ACK_LABEL in labels:
         return None                                            # (4)
+
+    # Descriptive only - never a gate. A blocker legitimately may carry no closedAt
+    # (deleted/transferred edge cases); that must not suppress a finding, because the
+    # finding does not depend on WHEN it cleared, only THAT it has.
+    now = now or dt.datetime.now(dt.timezone.utc)
+    closed_ats = [ts for ts in (parse_ts(b.get("closedAt")) for b in blockers) if ts]
+    cleared_at = max(closed_ats) if closed_ats else None
+    waiting_days = (
+        round((now - cleared_at).total_seconds() / 86400.0, 1) if cleared_at else None
+    )
 
     roles = sorted(
         label["name"]
@@ -184,8 +229,8 @@ def classify(issue, *, now, since_days):
         "url": issue.get("url", ""),
         "status": status or "No Status",
         "roles": roles,
-        "cleared_at": cleared_at.isoformat(),
-        "age_days": round(age_days, 1),
+        "cleared_at": cleared_at.isoformat() if cleared_at else None,
+        "waiting_days": waiting_days,
         "cleared_by": [
             {"number": b["number"], "title": b.get("title", ""), "closedAt": b.get("closedAt")}
             for b in sorted(blockers, key=lambda b: b["number"])
@@ -193,16 +238,17 @@ def classify(issue, *, now, since_days):
     }
 
 
-def render(findings, *, since_days):
+def render(findings):
     """Human-readable report. Pure."""
     if not findings:
-        return (f"freshly-unblocked sweep: no findings "
-                f"(no blocker cleared in the last {since_days}d with its dependent "
-                f"still uncommitted).")
+        return ("unblocked-but-undecided sweep: no findings "
+                "(every unblocked Issue has been committed or acknowledged).")
     lines = [
-        f"freshly-unblocked sweep: {len(findings)} finding(s) - a blocker cleared "
-        f"within {since_days}d and the dependent is still uncommitted.",
-        "Advisory: this is a Replenishment input (reconsider these), never an auto-commit.",
+        f"unblocked-but-undecided sweep: {len(findings)} finding(s) - every blocker is "
+        f"CLOSED and the Issue is still uncommitted and unacknowledged.",
+        "Advisory: a Replenishment input (reconsider these), never an auto-commit.",
+        f"To clear one: COMMIT it (Status leaves Backlog), or DECLINE it "
+        f"(--ack <N> --reason ... applies `{ACK_LABEL}`). Both are correct answers.",
         "",
     ]
     for f in findings:
@@ -212,7 +258,9 @@ def render(findings, *, since_days):
         )
         for b in f["cleared_by"]:
             lines.append(f"      cleared by #{b['number']} ({b['title'][:50]})")
-        lines.append(f"      last blocker closed {f['age_days']}d ago -> {f['url']}")
+        waited = (f"undecided for {f['waiting_days']}d"
+                  if f["waiting_days"] is not None else "clear date unknown")
+        lines.append(f"      {waited} -> {f['url']}")
         lines.append("")
     return "\n".join(lines).rstrip()
 
@@ -247,37 +295,76 @@ def fetch_open_issues():
         cursor = page["endCursor"]
 
 
-def sweep(*, since_days=DEFAULT_SINCE_DAYS, now=None):
+def sweep(*, now=None):
     now = now or dt.datetime.now(dt.timezone.utc)
     issues = fetch_open_issues()
-    findings = [
-        f for f in (classify(i, now=now, since_days=since_days) for i in issues) if f
-    ]
-    return sorted(findings, key=lambda f: f["age_days"])
+    findings = [f for f in (classify(i, now=now) for i in issues) if f]
+    # Longest-undecided first: the one that has been waiting on a decision the longest
+    # is the one most likely to have been forgotten. Undateable clears sort last.
+    return sorted(findings, key=lambda f: (f["waiting_days"] is None,
+                                           -(f["waiting_days"] or 0)))
+
+
+def acknowledge(number, reason):
+    """Record a DELIBERATE decline: label the Issue + leave the reason on the record.
+
+    This does not make the decision - a human does. It writes the decision down so the
+    level-triggered loop can read it back and stop asking. The reason is mandatory
+    precisely because an unexplained silence is what we are trying to eliminate: a
+    finding that vanishes with no rationale is indistinguishable from one that was lost.
+    """
+    body = (
+        f"**From:** PM\n\n"
+        f"## Acknowledged: unblocked, and deliberately left resting\n\n"
+        f"Every wired blocker on this Issue is closed, so it is **available**. "
+        f"We looked and chose **not** to commit it now.\n\n"
+        f"**Reason:** {reason}\n\n"
+        f"Labelled `{ACK_LABEL}`, so the unblocked-but-undecided sweep "
+        f"(`scripts/pm/scan_unblocked.py`, Issue #745) stops surfacing it. This is a "
+        f"decision, not a dismissal - **remove the label and it returns to the sweep.**\n\n"
+        f"**Created by:** PM"
+    )
+    gh("issue", "comment", str(number), "--repo", REPO, "--body", body, parse_json=False)
+    gh("issue", "edit", str(number), "--repo", REPO, "--add-label", ACK_LABEL,
+       parse_json=False)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--since-days", type=int, default=DEFAULT_SINCE_DAYS,
-                        help=f"lookback window for the blocker's close (default {DEFAULT_SINCE_DAYS})")
     parser.add_argument("--json", action="store_true", help="emit findings as JSON")
     parser.add_argument("--check", action="store_true",
                         help="exit 1 if any finding (for a hygiene gate); default is advisory exit 0")
+    parser.add_argument("--ack", type=int, metavar="N",
+                        help=f"record a deliberate decline on Issue N (applies `{ACK_LABEL}`)")
+    parser.add_argument("--reason", help="why it is being left resting (required with --ack)")
     args = parser.parse_args()
 
+    if args.ack:
+        if not args.reason:
+            parser.error("--ack requires --reason: an unexplained decline is "
+                         "indistinguishable from a dropped finding")
+        try:
+            acknowledge(args.ack, args.reason)
+        except GhError as exc:
+            print(f"unblocked sweep: FAILED to acknowledge #{args.ack} - {exc}", file=sys.stderr)
+            return 2
+        print(f"acknowledged #{args.ack} ({ACK_LABEL}) - it will no longer surface. "
+              f"Remove the label to bring it back.")
+        return 0
+
     try:
-        findings = sweep(since_days=args.since_days)
+        findings = sweep()
     except GhError as exc:
         # Fail open + loud: a sweep that cannot reach GitHub must not masquerade as
         # a clean board (the silent-green failure this repo keeps re-learning).
-        print(f"freshly-unblocked sweep: FAILED to query GitHub - {exc}", file=sys.stderr)
+        print(f"unblocked sweep: FAILED to query GitHub - {exc}", file=sys.stderr)
         return 2
 
     if args.json:
         print(json.dumps(findings, indent=2))
     else:
-        print(render(findings, since_days=args.since_days))
+        print(render(findings))
 
     return 1 if (args.check and findings) else 0
 
