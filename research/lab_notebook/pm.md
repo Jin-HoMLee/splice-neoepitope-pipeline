@@ -8,6 +8,58 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 14:30 UTC - Editor: PM
+
+#### Closing the resume-routine Issue with the one check I could not run myself
+
+[Issue #1026](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1026) sat open for ten days on a single unticked box, and the box was not waiting on work.
+Everything was built: the spec merged, `shared/feedback_resume_routine.md` committed, the greeting-classification bullet wired into `shared/MEMORY.md`, the sole sub-issue closed.
+What it waited on was an *observation* - that a morning greeting still routes to the morning routine - and no session that already knew about the Issue could honestly produce it.
+
+This morning produced it. Jin-Ho opened with an unprompted "Good morining :)", the selector routed to the full morning routine, and all five beats ran.
+
+**The part worth recording is not that it passed. It is how I let it be able to fail.**
+
+The tempting evidence was my own recollection of the session, which is precisely the check that can only come back green: I am both the instrument and the reporter.
+So I went looking instead for artifacts the morning routine *alone* can produce, each timestamped and independently readable off the board: the SDR ([PR #1146](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1146), merged 13:10Z), the roadmap-health sweep (the [Issue #679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679) comment clearing a stray Target date, which names its own origin: *"surfacing as 3d overdue in the morning roadmap sweep"*), and Replenishment plus Signals (five Issues filed today).
+
+The falsifier runs in the direction that can hurt: had the selector regressed, the greeting would have routed to the **resume** routine, whose defining property is that it runs *none* of the once-daily cadences.
+A resume routine cannot produce an SDR, cannot sweep the roadmap, cannot file a Replenishment Issue.
+Those artifacts are not merely consistent with the morning routine having run; they are **inconsistent with it not having run**.
+And they form a real matched pair with the resume limb ticked on 2026-07-11: same selector, one variable flipped, opposite predicted outcomes, both observed.
+
+Honest limitation, recorded rather than smoothed over: the greeting string itself lives in the session transcript and my episode file, not in a repo artifact.
+The proof is a two-link chain - the episode records *what the greeting was*, the board records *which routine ran that morning*.
+Neither link closes this alone.
+
+#### And then I did the exact thing this notebook has spent two days warning about
+
+Jin-Ho asked me to web-search alternatives for our GraphQL exhaustion, which had just stalled a second session.
+I read GitHub's primary docs, found the documented cost formula (nodes divided by 100), applied it to our board query, and reported with confidence that **a full board read costs ~700 points** of our 5,000/hr budget - therefore the 1,228-item board was the culprit, therefore [Issue #1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152) (auto-archive) was the fix, and therefore we should also right-size our nested `first:` caps.
+
+Then I measured it.
+
+| What I claimed | What it measures |
+|---|---|
+| full 13-page board read ~700 points | **26 points** |
+| one page (4,100 nodes) is expensive | **2 points** |
+| trimming `first:` caps saves real budget | **saves nothing** |
+
+**Wrong by a factor of 27.** The formula bills per *request needed to fulfil a connection*, not per node returned, so node count is nearly free and my whole recommendation was built on a number I had derived instead of observed.
+I had sourced it from the primary doc, which is exactly what makes it a good lesson: **reading the right source is not the same as measuring the thing.**
+
+The real cause only appeared because the measurement made no sense.
+The budget kept falling while I ran nothing - ~600 points/hour with this session **idle**, and ~1,100 points between two of my own commands.
+The GraphQL limit is **per GitHub user** (the error string says so: *"for user ID 123657753"*), and we had **seven concurrent `claude` processes** live as that one user, plus another repo's `while true` loop polling `gh pr checks` every 30s, plus the Scientist clone's board hooks shelling out to `gh api graphql`.
+
+**Our board reads are cheap. Our concurrency is not.** At 26 points we could afford ~190 full board reads an hour; we do nowhere near that.
+
+I blamed the board twice today for the same reason both times: **the board is the only consumer a session can see.** A shared bucket with no per-consumer visibility makes every individual session's accounting look innocent while the aggregate fails - the same defect class the [Issue #1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135) family keeps surfacing. Filed as [Issue #1165](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165); the false rationale is struck from [#1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152), which still stands on its truncation-bug argument.
+
+Two dead ends recorded there so nobody re-walks them: **token rotation** does nothing (the bucket is keyed on the user, not the token), and a **GitHub App** buys nothing (the 10,000-point tier is Enterprise-Cloud-only; we are a personal account with one user and two repos).
+
+The uncomfortable symmetry: the morning entry, three hours earlier, was titled *"a mechanism that reports success while doing nothing."* This afternoon I produced a confident, well-sourced, primary-doc-cited analysis that was wrong in its central number, and the only thing that caught it was running the query and reading what came back. **Not care. A second instrument.**
+
 ### 13:30 UTC - Editor: PM
 
 #### Four findings, one defect: a mechanism that reports success while doing nothing
