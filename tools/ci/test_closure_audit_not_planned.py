@@ -86,3 +86,38 @@ class TestPredicates:
         assert not ca.is_parent_rollup({"subIssuesSummary": {"total": 0}})
         assert not ca.is_parent_rollup({"subIssuesSummary": None})
         assert not ca.is_parent_rollup({})
+
+
+# --- Issue #1137 PR review: the subIssuesSummary fetch must never crash the audit ---
+
+
+def test_fetch_sub_total_fails_open_on_gh_error(monkeypatch):
+    """The bot's blocking scenario: if `gh issue view --json subIssuesSummary` is
+    rejected (unknown field on some gh build), audit_issue must NOT crash on every
+    closed issue. It degrades to total=0 (treat as leaf), never raises."""
+    import subprocess as sp
+
+    def boom(*a, **k):
+        raise sp.CalledProcessError(1, "gh", stderr='Unknown JSON field: "subIssuesSummary"')
+
+    monkeypatch.setattr(ca, "_gh", boom)
+    assert ca._fetch_sub_total(1) == 0  # fail-open, not a raised exception
+
+
+def test_fetch_issue_survives_a_subissues_field_rejection(monkeypatch):
+    """End-to-end: the CORE fields still fetch even when the subIssues field errors.
+
+    Matched-pair control against the fail-open above: the main fetch must succeed
+    (returning a usable issue dict) rather than the whole call blowing up."""
+    import subprocess as sp
+
+    def fake_gh(*args, repo=None):
+        if "subIssuesSummary" in args:  # the isolated second fetch
+            raise sp.CalledProcessError(1, "gh", stderr='Unknown JSON field')
+        return '{"number": 1, "body": "b", "labels": [], "comments": [], "closedAt": "2026-07-10T00:00:00Z", "stateReason": "COMPLETED"}'
+
+    monkeypatch.setattr(ca, "_gh", fake_gh)
+    issue = ca.fetch_issue(1)
+    assert issue["number"] == 1
+    assert issue["subIssuesSummary"]["total"] == 0  # degraded to leaf, no crash
+    assert ca.is_parent_rollup(issue) is False

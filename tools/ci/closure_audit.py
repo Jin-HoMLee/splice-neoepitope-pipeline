@@ -523,15 +523,43 @@ def fetch_pr(n: int, repo: str | None = None) -> dict:
     ))
 
 
+def _fetch_sub_total(n: int, repo: str | None = None) -> int:
+    """subIssuesSummary.total for issue `n`, or 0 on ANY failure (fail-safe).
+
+    Fetched SEPARATELY from the main issue view, and fail-open, on purpose
+    (Issue #1137 review). `gh issue view --json` validates field names client-side,
+    so if a `gh` build ever does not know `subIssuesSummary` the call exits non-zero
+    - and folding it into the main fetch (which runs `check=True`) would crash
+    audit_issue on EVERY closed issue, posting nothing at all. That is worse than
+    the bug this fixes. Isolating it means a rejected field degrades the parent
+    exemption to "treat as leaf" (the pre-#1137 behavior: run the notebook check),
+    never a crash. Treating-as-leaf is the safe direction for a linter - it risks a
+    single false ALARM on a real parent, never a silent false pass.
+
+    (`subIssuesSummary` IS supported on current gh - verified on 2.95.0 - so this
+    is belt-and-suspenders against version drift, not a live breakage.)
+    """
+    try:
+        data = json.loads(_gh(
+            "issue", "view", str(n), "--json", "subIssuesSummary", repo=repo,
+        ))
+        return (data.get("subIssuesSummary") or {}).get("total") or 0
+    except (subprocess.CalledProcessError, json.JSONDecodeError, ValueError, KeyError):
+        return 0
+
+
 def fetch_issue(n: int, repo: str | None = None) -> dict:
-    return json.loads(_gh(
+    # Only long-standing fields here, so this core fetch cannot be broken by a
+    # newer field on an older gh. subIssuesSummary is fetched separately and
+    # fail-open (see _fetch_sub_total), then merged into the shape the rest of the
+    # module reads (is_parent_rollup expects issue["subIssuesSummary"]["total"]).
+    issue = json.loads(_gh(
         "issue", "view", str(n),
-        # subIssuesSummary drives the parent/epic notebook exemption (Issue #1137).
-        # Without it the field reads as None, is_parent_rollup() is always False,
-        # and the exemption silently never fires - a fix that ships inert.
-        "--json", "number,body,labels,comments,closedAt,stateReason,subIssuesSummary",
+        "--json", "number,body,labels,comments,closedAt,stateReason",
         repo=repo,
     ))
+    issue["subIssuesSummary"] = {"total": _fetch_sub_total(n, repo)}
+    return issue
 
 
 def post_comment(target: str, n: int, body: str) -> None:
