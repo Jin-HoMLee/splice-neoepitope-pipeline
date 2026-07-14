@@ -624,6 +624,87 @@ class TestCycleVsLeadTime:
         assert mr.lead_time_days(opened) is None
 
 
+class TestCommitmentFetchFailureIsUnknownNotZero:
+    """A failed commitment fetch must read as UNKNOWN, never as "nobody committed".
+
+    Caught in review of PR #1185, and it is the sharpest possible instance: on a GraphQL
+    error `fetch_commitment_times` returned {}, so every item had no `committed_at`, and
+    the report then CONFIDENTLY asserted that the entire delivered population "never
+    crossed Backlog -> Ready" - contradicted only by a stderr line the reader never sees.
+
+    One output, three different worlds (nobody committed / we could not read the history /
+    the reader is being lied to). That is the exact fabrication #1180 exists to kill,
+    reintroduced one layer down, inside the PR that kills it.
+    """
+
+    def _delivered(self, n, committed=None, available=True):
+        i = _issue(n, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                   ["role:pm"], "COMPLETED")
+        if committed:
+            i["committed_at"] = committed
+        i["commitments_available"] = available
+        return i
+
+    def test_matched_pair_genuinely_uncommitted_vs_fetch_failed(self):
+        """THE control: identical issue lists, one flag flipped, opposite meanings."""
+        genuinely = [self._delivered(1, available=True),
+                     self._delivered(2, available=True)]
+        fetch_died = [self._delivered(1, available=False),
+                      self._delivered(2, available=False)]
+
+        # We CAN see the history, and neither crossed Ready -> a real finding.
+        assert len(mr.never_committed_issues(genuinely)) == 2
+
+        # We CANNOT see the history -> we know nothing. Asserting "2 never committed"
+        # here would state the opposite of the truth.
+        assert mr.never_committed_issues(fetch_died) == []
+        assert mr.commitments_available(fetch_died) is False
+
+    def test_metrics_render_never_committed_as_none_when_unavailable(self):
+        m = mr.compute_metrics(
+            [self._delivered(1, available=False)],
+            {"closed_at": None, "created_at": None}, marker_in_use=True)
+        assert m["commitments_available"] is False
+        assert m["n_never_committed"] is None, "a count here would be a fabricated caveat"
+        assert m["avg_cycle_time_days"] is None, "cycle time is unknown too, not zero"
+
+    def test_metrics_report_the_count_when_the_fetch_worked(self):
+        """Matched pair to the above: same shape, fetch succeeded -> report the number."""
+        m = mr.compute_metrics(
+            [self._delivered(1, available=True)],
+            {"closed_at": None, "created_at": None}, marker_in_use=True)
+        assert m["commitments_available"] is True
+        assert m["n_never_committed"] == 1
+
+    def test_availability_defaults_true_for_plain_fixtures(self):
+        """Absent flag = available, so pure fixtures behave as before."""
+        assert mr.commitments_available([_issue(1, "CLOSED", "a", "b", [])]) is True
+
+    def test_one_unavailable_item_taints_the_whole_report(self):
+        """Partial commitment data is deliberately NOT used.
+
+        A half-populated map makes the items from the failed chunk indistinguishable from
+        genuinely-uncommitted ones - the same conflation, one chunk smaller.
+        """
+        mixed = [self._delivered(1, available=True), self._delivered(2, available=False)]
+        assert mr.commitments_available(mixed) is False
+
+
+class TestNegativeCycleTimeIsDropped:
+    def test_committed_after_closed_is_not_a_fast_delivery(self):
+        """A close -> reopen -> re-commit can put committed_at AFTER closed_at.
+
+        A negative cycle time is not a fast delivery, it is a nonsense one, and left in it
+        would drag the mean below zero. Dropped, not clamped to 0 (a 0 would assert an
+        instantaneous delivery - the same lie in the other direction).
+        """
+        i = _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                   ["role:pm"], "COMPLETED")
+        i["committed_at"] = "2026-06-09T00:00:00Z"   # after the close
+        assert mr.cycle_time_days(i) is None
+        assert mr.avg_cycle_time([i]) is None
+
+
 class TestFirstReadyAt:
     """Extracting the commitment act from the status-change timeline."""
 

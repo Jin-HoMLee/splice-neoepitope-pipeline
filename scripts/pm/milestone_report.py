@@ -252,7 +252,23 @@ def cycle_time_days(issue: dict) -> Optional[float]:
     closed = parse_iso(issue.get("closed_at"))
     if not committed or not closed:
         return None
-    return (closed - committed).total_seconds() / 86400.0
+    days = (closed - committed).total_seconds() / 86400.0
+    if days < 0:
+        # committed_at AFTER closed_at: possible on a close -> reopen -> re-commit, or a
+        # card dragged to Ready post-close. A negative cycle time is not a fast delivery,
+        # it is a nonsense one - drop it rather than let it drag the mean below zero.
+        return None
+    return days
+
+
+def commitments_available(issues: list[dict]) -> bool:
+    """Did the commitment-time fetch succeed? Pure over the (injected) per-issue flag.
+
+    Defaults to True when the flag is absent, so pure unit fixtures behave as before.
+    Set to False by the fetchers on a GraphQL failure - see ``fetch_commitment_times``
+    for why a failure must read as UNKNOWN and not as "never committed".
+    """
+    return all(i.get("commitments_available", True) for i in issues)
 
 
 def never_committed_issues(issues: list[dict]) -> list[dict]:
@@ -263,6 +279,13 @@ def never_committed_issues(issues: list[dict]) -> list[dict]:
     `unplanned` marker's fidelity check (Issue #1144) needs. Surfaced here; the slip-rate
     cross-check itself belongs to that Issue.
     """
+    if not commitments_available(issues):
+        # We could not read the commitment history, so we do NOT know which items crossed
+        # Backlog -> Ready. Returning the whole delivered population here would assert
+        # "none of them committed" - a confident, wrong caveat, and exactly the
+        # one-output-for-three-worlds fabrication this module exists to kill (#1180).
+        # The caller renders this as unknown; see ``n_never_committed`` below.
+        return []
     return [i for i in delivered_issues(issues) if not i.get("committed_at")]
 
 
@@ -442,7 +465,8 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
             "median_lead_time_days": median_lead_time(delivered),
-            "n_never_committed": len(never_committed_issues(in_window)),
+            "n_never_committed": (len(never_committed_issues(in_window))
+                                  if commitments_available(in_window) else None),
         })
     return series
 
@@ -472,7 +496,9 @@ def compute_window_metrics(
         "median_cycle_time_days": median_cycle_time(delivered),
         "avg_lead_time_days": avg_lead_time(delivered),
         "median_lead_time_days": median_lead_time(delivered),
-        "n_never_committed": len(never_committed_issues(week_issues)),
+        "n_never_committed": (len(never_committed_issues(week_issues))
+                              if commitments_available(week_issues) else None),
+        "commitments_available": commitments_available(week_issues),
         "per_role_counts": per_role_counts(week_issues),
         **throughput_breakdown(week_issues, marker_in_use=marker_in_use),
         "weekly_series": weekly_series(all_issues, until, n_weeks,
@@ -504,7 +530,9 @@ def compute_metrics(issues: list[dict], milestone: dict,
         "median_cycle_time_days": median_cycle_time(delivered),
         "avg_lead_time_days": avg_lead_time(delivered),
         "median_lead_time_days": median_lead_time(delivered),
-        "n_never_committed": len(never_committed_issues(issues)),
+        "n_never_committed": (len(never_committed_issues(issues))
+                              if commitments_available(issues) else None),
+        "commitments_available": commitments_available(issues),
         "per_role_counts": per_role_counts(issues),
         **throughput_breakdown(issues, marker_in_use=marker_in_use),
     }
@@ -646,7 +674,7 @@ def first_ready_at(events: list[dict], project_number: int = PROJECT_NUMBER) -> 
     return min(ready) if ready else None
 
 
-def fetch_commitment_times(numbers: list[int]) -> dict[int, Optional[str]]:
+def fetch_commitment_times(numbers: list[int]) -> tuple[dict[int, Optional[str]], bool]:
     """Map issue number -> ISO timestamp of its commitment act (first entry into `Ready`).
 
     Reads `ProjectV2ItemStatusChangedEvent` off each issue's timeline. Verified live
@@ -658,8 +686,21 @@ def fetch_commitment_times(numbers: list[int]) -> dict[int, Optional[str]]:
     issue: a 4-week SDR window spans 100+ issues, and a per-issue query would turn one
     report into 100+ round-trips against a shared, per-user rate budget.
 
-    A missing entry means "never entered Ready", which the metrics layer treats as an
-    undefined cycle time - never a zero, and never silently dropped.
+    **Returns (map, available).** The bool is load-bearing and was added in review: on a
+    fetch failure the map is empty, every item then looks like it has no `committed_at`,
+    and `never_committed_issues` would report the ENTIRE delivered population as "never
+    crossed Backlog -> Ready" - a confident, wrong caveat, contradicted only on stderr,
+    which never reaches the report's reader. That is *precisely* the "one output for three
+    different worlds" fabrication this file exists to eliminate (#1180), reintroduced one
+    layer down in the PR that eliminates it.
+
+    So a failure is **unknown**, not "never committed", and the caller must render it as
+    unknown. Partial data is deliberately NOT used: a half-populated map makes the items in
+    the failed chunk indistinguishable from genuinely-uncommitted ones, which is the same
+    conflation one chunk smaller.
+
+    A missing entry when ``available`` is True means "never entered Ready", which the
+    metrics layer treats as an undefined cycle time - never a zero, never silently dropped.
     """
     out: dict[int, Optional[str]] = {}
     CHUNK = 50
@@ -684,7 +725,7 @@ def fetch_commitment_times(numbers: list[int]) -> dict[int, Optional[str]]:
             # to the lead-time number under a cycle-time label (which is the exact
             # defect this Issue exists to fix).
             print(f"  (commitment-time enrichment unavailable: {exc})", file=sys.stderr)
-            return {}
+            return {}, False
         repo = (json.loads(raw).get("data") or {}).get("repository") or {}
         for n in chunk:
             node = repo.get(f"i{n}")
@@ -692,7 +733,7 @@ def fetch_commitment_times(numbers: list[int]) -> dict[int, Optional[str]]:
                 continue
             events = ((node.get("timelineItems") or {}).get("nodes")) or []
             out[n] = first_ready_at(events)
-    return out
+    return out, True
 
 
 def fetch_marker_in_use() -> bool:
@@ -722,8 +763,15 @@ def fetch_milestone_issues(name: str) -> list[dict]:
     ])
     board = _board_fields_by_number()
     items = json.loads(raw)
-    commitments = fetch_commitment_times([it["number"] for it in items])
-    return [_normalize_issue(it, board, commitments) for it in items]
+    # Only CLOSED issues can have a cycle/lead time or be "never committed", so only they
+    # need a timeline fetch. Fetching open ones burned rate budget for data nothing reads,
+    # on a per-user budget we already exhaust (#1165). Review finding 2.
+    closed_nums = [it["number"] for it in items if it["state"].upper() == "CLOSED"]
+    commitments, available = fetch_commitment_times(closed_nums)
+    out = [_normalize_issue(it, board, commitments) for it in items]
+    for i in out:
+        i["commitments_available"] = available
+    return out
 
 
 def fetch_window_issues(since: str, until: str) -> list[dict]:
@@ -741,8 +789,12 @@ def fetch_window_issues(since: str, until: str) -> list[dict]:
     ])
     board = _board_fields_by_number()
     items = [it for it in json.loads(raw) if not it.get("milestone")]  # skip lifecycle work
-    commitments = fetch_commitment_times([it["number"] for it in items])
-    return [_normalize_issue(it, board, commitments) for it in items]
+    closed_nums = [it["number"] for it in items if it["state"].upper() == "CLOSED"]
+    commitments, available = fetch_commitment_times(closed_nums)
+    out = [_normalize_issue(it, board, commitments) for it in items]
+    for i in out:
+        i["commitments_available"] = available
+    return out
 
 
 # --- aggregation layer (narrative auto-seed) --------------------------------
@@ -920,9 +972,15 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  lead  time avg / median (days)   : "
           f"{_fmt(metrics['avg_lead_time_days'])} / {_fmt(metrics['median_lead_time_days'])}"
           f"   [created -> close]")
-    n_nc = metrics.get("n_never_committed")
-    if n_nc:
-        print(f"  never crossed Backlog->Ready     : {n_nc} delivered "
+    if not metrics.get("commitments_available", True):
+        # The failure must reach the READER, not just stderr. Previously a fetch failure
+        # printed a confident "N delivered never crossed Backlog->Ready" - i.e. it
+        # asserted the exact opposite of what it knew. Review finding on PR #1185.
+        print("  never crossed Backlog->Ready     : UNKNOWN - commitment history could "
+              "not be read, so cycle time and this count are both unavailable "
+              "(NOT the same as 'none committed')")
+    elif metrics.get("n_never_committed"):
+        print(f"  never crossed Backlog->Ready     : {metrics['n_never_committed']} delivered "
               f"(no commitment act -> cycle time UNDEFINED for these, not zero)")
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
     series = metrics.get("weekly_series")

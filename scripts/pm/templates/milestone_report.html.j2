@@ -94,7 +94,9 @@
     <span class="pill">unplanned · <strong>{{ metrics.n_unplanned }}</strong></span>
     {% if metrics.pct_unplanned is none %}<span class="sub">no delivered work in window</span>{% endif %}
     {% endif %}
-    {% if metrics.n_never_committed %}
+    {% if metrics.commitments_available is defined and not metrics.commitments_available %}
+    <span class="sub"><strong>Commitment history unavailable</strong> - cycle time and the never-committed count are <strong>unknown</strong> for this report. This is NOT the same as "nothing was committed": we could not read the data. (Reporting a count here on a failed fetch would assert the opposite of what we know - Issue #1138 review.)</span>
+    {% elif metrics.n_never_committed %}
     <span class="sub">{{ metrics.n_never_committed }} delivered never crossed <code>Backlog -&gt; Ready</code> - cycle time is <strong>undefined</strong> for those (not zero), so they are excluded from the cycle-time figures and counted here instead</span>
     {% endif %}
   </div>
