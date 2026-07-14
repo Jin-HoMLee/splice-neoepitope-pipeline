@@ -1,0 +1,15 @@
+{
+  "panel_sizes": {
+    "ours": 2156,
+    "snaf_pred": 87258,
+    "snaf_ms": 4715
+  },
+  "reference_sizes": {
+    "hla_ligand_atlas": 95318,
+    "caatlas": 195217,
+    "systemhc_nonuniprot": 8911
+  },
+  "control_join_atlas_x_systemhc": 143,
+  "snaf_ms_contained_in_snaf_pred": 4714,
+  "snaf_ms_total": 4715
+}

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}</style>
+<title>Reverse cis-splicing: why peptide order rules out RNA</title>
+
+<style>
+  :root {
+    --ground:      #F5F8F8;
+    --panel:       #FFFFFF;
+    --ink:         #16262B;
+    --ink-soft:    #52686E;
+    --rule:        #D3DEDF;
+    --templated:   #0E7C6B;  /* a transcript could encode this */
+    --impossible:  #A8432C;  /* no transcript can encode this */
+    --confusable:  #8A6216;  /* identical to a junction peptide */
+    --frag-a:      #1F6F8B;
+    --frag-b:      #7C4A86;
+    --track:       #E7EEEE;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:     #0E1618;
+      --panel:      #162124;
+      --ink:        #E4EDED;
+      --ink-soft:   #93A8AD;
+      --rule:       #2C3D41;
+      --templated:  #4FBFA8;
+      --impossible: #E28166;
+      --confusable: #D6A64A;
+      --frag-a:     #6BB6D2;
+      --frag-b:     #C093CA;
+      --track:      #223034;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:     #0E1618;
+    --panel:      #162124;
+    --ink:        #E4EDED;
+    --ink-soft:   #93A8AD;
+    --rule:       #2C3D41;
+    --templated:  #4FBFA8;
+    --impossible: #E28166;
+    --confusable: #D6A64A;
+    --frag-a:     #6BB6D2;
+    --frag-b:     #C093CA;
+    --track:      #223034;
+  }
+  :root[data-theme="light"] {
+    --ground:     #F5F8F8;
+    --panel:      #FFFFFF;
+    --ink:        #16262B;
+    --ink-soft:   #52686E;
+    --rule:       #D3DEDF;
+    --templated:  #0E7C6B;
+    --impossible: #A8432C;
+    --confusable: #8A6216;
+    --frag-a:     #1F6F8B;
+    --frag-b:     #7C4A86;
+    --track:      #E7EEEE;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    margin: 0;
+    padding: 3rem 1.5rem 5rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; display: flex; flex-direction: column; gap: 2.5rem; }
+
+  header { display: flex; flex-direction: column; gap: 0.75rem; border-bottom: 1px solid var(--rule); padding-bottom: 2rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(1.7rem, 4vw, 2.5rem);
+    line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .standfirst { font-size: 1.05rem; color: var(--ink-soft); max-width: 40em; margin: 0; text-wrap: pretty; }
+
+  h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 1.35rem;
+    margin: 0 0 0.4rem; text-wrap: balance;
+  }
+  p { margin: 0 0 0.9rem; max-width: 68ch; }
+  p:last-child { margin-bottom: 0; }
+  strong { font-weight: 650; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1.5rem 1.6rem;
+  }
+
+  .parent-def { display: flex; flex-direction: column; gap: 1rem; }
+
+  figure { margin: 0; }
+  .scroller { overflow-x: auto; padding-bottom: 0.25rem; }
+
+  /* residue track */
+  .track { display: flex; gap: 2px; font-family: var(--mono); width: max-content; }
+  .res {
+    width: 1.7rem; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .res .aa {
+    width: 100%; text-align: center; padding: 0.35rem 0; border-radius: 2px;
+    background: var(--track); color: var(--ink); font-size: 0.95rem; font-weight: 500;
+  }
+  .res .pos {
+    font-size: 0.62rem; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+  }
+  .res.a .aa { background: var(--frag-a); color: #fff; }
+  .res.b .aa { background: var(--frag-b); color: #fff; }
+  :root[data-theme="dark"] .res.a .aa,
+  :root[data-theme="dark"] .res.b .aa { color: #0E1618; }
+  @media (prefers-color-scheme: dark) {
+    .res.a .aa, .res.b .aa { color: #0E1618; }
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 1.1rem; font-size: 0.85rem;
+    color: var(--ink-soft); font-family: var(--mono);
+  }
+  .key { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .swatch { width: 0.85rem; height: 0.85rem; border-radius: 2px; display: inline-block; }
+  .swatch.a { background: var(--frag-a); }
+  .swatch.b { background: var(--frag-b); }
+
+  /* the four cases */
+  .cases { display: flex; flex-direction: column; gap: 1.25rem; }
+  .case {
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 3px;
+    border-left: 4px solid var(--verdict, var(--rule));
+    padding: 1.4rem 1.6rem; display: flex; flex-direction: column; gap: 0.9rem;
+  }
+  .case.templated  { --verdict: var(--templated); }
+  .case.confusable { --verdict: var(--confusable); }
+  .case.impossible { --verdict: var(--impossible); }
+
+  .case-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.75rem; justify-content: space-between; }
+  .case-title { font-family: var(--serif); font-size: 1.2rem; font-weight: 600; margin: 0; }
+  .chip {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--verdict); border: 1px solid var(--verdict); border-radius: 999px;
+    padding: 0.2rem 0.7rem; white-space: nowrap; font-weight: 600;
+  }
+
+  .product { display: flex; flex-direction: column; gap: 0.55rem; }
+  .product-label {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .order-note {
+    font-family: var(--mono); font-size: 0.8rem; color: var(--verdict); font-weight: 600;
+  }
+  .case p { font-size: 0.95rem; }
+
+  .verdict-body { border-top: 1px dashed var(--rule); padding-top: 0.8rem; }
+
+  /* takeaway */
+  .takeaway { background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid var(--ink); border-radius: 3px; padding: 1.5rem 1.6rem; }
+  .takeaway h2 { margin-top: 0; }
+
+  ul { margin: 0; padding-left: 1.1rem; max-width: 68ch; }
+  li { margin-bottom: 0.5rem; }
+  li:last-child { margin-bottom: 0; }
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--track); padding: 0.1em 0.35em; border-radius: 2px; }
+
+  footer { color: var(--ink-soft); font-size: 0.85rem; border-top: 1px solid var(--rule); padding-top: 1.25rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Proteasome-catalysed peptide splicing &middot; Issue 681 background</div>
+    <h1>Reverse cis-splicing, and why the order of two fragments can rule out RNA entirely</h1>
+    <p class="standfirst">The spliceosome reads RNA in one direction and preserves order. A proteasome does not. That single asymmetry is the only clean way to prove a peptide was assembled after translation - and it is why some &ldquo;spliced peptide&rdquo; claims are structurally safe while others are indistinguishable from ordinary splice-junction neoepitopes.</p>
+  </header>
+
+  <section class="panel parent-def">
+    <div>
+      <h2>One parent protein, two fragments</h2>
+      <p>Everything below uses the same toy protein and the same two fragments. <strong>The only variable is the order they get ligated in</strong> - and that alone decides whether a transcript could have encoded the product.</p>
+    </div>
+
+    <figure class="scroller">
+      <div class="track">
+        <div class="res"><span class="aa">M</span><span class="pos">1</span></div>
+        <div class="res"><span class="aa">K</span><span class="pos">2</span></div>
+        <div class="res a"><span class="aa">T</span><span class="pos">3</span></div>
+        <div class="res a"><span class="aa">A</span><span class="pos">4</span></div>
+        <div class="res a"><span class="aa">Y</span><span class="pos">5</span></div>
+        <div class="res a"><span class="aa">I</span><span class="pos">6</span></div>
+        <div class="res"><span class="aa">A</span><span class="pos">7</span></div>
+        <div class="res"><span class="aa">K</span><span class="pos">8</span></div>
+        <div class="res"><span class="aa">Q</span><span class="pos">9</span></div>
+        <div class="res"><span class="aa">R</span><span class="pos">10</span></div>
+        <div class="res"><span class="aa">Q</span><span class="pos">11</span></div>
+        <div class="res b"><span class="aa">S</span><span class="pos">12</span></div>
+        <div class="res b"><span class="aa">F</span><span class="pos">13</span></div>
+        <div class="res b"><span class="aa">V</span><span class="pos">14</span></div>
+        <div class="res b"><span class="aa">K</span><span class="pos">15</span></div>
+        <div class="res"><span class="aa">S</span><span class="pos">16</span></div>
+        <div class="res"><span class="aa">H</span><span class="pos">17</span></div>
+        <div class="res"><span class="aa">F</span><span class="pos">18</span></div>
+        <div class="res"><span class="aa">S</span><span class="pos">19</span></div>
+        <div class="res"><span class="aa">Q</span><span class="pos">20</span></div>
+      </div>
+    </figure>
+
+    <div class="legend">
+      <span class="key"><span class="swatch a"></span> Fragment A = TAYI (residues 3&ndash;6)</span>
+      <span class="key"><span class="swatch b"></span> Fragment B = SFVK (residues 12&ndash;15)</span>
+      <span class="key">N-terminus &rarr; C-terminus, left to right</span>
+    </div>
+  </section>
+
+  <section class="cases">
+
+    <article class="case templated">
+      <div class="case-head">
+        <h2 class="case-title">Case 1 &middot; An RNA splice junction (what our pipeline predicts)</h2>
+        <span class="chip">Transcript-encoded</span>
+      </div>
+      <p>An exon-skipping event joins the exon carrying residues 3&ndash;6 directly to the exon carrying residues 12&ndash;15. The ribosome then translates that message straight through, and the resulting protein contains <code>TAYISFVK</code> as a <strong>contiguous</strong> stretch. The peptide is ordinary; it is the <em>message</em> that was novel.</p>
+      <div class="product">
+        <span class="product-label">Peptide presented on MHC</span>
+        <figure class="scroller">
+          <div class="track">
+            <div class="res a"><span class="aa">T</span><span class="pos">3</span></div>
+            <div class="res a"><span class="aa">A</span><span class="pos">4</span></div>
+            <div class="res a"><span class="aa">Y</span><span class="pos">5</span></div>
+            <div class="res a"><span class="aa">I</span><span class="pos">6</span></div>
+            <div class="res b"><span class="aa">S</span><span class="pos">12</span></div>
+            <div class="res b"><span class="aa">F</span><span class="pos">13</span></div>
+            <div class="res b"><span class="aa">V</span><span class="pos">14</span></div>
+            <div class="res b"><span class="aa">K</span><span class="pos">15</span></div>
+          </div>
+        </figure>
+        <span class="order-note">Order preserved: 3&ndash;6 before 12&ndash;15 &check;</span>
+      </div>
+      <p class="verdict-body">RNA-seq sees this. The junction is in the transcriptome, so it is sequenceable, and a sample-specific database will contain the peptide. <strong>Two independent assays can corroborate it.</strong></p>
+    </article>
+
+    <article class="case confusable">
+      <div class="case-head">
+        <h2 class="case-title">Case 2 &middot; Forward cis-splicing (the proteasome, keeping order)</h2>
+        <span class="chip">Indistinguishable by sequence</span>
+      </div>
+      <p>Now the proteasome cuts the <em>normal</em> protein and ligates fragment A to fragment B, in their original order. No novel transcript exists anywhere. And yet&hellip;</p>
+      <div class="product">
+        <span class="product-label">Peptide presented on MHC</span>
+        <figure class="scroller">
+          <div class="track">
+            <div class="res a"><span class="aa">T</span><span class="pos">3</span></div>
+            <div class="res a"><span class="aa">A</span><span class="pos">4</span></div>
+            <div class="res a"><span class="aa">Y</span><span class="pos">5</span></div>
+            <div class="res a"><span class="aa">I</span><span class="pos">6</span></div>
+            <div class="res b"><span class="aa">S</span><span class="pos">12</span></div>
+            <div class="res b"><span class="aa">F</span><span class="pos">13</span></div>
+            <div class="res b"><span class="aa">V</span><span class="pos">14</span></div>
+            <div class="res b"><span class="aa">K</span><span class="pos">15</span></div>
+          </div>
+        </figure>
+        <span class="order-note">Order preserved: 3&ndash;6 before 12&ndash;15 &mdash; identical to Case 1</span>
+      </div>
+      <p class="verdict-body"><strong>This is the whole problem.</strong> The product is <em>byte-for-byte the same peptide</em> as the RNA-spliced one. The mass spectrometer sees one sequence and cannot tell you which history produced it. The only thing separating the two claims is whether a matching transcript exists - which reduces to an argument from <em>absence</em> in your RNA-seq database, and absence is a property of your database, not of the cell.</p>
+    </article>
+
+    <article class="case impossible">
+      <div class="case-head">
+        <h2 class="case-title">Case 3 &middot; Reverse cis-splicing (the clean discriminator)</h2>
+        <span class="chip">No transcript can encode this</span>
+      </div>
+      <p>Same protein. Same two fragments. But now the proteasome ligates them <strong>in reverse order</strong> - B first, then A. The C-terminal fragment ends up N-terminal in the product.</p>
+      <div class="product">
+        <span class="product-label">Peptide presented on MHC</span>
+        <figure class="scroller">
+          <div class="track">
+            <div class="res b"><span class="aa">S</span><span class="pos">12</span></div>
+            <div class="res b"><span class="aa">F</span><span class="pos">13</span></div>
+            <div class="res b"><span class="aa">V</span><span class="pos">14</span></div>
+            <div class="res b"><span class="aa">K</span><span class="pos">15</span></div>
+            <div class="res a"><span class="aa">T</span><span class="pos">3</span></div>
+            <div class="res a"><span class="aa">A</span><span class="pos">4</span></div>
+            <div class="res a"><span class="aa">Y</span><span class="pos">5</span></div>
+            <div class="res a"><span class="aa">I</span><span class="pos">6</span></div>
+          </div>
+        </figure>
+        <span class="order-note">Order REVERSED: 12&ndash;15 before 3&ndash;6 &cross;</span>
+      </div>
+      <p class="verdict-body">The spliceosome joins a 5&prime; donor to a 3&prime; acceptor. It cannot run backwards, and it cannot emit an exon it has already passed. <strong>There is no transcript - annotated, novel, unassembled, or merely unsequenced - that translates to <code>SFVKTAYI</code>.</strong> So the RNA explanation is excluded <em>by construction</em>, not by the completeness of anyone's database. That is what makes this class of evidence structurally strong: a deeper RNA-seq run cannot overturn it, because no possible RNA-seq result would.</p>
+    </article>
+
+    <article class="case impossible">
+      <div class="case-head">
+        <h2 class="case-title">Case 4 &middot; Trans-splicing (strong, with one caveat)</h2>
+        <span class="chip">Excluded &mdash; unless a gene fusion</span>
+      </div>
+      <p>The two fragments come from <strong>two different proteins</strong>. No single transcript carries both sequences, so ordinary splicing is again ruled out by construction.</p>
+      <p class="verdict-body"><strong>The caveat that must be checked:</strong> a <em>gene fusion</em> would place both parent sequences on one transcript, restoring an RNA explanation. So a trans-splicing claim is only as safe as the fusion screen behind it - and a fusion screen is exactly the kind of thing an RNA-seq pipeline can do and a proteomics pipeline cannot. Unlike Case 3, this exclusion still leans on the transcriptome.</p>
+    </article>
+
+  </section>
+
+  <section class="takeaway">
+    <h2>What this means when you read a &ldquo;spliced peptide&rdquo; claim</h2>
+    <ul>
+      <li><strong>Ask which topology it is, before you ask how good the FDR was.</strong> A forward cis-spliced identification is competing against an RNA explanation it cannot rule out from sequence alone. A reverse cis one is not competing with anything.</li>
+      <li><strong>Exclusion arguments degrade; topology arguments do not.</strong> &ldquo;It is not in our RNA-seq database&rdquo; gets weaker every time someone sequences deeper. &ldquo;No transcript could encode this ordering&rdquo; never does.</li>
+      <li><strong>The confusable case runs both ways.</strong> If a study searched spectra against UniProt without a sample-specific database containing novel junctions, then a genuine splice-junction neoepitope has nowhere canonical to map - and is a candidate to be miscalled as forward cis-spliced. Whether any published catalogue actually did this is an open question worth checking, not a finding.</li>
+      <li><strong>Our peptides are the lucky ones.</strong> Splice-junction neoepitopes are transcript-encoded, so RNA-seq and mass spec are two independent assays that can corroborate each other. Proteasome-spliced peptides have no orthogonal nucleic-acid check available at all - which is precisely why that field's false-discovery fight has been so hard to settle.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Sources on the shelf: InvitroSPI (<em>Scientific Data</em> 2023, Zotero <code>NNDREW5X</code>) &middot; &ldquo;Are There Indeed Spliced Peptides in the Immunopeptidome?&rdquo; (<em>MCP</em> 2021, <code>2WNUZPKQ</code>) and its Commentary (<code>2KA9G9C2</code>) &middot; NeoAtlas-Tumor / NeoBert (<em>GPB</em> 2025, <code>WHVGV5EA</code>). Toy sequence is illustrative, not a real epitope.
+  </footer>
+
+</div>
+</body>
+</html>

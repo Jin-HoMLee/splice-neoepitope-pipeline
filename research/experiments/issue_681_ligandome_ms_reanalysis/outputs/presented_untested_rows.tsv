@@ -1,0 +1,30 @@
+peptide	length	source_panel	ms_confirmed_by_snaf	systemhc_alleles	systemhc_tissues	systemhc_diseases	label	tier	assay_context
+APPLPPIPRP	10	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+ARPPPLPGL	9	snaf_pred	no	HLA-C07:02	Blood	Chronic lymphocytic leukemia	untested	presentation-prevalence	prevalence_only
+ASNPVIKKK	9	snaf_pred	no	NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+DVHDASTSRR	10	snaf_pred	no	HLA-A68:01	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+EANMLSQVHR	10	snaf_pred	no	HLA-A68:01	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+FILEHIMVI	9	snaf_pred	no	HLA-C03:03;HLA-C03:04	NA	Glioblastoma	untested	presentation-prevalence	prevalence_only
+FIRDPSTSR	9	snaf_pred	no	HLA-A34:01;HLA-A66:01	NA	NA	untested	presentation-prevalence	prevalence_only
+GSLQPLPPR	9	snaf_pred	no	HLA-A11:01;HLA-A11:02;NA	NA;Skin	Metastatic;NA	untested	presentation-prevalence	prevalence_only
+HAAASFETL	9	snaf_pred	yes	HLA-B35:03;HLA-C08:01;NA	NA;Ovary;Skin	Metastatic;NA;Ovarian cancer	untested	presentation-prevalence	prevalence_only
+HPKKPGVGV	9	snaf_pred	no	HLA-B07:02;HLA-B55:01;NA	Lung;NA;Skin	Lung cancer;Metastatic;NA	untested	presentation-prevalence	prevalence_only
+IYFDGDFGHF	10	snaf_pred	no	HLA-A23:01;HLA-A24:07;NA	NA;Skin	Metastatic;NA	untested	presentation-prevalence	prevalence_only
+KEIPHLVAV	9	snaf_pred	no	HLA-B37:01;HLA-B40:06;NA	NA;Skin	Metastatic;NA	untested	presentation-prevalence	prevalence_only
+KQFSVPLRR	9	snaf_pred	no	HLA-A03:01;HLA-A74:01	NA;Skin	Metastatic;NA	untested	presentation-prevalence	prevalence_only
+KQFSVPLRRK	10	snaf_pred	no	HLA-A30:01;NA	NA;Skin	Metastatic;NA	untested	presentation-prevalence	prevalence_only
+LLPTSPRLV	9	snaf_pred	no	HLA-C06:02	Melanoma	Melanoma	untested	presentation-prevalence	prevalence_only
+NLLAEIHGV	9	snaf_pred	no	HLA-A02:01;NA	Lung;Skin	Lung cancer;Metastatic	untested	presentation-prevalence	prevalence_only
+QALSPLLSV	9	snaf_pred	no	HLA-A02:06;HLA-B13:02	Lung;Melanoma	Lung cancer;Melanoma	untested	presentation-prevalence	prevalence_only
+QESPNGRKR	9	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+RVRIAPKVF	9	snaf_pred	yes	NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+RVRIAPKVFG	10	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+SESKIRVLL	9	snaf_pred	no	HLA-B40:01;HLA-B40:02;NA	Melanoma;Skin	Melanoma;Metastatic	untested	presentation-prevalence	prevalence_only
+TELQRTLSL	9	snaf_pred	yes	NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+TLPVQPAEL	9	snaf_pred	yes	NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+TLVEFAIAR	9	snaf_pred	no	HLA-A68:01	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+TSAILRVWLR	10	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+TTSLAGSLQR	10	snaf_pred	no	HLA-A68:01;NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
+VAVPLNLSGL	10	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+VLPKKIRVR	9	snaf_pred	no	NA	Blood	Lymphoma	untested	presentation-prevalence	prevalence_only
+YPFKDLHRI	9	snaf_pred	no	NA	Skin	Metastatic	untested	presentation-prevalence	prevalence_only
