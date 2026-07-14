@@ -50,10 +50,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _shell_parse  # noqa: E402
+
 PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
 LOG_PATH = Path(PROJECT_ROOT) / ".agents" / "hook_fires.jsonl"
 
-_PUNCT = set("();<>|&")  # shell punctuation_chars -> standalone separator tokens
+_PUNCT = _shell_parse.PUNCT  # single-sourced separator set (Issue #1130 review)
 _TRUTHY = {"1", "true", "yes", "on"}
 # Ephemeral roots the agent legitimately uses for scratch files.
 _TEMP_ROOTS = ("/tmp", "/private/tmp", "/var/tmp", "/var/folders")
@@ -69,9 +72,17 @@ def split_subcommands(cmd: str) -> list[list[str]] | None:
 
     Returns a list of subcommands, or None on a tokenization failure -> caller
     fails open. Quoted strings survive as single tokens.
+
+    The command is **normalized first** (Issue #1142): heredoc bodies are stripped
+    and unquoted newlines become separators. A newline is a command separator in
+    shell but not in shlex, so without this two `cd`s on two lines MERGED into one
+    token block and `cd_target` returned only the FIRST positional - so a benign
+    `cd /tmp` on line 1 masked an escaping `cd /etc/secret` on line 2, and the
+    guard never examined it.
     """
     try:
-        lex = shlex.shlex(cmd or "", posix=True, punctuation_chars=True)
+        lex = shlex.shlex(_shell_parse.normalize_command(cmd),
+                          posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)
     except ValueError:
