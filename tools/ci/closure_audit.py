@@ -14,11 +14,20 @@ routine single-PR-closes-single-Issue skip that #483 declared optional, so the
 bot stops coercing entries the lab-notebook rule says are unnecessary. The AC
 and Priority-rationale checks are unaffected by the marker.
 
-On the issue path, the lab-notebook check is also skipped when the Issue closed
-as `not_planned` (descoped / superseded): such a close ships no work and routes
-through a closing comment, not a notebook entry (closure ritual, #743). The AC
-and Priority-rationale checks still run — superseded ACs are annotated to their
-disposition (e.g. `- [superseded]`) rather than left as `- [ ]`.
+On the issue path the close REASON selects the checklist (#1137):
+
+- `not_planned` (descoped / superseded) ships no work, so the whole completed-close
+  checklist is skipped - AC ticks, notebook entry, disposition alike. Its AC boxes
+  are SUPPOSED to stay unticked. What such a close does owe is a closing comment
+  (reason + outcome routing), and only its total absence is flagged (closure
+  ritual, #743).
+- a parent/epic (subIssuesSummary.total > 0) closes as a rollup of children that
+  each shipped behind their own PR, so it owes no lab-notebook entry of its own.
+
+Applying the completed-close checklist to every close is what produced the n=3
+false positives (#451, #1071, #665). This is a LINTER: its failure mode is the
+false ALARM, and a gate that cries wolf on correct behavior trains the team to
+skim its output, which costs the mechanism its entire value.
 
 Usage (called by .github/workflows/closure-audit.yml):
     python closure_audit.py --event-type {pr|issue} --number <N>
