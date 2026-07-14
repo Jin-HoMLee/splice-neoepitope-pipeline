@@ -8,6 +8,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 20:40 UTC - Editor: PM
+
+**A question from Jin-Ho found a worse bug than the code review did.** Amending nothing below (entries are immutable) - this supersedes the design described in the 19:05 entry.
+
+He asked the obvious thing I had never asked myself: *"why is an unblocked issue invisible? Isn't it just an open Backlog issue like any other?"* **It is.** My "invisible" framing was simply wrong - an unblocked Issue sits in the Backlog pool like everything else, visible to every scan. The honest gap is much weaker: the pool is 50+ per role, we deliberately **do not rank it**, and we select by arc + priority + **freshness** - and a previously-blocked item's `updatedAt` is stale, so freshness actively sorts it **down**. It is *undifferentiated*, not invisible.
+
+He also exposed a contradiction I had shipped without noticing: I used *"uncommitted-in-Backlog is the normal resting state"* to reject the naive detector, then used *"#594 sat un-pulled for 4 days"* as the motivating harm. **Those are the same state.** What actually resolves it is a distinction I built the whole tool on and never wrote down: a blocked item was **excluded**, not **declined** - it never had its commitment decision at all.
+
+**Then pulling that thread found the real bug.** My 14d lookback window was **edge-inferring**: reconstructing "an event happened" from a state snapshot. Which means **if the sweep did not RUN inside the window, the finding was dropped forever.** Silent loss - strictly worse than the nag the window existed to prevent.
+
+**And it was already happening, in this PR's own smoke test, which I had read and called a success.** The 14d default reported **1** finding while **3** were real: [#850](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/850) (18d) and [#789](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/789) (25d) were being silently dropped. **Two-thirds of the truth, and I reported the number the window handed me.** The bot review, my matched-pair tests, and my own falsifier probe all passed clean over it - because every one of them tested the design I had, not the design I should have had. **A falsifier only falsifies the thing you thought to doubt.**
+
+**The web check reversed my own recommendation, which is exactly why the rule exists.** I had told Jin-Ho the Action should be primary and the sweep "demoted to backstop". The literature (Kubernetes/Flux/webhook-reliability) says the opposite: **events are best-effort by construction; the level-triggered reconciliation loop is the reliable layer** - event for *latency*, poll for *guarantee*. The poll is not the lesser mechanism. It **is** the correct primary. Had I trusted my instinct I would have built the unreliable half and deleted the reliable one.
+
+**The fix:** no clock, no memory. Re-read the world; ask if it is in the desired state (*every unblocked Issue has had its commitment decision*). Findings cannot expire; **missing a run costs nothing**. A level-triggered loop reports until the world is right, so each finding gets exactly two terminal actions - **commit it** (clears itself) or **decline it** (`--ack --reason`, applies `unblock-ack`, **revocable**). **A nag is a warning you cannot make stop;** here every finding has a definite way to stop, and that way *is* the decision we wanted. The decline is **recorded with a reason** instead of **forgotten by a timer**.
+
+**Declined the event-driven Action, deliberately:** our pain is **loss, not latency**. A freshly-available Backlog item does not need to be known in 60 seconds; it needs to never be lost. The Action optimizes the axis we do not care about. Recorded on the Issue as a decision, not an oversight.
+
+**What I keep re-learning, now in its sharpest form yet:** three days running, the catch came from an instrument and not from my care - and today the instrument was **Jin-Ho asking a plain question**. Not the bot (it reviewed my window and found the cap bug *inside* it). Not my tests (they encoded my assumption). Not the falsifier probe (it probed the rule I had, not the rule I needed). **The check I did not run was "is my premise true?"** - and I had a memory rule for exactly that (`feedback_verify_premise_before_mechanizing`), which did not fire, because from the inside the premise never felt like an assumption.
+
 ### 19:05 UTC - Editor: PM
 
 **Session:** epic scope calls ([Issue #1169](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1169)), triage ([Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150)), and the freshly-unblocked sweep ([Issue #745](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/745) -> [PR #1174](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1174)).
