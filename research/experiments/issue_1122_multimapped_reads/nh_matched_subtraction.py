@@ -17,11 +17,15 @@ a structural property rather than a rate:
 
 The answer is no, and it does not depend on the index or the depth:
 
-  `NH` is a property of an individual READ (how many places its sequence could go),
-  not of the JUNCTION. Two libraries sampling the same biological junction draw
-  different reads, so they get different NH profiles by chance. Filtering on NH
-  therefore erodes the tumor and the normal arm INDEPENDENTLY -- and a matched
-  subtraction cannot survive having its two arms independently eroded.
+  The SAM spec (hts-specs, SAMtags) defines NH as the "Number of REPORTED alignments
+  that contain the QUERY in the current record". It is keyed on the query -- the
+  individual READ -- and counts what the ALIGNER CHOSE TO REPORT. So it is not a
+  property of the JUNCTION, nor even a clean property of the read's sequence: it is a
+  property of one read under one aligner's reporting policy. Two libraries sampling
+  the same biological junction draw different reads, so they get different NH profiles
+  by chance. Filtering on NH therefore erodes the tumor and the normal arm
+  INDEPENDENTLY -- and a matched subtraction cannot survive having its two arms
+  independently eroded.
 
   Concretely: on this fixture the filter leaves the IGLJ3->IGLC3 junction's tumor
   support untouched (4 reads, all NH=1) while cutting its normal support from 5 to 1.

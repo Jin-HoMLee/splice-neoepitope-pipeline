@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 16:55 UTC - Editor: Scientist
+
+**Web cross-check of [PR #1163](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1163) - the argument survives, one claim was imprecise, and the IG half turns out to be published** (addendum to the 14:40 entry, which is immutable)
+
+Jin-Ho asked for a last cross-check before merge. Four claims verified against primary sources, one refutation attempt run deliberately, and one wording defect found in my own artifact.
+
+- **The LeafCutter quote was a rule violation and I got lucky.** I had quoted *"our most restrictive filter is the requirement that reads considered be uniquely mapped"* verbatim in the deck, README, Issue and lab notebook - sourced from a **WebSearch summary**, which by my own rule (`feedback_never_quote_unreachable_source`) is **zero sources**. Fetched the primary page: the quote is **exactly right**. Correct outcome, bad process. A verbatim quote from a digest is a coin-flip I should not be taking.
+- **`NH`: my phrasing was loose in a way that UNDERSTATED my own argument.** I wrote that `NH` "counts where a read's sequence could otherwise land." The SAM spec (`hts-specs/SAMtags`) actually says: *"Number of **reported** alignments that contain the **query** in the current record."* Keyed on the **query** (so the per-read claim is now spec-backed rather than asserted) - but counting what the **aligner chose to report**, which makes `NH` *even less* a property of the junction than I claimed: it is one read under one aligner's reporting policy. Corrected across script, README and deck.
+- **The immunoglobulin half is independently published, and I did not know it.** Blachly et al., PNAS 2015 ([PMC4394264](https://pmc.ncbi.nlm.nih.gov/articles/PMC4394264/)): of RNA-seq reads mapping to the Ig locus, *"21-48% could not be clearly and unambiguously assigned to a single feature in the region"* - and their remedy is to abandon genome mapping there entirely. A unique-only filter deletes essentially that whole population. **So IGLJ3-IGLC3 is not a chr22 curiosity; it is the locally-visible tip of a quantified, genome-wide failure mode**, in a compartment (tumor-infiltrating plasma cells) every solid-tumor library contains. My n=1 existence proof now sits on top of someone else's n=large. (PNAS itself 403s; recovered the number from the open PMC mirror rather than quoting a digest.)
+- **The J-to-C splice is real biology, not a coordinate coincidence.** I had inferred "IGLJ3 -> IGLC3 is an antibody junction" purely from GENCODE coordinates. Confirmed: after V(D)J recombination the V-J transcript is joined to the constant region **by RNA splicing** across the J-C intron. It is the defining splice event of a functional light chain.
+- **Refutation attempt, run on purpose:** searched specifically for anyone showing unique-only filtering is *safe* in a matched design, which would have sunk the whole thesis. Nothing. The nearest canonical framing (GATK, *"Somatic calling is NOT simply a difference between two callsets"*) **supports** it - somatic calling contrasts *evidence* between the two arms, so a filter that perturbs evidence asymmetrically corrupts the contrast by construction.
+
+**Lesson:** *a correct conclusion reached by a sloppy route is still a process failure, and it will not stay correct.* The LeafCutter quote happened to be right; the `NH` phrasing happened to be wrong. Both came from the same habit - restating a source from a summary instead of reading it - and only one of them punished me. **I should not need the punishment to notice the habit.** The consolation is that the cross-check made the argument *stronger* on both flanks: the central claim is now spec-backed, and the IG failure mode is now corroborated at n=large by an independent group.
+
+---
+
 ### 14:40 UTC - Editor: Scientist
 
 **`NH` is a property of a read, not of a junction - so the uniqueness filter breaks matched subtraction** ([Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122), [PR #1163](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1163))

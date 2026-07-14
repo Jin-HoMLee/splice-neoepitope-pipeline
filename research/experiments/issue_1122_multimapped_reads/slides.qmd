@@ -31,8 +31,9 @@ Developer built the instrument and proved the chr22 fixture **cannot measure the
 But we do not need to measure how often it *helps*. There is a defect that is **structural, not statistical** - it holds at any index, any depth:
 
 ::: {.fragment}
-> `NH` counts where an individual **read's sequence** could otherwise land.
-> It is not a property of the **junction**.
+> **SAM spec:** `NH` = *"Number of **reported** alignments that contain the **query** in the current record."*
+>
+> Keyed on the **query** - the individual read - and counting what the **aligner chose to report**. Not a property of the **junction**.
 :::
 
 ::: {.fragment}
@@ -91,7 +92,7 @@ It is sufficient anyway: the cost function is **asymmetric**. A false `tumor_exc
 :::
 
 ::: {.fragment}
-And **2 of the 4** asymmetries are immunoglobulin junctions - a striking concentration in a locus that is a sliver of chr22, and exactly the paralog-rich domain (IG/HLA/TCR) this pipeline targets.
+And **2 of the 4** asymmetries are immunoglobulin junctions. Not a chr22 curiosity: in the Ig locus **21-48% of mapped reads "could not be clearly and unambiguously assigned to a single feature"** [@blachly2015ig] - a unique-only filter deletes essentially that whole population, in a compartment (tumor-infiltrating plasma cells) every solid-tumor library contains.
 :::
 
 ---

@@ -7,7 +7,7 @@
 
 ## The answer, in one paragraph
 
-`NH` is a property of an individual **read** (how many places its sequence could go), not of a **junction**. Two libraries sampling the same biological junction draw different reads and therefore get different `NH` profiles, by chance. A junction-level gate built on `NH`, applied **independently to the tumor and the normal**, erodes the two arms independently - and a matched subtraction cannot survive having its two arms independently eroded. That is not a tunable weakness; it is a category error about what `NH` measures, and it is why the filter must not be turned on, rather than merely why the A/B was unconvincing.
+The SAM spec defines `NH` as the *"Number of **reported** alignments that contain the **query** in the current record"* ([hts-specs, `SAMtags`](https://samtools.github.io/hts-specs/SAMtags.pdf)). Read that carefully: it is keyed on the **query** - the individual read - and it counts what the **aligner chose to report**. It is therefore not a property of the **junction**, and not even a clean property of the read's *sequence*: it is a property of one read under one aligner's reporting policy. Two libraries sampling the same biological junction draw different reads and get different `NH` profiles, by chance. So a junction-level gate built on `NH`, applied **independently to the tumor and the normal**, erodes the two arms independently - and a matched subtraction cannot survive having its two arms independently eroded. That is not a tunable weakness; it is a category error about what `NH` measures, and it is why the filter must not be turned on, rather than merely why the A/B was unconvincing.
 
 ## The demonstration
 
@@ -23,6 +23,10 @@ The filter leaves the tumor untouched and destroys the normal. Normal support fa
 The mechanism is visible at read level in the two BAMs: a read at `pos=22905015` with CIGAR `11M1316N39M` - the **same alignment of the same junction** - is `NH=1` in the tumor and `NH=2` in the normal.
 
 **Scope, stated honestly.** Across the 91 junctions detected in *both* libraries, the filter changes the tumor:normal read ratio for **4**, and exactly **one** became a false `tumor_exclusive`. This is an **existence proof, not a rate** - 91 shared junctions is far too small to estimate a frequency, and n=1 is not a percentage. It is sufficient anyway, because the cost function is asymmetric: a false `tumor_exclusive` is a candidate *therapeutic target*. Notably, **two of the four asymmetries are immunoglobulin junctions** (IGLJ3-IGLC3, IGLC5-IGLC6) - a striking concentration, given how small a slice of chr22 the IG lambda locus is, and exactly the paralog-rich domain (IG/HLA/TCR) this pipeline targets.
+
+**The IG locus is a known mapping-ambiguity sink, and that is published.** Blachly et al. (PNAS 2015, [PMC4394264](https://pmc.ncbi.nlm.nih.gov/articles/PMC4394264/)) report that of RNA-seq reads mapping to the immunoglobulin locus, *"21-48% could not be clearly and unambiguously assigned to a single feature in the region"* - and their remedy is to **abandon genome mapping there entirely** in favour of de novo reconstruction. A unique-only filter deletes essentially that whole population. So our IGLJ3-IGLC3 instance is not a chr22 curiosity: it is the locally-visible tip of a documented, quantified, genome-wide failure mode, in the tissue compartment (tumor-infiltrating plasma cells) that a solid-tumor RNA-seq library is guaranteed to contain.
+
+**And the J-to-C splice is the real thing, not an artifact of coordinates.** After V(D)J recombination the V-J transcript is joined to the constant region **by RNA splicing** across the J-C intron - so IGLJ3 -> IGLC3 is the defining, physiological splice event of a functional antibody light chain, not a spurious junction that happens to sit between two genes.
 
 ## Why this settles AC-4 without the whole-genome run
 

@@ -327,36 +327,6 @@
     "n_shared": 91,
     "asymmetric": [
       {
-        "junction": "chr22:22915876:22919801:+",
-        "tumor": [
-          34.0,
-          19.0
-        ],
-        "normal": [
-          23.0,
-          23.0
-        ],
-        "promoted_to_tumor_exclusive": false,
-        "normal_evidence_destroyed": false,
-        "donor_gene": "IGLC5",
-        "acceptor_gene": "IGLC6"
-      },
-      {
-        "junction": "chr22:22905026:22906341:+",
-        "tumor": [
-          4.0,
-          4.0
-        ],
-        "normal": [
-          5.0,
-          1.0
-        ],
-        "promoted_to_tumor_exclusive": true,
-        "normal_evidence_destroyed": true,
-        "donor_gene": "IGLJ3",
-        "acceptor_gene": "IGLC3"
-      },
-      {
         "junction": "chr22:39576024:39621006:-",
         "tumor": [
           1.0,
@@ -385,6 +355,36 @@
         "normal_evidence_destroyed": false,
         "donor_gene": "PIK3IP1-DT",
         "acceptor_gene": "PIK3IP1-DT"
+      },
+      {
+        "junction": "chr22:22905026:22906341:+",
+        "tumor": [
+          4.0,
+          4.0
+        ],
+        "normal": [
+          5.0,
+          1.0
+        ],
+        "promoted_to_tumor_exclusive": true,
+        "normal_evidence_destroyed": true,
+        "donor_gene": "IGLJ3",
+        "acceptor_gene": "IGLC3"
+      },
+      {
+        "junction": "chr22:22915876:22919801:+",
+        "tumor": [
+          34.0,
+          19.0
+        ],
+        "normal": [
+          23.0,
+          23.0
+        ],
+        "promoted_to_tumor_exclusive": false,
+        "normal_evidence_destroyed": false,
+        "donor_gene": "IGLC5",
+        "acceptor_gene": "IGLC6"
       }
     ]
   }
