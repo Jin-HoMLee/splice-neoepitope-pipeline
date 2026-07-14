@@ -257,3 +257,152 @@ class TestReturnValue:
         out = tmp_path / "raw_junctions.tsv"
 
         assert convert_sj_to_junctions(sj, out) == 2
+
+
+class TestUniquenessKnob:
+    """The multimapper (col 8) semantic is an explicit policy, not a column accident.
+
+    [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118).
+
+    Historically this script read `SJ.out.tab` col 7 (uniquely-mapping reads)
+    only and never col 8 (multi-mapping), so a junction supported *only* by
+    multimappers was discarded outright - while the HISAT2 path counted every
+    read. Same FASTQ, different candidate set, decided by nothing but which
+    column a script happened to read.
+
+    [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122)
+    ruled the unique-only semantic **structurally unsound for a matched
+    tumor/normal design** (an independent per-read gate on each arm can destroy
+    normal support while leaving tumor untouched, manufacturing a false
+    `tumor_exclusive` candidate). So the *default* here is count-all - col 7 +
+    col 8 - and unique-only survives only as an explicit opt-in knob
+    (`alignment.uniqueness_filter.enabled`), matching the HISAT2 lever from
+    [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919).
+    """
+
+    # --- default: count all reads (the #1122 semantic) ---
+
+    def test_default_sums_unique_and_multi_reads(self, tmp_path):
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(unique=3, multi=2) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out)
+
+        # 3 unique + 2 multi = 5. Reading col 7 alone would say 3.
+        assert out.read_text().strip() == "chr22:101:200:+\t5\t0"
+
+    def test_default_keeps_a_multimapper_only_junction(self, tmp_path):
+        """The bug in one test: col-7-only silently discarded this junction.
+
+        This is the shape that produced the false `tumor_exclusive` in #1122 -
+        support that exists in one arm and is annihilated in the other.
+        """
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(unique=0, multi=4) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        assert convert_sj_to_junctions(sj, out) == 1
+        assert out.read_text().strip() == "chr22:101:200:+\t4\t0"
+
+    def test_default_still_drops_a_genuinely_zero_read_junction(self, tmp_path):
+        """Count-all must not resurrect junctions with no support at all."""
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(unique=0, multi=0) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        assert convert_sj_to_junctions(sj, out) == 0
+        assert out.read_text() == ""
+
+    # --- opt-in: unique-only (the pre-#1118 behavior, now explicit) ---
+
+    def test_unique_only_counts_col7_and_ignores_col8(self, tmp_path):
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(unique=3, multi=2) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        convert_sj_to_junctions(sj, out, unique_only=True)
+
+        assert out.read_text().strip() == "chr22:101:200:+\t3\t0"
+
+    def test_unique_only_drops_a_multimapper_only_junction(self, tmp_path):
+        """Preserves the historical behavior exactly - but only when asked for."""
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(_sj_line(unique=0, multi=4) + "\n")
+        out = tmp_path / "raw_junctions.tsv"
+
+        assert convert_sj_to_junctions(sj, out, unique_only=True) == 0
+        assert out.read_text() == ""
+
+    # --- the matched-pair control: the SAME input, one flag flipped ---
+
+    def test_knob_is_the_only_difference_between_the_two_semantics(self, tmp_path):
+        """Matched-pair control: identical input, opposite expected outcomes.
+
+        If this passes with both arms equal, the knob is not wired to anything.
+        """
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(
+            _sj_line(start=101, end=200, unique=5, multi=1) + "\n"
+            + _sj_line(start=301, end=400, unique=0, multi=6) + "\n"  # multimapper-only
+        )
+        count_all = tmp_path / "all.tsv"
+        unique_only = tmp_path / "uniq.tsv"
+
+        n_all = convert_sj_to_junctions(sj, count_all, unique_only=False)
+        n_uniq = convert_sj_to_junctions(sj, unique_only, unique_only=True)
+
+        assert n_all == 2 and n_uniq == 1
+        assert count_all.read_text().strip().splitlines() == [
+            "chr22:101:200:+\t6\t0",
+            "chr22:301:400:+\t6\t0",
+        ]
+        assert unique_only.read_text().strip().splitlines() == ["chr22:101:200:+\t5\t0"]
+
+    # --- robustness: a short row must not crash the count-all path ---
+
+    def test_row_missing_col8_is_tolerated_as_zero_multimappers(self, tmp_path):
+        """STAR always emits 9 columns, but a truncated row must not explode.
+
+        The pre-existing malformed guard only required >= 7 fields, so a 7-field
+        row reached the parser. Count-all must treat the absent col 8 as 0
+        rather than raise.
+        """
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text("chr22\t101\t200\t1\t1\t0\t5\n")  # 7 fields: no col 8, no col 9
+        out = tmp_path / "raw_junctions.tsv"
+
+        assert convert_sj_to_junctions(sj, out) == 1
+        assert out.read_text().strip() == "chr22:101:200:+\t5\t0"
+
+    # --- the audit log must be true in BOTH modes, not just the convenient one ---
+
+    def test_multimapper_only_count_is_reported_under_both_semantics(self, tmp_path, caplog):
+        """The audit counter is what makes the two semantics comparable.
+
+        Bot review on [PR #1168](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1168)
+        caught it sitting *after* the `reads <= 0` gate: under `--unique-only` a
+        multimapper-only row has `reads == 0` and is dropped by that gate, so the
+        counter reported 0 in the exact mode where the number matters - a log line
+        reading "0 dropped" while silently dropping them. It is now counted from
+        the raw columns, before the gate.
+        """
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(
+            _sj_line(start=101, end=200, unique=5, multi=1) + "\n"   # normal support
+            + _sj_line(start=301, end=400, unique=0, multi=6) + "\n"  # multimapper-only
+            + _sj_line(start=501, end=600, unique=0, multi=2) + "\n"  # multimapper-only
+            + _sj_line(start=701, end=800, unique=0, multi=0) + "\n"  # no support at all
+        )
+
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            convert_sj_to_junctions(sj, tmp_path / "all.tsv", unique_only=False)
+        assert "Junctions supported only by multimappers: 2 (kept)" in caplog.text
+
+        caplog.clear()
+        with caplog.at_level(logging.INFO):
+            convert_sj_to_junctions(sj, tmp_path / "uniq.tsv", unique_only=True)
+        # The same 2 junctions exist; under unique-only they are DROPPED, not absent.
+        assert "Junctions supported only by multimappers: 2 (dropped)" in caplog.text
