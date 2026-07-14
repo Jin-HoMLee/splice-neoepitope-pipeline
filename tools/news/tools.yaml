@@ -16,7 +16,9 @@
 #   `poll_releases.py --role <role>` polls only the tools whose `roles:` list
 #   contains <role>. This stops a `--role pm` poll from surfacing Developer-scope
 #   deltas. An entry with NO `roles:` key is visible to every role (fail-open — an
-#   untagged dep is never silently dropped). software -> [developer]; the
+#   untagged dep is never silently dropped). software is MOSTLY [developer], with
+#   exceptions (Issue #1097): pvactools is [scientist] (a science tool the Developer
+#   does not own) and regtools is [developer, scientist] (dual-role). The
 #   reference_data feeds carry [developer, scientist] (a dev-config concern AND a
 #   science-data concern, so neither role loses a signal it gets today).
 #
