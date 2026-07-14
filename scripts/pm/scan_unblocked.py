@@ -56,6 +56,25 @@ decided about it - which is the point, not a defect.
 The output is still **advisory** (house style): it surfaces, it never blocks, and it
 never auto-commits. `--ack` records a decline; it does not make one.
 
+## `--check` is a FORCE-DISPOSAL gate, not a passive canary - wire it knowingly
+
+Because findings no longer expire, `--check` stays **exit 1 until every finding is
+committed or acked**. Under the old window it would eventually self-clear on its own;
+now it will not, by design - each finding *should* get a terminal decision. So `--check`
+in a **blocking** context means *"force a decision"*, not *"warn me if something looks
+off"*. That is intended, but a consumer expecting eventual auto-green would be surprised,
+so do not wire it into a blocking gate without wanting that semantic. The default
+(no `--check`) is advisory exit 0, which is the right default and what the morning
+routine uses.
+
+**Exit codes:** `0` = ran fine (advisory, or `--check` with nothing to decide); `1` =
+ran fine, `--check` gate tripped; `2` = **could not run** (GitHub unreachable / ack
+write failed), matching argparse's own exit-2-for-usage-error convention. Note this is
+**inverted relative to `scan_prose_deps.py --check`** (which uses 2=drift, 1=infra
+error). Both are internally consistent; a routine shelling several PM sweeps must not
+assume a uniform mapping. Aligning them is tracked separately rather than silently
+changed here.
+
 ## Scope note
 
 This Issue originally also carried a *near-deadline milestone sweep*. That half was
@@ -93,6 +112,11 @@ PROJECT_NUMBER = 9
 # which silently loses any finding the sweep did not happen to run in time to see.
 # Remove the label and the finding legitimately returns (the decision is revoked).
 ACK_LABEL = "unblock-ack"
+ACK_LABEL_COLOR = "0E8A16"
+ACK_LABEL_DESCRIPTION = (
+    "Unblocked and deliberately left resting; excluded from scan_unblocked.py. "
+    "Remove to bring it back."
+)
 
 # Board Statuses that mean "not yet committed". A cleared blocker only matters if
 # nobody has since pulled the dependent. `Epic` is deliberately absent: a parent is
@@ -207,6 +231,7 @@ def classify(issue, *, now=None):
     labels = [lb.get("name", "") for lb in (((issue.get("labels") or {}).get("nodes")) or [])]
     if ACK_LABEL in labels:
         return None                                            # (4)
+    roles = sorted(n for n in labels if n.startswith("role:"))
 
     # Descriptive only - never a gate. A blocker legitimately may carry no closedAt
     # (deleted/transferred edge cases); that must not suppress a finding, because the
@@ -218,11 +243,6 @@ def classify(issue, *, now=None):
         round((now - cleared_at).total_seconds() / 86400.0, 1) if cleared_at else None
     )
 
-    roles = sorted(
-        label["name"]
-        for label in (((issue.get("labels") or {}).get("nodes")) or [])
-        if label.get("name", "").startswith("role:")
-    )
     return {
         "number": issue["number"],
         "title": issue.get("title", ""),
@@ -305,6 +325,25 @@ def sweep(*, now=None):
                                            -(f["waiting_days"] or 0)))
 
 
+def ensure_ack_label():
+    """Create the ack label if missing. Idempotent (`--force` upserts).
+
+    The write path MUST be self-sufficient. `gh issue edit --add-label` does not create
+    a missing label - it fails HTTP 422, which `gh_client` treats as deterministic and
+    does not retry. So without this, the FIRST `--ack` anyone runs on a fresh clone dies,
+    and `--ack` is one of the two terminal actions the whole level-triggered design rests
+    on. A design whose principle is "every finding must have a working way to be cleared"
+    cannot ship with its clear-path gated on an undocumented manual step.
+
+    (The label does exist in our repo today - because I created it by hand while testing,
+    which is exactly the kind of invisible prerequisite that makes a thing unreproducible.
+    Creating it here puts it in the code instead of in my head.)
+    """
+    gh("label", "create", ACK_LABEL, "--repo", REPO, "--force",
+       "--color", ACK_LABEL_COLOR, "--description", ACK_LABEL_DESCRIPTION,
+       parse_json=False)
+
+
 def acknowledge(number, reason):
     """Record a DELIBERATE decline: label the Issue + leave the reason on the record.
 
@@ -313,6 +352,7 @@ def acknowledge(number, reason):
     precisely because an unexplained silence is what we are trying to eliminate: a
     finding that vanishes with no rationale is indistinguishable from one that was lost.
     """
+    ensure_ack_label()
     body = (
         f"**From:** PM\n\n"
         f"## Acknowledged: unblocked, and deliberately left resting\n\n"
@@ -340,7 +380,7 @@ def main():
     parser.add_argument("--reason", help="why it is being left resting (required with --ack)")
     args = parser.parse_args()
 
-    if args.ack:
+    if args.ack is not None:   # `--ack 0` is falsy; `is not None` is the precise guard
         if not args.reason:
             parser.error("--ack requires --reason: an unexplained decline is "
                          "indistinguishable from a dropped finding")

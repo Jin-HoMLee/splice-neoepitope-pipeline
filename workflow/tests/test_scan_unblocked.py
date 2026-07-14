@@ -118,7 +118,7 @@ def test_classification_is_independent_of_now():
     issue = make_issue(blockers=[(211, "CLOSED", 400)])
     a = classify(issue, now=NOW)
     b = classify(issue, now=NOW + dt.timedelta(days=5000))
-    assert (a is None) == (b is None) is False, "both must fire"
+    assert a is not None and b is not None, "both must fire - the clock decides nothing"
     assert a["number"] == b["number"]
 
 
@@ -327,16 +327,36 @@ def test_sweep_sorts_longest_undecided_first(monkeypatch):
 # acknowledge() - the write path
 # ---------------------------------------------------------------------------
 
-def test_acknowledge_comments_then_labels(monkeypatch):
+def test_acknowledge_creates_the_label_before_using_it(monkeypatch):
+    """The write path must be SELF-SUFFICIENT.
+
+    `gh issue edit --add-label` does NOT create a missing label - it fails HTTP 422, which
+    gh_client treats as deterministic and does not retry. So without an upfront create, the
+    FIRST --ack on a fresh clone dies. And --ack is one of the two terminal actions the
+    whole level-triggered design rests on: a design whose principle is "every finding has a
+    working way to be cleared" cannot gate its clear-path on an undocumented manual step.
+
+    The label exists in our repo today only because it was created BY HAND during testing -
+    precisely the invisible prerequisite this test exists to make impossible.
+    """
     calls = []
     monkeypatch.setattr(su, "gh", lambda *a, **kw: calls.append(a))
 
     su.acknowledge(594, "resting on purpose: superseded by the S4 rewrite")
 
-    assert calls[0][0:2] == ("issue", "comment")
-    assert calls[1][0:2] == ("issue", "edit")
-    assert su.ACK_LABEL in calls[1]
-    body = next(a for a in calls[0] if "resting on purpose" in str(a))
+    verbs = [c[0:2] for c in calls]
+    assert verbs[0] == ("label", "create"), "label must be ensured BEFORE it is applied"
+    assert "--force" in calls[0], "label create must be idempotent (upsert), not a one-shot"
+    assert verbs.index(("label", "create")) < verbs.index(("issue", "edit")), \
+        "ordering is the whole point: create, then add"
+
+    assert ("issue", "comment") in verbs
+    assert ("issue", "edit") in verbs
+    edit = next(c for c in calls if c[0:2] == ("issue", "edit"))
+    assert su.ACK_LABEL in edit
+
+    body = next(a for c in calls if c[0:2] == ("issue", "comment")
+                for a in c if "resting on purpose" in str(a))
     assert "remove the label and it returns" in body.lower(), (
         "the ack must advertise its own revocability - a decision, not a dismissal"
     )
