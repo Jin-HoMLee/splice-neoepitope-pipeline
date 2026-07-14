@@ -6,6 +6,65 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-14
+
+### 13:30 UTC - Editor: PM
+
+#### Four findings, one defect: a mechanism that reports success while doing nothing
+
+The morning routine turned up four failures that arrived independently, in four different beats, and I did not notice until the fourth that they are the same defect.
+
+| Where | What it reported | What was true |
+|---|---|---|
+| `dispatch_digest.py:66` | Developer Ready = **3** (below floor) | Ready = **5** (at floor) - it buckets by the *first* `role:` label only |
+| Developer's hook fire-log | **zero fires** = "no violations" | ambiguous with "the matcher is dead" - which is what it was |
+| `gh project item-list --limit 1000` | 1,000 rows, **exit 0** | the board holds 1,228; [Issue #1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135), an **open** Issue, was not among them |
+| my own board-mutation script (2026-07-13) | `ok` for all 22 items | it had written **nothing** |
+
+Each one is a check that **could only come back green**. None of them errored. All four were believed.
+
+The digest one is the sharpest, because it is the only one that reached a decision before being caught. In the Daily Stand-up I reported "Developer at 3 against a floor of 5" and was ready to run a `[REPLENISH developer]` sweep. `check_ready_queue.sh` - which counts by role-label *membership* - said 5. Had the two not disagreed, I would have committed Backlog work into a lane that was already at floor. That is the cost: not a wrong number, a wrong **commitment**.
+
+This is why I read back every board write I made today instead of trusting its exit code. It is a slow habit and I do not love it, but the alternative is the row above.
+
+**Routing.** The Memory Manager had independently filed two of these as separate instances of "a check that cannot fail". He is right that they are not two instances - but I think he had the mechanism slightly wrong, and verifying it changed the fix. His claim was that *no single `gh` command returns both the issue identity and the board-item ID*. That is too strong: `gh project item-list` returns the board-item `id` **and** `content.number` in one payload. The phantom is specifically `content.id`, which a board-field mutation does not even need. But the one-call join that survives is a **silent-truncation trap in the other direction** (default `--limit` is 30; at 1,000 it drops open work off a Done-first board). So "found nothing" is ambiguous **three** ways - absent key, absent item, truncated read - and a helper guarding only his failure mode would still have confidently answered *"is #1135 on the board?"* with **no**. [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151) now demands **two** invariants and a two-directional falsifier.
+
+#### The parent model: I rejected my own proposal, and the reason was a correctness hole, not ergonomics
+
+[Issue #1031](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1031) proposed splitting "parent" into structural-epic vs tracking-issue, because the epic mold is heavy for small parents. I had written that proposal. On a second best-practice pass I rejected it, and adopted a third option instead.
+
+Two facts killed the split. **Native issue types are organization-only and we are a user account** (verified: `owner.type = User`; `organization(login:"Jin-HoMLee")` -> NOT_FOUND). So the discriminator would be a **hand-set label** - and it would discard the property that makes Pattern A2 ([#776](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/776)) drift-proof: `subIssuesSummary.total > 0` is *computed, never stored*. On a day defined by mechanisms that silently fail, adding one whose correctness depends on someone remembering a label was the wrong direction.
+
+But the status quo was not defensible either, and the reason is worse than the friction I filed it for. **The only sanctioned way to give a small parent a commit-point today is a plain `--no-issue` branch whose PR references but does not close it - and every gate in `audit_and_merge.sh` keys off `closingIssuesReferences` (L118).** So that path is audited by *none* of them: no AC audit, no priority-rationale check, no stray-closer scan, no lab-notebook gate. **A rule whose compliant path is less rigorous than its non-compliant one is inverted.** That is the defect, and it is not an ergonomics complaint.
+
+The fix follows from re-reading the original harm. [PR #543](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/543) -> [#538](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/538) was never *"a parent had a branch"*; it was **a PR auto-closing a parent while its children were open**. The harm lands at **merge**. We were guarding at **branch** - banning a safe reversible act to prevent an unsafe irreversible one. So: merge-time gate (blocking), branch-time guards downgraded to advisory. Carved into [#1155](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1155) (mechanism) + [#1156](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1156) (convention, `blockedBy` the first).
+
+Evidence that mattered: **6 of 12 open parents have <= 2 children**, and **4 sit at a full sub-bar while still open** - each carrying residual scope. And our tooling had already conceded the point: [#1067](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1067), merged this week, exists to flag *"parents with a full sub-bar but unticked body ACs"*. The code accepted that parents carry their own scope; only the convention had not caught up.
+
+#### Rested signal - do not re-float this (2026-07-14)
+
+**Claim: "sub-issues automatically inherit the parent issue's Projects and Milestones."** Surfaced by **two independent web searches** during the Signals beat. It is **FALSE**. It appears in neither the [July 2026 changelog index](https://github.blog/changelog/month/07-2026/) nor the [Issue-fields GA entry](https://github.blog/changelog/2026-07-02-issue-fields-are-now-generally-available/) it was attributed to - the search digest confabulated it. Recording it here because a *rested* signal leaves no trace in Zotero or the open Issues, so without a findable home it re-surfaces as fresh every morning. **Keywords for the dedup grep: sub-issue inherit parent project milestone inheritance.**
+
+It would have mattered had it been true (it cuts against our un-milestoned-parents rule), which is exactly why it was worth the two fetches. A confident answer to an unasked question is harder to catch than an obviously wrong one.
+
+**Related and verified true, so not rested:** GitHub shipped a [repo-wide auto-close toggle](https://github.blog/changelog/2025-04-23-users-can-now-choose-whether-merging-linked-pull-requests-automatically-closes-the-issue/) (2025-04-23). It is **all-or-nothing per repository**, not per-link, so it gives us no native "link without closing" and disabling it would break every leaf PR. Our rule that the per-link closing edge is non-removable **stands**.
+
+#### The board is 88% closed work, and it is not a tidiness problem
+
+Jin-Ho asked how to handle a board grown past 1,000 done items. Board 9 holds **1,228 items, ~150 open, sorted Done-first**, and every board read pages through all of them then discards the closed ones (`board_open_items.py` drops `CLOSED`/`MERGED` + `Status == Done`). We pay 13 GraphQL pages for data we delete.
+
+**That Done-first sort is the fuel for the whole silent-failure class above** - the `first: 100` query that reported "Ready is empty" (2026-06-12), the pagination guard hook built to stop it, and today's `--limit 1000` hiding an open Issue. Archive the closed work and the failure mode has no fuel.
+
+We already had a rule for this (`shared/feedback_archive_cadence.md`) and it is at the **wrong rung**: a manual PM runbook, evidently unrun for months, whose stated future is to *"convert this to a scheduled agent"* - i.e. build a robot to press a button GitHub already gives us. The native [auto-archive workflow](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/archiving-items-automatically) (`is:closed updated:@today-2w`) applies retroactively, costs nothing, and - verified - archived items are **not returned by the `ProjectV2.items` connection**, so the saving is real, not cosmetic. Checked before recommending: **nothing regresses** (`board_open_items.py` already discards Done; the SDR reads throughput off `gh issue list`, not the board). Filed as [#1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152).
+
+I found this out the expensive way: establishing those facts **exhausted the hourly GraphQL budget** (5,000 calls) and stalled the routine for ~17 minutes.
+
+#### Where I was wrong today
+
+I told Jin-Ho that `feedback_dependency_tracking.md` had the wrong argument name for `addBlockedBy`. It does not - it documents `blockingIssueId` correctly, in a snippet I would have seen had I read it instead of guessing at the API and then blaming the memory when my guess failed. Small, but it is the same shape as everything above: I asserted a state without checking it.
+
+---
+
 ## 2026-07-13
 
 ### 15:10 UTC - Editor: PM
