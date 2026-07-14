@@ -122,7 +122,23 @@ peptides claimed in Table 1 of the paper. That gap is a data-availability findin
 SNAF's supplementary workbook is read from local Zotero storage (item `TZGPRIFK`, attachment `WK4DHT6M`)
 rather than committed: it is 29 MB and is the publisher's file, not ours to redistribute.
 
+## Background: proteasome-spliced peptides are NOT what we study
+
+[`explainers/reverse_cis_splicing.html`](explainers/reverse_cis_splicing.html) - open in a browser.
+
+A recurring confusion, and one that is baked into at least one reference set we may use (NeoAtlas-Protein
+is a proteasome-spliced catalogue): **proteasome-catalyzed peptide splicing (PCPS) is post-translational
+peptide ligation**, encoded nowhere in the transcriptome. Our splice-junction-derived neoepitopes are
+transcript-encoded. The explainer walks the four ligation topologies and shows why a *forward cis*-spliced
+product is sequence-identical to an exon-skipping junction peptide (so MS alone cannot separate them),
+while a *reverse cis* product cannot be encoded by any transcript at all. Load-bearing consequence for us:
+our peptides have RNA-seq as an orthogonal corroborating assay; PCPS claims have no nucleic-acid check
+available, which is why that field's false-discovery dispute is unresolved.
+
 ## Still open
 
-- caAtlas (tumor immunopeptidome) - per-gene harvest, the reference most likely to carry real hits.
-- AC-4 tier rows: the 23 SysteMHC hits are the presentation-prevalence candidates.
+- AC-4 tier rows: the 29 `snaf_pred` x SysteMHC non-UniProt hits are the presentation-prevalence candidates.
+- AC-7 per-allele coverage: the SysteMHC table carries allele/tissue/disease per peptide.
+- AC-9 decoy seed: the 79 + 188 canonical-atlas hits (predicted "neoantigens" presented on healthy tissue).
+- AC-2 / AC-10 re-scope: the non-canonical re-search is now the main event, not a stretch goal - see the
+  ceiling finding above. Awaiting a decision.

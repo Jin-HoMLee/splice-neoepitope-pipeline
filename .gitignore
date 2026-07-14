@@ -268,6 +268,10 @@ research/slides/**/*.pdf
 research/experiments/**/*.html
 research/experiments/**/*.pdf
 research/experiments/**/*_files/
+# Exception: hand-authored HTML explainers are SOURCE, not build output - no .qmd regenerates
+# them, so ignoring them would lose the file outright. Only the Quarto artefacts above are
+# regenerable; these are not.
+!research/experiments/**/explainers/*.html
 research/experiments/**/.quarto/
 research/experiments/**/slides.tex
 research/experiments/**/slides.log
