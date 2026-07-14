@@ -221,6 +221,19 @@ Truly non-canonical (col 5 = 0) and unknown codes are **dropped** rather than em
 
 The HISAT2 path is unaffected by this — `regtools junctions extract` derives strand from the XS BAM tag set during alignment and never emits `.` strand.
 
+## Junction uniqueness semantic - one knob, both aligners
+
+**What counts as read support for a junction is an explicit policy, not an artifact of which column a script reads.** `alignment.uniqueness_filter.enabled` governs **both** paths ([Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118)):
+
+| | knob **off** (default) | knob **on** |
+|---|---|---|
+| **HISAT2** | regtools on the full BAM - all reads | `samtools view -e '[NH]==1'` BAM prefilter ([Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919)) |
+| **STAR** | `SJ.out.tab` **col 7 + col 8** | `SJ.out.tab` **col 7 only** |
+
+**Keep it off unless you have a specific reason, and know what you are turning on.** [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) found the unique-only semantic **structurally unsound for a matched tumor/normal design**: it gates each arm *independently*, so it can destroy support in the normal while leaving the tumor untouched - promoting a junction genuinely present in both into a false `tumor_exclusive` candidate (i.e. a spurious therapeutic target). Demonstrated on the IGLJ3->IGLC3 junction in the chr22 fixture: normal support fell 5 reads -> 1, below `min_normal_reads`, while tumor stayed at 4. **A filter that only removes reads should never be able to *add* a candidate; that it can is the defect.** If we ever want a uniqueness signal it must be a junction-level score applied **after** pooling tumor and normal evidence (the [Issue #1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116) direction), never an independent per-read gate on each arm.
+
+**The historical trap this closes:** `star_sj_to_junctions.py` read col 7 only, unconditionally. That *is* the unique-only policy - so the STAR path had been silently applying it all along, and converging on STAR ([ADR-0003](docs/adr/0003-converge-on-star.md)) would have adopted it as pipeline policy **by construction**, never as a decision. Col 8 was always right there. Do not re-hardwire either column.
+
 ## UCSC vs ENSEMBL Chromosome Naming
 Both naming conventions use "GRCh38" in filenames, making it easy to mix them silently.
 - `hg38_*` (UCSC) — chromosomes have `chr` prefix: `chr1`, `chr2`, ..., `chrM`
@@ -243,7 +256,7 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 - All test outputs go to `results/test/` and `logs/test/`
 - **STAR locally: the RAM claim is false at chromosome scale; the real blocker is a broken bioconda macOS build.** The long-standing note here ("STAR needs >8 GB, unusable locally") is true for the **whole genome** and misleading for **chr22**. Measured on the M1 (8 GB): a chr22 STAR index build peaks at **730 MB in 14 s**, and aligning 500K reads peaks at ~230-380 MB. The ~30 GB figure is the whole-genome suffix array, not chr22.
   The actual blocker is that **both** bioconda macOS STAR builds (native `osx-arm64` and Rosetta `osx-64`) build the index correctly but then report **0 input reads** for every FASTQ, including a synthetic read cut from the chr22 reference (`end of input stream, nextChar=-1` on the first byte). Index generation works; the read parser returns instant EOF. Secondarily, `workflow/envs/star.yaml` pins `star=2.7.10b`, which has **no osx-arm64 build at all** (bioconda's only arm64 STAR is 2.7.11b), so the STAR env is unsolvable on Apple Silicon as written.
-  **Decision ([ADR-0003](docs/adr/0003-converge-on-star.md), [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112)): converge on STAR and run it locally via a `linux-64` container** - the build that works, identical to production, and it makes the arm64 pin moot. **Until that container path lands, HISAT2 remains the working local aligner**, so the two-aligner split is still live in the tree today - and the two paths do **not** agree on multimapper handling (STAR reads `SJ.out.tab` col 7 only; the HISAT2 path counts all reads). That uniqueness semantic is an **open question**, not a settled default: see [ADR-0003](docs/adr/0003-converge-on-star.md) and [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118).
+  **Decision ([ADR-0003](docs/adr/0003-converge-on-star.md), [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112)): converge on STAR and run it locally via a `linux-64` container** - the build that works, identical to production, and it makes the arm64 pin moot. **Until that container path lands, HISAT2 remains the working local aligner**, so the two-aligner split is still live in the tree today. The two paths now **agree** on multimapper handling (see the uniqueness-semantic note below, [Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118)); before that they did not, and the aligner switch silently changed the candidate set.
 
 ## Board status governance — late-commitment Kanban (left side)
 
