@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14 - The queue was lying, and it had been for months ([Issue #1153](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1153))
 
+### 15:05 UTC - Editor: Developer - I fixed the instance and missed the class. Again.
+
+The bot review on [PR #1154](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1154) found the **identical bug one file over**: `check_roadmap_health.py:108` imports `board_open_items`, reuses its `normalize()`, and then re-implements its own first-role-only `--role` filter. Character for character the same silent drop. My PR's own thesis was *"apply the fix we already made to the axis we forgot"* - and I shipped it with the axis still forgotten in the second consumer. Shipping it would have made *"the role axis is fixed"* look true while the undercount that hid work from a Lead kept running in the roadmap sweep.
+
+**This is the third consecutive session with the same shape.** 2026-07-12: fixed the flag in `audit_parent_chain`, missed `run_all_mode`. 2026-07-13: fixed the hook I probed, missed the three the probe couldn't see. Today: fixed the axis in the file I was looking at, missed the file that imports it. I have now written "I fix the instance and miss the class" in this notebook three times, and writing it a fourth time is not a plan.
+
+**What actually caught it, all three times, was an external reviewer with a different probe.** Never my own re-read. So the operational lesson is not "look harder" - it is: **when you fix a bug, grep for the *shape* before you open the PR.** I did that afterwards this time, and the sweep found a third site (`dispatch_digest._role_slug`) the bot had only mentioned in passing. That grep cost thirty seconds and would have caught everything the review did. It belongs *before* the PR, not after it.
+
+**And the fix for the review's finding contained the same bug class again.** My first cut read `it.get("roles")` alone, which silently bucketed every legacy-shaped dict (`role` present, `roles` absent) into `(none)`. A pre-existing test in `workflow/tests/` caught it - a directory my "sweep for all consumers" grep had not searched, because I searched `scripts/` and `tools/` and forgot the suite spans five directories. That is *also* a rule already in my memory ([[ci-pytest-runs-five-dirs-not-just-tools-ci]]). Two rules I have written down, both violated inside the fix for a bug about silently-wrong queries.
+
+**Honest limit on what I verified.** `board_open_items` is confirmed against the live board with a matched-pair control (12 hidden -> 0). `check_roadmap_health` is **not** - the board carries exactly one Target-dated item out of 164 open, and it is single-role, so no live dual-role overdue item exists to exercise. Its evidence is the red-first unit pair alone. Writing that down rather than letting "verified" cover both.
+
+**Shipped after review:** `matches_role()` membership matching + `group_by_role()` bucketing under both roles + `_roles_of()` legacy fallback in `check_roadmap_health`; the two `+N` rendering tests the review asked for (verified red against pre-fix code - they had passed on first write only because the fix was already in, which proves nothing); [Issue #1158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1158) filed for the third site. Suite: 1748 passed.
+
 ### 13:10 UTC - Editor: Developer - found by a contradiction, not by a search
 
 `board_open_items.py --role X` kept only the **first** `role:` label on an item, so a dual-role Issue was invisible in the queue of whichever role was not listed first. Measured against the live board: **12 open Issues hidden from `--role developer`**, including [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) - an Issue on which **I am the Lead/DRI**. This script backs the morning routine's right-side sweep, `/inbox`, and the quick-win burndown, so the under-count propagated into every board scan I run.
