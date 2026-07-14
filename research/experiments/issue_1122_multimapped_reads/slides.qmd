@@ -1,0 +1,175 @@
+---
+title: "`NH` is a property of a read, not of a junction"
+subtitle: "Issue #1122 · what the multimapped spliced reads are, and why the filter is disqualified · 2026-07-14"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: today
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+---
+
+## The multimapped reads are real RNA, and the filter that removes them breaks the subtraction
+
+Developer built the instrument and proved the chr22 fixture **cannot measure the filter's precision**: `NH` is index-relative, so the population the filter exists to catch is invisible here. Correct, and load-bearing.
+
+But we do not need to measure how often it *helps*. There is a defect that is **structural, not statistical** - it holds at any index, any depth:
+
+::: {.fragment}
+> `NH` counts where an individual **read's sequence** could otherwise land.
+> It is not a property of the **junction**.
+:::
+
+::: {.fragment}
+Two libraries sampling the same junction draw different reads, so they get different `NH` profiles **by chance**. Filtering on `NH` erodes the tumor and normal arms **independently** - and a matched subtraction cannot survive that.
+:::
+
+---
+
+## The demonstration: a real antibody junction becomes a "tumor-specific" target
+
+**IGLJ3 → IGLC3** (`chr22:22905026:22906341:+`) - the canonical J-to-C join of a rearranged immunoglobulin lambda light chain. A functional antibody transcript from plasma cells. Present in **both** arms.
+
+| | reads, filter OFF | filter ON |
+|---|---|---|
+| **tumor** | 4 (all `NH=1`) | **4** |
+| **normal** | 5 (one `NH=1`, three `NH=3`, one `NH=2`) | **1** |
+
+::: {.fragment}
+Normal support drops below `min_normal_reads: 2` → the junction stops counting as "seen in normal" → its tumor copy is **promoted `normal_shared` → `tumor_exclusive`**.
+
+**A junction with five reads of matched-normal support becomes a neoepitope candidate because we switched on a precision filter.**
+:::
+
+---
+
+## The mechanism, at read level
+
+In the two BAMs, the **same alignment of the same junction**:
+
+```
+TUMOR   pos=22905015  CIGAR=11M1316N39M   NH=1   ← filter keeps it
+NORMAL  pos=22905015  CIGAR=11M1316N39M   NH=2   ← filter drops it
+```
+
+::: {.fragment}
+Same coordinates. Same CIGAR. Same biological event. **Different `NH`.**
+
+`NH` depends on where that individual read's *sequence* could otherwise go - a property of the draw, not of the junction. At **n=1 per arm** there is no replication to average it away.
+:::
+
+---
+
+## Honest scope: an existence proof, not a rate
+
+Across the **91** junctions detected in *both* libraries:
+
+| | n |
+|---|---|
+| tumor:normal read ratio **changed** by the filter | **4** |
+| ...of which became a **false `tumor_exclusive`** | **1** |
+
+::: {.fragment}
+**This is n=1. It is not a percentage, and I will not report it as one** - 91 shared junctions cannot estimate a frequency.
+
+It is sufficient anyway: the cost function is **asymmetric**. A false `tumor_exclusive` is a candidate *therapeutic target*.
+:::
+
+::: {.fragment}
+And **2 of the 4** asymmetries are immunoglobulin junctions - a striking concentration in a locus that is a sliver of chr22, and exactly the paralog-rich domain (IG/HLA/TCR) this pipeline targets.
+:::
+
+---
+
+## The field default is right - for a different estimand
+
+Unique-only is standard and **not** cargo cult. LeafCutter: *"the most restrictive filter is the requirement that reads considered be uniquely mapped."* STAR institutionalises it (`SJ.out.tab` col 7 unique / col 8 multi).
+
+| | **their** problem | **our** problem |
+|---|---|---|
+| estimand | quantification (a ratio, PSI) | **binary presence/absence subtraction** |
+| replicates | many | **one tumor, one normal** |
+| noise behaviour | averages out | **flips a binary call** |
+| a misplaced read costs | a slightly wrong PSI | **a false therapeutic target** |
+
+::: {.fragment}
+Paralogy (HLA/IG/TCR) determines **where** it fails. The **single-pair design** determines **that** it fails. The default's statistical justification does not survive the change of estimand.
+:::
+
+---
+
+## The number we were arguing about was measured on the wrong set
+
+`filter_junctions.py:400` keeps a tumor junction only if `reads > mean(reads)` **for that file**. On this fixture: mean = **1.205** → `reads >= 2` → removes **1,638 / 1,872 (87.5%)**.
+
+So production never builds candidates from the raw set.
+
+| | filter OFF | filter ON |
+|---|---|---|
+| raw junctions | 1,872 | 1,605 |
+| survive mean filter | 234 | 190 |
+| **→ `tumor_exclusive`** | **151** | **109** |
+
+::: {.fragment}
+#919 reported **16.2%** (251/1,550, on the raw set). The real cost is **43/151 = 28.5%** - understated ~2x, because 86% of what the NH filter removes is single-read and the mean filter drops it anyway.
+
+**And "gained: 1"** - a filter that only *removes reads* should never *add* a candidate. That it can is the defect in one number.
+:::
+
+---
+
+## The bigger, undecided filter → Issue #1161
+
+The **dominant depth gate** in the junction path is a floating **per-file mean**. Nobody decided it. The code calls it *"the silent mean threshold."*
+
+- **Data-dependent** - the threshold is a function of the library's own depth. Here it lands on `reads >= 2`; on a deeper library it silently becomes `>= 4` or higher. (pvacsplice: an explicit, fixed `>= 10`.)
+- **Non-monotonic** - the mean is recomputed from whatever survives, so an upstream filter changes the gate for everything downstream.
+- **Arm-asymmetric** - tumor gets the floating mean; normal gets a fixed `min_normal_reads: 2`. Two different rules on the two arms of a matched subtraction.
+
+::: {.fragment}
+We spent two Issues arguing about a filter with **14%** blast radius while an unexamined one makes the real call at **87.5%**.
+:::
+
+---
+
+## Two probes that cannot work (recorded so they are not re-tried)
+
+**The splice-motif probe is void.** "Are the removed junctions less canonical?" looks ideal and index-independent. It cannot fire:
+
+> **All 1,872 junctions are GT-AG** - 999 `GT..AG` on `+`, 873 `CT..AC` on `-`, **zero** exceptions.
+
+HISAT2's `XS` tag is motif-derived and `regtools -s XS` consumes it, so the motif is **already an inclusion gate upstream**. A probe that restates a gate can only confirm it. *(Does not sink #1116: Portcullis-style anchor-vs-intron Hamming is a different signal.)*
+
+::: {.fragment}
+**The NH filter does not clean up #1147's low-complexity artifacts.** It removes **0 of 267** low-complexity contigs and leaves all 9 behind. **#1122 = paralogy at alignment; #1147 = low-complexity at translation.** Orthogonal. One filter does not kill two problems.
+:::
+
+---
+
+## Decision
+
+1. **Default stays OFF** - but because the filter *as applied* (an independent per-read gate on each library) is **structurally wrong for a matched design**, not merely because the A/B was unconvincing. It should not be promoted to default at **any** index or depth. **#1095 is not a prerequisite** (AC-4).
+
+2. **If we ever want a uniqueness signal**, it cannot be a per-library per-read gate. It must be a junction-level **score** carried into the comparison (#1116), or a decision made **after pooling** the two arms - never applied to them independently.
+
+3. **The trap in #1112 / #1118.** `star_sj_to_junctions.py:112` reads `SJ.out.tab` **col 7 only** - that **is** the unique-only semantic. **Converging on STAR silently adopts, by construction, the policy this Issue disqualifies** - never as a decision, only as an artifact of which column a script reads. **Col 8 is right there.** Make it an explicit configurable policy; default **count all reads**.
+
+## References
+
+::: {#refs}
+:::
