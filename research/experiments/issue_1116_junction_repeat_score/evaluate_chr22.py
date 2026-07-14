@@ -114,17 +114,34 @@ def motif_of(ref: str, start: int, end: int) -> str:
 
 
 def check_coordinates(ref: str, junction_ids, limit=400) -> dict:
-    """Falsifier: canonical introns must read GT..AG (+) or CT..AC (-).
+    """Falsifier for the OFFSET CONVENTION - and only for that. Read the caveat.
 
     An off-by-one in the coordinate convention silently shifts every window and
-    produces a score that is precise and meaningless. If this check fails, stop.
+    produces a score that is precise and meaningless. This catches that: a
+    shifted read of even a canonical junction lands on the wrong dinucleotides
+    and fails the motif test.
+
+    **What it does NOT prove (flagged by review on
+    [PR #1171](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1171)):**
+    that the junction set is canonical. It *is*, by construction - the upstream
+    extractors already gate on motif (regtools derives strand from HISAT2's
+    motif-derived `XS` tag; `star_sj_to_junctions.py` drops non-canonical col-5
+    codes outright). So there are no non-canonical junctions left in the input to
+    dilute the count, and a 100% canonical result is partly guaranteed rather
+    than earned. Do not read it as evidence about the junctions themselves.
+
+    The sample is also the first `limit` junctions in file order, which is
+    coordinate-sorted - a low-position slice, not a random one. That is fine for
+    the offset question (an off-by-one is global, not positional) and is *not*
+    fine for anything else.
     """
     counts = {}
     for jid in list(junction_ids)[:limit]:
         _c, s, e, _strand = parse_junction_id(jid)
         if s - 1 < 0 or e > len(ref):
             continue
-        counts[motif_of(ref, s, e)] = counts.get(motif_of(ref, s, e), 0) + 1
+        motif = motif_of(ref, s, e)
+        counts[motif] = counts.get(motif, 0) + 1
     return counts
 
 
@@ -159,7 +176,10 @@ def main() -> int:
     top = sorted(motifs.items(), key=lambda kv: -kv[1])[:4]
     canonical = sum(v for k, v in motifs.items() if k in ("GT..AG", "CT..AC"))
     total = sum(motifs.values())
-    print("COORDINATE CHECK (canonical motif must dominate, else the offsets are wrong)")
+    print("COORDINATE CHECK - tests the OFFSET CONVENTION only, not the junctions")
+    print("  (the input is already motif-gated upstream, so 100% canonical is partly")
+    print("   guaranteed; what this catches is an off-by-one, which would shift every")
+    print("   window onto the wrong dinucleotides and fail here)")
     for k, v in top:
         print(f"  {k}  {v}")
     frac = canonical / total if total else 0

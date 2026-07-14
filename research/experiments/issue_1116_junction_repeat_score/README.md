@@ -28,7 +28,9 @@ It is also the *shape* of signal [#1122](https://github.com/Jin-HoMLee/splice-ne
 
 ## Results (chr22, tumor; `--anchor 10`)
 
-Coordinates are checked before anything is scored: **400/400** sampled introns read `GT..AG` / `CT..AC`. An off-by-one would have produced confident garbage, so the script aborts rather than proceed.
+Coordinates are checked before anything is scored: **400/400** sampled introns read `GT..AG` / `CT..AC`, so the 1-based-inclusive offset convention is confirmed and the script does not proceed on a bad one.
+
+**What that check does and does not prove** (sharpened after review on [PR #1171](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1171)): it catches an **off-by-one**, which is the failure that would make every number below confident garbage - a shifted read lands on the wrong dinucleotides and fails the test. It is **not** evidence that the junction set is canonical: it already is, by construction, because the upstream extractors gate on motif (regtools takes strand from HISAT2's motif-derived `XS` tag; the STAR script drops non-canonical codes). A 100% canonical result is therefore partly guaranteed rather than earned, and should not be read as a property of the data.
 
 ### Q1 - it separates real from spurious junctions, enormously
 
@@ -52,10 +54,12 @@ The check that could have killed this Issue. The #919 run independently annotate
 
 ### Q2 - it does NOT agree with the NH gate, and that is a finding
 
-| junction set | n | mean `min_hamming` | fraction flagged |
+| junction set | n | **mean** `min_hamming` | fraction flagged |
 |---|---|---|---|
 | removed by the NH gate | 267 | 1.39 | 0.854 |
 | **kept** by the NH gate | 1,605 | 2.17 | **0.695** |
+
+*(Note the axis switch: Q1 and Q3 report **medians**, this table reports **means**. The medians here are **identical at 1.0**, so the mean is the only statistic that surfaces the small gap at all - which is itself the point. The raw runs in `outputs/` carry both.)*
 
 The gate removes junctions that are mostly repeat-embedded (85%) - but it **keeps 1,605 junctions of which 70% are also repeat-embedded**. It is not selective for this signal at all; both medians are 1.0.
 

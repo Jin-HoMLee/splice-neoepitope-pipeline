@@ -47,7 +47,7 @@ class TestHamming:
         """Reference FASTA soft-masks repeats in lowercase.
 
         Treating `a` != `A` would make every soft-masked repeat look like a
-        perfect mismatch - i.e. maximally *un*-repeat-like. That would inv&ert
+        perfect mismatch - i.e. maximally *un*-repeat-like. That would invert
         the score exactly where it matters most.
         """
         assert hamming("acgt", "ACGT") == 0

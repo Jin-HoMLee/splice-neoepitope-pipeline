@@ -4,7 +4,10 @@ junctions (filter off): 1,872
 junctions (filter on):  1,605
 removed by the NH gate: 267
 
-COORDINATE CHECK (canonical motif must dominate, else the offsets are wrong)
+COORDINATE CHECK - tests the OFFSET CONVENTION only, not the junctions
+  (the input is already motif-gated upstream, so 100% canonical is partly
+   guaranteed; what this catches is an off-by-one, which would shift every
+   window onto the wrong dinucleotides and fail here)
   GT..AG  229
   CT..AC  171
   canonical GT..AG / CT..AC: 400/400 = 1.000
