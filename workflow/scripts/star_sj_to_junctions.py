@@ -134,17 +134,22 @@ def convert_sj_to_junctions(
             # (`alignment.uniqueness_filter.enabled`), matching the HISAT2 lever.
             reads = unique_reads if unique_only else unique_reads + multi_reads
 
+            # Support comes entirely from multimappers: kept under count-all,
+            # dropped under unique-only. This is exactly the population whose
+            # asymmetric loss between tumor and normal manufactured a false
+            # `tumor_exclusive` in Issue #1122.
+            #
+            # Counted BEFORE the `reads <= 0` gate, deliberately. Under
+            # unique-only such a row has `reads == 0` and is dropped by that
+            # gate, so counting after it would report 0 in the very mode where
+            # the number matters - an audit line that reads "0 dropped" while
+            # silently dropping them.
+            if unique_reads == 0 and multi_reads > 0:
+                n_multimapper_only += 1
+
             if reads <= 0:
                 n_dropped_zero_reads += 1
                 continue
-
-            if unique_reads == 0:
-                # Support comes entirely from multimappers. Under unique-only
-                # this record never survives the `reads <= 0` gate above; under
-                # count-all it does, and it is exactly the population whose
-                # asymmetric loss manufactured a false `tumor_exclusive` in
-                # Issue #1122. Counted so the two semantics are auditable.
-                n_multimapper_only += 1
 
             strand = _resolve_strand(strand_code, motif_code)
             if strand is None:

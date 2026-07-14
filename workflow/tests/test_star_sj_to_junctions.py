@@ -266,7 +266,7 @@ class TestUniquenessKnob:
 
     Historically this script read `SJ.out.tab` col 7 (uniquely-mapping reads)
     only and never col 8 (multi-mapping), so a junction supported *only* by
-    multimappers was discarded outright — while the HISAT2 path counted every
+    multimappers was discarded outright - while the HISAT2 path counted every
     read. Same FASTQ, different candidate set, decided by nothing but which
     column a script happened to read.
 
@@ -274,8 +274,8 @@ class TestUniquenessKnob:
     ruled the unique-only semantic **structurally unsound for a matched
     tumor/normal design** (an independent per-read gate on each arm can destroy
     normal support while leaving tumor untouched, manufacturing a false
-    `tumor_exclusive` candidate). So the *default* here is count-all — col 7 +
-    col 8 — and unique-only survives only as an explicit opt-in knob
+    `tumor_exclusive` candidate). So the *default* here is count-all - col 7 +
+    col 8 - and unique-only survives only as an explicit opt-in knob
     (`alignment.uniqueness_filter.enabled`), matching the HISAT2 lever from
     [Issue #919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919).
     """
@@ -295,7 +295,7 @@ class TestUniquenessKnob:
     def test_default_keeps_a_multimapper_only_junction(self, tmp_path):
         """The bug in one test: col-7-only silently discarded this junction.
 
-        This is the shape that produced the false `tumor_exclusive` in #1122 —
+        This is the shape that produced the false `tumor_exclusive` in #1122 -
         support that exists in one arm and is annihilated in the other.
         """
         sj = tmp_path / "SJ.out.tab"
@@ -326,7 +326,7 @@ class TestUniquenessKnob:
         assert out.read_text().strip() == "chr22:101:200:+\t3\t0"
 
     def test_unique_only_drops_a_multimapper_only_junction(self, tmp_path):
-        """Preserves the historical behavior exactly — but only when asked for."""
+        """Preserves the historical behavior exactly - but only when asked for."""
         sj = tmp_path / "SJ.out.tab"
         sj.write_text(_sj_line(unique=0, multi=4) + "\n")
         out = tmp_path / "raw_junctions.tsv"
@@ -374,3 +374,35 @@ class TestUniquenessKnob:
 
         assert convert_sj_to_junctions(sj, out) == 1
         assert out.read_text().strip() == "chr22:101:200:+\t5\t0"
+
+    # --- the audit log must be true in BOTH modes, not just the convenient one ---
+
+    def test_multimapper_only_count_is_reported_under_both_semantics(self, tmp_path, caplog):
+        """The audit counter is what makes the two semantics comparable.
+
+        Bot review on [PR #1168](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1168)
+        caught it sitting *after* the `reads <= 0` gate: under `--unique-only` a
+        multimapper-only row has `reads == 0` and is dropped by that gate, so the
+        counter reported 0 in the exact mode where the number matters - a log line
+        reading "0 dropped" while silently dropping them. It is now counted from
+        the raw columns, before the gate.
+        """
+        sj = tmp_path / "SJ.out.tab"
+        sj.write_text(
+            _sj_line(start=101, end=200, unique=5, multi=1) + "\n"   # normal support
+            + _sj_line(start=301, end=400, unique=0, multi=6) + "\n"  # multimapper-only
+            + _sj_line(start=501, end=600, unique=0, multi=2) + "\n"  # multimapper-only
+            + _sj_line(start=701, end=800, unique=0, multi=0) + "\n"  # no support at all
+        )
+
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            convert_sj_to_junctions(sj, tmp_path / "all.tsv", unique_only=False)
+        assert "Junctions supported only by multimappers: 2 (kept)" in caplog.text
+
+        caplog.clear()
+        with caplog.at_level(logging.INFO):
+            convert_sj_to_junctions(sj, tmp_path / "uniq.tsv", unique_only=True)
+        # The same 2 junctions exist; under unique-only they are DROPPED, not absent.
+        assert "Junctions supported only by multimappers: 2 (dropped)" in caplog.text
