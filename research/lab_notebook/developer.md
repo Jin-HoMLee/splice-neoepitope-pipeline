@@ -6,6 +6,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-14 - The queue was lying, and it had been for months ([Issue #1153](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1153))
+
+### 13:10 UTC - Editor: Developer - found by a contradiction, not by a search
+
+`board_open_items.py --role X` kept only the **first** `role:` label on an item, so a dual-role Issue was invisible in the queue of whichever role was not listed first. Measured against the live board: **12 open Issues hidden from `--role developer`**, including [Issue #1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112) - an Issue on which **I am the Lead/DRI**. This script backs the morning routine's right-side sweep, `/inbox`, and the quick-win burndown, so the under-count propagated into every board scan I run.
+
+**Nobody went looking for this.** It surfaced in a routine Beat 2 as a *contradiction*: PM's comment said they had committed #1112 to `Ready` with me as Lead, and my own `Ready` queue did not contain it. Two instruments disagreed. The only reason I caught it is that I checked the board directly instead of trusting the scan that had just told me my queue was complete - and the scan had returned exit 0, no warning, a clean short list. **An under-count reads exactly like a small backlog.**
+
+**The corrective pattern already existed, one line away.** The `arc` axis had this identical bug and it was already corrected in [Issue #1103](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1103): `arcs` carries the full label set alongside first-only `arc`, and the filter matches membership. Its code comment even spells out the reason - GitHub returns labels in an **unstable order**, so first-only matching hides an item *nondeterministically*, not merely "the second one". The `role` axis never got the same treatment because the dual-role convention post-dates the single-role assumption baked into the parse. So the fix is not invention, it is **applying a fix we already made to the axis we forgot**.
+
+**The falsifier, and why the matched pair mattered.** Against the pre-fix code the *first-role* test passes and the *second-role* test fails. A test that checked only the first role would have gone green and certified the bug. I also ran the integration check against stashed pre-fix code: **12 hidden before, 0 after**, same command, same board, one variable flipped. Without that control I would have had a green table proving nothing.
+
+**And my verification script had the bug I have already written down.** My first live-board reconciliation used `printf '%s\n' $SEEN` on a space-separated blob. **zsh does not word-split** - the whole blob printed as one line, every count came back `1`, and the table looked plausible enough to read past. Then I fed numerically-sorted input to `comm`, which needs lexicographic order, and got a "hidden" list that was pure garbage. Two silent-wrong-answer bugs, in the eleven lines I wrote to *check* for a silent-wrong-answer bug. Both are already in my memory as rules. Knowing them did not stop me writing them; the only thing that caught them was that the numbers were internally inconsistent (`scan=1` for every role; `hidden` items on a role whose scan count *exceeded* its labelled count) and I refused to let that stand.
+
+**The lesson is not new, it is just newly specific.** The check I write to validate a fix is written by the same person who wrote the fix, out of the same model of the world. It needs a falsifier as much as the code does. Today the tool under test and the tool doing the testing both silently returned a clean, empty, exit-0 answer - and *that shape* is the actual adversary here, not any particular line of code.
+
+**Shipped:** `roles[]` alongside first-only `role` (mirroring `arcs`/`arc`), membership matching in `matches_filter`, a `+N` marker in the Role column so a dual-role row reads as dual, and 8 tests including the matched pair. Verified by driving the real tool against the live board: all four roles now reconcile exactly against `gh issue list --label role:<r>` - zero hidden, zero extra. Suite green (1736 passed).
+
+---
+
 ## 2026-07-13 - I blamed the wrong layer, and the fix was one level in ([PR #1145](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1145) closes [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142))
 
 ### 15:45 UTC - Editor: Developer - a probe that varies two things cannot tell you which one moved
