@@ -243,14 +243,21 @@ def deny_decision(result: DriveResult) -> bool:
 def fire_log_guard(log_path: Path = FIRE_LOG_PATH) -> Iterator["FireLogWatcher"]:
     """Snapshot the real (gitignored) fire-log so the suite leaves it untouched.
 
-    Yields a watcher whose `.fired()` reports whether new lines were appended
-    across a `drive()` call. On exit the log is restored to its pre-test bytes
-    (or removed if it did not exist), so contract tests never pollute the real
+    Yields a watcher whose `.fired()` reports whether the log grew across a
+    `drive()` call. On exit the log is restored to its pre-test bytes (or removed
+    if it did not exist), so contract tests never pollute the real
     `.agents/hook_fires.jsonl`.
+
+    NOTE - serial execution assumed. The guard snapshots and restores the single
+    shared fire-log, so `observe()` calls must not run concurrently against it.
+    The CI job runs this suite serially (`pytest tools/ci/ -m "not live"`, no
+    `-n`); if that job ever adopts `pytest-xdist`, concurrent `observe()` calls
+    would race on snapshot/restore. Keep this suite off xdist, or give each worker
+    an isolated log, before parallelizing.
     """
     existed = log_path.exists()
     original = log_path.read_bytes() if existed else b""
-    watcher = FireLogWatcher(log_path, len(original.splitlines()))
+    watcher = FireLogWatcher(log_path, len(original))
     try:
         yield watcher
     finally:
@@ -263,21 +270,28 @@ def fire_log_guard(log_path: Path = FIRE_LOG_PATH) -> Iterator["FireLogWatcher"]
 @dataclass
 class FireLogWatcher:
     log_path: Path
-    _baseline_lines: int
+    _baseline_bytes: int
 
     def fired(self) -> bool:
-        """True iff the fire-log has grown since the guard opened."""
+        """True iff the fire-log grew since the guard opened.
+
+        Byte-length growth, not line count, so a fire is detected even if a prior
+        last line was not newline-terminated (a line-count delta would under-count
+        an append concatenated onto an unterminated tail).
+        """
         if not self.log_path.exists():
             return False
-        current = len(self.log_path.read_bytes().splitlines())
-        return current > self._baseline_lines
+        return len(self.log_path.read_bytes()) > self._baseline_bytes
 
     def new_lines(self) -> list[dict]:
+        """The JSON records appended past the baseline byte offset."""
         if not self.log_path.exists():
             return []
-        lines = self.log_path.read_text(encoding="utf-8").splitlines()[self._baseline_lines :]
+        tail = self.log_path.read_bytes()[self._baseline_bytes :]
         out = []
-        for ln in lines:
+        for ln in tail.decode("utf-8", "replace").splitlines():
+            if not ln.strip():
+                continue
             try:
                 out.append(json.loads(ln))
             except json.JSONDecodeError:

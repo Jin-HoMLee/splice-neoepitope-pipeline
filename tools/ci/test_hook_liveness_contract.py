@@ -19,6 +19,7 @@ Issue #1140; `test_every_registered_hook_has_a_contract` fails if the registry
 and `.agents/settings.json` ever disagree, so a newly registered hook cannot be
 silently uncovered.
 """
+import shutil
 import sys
 from pathlib import Path
 
@@ -312,49 +313,47 @@ def test_heredoc_shape_still_fires(name):
 # --- red-on-break: demonstrate the suite can fail ----------------------------
 
 
-def _temp_broken_copy(basename: str, transform) -> Path:
-    """Write a sibling copy of a hook into HOOKS_DIR with `transform` applied to
-    its source, so the copy's relative `_shell_parse` import still resolves.
-    Returns the temp path (caller deletes)."""
-    src = (hc.HOOKS_DIR / basename).read_text(encoding="utf-8")
-    broken = transform(src)
-    assert broken != src, "red-on-break transform did not change the source"
-    dst = hc.HOOKS_DIR / f"_redonbreak_tmp_{basename}"
-    dst.write_text(broken, encoding="utf-8")
-    return dst
-
-
-def test_breaking_a_matcher_turns_the_contract_red():
+def test_breaking_a_matcher_turns_the_contract_red(tmp_path):
     """DEMONSTRATION (not assertion): neutralize `check_no_force_push`'s matcher in
-    a temp copy, drive its real force-push trigger through the copy, and confirm the
-    deny observable DISAPPEARS. If breaking the matcher could not silence the hook,
-    the whole suite would be a hollow check about hollow checks."""
-    fire = {"command": "git push --force origin main"}
+    an isolated copy, drive its real force-push trigger through the copy, and confirm
+    the deny observable DISAPPEARS. If breaking the matcher could not silence the
+    hook, the whole suite would be a hollow check about hollow checks.
 
-    # sanity: the real hook fires on this trigger
-    real = hc.HookContract(
-        "check_no_force_push.py", hc.DENY, "pretooluse_bash", fire, {"command": "git status"}
+    The copy lives in a pytest tmp_path (never the tracked hooks dir), with
+    `_shell_parse.py` copied alongside so the hook's relative import resolves - a
+    lone copy would fail to import and vanish from an import CRASH, not the matcher,
+    which is a *hollow* red (this exact trap surfaced during the #1140 fan-out)."""
+    fire_env = hc.pretooluse_bash("git push --force origin main")
+
+    # precondition: the real hook denies this force push
+    real = hc.drive(hc.HOOKS_DIR / "check_no_force_push.py", fire_env)
+    assert hc.deny_decision(real) is True, "precondition: real hook must deny a force push"
+
+    # build an isolated broken copy: matcher neutralized to always return False
+    src = (hc.HOOKS_DIR / "check_no_force_push.py").read_text(encoding="utf-8")
+    marker = "def command_force_pushes(cmd: str) -> bool:"
+    assert marker in src, "matcher signature changed; update the red-on-break demo"
+    broken = src.replace(
+        marker, marker + "\n    return False  # red-on-break: matcher neutralized", 1
     )
-    assert hc.observe(real, fire) is True, "precondition: real hook must deny a force push"
+    assert broken != src
 
-    # break the matcher: command_force_pushes always returns False
-    def neutralize(src: str) -> str:
-        marker = "def command_force_pushes"
-        assert marker in src, "matcher function name changed; update the red-on-break demo"
-        return src.replace(
-            marker + "(cmd: str) -> bool:",
-            marker + "(cmd: str) -> bool:\n    return False  # red-on-break: matcher neutralized",
-            1,
-        )
+    broken_hook = tmp_path / "check_no_force_push.py"
+    broken_hook.write_text(broken, encoding="utf-8")
+    shutil.copy2(hc.HOOKS_DIR / "_shell_parse.py", tmp_path / "_shell_parse.py")
 
-    tmp = _temp_broken_copy("check_no_force_push.py", neutralize)
-    try:
-        broken = hc.HookContract(
-            tmp.name, hc.DENY, "pretooluse_bash", fire, {"command": "git status"}
-        )
-        assert hc.observe(broken, fire) is False, (
-            "breaking the matcher did NOT silence the hook - the contract cannot come "
-            "back red, so it is a hollow check"
-        )
-    finally:
-        tmp.unlink(missing_ok=True)
+    # unbroken control: the same isolated copy (before breaking) must still fire,
+    # so a silenced deny is attributable to the matcher break, not the relocation.
+    control_hook = tmp_path / "control.py"
+    control_hook.write_text(src, encoding="utf-8")
+    control = hc.drive(control_hook, fire_env)
+    assert hc.deny_decision(control) is True, (
+        "the relocated but UNbroken copy must still deny - otherwise a silenced deny "
+        "would be an artifact of the move (e.g. a failed import), a hollow red"
+    )
+
+    broken_result = hc.drive(broken_hook, fire_env)
+    assert hc.deny_decision(broken_result) is False, (
+        "breaking the matcher did NOT silence the hook - the contract cannot come "
+        "back red, so it is a hollow check"
+    )

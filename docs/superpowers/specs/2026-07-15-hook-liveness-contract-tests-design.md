@@ -40,7 +40,7 @@ Two files, one CI job.
 ### `tools/ci/hook_contract.py` - the shared harness (single-authored)
 
 - `registered_hooks()` - parse `.agents/settings.json`, return one record per `(event, matcher, if, command)` registration. This is the enumeration AC and the drift guard: the suite is parametrized off *this*, so a newly registered hook with no contract entry fails the completeness test rather than being silently uncovered.
-- Envelope builders per event: `pretooluse_bash(command)`, `pretooluse_edit(tool, file_path, old, new, content)`, `posttooluse_bash(command, tool_response)`, `stop_envelope(...)` - each returns the JSON dict the harness pipes on stdin for that event/matcher.
+- Envelope builders per event: `pretooluse_bash(command, cwd=None)`, `pretooluse_edit(file_path, old_string, new_string)`, `pretooluse_write(file_path, content)`, `posttooluse_bash(command, tool_response)`, `stop_envelope(cwd=None)` - each returns the JSON dict the harness pipes on stdin for that event/matcher. (`pretooluse_bash` takes an optional top-level `cwd` for `check_memory_path_cwd_drift`, which keys on the session cwd.)
 - `drive(hook_path, envelope, *, gh_stub=None, env=None)` - run the hook as a subprocess (`sys.executable hook_path`), stdin = `json.dumps(envelope)`, capture stdout/stderr/exit. When `gh_stub` is set, prepend a temp dir holding a stub `gh` to `PATH` (the `test_set_status.py` pattern) so board hooks reach their handler without a network call.
 - Observable detectors: `deny_decision(result)` reads stdout JSON for `permissionDecision == "deny"`; `fired(before, after)` diffs `.agents/hook_fires.jsonl` line count around a `drive()` call. A `fire_log_guard()` context manager snapshots the real (gitignored) log so the suite leaves it untouched.
 
