@@ -2,7 +2,7 @@
 # Run Snakemake inside a linux-64 container on a macOS arm64 dev box (Issue #1162,
 # ADR-0003). Everything after `--` is passed straight to snakemake.
 #
-#   bash scripts/run_local_linux64.sh -- --cores 4 --use-conda \
+#   bash scripts/run_local_linux64.sh --cores 4 --use-conda \
 #        --configfile config/test_config.yaml config/test_star_config.yaml
 #
 # On a native linux-64 host you do NOT need this: call snakemake directly.
@@ -59,6 +59,11 @@ fi
 if command -v colima >/dev/null 2>&1 && colima status >/dev/null 2>&1; then
   colima ssh -- sudo sysctl -w vm.overcommit_memory=1 >/dev/null 2>&1 \
     || printf '>> warning: could not set vm.overcommit_memory=1 in the VM; STAR 2-pass may OOM at fork\n' >&2
+else
+  # Docker Desktop (or any non-colima daemon): we cannot reach the VM to set the
+  # sysctl. Warn rather than silently skip - if that VM is swapless too, STAR's
+  # 2-pass would OOM exactly as it did on colima before this fix.
+  printf '>> note: not on colima; vm.overcommit_memory left unset. If STAR 2-pass dies "Cannot allocate memory" at fork, set vm.overcommit_memory=1 in your Docker VM.\n' >&2
 fi
 
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
