@@ -6,7 +6,9 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
-## 2026-07-15 - A test that drives the hook the way the harness does, so an inert one reds ([PR #1195](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1195) closes [Issue #1140](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1140))
+## 2026-07-15
+
+### 11:29 UTC - Editor: Developer - A test that drives the hook the way the harness does, so an inert one reds ([PR #1195](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1195) closes [Issue #1140](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1140))
 
 **Headline:** Shipped the hook-liveness contract suite (Sub D of epic [#1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135)) - for every hook registered in `.agents/settings.json`, a test that drives its real trigger through its real subprocess entry path (stdin envelope, not `main()`) and asserts the observable artifact. This is the half that catches the class mutation testing (Sub B, [#1141](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1141)) structurally cannot: a hook that is never invoked has no surviving mutant. Four governance hooks shipped completely inert this month while green on unit tests; `post_gh_pr_create` was dead for months on the heredoc shape.
 
