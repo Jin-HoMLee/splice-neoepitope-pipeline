@@ -339,8 +339,17 @@ def test_basket_file_every_polled_entry_is_role_tagged():
         for tool in basket.get(section, []):
             assert isinstance(tool.get("roles"), list) and tool["roles"], \
                 f"{tool['tool']} ({section}) is missing a roles: tag"
-    # software is Developer-scope; reference_data is shared dev+scientist.
-    assert all("developer" in t["roles"] for t in basket["software"])
+    # `software` is mostly Developer-scope, but not exclusively (Issue #1097):
+    # pvactools is a Scientist tool the Developer does not own, and regtools is
+    # dual-role. The real invariant is that every software entry is scoped to dev
+    # and/or scientist (never PM, and never role-less - checked above).
+    assert all(
+        set(t["roles"]) <= {"developer", "scientist"} for t in basket["software"]
+    ), "a software entry is scoped outside {developer, scientist}"
+    assert all(
+        "developer" in t["roles"] or "scientist" in t["roles"]
+        for t in basket["software"]
+    )
     assert all(set(t["roles"]) == {"developer", "scientist"} for t in basket["reference_data"])
     assert all(t["roles"] == ["pm"] for t in basket["pm_tooling"])
 
@@ -353,3 +362,48 @@ def test_real_basket_pm_poll_sees_only_pm_tooling():
     dev_tools = {t["tool"] for t in basket["software"]}
     assert pm_tools == {"gh-cli"}
     assert pm_tools.isdisjoint(dev_tools)
+
+
+# --------------------------------------------------------------------------- #
+# Issue #1097: pvactools + regtools are tracked for the scientist role
+# --------------------------------------------------------------------------- #
+def test_scientist_basket_tracks_pvactools_and_regtools():
+    """Against the REAL committed basket, not a fixture: both must be scientist-
+    visible. Guards the config edit itself, so dropping the role tag later fails CI.
+    """
+    basket = pr.load_basket()
+    sci_tools = {t["tool"] for t in pr.select_tools(basket, "scientist")}
+    assert "pvactools" in sci_tools
+    assert "regtools" in sci_tools
+
+
+def test_pvactools_and_regtools_surface_a_delta_for_scientist():
+    """Tracked, NOT muted: a stale watermark must surface a genuine delta for both.
+
+    The falsifier for 'is it actually polled'. Paired with the control below
+    (a PM-only tool must stay silent for scientist), so a green result cannot mean
+    'everything surfaces'. Uses a stub fetcher - no network.
+    """
+    basket = pr.load_basket()
+    versions = {"pvactools": "7.0.1", "regtools": "1.0.0", "gh-cli": "99.0.0"}
+    wm = {"tools": {"pvactools": "0.0.1", "regtools": "0.0.1", "gh-cli": "0.0.1"}}
+    surfaced, _ = pr.run(
+        basket, wm, role="scientist", check_tracked=False, fetcher=_fetcher(versions)
+    )
+    names = {r["tool"] for r in surfaced}
+    assert "pvactools" in names, "pvactools is muted/untracked for scientist, not surfacing"
+    assert "regtools" in names, "regtools is muted/untracked for scientist, not surfacing"
+    # Matched-pair control: a PM-only tool must NOT leak into the scientist poll,
+    # so this is real role-scoping and not 'every stale tool surfaces'.
+    assert "gh-cli" not in names
+
+
+def test_regtools_kept_single_entry_for_both_roles():
+    """regtools was widened in place, not duplicated: one feed = one watermark.
+
+    Two entries for one upstream would double-surface a delta (or miss one).
+    """
+    basket = pr.load_basket()
+    regtools_entries = [t for t in basket["software"] if t["tool"] == "regtools"]
+    assert len(regtools_entries) == 1
+    assert set(regtools_entries[0]["roles"]) == {"developer", "scientist"}
