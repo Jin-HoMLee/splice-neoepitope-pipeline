@@ -131,6 +131,14 @@ jobs:
         # CI-invisible until #901 added it here, the same regression class #713
         # fixed for tools/project_map.
         #
+        # tools/ci also carries the hook-liveness contract suite
+        # (test_hook_liveness_contract.py, Issue #1140): it drives every hook
+        # registered in .agents/settings.json through its real subprocess entry
+        # path and asserts the observable artifact, so an inert hook (one that
+        # never fires on its real trigger) reds this job. This runs on every PR,
+        # which covers "any change under .agents/hooks/ or .agents/settings.json"
+        # and then some (a hook regressed by an unrelated change is caught too).
+        #
         # `-m "not live"` deselects the live-API smoke (Issue #711): a transient
         # GitHub-API blip must not red this per-PR job (or poison the hermetic
         # unit signal sharing it). The live recheck smoke now runs nightly +

@@ -1,0 +1,408 @@
+[
+  {
+    "spec": {
+      "basename": "check_gh_issue_develop_parent.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "gh issue develop 538 --name feat/x --checkout"
+      },
+      "nofire_input": {
+        "command": "gh issue view 538"
+      },
+      "needs_gh_stub": true,
+      "gh_stub_source": "#!/bin/sh\ncase \"$*\" in\n  *\"repo view\"*) echo \"Jin-HoMLee/splice-neoepitope-pipeline\" ;;\n  *\"api graphql\"*) echo '{\"data\":{\"repository\":{\"issue\":{\"subIssuesSummary\":{\"total\":5}}}}}' ;;\nesac\nexit 0\n",
+      "extra_args": [],
+      "heredoc_relevant": true,
+      "heredoc_fire_input": {
+        "command": "cat > /tmp/plan.md <<'EOF'\nbranching notes for the epic\nEOF\ngh issue develop 538 --name feat/x --checkout"
+      },
+      "drove_successfully": true,
+      "evidence": "Drove the hook via hc.drive() with the gh stub (subprocess, stdin=envelope). FIRE (`gh issue develop 538 --name feat/x --checkout`): exit=0, deny=True, fire_log=True, stdout is a hookSpecificOutput permissionDecision:deny naming Issue #538 with 5 sub-issue(s). NOFIRE (`gh issue view 538`): exit=0, deny=False, fire_log=False, empty stdout - develop_args() returns None so the hook no-ops before any gh call. HEREDOC FIRE (cat heredoc then `gh issue develop 538 ...` on the 4th line): exit=0, deny=True, fire_log=True - normalize_command strips the heredoc body and turns the unquoted newline into a separator so the develop invocation lands at a command start. All three matched expectations (all pass: True).",
+      "rationale": "The internal matcher is develop_args(): it tokenizes the normalized command and only matches a `gh issue develop` at a command start, then issue_number()/resolve_repo()/sub_issue_total() drive live gh, and main() denies + logs only when subIssuesSummary.total > 0. So the real trigger must (a) be a genuine `gh issue develop` at a command start and (b) resolve to a parent - the gh stub supplies repo view + a graphql total of 5 to reach the deny. The nofire `gh issue view 538` is a genuine close counterexample: same `gh issue <N>` shape, one subcommand different (view vs develop), which develop_args must reject - and it does, no gh call, no deny. Heredoc is the killer shape for gh-matching hooks (Issue #1142/#1130): a multi-line heredoc-then-develop previously sat after an ordinary word, read as not-at-command-start, and silently allowed branching off an epic; normalize_command fixes it, verified here that the same parent denies both at command start and after the heredoc. Observable is the stdout permissionDecision:deny (fire_log co-fires on every deny)."
+    },
+    "verify": {
+      "basename": "check_gh_issue_develop_parent.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-drove all three directions with the repo test venv against the REAL hook (re-read the source first, did not trust the spec's reading). FIRE (`gh issue develop 538 --name feat/x --checkout`, gh stub supplying repo view + graphql total=5): deny=True, fire_log=True, exit=0, stdout is a hookSpecificOutput permissionDecision:deny naming Issue #538 with 5 sub-issue(s). NOFIRE (`gh issue view 538`): deny=False, fire_log=False, exit=0, empty stdout - develop_args() returns None (view != develop) so the hook no-ops before any gh call; a genuine one-subcommand-off matched-pair control. HEREDOC fire also verified (deny+fire_log): normalize_command strips the heredoc body and splits the unquoted newline so the develop invocation lands at a command start (#1142 killer shape handled).\n\nRED-ON-BREAK caveat worth recording: my first attempt broke the matcher in a temp copy of ONLY the hook file and it exited 1 - a HOLLOW red, because the hook does `import _shell_parse` from its own directory and the lone temp copy could not import that sibling, so the observable vanished from an import crash, not the matcher. Fixed by copying `_shell_parse.py` alongside: the unbroken temp copy then FIRES (deny=True, exit=0), proving the copy runs identically; injecting `return None` into develop_args's matcher loop makes deny=False with exit_code still 0 (script runs fine, just no match). So the contract genuinely goes red on a real internal-matcher break, not on a crash. (Incidental: the temp copy writes its fire-log to a tmp-relative LOG_PATH, so fire_log reads False on the copy - irrelevant, deny is the primary observable.) Spec correct in every field: observable=deny, builder=pretooluse_bash, gh stub required and sufficient, nofire a true close counterexample, heredoc fires. No corrections."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_board_query_pagination.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "gh api graphql -f query='query { user(login:\"Jin-HoMLee\"){ projectV2(number:9){ items(first:100){ nodes { id } } } } }'"
+      },
+      "nofire_input": {
+        "command": "gh api graphql -f query='query { user(login:\"Jin-HoMLee\"){ projectV2(number:9){ items(first:100){ pageInfo{ hasNextPage endCursor } nodes { id } } } } }'"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove the real hook via hc.drive() with hc.pretooluse_bash envelopes. FIRE: exit 0, deny_decision=True, fire_log appended True, stdout begins {\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"Refusing an unpaginated ProjectV2 board query: ...\". NOFIRE (same query but with pageInfo{ hasNextPage endCursor }): exit 0, deny_decision=False, fire_log=False, empty stdout. Observable present on fire, absent on nofire, both directions confirmed.",
+      "rationale": "The hook's internal matcher is api_args() (command-start `gh api` tokenization via normalize_command + shlex punctuation split) followed by is_unpaginated_board_query(), which requires the joined args to contain \"projectV2\" AND an items(first:...) connection AND NO pagination token (hasNextPage/endCursor/after:). The fire_input is a real command-start `gh api graphql` board query with projectV2 + items(first:100) and no cursor, exactly the truncating shape the guard exists to refuse - it lands through the real matcher (deny on stdout + fire_log line). The nofire_input is the genuinely-close counterexample: byte-identical command except it adds `pageInfo{ hasNextPage endCursor }` inside items, so _PAGINATION_RE matches and the matcher correctly reads it as a real cursor loop and allows. This isolates the exact predicate under test (presence/absence of a pagination token) rather than something incidental. No gh/network I/O in this hook (pure string inspection), so no gh stub is needed; the registered if-clause is Bash(gh api *) and extra_args is empty. Heredoc shape is not the killer case here (this hook matches `gh api`, not `gh pr create`), though normalize_command still guards the multi-line variant."
+    },
+    "verify": {
+      "basename": "check_board_query_pagination.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook and re-drove all three tests via hc.drive() with pretooluse_bash envelopes. (1) FIRE: the unpaginated projectV2 items(first:100) query with no cursor -> deny_decision=True AND fire_log line appended; stdout begins with the \"Refusing an unpaginated ProjectV2 board query\" deny payload. (2) NOFIRE: byte-identical query plus pageInfo{ hasNextPage endCursor } -> deny_decision=False, fire_log=False, empty stdout. It is a true matched-pair control: differs only in the presence of a pagination token, which is exactly the predicate is_unpaginated_board_query tests via _PAGINATION_RE. (3) RED-ON-BREAK: copied the hook to a temp dir (plus its _shell_parse.py sibling dependency, required for the import at line 49), injected `return False` into is_unpaginated_board_query (the internal matcher, not the envelope path or the log), drove the fire_input through the copy -> deny disappeared (deny=False, no stdout). This proves the observable is causally tied to the matcher, not incidental, so the contract can return red. Spec fields all verified correct: observable=deny (the primary; a fire_log line is also emitted on the same deny, but deny is the right observable to assert), envelope_builder=pretooluse_bash, needs_gh_stub=false (the hook does pure string inspection, no gh/network I/O per its docstring and confirmed by driving with no stub), heredoc_relevant=false (this hook matches gh api, not gh pr create; normalize_command still guards the multi-line variant but the killer heredoc-then-command shape is not the case under test here). No corrections required."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_no_force_push.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "git push --force origin main"
+      },
+      "nofire_input": {
+        "command": "git push origin main"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Ran drive() via workflow/tests/.venv/bin/python from repo root. FIRE (\"git push --force origin main\"): deny_decision=True, exit 0, stdout begins {\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"Refusi...; fire_log guard also reported fired=True. NOFIRE (\"git push origin main\"): deny_decision=False, exit 0, stdout='' (empty), fire_log fired=False.",
+      "rationale": "The hook's internal matcher is command_force_pushes -> is_force_push, which resolves the real git subcommand (past global options) and requires it to be 'push' plus a destructive flag/refspec (-f/--force/--force-with-lease, --delete/-d/--mirror, or +ref/:ref). \"git push --force origin main\" is exactly a history-destructive push in a real argument position, so it lands in the matcher and produces the stdout permissionDecision:deny observable. \"git push origin main\" is the closest genuine counterexample: same subcommand, same args, but no force/delete token, so is_force_push returns False and the hook must let it pass silently (empty stdout, no deny) - which it does. The registration matcher is Bash with if Bash(git *), and the fire command is a plain git push, so it also passes the real gate. No heredoc shape applies (this hook matches git, not gh pr create). No live gh call, so no stub needed."
+    },
+    "verify": {
+      "basename": "check_no_force_push.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook; internal matcher is command_force_pushes -> split_subcommands -> is_force_push (subcommand must resolve to 'push' past global opts, plus a force flag/-d/--mirror/--delete or +ref/:ref token). Re-drove via workflow/tests/.venv/bin/python from repo root. FIRE 'git push --force origin main': deny_decision=True, fire_log appended, exit 0, stdout begins {\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\"...}. NOFIRE 'git push origin main': deny_decision=False, stdout='' (empty), no fire_log - genuine matched-pair control (same subcommand/args, only the force token differs). RED-ON-BREAK: copied hook + _shell_parse.py dep to a temp dir, replaced the is_force_push body with 'return False', re-drove the fire command through the COPY -> deny observable disappeared (empty stdout, no fire_log), proving the contract goes red when the matcher breaks. Spec accurate on all fields; observable is 'deny' (fire_log also fires as a secondary artifact but deny is the primary and what the spec claims). No gh stub needed, heredoc not relevant (matches git, not gh pr create)."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_commit_push_separation.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "git commit -m 'x' && git push"
+      },
+      "nofire_input": {
+        "command": "git push origin main"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove via hc.drive() with pretooluse_bash. FIRE \"git commit -m 'x' && git push\": exit 0, deny=True, stdout begins {\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"Refusing to chain `git commit` and `git push` in one command...\". NOFIRE \"git push origin main\": exit 0, deny=False, stdout empty (''). Multi-line killer shape \"git commit -m 'x'\\ngit push\" (Issue #1142): exit 0, deny=True, confirming normalize_command handles the newline-separator case.",
+      "rationale": "The internal matcher is chained_violation(cmd), which tokenizes via split_subcommands (with _shell_parse.normalize_command applied first for the #1142 newline shape) and denies when a git commit subcommand precedes a git push (commit->push) or a git push precedes a gh pr merge (push->merge). The real trigger is a single Bash command chaining two of these steps across separate subcommands. fire_input is a genuine commit->push chain that collapses the review gate the hook protects. nofire_input is a standalone git push - the single most important close counterexample, since a naive static deny on \"git push\" would block it; the hook must let a lone push pass because only the chain is dangerous. Observable is the stdout permissionDecision:deny (it also appends a fire_log line, but deny is the primary PreToolUse artifact). Not a gh pr create hook, so heredoc shape is not the killer case here (though the multi-line #1142 case was verified separately and also fires)."
+    },
+    "verify": {
+      "basename": "check_commit_push_separation.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Re-read the hook independently. Internal matcher is chained_violation(cmd), which tokenizes via split_subcommands (normalize_command applied first for #1142 newline shape) and denies commit->push or push->merge across separate subcommands. All three checks held via hook_contract.drive(): (1) FIRE 'git commit -m \\\\'x\\\\' && git push' -> deny=True, exit 0, stdout begins {\\\"hookSpecificOutput\\\":{...\\\"permissionDecision\\\":\\\"deny\\\"...}. (2) NOFIRE 'git push origin main' -> deny=False, stdout='' - a standalone push is the correct matched-pair control; the hook must let a lone push pass since only the chain is dangerous. (3) RED-ON-BREAK: copied the hook plus its _shell_parse.py sibling (the hook imports it from its own dir) to a temp dir, patched chained_violation to return None early, drove fire_input through the copy -> deny=False, stdout='' - observable disappeared, so the contract can come back red. Spec fields (observable=deny, envelope_builder=pretooluse_bash, needs_gh_stub=false, extra_args=[]) all verified correct. No corrections."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_no_cd_outside_cwd.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "cd /etc/secret"
+      },
+      "nofire_input": {
+        "command": "cd workflow"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Ran drive_cd.py with workflow/tests/.venv/bin/python from repo root. FIRE (cd /etc/secret): deny_decision=True, exit 0, stdout emits permissionDecision:deny with reason \"Refusing a `cd` out of the project worktree (`cd /etc/secret`)...\". NOFIRE (cd workflow): deny_decision=False, stdout='' (empty), exit 0 - the subdir cd is correctly allowed. Also confirmed the Issue #1142 multi-line merge case: \"cd /tmp\\ncd /etc/secret\" -> deny_decision=True (the benign first line does not mask the escaping second line).",
+      "rationale": "The hook's internal matcher is first_escaping_cd(), which walks chained/normalized subcommands against a running virtual cwd and returns the target of the first `cd` resolving outside the worktree root plus temp roots (/tmp, /private/tmp, /var/tmp, /var/folders, $TMPDIR). fire_input \"cd /etc/secret\" is an absolute path outside both the worktree and every temp root, so is_inside_safe returns False and the hook prints a deny - the real trigger through the registered Bash matcher (if: \"Bash(cd*)\"). nofire_input \"cd workflow\" is a genuine close counterexample: same `cd` builtin, but it resolves to PROJECT_ROOT/workflow (a subdirectory of the worktree), which is_inside_safe accepts, so the matcher must let it pass - distinguishing \"cd out of tree\" from \"cd into a subdir\" is precisely the semantic a static Bash(cd *) deny could not express and the whole reason this is a hook. Observable is the stdout permissionDecision:deny (the hook also appends a fire_log line on the same deny path, but deny is the primary/first observable). No gh call is reached, so no stub is needed; not a gh-matching hook, so heredoc-then-command shape is not the killer case (though multi-line normalization was still verified)."
+    },
+    "verify": {
+      "basename": "check_no_cd_outside_cwd.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook and re-drove all three via hook_contract.drive() from repo root with workflow/tests/.venv/bin/python. (1) FIRE cd /etc/secret -> deny_decision=True, exit 0, stdout emits permissionDecision:deny; fire_log also appended (same deny path). (2) NOFIRE cd workflow -> deny_decision=False, stdout empty, no fire_log - a true matched-pair control: same cd builtin, resolves to PROJECT_ROOT/workflow (subdir), correctly allowed by is_inside_safe. (3) RED-ON-BREAK: copied the hook + its _shell_parse dependency to a temp dir, inserted `return None` at the top of first_escaping_cd (the internal matcher), drove the fire_input through the copy -> deny_decision=False, exit 0, empty stderr (clean run, matcher just never matched). The deny disappeared, proving the observable is causally tied to the matcher and the contract can return red. All spec fields hold: observable=deny (fire_log is a co-observable on the same path but deny is primary), triggers correct, needs_gh_stub=false (no gh call reached), heredoc_relevant=false (not a gh-matching hook; multi-line normalization exists but is not the killer case). No corrections needed."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_memory_path_cwd_drift.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_bash",
+      "fire_input": {
+        "command": "grep foo .agents/memory/shared/MEMORY.md",
+        "cwd": "/private/tmp/claude-scratch"
+      },
+      "nofire_input": {
+        "command": "grep foo .agents/memory/shared/MEMORY.md",
+        "cwd": "/Users/jin-holee/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove the hook via hc.drive() with workflow/tests/.venv/bin/python. FIRE (command='grep foo .agents/memory/shared/MEMORY.md', cwd='/private/tmp/claude-scratch'): exit 0, deny_decision=True, fire_log fired=True. stdout began: {\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"Refusing a relative memory path (`.agents/memory/shared/MEMORY.md`) while the shell cwd has drifted OUT of the clone root...\"}. Fire-log line appended: {\"hook\":\"check_memory_path_cwd_drift\",\"action\":\"refused-memory-path-cwd-drift\",\"ref\":\".agents/memory/shared/MEMORY.md\",\"cwd\":\"/private/tmp/claude-scratch\",...}. NOFIRE (same command, cwd=clone root): exit 0, deny_decision=False, fire_log fired=False, stdout=''. Second NOFIRE (drifted cwd but ABSOLUTE memory path): deny_decision=False, fire_log fired=False, stdout=''.",
+      "rationale": "The hook's internal matcher is the AND of two conditions in main(): cwd_outside_clone(cwd, PROJECT_ROOT) must be True AND offending_ref() must return a relative path under .agents/memory or .claude/memory. The observable is a stdout permissionDecision:deny (deny_payload), plus a coincident hook_fires.jsonl append. The real trigger is a Bash command carrying a clone-root-relative memory path while the session cwd (from the PreToolUse JSON `cwd` field) has drifted outside the clone subtree - exactly the silent-wrong-file incident from Issue #1053. The nofire is the tightest matched pair: the IDENTICAL command, changing only cwd to the clone root (inside the subtree), which cwd_outside_clone correctly reports as not-outside, so the hook allows. This isolates the cwd-drift condition, which is the hook's entire reason to exist. A second genuine counterexample (drifted cwd but an absolute memory path) also correctly passes, since is_relative_memory_token rejects absolute/home-anchored tokens as cwd-independent. IMPORTANT HARNESS NOTE: this hook keys on the PreToolUse `cwd` field, but hc.pretooluse_bash(command) does not emit a `cwd` key - so both fire_input and nofire_input carry a `cwd` that must be merged into the envelope (I injected it into the dict returned by pretooluse_bash before calling hc.drive()). Without cwd in the envelope the hook reads cwd=None, cwd_outside_clone returns False, and it can never fire; validating this hook through the shared harness requires extending the bash envelope builder to pass cwd through. No gh stub, no extra_args, and the heredoc-then-gh shape is irrelevant (this hook matches Bash/Edit/Write generically, not gh pr create)."
+    },
+    "verify": {
+      "basename": "check_memory_path_cwd_drift.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": {
+        "envelope_builder": "REQUIRES a cwd-carrying builder (e.g. a new pretooluse_bash_cwd(command, cwd) or extend pretooluse_bash to accept/pass cwd). As named ('pretooluse_bash'), the contract CANNOT run through hc.observe(): HookContract.envelope() calls _BUILDERS['pretooluse_bash'](**spec_input) and pretooluse_bash rejects the 'cwd' kwarg with TypeError. The hook keys on data.get('cwd') and pretooluse_bash never emits cwd, so through the unmodified harness the hook reads cwd=None -> cwd_outside_clone False -> can never fire.",
+        "observable": "deny (primary, verified) AND fire_log (also fires on every deny). Spec's 'deny' is correct as the primary observable; a fire_log line is appended coincidentally.",
+        "fire_input": {
+          "command": "grep foo .agents/memory/shared/MEMORY.md",
+          "cwd": "/private/tmp/claude-scratch",
+          "_note": "correct trigger, but the cwd key must be carried by a cwd-aware envelope builder, not passed to pretooluse_bash"
+        },
+        "nofire_input": {
+          "command": "grep foo .agents/memory/shared/MEMORY.md",
+          "cwd": "/Users/jin-holee/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline",
+          "_note": "correct matched-pair control; confirmed silent"
+        }
+      },
+      "notes": "All THREE behavioral checks held when I manually injected cwd into the envelope (reproducing the spec author's approach): FIRE -> deny + fire_log; NOFIRE (identical command, cwd=clone root) -> silent; NOFIRE-2 (drifted cwd, absolute memory path) -> silent; RED-ON-BREAK (cwd_outside_clone forced to return False, copy placed IN the real hooks dir so PROJECT_ROOT resolves identically) -> deny and fire_log both vanish. The hook itself is ALIVE and discriminates correctly. The observable, trigger, and nofire are all correct; no gh stub needed (verified needs_gh_stub=false is right).\n\nCRITICAL SPEC DEFECT (put in corrections): the machine-readable fields are not executable through the shared harness. envelope_builder='pretooluse_bash' + a 'cwd' key inside fire_input causes hc.observe() to raise TypeError('pretooluse_bash() got an unexpected keyword argument cwd'), NOT a green/red result. I verified this directly: observe(contract, fire_input) RAISED. The hook's SOLE trigger condition is the PreToolUse `cwd`, which pretooluse_bash structurally drops, so without a cwd-aware builder the hook reads cwd=None and can NEVER fire through the harness. This is exactly the #1140 failure class (a contract that looks specified but is inert through its real entry path). The spec author was transparent about this in their evidence/rationale, but the fix must land in the harness (a cwd-carrying builder or a pretooluse_bash extended to pass cwd) before this contract can actually gate anything. confirmed=true reflects that the hook's behavior is genuinely alive and all three directions held under correct driving; the corrections flag the required harness/builder change so the contract entry is runnable as-registered."
+    }
+  },
+  {
+    "spec": {
+      "basename": "check_no_emdash.py",
+      "event": "PreToolUse",
+      "observable": "deny",
+      "envelope_builder": "pretooluse_edit",
+      "fire_input": {
+        "file_path": "research/notes.md",
+        "old_string": "hello - world",
+        "new_string": "hello \u2014 world"
+      },
+      "nofire_input": {
+        "file_path": "research/notes.md",
+        "old_string": "hello - world",
+        "new_string": "hello -- world"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove the real hook via hc.drive() with workflow/tests/.venv/bin/python. FIRE (Edit net-adding U+2014 to research/notes.md): exit=0, deny=True, fire_log=True; stdout begins {\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"This edit adds em-dash (U+2014) in research/no... NOFIRE (same edit shape but new_string uses plain hyphens \"hello -- world\", no net dash add): exit=0, deny=False, fire_log=False, stdout=''. CONTRACT_OK: True. Independent live confirmation: my own Write of the driver script containing a literal em-dash was itself denied by this guard until I rebuilt the char via chr(0x2014).",
+      "rationale": "The hook's internal matcher is tool_name in GUARDED_TOOLS=(Edit,MultiEdit,Write) followed by added_violations(old,new), which flags a char whose count is strictly higher in new than old. The registration matcher Edit|MultiEdit|Write routes the tool; the real firing decision is the net-add delta scan. fire_input is a genuine Edit whose new_string adds one em-dash (U+2014) over its old_string, to a non-allowlisted path (research/notes.md avoids the check_no_emdash / hook_fires.jsonl allowlist substrings), so the guard denies. nofire_input is a close counterexample: the identical edit context but new_string contains only plain ASCII hyphens, so added_violations returns empty and the guard correctly lets it pass - proving the matcher keys on the em/en dash net-add, not merely on the presence of a dash or on the tool being Edit."
+    },
+    "verify": {
+      "basename": "check_no_emdash.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook (.agents/hooks/check_no_emdash.py) and re-drove via hc.drive() with workflow/tests/.venv/bin/python. All three checks held.\n\n1) FIRE (real hook): Edit net-adding one U+2014 to research/notes.md (non-allowlisted path) -> deny=True, fire_log=True, exit=0, stdout begins {\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",...}. Observable \"deny\" appears. (fire_log also fires, but spec's chosen observable \"deny\" is valid.)\n\n2) NOFIRE (matched-pair control): identical edit context, new_string \"hello -- world\" (plain ASCII hyphens, zero net dash add) -> deny=False, fire_log=False, exit=0, stdout=''. Silent. The counterexample is a genuine control: same tool, same path, same old_string; the ONLY variable is em-dash-added vs not. So it isolates the em/en-dash net-add matcher rather than tool routing or dash presence.\n\n3) RED ON BREAK: copied the hook to a temp file and broke its INTERNAL matcher by replacing added_violations()'s body with `return []` (confirmed the source edit landed: BROKEN_SRC_HAS_RETURN_EMPTY=True). Drove the SAME fire_input through the copy -> broken deny=False, broken fire_log=False, stdout=''. The observable DISAPPEARED, proving the contract can go red. The break is in the load-bearing matcher (the net-add delta scan), not a superficial layer.\n\nSpec fields verified correct as written: observable=deny (fire_log co-fires but deny is a valid pick), envelope_builder=pretooluse_edit, needs_gh_stub=false (no gh call in this hook), heredoc_relevant=false (Edit tool, no shell tokenization). Allowlist note: fire/nofire path research/notes.md correctly avoids the _ALLOWLIST_SUBSTRINGS (\"check_no_emdash\", \".agents/hook_fires.jsonl\") and the CLAUDE_ALLOW_EMDASH escape hatch is not set in the drive env. No corrections needed."
+    }
+  },
+  {
+    "spec": {
+      "basename": "post_gh_pr_create.py",
+      "event": "PostToolUse",
+      "observable": "fire_log",
+      "envelope_builder": "posttooluse_bash",
+      "fire_input": {
+        "command": "gh pr create --title \"t\" --body \"closes #1140\" --base main",
+        "tool_response": {
+          "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+        }
+      },
+      "nofire_input": {
+        "command": "gh pr view 1140",
+        "tool_response": {
+          "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+        }
+      },
+      "needs_gh_stub": true,
+      "gh_stub_source": "#!/bin/sh\ncase \"$*\" in\n  *\"pr view\"*) echo '{\"isDraft\": true, \"body\": \"draft body\"}' ;;\n  *\"project item-add\"*) echo '{\"id\": \"ITEM_1\"}' ;;\n  *) echo '{}' ;;\nesac\nexit 0",
+      "extra_args": [],
+      "heredoc_relevant": true,
+      "heredoc_fire_input": {
+        "command": "cat > /tmp/pr_1140.md <<'EOF'\nPR body with (parens) and prose.\nEOF\ngh pr create --title \"t\" --body-file /tmp/pr_1140.md --base main",
+        "tool_response": {
+          "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+        }
+      },
+      "drove_successfully": true,
+      "evidence": "Drove via hc.drive() with the gh stub (draft path avoids the bot-review sub-branch, reaching _log_fire). FIRE (`gh pr create ...`): exit 0, w.fired()=True, appended line {\"hook\":\"post_gh_pr_create\",\"pr\":1140,\"repo\":\"Jin-HoMLee/splice-neoepitope-pipeline\",\"action\":\"board-add+status:In progress\"}; stdout carried the additionalContext confirmation. HEREDOC (`cat > pr.md <<'EOF' ... EOF` then `gh pr create --body-file ...`, the shape that killed matches_pr_create pre-#1130): exit 0, fired=True, identical fire-log line. NOFIRE (`gh pr view 1140`, same PR URL in output): exit 0, fired=False, empty stdout. SUMMARY fire=True heredoc=True nofire=False.",
+      "rationale": "The hook's internal matcher is matches_pr_create(cmd) (main() returns 0 immediately unless it returns True). The observable is the .agents/hook_fires.jsonl line appended by _log_fire, which is only reached after the live gh calls (_pr_view, _add_to_board, _set_status) succeed - hence the gh stub. The stub returns isDraft:true so should_request_review is False, routing to the plain _set_status/else branch and reaching _log_fire without the bot-review delegation. fire_input is a genuine `gh pr create` invocation; the URL in tool_response is what parse_pr_url consumes. nofire_input is `gh pr view 1140` - a real, close sibling command (same PR, same URL in output) that the matcher must let pass: it isolates the matcher, since only the create-vs-view distinction differs, not the URL parse. heredoc_fire_input is load-bearing because this exact heredoc-then-gh-pr-create shape returned False from matches_pr_create for months (Issue #1130), leaving the hook silently dead on the dominant real PR-open path; it now fires (verified)."
+    },
+    "verify": {
+      "basename": "post_gh_pr_create.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook and re-drove all three via hc.drive() with the spec's gh stub (workflow/tests/.venv/bin/python). FIRE (`gh pr create ... --body \"closes #1140\"`, PR URL in tool_response.stdout): exit 0, fired=True, appended {\"hook\":\"post_gh_pr_create\",\"pr\":1140,\"repo\":\"Jin-HoMLee/splice-neoepitope-pipeline\",\"action\":\"board-add+status:In progress\"} (draft path via stub isDraft:true, reaching _log_fire through the else/_set_status branch). HEREDOC shape (the #1130-killer path) also fired=True, identical line. NOFIRE (`gh pr view 1140`, same PR URL in output): exit 0, fired=False - a real matched-pair control isolating the create-vs-view matcher distinction, not the URL parse. RED-ON-BREAK: copied the hook to a temp dir with its _shell_parse.py dep, forced matches_pr_create to `return False`, drove FIRE through the copy -> exit 0, fired=False; the observable disappears, so the contract can return red. Spec is correct as written: observable=fire_log, envelope_builder=posttooluse_bash, needs_gh_stub=true (stub is load-bearing - _log_fire is only reached after _pr_view/_add_to_board/_set_status succeed), fire/nofire/heredoc inputs all verified. No corrections."
+    }
+  },
+  {
+    "spec": {
+      "basename": "post_gh_pr_review_request.py",
+      "event": "PostToolUse",
+      "observable": "fire_log",
+      "envelope_builder": "posttooluse_bash",
+      "fire_input": {
+        "command": "gh pr comment 996 --body \"@claude review\"",
+        "tool_response": {
+          "stdout": ""
+        }
+      },
+      "nofire_input": {
+        "command": "gh pr comment 996 --body \"@-claude review\"",
+        "tool_response": {
+          "stdout": ""
+        }
+      },
+      "needs_gh_stub": true,
+      "gh_stub_source": "#!/bin/bash\nif [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n  echo '{\"url\":\"https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/996\",\"closingIssuesReferences\":[{\"number\":123}]}'\n  exit 0\nfi\nif [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then\n  for a in \"$@\"; do\n    case \"$a\" in\n      *updateProjectV2ItemFieldValue*) echo '{\"data\":{\"updateProjectV2ItemFieldValue\":{\"projectV2Item\":{\"id\":\"x\"}}}}'; exit 0;;\n    esac\n  done\n  echo '{\"data\":{\"repository\":{\"pullRequest\":{\"projectItems\":{\"nodes\":[{\"id\":\"ITEM1\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"name\":\"Ready for review\",\"field\":{\"name\":\"Status\"}}]}}]}},\"issue\":{\"projectItems\":{\"nodes\":[{\"id\":\"ITEM2\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"name\":\"Ready for review\",\"field\":{\"name\":\"Status\"}}]}}]}}}}}'\n  exit 0\nfi\nexit 0",
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove hook_contract.drive() with a canned gh stub. FIRE `gh pr comment 996 --body \"@claude review\"`: exit 0, fire_log appended one line {\"hook\":\"post_gh_pr_review_request\",\"pr\":996,\"issues\":[123],\"repo\":\"Jin-HoMLee/splice-neoepitope-pipeline\",\"action\":\"status:In review\"}, stdout emitted hookSpecificOutput additionalContext \"PR #996 + linked Issue(s) ... Status -> In review.\" Second FIRE `gh pr review 996 --approve` also fired=True with an appended line. NOFIRE `gh pr comment 996 --body \"@-claude review\"`: exit 0, fired=False, empty stdout. RESULT fire_fired=True fire2_fired=True nofire_fired=False.",
+      "rationale": "The internal matcher is matches_review_request(cmd), which shlex-tokenizes (after _shell_parse.normalize_command) and matches two command-start shapes: `gh pr review <ref>` (any direct review) and `gh pr comment <ref>` whose body contains the literal REVIEW_TRIGGER \"@claude review\" (case-insensitive). The observable is the appended .agents/hook_fires.jsonl line, which _log_fire writes only AFTER apply_review_request resolves the PR via a live `gh pr view` and flips at least one board card via `gh api graphql` mutations - hence the gh stub returning a tracked-repo PR URL, a linked issue, and projectItems on project #9 with a flippable \"Ready for review\" status. The nofire uses the hyphenated `@-claude review` reference form, which deliberately does NOT contain the substring \"@claude review\", so _has_trigger returns False and the comment is correctly let pass - the exact close counterexample the matcher must not fire on. Heredoc is not the killer shape here: this hook matches gh pr comment/review with an inline --body, and per the hook's own docstring a trigger living only inside a heredoc/--body-file body is stripped by normalize_command and intentionally not detected, so the canonical inline form is the real trigger."
+    },
+    "verify": {
+      "basename": "post_gh_pr_review_request.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook and re-drove all three directions with the spec's gh stub. FIRE `gh pr comment 996 --body \"@claude review\"`: exit 0, fired=True, fire-log line appended {\"hook\":\"post_gh_pr_review_request\",\"pr\":996,\"issues\":[123],\"repo\":\"Jin-HoMLee/splice-neoepitope-pipeline\",\"action\":\"status:In review\"}, and stdout emitted the additionalContext \"PR #996 + linked Issue(s) #123 Status -> In review\". The second fire shape `gh pr review 996 --approve` also fired=True. NOFIRE `gh pr comment 996 --body \"@-claude review\"`: exit 0, fired=False, empty stdout - genuine matched-pair control (hyphenated reference form lacks the literal \"@claude review\" substring). RED-ON-BREAK: copied the hook + _shell_parse.py to a temp dir, injected `return None` immediately after _tokenize in matches_review_request so it never matches, drove the FIRE input through the copy - fired=False, observable gone, proving main() returns before apply_review_request and the contract can go red. Observable=fire_log, envelope_builder=posttooluse_bash, needs_gh_stub=true all correct; the gh stub must return a tracked-repo PR URL, a linked issue, and flippable \"Ready for review\" projectItems on project #9. Spec is accurate as written; no corrections."
+    }
+  },
+  {
+    "spec": {
+      "basename": "recheck_dispatch.py",
+      "event": "PostToolUse",
+      "observable": "fire_log",
+      "envelope_builder": "posttooluse_bash",
+      "fire_input": {
+        "command": "gh issue edit 42 --milestone \"i5 - S3 - Data Preparation\"",
+        "tool_response": {
+          "stdout": ""
+        }
+      },
+      "nofire_input": {
+        "command": "gh issue edit 42 --add-label \"role:developer\"",
+        "tool_response": {
+          "stdout": ""
+        }
+      },
+      "needs_gh_stub": true,
+      "gh_stub_source": "#!/bin/sh\nargs=\"$*\"\ncase \"$args\" in\n  *\"repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/\"*)\n    # get_issue_milestone (--jq already applied \u2192 emit the transformed shape)\n    printf '%s' '{\"title\":\"i5 - S3 - Data Preparation\",\"due_on\":\"2026-08-01T00:00:00Z\"}'\n    ;;\n  *updateProjectV2ItemFieldValue*)\n    # _mutate_target_date \u2192 force failure so apply_target_sync fails open to the\n    # manual-param warning, which _is_fire() classifies as a real fire\n    printf '%s' '{\"errors\":[{\"message\":\"stub forced failure\"}]}'\n    ;;\n  *projectItems*)\n    # get_issue_target_date \u2192 on-board item, Target date differs from due_on\n    printf '%s' '{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[{\"id\":\"PVTI_stubitem123\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"date\":\"2026-07-01\",\"field\":{\"name\":\"Target date\"}}]}}]}}}}}'\n    ;;\n  *)\n    printf '%s' '{}'\n    ;;\nesac\nexit 0",
+      "extra_args": [
+        "--scope",
+        "shared"
+      ],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove hc.drive() with workflow/tests/.venv/bin/python, extra_args=[\"--scope\",\"shared\"], gh stub on PATH. FIRE (`gh issue edit 42 --milestone \"...\"`): exit 0, fire_log_guard.fired()=True, new_lines=[{\"ts\":\"2026-07-15T08:58:54Z\",\"hook\":\"target_sync_check\",\"issue\":42}]; stdout carried additionalContext \"[target re-sync needed \u2014 move on #42, new milestone \\\"i5 - S3 - Data Preparation\\\"] ... Re-sync via GraphQL updateProjectV2ItemFieldValue ... date: 2026-08-01\". NOFIRE (`gh issue edit 42 --add-label \"role:developer\"`): exit 0, stdout '' (empty), fired()=False.",
+      "rationale": "recheck_dispatch is a PostToolUse hook with no deny/watermark, so its only observable is an appended .agents/hook_fires.jsonl line via _wrap_warning\u2192_log_fire. Under the registered extra_args [\"--scope\",\"shared\"], _in_scope() suppresses the \"pm\"-scoped recheck_milestone/recheck_parent_status checks; only target_sync_check (\"shared\") can fire. Its real internal matcher is PATTERN_MOVE = `\\bgh\\s+issue\\s+edit\\s+(\\d+)\\b[^|;&]*--milestone\\b`, evaluated in dispatch()'s finditer loop over apply_target_sync(). To reach a logged fire, _is_fire(\"target_sync_check\", out) must be truthy, i.e. the output must NOT start with \"[target auto-synced\" \u2014 the fail-open manual-param path. The gh stub gives a milestone with due_on 2026-08-01 and an on-board item whose Target date is 2026-07-01 (drift present), then forces the updateProjectV2ItemFieldValue mutation to fail (errors payload) so apply_target_sync falls back to target_sync_check()'s \"[target re-sync needed \u2026]\" warning \u2014 a real fire. The nofire is a genuine close counterexample: the identical `gh issue edit 42` prefix but with `--add-label` instead of `--milestone`, so PATTERN_MOVE (which requires the `--milestone` token) correctly does not match and no gh call / no fire occurs. This is the exact blind spot of the old tests, which monkeypatched apply_target_sync to a no-op (test_recheck_dispatch.py line 96) and thus never drove the real gh-touching fire path. heredoc_relevant is false: this hook matches gh issue edit anywhere via re.search on the whole string, not a gh pr create command-start walk, so the heredoc shape is not its killer case."
+    },
+    "verify": {
+      "basename": "recheck_dispatch.py",
+      "confirmed": true,
+      "fire_observed": true,
+      "nofire_silent": true,
+      "red_on_break_works": true,
+      "corrections": null,
+      "notes": "Independently re-read the hook and re-drove all three directions via hook_contract.drive() (workflow/tests/.venv/bin/python, extra_args=[--scope,shared], gh stub on PATH). The spec is correct on every field; no corrections.\n\n1. FIRE (`gh issue edit 42 --milestone \"i5 - S3 - Data Preparation\"`): exit 0, fire_log_guard.fired()=True, new line {\"hook\":\"target_sync_check\",\"issue\":42} appended. stdout carried additionalContext \"[target re-sync needed \u2014 move on #42 ...] ... Re-sync via GraphQL updateProjectV2ItemFieldValue ... date: 2026-08-01\". Trace confirms: recheck_milestone/recheck_parent_status are scope \"pm\" and suppressed under --scope shared, so only target_sync_check (scope shared) can fire; PATTERN_MOVE matches, apply_target_sync sees milestone due_on 2026-08-01 vs on-board Target 2026-07-01 (drift), the stub forces the updateProjectV2ItemFieldValue mutation to return an errors payload so _mutate_target_date returns False, apply_target_sync falls open to target_sync_check()'s manual-param warning, and _is_fire() classifies it as a real fire (non-empty, not \"[target auto-synced\").\n\n2. NOFIRE (`gh issue edit 42 --add-label \"role:developer\"`): exit 0, fired()=False, stdout empty. Genuine matched-pair control - identical `gh issue edit 42` prefix, only --milestone swapped for --add-label, so PATTERN_MOVE (requires the --milestone token) correctly does not match. No gh call, no fire.\n\n3. RED-ON-BREAK: copied the hook to a temp file, replaced the internal matcher PATTERN_MOVE with a never-matching regex, drove the identical fire_input through the copy: exit 0, fired()=False, stdout empty. The observable DISAPPEARS when the matcher is broken, so the contract can come back red - not hollow.\n\nMethod note: the gh stub is required (the hook reaches three live gh calls: get_issue_milestone via REST, get_issue_target_date via GraphQL projectItems, and the forced-failing updateProjectV2ItemFieldValue mutation). The stub's case-order is sound - the mutation matches updateProjectV2ItemFieldValue before the projectItems arm, and the GraphQL queries do not contain the literal \"repos/.../issues/\" path so they never hit the REST arm. This is exactly the blind spot of the old test (test_recheck_dispatch.py monkeypatched apply_target_sync to a no-op, never driving the real gh-touching fire path)."
+    }
+  },
+  {
+    "spec": {
+      "basename": "write_session_watermark.py",
+      "event": "Stop",
+      "observable": "watermark",
+      "envelope_builder": "stop_envelope",
+      "fire_input": {
+        "cwd": "<writable-project-root>"
+      },
+      "nofire_input": {
+        "cwd": "/dev/null/sub"
+      },
+      "needs_gh_stub": false,
+      "gh_stub_source": null,
+      "extra_args": [],
+      "heredoc_relevant": false,
+      "heredoc_fire_input": null,
+      "drove_successfully": true,
+      "evidence": "Drove the real hook subprocess via hc.drive() with stop_envelope, env stripped of CLAUDE_PROJECT_DIR so payload cwd governs root resolution (_project_root: CLAUDE_PROJECT_DIR > payload cwd > process cwd). FIRE (cwd=writable tempdir): exit=0, stdout='' (no stop decision), marker WRITTEN -> .agents/last_session_marker.json body {\"last_session_end_utc\": \"2026-07-15T08:58:57Z\", \"schema\": 1}. NOFIRE (cwd under a non-directory so .agents mkdir raises NotADirectoryError): verified twice - (a) cwd=/var/.../afile/sub exit=0 stdout='' marker NOT written; (b) cwd=/dev/null/sub exit=0 stdout='' marker_exists=False. The hook fails open on the unwritable root (its core \"must never block session stop\" contract) and writes nothing, so no watermark observable appears.",
+      "rationale": "This is a Stop hook with NO discriminating internal matcher - it unconditionally writes the session watermark on every turn-end (write_watermark called directly from main after resolving root). So the observable is the written marker file (WATERMARK), never a deny or fire_log, and there is no gh call. The real trigger is simply a Stop envelope with a resolvable, writable project root: root resolves via CLAUDE_PROJECT_DIR env > payload cwd > process cwd, and write_watermark mkdirs .agents/ and atomically writes last_session_marker.json. The genuine close counterexample is an UNWRITABLE root: since the hook has no trigger to reject, the only way to correctly produce no observable is the failure path the hook is explicitly designed to swallow - _project_root points at a location where mkdir raises, write_watermark raises, main() catches and fails open (exit 0, no marker). That exercises the hook's defining behavior (a watermark failure must never break/block the session) and is a real, reachable state (a stale/lost clone root, a root under a non-directory), not a synthetic payload-into-main call. extra_args=[] because the Stop registration carries no args (the --marker routine path is the separate CLI recap-beat invocation, not the Stop hook)."
+    },
+    "verify": {
+      "basename": "write_session_watermark.py",
+      "confirmed": false,
+      "fire_observed": true,
+      "nofire_silent": false,
+      "red_on_break_works": true,
+      "corrections": {
+        "basename": "write_session_watermark.py",
+        "event": "Stop",
+        "observable": "watermark",
+        "envelope_builder": "stop_envelope",
+        "fire_input": {
+          "cwd": "<writable-project-root>"
+        },
+        "nofire_input": null,
+        "nofire_input_defect": "The spec's nofire_input {\"cwd\": \"/dev/null/sub\"} is NOT a valid matched-pair control through the suite's real detector. test_hook_silent_on_counterexample calls hc.observe(c, c.nofire_input), which for WATERMARK routes to _observe_watermark (hook_contract.py:348-365). That detector force-sets CLAUDE_PROJECT_DIR to a fresh writable tempdir, and _project_root (write_session_watermark.py:58-66) ranks CLAUDE_PROJECT_DIR ABOVE the payload cwd. So the nofire's cwd is entirely ignored, the resolved root is always writable, and this matcher-less hook ALWAYS writes the marker. Measured: observe(contract, {\"cwd\": \"/dev/null/sub\"}) returns True, so the assert ... is False FAILS. There is NO spec-field value for nofire_input that produces silence under the current _observe_watermark, because the detector always creates a writable root and the hook has no discriminating matcher. A real counterexample requires a HARNESS change: _observe_watermark must let a nofire_input drive the RESOLVED root (CLAUDE_PROJECT_DIR) to an unwritable path (e.g. accept a 'project_dir' override or NOT force CLAUDE_PROJECT_DIR when the spec supplies an unwritable cwd and env is stripped). The spec author's evidence only achieved silence by manually stripping CLAUDE_PROJECT_DIR in a bespoke drive() call - a driving mode the suite does not use (the exact 'validated on a non-real path' failure #1140 targets).",
+        "needs_gh_stub": false,
+        "gh_stub_source": null,
+        "extra_args": [],
+        "heredoc_relevant": false,
+        "heredoc_fire_input": null,
+        "drove_successfully": true,
+        "evidence": "Re-drove independently via hc.observe (the suite's real path). FIRE: observe(fire_input) -> True, marker written to <root>/.agents/last_session_marker.json body {\"last_session_end_utc\": \"...Z\", \"schema\": 1}. NOFIRE: observe(nofire_input {cwd:/dev/null/sub}) -> True (marker STILL written; CLAUDE_PROJECT_DIR override defeats the payload cwd) -> test_hook_silent would FAIL. RED-ON-BREAK: copied hook into HOOKS_DIR with write_watermark neutralized (return None before the write), observe(fire_input) -> False (observable disappeared) -> fire half is falsifiable. Also cross-checked the spec's own driving (drive() with env stripped of CLAUDE_PROJECT_DIR): fire writes, nofire silent - but that is not the suite's detector.",
+        "rationale": "Fire trigger, observable (watermark), event (Stop), builder (stop_envelope), needs_gh_stub (false), extra_args ([]), and heredoc_relevant (false) are all correct. The ONLY defect is nofire_input: it is unreachable-as-silent through the canonical _observe_watermark detector, making the matched-pair control hollow. Because the hook has no internal matcher (it unconditionally writes on a writable root), the fire test is non-vacuous (red-on-break proves an inert hook fails it) but the nofire control cannot be realized as a spec field under the current harness."
+      },
+      "notes": "Adversarial verdict: NOT confirmed. Fire and red-on-break hold; the nofire counterexample is broken as-specified and cannot be fixed with a spec field alone.\n\nTHREE RESULTS via the real suite path (hc.observe, what test_hook_fires_on_real_trigger and test_hook_silent_on_counterexample actually call):\n1. FIRE: observe(fire_input) = True. Marker last_session_marker.json written. PASSES.\n2. NOFIRE: observe({\"cwd\":\"/dev/null/sub\"}) = True (marker STILL written). test_hook_silent_on_counterexample would FAIL. Not a real matched-pair control.\n3. RED-ON-BREAK: broken copy (write_watermark neutralized) -> observe(fire_input) = False. Fire half is genuinely falsifiable.\n\nWHY nofire fires: _observe_watermark (hook_contract.py:348-365) does env = dict(os.environ, CLAUDE_PROJECT_DIR=d) with d a fresh WRITABLE tempdir, then setdefault's cwd. _project_root (hook lines 58-66) resolves CLAUDE_PROJECT_DIR > payload cwd > process cwd, so CLAUDE_PROJECT_DIR=d always wins and the nofire's cwd=/dev/null/sub is dead. The hook has NO discriminating matcher (it writes unconditionally on any writable root), so the only \"no observable\" state is an UNWRITABLE resolved root - which _observe_watermark structurally cannot produce because it always builds a writable one. Therefore no nofire_input value can make test_hook_silent pass under the current harness.\n\nThe spec's evidence obtained nofire silence only by manually stripping CLAUDE_PROJECT_DIR in a hand-rolled drive() call - a driving mode the suite does NOT use. That is the same \"verified on a non-real path\" failure mode Issue #1140 exists to catch (cf. my role memory: \"Drive the real trigger, not a synthetic payload\").\n\nREQUIRED FIX (harness, not spec field): _observe_watermark needs a way for a nofire_input to force the RESOLVED root unwritable - e.g. honor a \"project_dir\" override in spec_input pointed at an unwritable path (/dev/null/sub) and pass it AS CLAUDE_PROJECT_DIR (or omit the forced CLAUDE_PROJECT_DIR and let payload cwd govern when a nofire flag is set). Until then this hook has a live fire test and a hollow nofire test; recommend the analyze registry either (a) get the harness fix, or (b) mark this hook's nofire as N/A with a documented reason so the suite does not carry a green-but-vacuous silence assertion.\n\nCAVEAT on red_on_break_works=true: \"break the internal matcher\" is only loosely applicable - this hook has no matcher, so I broke its firing logic (the write). Breaking it does turn the FIRE test red, which is the meaningful liveness guarantee here (an inert watermark hook fails). But note this does NOT rescue the nofire: even with the write intact, the nofire control cannot go red-to-green because it fires regardless."
+    }
+  }
+]

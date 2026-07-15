@@ -6,6 +6,32 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-15
+
+### 11:29 UTC - Editor: Developer - A test that drives the hook the way the harness does, so an inert one reds ([PR #1195](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1195) closes [Issue #1140](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1140))
+
+**Headline:** Shipped the hook-liveness contract suite (Sub D of epic [#1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135)) - for every hook registered in `.agents/settings.json`, a test that drives its real trigger through its real subprocess entry path (stdin envelope, not `main()`) and asserts the observable artifact. This is the half that catches the class mutation testing (Sub B, [#1141](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1141)) structurally cannot: a hook that is never invoked has no surviving mutant. Four governance hooks shipped completely inert this month while green on unit tests; `post_gh_pr_create` was dead for months on the heredoc shape.
+
+**Work shipped:**
+
+- `tools/ci/hook_contract.py` - shared harness: enumerate the 12 registrations / 11 distinct hooks from `.agents/settings.json`, build the real stdin envelope per event, `drive()` each hook as a subprocess, detect the three observable kinds (deny-on-stdout, fire-log append restored after each test, watermark file), with a stub `gh` on PATH for board hooks that reach a live `gh` call.
+- `tools/ci/test_hook_liveness_contract.py` - 27 tests: completeness/drift (registry must equal the settings.json registry), a matched-pair fire/no-fire per hook, an explicit heredoc-shape case for the gh-matching hooks, and a red-on-break demonstration.
+- Collected by the existing `pytest tools/ci/` CI run (every PR) - a superset of AC 6's "any change under `.agents/hooks/`".
+
+**How I built it (the interesting part):** a 22-agent workflow (analyze + adversarial-verify per hook) derived and *empirically drove* each contract rather than reasoning about it. The adversarial pass earned its cost - it caught two harness gaps I'd otherwise have shipped: the drift hook needed a cwd-carrying envelope, and the matcher-less watermark hook needed a writable-vs-unwritable-root matched pair (my first version could never make it go silent). Both fixed before the first suite run.
+
+**The property that matters:** the suite can come back *red*, proven twice - breaking `check_no_force_push`'s matcher silences its deny (in-suite demo), and breaking `post_gh_pr_create`'s `matches_pr_create` (the hook that shipped dead) silences its fire-log observable. A red-on-break that itself relocates the hook had a trap the fan-out surfaced: a lone copy fails to import `_shell_parse` and vanishes from a *crash*, a hollow red - fixed by copying the sibling alongside plus an unbroken relocated control that must still fire.
+
+**Bot review:** strong LGTM, ready-to-merge, 4 minor + 1 follow-up. Addressed all 4 in `7c92a41` (byte-based fire detection immune to a non-terminated tail; airtight `tmp_path` red-on-break out of the tracked dir; serial-execution note against xdist; doc signature drift). The `check_at_claude` user-level guard is outside this registry-driven suite by design (surfaced per AC 1) - tracked as follow-up [#1196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1196).
+
+**Issues created today:**
+
+- [Issue #1196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1196) - liveness contract for the user-level `check_at_claude` guard (registry-external; the highest-harm guard to have go silently inert).
+
+**Verification:** 27/27 suite, 856/856 across `tools/ci` (no regressions), `.agents/` clean after runs (fire-log snapshot/restore).
+
+---
+
 ## 2026-07-14 - The queue was lying, and it had been for months ([Issue #1153](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1153))
 
 ### 15:40 UTC - Editor: Developer - The filter production was already running, that nobody chose ([Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118), [PR #1168](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1168))
