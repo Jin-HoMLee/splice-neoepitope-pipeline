@@ -14,11 +14,20 @@ routine single-PR-closes-single-Issue skip that #483 declared optional, so the
 bot stops coercing entries the lab-notebook rule says are unnecessary. The AC
 and Priority-rationale checks are unaffected by the marker.
 
-On the issue path, the lab-notebook check is also skipped when the Issue closed
-as `not_planned` (descoped / superseded): such a close ships no work and routes
-through a closing comment, not a notebook entry (closure ritual, #743). The AC
-and Priority-rationale checks still run — superseded ACs are annotated to their
-disposition (e.g. `- [superseded]`) rather than left as `- [ ]`.
+On the issue path the close REASON selects the checklist (#1137):
+
+- `not_planned` (descoped / superseded) ships no work, so the whole completed-close
+  checklist is skipped - AC ticks, notebook entry, disposition alike. Its AC boxes
+  are SUPPOSED to stay unticked. What such a close does owe is a closing comment
+  (reason + outcome routing), and only its total absence is flagged (closure
+  ritual, #743).
+- a parent/epic (subIssuesSummary.total > 0) closes as a rollup of children that
+  each shipped behind their own PR, so it owes no lab-notebook entry of its own.
+
+Applying the completed-close checklist to every close is what produced the n=3
+false positives (#451, #1071, #665). This is a LINTER: its failure mode is the
+false ALARM, and a gate that cries wolf on correct behavior trains the team to
+skim its output, which costs the mechanism its entire value.
 
 Usage (called by .github/workflows/closure-audit.yml):
     python closure_audit.py --event-type {pr|issue} --number <N>
@@ -454,8 +463,12 @@ def format_comment(
     ac_gaps: list[tuple[int, str]],
     pr_gaps: list[tuple[int, str]],
     nb_gaps: list[tuple[str, str]],
+    cc_gaps: list[tuple[int, str]] | None = None,
 ) -> str:
-    if not (ac_gaps or pr_gaps or nb_gaps):
+    # Defaulted so audit_pr's 4-arg calls stay valid: a PR close has no
+    # closing-comment branch (that is the not-planned Issue path, Issue #1137).
+    cc_gaps = cc_gaps or []
+    if not (ac_gaps or pr_gaps or nb_gaps or cc_gaps):
         return (
             f"{COMMENT_MARKER}\n"
             f"✅ Closure audit — all clear\n\n"
@@ -474,6 +487,8 @@ def format_comment(
         lines.append(f"- ⚠️ **Priority rationale** on Issue #{n} — {d}")
     for r, d in nb_gaps:
         lines.append(f"- ⚠️ **Lab notebook entry** for `{r}` — {d}")
+    for n, d in cc_gaps:
+        lines.append(f"- ⚠️ **Closing comment** on Issue #{n} - {d}")
     lines += [
         "",
         "Per [closure ritual](shared/feedback_closure_ritual.md): tick the boxes, add a comment-deferral, or add the missing entry/rationale. This comment is a snapshot of close-time state — it won't auto-update after fixes.",
@@ -508,12 +523,43 @@ def fetch_pr(n: int, repo: str | None = None) -> dict:
     ))
 
 
+def _fetch_sub_total(n: int, repo: str | None = None) -> int:
+    """subIssuesSummary.total for issue `n`, or 0 on ANY failure (fail-safe).
+
+    Fetched SEPARATELY from the main issue view, and fail-open, on purpose
+    (Issue #1137 review). `gh issue view --json` validates field names client-side,
+    so if a `gh` build ever does not know `subIssuesSummary` the call exits non-zero
+    - and folding it into the main fetch (which runs `check=True`) would crash
+    audit_issue on EVERY closed issue, posting nothing at all. That is worse than
+    the bug this fixes. Isolating it means a rejected field degrades the parent
+    exemption to "treat as leaf" (the pre-#1137 behavior: run the notebook check),
+    never a crash. Treating-as-leaf is the safe direction for a linter - it risks a
+    single false ALARM on a real parent, never a silent false pass.
+
+    (`subIssuesSummary` IS supported on current gh - verified on 2.95.0 - so this
+    is belt-and-suspenders against version drift, not a live breakage.)
+    """
+    try:
+        data = json.loads(_gh(
+            "issue", "view", str(n), "--json", "subIssuesSummary", repo=repo,
+        ))
+        return (data.get("subIssuesSummary") or {}).get("total") or 0
+    except (subprocess.CalledProcessError, json.JSONDecodeError, ValueError, KeyError):
+        return 0
+
+
 def fetch_issue(n: int, repo: str | None = None) -> dict:
-    return json.loads(_gh(
+    # Only long-standing fields here, so this core fetch cannot be broken by a
+    # newer field on an older gh. subIssuesSummary is fetched separately and
+    # fail-open (see _fetch_sub_total), then merged into the shape the rest of the
+    # module reads (is_parent_rollup expects issue["subIssuesSummary"]["total"]).
+    issue = json.loads(_gh(
         "issue", "view", str(n),
         "--json", "number,body,labels,comments,closedAt,stateReason",
         repo=repo,
     ))
+    issue["subIssuesSummary"] = {"total": _fetch_sub_total(n, repo)}
+    return issue
 
 
 def post_comment(target: str, n: int, body: str) -> None:
@@ -658,34 +704,95 @@ def collect_cross_repo_ac_gaps(
     return gaps
 
 
-def audit_issue(n: int) -> None:
-    issue = fetch_issue(n)
+def is_not_planned(issue: dict) -> bool:
+    """True iff the Issue closed as NOT_PLANNED (descoped / superseded / declined)."""
+    return (issue.get("stateReason") or "").upper() == "NOT_PLANNED"
+
+
+def is_parent_rollup(issue: dict) -> bool:
+    """True iff the Issue is a parent/epic (it has sub-issues).
+
+    A parent closes as a *rollup* of children that each shipped their own work
+    behind their own PRs. It has no deliverable of its own, so it owes no
+    lab-notebook entry (Issue #1137; the #665 false positive).
+    """
+    return ((issue.get("subIssuesSummary") or {}).get("total") or 0) > 0
+
+
+def check_closing_comment(comments: list[str]) -> str | None:
+    """Gap when a not-planned close carries no closing comment at all.
+
+    What a not-planned close *does* owe is a closing comment (reason + outcome
+    routing) - that is the closure ritual's branch for work that ships nothing.
+
+    Deliberately conservative: it flags ONLY the total absence of any comment. It
+    does not try to parse a comment for "a reason" or "outcome routing", because
+    this is a LINTER and its failure mode is the false ALARM (shared rule: fail
+    safe, not fail open). A keyword heuristic over free prose would re-create
+    exactly the cry-wolf problem Issue #1137 exists to fix, one layer up. A
+    not-planned close with zero comments is unambiguous; anything subtler than
+    that is a human judgment, not a lint.
+    """
+    if comments:
+        return None
+    return "closed as not-planned with no closing comment (reason + outcome routing)"
+
+
+def collect_issue_gaps(
+    issue: dict,
+    notebooks: dict[str, str | None],
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[tuple[str, str]], list[tuple[int, str]]]:
+    """All closure gaps for a closed Issue. Pure given (issue, notebooks).
+
+    The close *reason* selects which checklist applies (Issue #1137). Applying the
+    completed-close checklist to every close is what produced the n=3 false
+    positives: it flagged a not-planned close for the unticked AC boxes it is
+    supposed to have, and a parent epic for a lab-notebook entry it does not owe.
+    """
+    n = issue["number"]
     body = issue.get("body") or ""
     cmts = [c.get("body", "") for c in issue.get("comments", [])]
-    date = issue["closedAt"][:10]
 
     ac_gaps: list[tuple[int, str]] = []
     pr_gaps: list[tuple[int, str]] = []
     nb_gaps: list[tuple[str, str]] = []
+    cc_gaps: list[tuple[int, str]] = []
+
+    if is_not_planned(issue):
+        # Ships no work: no ACs to tick, no notebook entry, no disposition. The one
+        # thing it owes is the closing comment.
+        if d := check_closing_comment(cmts):
+            cc_gaps.append((n, d))
+        return ac_gaps, pr_gaps, nb_gaps, cc_gaps
 
     if d := check_ac(body, cmts):
         ac_gaps.append((n, d))
     if d := check_priority_rationale(body):
         pr_gaps.append((n, d))
 
-    # A not_planned (descoped / superseded) close ships no work, so it routes
-    # through a closing comment, not a lab-notebook entry (closure ritual, #743).
-    # Skip ONLY the notebook check — AC + priority-rationale still run (the AC
-    # boxes are annotated to their disposition, e.g. `- [superseded]`).
-    if (issue.get("stateReason") or "").upper() != "NOT_PLANNED":
+    # A parent/epic close is a rollup of children that each shipped behind their
+    # own PR; it has no deliverable of its own, so it owes no notebook entry.
+    if not is_parent_rollup(issue):
+        date = issue["closedAt"][:10]
         labels = [lbl["name"] for lbl in issue.get("labels", [])]
         role_sets = resolve_roles([labels])
-        all_roles = {r for rs in role_sets for r in rs}
-        notebooks = {r: _load_notebook(r) for r in all_roles}
         nb_gaps.extend(collect_notebook_gaps(role_sets, date, n, notebooks))
 
-    if ac_gaps or pr_gaps or nb_gaps:
-        post_comment("issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps))
+    return ac_gaps, pr_gaps, nb_gaps, cc_gaps
+
+
+def audit_issue(n: int) -> None:
+    issue = fetch_issue(n)
+    labels = [lbl["name"] for lbl in issue.get("labels", [])]
+    all_roles = {r for rs in resolve_roles([labels]) for r in rs}
+    notebooks = {r: _load_notebook(r) for r in all_roles}
+
+    ac_gaps, pr_gaps, nb_gaps, cc_gaps = collect_issue_gaps(issue, notebooks)
+
+    if ac_gaps or pr_gaps or nb_gaps or cc_gaps:
+        post_comment(
+            "issue", n, format_comment(f"Issue #{n}", ac_gaps, pr_gaps, nb_gaps, cc_gaps)
+        )
 
 
 def main() -> int:

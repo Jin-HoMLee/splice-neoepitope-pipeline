@@ -646,7 +646,13 @@ _ANNOTATED_BODY = (
 )
 
 
-def _run_audit_issue(monkeypatch, *, state_reason, labels, notebook_text, body=None):
+_CLOSING_COMMENT = "Closing as superseded by Issue #999. Outcome: no follow-up needed."
+
+
+def _run_audit_issue(
+    monkeypatch, *, state_reason, labels, notebook_text, body=None,
+    comments=None, sub_total=0,
+):
     """Drive audit_issue with a controlled issue + notebook; capture any post.
 
     Default body has its AC boxes annotated to a disposition (`- [superseded]`)
@@ -655,14 +661,23 @@ def _run_audit_issue(monkeypatch, *, state_reason, labels, notebook_text, body=N
     text deliberately omits the Issue ref, so the notebook check WOULD fail if
     it ran. Pass `body` to exercise the AC check (e.g. with a real `- [ ]`).
     Returns the posted comment body, or None if nothing was posted.
+
+    `comments` defaults to a proper closing comment, because that is what a
+    correctly-closed not-planned Issue actually carries (Issue #1137). Pass
+    `comments=[]` to exercise the missing-closing-comment gap. `sub_total` > 0
+    makes the Issue a parent/epic, which owes no lab-notebook entry of its own.
     """
     issue = {
         "number": 743,
         "body": _ANNOTATED_BODY if body is None else body,
         "labels": [{"name": lbl} for lbl in labels],
-        "comments": [],
+        "comments": [
+            {"body": c}
+            for c in ([_CLOSING_COMMENT] if comments is None else comments)
+        ],
         "closedAt": "2026-06-15T14:00:00Z",
         "stateReason": state_reason,
+        "subIssuesSummary": {"total": sub_total, "completed": sub_total},
     }
     monkeypatch.setattr(ca, "fetch_issue", lambda n: issue)
     monkeypatch.setattr(ca, "_load_notebook", lambda role: notebook_text)
@@ -719,18 +734,71 @@ def test_unticked_regex_ignores_annotated_boxes():
     assert ca._UNTICKED.findall("- [ ] x\n"), "regex must still match a real `- [ ]`"
 
 
-def test_audit_issue_not_planned_still_flags_unticked_ac(monkeypatch):
-    """not_planned skips ONLY the notebook check — a genuinely unticked AC
-    (left as `- [ ]`, not annotated) is still flagged. Guards the skip's scope."""
+_NB_NO_REF = "## 2026-06-15\n\n### 14:00 UTC - Editor: Developer\nUnrelated.\n"
+
+
+def test_audit_issue_not_planned_does_not_flag_unticked_ac(monkeypatch):
+    """BEHAVIOR INVERTED by Issue #1137 (was: not_planned still flags unticked ACs).
+
+    The old contract skipped ONLY the notebook check, so a not-planned close was
+    still flagged for `- [ ]` boxes. That is a false positive **by construction**:
+    a not-planned close ships no work, so its AC boxes are SUPPOSED to stay
+    unticked. It fired on real, correctly-closed Issues (n=3; Issue #451 was
+    flagged for 8 unticked boxes while carrying a proper closing comment).
+
+    A linter's failure mode is the false ALARM, and a gate that cries wolf on
+    correct behavior trains the team to skim it, which costs the mechanism its
+    entire value.
+    """
     body = _run_audit_issue(
         monkeypatch,
         state_reason="NOT_PLANNED",
         labels=["role:developer"],
-        notebook_text="## 2026-06-15\n\n### 14:00 UTC — Editor: Developer\nUnrelated.\n",
-        body="## Acceptance criteria\n- [ ] one\n- [superseded] two\n\n**Priority rationale:** P2 — x.\n",
+        notebook_text=_NB_NO_REF,
+        body="## Acceptance criteria\n- [ ] one\n- [ ] two\n\n**Priority rationale:** P2 - x.\n",
     )
-    assert body is not None and "AC checkboxes" in body
-    assert "Lab notebook" not in body  # notebook check still skipped
+    assert body is None, "a not-planned close owes no ticked ACs and no notebook entry"
+
+
+def test_audit_issue_not_planned_without_closing_comment_is_flagged(monkeypatch):
+    """CONTROL for the inversion above: not-planned is exempt from the completed
+    checklist, but it still owes the one thing it DOES owe - a closing comment.
+
+    Without this, the exemption would be indistinguishable from a bot that simply
+    stopped checking not-planned closes altogether."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="NOT_PLANNED",
+        labels=["role:developer"],
+        notebook_text=_NB_NO_REF,
+        comments=[],
+    )
+    assert body is not None and "Closing comment" in body
+
+
+def test_audit_issue_parent_rollup_owes_no_notebook_entry(monkeypatch):
+    """Issue #1137 / the #665 shape: a parent epic closes as a rollup of children
+    that each shipped behind their own PR, so it has no deliverable of its own."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="COMPLETED",
+        labels=["role:developer"],
+        notebook_text=_NB_NO_REF,
+        sub_total=3,
+    )
+    assert body is None, "a parent epic owes no lab-notebook entry of its own"
+
+
+def test_audit_issue_leaf_completed_still_flags_missing_notebook(monkeypatch):
+    """CONTROL for the parent exemption: flip ONLY sub_total and it must fire."""
+    body = _run_audit_issue(
+        monkeypatch,
+        state_reason="COMPLETED",
+        labels=["role:developer"],
+        notebook_text=_NB_NO_REF,
+        sub_total=0,
+    )
+    assert body is not None and "Lab notebook" in body
 
 
 # --- #730: stray-AC-box lint (gating boxes outside an "Acceptance criteria" section) ---
