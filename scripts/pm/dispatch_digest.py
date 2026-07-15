@@ -62,9 +62,27 @@ ROLE_DISPLAY = {
 DEFAULT_STALE_DAYS = 14
 
 
-def _role_slug(item: dict[str, Any]) -> str:
-    role = item.get("role")
-    return role.removeprefix("role:") if role else UNASSIGNED
+def _role_slugs(item: dict[str, Any]) -> list[str]:
+    """Every role slug an item carries (Issue #1139).
+
+    Reading the singular `item["role"]` scalar buckets a multi-role item under
+    exactly ONE role, leaving it invisible to the other and under-reporting that
+    role's depth - which manufactures a phantom shortfall against
+    `check_ready_queue.sh`, the gate that counts an item under EVERY role label
+    it carries. Same first-label-only class as Issue #1153 (board_open_items) and
+    Issue #1154 (check_roadmap_health); this is its last site.
+
+    `roles` is board_open_items' authoritative list; the `role` scalar is only a
+    fallback for a hand-built item that predates it.
+    """
+    roles = item.get("roles") or ([item["role"]] if item.get("role") else [])
+    slugs = [r.removeprefix("role:") for r in roles]
+    return slugs or [UNASSIGNED]
+
+
+def _role_label(item: dict[str, Any]) -> str:
+    """Display form: name every owner, not just the first."""
+    return ", ".join(ROLE_DISPLAY.get(s, s) for s in _role_slugs(item))
 
 
 def group_by_role_status(
@@ -76,14 +94,17 @@ def group_by_role_status(
     dropped (not active work). A role-less committed item lands under UNASSIGNED
     rather than being silently discarded - it is a hygiene signal worth surfacing.
     Insertion order within each bucket follows the input order.
+
+    A multi-role item is filed under EVERY role it carries (Issue #1139), so both
+    owners see it and the digest's per-role depth agrees with the gate's count.
     """
     grouped: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for it in items:
         status = it.get("status")
         if status not in COMMITTED_STATUSES:
             continue
-        role = _role_slug(it)
-        grouped.setdefault(role, {}).setdefault(status, []).append(it)
+        for role in _role_slugs(it):
+            grouped.setdefault(role, {}).setdefault(status, []).append(it)
     return grouped
 
 
@@ -229,7 +250,7 @@ def render_digest(
         for it in aged:
             age = boi.age_label(it.get("updated_at"), now)
             lines.append(
-                f"- {_item_link(it)} - {ROLE_DISPLAY.get(_role_slug(it), _role_slug(it))}"
+                f"- {_item_link(it)} - {_role_label(it)}"
                 f" - {it.get('status')} - {age}"
             )
     else:

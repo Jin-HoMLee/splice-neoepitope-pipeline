@@ -1,0 +1,212 @@
+{
+  "check_gh_issue_develop_parent.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_bash",
+    "fire_input": {
+      "command": "gh issue develop 538 --name feat/x --checkout"
+    },
+    "nofire_input": {
+      "command": "gh issue view 538"
+    },
+    "needs_gh_stub": true,
+    "gh_stub_source": "#!/bin/sh\ncase \"$*\" in\n  *\"repo view\"*) echo \"Jin-HoMLee/splice-neoepitope-pipeline\" ;;\n  *\"api graphql\"*) echo '{\"data\":{\"repository\":{\"issue\":{\"subIssuesSummary\":{\"total\":5}}}}}' ;;\nesac\nexit 0\n",
+    "extra_args": [],
+    "heredoc_fire_input": {
+      "command": "cat > /tmp/plan.md <<'EOF'\nbranching notes for the epic\nEOF\ngh issue develop 538 --name feat/x --checkout"
+    },
+    "basename": "check_gh_issue_develop_parent.py",
+    "confirmed": true
+  },
+  "check_board_query_pagination.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_bash",
+    "fire_input": {
+      "command": "gh api graphql -f query='query { user(login:\"Jin-HoMLee\"){ projectV2(number:9){ items(first:100){ nodes { id } } } } }'"
+    },
+    "nofire_input": {
+      "command": "gh api graphql -f query='query { user(login:\"Jin-HoMLee\"){ projectV2(number:9){ items(first:100){ pageInfo{ hasNextPage endCursor } nodes { id } } } } }'"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_board_query_pagination.py",
+    "confirmed": true
+  },
+  "check_no_force_push.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_bash",
+    "fire_input": {
+      "command": "git push --force origin main"
+    },
+    "nofire_input": {
+      "command": "git push origin main"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_no_force_push.py",
+    "confirmed": true
+  },
+  "check_commit_push_separation.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_bash",
+    "fire_input": {
+      "command": "git commit -m 'x' && git push"
+    },
+    "nofire_input": {
+      "command": "git push origin main"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_commit_push_separation.py",
+    "confirmed": true
+  },
+  "check_no_cd_outside_cwd.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_bash",
+    "fire_input": {
+      "command": "cd /etc/secret"
+    },
+    "nofire_input": {
+      "command": "cd workflow"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_no_cd_outside_cwd.py",
+    "confirmed": true
+  },
+  "check_memory_path_cwd_drift.py": {
+    "observable": "deny (primary, verified) AND fire_log (also fires on every deny). Spec's 'deny' is correct as the primary observable; a fire_log line is appended coincidentally.",
+    "envelope_builder": "REQUIRES a cwd-carrying builder (e.g. a new pretooluse_bash_cwd(command, cwd) or extend pretooluse_bash to accept/pass cwd). As named ('pretooluse_bash'), the contract CANNOT run through hc.observe(): HookContract.envelope() calls _BUILDERS['pretooluse_bash'](**spec_input) and pretooluse_bash rejects the 'cwd' kwarg with TypeError. The hook keys on data.get('cwd') and pretooluse_bash never emits cwd, so through the unmodified harness the hook reads cwd=None -> cwd_outside_clone False -> can never fire.",
+    "fire_input": {
+      "command": "grep foo .agents/memory/shared/MEMORY.md",
+      "cwd": "/private/tmp/claude-scratch",
+      "_note": "correct trigger, but the cwd key must be carried by a cwd-aware envelope builder, not passed to pretooluse_bash"
+    },
+    "nofire_input": {
+      "command": "grep foo .agents/memory/shared/MEMORY.md",
+      "cwd": "/Users/jin-holee/dev/GitHub/Jin-HoMLee/splice-neoepitope-pipeline",
+      "_note": "correct matched-pair control; confirmed silent"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_memory_path_cwd_drift.py",
+    "confirmed": true
+  },
+  "check_no_emdash.py": {
+    "observable": "deny",
+    "envelope_builder": "pretooluse_edit",
+    "fire_input": {
+      "file_path": "research/notes.md",
+      "old_string": "hello - world",
+      "new_string": "hello \u2014 world"
+    },
+    "nofire_input": {
+      "file_path": "research/notes.md",
+      "old_string": "hello - world",
+      "new_string": "hello -- world"
+    },
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "check_no_emdash.py",
+    "confirmed": true
+  },
+  "post_gh_pr_create.py": {
+    "observable": "fire_log",
+    "envelope_builder": "posttooluse_bash",
+    "fire_input": {
+      "command": "gh pr create --title \"t\" --body \"closes #1140\" --base main",
+      "tool_response": {
+        "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+      }
+    },
+    "nofire_input": {
+      "command": "gh pr view 1140",
+      "tool_response": {
+        "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+      }
+    },
+    "needs_gh_stub": true,
+    "gh_stub_source": "#!/bin/sh\ncase \"$*\" in\n  *\"pr view\"*) echo '{\"isDraft\": true, \"body\": \"draft body\"}' ;;\n  *\"project item-add\"*) echo '{\"id\": \"ITEM_1\"}' ;;\n  *) echo '{}' ;;\nesac\nexit 0",
+    "extra_args": [],
+    "heredoc_fire_input": {
+      "command": "cat > /tmp/pr_1140.md <<'EOF'\nPR body with (parens) and prose.\nEOF\ngh pr create --title \"t\" --body-file /tmp/pr_1140.md --base main",
+      "tool_response": {
+        "stdout": "https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1140\n"
+      }
+    },
+    "basename": "post_gh_pr_create.py",
+    "confirmed": true
+  },
+  "post_gh_pr_review_request.py": {
+    "observable": "fire_log",
+    "envelope_builder": "posttooluse_bash",
+    "fire_input": {
+      "command": "gh pr comment 996 --body \"@claude review\"",
+      "tool_response": {
+        "stdout": ""
+      }
+    },
+    "nofire_input": {
+      "command": "gh pr comment 996 --body \"@-claude review\"",
+      "tool_response": {
+        "stdout": ""
+      }
+    },
+    "needs_gh_stub": true,
+    "gh_stub_source": "#!/bin/bash\nif [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n  echo '{\"url\":\"https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/996\",\"closingIssuesReferences\":[{\"number\":123}]}'\n  exit 0\nfi\nif [ \"$1\" = \"api\" ] && [ \"$2\" = \"graphql\" ]; then\n  for a in \"$@\"; do\n    case \"$a\" in\n      *updateProjectV2ItemFieldValue*) echo '{\"data\":{\"updateProjectV2ItemFieldValue\":{\"projectV2Item\":{\"id\":\"x\"}}}}'; exit 0;;\n    esac\n  done\n  echo '{\"data\":{\"repository\":{\"pullRequest\":{\"projectItems\":{\"nodes\":[{\"id\":\"ITEM1\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"name\":\"Ready for review\",\"field\":{\"name\":\"Status\"}}]}}]}},\"issue\":{\"projectItems\":{\"nodes\":[{\"id\":\"ITEM2\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"name\":\"Ready for review\",\"field\":{\"name\":\"Status\"}}]}}]}}}}}'\n  exit 0\nfi\nexit 0",
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "post_gh_pr_review_request.py",
+    "confirmed": true
+  },
+  "recheck_dispatch.py": {
+    "observable": "fire_log",
+    "envelope_builder": "posttooluse_bash",
+    "fire_input": {
+      "command": "gh issue edit 42 --milestone \"i5 - S3 - Data Preparation\"",
+      "tool_response": {
+        "stdout": ""
+      }
+    },
+    "nofire_input": {
+      "command": "gh issue edit 42 --add-label \"role:developer\"",
+      "tool_response": {
+        "stdout": ""
+      }
+    },
+    "needs_gh_stub": true,
+    "gh_stub_source": "#!/bin/sh\nargs=\"$*\"\ncase \"$args\" in\n  *\"repos/Jin-HoMLee/splice-neoepitope-pipeline/issues/\"*)\n    # get_issue_milestone (--jq already applied \u2192 emit the transformed shape)\n    printf '%s' '{\"title\":\"i5 - S3 - Data Preparation\",\"due_on\":\"2026-08-01T00:00:00Z\"}'\n    ;;\n  *updateProjectV2ItemFieldValue*)\n    # _mutate_target_date \u2192 force failure so apply_target_sync fails open to the\n    # manual-param warning, which _is_fire() classifies as a real fire\n    printf '%s' '{\"errors\":[{\"message\":\"stub forced failure\"}]}'\n    ;;\n  *projectItems*)\n    # get_issue_target_date \u2192 on-board item, Target date differs from due_on\n    printf '%s' '{\"data\":{\"repository\":{\"issue\":{\"projectItems\":{\"nodes\":[{\"id\":\"PVTI_stubitem123\",\"project\":{\"number\":9},\"fieldValues\":{\"nodes\":[{\"date\":\"2026-07-01\",\"field\":{\"name\":\"Target date\"}}]}}]}}}}}'\n    ;;\n  *)\n    printf '%s' '{}'\n    ;;\nesac\nexit 0",
+    "extra_args": [
+      "--scope",
+      "shared"
+    ],
+    "heredoc_fire_input": null,
+    "basename": "recheck_dispatch.py",
+    "confirmed": true
+  },
+  "write_session_watermark.py": {
+    "observable": "watermark",
+    "envelope_builder": "stop_envelope",
+    "fire_input": {
+      "cwd": "<writable-project-root>"
+    },
+    "nofire_input": null,
+    "needs_gh_stub": false,
+    "gh_stub_source": null,
+    "extra_args": [],
+    "heredoc_fire_input": null,
+    "basename": "write_session_watermark.py",
+    "confirmed": false
+  }
+}

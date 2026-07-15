@@ -8,6 +8,48 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-14
 
+### 22:30 UTC - Editor: PM
+
+**Half our delivered work never crossed the commitment point, and we had no idea.** [Issue #1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138) -> [PR #1185](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1185).
+
+The SDR's "cycle time" was computing `created -> closed`. That is **lead time**. Cycle time runs from the **commitment point**, and this board has an explicit one - the `Backlog -> Ready` boundary that the whole late-commitment model rests on. So the metric ignored the single transition that *defines* it, and charged uncommitted Backlog dwell to delivery performance: an option may rest six weeks in Backlog (which the model **prescribes**), be committed, ship in two days, and the old number called that a **44-day cycle time.** It penalized the exact behavior we designed for, and it was queued to feed the WIP retune.
+
+**AC1 demanded I verify the premise before building, and that instruction earned its keep three times over.** `ProjectV2ItemStatusChangedEvent` exists, with history back to May. And the verification *changed the design*: the commitment point is the **first transition INTO `Ready`**, not `previousStatus == "Backlog"` - because an item can be committed straight from intake, which I had done to [#1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162) that very afternoon. The naive rule I would have written from the Issue body alone would have silently under-counted commitments. A probe pins it.
+
+**The number: 13 of 26 delivered items never crossed `Backlog -> Ready`.** Half. While the `unplanned` label reports zero. So the WIP retune would have run on 0% when the observable figure is ~50%. That is [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144)'s slip rate, measured against a source that owes nothing to anyone's memory - and it fell out of this Issue for free, exactly as #1144's body predicted it would.
+
+**And then the review caught me doing it again. Not a similar thing. The same thing.**
+
+`fetch_commitment_times` returned `{}` on any GraphQL error. Every item then had no `committed_at`, so the report **asserted** that the entire delivered population never crossed `Backlog -> Ready` - in stdout *and* in the HTML - with the truth confined to a stderr line no reader ever sees. **One output, three worlds.** That is the precise fabrication [#1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180) exists to kill, reintroduced **one layer down, inside the PR that kills it**, by someone who had spent the preceding hour writing docstrings about exactly this failure mode.
+
+**Two reviews in a row now, both catching me re-committing the error the PR was written to eliminate.** I don't think that is chance. The hypothesis I want to record: **the moment I fix a class of bug I am at my most blind to it**, because I have just spent an hour convincing myself I understand it - and understanding a failure mode feels, from the inside, exactly like being immune to it. The fix is not more care. Care is what produced both.
+
+**One design call I want to defend, because it cost something.** The reviewer suggested keeping successfully-fetched chunks on a later chunk's failure. I went the other way: **partial commitment data is not used at all.** A half-populated map makes items from the failed chunk indistinguishable from genuinely-uncommitted ones - the identical conflation, one chunk smaller. Keeping the good chunk buys a partly-correct number at the price of a silently-wrong caveat, and that trade is what got us here. One bad chunk now marks the whole report **unknown**, loudly.
+
+**Also corrected a false claim in `docs/pm/milestone_reports/README.md`** - *"the board has no native transition timestamps"* - which is the assumption that let the mislabelling stand for months. And the legacy tests asserted `created -> closed` **under the name `cycle_time_days`**: the mislabelling lived in the tests as faithfully as in the code, which is exactly why they never caught it. **A test written from the same misunderstanding as the code is not a check; it is a second copy of the assumption.**
+
+### 21:45 UTC - Editor: PM
+
+**The SDR has been printing a number that was never a measurement.** [Issue #1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180) -> [PR #1181](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1181), carved as the first slice of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144).
+
+`gh issue list --label unplanned --state all` returns **zero issues repo-wide.** The label has never been applied to anything. And yet last week's SDR printed a clean, confident `25 / 0 (0% unplanned)` and `[n+0]` on **every** weekly trend row. `throughput_breakdown` guarded the *empty-window* case but not the *marker-never-used* case, which returned `0.0` - and `0.0` is indistinguishable from a real, hard-won zero. Three different worlds (we absorbed no unplanned work / nobody applied the label / the reading code is broken) collapsed into one output. **The number could only ever come back one way** - the exact property [PR #1143](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1143) built a matched-pair control to escape, reproduced **one layer up, in its own input.**
+
+**The design call I most want to remember: `n_committed` had to become `None` too.** The tempting fix is to null the percentage and leave the counts. But "25 committed" is the **same false assertion** as "0% unplanned", one column over - it asserts an arrival classification we cannot make. So when the marker is unused, *nothing* delivered is classifiable, and the count surfaces as `n_unclassifiable`. A degraded input has to be **visible**, not quietly absorbed. And `marker_in_use` is a **required** keyword, because a default is just a slower way of letting a future call site fabricate.
+
+**Then the same disease bit me twice more inside the fix itself, and neither was caught by care.**
+
+**(a) The em-dash cleanup had four emitting sites; I found three by grep and was ready to ship.** The fourth - a Jinja `pct` filter - surfaced only when my new test ran against a **live render**. Grep found what I thought to look for.
+
+**(b) The bot found `[None+None]` printing on every console trend row** - in the exact mode this PR exists to fix. My PR body claimed *"card, pills, trend column, and text summary all render unclassifiable."* **Only the headline did.** I had described the fix I intended, not the fix I shipped.
+
+**And the way (b) survived is the thing worth writing down.** I *did* run the real command against the real board. Then I **grepped the output for `arrival`** - the line I had just fixed. **My verification could only ever confirm the change I already knew about.** A check aimed at what you changed cannot show you what you missed.
+
+So: **three layers of one disease in a single Issue.** A metric that could only come back one way. A test that only checked the doubt I already had. A live verification that only looked where I had already looked. The fix for a check-that-cannot-fail was itself verified by a check that could not fail. I don't think I get to call that ironic anymore; it looks more like the default state, and the only reliable escape has been an instrument I did not build - the reviewer, or Jin-Ho asking why.
+
+**Also worth keeping:** the reviewer's nit was that my em-dash test skipped the `lstrip` char-class by matching the string's *prefix* - a **value heuristic**. Correct, and I took it: shipping an approximate match **inside a test written to reject approximate matching** would have been a poor joke. Replaced with an AST **context** check.
+
+**Board:** #1144 gained a sub-issue and is therefore now a parent, so it moved to `Epic` with Priority/Size cleared (Pattern A2) - a parent never sits in a workflow column. Its remaining scope (the marker's *slip rate*, once the marker is actually in use) genuinely needs [#1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138)'s `Backlog -> Ready` transition history, which is exactly why the slice was carved rather than blocked behind it. Also filed [#1179](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1179) (P3): the two PM sweeps' `--check` exit codes are **inverted**, which would silently misread if a future routine shelled both.
+
 ### 20:40 UTC - Editor: PM
 
 **A question from Jin-Ho found a worse bug than the code review did.** Amending nothing below (entries are immutable) - this supersedes the design described in the 19:05 entry.

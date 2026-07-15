@@ -16,14 +16,15 @@ from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, 
                                 DETECTION, IVS_MARKER, VENUE_BY_SOURCE_SUBSTR,
                                 ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS,
                                 PEPTIDE_STATUSES, PEPTIDE_STATUS_PRESENT, PEPTIDE_NULL_STATUSES,
-                                JUNCTION_EVIDENCE_GRADES, SCORABLE_TIER)
+                                JUNCTION_EVIDENCE_GRADES, SCORABLE_TIER,
+                                IN_VIVO_MODELS, IN_VIVO_NONE, IN_VIVO_MARKERS)
 from registry_dedup import duplicate_keys, row_identity
 
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE / "registry.tsv"
 
 REQUIRED_NEW_COLS = ["evidence_strength", "label_rationale", "junction_id", "junction_mapping_grade",
-                     "assay_context", "venue_type", "peptide_status"]
+                     "assay_context", "venue_type", "peptide_status", "in_vivo_model"]
 
 
 def violations(df: pd.DataFrame) -> list[str]:
@@ -126,6 +127,31 @@ def violations(df: pd.DataFrame) -> list[str]:
         # na is exactly the negative-control-not-splice tier (mirror of the above)
         if (ac == "na") != (r["tier"] == "negative-control-not-splice"):
             out.append(f"{rid}: na assay_context must match the negative-control-not-splice tier")
+        # in_vivo_model (#1120): the SETTING axis, orthogonal to assay_context's
+        # T-cell-source axis. Controlled vocabulary.
+        ivm = r["in_vivo_model"]
+        if ivm not in IN_VIVO_MODELS:
+            out.append(f"{rid}: bad in_vivo_model {ivm!r}")
+        # Cross-check, both directions: the column must agree with the in-vivo marker
+        # in `readout`. The derivation satisfies this by construction, so this can
+        # only fire on a hand-edited registry - which is precisely what it guards
+        # (same shape as the healthy_donor_ivs <-> IVS cross-check below).
+        has_marker = any(m in str(r["readout"]).lower() for m in IN_VIVO_MARKERS)
+        if has_marker and ivm == IN_VIVO_NONE:
+            out.append(f"{rid}: readout names an in-vivo animal readout but "
+                       f"in_vivo_model is {IN_VIVO_NONE!r} (derive it, don't hand-edit)")
+        if not has_marker and ivm != IN_VIVO_NONE:
+            out.append(f"{rid}: in_vivo_model {ivm!r} but readout names no in-vivo readout")
+        # The coupling that keeps the two axes honest: `animal_syngeneic` is the ONLY
+        # assay_context in which the animal is the T-cell source, and it is coherent
+        # only in a syngeneic (immunocompetent) host. A xenograft host is
+        # immunodeficient - it has no T cells to be the source of - so this pairing is
+        # the one that catches a future attempt to re-merge the setting into the
+        # source axis.
+        if ac == "animal_syngeneic" and ivm != "syngeneic":
+            out.append(f"{rid}: assay_context 'animal_syngeneic' requires "
+                       f"in_vivo_model 'syngeneic', got {ivm!r} - an immunodeficient "
+                       f"(xenograft) host cannot be the source of the responding T cells")
         # venue_type (#1001): controlled vocabulary. The out-of-vocab sentinel
         # 'unclassified' fails here, so a source absent from the venue map cannot
         # be folded venue-unmarked (esp. a preprint).
@@ -144,6 +170,53 @@ def violations(df: pd.DataFrame) -> list[str]:
     # one junction legitimately carries several distinct peptides.
     for key in duplicate_keys(df):
         out.append(f"duplicate identity key (junction_id, peptide, hla) = {key}")
+
+    out.extend(source_key_violations(df))
+    return out
+
+
+def source_key_violations(df: pd.DataFrame) -> list[str]:
+    """`source` must map 1:1 onto studies (#1106).
+
+    `source` is documented as the stable curation key, but every consumer resolves
+    it through a *lowercased substring* map (VENUE_BY_SOURCE_SUBSTR here,
+    derive_assay_context.py and derive_venue_type.py likewise). So two spellings of
+    one study ("IRIS" and "IRIS (Pan/Xing, PNAS)") both match the same key and derive
+    identically - the split is invisible to every other check in this file, and it
+    was: the registry carried 15 strings for 12 studies with nothing firing.
+
+    It is not harmless. `source` is also the group-by key for study-level analysis,
+    so a split study is silently double-counted (the #737 sparsity notebook was
+    counting Xiong twice), and a *future* source whose name is a substring of another
+    would mis-derive its venue and DOI outright.
+
+    So: fail when two distinct `source` strings collide on one substring key. This
+    is a registry-level invariant, not a row-level one - it cannot be expressed by
+    looking at any single row, which is why it lived undetected in a file otherwise
+    dense with per-row guards.
+    """
+    out = []
+    by_key: dict[str, set[str]] = {}
+    for src in sorted({str(s) for s in df["source"]}):
+        src_l = src.lower()
+        for substr in VENUE_BY_SOURCE_SUBSTR:
+            if substr in src_l:
+                by_key.setdefault(substr, set()).add(src)
+                break  # first match wins - mirrors derive_venue_type.py exactly
+        else:
+            # Unmapped source: already fails loudly via the venue_type check (it
+            # derives to the `unclassified` sentinel), so don't double-report here.
+            continue
+
+    for substr, sources in sorted(by_key.items()):
+        if len(sources) > 1:
+            spellings = " | ".join(repr(s) for s in sorted(sources))
+            out.append(
+                f"source key collision: {len(sources)} distinct `source` spellings "
+                f"resolve to the same key {substr!r} -> {spellings}. "
+                f"`source` is the curation key and the study group-by key; pick one "
+                f"spelling per study and record the rewrite in PROVENANCE.md."
+            )
     return out
 
 

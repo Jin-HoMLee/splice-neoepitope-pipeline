@@ -129,28 +129,95 @@ def committed_issues(issues: list[dict]) -> list[dict]:
     return [i for i in issues if not is_unplanned(i)]
 
 
-def throughput_breakdown(issues: list[dict]) -> dict[str, Any]:
+def is_marker_in_use(repo_label_count: int) -> bool:
+    """Is the arrival marker actually in use, repo-wide? Pure given the count.
+
+    The whole point of the arrival axis is to be falsifiable, and this is the fact
+    that makes it so. Split out as a pure function over an injected count (rather than
+    doing the ``gh`` call inline) so the fabricating case is unit-testable without a
+    network, which is exactly the property the metric was missing.
+
+    A count of 0 means the label has never been applied to anything - so the arrival
+    axis is **not in use**, and no delivered item can be classified by it. See
+    ``throughput_breakdown`` for why that must not render as 0%.
+    """
+    return repo_label_count > 0
+
+
+def throughput_breakdown(issues: list[dict], *, marker_in_use: bool) -> dict[str, Any]:
     """Split *delivered* work by arrival: committed vs unplanned.
 
     The Kanban Throughput Breakdown Chart, reduced to the one split we actually
     need. Keyed off delivered (not raw closed) for the same reason throughput and
     cycle time are: a descoped issue is not shipped work.
 
-    ``pct_unplanned`` is None (not 0.0) on an empty delivered set, so a zero-ship
-    week reads as "no data" rather than as a truthful-looking 0% unplanned.
+    **Two degenerate cases, both of which must NOT print a confident zero.**
+
+    1. *Empty window* - no delivered issues at all. ``pct_unplanned`` is None (not
+       0.0), so a zero-ship week reads as "no data". This guard already existed.
+
+    2. *The marker is not in use* (``marker_in_use=False``) - i.e. the ``unplanned``
+       label has never been applied to anything, repo-wide. This returned **0.0**,
+       and 0.0 is indistinguishable from a real, hard-won, measured zero:
+
+           | we genuinely absorbed no unplanned work | -> 0% |
+           | nobody ever applied the label           | -> 0% |
+           | the label-reading code is broken        | -> 0% |
+
+       Three different worlds, one confident output. The number could only ever come
+       back one way. That is not a measurement, it is a fabrication wearing a
+       measurement's clothes - the most dangerous state for a metric (Issue #1180).
+
+       When the marker is not in use, **nothing delivered can be classified by
+       arrival at all**, so ``n_committed`` is None too. Printing "25 committed"
+       would be exactly the same false assertion as "0% unplanned", one column over.
+       The delivered count is reported as ``n_unclassifiable`` instead, so a degraded
+       input is *visible* rather than silently absorbed.
+
+    ``marker_in_use`` is a **required keyword**, deliberately: it cannot be derived
+    from ``issues`` (from that list alone, "no delivered issue carries the label" is
+    information-theoretically identical in both worlds), and a default would let a
+    caller silently fall back into the fabricating behavior. Making it required means
+    a new call site must *decide*.
     """
     delivered = delivered_issues(issues)
-    n_unplanned = len(unplanned_issues(delivered))
     n_delivered = len(delivered)
+
+    if not marker_in_use:
+        return {
+            "n_committed": None,
+            "n_unplanned": None,
+            "n_unclassifiable": n_delivered,
+            "pct_unplanned": None,
+            "marker_in_use": False,
+        }
+
+    n_unplanned = len(unplanned_issues(delivered))
     return {
         "n_committed": n_delivered - n_unplanned,
         "n_unplanned": n_unplanned,
+        "n_unclassifiable": 0,
         "pct_unplanned": (100.0 * n_unplanned / n_delivered) if n_delivered else None,
+        "marker_in_use": True,
     }
 
 
-def cycle_time_days(issue: dict) -> Optional[float]:
-    """(closed_at - created_at) in days for a closed issue; None otherwise."""
+def lead_time_days(issue: dict) -> Optional[float]:
+    """(closed_at - created_at) in days for a closed issue; None otherwise.
+
+    **This is LEAD time, and it used to be mislabelled `cycle_time_days`** (Issue #1138).
+    Canonically, lead time spans the whole customer-visible wait - request to delivery -
+    and therefore INCLUDES the uncommitted dwell in Backlog. Cycle time starts at the
+    **commitment point** (see ``cycle_time_days`` below).
+
+    The distinction is load-bearing here rather than pedantic. This board has an explicit,
+    deliberately-designed commitment point (the `Backlog -> Ready` boundary, the whole
+    basis of the late-commitment Kanban model in epic #580). Reporting lead time under a
+    "cycle time" label **charges uncommitted option-holding to delivery performance**: an
+    option can legitimately rest in Backlog for six weeks, be committed, and ship in two
+    days - and the old metric called that a 44-day "cycle time". It penalized precisely
+    the behavior the model is built on, and it fed that number to the WIP retune.
+    """
     if issue.get("state") != "CLOSED":
         return None
     created = parse_iso(issue.get("created_at"))
@@ -160,8 +227,84 @@ def cycle_time_days(issue: dict) -> Optional[float]:
     return (closed - created).total_seconds() / 86400.0
 
 
+def cycle_time_days(issue: dict) -> Optional[float]:
+    """(closed_at - committed_at) in days: the TRUE cycle time, from the commitment point.
+
+    ``committed_at`` is the timestamp of the item's **first transition into `Ready`** on
+    board 9 - the commitment act itself (`ProjectV2ItemStatusChangedEvent`).
+
+    Returns **None** for an item that never crossed into `Ready`. That is an *undefined*
+    cycle time, NOT a zero and NOT something to quietly drop:
+
+    - Dropping it silently would bias the mean toward exactly the committed work, which is
+      the same "a number that can only come back one way" disease as the #1180 fabricated
+      0% - so the never-committed population is counted and reported (``n_never_committed``).
+    - Zeroing it would be worse still: it would assert an instantaneous delivery.
+
+    Why "first transition INTO Ready" and not "previousStatus == Backlog": an item can be
+    committed straight from intake (`No Status -> Ready`), which is a real commitment and
+    happens in practice (verified on Issue #1162). Keying on the previous status would
+    silently under-count commitments.
+    """
+    if issue.get("state") != "CLOSED":
+        return None
+    committed = parse_iso(issue.get("committed_at"))
+    closed = parse_iso(issue.get("closed_at"))
+    if not committed or not closed:
+        return None
+    days = (closed - committed).total_seconds() / 86400.0
+    if days < 0:
+        # committed_at AFTER closed_at: possible on a close -> reopen -> re-commit, or a
+        # card dragged to Ready post-close. A negative cycle time is not a fast delivery,
+        # it is a nonsense one - drop it rather than let it drag the mean below zero.
+        return None
+    return days
+
+
+def commitments_available(issues: list[dict]) -> bool:
+    """Did the commitment-time fetch succeed? Pure over the (injected) per-issue flag.
+
+    Defaults to True when the flag is absent, so pure unit fixtures behave as before.
+    Set to False by the fetchers on a GraphQL failure - see ``fetch_commitment_times``
+    for why a failure must read as UNKNOWN and not as "never committed".
+    """
+    return all(i.get("commitments_available", True) for i in issues)
+
+
+def never_committed_issues(issues: list[dict]) -> list[dict]:
+    """Closed issues that never crossed into `Ready` - no observable commitment act.
+
+    Their cycle time is undefined. They are also, by *observation* rather than by anyone
+    remembering a label, the **unplanned** arrivals - which is the independent source the
+    `unplanned` marker's fidelity check (Issue #1144) needs. Surfaced here; the slip-rate
+    cross-check itself belongs to that Issue.
+    """
+    if not commitments_available(issues):
+        # We could not read the commitment history, so we do NOT know which items crossed
+        # Backlog -> Ready. Returning the whole delivered population here would assert
+        # "none of them committed" - a confident, wrong caveat, and exactly the
+        # one-output-for-three-worlds fabrication this module exists to kill (#1180).
+        # The caller renders this as unknown; see ``n_never_committed`` below.
+        return []
+    return [i for i in delivered_issues(issues) if not i.get("committed_at")]
+
+
+def lead_times(issues: list[dict]) -> list[float]:
+    return [t for t in (lead_time_days(i) for i in issues) if t is not None]
+
+
 def cycle_times(issues: list[dict]) -> list[float]:
     return [t for t in (cycle_time_days(i) for i in issues) if t is not None]
+
+
+def avg_lead_time(issues: list[dict]) -> Optional[float]:
+    ts = lead_times(issues)
+    return statistics.fmean(ts) if ts else None
+
+
+def median_lead_time(issues: list[dict]) -> Optional[float]:
+    ts = lead_times(issues)
+    return statistics.median(ts) if ts else None
 
 
 def avg_cycle_time(issues: list[dict]) -> Optional[float]:
@@ -292,7 +435,8 @@ def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list
     return out
 
 
-def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dict]:
+def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
+                  *, marker_in_use: bool) -> list[dict]:
     """Per-week throughput + median cycle-time trend over the trailing weeks.
 
     Each entry: ``{week_start, week_end, n_delivered, median_cycle_time_days}``
@@ -317,15 +461,19 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dic
         series.append({
             "week_start": _first_covered_day(start).isoformat(),
             "week_end": end.date().isoformat(),
-            **throughput_breakdown(in_window),
+            **throughput_breakdown(in_window, marker_in_use=marker_in_use),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
+            "median_lead_time_days": median_lead_time(delivered),
+            "n_never_committed": (len(never_committed_issues(in_window))
+                                  if commitments_available(in_window) else None),
         })
     return series
 
 
 def compute_window_metrics(
-    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int
+    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int,
+    *, marker_in_use: bool
 ) -> dict[str, Any]:
     """Headline (reporting-week) metrics + the weekly trend for SDR window mode.
 
@@ -346,13 +494,20 @@ def compute_window_metrics(
         "throughput_per_week": throughput_per_week(len(delivered), 7.0),
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
+        "avg_lead_time_days": avg_lead_time(delivered),
+        "median_lead_time_days": median_lead_time(delivered),
+        "n_never_committed": (len(never_committed_issues(week_issues))
+                              if commitments_available(week_issues) else None),
+        "commitments_available": commitments_available(week_issues),
         "per_role_counts": per_role_counts(week_issues),
-        **throughput_breakdown(week_issues),
-        "weekly_series": weekly_series(all_issues, until, n_weeks),
+        **throughput_breakdown(week_issues, marker_in_use=marker_in_use),
+        "weekly_series": weekly_series(all_issues, until, n_weeks,
+                                       marker_in_use=marker_in_use),
     }
 
 
-def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
+def compute_metrics(issues: list[dict], milestone: dict,
+                    *, marker_in_use: bool) -> dict[str, Any]:
     """Assemble the headline metrics block from the data layer."""
     closed = closed_issues(issues)
     delivered = delivered_issues(issues)
@@ -373,8 +528,13 @@ def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
         "throughput_per_week": throughput_per_week(len(delivered), duration),
         "avg_cycle_time_days": avg_cycle_time(delivered),
         "median_cycle_time_days": median_cycle_time(delivered),
+        "avg_lead_time_days": avg_lead_time(delivered),
+        "median_lead_time_days": median_lead_time(delivered),
+        "n_never_committed": (len(never_committed_issues(issues))
+                              if commitments_available(issues) else None),
+        "commitments_available": commitments_available(issues),
         "per_role_counts": per_role_counts(issues),
-        **throughput_breakdown(issues),
+        **throughput_breakdown(issues, marker_in_use=marker_in_use),
     }
 
 
@@ -447,14 +607,20 @@ def _board_fields_by_number() -> dict[int, dict]:
         return {}
 
 
-def _normalize_issue(it: dict, board: dict[int, dict]) -> dict:
+def _normalize_issue(it: dict, board: dict[int, dict],
+                     commitments: Optional[dict[int, Optional[str]]] = None) -> dict:
     """Normalize one ``gh issue list --json`` record into the report's issue dict.
 
     Shared by the milestone and window fetchers so both carry an identical shape.
+
+    ``commitments`` maps issue number -> the ISO timestamp of its first transition into
+    `Ready` (the commitment act), or None if it never crossed. Injected rather than
+    fetched here so the metrics layer stays pure and testable (Issue #1138).
     """
     labels = [lbl["name"] for lbl in it.get("labels", [])]
     num = it["number"]
     b = board.get(num, {})
+    commitments = commitments or {}
     # stateReason: COMPLETED | NOT_PLANNED | None (open). Upper-cased so the
     # metrics layer can compare against the canonical NOT_PLANNED token.
     reason = it.get("stateReason")
@@ -466,17 +632,126 @@ def _normalize_issue(it: dict, board: dict[int, dict]) -> dict:
         "state_reason": reason.upper() if reason else None,
         "created_at": it.get("createdAt"),
         "closed_at": it.get("closedAt"),
+        # First entry into `Ready` = the commitment act. None = never committed, which is
+        # an UNDEFINED cycle time, not a zero (Issue #1138).
+        "committed_at": commitments.get(num),
         "labels": labels,
         "roles": [l for l in labels if l.startswith("role:")],
         "arcs": [l for l in labels if l.startswith("arc:")],
-        "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "—"),
-        "priority": b.get("priority") or "—",
-        "size": b.get("size") or "—",
+        "status": b.get("status") or ("Done" if it["state"].upper() == "CLOSED" else "n/a"),
+        # "n/a", not an em-dash: this string is emitted into the generated HTML,
+        # where the house no-em-dash rule applies and no guard can see it (the
+        # PreToolUse guard scans Claude's edits, not a script's output). Issue #1180.
+        "priority": b.get("priority") or "n/a",
+        "size": b.get("size") or "n/a",
     }
     # Single-source the descoped flag for the inventory badge (covers
     # NOT_PLANNED + DUPLICATE without the template hardcoding the set).
     issue["is_descoped"] = is_descoped(issue)
     return issue
+
+
+def first_ready_at(events: list[dict], project_number: int = PROJECT_NUMBER) -> Optional[str]:
+    """Earliest timestamp at which an item entered `Ready` on our board. Pure.
+
+    **The commitment point is "first transition INTO `Ready`", not "previousStatus ==
+    Backlog".** An item can be committed straight from intake (`No Status -> Ready`) -
+    verified live on Issue #1162 - and that is a real commitment. Keying on the previous
+    status would silently under-count commitments, which would then inflate the
+    never-committed population and understate cycle time coverage.
+
+    *Earliest*, not latest: an item can bounce (Ready -> In progress -> Ready). The
+    commitment act is the first crossing; later re-entries are not new commitments.
+
+    Returns None if the item never entered `Ready` - an UNDEFINED cycle time.
+    """
+    ready = [
+        e["createdAt"] for e in events
+        if e.get("status") == "Ready"
+        and (e.get("project") or {}).get("number") == project_number
+        and e.get("createdAt")
+    ]
+    return min(ready) if ready else None
+
+
+def fetch_commitment_times(numbers: list[int]) -> tuple[dict[int, Optional[str]], bool]:
+    """Map issue number -> ISO timestamp of its commitment act (first entry into `Ready`).
+
+    Reads `ProjectV2ItemStatusChangedEvent` off each issue's timeline. Verified live
+    (Issue #1138 AC 1): the event carries `createdAt` / `previousStatus` / `status` /
+    `project`, and coverage extends back at least to 2026-05, well beyond any window the
+    SDR reports on.
+
+    **Batched with GraphQL aliases** (50 issues per request) rather than one request per
+    issue: a 4-week SDR window spans 100+ issues, and a per-issue query would turn one
+    report into 100+ round-trips against a shared, per-user rate budget.
+
+    **Returns (map, available).** The bool is load-bearing and was added in review: on a
+    fetch failure the map is empty, every item then looks like it has no `committed_at`,
+    and `never_committed_issues` would report the ENTIRE delivered population as "never
+    crossed Backlog -> Ready" - a confident, wrong caveat, contradicted only on stderr,
+    which never reaches the report's reader. That is *precisely* the "one output for three
+    different worlds" fabrication this file exists to eliminate (#1180), reintroduced one
+    layer down in the PR that eliminates it.
+
+    So a failure is **unknown**, not "never committed", and the caller must render it as
+    unknown. Partial data is deliberately NOT used: a half-populated map makes the items in
+    the failed chunk indistinguishable from genuinely-uncommitted ones, which is the same
+    conflation one chunk smaller.
+
+    A missing entry when ``available`` is True means "never entered Ready", which the
+    metrics layer treats as an undefined cycle time - never a zero, never silently dropped.
+    """
+    out: dict[int, Optional[str]] = {}
+    CHUNK = 50
+    for start in range(0, len(numbers), CHUNK):
+        chunk = numbers[start:start + CHUNK]
+        aliases = "\n".join(
+            f'  i{n}: issue(number: {n}) {{ number timelineItems(first: 100, '
+            f'itemTypes: [PROJECT_V2_ITEM_STATUS_CHANGED_EVENT]) {{ nodes {{ '
+            f'... on ProjectV2ItemStatusChangedEvent {{ createdAt status '
+            f'project {{ number }} }} }} }} }}'
+            for n in chunk
+        )
+        query = (f'query {{ repository(owner: "{OWNER}", name: "{REPO}") {{\n'
+                 f'{aliases}\n}} }}')
+        try:
+            raw = _gh(["api", "graphql", "-f", f"query={query}"])
+        except SystemExit:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            # Degrade loudly, not silently: without commitment times, cycle time is
+            # unknown for every item, and the report must SAY so rather than fall back
+            # to the lead-time number under a cycle-time label (which is the exact
+            # defect this Issue exists to fix).
+            print(f"  (commitment-time enrichment unavailable: {exc})", file=sys.stderr)
+            return {}, False
+        repo = (json.loads(raw).get("data") or {}).get("repository") or {}
+        for n in chunk:
+            node = repo.get(f"i{n}")
+            if not node:
+                continue
+            events = ((node.get("timelineItems") or {}).get("nodes")) or []
+            out[n] = first_ready_at(events)
+    return out, True
+
+
+def fetch_marker_in_use() -> bool:
+    """Has the ``unplanned`` label EVER been applied, repo-wide?
+
+    The falsifier the arrival metric was missing. Deliberately repo-wide and
+    all-states: the question is not "did this window have unplanned work" (which the
+    issue list already answers, ambiguously) but "is the marker being used at all" -
+    a fact that no window of issues can supply about itself.
+
+    ``--limit 1`` because the count is irrelevant; only zero-vs-nonzero matters.
+    """
+    raw = _gh([
+        "issue", "list", "--repo", f"{OWNER}/{REPO}",
+        "--label", UNPLANNED_LABEL, "--state", "all", "--limit", "1",
+        "--json", "number",
+    ])
+    return is_marker_in_use(len(json.loads(raw)))
 
 
 def fetch_milestone_issues(name: str) -> list[dict]:
@@ -487,7 +762,16 @@ def fetch_milestone_issues(name: str) -> list[dict]:
         "--json", "number,title,state,stateReason,labels,createdAt,closedAt,url",
     ])
     board = _board_fields_by_number()
-    return [_normalize_issue(it, board) for it in json.loads(raw)]
+    items = json.loads(raw)
+    # Only CLOSED issues can have a cycle/lead time or be "never committed", so only they
+    # need a timeline fetch. Fetching open ones burned rate budget for data nothing reads,
+    # on a per-user budget we already exhaust (#1165). Review finding 2.
+    closed_nums = [it["number"] for it in items if it["state"].upper() == "CLOSED"]
+    commitments, available = fetch_commitment_times(closed_nums)
+    out = [_normalize_issue(it, board, commitments) for it in items]
+    for i in out:
+        i["commitments_available"] = available
+    return out
 
 
 def fetch_window_issues(since: str, until: str) -> list[dict]:
@@ -504,11 +788,13 @@ def fetch_window_issues(since: str, until: str) -> list[dict]:
         "--json", "number,title,state,stateReason,labels,createdAt,closedAt,url,milestone",
     ])
     board = _board_fields_by_number()
-    return [
-        _normalize_issue(it, board)
-        for it in json.loads(raw)
-        if not it.get("milestone")  # skip lifecycle (milestoned) work
-    ]
+    items = [it for it in json.loads(raw) if not it.get("milestone")]  # skip lifecycle work
+    closed_nums = [it["number"] for it in items if it["state"].upper() == "CLOSED"]
+    commitments, available = fetch_commitment_times(closed_nums)
+    out = [_normalize_issue(it, board, commitments) for it in items]
+    for i in out:
+        i["commitments_available"] = available
+    return out
 
 
 # --- aggregation layer (narrative auto-seed) --------------------------------
@@ -576,9 +862,9 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "",
         "<!-- Lead role: what shipped, grouped by deliverable, with PR + slide links.",
         f"     The {len(delivered)} delivered issues are listed in the Inventory appendix",
-        "     below — narrate the highlights here, don't re-list them. -->",
+        "     below - narrate the highlights here, don't re-list them. -->",
         "",
-        "_Seeded from the lead role's lab-notebook entries in the milestone window — "
+        "_Seeded from the lead role's lab-notebook entries in the milestone window - "
         "replace with the deliverables narrative._",
         "",
     ]
@@ -589,11 +875,11 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
             "## Descoped (closed NOT_PLANNED)",
             "",
             "<!-- These closed WITHOUT shipping (superseded / YAGNI / wontfix). They are",
-            "     excluded from the delivered count — record why each was dropped + where",
+            "     excluded from the delivered count - record why each was dropped + where",
             "     the need (if any) was routed, so the descope isn't silently masked. -->",
             "",
         ]
-        lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _why descoped: TBD_" for i in descoped]
+        lines += [f"- [#{i['number']}]({i['url']}) {i['title']} - _why descoped: TBD_" for i in descoped]
     lines += [
         "",
         "## Carried-forward & routing",
@@ -602,7 +888,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "     closure-routing decision (a/b/c/d). -->",
         "",
     ]
-    lines += [f"- [#{i['number']}]({i['url']}) {i['title']} — _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
+    lines += [f"- [#{i['number']}]({i['url']}) {i['title']} - _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
     lines += [
         "",
         "## Retrospective (process/health)",
@@ -630,7 +916,7 @@ def render_html(
         loader=FileSystemLoader(str(TEMPLATE_PATH.parent)),
         autoescape=select_autoescape(["html", "j2"]),
     )
-    env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "—"
+    env.filters["pct"] = lambda v: f"{v:.0%}" if v is not None else "n/a"
     template = env.get_template(TEMPLATE_PATH.name)
     # Milestone-level arc(s) = the distinct arc labels across its issues (arc is
     # a per-issue label under the three-axis model, not a milestone property).
@@ -649,7 +935,7 @@ def render_html(
 
 
 def _fmt(v: Optional[float], unit: str = "") -> str:
-    return "—" if v is None else f"{v:.1f}{unit}"
+    return "n/a" if v is None else f"{v:.1f}{unit}"
 
 
 def print_metrics(milestone: dict, metrics: dict) -> None:
@@ -663,21 +949,65 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  delivered / descoped (closed)    : "
           f"{metrics['n_delivered']} / {metrics['n_descoped']}")
     pct = metrics.get("pct_unplanned")
-    print(f"  arrival: committed / unplanned   : "
-          f"{metrics['n_committed']} / {metrics['n_unplanned']}"
-          f"{f'  ({pct:.0f}% unplanned)' if pct is not None else '  (no delivered work)'}")
+    if not metrics.get("marker_in_use", True):
+        # The marker has never been applied repo-wide, so NOTHING delivered can be
+        # classified by arrival. Printing "N / 0  (0% unplanned)" here would be a
+        # fabrication wearing a measurement's clothes (Issue #1180).
+        print(f"  arrival: UNCLASSIFIABLE          : "
+              f"{metrics['n_unclassifiable']} delivered, none classifiable "
+              f"(the `{UNPLANNED_LABEL}` marker is not in use repo-wide)")
+    else:
+        print(f"  arrival: committed / unplanned   : "
+              f"{metrics['n_committed']} / {metrics['n_unplanned']}"
+              f"{f'  ({pct:.0f}% unplanned)' if pct is not None else '  (no delivered work)'}")
     print(f"  duration (days)                  : {_fmt(metrics['duration_days'])}")
     print(f"  throughput (delivered/week)      : {_fmt(metrics['throughput_per_week'])}")
+    # Cycle time (commitment -> close) and lead time (created -> close) are reported
+    # SIDE BY SIDE, never one relabelled as the other. The gap between them IS the
+    # uncommitted Backlog dwell, which late-commitment Kanban prescribes and which the
+    # old single "cycle time" number silently charged to delivery performance (#1138).
     print(f"  cycle time avg / median (days)   : "
-          f"{_fmt(metrics['avg_cycle_time_days'])} / {_fmt(metrics['median_cycle_time_days'])}")
+          f"{_fmt(metrics['avg_cycle_time_days'])} / {_fmt(metrics['median_cycle_time_days'])}"
+          f"   [commitment -> close]")
+    print(f"  lead  time avg / median (days)   : "
+          f"{_fmt(metrics['avg_lead_time_days'])} / {_fmt(metrics['median_lead_time_days'])}"
+          f"   [created -> close]")
+    if not metrics.get("commitments_available", True):
+        # The failure must reach the READER, not just stderr. Previously a fetch failure
+        # printed a confident "N delivered never crossed Backlog->Ready" - i.e. it
+        # asserted the exact opposite of what it knew. Review finding on PR #1185.
+        print("  never crossed Backlog->Ready     : UNKNOWN - commitment history could "
+              "not be read, so cycle time and this count are both unavailable "
+              "(NOT the same as 'none committed')")
+    elif metrics.get("n_never_committed"):
+        print(f"  never crossed Backlog->Ready     : {metrics['n_never_committed']} delivered "
+              f"(no commitment act -> cycle time UNDEFINED for these, not zero)")
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
     series = metrics.get("weekly_series")
     if series:
-        print("  weekly trend (delivered [committed+unplanned] / median cycle days):")
+        print("  weekly trend (delivered [committed+unplanned] / median cycle / median lead days):")
         for w in series:
             print(f"    {w['week_start']}..{w['week_end']} : "
-                  f"{w['n_delivered']} [{w['n_committed']}+{w['n_unplanned']}] / "
-                  f"{_fmt(w['median_cycle_time_days'])}")
+                  f"{w['n_delivered']} [{_fmt_arrival(w)}] / "
+                  f"{_fmt(w['median_cycle_time_days'])} / {_fmt(w['median_lead_time_days'])}")
+
+
+def _fmt_arrival(w: dict) -> str:
+    """Render one weekly row's arrival split, or say it cannot be rendered.
+
+    Mirrors the headline `arrival:` line. Without this the row printed the literal
+    ``[None+None]`` whenever the marker was not in use - not a fabrication (None is at
+    least honest), but a leak of an internal sentinel into a human-facing report, and
+    inconsistent with every other surface this fix touched.
+
+    Caught in review, and worth recording HOW it survived: the live check that was
+    supposed to verify this fix grepped the output for `arrival` - i.e. for the line
+    already known to be fixed. A check aimed only at what you changed cannot show you
+    what you missed.
+    """
+    if w["n_committed"] is None:
+        return "unclassifiable"
+    return f"{w['n_committed']}+{w['n_unplanned']}"
 
 
 # --- orchestration ----------------------------------------------------------
@@ -706,7 +1036,7 @@ def _generate(milestone: dict, issues: list[dict], metrics: dict,
 def _run_milestone_mode(name: str, out_dir: Optional[Path], dry_run: bool) -> int:
     milestone = fetch_milestone(name)
     issues = fetch_milestone_issues(name)
-    metrics = compute_metrics(issues, milestone)
+    metrics = compute_metrics(issues, milestone, marker_in_use=fetch_marker_in_use())
     return _generate(milestone, issues, metrics, out_dir or DEFAULT_OUT_DIR, dry_run, "milestone")
 
 
@@ -745,7 +1075,8 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
 
     all_issues = fetch_window_issues(*fetch_span(until_dt, n_weeks))
     week_issues = closed_in_window(all_issues, report_start, report_end)
-    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
+    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks,
+                                     marker_in_use=fetch_marker_in_use())
 
     if metrics["n_total"] == 0:  # nothing closed in the reporting week -> no artifact
         print(f"Meta-work SDR - week ending {report_end.date().isoformat()}: "

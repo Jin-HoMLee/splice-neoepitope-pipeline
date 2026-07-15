@@ -1,12 +1,23 @@
 #!/usr/bin/env python3
-"""Pre-flight hook: refuse a history-destructive `git push`.
+"""Pre-flight hook: refuse a history-REWRITING `git push`.
 
-Force-pushing - and its cousins, a `+ref` force refspec, a `:ref` delete
-refspec, `--delete`, `--mirror` - rewrites or removes published history: it can
-clobber a teammate's commits on a shared branch and is irreversible on the
-remote. The house rule is "never force-push without explicit user confirmation",
-but an agent cannot ask mid-tool-call, so this guard denies the push and points
-at the escape hatch for the case where the user HAS authorized it.
+Force-pushing - and its cousins, a `+ref` force refspec and `--mirror` - rewrites
+published history: it can clobber a teammate's commits on a shared branch and is
+irreversible on the remote. The house rule is "never force-push without explicit
+user confirmation", but an agent cannot ask mid-tool-call, so this guard denies
+the push and points at the escape hatch for the case where the user HAS authorized
+it.
+
+SCOPE - rewrite, NOT delete (Issue #1134): a remote *branch deletion* is
+explicitly ALLOWED. `git push --delete`, `git push -d`, and the colon delete
+refspec `git push origin :branch` remove a *pointer*; they rewrite no history, the
+commits stay reachable via the reflog and any open PR, and GitHub offers a
+one-click restore. Deleting a stale remote branch is the whole point of the weekly
+branch-cleanup ritual, so denying it (as this guard used to) fired on every sweep
+and pushed people toward the obscure `gh api -X DELETE .../git/refs/heads/<b>`
+workaround - i.e. the branch just never got deleted. `--mirror` stays denied: it
+force-updates existing refs AND deletes any the local side lacks, which is a
+wholesale rewrite, not a single-ref delete.
 
 WHY A HOOK, NOT `permissions.deny`: the official permissions docs call
 argument-constrained static denies "fragile" - a pattern like
@@ -63,8 +74,11 @@ _SHORT_FORCE_RE = re.compile(r"^-[a-zA-Z]*f[a-zA-Z]*$")
 # them + their arg lets us find the real subcommand in `git -c k=v push` etc.
 _VALUE_OPTS = {"-c", "-C", "--git-dir", "--work-tree", "--namespace",
                "--super-prefix", "--config-env", "--exec-path"}
-# push flags that delete/rewrite remote refs (force-* flags handled separately).
-_DELETE_FLAGS = {"--mirror", "--delete", "-d"}
+# `--mirror` force-updates existing refs and deletes any absent locally: a
+# wholesale history rewrite, so it stays denied alongside the force flags.
+# `--delete` / `-d` are deliberately NOT here (Issue #1134): a branch delete is a
+# pointer removal, not a history rewrite, so it is allowed.
+_REWRITE_FLAGS = {"--mirror"}
 
 
 # --- pure helpers (unit-tested, no I/O) ---
@@ -118,9 +132,16 @@ def _is_force_flag(tok: str) -> bool:
     return bool(_SHORT_FORCE_RE.match(tok))
 
 
-def _is_destructive_refspec(tok: str) -> bool:
-    """True iff a token is a force refspec (`+ref`) or a delete refspec (`:ref`)."""
-    return tok.startswith("+") or tok.startswith(":")
+def _is_force_refspec(tok: str) -> bool:
+    """True iff a token is a FORCE refspec (`+ref`), which rewrites the remote ref.
+
+    The delete refspec (`:branch`, i.e. an empty source) is deliberately NOT flagged
+    (Issue #1134): like `--delete`, it removes a pointer and rewrites no history, so
+    it is allowed - consistent with the flag form. A push spec such as `src:dst`
+    (colon present but non-empty source) is a normal fast-forward and never matched
+    here; only a leading-colon empty-source spec is a delete, and that is allowed.
+    """
+    return tok.startswith("+")
 
 
 def git_subcommand(tokens: list[str]):
@@ -146,19 +167,22 @@ def git_subcommand(tokens: list[str]):
 
 
 def is_force_push(tokens: list[str]) -> bool:
-    """True iff a subcommand is a history-destructive `git push`.
+    """True iff a subcommand is a history-REWRITING `git push`.
 
     Requires `push` to be the git *subcommand* (resolved past global options), so
     `git checkout -f push` / `git branch -f push` on a ref named `push` are NOT
-    mis-flagged. Destructive = a force flag (-f / --force / --force-with-lease),
-    a delete/mirror flag (--delete / -d / --mirror), or a force/delete refspec
-    (+ref / :ref) among the arguments. shlex quoting collapses a quoted string to
-    one token, so `git commit -m "push --force"` carries no bare flag token.
+    mis-flagged. Rewriting = a force flag (-f / --force / --force-with-lease),
+    `--mirror`, or a force refspec (`+ref`) among the arguments. shlex quoting
+    collapses a quoted string to one token, so `git commit -m "push --force"`
+    carries no bare flag token.
+
+    A branch DELETE (`--delete` / `-d` / a `:branch` refspec) is intentionally not
+    matched (Issue #1134): it rewrites no history, so it is allowed.
     """
     if git_subcommand(tokens) != "push":
         return False
     for t in tokens:
-        if _is_force_flag(t) or t in _DELETE_FLAGS or _is_destructive_refspec(t):
+        if _is_force_flag(t) or t in _REWRITE_FLAGS or _is_force_refspec(t):
             return True
     return False
 

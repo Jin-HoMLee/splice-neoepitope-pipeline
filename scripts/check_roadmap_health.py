@@ -44,19 +44,50 @@ def _parse_target(s: str | None) -> date | None:
     return datetime.strptime(s[:10], "%Y-%m-%d").date()
 
 
+# Parents/epics are PARKED in this off-ladder Status and carry neither a milestone
+# nor a Target date by convention (Issue #690 sub-question A). A Target on one is
+# leftover data, not a commitment.
+EPIC_STATUS = "Epic"
+
+
+def _is_epic_parked(it: dict[str, Any]) -> bool:
+    return (it.get("status") or "") == EPIC_STATUS
+
+
 def find_overdue(items: list[dict[str, Any]], today: date) -> list[dict[str, Any]]:
     """Items whose Target date is strictly before `today`, most-overdue first.
 
     Items without a Target date are excluded; `today` itself is the deadline, not
     overdue (matches the AC's "Target date < today").
+
+    Epic-parked parents are excluded (Issue #1149). A parked epic carries no Target
+    by convention, so a leftover date on one is a DATA-HYGIENE problem ("clear the
+    date"), not a missed DEADLINE ("ship it") - reporting it as overdue frames the
+    finding wrongly and puts a permanently-noisy line in a daily sweep. They are not
+    dropped: find_parent_targets() surfaces them under their correct frame.
     """
     overdue = []
     for it in items:
+        if _is_epic_parked(it):
+            continue
         td = _parse_target(it.get("target_date"))
         if td is not None and td < today:
             overdue.append((td, it))
     overdue.sort(key=lambda pair: pair[0])  # oldest Target (most overdue) first
     return [it for _, it in overdue]
+
+
+def find_parent_targets(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Epic-parked parents that carry a Target date at all (Issue #1149).
+
+    Not date-compared: ANY Target on a parked epic is the finding, past or future,
+    because the convention is that a parent carries none. The remedy is to clear it.
+    """
+    return [
+        it
+        for it in items
+        if _is_epic_parked(it) and _parse_target(it.get("target_date")) is not None
+    ]
 
 
 def _roles_of(it: dict[str, Any]) -> list[str]:
@@ -102,20 +133,53 @@ def group_by_role(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]
     return groups
 
 
-def format_report(overdue: list[dict[str, Any]], today: date) -> str:
-    if not overdue:
+def _format_parent_targets(parent_targets: list[dict[str, Any]]) -> list[str]:
+    """The [PARENT-TARGET] hygiene block (Issue #1149).
+
+    A separate frame on purpose: the remedy is to CLEAR the date, not to ship the
+    work, so folding these into the overdue list would prescribe the wrong action.
+    """
+    lines = [
+        f"[PARENT-TARGET] {len(parent_targets)} Epic-parked parent(s) carry a Target date,",
+        "which the parent convention forbids (Issue #690-A). Remedy: clear the date.",
+        "",
+    ]
+    for it in parent_targets:
+        td = _parse_target(it.get("target_date"))
+        lines.append(
+            f"  #{it['number']:<5} Target={td.isoformat() if td else '?'}"
+            f"  {(it.get('title') or '')[:60]}"
+        )
+    lines.append("")
+    return lines
+
+
+def format_report(
+    overdue: list[dict[str, Any]],
+    today: date,
+    parent_targets: list[dict[str, Any]] | None = None,
+) -> str:
+    parent_targets = parent_targets or []
+    if not overdue and not parent_targets:
         return "Roadmap health: all clear — no open item past its Target date.\n"
-    lines = [f"Roadmap-overdue (Target date < {today.isoformat()}): {len(overdue)} item(s)\n"]
-    for role, items in sorted(group_by_role(overdue).items()):
-        lines.append(f"{role} ({len(items)}):")
-        for it in items:
-            td = _parse_target(it.get("target_date"))
-            days = (today - td).days if td else "?"
-            lines.append(
-                f"  #{it['number']:<5} {td.isoformat() if td else '—'} "
-                f"({days}d overdue)  {(it.get('title') or '')[:60]}"
-            )
-        lines.append("")
+
+    lines: list[str] = []
+    if overdue:
+        lines.append(
+            f"Roadmap-overdue (Target date < {today.isoformat()}): {len(overdue)} item(s)\n"
+        )
+        for role, items in sorted(group_by_role(overdue).items()):
+            lines.append(f"{role} ({len(items)}):")
+            for it in items:
+                td = _parse_target(it.get("target_date"))
+                days = (today - td).days if td else "?"
+                lines.append(
+                    f"  #{it['number']:<5} {td.isoformat() if td else '—'} "
+                    f"({days}d overdue)  {(it.get('title') or '')[:60]}"
+                )
+            lines.append("")
+    if parent_targets:
+        lines.extend(_format_parent_targets(parent_targets))
     return "\n".join(lines)
 
 
@@ -142,12 +206,13 @@ def main() -> int:
         normalized = [it for it in normalized if matches_role(it, args.role)]
 
     overdue = find_overdue(normalized, today)
+    parent_targets = find_parent_targets(normalized)
 
     if args.as_json:
         json.dump(overdue, sys.stdout, indent=2)
         sys.stdout.write("\n")
     else:
-        sys.stdout.write(format_report(overdue, today))
+        sys.stdout.write(format_report(overdue, today, parent_targets))
 
     return 2 if overdue else 0
 

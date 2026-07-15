@@ -68,9 +68,37 @@ python scripts/pm/milestone_report.py "<milestone full name>" --dry-run
 
 Headline only, computed as pure (unit-tested) functions —
 [`tools/ci/test_milestone_report.py`](../../../tools/ci/test_milestone_report.py):
-duration (days), throughput (closed/week), avg & median cycle time (days),
-per-role closed counts. Cumulative-flow / burn-down charts and status-transition
-timing are out of scope (YAGNI; the board has no native transition timestamps).
+duration (days), throughput (closed/week), avg & median **cycle time** and **lead
+time** (days), per-role closed counts. Cumulative-flow / burn-down charts remain
+out of scope (YAGNI).
+
+**Cycle time vs lead time (Issue #1138) - they are different metrics and the report
+prints both:**
+
+| Metric | Span | Answers |
+|---|---|---|
+| **Cycle time** | commitment act (`Backlog -> Ready`) -> close | how fast we deliver **once we commit** |
+| **Lead time** | created -> close | the whole wait, **including** uncommitted Backlog dwell |
+
+Before #1138 the report computed `created -> closed` and **labelled it cycle time**.
+That charges uncommitted option-holding to delivery performance: an option may
+legitimately rest in Backlog for six weeks - which late-commitment Kanban
+*prescribes* - be committed, and ship in two days, and the old metric called that a
+44-day "cycle time". **Any report generated before 2026-07-14 whose narrative
+discusses "cycle time" is discussing lead time.**
+
+An item that **never crossed into `Ready`** has **no cycle time** - undefined, not
+zero. It is excluded from the cycle-time figures and reported separately as a
+`never crossed Backlog->Ready` count, because silently dropping it would bias the
+mean toward exactly the committed work.
+
+> **Correction:** this file previously stated *"the board has no native transition
+> timestamps"*. **That was false**, and it is the assumption that let the mislabelling
+> stand. GitHub exposes `ProjectV2ItemStatusChangedEvent` on the issue timeline
+> (`createdAt` / `previousStatus` / `status` / `project`), with coverage back to at
+> least 2026-05. The commitment act is the item's **first transition INTO `Ready`** -
+> *not* `previousStatus == "Backlog"`, since an item can be committed straight from
+> intake (`No Status -> Ready`), which is a real commitment and happens in practice.
 
 ## Weekly meta-work Service Delivery Review (SDR)
 

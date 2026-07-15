@@ -83,22 +83,45 @@ class TestIsForcePush:
         assert h.is_force_push(["git", "-C", "/other", "push", "--force"])
         assert h.is_force_push(["git", "-c", "k=v", "push", "-f"])
 
-    # destructive-push forms beyond force flags
+    # rewrite forms beyond force flags
     def test_force_refspec(self):
         assert h.is_force_push(["git", "push", "origin", "+main"])
-
-    def test_delete_refspec(self):
-        assert h.is_force_push(["git", "push", "origin", ":old"])
 
     def test_mirror(self):
         assert h.is_force_push(["git", "push", "--mirror"])
 
-    def test_delete_flag(self):
-        assert h.is_force_push(["git", "push", "--delete", "origin", "x"])
-        assert h.is_force_push(["git", "push", "-d", "origin", "x"])
+    # --- Issue #1134: a branch DELETE is not a history rewrite -> allowed ---
+    # These previously asserted is_force_push == True (the false positive). Inverted:
+    # a delete removes a pointer, rewrites no history, and is reversible, so the
+    # guard must let it through.
+    def test_delete_refspec_allowed(self):
+        assert not h.is_force_push(["git", "push", "origin", ":old"])
+
+    def test_delete_flag_allowed(self):
+        assert not h.is_force_push(["git", "push", "--delete", "origin", "x"])
+        assert not h.is_force_push(["git", "push", "-d", "origin", "x"])
+
+    def test_delete_and_force_together_is_still_denied(self):
+        """Belt-and-suspenders: a delete does not LAUNDER a force flag in the same
+        command. `--delete` is allowed on its own, but `+ref` alongside still fires."""
+        assert h.is_force_push(["git", "push", "--delete", "origin", "+main"])
 
     def test_normal_refspec_allowed(self):
         assert not h.is_force_push(["git", "push", "origin", "main:main"])
+
+    def test_compound_delete_after_branch_D_is_allowed(self):
+        """The second #1134 false positive: a cleanup sweep does
+        `git branch -D x` then `git push origin --delete x`. Neither is a rewrite;
+        the whole command must pass (the -D and --delete must not be conflated)."""
+        assert not h.command_force_pushes(
+            "git branch -D feat/x && git push origin --delete feat/x"
+        )
+
+    def test_compound_force_after_delete_is_still_denied(self):
+        """...but a real force push in a later segment is still caught."""
+        assert h.command_force_pushes(
+            "git push origin --delete old && git push --force origin main"
+        )
 
 
 class TestGitSubcommand:

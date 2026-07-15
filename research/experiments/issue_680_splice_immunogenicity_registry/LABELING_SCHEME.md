@@ -104,17 +104,44 @@ The full decomposition is: `confidence = f(evidence_strength, assay_context)`.
 
 Records which immunological system produced the functional readout, so a scoring run can weight rows by assay realism. Assigned **source-keyed** from the first-hand rationale in [`PROVENANCE.md`](PROVENANCE.md) (Merlotti's ex-vivo-vs-TIL split read from per-context `notes`); rule in [`derive_assay_context.py`](derive_assay_context.py), vocabulary + cross-checks enforced by [`validate_registry.py`](validate_registry.py).
 
+**`assay_context` is a T-CELL-SOURCE axis and nothing else** ([#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120)). Every value below answers one question: *where did the responding T cells come from?*
+
 | value | meaning |
 |---|---|
 | `patient_exvivo` | patient PBMC/blood ex-vivo tetramer⁺ or functional |
 | `patient_til` | patient tumor-infiltrating (or draining-LN) lymphocytes |
 | `healthy_donor_ivs` | healthy-donor in-vitro-sensitized (IVS) T cells |
 | `cloned_tcr` | engineered/cloned-TCR functional readout (no primary patient/donor detection) |
+| `animal_syngeneic` | the responding T cells are the **animal's own** (syngeneic, immunocompetent host). **0 rows today** - forward-looking, for a Burbage-2023-shaped mouse exon-TE fold ([#699](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/699)). This is the **only** sense in which an animal is a T-cell source. |
 | `prevalence_only` | population prevalence / presentation, no per-peptide T-cell assay |
 | `unspecified` | assay reported but T-cell source **not determinable from held provenance** (no guess - verify-against-source rule) |
 | `na` | not applicable (constitutive non-splice control) |
 
 Cross-checks: `healthy_donor_ivs` ⟺ the `IVS` marker in `readout` (ties to §3's IVS rule, both directions); `prevalence_only` ⟺ the `presentation-prevalence` tier. With both axes present, `confidence` is now derivable from `(evidence_strength, assay_context)` and can be validated for consistency in a future pass.
+
+### `in_vivo_model` - the SETTING axis ([#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120))
+
+**An animal model is not a T-cell source. It is a *setting*** - where the experiment was run - and it is **orthogonal** to who the responding T cells were. A row can be `cloned_tcr` **and** in-vivo-confirmed; both of our in-vivo rows are exactly that. One single-valued column cannot carry both facts, so the setting gets its own.
+
+| value | meaning |
+|---|---|
+| `none` | no in-vivo animal readout (the default; 95/97 rows) |
+| `xenograft` | **immunodeficient** host (e.g. NSG) bearing a human tumor graft |
+| `syngeneic` | **immunocompetent** host on a matched genetic background |
+| `unspecified` | in-vivo animal readout reported, model type **not determinable from held provenance** (no guess) |
+
+**These values describe the HOST, and only the host** - they make no claim about where the responding T cells came from (that is `assay_context`'s job). Letting a T-cell-source claim leak back in here would re-create, inside the fix, the exact conflation this split removes. The combination that proves the axes are free to vary is **`syngeneic` + `cloned_tcr`**: an immunocompetent host receiving adoptively-transferred cloned *mouse* TCR-T cells. So the coupling holds in **one direction only** - `animal_syngeneic` ⟹ `syngeneic` (the animal's own T cells can only respond in an immunocompetent host), but **not** the converse.
+
+**The precedence rule: an in-vivo animal setting NEVER overrides the T-cell source.** Derivation in [`derive_in_vivo_model.py`](derive_in_vivo_model.py) (source-keyed, gated on the in-vivo marker in `readout` so a source's non-in-vivo rows - e.g. Xiong's constitutive `VFVDGLCRAKF` control - are never stamped). Never hand-edit it into `registry.tsv`; the next derivation run reverts it.
+
+**Why this is a split and not one column.** [#1120](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1120) was originally filed asking for an "animal model" value *inside* `assay_context`. Grounding it against the registry showed that to be a category error, and the reason is worth keeping:
+
+- **`FLLDGSANV`** (COL6A3, Kim/Immatics 2022) - in-vivo tumor control in **NSG** mice with **adoptively transferred human T cells** (verified first-hand, PMC10130759).
+- **`IFSESETRAKF`** (RCAN1-4, Xiong 2025) - **orthotopic xenograft**, **immunodeficient NSG**, **TCR-T cell transfer** (verified first-hand in the source PDF).
+
+**An NSG mouse cannot produce T cells at all.** In both rows the responding T cells are human; the mouse supplies a tumor bed and nothing immunological. Recording either row's *T-cell source* as "animal" would be flatly false - and on COL6A3 it would have **overwritten `cloned_tcr`**, destroying the very fact the column exists to record. Cross-check `animal_syngeneic` ⟹ `in_vivo_model == syngeneic` pins this: an immunodeficient host has no T cells to be the source of, so the incoherent pairing fails loudly.
+
+**Realism is not monotone in `in_vivo_model` alone.** A `xenograft` result is powerful evidence of effector function, but it runs in an immunodeficient host with transferred human T cells, so it says nothing about whether an intact immune system would mount the response. Read it **with** `assay_context`, never instead of it.
 
 ---
 

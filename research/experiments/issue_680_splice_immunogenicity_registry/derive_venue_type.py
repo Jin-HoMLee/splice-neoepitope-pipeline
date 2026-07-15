@@ -10,10 +10,17 @@ benchmark callers should be able to flag preprint-sourced rows at a glance.
 
 The assignment is **source-keyed**: the `source` column is the stable curation
 key (same convention as derive_assay_context.py), matched on lowercased
-substrings so the minor per-source string variants (e.g. "IRIS" vs
-"IRIS (Pan/Xing, PNAS)") map to one venue. The per-source venue was resolved
-first-hand in the 2026-07-04 venue audit recorded in PROVENANCE.md; all 12
-current studies (15 distinct `source` strings) are peer-reviewed journal
+substrings. That substring tolerance used to absorb per-source string variants
+("IRIS" vs "IRIS (Pan/Xing, PNAS)") silently - which is exactly how the registry
+came to hold 15 `source` strings for 12 studies while every derivation stayed
+correct. #1106 canonicalized those splits and added
+validate_registry.py::source_key_violations, so two spellings resolving to one
+key is now a hard failure: the registry holds **one `source` string per study**
+(12 studies, 12 strings). The matching stays substring-based, but it no longer
+has a split to hide.
+
+The per-source venue was resolved first-hand in the 2026-07-04 venue audit
+recorded in PROVENANCE.md; all 12 current studies are peer-reviewed journal
 articles (0 preprints folded to date - the three preprints encountered were
 each deferred for sequence-unavailability, not because they are preprints).
 
