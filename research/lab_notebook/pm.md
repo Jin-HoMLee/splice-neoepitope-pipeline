@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-15
+
+### 15:39 UTC - Editor: PM
+
+**Board-governance process left `CLAUDE.md`, and the interesting part was the deletion, not the destination.** [Issue #769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769) -> [PR #1198](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1198). The ~130-line block (late-commitment Kanban, three-axis model, priority semantics, the three WIP guards, the coordinator autonomy envelope) was never a repo-local fact - it governs work in both repos, including what the Memory Manager does on the board from the personas-repo cwd where this file never loads. So it moved to the `shared/` (and PM-role) memory layer, which is symlinked into every clone and loads in both. What stays is exactly what documents code on disk: the GitHub Safety Wrappers, `new_branch.sh`, `audit_and_merge.sh`.
+
+**The whole risk of a pure relocation is silent content loss, so the load-bearing step was proving the destination was a superset before deleting the source.** MM committed the folds first (personas `7e7fbb0`); only then did I delete. And "delete only after the fold is committed" is not ceremony - it is what keeps a nuance from being momentarily homeless if anything goes wrong between the two repos. The anti-drop check was a grep of every at-risk string from the 13-agent risk register against MM's committed files, and it earned its keep on the two highest-risk items: the review-debt guard (the one framing that lived *only* in `CLAUDE.md` - if I had trusted "it's surely in shared already" it would have vanished), and the priority bullet, where the job was not "add the #811 correction" but "add it *and confirm the falsified bullet is actually gone*" - a correction sitting next to the claim it corrects leaves the memory system self-contradictory. Both were present. The delete was safe because the check could have said it wasn't.
+
+**The bot review drew the honest boundary I should have drawn louder myself: CI cannot see the destination.** The personas memory is gitignored here, so the anti-drop verification rests entirely on my local grep + MM's own before->after review - two parties who *can* see the files, neither of them the CI runner. That is not a gap to paper over; it is the actual epistemic state of a cross-repo relocation, and it belongs stated on the PR (it now is) rather than implied away by a green check. The one fair nit - test-plan checkbox 1 claimed the pointer paths "resolve from the project repo" when they resolve only in a set-up clone with the symlink - is the same shape: a bare checkout, or a non-Claude agent reading `AGENTS.md`, sees only the pointer text. That is the conscious, ratified locality tradeoff, but the wording had quietly overclaimed it. Fixed.
+
+**At the merge gate now - Jin-Ho's call, and the one axis worth his glance is the destination diff the bot couldn't reach.**
+
 ## 2026-07-14
 
 ### 22:30 UTC - Editor: PM
