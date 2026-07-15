@@ -48,6 +48,19 @@ if ! docker info >/dev/null 2>&1; then
   fi
 fi
 
+# STAR's --twopassMode Basic vforks `zcat` (--readFilesCommand) at the start of
+# 2nd-pass mapping, once the genome + suffix array are resident. The colima vz VM
+# has NO swap, so under Linux' default heuristic overcommit the fork's memory
+# reservation is refused and STAR dies "Failed vforking readFilesCommand /
+# 12: Cannot allocate memory" - even though the child immediately execs a tiny
+# process and never copies the parent (a vfork shares the address space). Grant
+# overcommit so the reservation always succeeds. Idempotent; applied every run so
+# it holds regardless of who started colima. Issue #1162.
+if command -v colima >/dev/null 2>&1 && colima status >/dev/null 2>&1; then
+  colima ssh -- sudo sysctl -w vm.overcommit_memory=1 >/dev/null 2>&1 \
+    || printf '>> warning: could not set vm.overcommit_memory=1 in the VM; STAR 2-pass may OOM at fork\n' >&2
+fi
+
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   printf '>> building %s (first run only)\n' "$IMAGE" >&2
   docker build --platform linux/amd64 -t "$IMAGE" -f "$DOCKERFILE" .

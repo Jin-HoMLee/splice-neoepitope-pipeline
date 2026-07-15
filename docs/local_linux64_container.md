@@ -36,7 +36,9 @@ The load-bearing property is **`x86_64`**, not Linux. This is the part that is e
 - bioconda ships **no `osx-arm64` STAR** at our pinned version, and *both* macOS builds (native arm64 and Rosetta osx-64) build the chr22 index correctly but then read **zero reads** from every FASTQ, including a synthetic read cut from the chr22 reference itself. The index generator works; the read parser returns instant EOF.
 - bioconda also ships **no `linux-aarch64` STAR**. A dry-solve fails with `star =2.7.10b does not exist`. So a *native* Linux VM on an M1 (which is what Colima gives you by default) hits the same wall one platform over.
 
-A `linux/amd64` container, translated by Rosetta, is therefore the cheapest x86_64 Linux available on Apple Silicon. Verified on the chr22 fixture: **500,000 input reads**, 3,371 junctions, index 407 MB, alignment about 3.3 minutes on 4 threads.
+A `linux/amd64` container, translated by Rosetta, is therefore the cheapest x86_64 Linux available on Apple Silicon.
+Verified end-to-end through the full two-pass DAG on 2026-07-15 (Issue #1162): both chr22 samples aligned (tumor 3,379 / normal 3,105 raw junctions, 500,000 input reads each), 388 classified records, index 407 MB, about 3 minutes per sample on 4 threads.
+The two-pass run needs the overcommit fix in the gotchas below; without it STAR dies at 2nd-pass start.
 
 ## Why Snakemake runs *inside* the container, rather than calling it per-rule
 
@@ -48,6 +50,7 @@ Given that, running Snakemake itself inside one `linux/amd64` container is the s
 
 ## Gotchas that cost real time
 
+- **STAR's two-pass mode vforks `zcat` at 2nd-pass start, and a swapless VM refuses the fork.** The colima `vz` VM has no swap, so once STAR's genome and suffix array are resident, `--readFilesCommand zcat` fails with `Failed vforking readFilesCommand / 12: Cannot allocate memory` under Linux' default heuristic overcommit, even though a `vfork` shares the parent's address space and immediately execs a tiny process. It is **not** the `--limitSjdbInsertNsj` cap: the two-pass junction insertion completes *before* this fails. `scripts/run_local_linux64.sh` sets `vm.overcommit_memory=1` in the VM on every run to grant the reservation. If you start Colima and call `snakemake` by hand instead of through the wrapper, set it yourself: `colima ssh -- sudo sysctl -w vm.overcommit_memory=1`.
 - **Colima only mounts `$HOME` and `/tmp/colima` into the VM.** A `-v` bind of any other host path silently produces an **empty directory** inside the container. The tool then writes into the container's ephemeral filesystem, exits 0, and the host sees nothing. The wrapper refuses to run if the repo is outside `$HOME` for exactly this reason.
 - **Never send the tool's log to `/dev/null` while probing.** The failure above looked like a clean success precisely because the evidence had been discarded.
 - Conda envs built inside the container live in `.snakemake/conda-linux64`, deliberately separate from the default `.snakemake/conda` prefix a native macOS run would use. The two hold incompatible binaries for the same env hashes; keeping them apart stops a host run and a container run from corrupting each other.
