@@ -6,6 +6,29 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-16
+
+### 13:05 UTC - Editor: Developer - The repo-guard hook, and two web-checks that moved my recommendation ([PR #1210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1210) for [Issue #1083](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1083))
+
+Built the `gh issue create` repo-guard: a PreToolUse hook that catches a create targeting the wrong repo on a board that spans two.
+The mechanical part was easy - it mirrors `check_gh_issue_develop_parent.py` almost line for line.
+The part worth recording is that the two hard questions were both settled by web best-practice checks, and the second one **reversed** the recommendation I walked in with.
+
+**Warn, do not block.** The #1150 ruling already said these hooks are best-effort convenience controls, and the guardrail literature agrees hard: start in warn mode, treat false positives as the real cost (an over-eager guard gets disabled), fail open.
+That mapped cleanly onto `permissionDecision: "ask"` (confirm-or-cancel) instead of `deny`, plus a deterministic-first signal (the `role:memory_manager` label is the spine; keywords only corroborate; anything ambiguous allows).
+
+**Coverage: I was about to copy a known-bad pattern.** My first instinct was user-level registration, matching the `@-claude` guard.
+The web check on hook placement said the opposite: version-control team-enforced hooks, because a machine-local hook silently misses on a fresh clone - which is *exactly* the #799/#978 pain the `@-claude` guard already caused us.
+So the guard ships VCS'd per-repo (project side now, personas twin as an MM follow-up).
+The lesson is not "user-level bad" - it is that "fires cross-cwd" and "machine-local" are separable, and I had conflated them because a sibling did.
+Checking us against the world, not against ourselves, is what caught it.
+
+**The review found the precision leak I had left in.** `star` in the project keyword set matched `start`/`restart`/`startup` by substring, so an unlabelled "start the board-hygiene workflow" create would have false-asked - the precise failure the precision-first design exists to avoid.
+Fixed with word-boundary matching for plain-word keywords (substring kept only for the fragment keywords like `feedback_`/`shared/`), plus a matched-pair regression test.
+A guard whose whole selling point is "few false positives" shipping with a substring false-positive is the kind of thing a careful adversarial read catches and a self-review does not.
+
+Left AC5 (memory-bullet reconciliation) open on purpose: it and the personas twin both live in MM-owned territory, so they carve into one MM follow-up rather than getting faked from the Developer seat.
+
 ## 2026-07-15
 
 ### 16:13 UTC - Editor: Developer - STAR runs end-to-end locally, and the diagnosis I inherited was a plausible wrong story ([PR #1202](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1202))
