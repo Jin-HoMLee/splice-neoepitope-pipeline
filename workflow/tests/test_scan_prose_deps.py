@@ -122,9 +122,10 @@ def test_main_report_default_exit_zero(monkeypatch, capsys):
     rc, out = _run_main(monkeypatch, capsys, [], [(745, 722)], _records())
     assert rc == 0 and "needs-wiring" in out
 
-def test_main_check_exits_2_on_drift(monkeypatch, capsys):
+def test_main_check_exits_1_on_drift(monkeypatch, capsys):
+    # Issue #1179: 1 = ran fine, gate tripped (drift), matching scan_unblocked.py.
     rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722)], _records())
-    assert rc == 2
+    assert rc == 1
 
 def test_main_check_exits_0_when_clean(monkeypatch, capsys):
     clean = [{"dependent": 594, "blocker": 211, "state": "closed", "action": "closed-blocker"}]
@@ -380,23 +381,25 @@ def test_render_report_orders_lookup_failures_above_drift():
     assert order == ["edges-lookup-failed", "meta-lookup-failed", "needs-wiring"]
 
 
-def test_main_check_exits_1_on_lookup_failure(monkeypatch, capsys):
-    # A run whose only anomaly is an incomplete lookup is NOT clean: exit 1
-    # (error / re-run), distinct from 0 (clean) and 2 (real drift).
+def test_main_check_exits_2_on_lookup_failure(monkeypatch, capsys):
+    # Issue #1179: a run whose only anomaly is an incomplete lookup is could-not-run:
+    # exit 2 (matching scan_unblocked.py + argparse), distinct from 0 (clean) and
+    # 1 (real drift).
     failed = [{"dependent": 745, "blocker": 722, "state": "?", "action": "edges-lookup-failed"}]
     rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722)], failed)
-    assert rc == 1
+    assert rc == 2
 
 
 def test_main_check_lookup_failure_precedes_drift(monkeypatch, capsys):
-    # Both real drift and an incomplete lookup -> exit 1 (the drift picture can't
-    # be trusted mid-failure; re-run clears the transient), not 2.
+    # Both real drift and an incomplete lookup -> exit 2 (could-not-run takes
+    # precedence: the drift picture can't be trusted mid-failure; re-run clears the
+    # transient), not 1. Issue #1179.
     mixed = [
         {"dependent": 745, "blocker": 722, "state": "open", "action": "needs-wiring"},
         {"dependent": 594, "blocker": 211, "state": "?", "action": "meta-lookup-failed"},
     ]
     rc, _ = _run_main(monkeypatch, capsys, ["--check"], [(745, 722), (594, 211)], mixed)
-    assert rc == 1
+    assert rc == 2
 
 
 def test_main_apply_only_subsets_by_dependent(monkeypatch, capsys):
