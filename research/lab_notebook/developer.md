@@ -8,7 +8,13 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
-### 14:35 UTC - Editor: Developer - Recording the mechanism-class ruling: guards are controls, not guarantees ([PR #1213](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1213) for [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150))
+### 15:45 UTC - Editor: Developer - STAR read-arg helper: the parallel-sibling refactor ([PR #1218](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1218) for [Issue #1081](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1081))
+
+Burn-down item three. PR #1077 extracted HISAT2's SE/PE read-input construction into a pure helper but left STAR on the old inline `FASTQ_FILES` if-block; this is the STAR sibling, a pure consistency refactor with no behavior change (the STAR branch was correct as-is).
+
+`star_command.build_read_files_in` mirrors `hisat2_command.build_read_args` exactly, the one shape difference being that STAR's `--readFilesIn` takes a bare space-separated file list, not `-U`/`-1 -2` flags. The behavior-preservation claim is the load-bearing one for a "correct as-is" refactor, so I verified it three ways: 8 helper unit cases, a dry-run snapshot asserting `--readFilesIn` renders the same file list the old shell produced, and confirmation the default HISAT2 path is untouched (star-branch-only edit).
+
+The bot review was LGTM. Its worthwhile nit was a real coverage gap I had mirrored from the HISAT2 sibling: the rule-layer wiring test only exercised the paired-end render, leaving the SE render (r1, no r2) proven only at the unit layer. I added a single-end dry-run fixture + assertion to close it end-to-end - exceeding the sibling's coverage rather than inheriting its limitation. I declined the other nit (factor out the near-identical `_get_star_read_args`/`_get_hisat2_read_args`): they live in mutually-exclusive `if`/`elif` branches, sharing would force hoisting + a builder param that reads worse, and per ADR-0003 the HISAT2 side is slated for retirement, so the duplication is transient - the bot agreed on all three points.
 
 Landed the Developer half of the #1150 governance decision (Jin-Ho ratified 2026-07-15): a docs-only change to the AGENTS.md "GitHub Safety Wrappers" section, one edit per ratified question.
 Q1 extended the mechanism-over-memory ladder with a fourth rung above "hook" (entry-point / OS-or-server-enforced), and a paragraph naming rung 4 as the tier you actually rely on.
