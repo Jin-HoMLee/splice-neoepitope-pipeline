@@ -13,6 +13,7 @@ This is the first shell-level rule snapshot test in the codebase. Existing
 tests cover pure Python helpers (test_strandness.py, test_bed12_to_junctions.py,
 test_star_sj_to_junctions.py, etc.); this complements them at the rule layer.
 """
+import re
 import shutil
 import subprocess
 import textwrap
@@ -108,3 +109,24 @@ def test_star_align_does_not_throttle_min_unique_count(star_dry_run_output):
 def test_star_align_does_not_throttle_min_total_count(star_dry_run_output):
     """--outSJfilterCountTotalMin throttles output below paper baseline."""
     assert "--outSJfilterCountTotalMin" not in star_dry_run_output
+
+
+def test_star_align_readfilesin_renders_helper_output(star_dry_run_output):
+    """The rule renders `--readFilesIn` from `build_read_files_in` (Issue #1081).
+
+    The stub sample is paired-end, so the helper emits the space-separated
+    `<r1> <r2>` file list - proving the SE/PE construction now flows through the
+    extracted helper rather than the removed inline shell.
+    """
+    assert re.search(
+        r"--readFilesIn \S*test_R1\.fq\.gz \S*test_R2\.fq\.gz", star_dry_run_output
+    ), "expected --readFilesIn to render the paired-end file list from the helper"
+
+
+def test_star_align_inline_fastq_files_block_is_gone(star_dry_run_output):
+    """The old inline `FASTQ_FILES=...` shell assembly is fully replaced.
+
+    Its absence is the behaviour-preserving signature of the extraction: if it
+    reappeared the rule would be building the read list two ways.
+    """
+    assert "FASTQ_FILES=" not in star_dry_run_output
