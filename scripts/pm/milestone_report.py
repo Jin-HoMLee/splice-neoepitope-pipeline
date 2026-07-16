@@ -987,9 +987,9 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
     # identify a lead from).
     lead_roles = _lead_roles(metrics.get("per_role_counts") or {}) \
         or {r for i in issues for r in i.get("roles", [])}
-    delivered_numbers = {i["number"] for i in delivered_issues(issues)}
-    seed = _lab_notebook_seed(lead_roles, delivered_numbers)
     delivered = delivered_issues(issues)
+    delivered_numbers = {i["number"] for i in delivered}
+    seed = _lab_notebook_seed(lead_roles, delivered_numbers)
     descoped = descoped_issues(issues)
     carried = [i for i in issues if i.get("state") != "CLOSED"]
 
@@ -1004,7 +1004,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         f"     The {len(delivered)} delivered issues are listed in the Inventory appendix",
         "     below - narrate the highlights here, don't re-list them. -->",
         "",
-        "_Seeded from the lead role's lab-notebook entries in the milestone window - "
+        "_Seeded from the lead role's lab-notebook entries naming the milestone's issues - "
         "replace with the deliverables narrative._",
         "",
     ]
