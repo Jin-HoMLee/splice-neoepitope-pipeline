@@ -348,7 +348,11 @@ def marker_slip(issues: list[dict]) -> dict[str, Any]:
             "n_agree": None,
         }
 
-    observed_unplanned = [i for i in delivered if not i.get("committed_at")]
+    # Single-source the observed-unplanned definition with `never_committed_issues`
+    # (both mean "delivered without a commitment act") so `n_observed_unplanned` and the
+    # SDR's `n_never_committed` can never drift. In this branch commitments are available,
+    # so it returns exactly the delivered-without-`committed_at` set. Review finding on PR #1212.
+    observed_unplanned = never_committed_issues(issues)
     n_observed = len(observed_unplanned)
     n_labelled = len(unplanned_issues(delivered))
     n_slip = sum(1 for i in observed_unplanned if not is_unplanned(i))
@@ -1017,6 +1021,16 @@ def _fmt(v: Optional[float], unit: str = "") -> str:
     return "n/a" if v is None else f"{v:.1f}{unit}"
 
 
+def _pct(v: Optional[float]) -> str:
+    """A percentage as a whole number with a trailing % (n/a if None).
+
+    Matches the HTML report's ``%.0f%%`` so the same share reads identically on both
+    surfaces - the console had used ``_fmt(..., '%')`` (one decimal), a precision mismatch
+    caught in the PR #1212 review.
+    """
+    return "n/a" if v is None else f"{v:.0f}%"
+
+
 def print_metrics(milestone: dict, metrics: dict) -> None:
     state = milestone.get("state")
     if state and state != "n/a":  # milestone mode
@@ -1072,8 +1086,8 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
               "label (NOT the same as 'no slip')")
     elif slip:
         print(f"  unplanned marker slip            : observed {slip['n_observed_unplanned']} "
-              f"({_fmt(slip['observed_pct'], '%')}) vs labelled {slip['n_labelled_unplanned']} "
-              f"({_fmt(slip['labelled_pct'], '%')}) of {slip['n_delivered']} delivered")
+              f"({_pct(slip['observed_pct'])}) vs labelled {slip['n_labelled_unplanned']} "
+              f"({_pct(slip['labelled_pct'])}) of {slip['n_delivered']} delivered")
         print(f"                                     -> {slip['n_slip']} slipped "
               f"(observably unplanned, unlabelled), {slip['n_mislabelled']} mislabelled "
               f"(labelled, observably committed), {slip['n_agree']} agree")
