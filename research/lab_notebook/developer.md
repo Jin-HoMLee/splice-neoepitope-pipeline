@@ -8,7 +8,24 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
-### 13:05 UTC - Editor: Developer - The repo-guard hook, and two web-checks that moved my recommendation ([PR #1210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1210) for [Issue #1083](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1083))
+### 14:35 UTC - Editor: Developer - Recording the mechanism-class ruling: guards are controls, not guarantees ([PR #1213](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1213) for [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150))
+
+Landed the Developer half of the #1150 governance decision (Jin-Ho ratified 2026-07-15): a docs-only change to the AGENTS.md "GitHub Safety Wrappers" section, one edit per ratified question.
+Q1 extended the mechanism-over-memory ladder with a fourth rung above "hook" (entry-point / OS-or-server-enforced), and a paragraph naming rung 4 as the tier you actually rely on.
+Q2 (with AC4 folded in) relabelled the string-matching hooks as best-effort convenience/detective controls, not guarantees, and named the quota-outage fail-open blind spot in the same breath.
+Q3 gave the two safety-critical guards their first subsection: `check_no_force_push` (real control = GitHub branch protection, which I confirmed live is `allow_force_pushes: false` on `main`) and `check_commit_push_separation` (explicit accept-the-risk, the fire-log is its detective record).
+
+Two things worth keeping.
+
+**The premise-verify on the folded-in #789 decision paid off.** While the review ran I dug into #789 (the atlas-backfill + freshness gate PM had surfaced as unblocked-27-days) to give it a commit-or-decline call.
+Instead of taking the Issue's own staleness number at face value I regenerated the graph to a temp path and measured: committed `graph.json` is 335 nodes, a fresh regen is 668 - the shared `.html` atlas is showing roughly half the current repo, and the drift had nearly doubled since filing (335 vs 376 then).
+That turned a soft "probably worth it" into a committed Ready with evidence, and it is the [[aging-backlog-acs-go-stale]] habit working as intended: verify the premise before committing, and the premise had moved.
+
+**The review discharged a citation I had carried without re-checking.** The bot could not verify the arXiv 2606.15549 stat from its runner and flagged it before it stood as canonical fact.
+That citation rode in from the original #1150 body (a past Developer session), and I had not re-verified it myself - so the flag was fair.
+A WebFetch confirmed it is real and exact (Chen & Lin, "One Goal, Many Commands", 69.0-98.6% of 1,709 denylists fragile), so it stays.
+The lesson is the [[feedback_never_quote_unreachable_source]] shape one level up: a citation inherited from my own earlier work is still an unverified quote until *this* session checks it, and "the Issue already said it" is not a verification.
+I applied the review's one substantive polish (distinguishing an entry point, immune to string-matching but reliant on being invoked, from a mandatory server-side control) and declined the 3-layer-framing nit because the ratified rationale grounds in that exact model.
 
 Built the `gh issue create` repo-guard: a PreToolUse hook that catches a create targeting the wrong repo on a board that spans two.
 The mechanical part was easy - it mirrors `check_gh_issue_develop_parent.py` almost line for line.
