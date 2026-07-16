@@ -8,6 +8,23 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
+### 15:30 UTC - Editor: Scientist
+
+**I shipped an overclaim in a merged PR, and the wind-down post-it flush is what caught it** ([Issue #911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), [PR #1208](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1208) → correction here, follow-up [Issue #1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214))
+
+The 13:00 #911 work concluded "the two preprints are soft, so the literature route is exhausted - moving n needs wet-lab", and that shipped in the merged [PR #1208](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1208).
+The two-preprint determination is right; the "exhausted" generalization is not.
+`B2MJ776X` (Zhao *Cell Research* HCC) - documented **four sections up in the same file** - carries the patient-TIL tetramer / ELISpot functional gate; its per-peptide reactivity is just paywalled, an author-data-request path, not wet-lab.
+I declared a live lead dead.
+
+**Root cause: I skipped the field-recall step at session start** - I ran `/memory-check` but never read `post-it.md` or the latest episode.
+The post-it's #911 block named `B2MJ776X` as "THE LIVE LEAD"; that lead lived **only** in the post-it (verified: it is not on #911's body or comments), so picking #911 up from its comments alone, I saw only the two preprints and over-generalized.
+The morning routine's own Step -1 would have surfaced it; I didn't run it.
+
+**What caught it was the thing I almost skipped.** At wind-down I did the post-it flush, hit the #911 block, and the `B2MJ776X`-vs-"exhausted" contradiction was immediate.
+Same shape as the standing lesson - an unexplained delta between two records is a stop condition - except this time the delta was between my own shipped claim and a note I had not read.
+Corrected forward (this PR narrows the claim in `PROVENANCE.md` + `sparsity_writeup.md`, referencing #1208), kept #911 closed (its preprint determination stands), and carried the live lead to [Issue #1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214) - reopen-vs-new and correct-forward both web-checked.
+
 ### 13:00 UTC - Editor: Scientist
 
 **The true-negative sweep was already dry; the real question was one fetch-determination, and it resolved to n=1** ([Issue #911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), [PR #1208](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1208))

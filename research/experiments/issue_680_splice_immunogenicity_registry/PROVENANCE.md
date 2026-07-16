@@ -198,7 +198,9 @@ Transcript-level delivery cannot separate a genuinely non-immunogenic peptide fr
 The genuine transcript-level analogue in this file is the **TEtrans/Li** entry above (also mRNA-transfection, no minimal-peptide gate, zero rows folded).
 Do **not** conflate this Lin HCC preprint (`NV63JMJZ`: non-responders, mouse mRNA-transfection, no tetramer) with the separate **Zhao HCC** paper (`B2MJ776X`, section above): that one *does* carry a per-peptide patient-TIL IFN-gamma ELISpot / tetramer gate and was excluded for **sequence-unavailability**, not for lacking a minimal-peptide readout - two different 2025 HCC papers, easy to conflate by name.
 The positive-side sequences here remain separately blocked as before (Lin 2025 bioRxiv is already noted under "Not a policy against preprints" as sequence-deferred).
-Moving n past 1 now requires **wet-lab** (minimal-peptide ELISpot/tetramer on an MS-presented splice ligand, e.g. the Courcelles non-A2 immunopeptidome), not further literature mining - the literature route is exhausted.
+These two preprints do not move n, but the **open-literature route is not exhausted**: the open lead is the separate `B2MJ776X` Zhao HCC paper (section above), which *does* carry a patient-TIL tetramer / IFN-gamma ELISpot functional gate.
+Its per-peptide reactivity and peptide sequences sit in its **paywalled main text**, so the route to a second hard negative there is an **author data request** (cheaper than wet-lab), tracked in [#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214).
+Only if that lead is exhausted does moving n past 1 require **wet-lab** (a minimal-peptide assay on an MS-presented splice ligand, e.g. the Courcelles non-A2 immunopeptidome).
 
 ---
 
