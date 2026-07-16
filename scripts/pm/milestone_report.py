@@ -289,6 +289,83 @@ def never_committed_issues(issues: list[dict]) -> list[dict]:
     return [i for i in delivered_issues(issues) if not i.get("committed_at")]
 
 
+def marker_slip(issues: list[dict]) -> dict[str, Any]:
+    """Cross-check the hand-applied ``unplanned`` label against the OBSERVED arrival
+    signal, and surface their disagreement as the slip rate. Issue #1188.
+
+    Two independent measures of the same fact - "did this delivered item arrive unplanned?":
+
+    - **observed**: it has no ``committed_at`` - it never crossed into `Ready`. Recorded by
+      GitHub as a ``ProjectV2ItemStatusChangedEvent``, for free, and cannot be forgotten
+      (see ``never_committed_issues`` / ``first_ready_at``).
+    - **labelled**: someone applied the ``unplanned`` label at close (see ``is_unplanned``).
+      Hand-maintained, and a forgotten label is indistinguishable from committed work - so
+      the label can only ever bias the unplanned share DOWNWARD.
+
+    The disagreement is the whole point (that is why this is not just two shares side by
+    side):
+
+    - ``n_slip``:        observed-unplanned AND unlabelled - the under-report #1144 predicted
+                         would dominate. Each of these is an item the label silently counted
+                         as committed work.
+    - ``n_mislabelled``: labelled AND observably committed - the opposite error (a label on an
+                         item that DID cross the commitment act).
+    - ``n_agree``:       observed-unplanned AND labelled.
+
+    Both shares are reported over *delivered* (``observed_pct`` / ``labelled_pct``) so they
+    are directly comparable, per AC1 - but note that the two aggregate shares agreeing does
+    NOT mean the label is right per item (they can match while ``n_slip`` and
+    ``n_mislabelled`` are both nonzero), which is exactly why the per-item counts exist.
+
+    **The unknown case is load-bearing.** When the commitment history could not be read
+    (``commitments_available`` is False), the observed axis is unknown for every item, so
+    the slip is unknown too. It is reported as ``available=False`` with None buckets - never
+    zero, never the whole population. Folding an unreadable fetch into "everything slipped"
+    (or into "nothing slipped") is the one-output-for-three-worlds fabrication this module
+    exists to kill (#1180), one axis over. ``n_delivered`` stays known regardless: we know
+    WHAT shipped even when we cannot see HOW it arrived.
+
+    Note there is no ``marker_in_use`` guard here, deliberately: ``is_unplanned`` reads the
+    per-issue labels directly, so when the marker has never been applied repo-wide every
+    observed-unplanned item simply falls into ``n_slip`` and ``n_labelled_unplanned`` is 0.
+    That is not a degenerate case to suppress - it is precisely the live 2026-07 finding
+    (the label reports zero while half of delivered work observably never committed), and it
+    must render as total slip, not as "unclassifiable".
+    """
+    delivered = delivered_issues(issues)
+    n_delivered = len(delivered)
+
+    if not commitments_available(issues):
+        return {
+            "available": False,
+            "n_delivered": n_delivered,
+            "n_observed_unplanned": None,
+            "n_labelled_unplanned": None,
+            "observed_pct": None,
+            "labelled_pct": None,
+            "n_slip": None,
+            "n_mislabelled": None,
+            "n_agree": None,
+        }
+
+    observed_unplanned = [i for i in delivered if not i.get("committed_at")]
+    n_observed = len(observed_unplanned)
+    n_labelled = len(unplanned_issues(delivered))
+    n_slip = sum(1 for i in observed_unplanned if not is_unplanned(i))
+    n_mislabelled = sum(1 for i in delivered if is_unplanned(i) and i.get("committed_at"))
+    return {
+        "available": True,
+        "n_delivered": n_delivered,
+        "n_observed_unplanned": n_observed,
+        "n_labelled_unplanned": n_labelled,
+        "observed_pct": (100.0 * n_observed / n_delivered) if n_delivered else None,
+        "labelled_pct": (100.0 * n_labelled / n_delivered) if n_delivered else None,
+        "n_slip": n_slip,
+        "n_mislabelled": n_mislabelled,
+        "n_agree": n_observed - n_slip,
+    }
+
+
 def lead_times(issues: list[dict]) -> list[float]:
     return [t for t in (lead_time_days(i) for i in issues) if t is not None]
 
@@ -501,6 +578,7 @@ def compute_window_metrics(
         "commitments_available": commitments_available(week_issues),
         "per_role_counts": per_role_counts(week_issues),
         **throughput_breakdown(week_issues, marker_in_use=marker_in_use),
+        "marker_slip": marker_slip(week_issues),
         "weekly_series": weekly_series(all_issues, until, n_weeks,
                                        marker_in_use=marker_in_use),
     }
@@ -535,6 +613,7 @@ def compute_metrics(issues: list[dict], milestone: dict,
         "commitments_available": commitments_available(issues),
         "per_role_counts": per_role_counts(issues),
         **throughput_breakdown(issues, marker_in_use=marker_in_use),
+        "marker_slip": marker_slip(issues),
     }
 
 
@@ -982,6 +1061,22 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     elif metrics.get("n_never_committed"):
         print(f"  never crossed Backlog->Ready     : {metrics['n_never_committed']} delivered "
               f"(no commitment act -> cycle time UNDEFINED for these, not zero)")
+    # The `unplanned` LABEL cross-checked against the OBSERVED arrival axis (Issue #1188).
+    # Both shares are printed side by side so neither silently stands in for the other, and
+    # their per-item DISAGREEMENT is surfaced as the slip. A share comparison alone is not
+    # enough: the two shares can agree in aggregate while the label is wrong per item.
+    slip = metrics.get("marker_slip")
+    if slip and not slip["available"]:
+        print("  unplanned marker slip            : UNKNOWN - commitment history could not "
+              "be read, so the observed arrival axis cannot be cross-checked against the "
+              "label (NOT the same as 'no slip')")
+    elif slip:
+        print(f"  unplanned marker slip            : observed {slip['n_observed_unplanned']} "
+              f"({_fmt(slip['observed_pct'], '%')}) vs labelled {slip['n_labelled_unplanned']} "
+              f"({_fmt(slip['labelled_pct'], '%')}) of {slip['n_delivered']} delivered")
+        print(f"                                     -> {slip['n_slip']} slipped "
+              f"(observably unplanned, unlabelled), {slip['n_mislabelled']} mislabelled "
+              f"(labelled, observably committed), {slip['n_agree']} agree")
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
     series = metrics.get("weekly_series")
     if series:

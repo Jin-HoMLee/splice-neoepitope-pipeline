@@ -690,6 +690,138 @@ class TestCommitmentFetchFailureIsUnknownNotZero:
         assert mr.commitments_available(mixed) is False
 
 
+class TestMarkerSlip:
+    """The hand-applied `unplanned` LABEL cross-checked against the OBSERVED arrival
+    signal (never crossed Backlog -> Ready). Issue #1188.
+
+    Two independent measures of the same fact - "did this delivered item arrive
+    unplanned?":
+      - observed:  it has no ``committed_at`` (never entered `Ready`) - recorded by
+                   GitHub for free, cannot be forgotten.
+      - labelled:  someone applied the ``unplanned`` label at close - hand-maintained.
+
+    A forgotten label is indistinguishable from committed work, so the label biases the
+    unplanned share DOWNWARD. Their DISAGREEMENT is the deliverable:
+      - ``n_slip``:        observed-unplanned AND unlabelled (the under-report #1144 predicted).
+      - ``n_mislabelled``: labelled AND observably committed (the opposite error).
+      - ``n_agree``:       observed-unplanned AND labelled.
+    """
+
+    def _d(self, n, committed=None, unplanned=False, available=True):
+        labels = ["unplanned"] if unplanned else []
+        i = _issue(n, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                   ["role:pm"], "COMPLETED", labels)
+        if committed:
+            i["committed_at"] = committed
+        i["commitments_available"] = available
+        return i
+
+    def test_matched_pair_agree_vs_slip(self):
+        """THE control: two observably-unplanned items, ONLY the label flipped.
+
+        Both never crossed `Ready`, so both are observably unplanned. One carries the
+        label (agree), one does not (the slip). If the cross-check ignored the label,
+        both would land the same and this fails.
+        """
+        agree = self._d(1, committed=None, unplanned=True)
+        slip = self._d(2, committed=None, unplanned=False)
+        m = mr.marker_slip([agree, slip])
+        assert m["available"] is True
+        assert m["n_observed_unplanned"] == 2   # both never committed
+        assert m["n_labelled_unplanned"] == 1   # only #1 carries the label
+        assert m["n_slip"] == 1                  # #2: observed-unplanned but unlabelled
+        assert m["n_agree"] == 1                 # #1: observed-unplanned and labelled
+        assert m["n_mislabelled"] == 0
+
+    def test_mislabelled_is_labelled_but_observably_committed(self):
+        """The symmetric error: the label is applied, but the item DID cross the commitment act."""
+        mislabelled = self._d(1, committed="2026-06-02T00:00:00Z", unplanned=True)
+        clean = self._d(2, committed="2026-06-02T00:00:00Z", unplanned=False)
+        m = mr.marker_slip([mislabelled, clean])
+        assert m["n_observed_unplanned"] == 0   # both committed
+        assert m["n_mislabelled"] == 1          # #1: labelled yet committed
+        assert m["n_slip"] == 0
+        assert m["n_agree"] == 0
+
+    def test_aggregate_share_agreement_does_not_mean_per_item_fidelity(self):
+        """Why the cross-check earns its keep: the two shares can MATCH while the label
+        is wrong on every item.
+
+        4 delivered: #1 observed-unplanned+labelled (agree), #2 observed-unplanned+unlabelled
+        (slip), #3 committed+labelled (mislabelled), #4 committed+unlabelled (clean). Observed
+        share = 2/4 = labelled share = 2/4 - identical in aggregate, yet two of the four items
+        are classified WRONGLY by the label. A share comparison alone would call this clean.
+        """
+        issues = [
+            self._d(1, committed=None, unplanned=True),
+            self._d(2, committed=None, unplanned=False),
+            self._d(3, committed="2026-06-02T00:00:00Z", unplanned=True),
+            self._d(4, committed="2026-06-02T00:00:00Z", unplanned=False),
+        ]
+        m = mr.marker_slip(issues)
+        assert m["n_delivered"] == 4
+        assert m["observed_pct"] == pytest.approx(50.0)
+        assert m["labelled_pct"] == pytest.approx(50.0)
+        assert m["n_slip"] == 1        # #2
+        assert m["n_mislabelled"] == 1 # #3
+        assert m["n_agree"] == 1       # #1
+
+    def test_marker_never_applied_is_total_slip(self):
+        """The live 2026-07 finding, as a fixture: observed-unplanned items exist, but NOT
+        ONE carries the label -> every one is a slip and the label reports zero."""
+        issues = [self._d(1, committed=None, unplanned=False),
+                  self._d(2, committed=None, unplanned=False),
+                  self._d(3, committed="2026-06-02T00:00:00Z", unplanned=False)]
+        m = mr.marker_slip(issues)
+        assert m["n_observed_unplanned"] == 2
+        assert m["n_labelled_unplanned"] == 0   # the label reports zero...
+        assert m["n_slip"] == 2                  # ...while two observably slipped
+        assert m["n_agree"] == 0
+
+    def test_unavailable_commitments_is_unknown_never_folded(self):
+        """Matched pair to ``test_matched_pair_agree_vs_slip``: same issues, but the
+        commitment fetch failed. The observed axis is then unknown, so slip is unknown -
+        NOT zero, NOT the whole population (the #1180 / #1185 fabrication class)."""
+        died = [self._d(1, committed=None, unplanned=True, available=False),
+                self._d(2, committed=None, unplanned=False, available=False)]
+        m = mr.marker_slip(died)
+        assert m["available"] is False
+        assert m["n_observed_unplanned"] is None
+        assert m["n_labelled_unplanned"] is None
+        assert m["n_slip"] is None
+        assert m["n_mislabelled"] is None
+        assert m["n_agree"] is None
+        assert m["observed_pct"] is None
+        assert m["labelled_pct"] is None
+        # delivered is still known - we know WHAT shipped, not how it arrived.
+        assert m["n_delivered"] == 2
+
+    def test_descoped_never_counted(self):
+        """Keys off DELIVERED: a descoped close is not shipped work, however it arrived."""
+        descoped = _issue(9, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
+                          ["role:pm"], "NOT_PLANNED", ["unplanned"])
+        descoped["commitments_available"] = True
+        m = mr.marker_slip([descoped])
+        assert m["n_delivered"] == 0
+        assert m["n_observed_unplanned"] == 0
+        assert m["n_slip"] == 0
+
+    def test_metrics_carry_the_cross_check(self):
+        agree = self._d(1, committed=None, unplanned=True)
+        slip = self._d(2, committed=None, unplanned=False)
+        m = mr.compute_metrics([agree, slip], {"closed_at": None, "created_at": None},
+                               marker_in_use=True)
+        assert m["marker_slip"]["n_slip"] == 1
+        assert m["marker_slip"]["n_agree"] == 1
+
+    def test_window_metrics_carry_the_cross_check(self):
+        agree = self._d(1, committed=None, unplanned=True)
+        slip = self._d(2, committed=None, unplanned=False)
+        week = [agree, slip]
+        m = mr.compute_window_metrics(week, week, UNTIL, 1, marker_in_use=True)
+        assert m["marker_slip"]["n_slip"] == 1
+
+
 class TestNegativeCycleTimeIsDropped:
     def test_committed_after_closed_is_not_a_fast_delivery(self):
         """A close -> reopen -> re-commit can put committed_at AFTER closed_at.
