@@ -118,6 +118,21 @@ CONTRACTS: dict[str, hc.HookContract] = {
         gh_stub_source=_STUB_GH_ISSUE_DEVELOP_PARENT,
         notes="denies branching off a parent/epic (subIssuesSummary.total > 0)",
     ),
+    "check_gh_issue_create_repo.py": hc.HookContract(
+        basename="check_gh_issue_create_repo.py",
+        observable=hc.FIRE_LOG,
+        envelope_builder="pretooluse_bash",
+        fire_input={
+            "command": 'gh issue create --title "drain episodic memory" --label role:memory_manager --repo Jin-HoMLee/splice-neoepitope-pipeline'
+        },
+        nofire_input={
+            "command": 'gh issue create --title "drain episodic memory" --label role:memory_manager --repo Jin-HoMLee/claude-personas-splice-neoepitope-pipeline'
+        },
+        heredoc_fire_input={
+            "command": "cat > /tmp/note.md <<'EOF'\nfiling notes\nEOF\ngh issue create --title \"drain episodic memory\" --label role:memory_manager --repo Jin-HoMLee/splice-neoepitope-pipeline"
+        },
+        notes="asks (fire-log) on an MM-shaped create into the project repo; the same shape into personas passes (explicit --repo, no gh call)",
+    ),
     "check_board_query_pagination.py": hc.HookContract(
         basename="check_board_query_pagination.py",
         observable=hc.DENY,
