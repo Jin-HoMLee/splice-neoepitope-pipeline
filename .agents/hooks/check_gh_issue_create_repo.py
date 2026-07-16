@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -52,25 +53,34 @@ PROJECT_REPO = "splice-neoepitope-pipeline"
 PERSONAS_REPO = "claude-personas-splice-neoepitope-pipeline"
 _REPO_FOR_SHAPE = {"project": PROJECT_REPO, "personas": PERSONAS_REPO}
 
-# Shape keywords (lowercased substring match on title+body). Kept tight on
-# purpose: precision over recall. Widen only from fire-log evidence.
-PERSONAS_KW = (
-    "memory manager", "role:memory_manager", "memory.md", "episode", "episodic",
-    "post-it", "lab-notebook", "lab notebook", "feedback_", "shared/", "persona",
-    "semantic memory", "drain",
+# Shape keywords (matched on lowercased title+body). Kept tight on purpose:
+# precision over recall - widen only from fire-log evidence. This layer is
+# best-effort corroboration; the deterministic `role:memory_manager` label does
+# nearly all the real work (title+body is often authored via a `--body-file` we
+# do not read), so a future reader should not over-trust the keyword path.
+#
+# WORD keywords match on word boundaries (`\bword\b`); FRAG keywords match as
+# plain substrings because they carry non-word chars (`feedback_`, `shared/`) or
+# spaces. Word-boundary matching is why `star` no longer fires on start/restart/
+# startup - the substring false-positive the #1210 review caught.
+PERSONAS_WORD = ("memory", "episode", "episodic", "persona", "drain")
+PERSONAS_FRAG = (
+    "memory manager", "role:memory_manager", "memory.md", "post-it",
+    "lab-notebook", "lab notebook", "feedback_", "shared/", "semantic memory",
 )
-PROJECT_KW = (
+PROJECT_WORD = (
     "snakemake", "pipeline", "workflow", "alignment", "junction", "neoepitope",
     "regtools", "bedtools", "mhcflurry", "tcrdock", "hisat2", "star", "conda",
     "fastq", "chr22", "gencode",
 )
+PROJECT_FRAG = ("sj.out",)
 
-# `gh issue create` flags whose value is the following token.
-_VALUE_FLAGS = {
-    "-t", "--title", "-b", "--body", "-F", "--body-file", "-l", "--label",
-    "-a", "--assignee", "-m", "--milestone", "-p", "--project", "-R", "--repo",
-    "-T", "--template",
-}
+
+def _kw_hits(text: str, words: tuple[str, ...], frags: tuple[str, ...]) -> list[str]:
+    """Keyword hits in `text`: WORD entries on `\\b` boundaries, FRAG as substrings."""
+    hits = [w for w in words if re.search(rf"\b{re.escape(w)}\b", text)]
+    hits += [f for f in frags if f in text]
+    return hits
 
 
 # --- pure helpers (unit-tested, no I/O) ---
@@ -173,8 +183,8 @@ def repo_signal(title: str, body: str, labels: list[str]) -> tuple[str | None, s
     if "role:memory_manager" in label_set:
         return "personas", "role:memory_manager label"
     text = f"{title} {body}".lower()
-    p_hits = [k for k in PERSONAS_KW if k in text]
-    j_hits = [k for k in PROJECT_KW if k in text]
+    p_hits = _kw_hits(text, PERSONAS_WORD, PERSONAS_FRAG)
+    j_hits = _kw_hits(text, PROJECT_WORD, PROJECT_FRAG)
     if len(p_hits) >= 2 and not j_hits:
         return "personas", f"personas keywords {p_hits}"
     if len(j_hits) >= 2 and not p_hits:

@@ -123,6 +123,23 @@ class TestRepoSignal:
     def test_empty_is_none(self):
         assert h.repo_signal("", "", []) == (None, "")
 
+    def test_star_substring_false_positive_fixed(self):
+        # #1210 review: "start ... workflow" must NOT read as project - `star` is
+        # a substring of start/restart/startup. Word-boundary matching kills it:
+        # only "workflow" hits (1 < 2 threshold) -> ambiguous -> allow.
+        side, _ = h.repo_signal("start the board-hygiene workflow", "", [])
+        assert side is None
+
+    def test_star_whole_word_still_matches(self):
+        # the fix must not lose the real signal: `star` as a whole word still hits
+        side, _ = h.repo_signal("star aligner junction fix", "", [])
+        assert side == "project"
+
+    def test_fragment_keyword_still_substring(self):
+        # FRAG keywords keep substring semantics (feedback_ / shared/)
+        side, _ = h.repo_signal("update feedback_foo and shared/bar", "", [])
+        assert side == "personas"
+
 
 # --- ask_payload: shape ---
 
@@ -186,6 +203,14 @@ def test_allows_project_shape_into_project(monkeypatch, capsys, tmp_path):
 def test_ambiguous_shape_fails_open(monkeypatch, capsys):
     cmd = 'gh issue create -t "small fix" --repo Jin-HoMLee/' + PROJECT
     rc, out = _run_main(monkeypatch, capsys, cmd, target=("Jin-HoMLee", PROJECT))
+    assert rc == 0 and out is None
+
+
+def test_start_workflow_into_personas_allows(monkeypatch, capsys):
+    # #1210 review scenario end-to-end: an unlabelled governance-ish create must
+    # NOT false-ask when it lands in personas ("start" no longer reads as "star").
+    cmd = 'gh issue create -t "start the board-hygiene workflow" --repo Jin-HoMLee/' + PERSONAS
+    rc, out = _run_main(monkeypatch, capsys, cmd, target=("Jin-HoMLee", PERSONAS))
     assert rc == 0 and out is None
 
 
