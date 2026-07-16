@@ -278,6 +278,19 @@ CONTRACTS: dict[str, hc.HookContract] = {
 # `HookContract.hook_path` (HOOKS_DIR / basename) drives the exact same file the
 # live user-level guard runs. Registry-external describes the *registration*, not
 # the script location.
+#
+# CONSCIOUS LIMITATION (not an oversight): this tier has NO completeness backstop
+# the way `test_every_registered_hook_has_a_contract` backstops the project
+# registry. A user-level registration lives in a machine-local, non-version-
+# controlled `~/.claude/settings.json` that a fresh CI checkout cannot enumerate -
+# which is *why* the contract is hardcoded - so if a SECOND user-level governance
+# hook is ever added, nothing forces it into this dict and it would ship
+# uncovered, exactly the #1196 gap one level up. `check_at_claude` is currently the
+# only user-level governance hook (per #799), and `test_registry_external_...`
+# only asserts this dict is non-empty + genuinely external, not that it is
+# complete. A checked-in "expected user-level hooks" manifest would only relocate
+# the manual step, so hardcoding stays the pragmatic choice; add the next
+# user-level hook here by hand.
 
 REGISTRY_EXTERNAL_CONTRACTS: dict[str, hc.HookContract] = {
     "check_at_claude.py": hc.HookContract(

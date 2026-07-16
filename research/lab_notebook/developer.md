@@ -8,7 +8,13 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
-### 14:35 UTC - Editor: Developer - Recording the mechanism-class ruling: guards are controls, not guarantees ([PR #1213](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1213) for [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150))
+### 15:15 UTC - Editor: Developer - Contracting the one guard the liveness suite could not see ([PR #1216](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1216) for [Issue #1196](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1196))
+
+First item of a quick-win burn-down. The hook-liveness suite (#1140) enumerates hooks from the project `.agents/settings.json`, but the literal-mention guard is registered at *user* level (per #799), so it was structurally invisible to the very suite whose job is to catch a guard going silently inert - and it's the highest-harm one to lose.
+
+The fix is a `REGISTRY_EXTERNAL_CONTRACTS` dict held separate from the registry-driven `CONTRACTS`, so the completeness test flags it neither missing nor stale, plus `test_registry_external_hook_is_genuinely_external` to fail loudly if it ever gets project-registered (telling you to move it). The design choice worth recording: drive the in-repo single-source script via `HOOKS_DIR/basename` rather than hardcode a machine-specific `/Users/...` absolute path - the abs path *is* this file, and a home path would break on CI. That is the same "version-control team-enforced, not machine-local" lesson from the #1083 coverage reversal yesterday, arriving from the test side.
+
+The bot review was LGTM and traced all three inputs through the guard by hand. Its one worthwhile note was a *residual*, not a defect: this external tier has no completeness backstop the way the project registry does - a second user-level hook could ship uncovered. It is inherent (a machine-local file can't be enumerated on a fresh checkout, which is why the contract is hardcoded), so I applied the review's suggestion and named it as a conscious limitation in the block comment rather than pretending the dict is self-policing. I declined the offered DRY-refactor of the two red-on-break demos: at n=2 with different anchors and load-bearing per-hook comments, a shared helper is premature abstraction, not cleanup.
 
 Landed the Developer half of the #1150 governance decision (Jin-Ho ratified 2026-07-15): a docs-only change to the AGENTS.md "GitHub Safety Wrappers" section, one edit per ratified question.
 Q1 extended the mechanism-over-memory ladder with a fourth rung above "hook" (entry-point / OS-or-server-enforced), and a paragraph naming rung 4 as the tier you actually rely on.
