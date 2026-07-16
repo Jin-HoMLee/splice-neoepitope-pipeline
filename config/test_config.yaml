@@ -30,7 +30,16 @@ reference:
   junction_bed: "resources/test/chr22_reference_junctions.bed"
 
 alignment:
-  aligner: "hisat2"                                  # explicit pin: M1 8 GB can't fit STAR's 32 GB index
+  # Default stays hisat2 because it is the aligner that runs NATIVELY on macOS.
+  # The old reason given here ("M1 8 GB can't fit STAR's 32 GB index") is FALSE at
+  # chr22 scale: the chr22 STAR index is 407 MB and builds in seconds. 32 GB is the
+  # whole-genome suffix array. The real blocker was that bioconda's macOS STAR
+  # reads ZERO reads from every FASTQ (ADR-0003).
+  # To run the STAR path locally, layer the STAR overlay on top and go through the
+  # linux-64 container (Issue #1162):
+  #   bash scripts/run_local_linux64.sh --cores 4 --use-conda \
+  #     --configfile config/test_config.yaml config/test_star_config.yaml
+  aligner: "hisat2"
   hisat2_index_dir: "resources/test/hisat2_index"   # separate from production index
   hisat2_prebuilt_url: ""                            # build from chr22 FASTA (no pre-built available)
   star_index_dir: "resources/test/star_index"        # separate from production index
