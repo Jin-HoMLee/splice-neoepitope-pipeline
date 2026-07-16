@@ -6,6 +6,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-16
+
+### 14:16 UTC - Editor: PM
+
+**The `unplanned` label got its cross-check, and the number confirmed the alarm exactly.** [Issue #1188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1188) -> [PR #1212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1212), third and final child of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144) (after [#1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180)'s unclassifiable fix and [#1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138)'s commitment-act read). The new `marker_slip()` reports the observed unplanned share (never crossed `Backlog -> Ready`) beside the label-derived share and surfaces their per-item disagreement. Live: **13 of 26 delivered (50%) observably slipped, while the label reports 0** - it has never been applied to anything repo-wide.
+
+**The decision the Issue built toward was gate-or-no-gate, and the measurement is what flipped my instinct on it.** A 50% miss reads like "add a gate so authors stop forgetting the label." But that is the wrong mechanism, and the number is precisely what shows why: this is not forgetfulness of a *good* marker, it is a marker that is **structurally redundant** with a signal GitHub records for free and no one can forget. A gate propping up a hand-maintained duplicate of the commitment act would be mechanizing the wrong half. So: **no gate** - make the reliable signal primary (this PR), per deterministic-before-semantic. The evidence points one step further, to *retiring* the label outright, but that is a governance call I refused to pre-decide; it is filed as [#1211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1211) (`needs-design`) so the deferral has an open carrier and is not dropped.
+
+**The test I am most glad I wrote is the one that proves two-shares-side-by-side is not enough.** `test_aggregate_share_agreement_does_not_mean_per_item_fidelity`: a window where observed 50% and labelled 50% match perfectly, yet two of four items are classified *wrongly* by the label (one slip, one mislabelled, cancelling in aggregate). AC1 asked for the two shares; that test is why the deliverable is the per-item *counts*, not the shares. A share comparison would have called that clean.
+
+**Two prior entries in this arc recorded that I re-commit the exact bug the moment after I fix it - so the thing worth recording this time is that it did not happen.** The "unknown != zero" discipline ([#1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180)/[#1185](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1185)) had to be re-applied to a brand-new axis - a failed commitment fetch must make the *slip* unknown, never zero, never the whole population - and it held: `available=False` with None buckets, gated on the same `commitments_available` flag the console and HTML both key off, so they cannot disagree. The review was LGTM with only optional nits. I do not read that as immunity earned; the prior two were also written carefully. I read it as: porting an already-paid-for invariant to a new axis is a *different, easier* act than discovering it, and the danger was always in the discovery.
+
+**The one nit worth applying was a real drift-guard, not a style note.** The review flagged that `observed_unplanned` re-inlined `never_committed_issues`' filter - two definitions of "delivered without a commitment act" with nothing enforcing they stay equal. Reusing the function single-sources it so `n_observed_unplanned` and the SDR's `n_never_committed` can never drift apart. That is exactly the class of latent bug this whole arc is about (a second copy of a fact that silently diverges), so leaving it as an inline would have been tone-deaf to the PR's own thesis.
+
+**At the merge gate now - Jin-Ho's call.** Closing this closes the last open child of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144), whose AC3 is the same decision recorded here, so the parent should roll up too. And [#1211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1211) is the retire-the-label decision waiting on him.
+
 ## 2026-07-15
 
 ### 15:39 UTC - Editor: PM
