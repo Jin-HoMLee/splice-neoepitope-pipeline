@@ -262,6 +262,49 @@ CONTRACTS: dict[str, hc.HookContract] = {
 }
 
 
+# --- registry-external contracts (Issue #1196) -------------------------------
+# Hooks that are registered at USER level (`~/.claude/settings.json`), not in the
+# project `.agents/settings.json`, are structurally outside the registry that
+# `CONTRACTS` mirrors - so the completeness test above cannot see them and they
+# would ship un-contracted. Each such hook gets a HARDCODED contract here instead,
+# keyed the same way but held in a separate dict so it is neither reported
+# `missing` (it is not in the project registry) nor `stale` (it is not in
+# CONTRACTS). `test_registry_external_hook_is_genuinely_external` pins the reason:
+# if one of these ever gets registered at project level, that test fails and tells
+# you to move it into CONTRACTS.
+#
+# The hook script itself is single-sourced IN this repo (`.agents/hooks/`, reached
+# at user scope by the absolute path the user-level registration hardcodes), so
+# `HookContract.hook_path` (HOOKS_DIR / basename) drives the exact same file the
+# live user-level guard runs. Registry-external describes the *registration*, not
+# the script location.
+
+REGISTRY_EXTERNAL_CONTRACTS: dict[str, hc.HookContract] = {
+    "check_at_claude.py": hc.HookContract(
+        basename="check_at_claude.py",
+        observable=hc.DENY,
+        envelope_builder="pretooluse_bash",
+        fire_input={
+            "command": 'gh pr comment 1196 --body "hey @claude can you take a look"'
+        },
+        nofire_input={"command": 'gh pr comment 1196 --body "@claude review"'},
+        heredoc_fire_input={
+            "command": "cat > /tmp/c_1196.md <<'EOF'\nhey @claude look here\nEOF\ngh pr comment 1196 --body-file /tmp/c_1196.md"
+        },
+        notes=(
+            "highest-harm guard: denies a bare literal @claude mention in a "
+            "gh (pr|issue) (comment|create|edit) body; the canonical `@claude review` "
+            "trigger is the one allowed form. User-level registered, so registry-external."
+        ),
+    ),
+}
+
+# The matched-pair fire/silent/heredoc tests drive BOTH the registry-driven and
+# the registry-external contracts; only the completeness test stays keyed to the
+# project registry (CONTRACTS), by design.
+ALL_CONTRACTS: dict[str, hc.HookContract] = {**CONTRACTS, **REGISTRY_EXTERNAL_CONTRACTS}
+
+
 # --- completeness / drift ----------------------------------------------------
 
 
@@ -270,6 +313,10 @@ def test_every_registered_hook_has_a_contract():
 
     A registered-but-uncovered hook (drift toward an inert hook shipping unseen)
     and a contract for a hook no longer registered both fail here.
+
+    Keyed to CONTRACTS only: registry-external hooks (user-level registered) live
+    in REGISTRY_EXTERNAL_CONTRACTS and are intentionally not in the project
+    registry, so including them here would false-flag every one as `stale`.
     """
     registered = hc.distinct_hook_basenames()
     covered = set(CONTRACTS)
@@ -279,28 +326,45 @@ def test_every_registered_hook_has_a_contract():
     assert not stale, f"contracts for unregistered hooks: {sorted(stale)}"
 
 
+def test_registry_external_hook_is_genuinely_external():
+    """Each REGISTRY_EXTERNAL contract must NOT be in the project registry.
+
+    This is what keeps the two dicts from silently diverging: if a hook currently
+    contracted as registry-external ever gets registered in `.agents/settings.json`
+    at project level, it belongs in CONTRACTS (where the completeness test covers
+    it), and this test fails to say so. Also guards against an empty dict rotting
+    unnoticed.
+    """
+    assert REGISTRY_EXTERNAL_CONTRACTS, "REGISTRY_EXTERNAL_CONTRACTS is empty"
+    registered = hc.distinct_hook_basenames()
+    misfiled = registered & set(REGISTRY_EXTERNAL_CONTRACTS)
+    assert not misfiled, (
+        f"now project-registered, move to CONTRACTS: {sorted(misfiled)}"
+    )
+
+
 def test_every_contract_hook_script_exists():
-    for name, c in CONTRACTS.items():
+    for name, c in ALL_CONTRACTS.items():
         assert c.hook_path.exists(), f"{name}: hook script missing at {c.hook_path}"
 
 
 # --- the matched pair, per hook ----------------------------------------------
 
 
-@pytest.mark.parametrize("name", sorted(CONTRACTS), ids=lambda n: n.replace(".py", ""))
+@pytest.mark.parametrize("name", sorted(ALL_CONTRACTS), ids=lambda n: n.replace(".py", ""))
 def test_hook_fires_on_real_trigger(name):
     """The real trigger, driven through the real entry path, produces the artifact."""
-    c = CONTRACTS[name]
+    c = ALL_CONTRACTS[name]
     assert hc.observe(c, c.fire_input) is True, (
         f"{name}: real trigger produced no {c.observable} artifact - the hook is inert "
         f"on its own trigger (fire_input={c.fire_input})"
     )
 
 
-@pytest.mark.parametrize("name", sorted(CONTRACTS), ids=lambda n: n.replace(".py", ""))
+@pytest.mark.parametrize("name", sorted(ALL_CONTRACTS), ids=lambda n: n.replace(".py", ""))
 def test_hook_silent_on_counterexample(name):
     """A real, close counterexample produces no artifact (the matched-pair control)."""
-    c = CONTRACTS[name]
+    c = ALL_CONTRACTS[name]
     assert hc.observe(c, c.nofire_input) is False, (
         f"{name}: counterexample wrongly produced a {c.observable} artifact - the "
         f"contract cannot distinguish fire from no-fire (nofire_input={c.nofire_input})"
@@ -312,13 +376,13 @@ def test_hook_silent_on_counterexample(name):
 
 @pytest.mark.parametrize(
     "name",
-    sorted(n for n, c in CONTRACTS.items() if c.heredoc_fire_input is not None),
+    sorted(n for n, c in ALL_CONTRACTS.items() if c.heredoc_fire_input is not None),
     ids=lambda n: n.replace(".py", ""),
 )
 def test_heredoc_shape_still_fires(name):
     """A heredoc-then-command trigger fires - the exact string that left
     `matches_pr_create` dead for months while every unit test passed."""
-    c = CONTRACTS[name]
+    c = ALL_CONTRACTS[name]
     assert hc.observe(c, c.heredoc_fire_input) is True, (
         f"{name}: the heredoc-then-command shape produced no {c.observable} artifact - "
         f"this is the shape that shipped two hooks inert (input={c.heredoc_fire_input})"
@@ -370,5 +434,50 @@ def test_breaking_a_matcher_turns_the_contract_red(tmp_path):
     broken_result = hc.drive(broken_hook, fire_env)
     assert hc.deny_decision(broken_result) is False, (
         "breaking the matcher did NOT silence the hook - the contract cannot come "
+        "back red, so it is a hollow check"
+    )
+
+
+def test_breaking_check_at_claude_matcher_turns_the_contract_red(tmp_path):
+    """DEMONSTRATION (not assertion) for the registry-external guard (Issue #1196).
+
+    Same shape as the force-push demo, on the highest-harm guard: neutralize
+    `check_at_claude`'s command detection in an isolated copy, drive its real bare-
+    mention trigger through the copy, and confirm the deny observable DISAPPEARS.
+    `_shell_parse.py` is copied alongside so the hook's relative import resolves (a
+    lone copy would vanish from an import CRASH, not the matcher - a hollow red)."""
+    fire_env = hc.pretooluse_bash('gh pr comment 1196 --body "hey @claude look"')
+
+    # precondition: the real hook denies this bare mention
+    real = hc.drive(hc.HOOKS_DIR / "check_at_claude.py", fire_env)
+    assert hc.deny_decision(real) is True, "precondition: real hook must deny a bare @claude mention"
+
+    # build an isolated broken copy: the gh-comment matcher neutralized to no-op
+    # (return 0 before any deny can be printed).
+    src = (hc.HOOKS_DIR / "check_at_claude.py").read_text(encoding="utf-8")
+    marker = '    cmd = data.get("tool_input", {}).get("command", "")'
+    assert marker in src, "matcher anchor changed; update the red-on-break demo"
+    broken = src.replace(
+        marker, marker + "\n    return 0  # red-on-break: detection neutralized", 1
+    )
+    assert broken != src
+
+    broken_hook = tmp_path / "check_at_claude.py"
+    broken_hook.write_text(broken, encoding="utf-8")
+    shutil.copy2(hc.HOOKS_DIR / "_shell_parse.py", tmp_path / "_shell_parse.py")
+
+    # unbroken control: the relocated but UNbroken copy must still deny, so a
+    # silenced deny is attributable to the break, not the relocation.
+    control_hook = tmp_path / "control.py"
+    control_hook.write_text(src, encoding="utf-8")
+    control = hc.drive(control_hook, fire_env)
+    assert hc.deny_decision(control) is True, (
+        "the relocated but UNbroken copy must still deny - otherwise a silenced deny "
+        "would be an artifact of the move (e.g. a failed import), a hollow red"
+    )
+
+    broken_result = hc.drive(broken_hook, fire_env)
+    assert hc.deny_decision(broken_result) is False, (
+        "neutralizing detection did NOT silence the hook - the contract cannot come "
         "back red, so it is a hollow check"
     )
