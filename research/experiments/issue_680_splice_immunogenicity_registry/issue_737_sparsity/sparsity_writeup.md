@@ -63,4 +63,8 @@ The scarcity is itself a publishable finding - it quantifies *why* the field has
 A future source-key pass is tracked separately; it does not change the concentration conclusion (collapsing *reduces* the apparent study count, strengthening the clustering finding).
 - **The 81 is a floor, not a census.** Sequence-blocked positives (e.g. Zhao 2025) are gate-passing but excluded pending sequence retrieval; folding them would raise the count modestly but does not relieve the A\*02:01 / negative-set constraints.
 - **Soft ≠ tested-negative.** The eight IR-CRC soft negatives must never be pooled with the hard negative as equal-strength true-negatives; the tiering is enforced in [`LABELING_SCHEME.md`](../LABELING_SCHEME.md) §7 and any metric must declare which tier(s) it used.
+- **The literature route to a second hard negative is exhausted; n = 1 is not a mining gap.**
+The two neoTST "shared reservoir" preprints (Zhao PDAC, Lin/Zhao HCC), flagged by the [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911) deep-research as the most-promising candidate source, were read first-hand (2026-07-16).
+Both validate non-responders **only by mRNA-transfection**, with no minimal-peptide or tetramer arm, so their negatives are `soft`, not hard (provenance in [`PROVENANCE.md`](../PROVENANCE.md)).
+Moving n past 1 now requires **wet-lab** (minimal-peptide assay on an MS-presented splice ligand), not further curation.
 - **Power calc is illustrative.** The Hanley-McNeil sizing assumes balanced arms and a single global AUC contrast; it sets the order of magnitude of the negative requirement, not an exact target for a stratified design.

@@ -183,6 +183,22 @@ bioRxiv 2025.03.01.640928; Zotero `IJ55K4WH` (full 55-page PDF read 2026-06-22).
 - **Fails the peptide gate (why no row):** all functional validation is **transcript-level** (mRNA transfection / K562-expressing-TEtrans), never minimal-peptide pulsing. The 387 candidate neopeptides are reported **count-only** (Fig 6A funnel) - **no sequence table** in the embedded supplement, **no data deposit** (Data Availability lists only the ASJA tool repo). A peptide-keyed `registry.tsv` row is not constructable without fabricating a sequence, so none was added (no-inference rule: [`LABELING_SCHEME.md`](LABELING_SCHEME.md) section 6). Comparable to the Zhao 2025 (sequence-blocked) and long-read UM (functional-nonscorable) entries above.
 - Zotero note `NIGQEC6J` "vs our pipeline" line was refreshed at filing (2026-06-22) to reflect transcript-level-only / no peptide in source (previously stale: "row needs minimal-epitope check").
 
+## neoTST "shared reservoir" preprints - Zhao PDAC + Lin/Zhao HCC ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), hard-negative recovery; **zero rows folded**)
+Zhao et al. 2026 pancreatic, bioRxiv `10.64898/2026.02.10.705024`, Zotero `XT37BWFZ` (full PDF local); Lin/Zhao et al. 2025 HCC, bioRxiv `10.64898/2025.12.07.692877`, Zotero `T3UNU59Y` (full PDF local).
+Both were named in the [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911) run-1 deep-research (2026-07-01) as the **most-promising route to a second hard true-negative** - each reports a non-responder neoTST panel (HCC: 13 non-responders of 14; PDAC: a negative subset behind Fig 6).
+The determination that decides whether n moves 1 -> 2 is a single one: is any non-responder validated by a **minimal-peptide (synthetic) ELISpot / tetramer** assay (a hard negative), or only at transcript level (a soft negative)?
+
+**Read first-hand 2026-07-16 (both local PDFs): both validate exclusively by mRNA-transfection, so their non-responders are `soft`, not hard.**
+PDAC (`XT37BWFZ`): splenocytes from mRNA-LNP-vaccinated humanized-HLA mice are **transfected with neoTST mRNA** and read out by IFN-gamma ELISpot + flow (Methods, "splenocytes were transfected with neoTST mRNA and subjected to IFN-gamma ELISpot"; ex-vivo restim also mRNA-LNP).
+HCC (`T3UNU59Y`): identical design - mixed neoTST mRNA-LNP vaccine, splenocytes **mixed with individual neoTST mRNA** for in-vitro ELISpot + flow (Fig 2J-M legend).
+**Neither has a synthetic/minimal-peptide-pulse or tetramer arm** (searched both for `pulse` / `synthetic peptide` / `minimal peptide` / `loaded` - none).
+Transcript-level delivery cannot distinguish a peptide that is genuinely non-immunogenic from one that was mis-translated / not processed, so per [`LABELING_SCHEME.md`](LABELING_SCHEME.md) §7 these are `soft`.
+
+**Consequence: no hard-negative row folded; the field-wide hard true-negative count stays at n=1 (`VELEDHVML`, Fisher et al. 2026).**
+Same shape as the TEtrans/Li and Zhao-2025-HCC entries above (transcript-level validation, no minimal-peptide gate).
+The positive-side sequences remain separately blocked as before (Lin 2025 bioRxiv is already noted under "Not a policy against preprints" as sequence-deferred).
+Moving n past 1 now requires **wet-lab** (minimal-peptide ELISpot/tetramer on an MS-presented splice ligand, e.g. the Courcelles non-A2 immunopeptidome), not further literature mining - the literature route is exhausted.
+
 ---
 
 ## Junction mapping grades (#735)
