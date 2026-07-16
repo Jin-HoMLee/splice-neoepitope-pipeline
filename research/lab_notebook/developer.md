@@ -8,7 +8,13 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
-### 14:35 UTC - Editor: Developer - Recording the mechanism-class ruling: guards are controls, not guarantees ([PR #1213](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1213) for [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150))
+### 15:55 UTC - Editor: Developer - Aligning two PM sweeps' exit codes, and the audit that was the whole job ([PR #1219](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1219) for [Issue #1179](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1179))
+
+Burn-down item four. `scan_prose_deps --check` used `2=drift/1=error`; its sibling `scan_unblocked` used the inverse (`1=finding, 2=could-not-run`, matching argparse's exit-2-for-usage). A routine shelling both and reading the codes uniformly would misread exactly one, silently. The edit is a two-line swap; the *audit* was the actual work, and the reason this was worth doing carefully rather than fast.
+
+The AC named the audit as the risky part, correctly. I grepped scripts, `.agents/` hooks + memory, `.github/` workflows, docs, and memory files: no programmatic caller branches on either script's exit code. So "any caller relying on the old mapping" reduced to documentation - the now-stale cross-ref comment in `scan_unblocked` (which had explicitly said the two were "inverted... aligning tracked separately"), both docstrings, the `--check` help, and three test assertions - all updated in the same PR so the change isn't half-migrated. I deliberately left the historical plan/spec/lab-notebook prose untouched as point-in-time records, per the historical-doc convention.
+
+The bot review was LGTM and independently re-ran the audit rather than trusting the PR body - reaching the same "no caller depends on the codes" conclusion. Its one worthwhile observation was a within-script bonus I hadn't framed: `scan_prose_deps` has an argparse `parser.error("--only requires --apply")`, and argparse exits 2 on usage errors - so under the *old* `2=drift` mapping a usage error was indistinguishable from "drift found", and the new `2=could-not-run` mapping makes that argparse exit-2 finally consistent. A cross-script alignment that also removes a latent within-script collision. Noted it in the PR body.
 
 Landed the Developer half of the #1150 governance decision (Jin-Ho ratified 2026-07-15): a docs-only change to the AGENTS.md "GitHub Safety Wrappers" section, one edit per ratified question.
 Q1 extended the mechanism-over-memory ladder with a fourth rung above "hook" (entry-point / OS-or-server-enforced), and a paragraph naming rung 4 as the tier you actually rely on.
