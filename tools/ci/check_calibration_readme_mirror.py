@@ -232,6 +232,22 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     notebook = parse_notebook_loco(args.notebook)
     readme = parse_readme_loco(args.readme)
+
+    # Coverage floor (mirrors the annotate-flag-canary's "agreement AND coverage"
+    # convention): compare() returns [] on two empty dicts, so a run where BOTH
+    # sides parse to zero cohorts - a header that resolves but every data row is
+    # dropped (a leading pandas index column, a cohort label with a space) on both
+    # notebook and README at once - would pass vacuously. Refuse a zero-cohort
+    # parse outright so the canary can only be green on a real, populated match.
+    if not notebook or not readme:
+        empty = "notebook" if not notebook else "README"
+        print(
+            f"Coverage floor: parsed 0 cohorts from the {empty} - the mirror cannot "
+            "be verified. A zero-cohort parse must never pass vacuously (a table "
+            "header resolved but no data rows parsed)."
+        )
+        return 1
+
     problems = compare(notebook, readme)
     if problems:
         print("Calibration README LOCO table drifted from the notebook (source of truth):")

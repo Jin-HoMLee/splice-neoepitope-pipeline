@@ -8,7 +8,13 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
-### 14:35 UTC - Editor: Developer - Recording the mechanism-class ruling: guards are controls, not guarantees ([PR #1213](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1213) for [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150))
+### 15:35 UTC - Editor: Developer - A docs-mirror canary, and the coverage floor the review asked for ([PR #1217](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1217) for [Issue #1184](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1184))
+
+Burn-down item two. The calibration README quotes a LOCO table (AUPRC/lift/AUPRG) hand-copied from `notebook.ipynb`, so it drifts silently on every notebook refresh - the #1065 drift. PR #1183 fixed the instance and ran the mirror check by hand; this promotes it to a path-filtered canary.
+
+Two things worth recording. First, the parser bug that only a real run surfaces: my first header detector matched by substring, so the cell's *prose title* ("Per-cohort discrimination - AUPRC/prevalence lift vs AUPRG") looked like the header (it contains all four column words) and the parser read zero rows and reported the whole table as drift. Token-exact header matching fixed it, and I added a regression test for exactly that trap. It is the same lesson as always - drive the real artifact; a synthetic table fixture would have been built to parse and never caught it.
+
+Second, the review's one worthwhile finding was a *vacuous-pass* hole I had left: `compare({}, {})` returns clean, and the notebook parser returns `{}` (rather than raising) when the header resolves but every data row drops - so a doubly-malformed parse would be green on a broken mirror. That is precisely the "agreement AND coverage" property the sibling annotate-flag-canary already documents, and I had built the agreement half without the coverage half. Added a coverage floor in `main()` (refuse a zero-cohort parse) plus a test that drives it. The exact-equality-on-AUPRC/AUPRG choice drew an FYI about display-precision coupling, which is the intended tradeoff - it is what catches IMPROVE's 0.032 vs 0.0322 - so I left it and noted why.
 
 Landed the Developer half of the #1150 governance decision (Jin-Ho ratified 2026-07-15): a docs-only change to the AGENTS.md "GitHub Safety Wrappers" section, one edit per ratified question.
 Q1 extended the mechanism-over-memory ladder with a fourth rung above "hook" (entry-point / OS-or-server-enforced), and a paragraph naming rung 4 as the tier you actually rely on.

@@ -120,6 +120,43 @@ def test_title_line_is_not_mistaken_for_the_header():
         nb_path.unlink()
 
 
+def test_coverage_floor_rejects_a_vacuous_zero_cohort_parse(tmp_path):
+    """A header that resolves but yields zero data rows must FAIL, not pass green.
+
+    Without the coverage floor, `compare({}, {})` returns [] and the canary is
+    green on a broken mirror - the vacuous pass the sibling annotate-flag-canary
+    guards against. Here the notebook header is intact but every row carries a
+    leading index column (7 tokens vs a 6-token header), so all rows drop to {}.
+    """
+    import json
+
+    zero_row_nb = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "outputs": [
+                    {
+                        "output_type": "stream",
+                        "text": [
+                            "Per-cohort discrimination:\n",
+                            " cohort  true_pos  prevalence  AUPRC  lift  AUPRG\n",
+                            "  0    NCI    103    0.000245 0.0359 146.7 0.9999\n",
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+    nb_path = tmp_path / "zero.ipynb"
+    nb_path.write_text(json.dumps(zero_row_nb), encoding="utf-8")
+
+    # the parse is genuinely empty (rows dropped), and compare would pass vacuously
+    assert m.parse_notebook_loco(nb_path) == {}
+    assert m.compare({}, {}) == []
+    # but main() refuses it via the coverage floor
+    assert m.main(["--notebook", str(nb_path)]) == 1
+
+
 def test_missing_table_raises():
     import json
     import tempfile
