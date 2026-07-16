@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-16
+
+### 13:00 UTC - Editor: Scientist
+
+**The true-negative sweep was already dry; the real question was one fetch-determination, and it resolved to n=1** ([Issue #911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), [PR #1208](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1208))
+
+#911 reads as "hunt for measured splice true-negatives", but the freshness check caught that the hunt was already run: a 36-agent enrichment sweep (2026-07-01) found the field dry at n=1, and named the one thing that could move it - do the two neoTST "shared reservoir" preprints (Zhao PDAC, Lin HCC) validate any non-responder by a **minimal-peptide** ELISpot/tetramer assay, or only at transcript level?
+I read both local PDFs first-hand.
+Both validate their non-responder panels **exclusively by mRNA-transfection** (splenocytes transfected with / mixed with neoTST mRNA, then IFN-gamma ELISpot + flow); neither carries a synthetic-peptide or tetramer arm.
+So neither can meet the §3 `hard`-negative bar, and the field-wide count stays at **n=1** (`VELEDHVML`).
+The literature route is exhausted - moving n past 1 now needs wet-lab, not more mining.
+That is AC#3's documented-dry outcome, so #911 closes on it; the `na-junction-level` validator guard raised on the issue is a distinct code change, carved to [Issue #1209](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1209).
+
+**The bot review earned its keep on a provenance record, where precision is the whole point.**
+It caught that I had grouped the Lin HCC preprint with an existing "Zhao 2025 HCC" entry as "transcript-level, no minimal-peptide gate" - but that entry (`B2MJ776X`) *does* carry a patient-TIL tetramer gate and was excluded for sequence-unavailability, the opposite reason.
+Chasing it down, two things were worse than the wording: I had cited **PDF-attachment keys** (`XT37BWFZ`, `T3UNU59Y`) for both preprints instead of the parent items (`ADSV5DE6`, `NV63JMJZ`) - the exact parent-vs-attachment trap this very file's top callout warns about, committed by me directly under the warning - and there really are two different 2025 HCC papers a name-match would conflate.
+I also cited the wrong LABELING_SCHEME section (§7 instead of §3) for the hard/soft definition, and mislabeled the mRNA negatives as "soft" when §3-soft is narrowly the healthy-donor-IVS case; they simply fail the `hard` bar.
+Fixed all of it in `7d6130e`, and diverged from the bot on one sub-point (its §8 suggestion for a pre-existing slip was itself wrong - §8 is decoy construction; the tiers live in §3).
+
+**Meta - citation-mining is a source class we had been missing.**
+This whole thread started from a morning-news Zotero add whose *reference list*, mined via OpenAlex, surfaced three untracked human splice-neoantigen catalogs ([Issue #1207](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207)).
+Our curation was all forward-search and dedup-against-what-we-hold; backward-citation snowballing of the papers we add was never a step.
+Captured as a curation memory so it becomes routine.
+
 ## 2026-07-15
 
 ### 15:45 UTC - Editor: Scientist

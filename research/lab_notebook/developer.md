@@ -6,7 +6,44 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-16
+
+### 13:05 UTC - Editor: Developer - The repo-guard hook, and two web-checks that moved my recommendation ([PR #1210](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1210) for [Issue #1083](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1083))
+
+Built the `gh issue create` repo-guard: a PreToolUse hook that catches a create targeting the wrong repo on a board that spans two.
+The mechanical part was easy - it mirrors `check_gh_issue_develop_parent.py` almost line for line.
+The part worth recording is that the two hard questions were both settled by web best-practice checks, and the second one **reversed** the recommendation I walked in with.
+
+**Warn, do not block.** The #1150 ruling already said these hooks are best-effort convenience controls, and the guardrail literature agrees hard: start in warn mode, treat false positives as the real cost (an over-eager guard gets disabled), fail open.
+That mapped cleanly onto `permissionDecision: "ask"` (confirm-or-cancel) instead of `deny`, plus a deterministic-first signal (the `role:memory_manager` label is the spine; keywords only corroborate; anything ambiguous allows).
+
+**Coverage: I was about to copy a known-bad pattern.** My first instinct was user-level registration, matching the `@-claude` guard.
+The web check on hook placement said the opposite: version-control team-enforced hooks, because a machine-local hook silently misses on a fresh clone - which is *exactly* the #799/#978 pain the `@-claude` guard already caused us.
+So the guard ships VCS'd per-repo (project side now, personas twin as an MM follow-up).
+The lesson is not "user-level bad" - it is that "fires cross-cwd" and "machine-local" are separable, and I had conflated them because a sibling did.
+Checking us against the world, not against ourselves, is what caught it.
+
+**The review found the precision leak I had left in.** `star` in the project keyword set matched `start`/`restart`/`startup` by substring, so an unlabelled "start the board-hygiene workflow" create would have false-asked - the precise failure the precision-first design exists to avoid.
+Fixed with word-boundary matching for plain-word keywords (substring kept only for the fragment keywords like `feedback_`/`shared/`), plus a matched-pair regression test.
+A guard whose whole selling point is "few false positives" shipping with a substring false-positive is the kind of thing a careful adversarial read catches and a self-review does not.
+
+Left AC5 (memory-bullet reconciliation) open on purpose: it and the personas twin both live in MM-owned territory, so they carve into one MM follow-up rather than getting faked from the Developer seat.
+
 ## 2026-07-15
+
+### 16:13 UTC - Editor: Developer - STAR runs end-to-end locally, and the diagnosis I inherited was a plausible wrong story ([PR #1202](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1202))
+
+The containerized linux-64 STAR path now runs the chr22 test end to end (`3 of 3 steps`, tumor 3379 / normal 3105 raw junctions, 388 classified records). That clears the arc bottleneck the 07-14 entry named: two verifications, including that day's own deferred STAR A/B, were booked against #1162 and could not move until it did.
+
+**The lesson worth keeping: the parked diagnosis was confident, specific, and wrong, and only the log said so.** My own post-it told me the 07-14 run "died `Cannot allocate memory` in two-pass mode. Cause: `--limitSjdbInsertNsj 2000000` (whole-genome number)." That is a clean, plausible story - a whole-genome constant in a 4 GB VM - and I could have "fixed" it by test-scaling the cap, watched the run pass for an unrelated reason, and shipped a fix aimed at the wrong layer. The actual `SJ.out.tab` log refuses that reading: two-pass junction insertion **completed** (`finished inserting junctions into genome`), and STAR died one step later trying to `vfork` `zcat` at 2nd-pass start, with **every** subprocess spawn failing (even its internal `ls`). That is a fork-accounting failure in a swapless VM, not an sjdb allocation - the log even shows only ~2.1 Mbp / ~10K junctions were actually inserted, nowhere near the 2M cap. A `vfork` shares the parent address space and immediately execs, so overcommit accounting is the whole problem; `vm.overcommit_memory=1` in the VM is the fix. **A signal that pattern-matches a known failure can have a different cause, and the parked note is a hypothesis, not a finding.** I only caught it because I read the failure log before touching the code the note pointed at.
+
+**What made the fix a fix and not a coincidence:** the 07-14 log *is* the controlled "before". Same command, same inputs, same 4 GB VM; the only variable I changed was overcommit, and the run that deterministically died at 2nd-pass now clears it. Fork-ENOMEM under a fixed VM size is deterministic, not flaky, so before/after against that log is a real control, not a hopeful re-run.
+
+**AC4, and a near-miss on my own attribution.** STAR vs HISAT2 tumor_exclusive overlap came back **4 of 122** - alarmingly low, and the easy move is to write "aligners differ" and move on. But this pipeline's recurring bug class is coordinate-convention drift (regtools BED12 anchor-outer, STAR SJ 1-based), and a coordinate mismatch produces *exactly* a near-zero overlap that looks like biology. So I checked before attributing: **499 exact raw matches and a single off-by-one near-miss** rules out a systematic shift. The divergence is real aligner sensitivity - overlap climbs from 26% at reads>=1 to 66% at reads>=5, so the disagreement lives in the single-read noise floor, and the classified collapse is that noise amplified through filtering. Both arms ran knob-off, so the difference is the aligner, not the read-support semantic. **A two-instrument disagreement is a signal to investigate, not a number to report.**
+
+**Loop closed on the 07-14 knob.** The matched-pair (STAR knob off vs on, regenerated from the same `SJ.out.tab`) confirms #1118's uniqueness knob is genuinely wired into this path: 1798 multimapper-only junctions drop when on, 254 shared junctions lose their multimapper counts, knob-on is a strict subset of knob-off. Yesterday that A/B was unrunnable and left unticked; today it runs on the container, which was the entire point of #1162.
+
+**Scope held.** Retiring HISAT2 and deciding the uniqueness default (#1122 / #1161, Scientist-owned) stayed out. The bot review found no blocking issues; I took its Docker-Desktop-silent-miss point (`7b4e89c`) because it is the same silent-failure class this PR exists to fix, arriving from a path the guard did not cover.
 
 ### 11:29 UTC - Editor: Developer - A test that drives the hook the way the harness does, so an inert one reds ([PR #1195](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1195) closes [Issue #1140](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1140))
 
@@ -33,6 +70,26 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 ---
 
 ## 2026-07-14 - The queue was lying, and it had been for months ([Issue #1153](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1153))
+
+### 16:30 UTC - Editor: Developer - A score that works, and the question it hands back ([Issue #1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116), [PR #1171](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1171))
+
+Built the Portcullis anchor-vs-intron repeat-embedding score and evaluated it on chr22. **It works, it is validated against a method that is not mine, and the most important thing I did was refuse to use it.**
+
+**The falsifier is the whole reason to believe any of this.** I did not want to hand the Scientist a number I could not kill, so the evaluation leans on something I did not build: the [#919](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/919) run had already annotated every junction with **RepeatMasker** overlap - a completely different method. If low-Hamming junctions were not enriched for RepeatMasker overlap, the score is not a repeat detector and #1116's premise is dead. They are: **+5.0 median separation, 18x in flagged fraction, in the predicted direction, replicating on the normal sample.** Two unrelated methods agreeing is what separates a finding from a number, and I have spent this week learning that the hard way.
+
+**A third independent strike against the NH gate, and this one is a *positive* test.** Sci disqualified it structurally; #919 found no enrichment; and now: if the gate were a proxy for "remove repeat-driven artifacts" it should enrich sharply for low-Hamming junctions. **It does not.** It *keeps* 1,605 junctions of which **70% are repeat-embedded**, while removing 267 of which 85% are - barely distinguishable, on the axis it was supposed to be selecting on, while costing 28.5% of candidates and manufacturing a false `tumor_exclusive`. The gate was never doing the job assumed of it.
+
+**And then the result turned around and pointed at me.** The score separates annotated from unannotated junctions **120-fold** (0.7% vs 84.7% flagged). Which sounds like a triumph until you notice: **our candidates are unannotated by definition.** A `tumor_exclusive` junction is one that is *not* in GENCODE. So a naive `min_hamming <= 2` filter deletes **~85% of the candidate pool** - and this score genuinely **cannot** distinguish "repeat-driven noise" from "real novel junction in a repeat-rich locus", when IG/HLA/TCR are precisely the repeat-rich loci this pipeline exists to hunt. That is the `IGLV2` failure mode arriving by a completely different road.
+
+**So I shipped it wired into nothing.** Every instinct said *use it, it's a great filter, look at the separation*. That instinct is exactly what produced the defect I spent this morning fixing - an engineering choice silently making a scientific call, and the call was wrong. **The discipline is not "verify before you gate"; it is knowing that some questions are not mine to answer with a threshold.** I gave Sci the numbers and the two readings and asked what would inform the decision, rather than guessing which one I preferred.
+
+**The bot caught something I should have caught: my coordinate check was partly tautological.** I advertised "400/400 canonical GT..AG, so the coordinates are right." But the input is *already motif-gated upstream* (regtools takes strand from HISAT2's motif-derived `XS`; the STAR script drops non-canonical codes), so there were **no non-canonical junctions left in the input to dilute the count.** The check still does its real job - an off-by-one would shift every window onto the wrong dinucleotides and fail - but "canonical motif must dominate" claimed evidence the design could not produce. **A check whose input has been pre-filtered on the very property it tests is measuring the filter, not the data.** That is the `a_check_must_be_able_to_fail` shape one level up: not a check that cannot fail, but a check whose *pass* is partly guaranteed by construction. Reworded to claim only what it proves.
+
+**Also rescoped the Issue before touching it**, and that mattered: two of its six ACs were written before the #1122 verdict and had gone stale. The FineSplice **rescue** lever exists to buy back sensitivity lost to a hard gate - and #1118 turned that gate off this morning, so there is nothing left to rescue. Declined it explicitly, with an invitation to object, rather than either building it dutifully or dropping it silently.
+
+**Lesson:** the two best moves today were both *refusals*. Refusing to gate on a score I could not interpret, and refusing to execute an AC whose premise had evaporated. The work I am proudest of in this session is the code I did not write.
+
+---
 
 ### 15:40 UTC - Editor: Developer - The filter production was already running, that nobody chose ([Issue #1118](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1118), [PR #1168](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1168))
 

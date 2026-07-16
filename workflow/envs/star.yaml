@@ -16,6 +16,12 @@ dependencies:
   # settles — re-test before bumping with:
   #   CONDA_OVERRIDE_GLIBC=2.35 conda create --dry-run --platform linux-64 \
   #     -c bioconda -c conda-forge star=2.7.11b   # must SOLVE
+  #
+  # macOS arm64 note (ADR-0003 / Issue #1162): this env is NEVER solved on arm64.
+  # bioconda ships no osx-arm64 and no linux-aarch64 STAR at 2.7.10b, so the local
+  # path runs inside a linux/amd64 container (scripts/run_local_linux64.sh), where
+  # 2.7.10b solves like production. Do NOT bump to 2.7.11b to "fix" an arm64 solve
+  # failure: 2.7.11b would reintroduce the #629 linux-64 htslib conflict above.
   - star=2.7.10b
   # samtools intentionally omitted: the star_align rule runs with `--outSAMtype None`
   # (workflow/rules/alignment.smk) — it emits only SJ.out.tab, never a BAM — so samtools

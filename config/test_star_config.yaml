@@ -1,0 +1,16 @@
+# STAR overlay for the chr22 test config (Issue #1162, ADR-0003).
+#
+# Layer it ON TOP of config/test_config.yaml in a SINGLE --configfile invocation;
+# Snakemake deep-merges later files over earlier ones, so only the keys below are
+# overridden and everything else in test_config.yaml is inherited:
+#
+#   bash scripts/run_local_linux64.sh --cores 4 --use-conda \
+#     --configfile config/test_config.yaml config/test_star_config.yaml
+#
+# Passing --configfile twice does NOT work (Snakemake 8 argparse nargs="+" makes the
+# second invocation replace the first). See CLAUDE.md, "configfile flag collapsing".
+#
+# This must go through scripts/run_local_linux64.sh on macOS: bioconda ships STAR for
+# neither osx-arm64 nor linux-aarch64, and the macOS builds read zero reads.
+alignment:
+  aligner: "star"

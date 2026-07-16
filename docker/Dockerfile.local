@@ -1,0 +1,39 @@
+# linux-64 local development runner (Issue #1162, implements ADR-0003).
+#
+# WHY THIS EXISTS
+# ---------------
+# Snakemake has no Docker/Podman execution backend, so this image does not hold
+# per-rule containers: it runs *Snakemake itself* on linux-64, and the workflow's
+# own `--use-conda` envs are then created inside it. That is what makes the STAR
+# path work on an Apple Silicon dev box:
+#
+#   - bioconda ships no `osx-arm64` STAR at our pinned version, and both macOS
+#     builds (native arm64 and Rosetta osx-64) build the index fine but then read
+#     ZERO reads from every FASTQ (`nextChar=-1`). See ADR-0003.
+#   - bioconda ships no `linux-aarch64` STAR either, so a *native* Linux VM on an
+#     M1 fails the same way, one platform over (verified by dry-solve, Issue #1162).
+#
+# So the load-bearing property is `x86_64`, not merely "Linux". On Apple Silicon
+# the cheap x86_64 Linux is a Rosetta-translated linux/amd64 container, which is
+# exactly what ADR-0003 specified.
+#
+# On a native linux-64 host (CI, any funded VM) none of this is needed: run
+# Snakemake directly with `--use-conda`. This image is a *local dev* affordance.
+FROM --platform=linux/amd64 condaforge/miniforge3:24.11.3-2
+
+# Snakemake's `--use-conda` shells out to a conda frontend; miniforge provides
+# both `conda` and `mamba`, so no frontend flag is needed at call time.
+RUN mamba install -y -c conda-forge -c bioconda \
+        "snakemake>=8,<9" \
+    && mamba clean --all --yes
+
+# Rules that shell out expect these on PATH outside their own conda envs.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps gzip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+
+# No ENTRYPOINT: the wrapper passes a full snakemake command line, so the image
+# stays usable for ad-hoc shells (`docker run ... bash`) during debugging.
+CMD ["snakemake", "--help"]
