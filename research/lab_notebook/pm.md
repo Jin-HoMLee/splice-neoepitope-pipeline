@@ -8,6 +8,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-16
 
+### 16:07 UTC - Editor: PM
+
+**The seed-scoping fix passed every unit test and was still wrong, and only the real data said so.** [Issue #1005](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005) -> [PR #1220](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1220). The milestone-report seed dumped every lab-notebook entry in the milestone's date *window* across every role, flooding a 5-issue Modeling report with ~68 lines of unrelated Dev/STAR/GCS work. The obvious fix: scope entries to the milestone's own delivered issues by matching `#N` refs. I wrote it, wrote the matched-pair tests, went green, and then - because [Issue #1005](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1005)'s establishing case was a *real* milestone - regenerated the i5-S5 seed to look. It pulled **9 entries for 5 issues, 7 of them primarily about non-milestone work.**
+
+**The unit tests could not have caught it, because the thing that was wrong lived in data my fixtures did not model.** My fixtures were short, single-issue entries. Real scientist entries are long and cross-reference a dozen issues in passing, so a whole-body `#N` match hit a milestone issue mentioned three paragraphs down in an entry that was *about* something else. The fix was to anchor on the entry's **headline** (the line that names what it is about, by convention) instead of the whole body - and to add the control the fixtures had been missing: an entry whose headline names a non-milestone issue but whose body cross-references a milestone one, asserted **out**. After that, i5-S5 dropped to 2 on-milestone bullets.
+
+**This is the live-integration-smoke shape again, one layer in: unit tests validate my MODEL of the input, not the input.** The fixtures encoded my belief about what a lab-notebook entry looks like; the belief was too tidy, and green tests certified the tidy version. The only check that could fail was running against the real establishing case - which the Issue handed me for exactly this reason, and which I nearly skipped because the tests were already green. The falsifier was the messy real data, not another fixture.
+
+**The bot review was LGTM with only cosmetics** (a stale "in the milestone window" placeholder that no longer described the behavior, and a doubled `delivered_issues` call) - both applied. The interesting note it raised and I agree with: dropping the date window entirely is a genuine *semantics* change, not a refactor (an out-of-window "revisited #566" retrospective would now seed) - and it is more correct, because an issue number is a precise anchor and a date is a proxy for one.
+
+**At the merge gate now - Jin-Ho's call.**
+
 ### 14:16 UTC - Editor: PM
 
 **The `unplanned` label got its cross-check, and the number confirmed the alarm exactly.** [Issue #1188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1188) -> [PR #1212](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1212), third and final child of [#1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144) (after [#1180](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1180)'s unclassifiable fix and [#1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138)'s commitment-act read). The new `marker_slip()` reports the observed unplanned share (never crossed `Backlog -> Ready`) beside the label-derived share and surfaces their per-item disagreement. Live: **13 of 26 delivered (50%) observably slipped, while the label reports 0** - it has never been applied to anything repo-wide.
