@@ -1,0 +1,43 @@
+name: Calibration README canary
+
+# CI canary for Issue #1184: the calibration experiment's README LOCO table
+# (AUPRC / lift / AUPRG per cohort) is a hand-copied mirror of numbers computed in
+# notebook.ipynb, so it drifts silently whenever the notebook is refreshed and the
+# README is not - exactly the Issue #1065 drift (pre-#805 numbers surviving in the
+# README for weeks). This asserts the README still reproduces the notebook's
+# committed output cell and fails loudly on any disagreement.
+#
+# Path-filtered: runs only on PRs that touch the README, the notebook, or the
+# check's own moving parts. A separate workflow (not a job in tests.yml) so the
+# path filter gates THIS check without throttling the unconditional pytest job -
+# which already runs the check's unit tests (test_check_calibration_readme_mirror).
+
+on:
+  push:
+    branches: [main]
+    paths: &paths
+      - research/experiments/issue_547_immunogenicity_calibration/README.md
+      - research/experiments/issue_547_immunogenicity_calibration/notebook.ipynb
+      - tools/ci/check_calibration_readme_mirror.py
+      - tools/ci/test_check_calibration_readme_mirror.py
+      - .github/workflows/calibration-readme-canary.yml
+  pull_request:
+    branches: [main]
+    paths: *paths
+
+jobs:
+  calibration-readme-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Assert README LOCO table mirrors the notebook (notebook is source of truth)
+        # Pure stdlib - no dependencies to install. Exits non-zero and names every
+        # drifted cell on disagreement.
+        run: python tools/ci/check_calibration_readme_mirror.py

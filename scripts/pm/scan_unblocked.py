@@ -69,11 +69,10 @@ routine uses.
 
 **Exit codes:** `0` = ran fine (advisory, or `--check` with nothing to decide); `1` =
 ran fine, `--check` gate tripped; `2` = **could not run** (GitHub unreachable / ack
-write failed), matching argparse's own exit-2-for-usage-error convention. Note this is
-**inverted relative to `scan_prose_deps.py --check`** (which uses 2=drift, 1=infra
-error). Both are internally consistent; a routine shelling several PM sweeps must not
-assume a uniform mapping. Aligning them is tracked separately rather than silently
-changed here.
+write failed), matching argparse's own exit-2-for-usage-error convention.
+`scan_prose_deps.py --check` shares this **exact** mapping (aligned in Issue #1179,
+which adopted this one as canonical), so a routine shelling several PM `--check`
+sweeps can read the codes uniformly: `1` = a finding, `2` = did not execute.
 
 ## Scope note
 
