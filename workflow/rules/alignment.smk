@@ -306,9 +306,23 @@ if config.get("alignment", {}).get("aligner") == "hisat2":
 
 elif config.get("alignment", {}).get("aligner") == "star":
 
+    from star_command import build_read_files_in
+
     _STAR_INDEX_DIR = config.get("alignment", {}).get(
         "star_index_dir", "indices/star"
     )
+
+    def _get_star_read_args(wildcards, input):
+        """Resolve STAR's --readFilesIn value (single-end vs paired-end) for one sample.
+
+        Mirrors `_get_hisat2_read_args`: delegates the single-end / paired-end
+        selection to the pure `build_read_files_in` helper (unit-tested in
+        test_star_command.py). Reads the already-resolved input paths so the
+        emitted command uses exactly the staged files. `input.fastq2` is a
+        (possibly empty) list from `_get_fastq2`.
+        """
+        fastq2 = input.fastq2[0] if input.fastq2 else ""
+        return build_read_files_in(input.fastq1, fastq2)
 
     rule star_index:
         """Build STAR genome index (one-time; reused for all samples).
@@ -374,6 +388,7 @@ elif config.get("alignment", {}).get("aligner") == "star":
             # by the same config knob as the HISAT2 NH prefilter (`_UNIQ_ENABLED`,
             # from `uniqueness_filter.is_enabled`). Empty string = count all reads.
             uniqueness_flag="--unique-only" if _UNIQ_ENABLED else "",
+            read_files_in=_get_star_read_args,
         threads: config.get("alignment", {}).get("threads", 8)
         resources:
             mem_mb=32000,
@@ -387,16 +402,11 @@ elif config.get("alignment", {}).get("aligner") == "star":
                 READCMD="--readFilesCommand zcat"
             fi
 
-            FASTQ_FILES="{input.fastq1}"
-            if [[ -n "{input.fastq2}" ]]; then
-                FASTQ_FILES="{input.fastq1} {input.fastq2}"
-            fi
-
             STAR \\
                 --runMode alignReads \\
                 --runThreadN {threads} \\
                 --genomeDir {input.index_dir} \\
-                --readFilesIn $FASTQ_FILES \\
+                --readFilesIn {params.read_files_in} \\
                 $READCMD \\
                 --outFileNamePrefix {params.output_prefix} \\
                 --outSAMtype None \\

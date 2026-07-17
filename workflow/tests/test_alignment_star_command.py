@@ -13,6 +13,7 @@ This is the first shell-level rule snapshot test in the codebase. Existing
 tests cover pure Python helpers (test_strandness.py, test_bed12_to_junctions.py,
 test_star_sj_to_junctions.py, etc.); this complements them at the rule layer.
 """
+import re
 import shutil
 import subprocess
 import textwrap
@@ -85,6 +86,59 @@ def star_dry_run_output(tmp_path_factory):
     return result.stdout
 
 
+@pytest.fixture(scope="module")
+def star_dry_run_output_single_end(tmp_path_factory):
+    """Render the star_align command for a SINGLE-END sample (empty fastq2).
+
+    The main fixture is paired-end; this one closes the SE gap the #1081 review
+    flagged, so `--readFilesIn` is asserted to render the helper's SE form (r1
+    only) at the rule layer, not just in the pure-helper unit test.
+    """
+    if shutil.which("snakemake") is None:
+        pytest.skip("snakemake not on PATH - activate the snakemake conda env")
+
+    tmp_path = tmp_path_factory.mktemp("star_stub_se")
+    fq1 = tmp_path / "test_R1.fq.gz"
+    fq1.touch()  # no R2: single-end
+
+    star_index_dir = tmp_path / "star_index"
+    star_index_dir.mkdir()
+    (star_index_dir / "index.done").touch()
+
+    samples = tmp_path / "samples.tsv"
+    samples.write_text(
+        "patient_id\tsample_id\tsample_type\tfastq1\tfastq2\n"
+        f"testpatient\ttestsample\tPrimary Tumor\t{fq1}\t\n"  # empty fastq2 = SE
+    )
+
+    override = tmp_path / "override.yaml"
+    override.write_text(textwrap.dedent(f"""\
+        samples_tsv: "{samples}"
+        alignment:
+          aligner: "star"
+          star_index_dir: "{star_index_dir}"
+    """))
+
+    target = "results/testpatient/alignment/testsample/raw_junctions.tsv"
+    result = subprocess.run(
+        [
+            "snakemake", "-n", "--printshellcmds",
+            "--configfile", "config/config.yaml", str(override),
+            "--", target,
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.fail(
+            f"snakemake SE dry-run failed (exit {result.returncode}):\n"
+            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+        )
+    return result.stdout
+
+
 def test_star_align_uses_twopass_mode(star_dry_run_output):
     """2-pass mode is the flag that gives STAR its novel-junction edge over HISAT2."""
     assert "--twopassMode Basic" in star_dry_run_output
@@ -108,3 +162,38 @@ def test_star_align_does_not_throttle_min_unique_count(star_dry_run_output):
 def test_star_align_does_not_throttle_min_total_count(star_dry_run_output):
     """--outSJfilterCountTotalMin throttles output below paper baseline."""
     assert "--outSJfilterCountTotalMin" not in star_dry_run_output
+
+
+def test_star_align_readfilesin_renders_helper_output(star_dry_run_output):
+    """The rule renders `--readFilesIn` from `build_read_files_in` (Issue #1081).
+
+    The stub sample is paired-end, so the helper emits the space-separated
+    `<r1> <r2>` file list - proving the SE/PE construction now flows through the
+    extracted helper rather than the removed inline shell.
+    """
+    assert re.search(
+        r"--readFilesIn \S*test_R1\.fq\.gz \S*test_R2\.fq\.gz", star_dry_run_output
+    ), "expected --readFilesIn to render the paired-end file list from the helper"
+
+
+def test_star_align_inline_fastq_files_block_is_gone(star_dry_run_output):
+    """The old inline `FASTQ_FILES=...` shell assembly is fully replaced.
+
+    Its absence is the behaviour-preserving signature of the extraction: if it
+    reappeared the rule would be building the read list two ways.
+    """
+    assert "FASTQ_FILES=" not in star_dry_run_output
+
+
+def test_star_align_readfilesin_renders_single_end(star_dry_run_output_single_end):
+    """SE render: `--readFilesIn` carries only r1, no second file (Issue #1081 review).
+
+    Complements the paired-end wiring test - together they prove both helper
+    branches flow through the rule end-to-end, not just at the unit layer.
+    """
+    assert re.search(
+        r"--readFilesIn \S*test_R1\.fq\.gz", star_dry_run_output_single_end
+    ), "expected --readFilesIn to render the single-end r1 file from the helper"
+    assert "test_R2" not in star_dry_run_output_single_end, (
+        "single-end render must not include a second read file"
+    )
