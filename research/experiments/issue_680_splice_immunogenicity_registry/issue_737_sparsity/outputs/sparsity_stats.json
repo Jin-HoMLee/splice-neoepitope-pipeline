@@ -1,15 +1,15 @@
 {
-  "registry_rows_total": 96,
-  "dual_gate_rows": 94,
-  "scorable_positives": 81,
+  "registry_rows_total": 97,
+  "dual_gate_rows": 95,
+  "scorable_positives": 82,
   "by_study": {
-    "n": 81,
-    "distinct": 10,
+    "n": 82,
+    "distinct": 11,
     "top": "Bigot 2021 (SF3B1 UM)",
-    "top_share": 0.432,
-    "top2_share": 0.654,
-    "hhi": 0.26,
-    "effective_n": 3.84,
+    "top_share": 0.427,
+    "top2_share": 0.646,
+    "hhi": 0.254,
+    "effective_n": 3.93,
     "counts": {
       "Bigot 2021 (SF3B1 UM)": 35,
       "Kim 2025 (SF-mutant leukemia)": 18,
@@ -20,19 +20,20 @@
       "Fisher 2026 (CoREST)": 2,
       "Kwok 2024 (Nature)": 2,
       "Xiong 2025 (GBM)": 1,
-      "POSTN-203 study": 1
+      "POSTN-203 study": 1,
+      "Kim GB 2022 STM (COL6A3 tumor-stroma)": 1
     }
   },
   "by_allele": {
-    "n": 81,
+    "n": 82,
     "distinct": 6,
     "top": "HLA-A*02:01",
-    "top_share": 0.889,
-    "top2_share": 0.938,
-    "hhi": 0.794,
+    "top_share": 0.89,
+    "top2_share": 0.939,
+    "hhi": 0.796,
     "effective_n": 1.26,
     "counts": {
-      "HLA-A*02:01": 72,
+      "HLA-A*02:01": 73,
       "HLA-A*11:01": 4,
       "HLA-C*04": 2,
       "HLA-C*08": 1,
@@ -41,16 +42,16 @@
     }
   },
   "by_mechanism": {
-    "n": 81,
+    "n": 82,
     "distinct": 10,
     "top": "alt_3p_ss",
-    "top_share": 0.395,
-    "top2_share": 0.63,
+    "top_share": 0.39,
+    "top2_share": 0.634,
     "hhi": 0.238,
     "effective_n": 4.2,
     "counts": {
       "alt_3p_ss": 32,
-      "alt_splice_junction": 19,
+      "alt_splice_junction": 20,
       "exon_te_junction": 10,
       "neojunction_frameshift": 6,
       "alt_5p_ss": 4,

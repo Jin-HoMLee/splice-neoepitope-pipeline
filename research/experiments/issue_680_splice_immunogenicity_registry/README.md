@@ -14,12 +14,10 @@ A feasibility gate established that only ~tens of such peptides exist field-wide
 
 ## Sparsity analysis (#737)
 
-The scarcity is quantified rigorously in [`issue_737_sparsity/sparsity_writeup.md`](issue_737_sparsity/sparsity_writeup.md) (manuscript-ready prose), computed by [`issue_737_sparsity/notebook.ipynb`](issue_737_sparsity/notebook.ipynb) → [`issue_737_sparsity/outputs/`](issue_737_sparsity/outputs/), and condensed in the experiment deck [`issue_737_sparsity/slides.qmd`](issue_737_sparsity/slides.qmd). Headline numbers (on the **81 scorable positives**, computed on the n=81 snapshot 2026-06-30):
+The scarcity is quantified rigorously in [`issue_737_sparsity/sparsity_writeup.md`](issue_737_sparsity/sparsity_writeup.md) (manuscript-ready prose), computed by [`issue_737_sparsity/notebook.ipynb`](issue_737_sparsity/notebook.ipynb) → [`issue_737_sparsity/outputs/`](issue_737_sparsity/outputs/), and condensed in the experiment deck [`issue_737_sparsity/slides.qmd`](issue_737_sparsity/slides.qmd). Headline numbers (on the **82 scorable positives**):
 
-> ⚠️ The COL6A3-FLNV addition (row 82, A\*02:01, +1 study; 2026-07-07) is not yet folded into these effective-count figures. The qualitative conclusions (A\*02:01 monoculture, ~1 hard negative, few effective studies) are unchanged; a recompute of the #737 sparsity analysis is tracked as a follow-up.
-
-- **Few-study assembly:** 10 studies, but top study = 43%, top two = 65%, **effective ≈ 3.8** independent studies (inverse-Simpson of the per-study shares).
-- **A\*02:01 monoculture:** 72/81 (89%) are A\*02:01 → **effective ≈ 1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
+- **Few-study assembly:** 11 studies, but top study = 43%, top two = 65%, **effective ≈ 3.9** independent studies (inverse-Simpson of the per-study shares).
+- **A\*02:01 monoculture:** 73/82 (89%) are A\*02:01 → **effective ≈ 1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
 - **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime); a powered AUC probe needs **19-31** negatives (Hanley-McNeil), so field-wide specificity is currently unmeasurable.
 - The two rate-limiting reagents named by the analysis: non-A\*02:01 functionally-validated positives ([#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)) and measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).
 
