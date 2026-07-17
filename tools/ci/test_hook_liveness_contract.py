@@ -108,7 +108,11 @@ _EMDASH = chr(0x2014)
 CONTRACTS: dict[str, hc.HookContract] = {
     "check_gh_issue_develop_parent.py": hc.HookContract(
         basename="check_gh_issue_develop_parent.py",
-        observable=hc.DENY,
+        # Post-Issue #1155 the hook emits `ask` (advisory), not `deny` - the real
+        # block moved to the merge-time parent_child_gate. Observed via FIRE_LOG
+        # (matcher liveness), matching the sibling ask-emitting repo-guard; the
+        # precise ask-not-deny decision is pinned in test_check_gh_issue_develop_parent.
+        observable=hc.FIRE_LOG,
         envelope_builder="pretooluse_bash",
         fire_input={"command": "gh issue develop 538 --name feat/x --checkout"},
         nofire_input={"command": "gh issue view 538"},
@@ -116,7 +120,7 @@ CONTRACTS: dict[str, hc.HookContract] = {
             "command": "cat > /tmp/plan.md <<'EOF'\nbranching notes for the epic\nEOF\ngh issue develop 538 --name feat/x --checkout"
         },
         gh_stub_source=_STUB_GH_ISSUE_DEVELOP_PARENT,
-        notes="denies branching off a parent/epic (subIssuesSummary.total > 0)",
+        notes="warns (ask + fire-log) on branching off a parent/epic (subIssuesSummary.total > 0); merge-time gate is the real block (#1155)",
     ),
     "check_gh_issue_create_repo.py": hc.HookContract(
         basename="check_gh_issue_create_repo.py",
