@@ -28,8 +28,11 @@ D3_PATH = HERE / "vendor" / "d3.v7.min.js"
 
 GRAPH_DATA_RE = re.compile(
     r'[ \t]*<script id="graph-data"[^>]*>.*?</script>\n?', re.DOTALL)
+# Leading \n? is load-bearing: build() inserts this block as "<head>\n" + block,
+# so the strip must also consume that leading newline or a blank line accumulates
+# after <head> on every rebuild (non-idempotent output → CI freshness gate flaps).
 D3_INLINED_RE = re.compile(
-    r'[ \t]*<script id="d3-inlined">.*?</script>\n?', re.DOTALL)
+    r'\n?[ \t]*<script id="d3-inlined">.*?</script>\n?', re.DOTALL)
 # The CDN tag we replace with the inlined library.
 D3_CDN_RE = re.compile(
     r'[ \t]*<script src="https://d3js\.org/d3\.v7[^"]*"></script>\n?')
