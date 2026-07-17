@@ -892,17 +892,30 @@ def fetch_window_issues(since: str, until: str) -> list[dict]:
 # --- aggregation layer (narrative auto-seed) --------------------------------
 
 _SEED_HEADLINE_MAX = 180
-# Byline/timestamp sub-headers to skip when digesting an entry — e.g. the PM
-# notebook's "### HH:MM UTC — Editor: PM" line, which is metadata, not content.
+# Byline/timestamp sub-headers to skip when digesting an entry - e.g. the PM
+# notebook's "### HH:MM UTC - Editor: PM" line, which is metadata, not content.
 _BYLINE_RE = re.compile(r"^\d{1,2}:\d{2}\b|\b(editor|author|role)\s*:", re.IGNORECASE)
+# A leading bold label like "**Headline:**" / "**Result:**" - dropped so the entry's
+# actual content seeds, not the mangled "Headline:** ..." the char-lstrip below used to
+# strand (Issue #1005). Requires the ``:`` immediately before the closing ``**``, so a
+# bold *sentence* ("**We shipped it.**", no colon there) is left untouched.
+_BOLD_LABEL_RE = re.compile(r"^\*\*[^*\n]{1,40}:\*\*\s*")
+# Issue/PR cross-references inside a lab-notebook entry ("#500", "[Issue #500](...)").
+_ISSUE_REF_RE = re.compile(r"#(\d+)\b")
+# One "## <YYYY-MM-DD> ...entry body..." block, up to the next date header.
+_ENTRY_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})\b(.*?)(?=^## \d{4}-\d{2}-\d{2}\b|\Z)",
+                       flags=re.DOTALL | re.MULTILINE)
 
 
 def _first_prose_line(body: str) -> str:
-    """The first human-prose line of an entry body — skips blank lines, markdown
-    bullet/heading markers, HTML comments, and byline/timestamp sub-headers
-    (so the digest picks the descriptive title, not "Editor: PM"). One line."""
+    """The first human-prose line of an entry body - skips blank lines, markdown
+    bullet/heading markers, HTML comments, byline/timestamp sub-headers (so the digest
+    picks the descriptive title, not "Editor: PM"), and a leading ``**Label:**`` bold
+    prefix (so a ``**Headline:**`` entry seeds its content, not "Headline:**"). One line."""
     for line in body.strip().splitlines():
-        stripped = line.strip().lstrip("#*->–— ").strip()
+        # Drop a leading **Label:** BEFORE the char-lstrip: the lstrip eats the leading
+        # ``*`` but would strand ``Headline:**`` otherwise (the Issue #1005 defect).
+        stripped = _BOLD_LABEL_RE.sub("", line.strip()).lstrip("#*->–— ").strip()
         if not stripped or stripped.startswith("<!--"):
             continue
         if _BYLINE_RE.search(stripped):
@@ -911,37 +924,81 @@ def _first_prose_line(body: str) -> str:
     return ""
 
 
-def _lab_notebook_seed(roles: set[str], window: tuple[Optional[datetime], Optional[datetime]]) -> str:
-    """Best-effort: digest lab-notebook entries dated within the milestone window
-    for the involved roles into one pointer bullet each (date + headline), NOT
-    verbatim bodies — the sidecar is meant for a human to expand. '' if none."""
-    start, end = window
+def _lead_roles(per_role_counts: dict[str, int]) -> set[str]:
+    """The milestone's lead role(s): the role(s) with the most *delivered* issues.
+
+    Scopes the seed to who actually led the milestone (Issue #1005 defect 2), rather than
+    every role that touched any issue (open/descoped included). Ties keep all co-leads.
+    Empty ``per_role_counts`` -> empty set, so the caller can fall back."""
+    if not per_role_counts:
+        return set()
+    top = max(per_role_counts.values())
+    return {role for role, count in per_role_counts.items() if count == top}
+
+
+def _entry_refs_milestone(text: str, issue_numbers: set[int]) -> bool:
+    """True if ``text`` cites at least one of the milestone's delivered issue numbers.
+
+    Applied to an entry's *headline* (see ``_digest_notebook_text``) to scope the seed to
+    the milestone's own work (Issue #1005 defect 1). A `#N` ref catches the Issue or its
+    PR text; we intersect against delivered *issue* numbers (the data the report has). An
+    entry whose headline names only a PR and never its Issue would be missed - acceptable,
+    because this repo's notebook convention names the Issue in the entry headline."""
+    if not issue_numbers:
+        return False
+    cited = {int(n) for n in _ISSUE_REF_RE.findall(text)}
+    return bool(cited & issue_numbers)
+
+
+def _digest_notebook_text(text: str, short: str, issue_numbers: set[int]) -> list[str]:
+    """One pointer bullet (date + headline) per entry in ``text`` that references the
+    milestone's issues. Pure over the raw notebook text so it is unit-testable without
+    the filesystem (Issue #1005)."""
     bullets: list[str] = []
-    for role in sorted(roles):
+    for m in _ENTRY_RE.finditer(text):
+        headline = _first_prose_line(m.group(2))
+        # Belongs to the milestone if its HEADLINE names one of the milestone's issues -
+        # NOT merely a passing body cross-reference. A lab-notebook entry's first prose
+        # line names the issue it is *about* (convention); its body cross-references many
+        # others. Matching the whole body over-collects badly: on i5-S5 it pulled 9 entries
+        # for a 5-issue milestone, 7 of them primarily about non-milestone work (Issue #1005).
+        if not _entry_refs_milestone(headline, issue_numbers):
+            continue
+        if len(headline) > _SEED_HEADLINE_MAX:
+            headline = headline[: _SEED_HEADLINE_MAX - 1].rstrip() + "…"
+        bullets.append(f"- **{m.group(1)}** ({short}): {headline}")
+    return bullets
+
+
+def _lab_notebook_seed(lead_roles: set[str], issue_numbers: set[int]) -> str:
+    """Best-effort: digest the lead role(s)' lab-notebook entries that reference the
+    milestone's issues into one pointer bullet each (date + headline), NOT verbatim
+    bodies - the sidecar is meant for a human to expand. '' if none.
+
+    Scopes to the milestone's *own* issues (not a raw date window) and to its *lead*
+    role(s) (not every involved role), the two over-collection defects of Issue #1005."""
+    bullets: list[str] = []
+    for role in sorted(lead_roles):
         short = role.split(":", 1)[-1]
         nb = REPO_ROOT / "research" / "lab_notebook" / f"{short}.md"
         if not nb.exists():
             continue
         text = nb.read_text(encoding="utf-8", errors="replace")
-        # Entries are "## <YYYY-MM-DD>" headed; digest those inside the window.
-        for m in re.finditer(r"^## (\d{4}-\d{2}-\d{2})\b(.*?)(?=^## \d{4}-\d{2}-\d{2}\b|\Z)",
-                             text, flags=re.DOTALL | re.MULTILINE):
-            day = parse_iso(m.group(1) + "T00:00:00Z")
-            if (start and day and day < start) or (end and day and day > end):
-                continue
-            headline = _first_prose_line(m.group(2))
-            if len(headline) > _SEED_HEADLINE_MAX:
-                headline = headline[: _SEED_HEADLINE_MAX - 1].rstrip() + "…"
-            bullets.append(f"- **{m.group(1)}** ({short}): {headline}")
+        bullets.extend(_digest_notebook_text(text, short, issue_numbers))
     return "\n".join(bullets)
 
 
 def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
     """First-draft narrative markdown for the author-owned sidecar."""
-    roles = {r for i in issues for r in i.get("roles", [])}
-    window = (parse_iso(milestone.get("created_at")), parse_iso(milestone.get("closed_at")))
-    seed = _lab_notebook_seed(roles, window)
+    # Scope the seed to the milestone's lead role(s) and its own delivered issues, not
+    # every role over a raw date window (Issue #1005). Fall back to all involved roles
+    # only when no delivered issue carries a role label (nothing for per_role_counts to
+    # identify a lead from).
+    lead_roles = _lead_roles(metrics.get("per_role_counts") or {}) \
+        or {r for i in issues for r in i.get("roles", [])}
     delivered = delivered_issues(issues)
+    delivered_numbers = {i["number"] for i in delivered}
+    seed = _lab_notebook_seed(lead_roles, delivered_numbers)
     descoped = descoped_issues(issues)
     carried = [i for i in issues if i.get("state") != "CLOSED"]
 
@@ -956,7 +1013,7 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         f"     The {len(delivered)} delivered issues are listed in the Inventory appendix",
         "     below - narrate the highlights here, don't re-list them. -->",
         "",
-        "_Seeded from the lead role's lab-notebook entries in the milestone window - "
+        "_Seeded from the lead role's lab-notebook entries naming the milestone's issues - "
         "replace with the deliverables narrative._",
         "",
     ]

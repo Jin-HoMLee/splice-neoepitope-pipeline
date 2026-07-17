@@ -389,6 +389,90 @@ class TestSeedNarrative:
         assert "Inventory appendix" in deliverables  # points there instead
 
 
+class TestSeedScoping:
+    """The seed is scoped to the milestone's own issues + lead role, and parses a
+    ``**Headline:**`` entry cleanly (Issue #1005).
+
+    Before this, the seed dumped every lab-notebook entry in the milestone's date
+    *window* across *all* roles, so a 5-issue Modeling milestone was flooded with
+    unrelated Dev board-governance / STAR / GCS entries, and ``**Headline:**``-prefixed
+    entries rendered as the mangled ``Headline:** ...`` fragment.
+    """
+
+    # --- defect 3: the **Headline:** parse -----------------------------------
+
+    def test_first_prose_line_strips_headline_label(self):
+        # THE establishing case: `**Headline:** [PR #564] ...` used to seed as the
+        # mangled `Headline:** [PR #564] ...` (the char-lstrip ate the `**` but left
+        # `Headline:**`). The content after the label is what we want.
+        body = "\n**Headline:** [PR #564](x) vehicle-only baseline shipped\n\nmore"
+        assert mr._first_prose_line(body) == "[PR #564](x) vehicle-only baseline shipped"
+
+    def test_first_prose_line_strips_any_bold_label(self):
+        assert mr._first_prose_line("**Result:** it worked") == "it worked"
+
+    def test_first_prose_line_keeps_plain_bold_sentence(self):
+        # Matched control: a bold LEAD *sentence* (no `:` before the closing `**`) is
+        # NOT a label - its content must survive, unchanged from prior behavior.
+        out = mr._first_prose_line("**Half our work never crossed the point.** rest")
+        assert "Half our work never crossed the point." in out
+
+    def test_first_prose_line_headline_after_byline(self):
+        # The byline is still skipped, and the Headline label below it is stripped.
+        body = "### 15:39 UTC - Editor: PM\n\n**Headline:** the real title"
+        assert mr._first_prose_line(body) == "the real title"
+
+    # --- defect 2: scope to the lead role(s) ---------------------------------
+
+    def test_lead_roles_picks_the_max_count(self):
+        assert mr._lead_roles(
+            {"role:developer": 5, "role:scientist": 2, "role:pm": 1}) == {"role:developer"}
+
+    def test_lead_roles_keeps_ties(self):
+        assert mr._lead_roles(
+            {"role:scientist": 3, "role:developer": 3}) == {"role:scientist", "role:developer"}
+
+    def test_lead_roles_empty_dict_is_empty(self):
+        assert mr._lead_roles({}) == set()
+
+    # --- defect 1: scope entries to the milestone's issues -------------------
+
+    def test_entry_refs_milestone_true_when_a_milestone_issue_is_cited(self):
+        entry = "Shipped it. [Issue #500](x) -> [PR #501](y)."
+        assert mr._entry_refs_milestone(entry, {500, 999}) is True
+
+    def test_entry_refs_milestone_false_when_unrelated(self):
+        # References #123, which is not one of the milestone's issues -> excluded.
+        assert mr._entry_refs_milestone("Board work on [Issue #123](x).", {500, 999}) is False
+
+    def test_entry_refs_milestone_false_when_no_milestone_issues(self):
+        assert mr._entry_refs_milestone("mentions #500", set()) is False
+
+    def test_digest_scopes_to_milestone_issues(self):
+        # THE control for defect 1: two entries, one about a milestone issue (#500),
+        # one about unrelated #123. Only the linked one is seeded, regardless of date.
+        text = (
+            "## 2026-07-01\n\n**Headline:** delivered [Issue #500](x)\n\n"
+            "## 2026-06-01\n\nUnrelated board work, see [Issue #123](y)\n"
+        )
+        bullets = mr._digest_notebook_text(text, "developer", {500})
+        assert len(bullets) == 1
+        assert "2026-07-01" in bullets[0]
+        assert "delivered [Issue #500](x)" in bullets[0]   # Headline label stripped too
+        assert "#123" not in "\n".join(bullets)
+
+    def test_digest_excludes_body_only_cross_reference(self):
+        # The over-collection the establishing case exposed: an entry primarily about a
+        # NON-milestone issue (#999 in its headline) that merely cross-references a
+        # milestone issue (#500) deep in its body must NOT be seeded. Matching the whole
+        # body pulled 7 such noise entries into the i5-S5 seed; the headline decides.
+        text = (
+            "## 2026-07-01\n\n**Headline:** shipped [Issue #999](x)\n\n"
+            "Along the way we also touched [Issue #500](y) in passing.\n"
+        )
+        assert mr._digest_notebook_text(text, "scientist", {500}) == []
+
+
 # --- arrival axis: committed vs unplanned (Issue #811) -----------------------
 
 # The matched pair the AC asks for: same window, same delivered status, one
