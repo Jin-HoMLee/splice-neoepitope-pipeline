@@ -317,3 +317,71 @@ def test_live_registry_has_one_source_string_per_study():
         "distinct `source` strings != 12 studies; a fold either added a study "
         "(update this number deliberately) or re-split an existing one (fix the spelling)"
     )
+
+
+# --- #1178: the tier<->label firewall (a presentation row can never be positive) ---
+#
+# Best-bet 3 now produces `tier=presentation-prevalence` / `label=untested` rows, so the
+# LABELING_SCHEME.md section-4 rule (scorable = label==positive AND tier==functional-
+# scorable) stops being documentation and becomes load-bearing: a presentation row that
+# wore a positive label would enter the functional positive set through any label-only
+# filter, silently corrupting the registry's whole product. The guard enforces it.
+#
+# Matched pair on the actual risk (same presentation row, one field flipped, opposite
+# outcomes), plus an over-reach control proving the guard does NOT reject the 4 real
+# functional-nonscorable positives (measured positive, just no scorable sequence).
+
+
+def _presentation_row(row):
+    """A valid presentation-prevalence row: MS-presented, never functionally assayed."""
+    return dict(row, tier="presentation-prevalence", label="untested",
+                assay_context="prevalence_only", evidence_strength="na", readout="MS")
+
+
+def test_presentation_row_untested_is_green(row, frame):
+    """The control: `untested` is a presentation row's only legal label; it must validate."""
+    assert violations(frame(_presentation_row(row))) == []
+
+
+def test_presentation_row_labeled_positive_is_rejected(row, frame):
+    """The defect the guard exists for: a presentation row wearing a positive label."""
+    bad = dict(_presentation_row(row), label="positive")
+    _fails_with(frame(bad), "label 'positive' on tier 'presentation-prevalence'")
+
+
+def test_functional_nonscorable_positive_is_not_over_rejected(row, frame):
+    """The over-reach control. The 4 real functional-nonscorable positives are a measured
+    response with no scorable sequence - legitimately `label=positive`. A narrower
+    "positive must be functional-scorable" rule would wrongly reject them, so pin that
+    this row stays green and the firewall never fires on it."""
+    r = dict(row, tier="functional-nonscorable", peptide="", length="",
+             peptide_status="published-pending")
+    assert violations(frame(r)) == []
+
+
+def test_scorable_positive_mask_excludes_functional_nonscorable():
+    """The canonical filter is stricter than the firewall: the *scored* set is
+    functional-scorable positives only. A functional-nonscorable positive is a legal
+    row but not scorable (no sequence), so the mask must exclude it - the exact
+    label-vs-tier conflation the single-source helper exists to prevent."""
+    from labeling_constants import scorable_positive_mask
+
+    df = pd.DataFrame([
+        {"label": "positive", "tier": "functional-scorable"},
+        {"label": "positive", "tier": "functional-nonscorable"},
+        {"label": "untested", "tier": "presentation-prevalence"},
+    ], dtype=str)
+    assert scorable_positive_mask(df).tolist() == [True, False, False]
+
+
+def test_live_registry_positives_are_all_on_functional_tiers():
+    """On the real artifact: every positive row sits on a functional tier, so the
+    firewall is green in production and a future presentation-row-as-positive fold
+    fails here rather than silently entering the scored set."""
+    from labeling_constants import FUNCTIONAL_POSITIVE_TIERS
+    from validate_registry import REGISTRY
+
+    df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
+    pos = df[df["label"] == "positive"]
+    bad = pos[~pos["tier"].isin(FUNCTIONAL_POSITIVE_TIERS)]
+    assert bad.empty, f"positive rows on non-functional tiers: {sorted(bad['tier'].unique())}"

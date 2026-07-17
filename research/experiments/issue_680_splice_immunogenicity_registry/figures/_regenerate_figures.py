@@ -20,6 +20,12 @@ import pandas as pd
 HERE = Path(__file__).resolve().parent
 REGISTRY = HERE.parent / "registry.tsv"
 
+# Single-source the scorable-positive filter from the registry's labeling module
+# (#1178) rather than re-spelling the two-column rule here, so this deck figure and
+# the validator can never disagree on what "scorable positive" means.
+sys.path.insert(0, str(HERE.parent))
+from labeling_constants import scorable_positive_mask  # noqa: E402  (path-dependent)
+
 INK = "#1b1b1b"
 MUTED = "#9aa0a6"
 ACCENT = "#c1443b"
@@ -100,7 +106,7 @@ def fig_allele_skew(df: pd.DataFrame) -> None:
 
 def fig_evidence_balance(df: pd.DataFrame) -> None:
     """Positives are abundant; experimental negatives are the binding constraint."""
-    scorable_pos = int(((df.label == "positive") & (df.tier == "functional-scorable")).sum())
+    scorable_pos = int(scorable_positive_mask(df).sum())
     hard_neg = int((df.tier == "hard-negative-true-splice").sum())
     soft_neg = int((df.tier == "candidate-negative").sum())
 
