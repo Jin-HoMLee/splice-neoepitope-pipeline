@@ -59,6 +59,15 @@ def slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+def sdr_slug(week_ending: "date") -> str:
+    """Filename slug for a weekly meta-work SDR: the week-ending date as a
+    **prefix**, so reports sort chronologically in the directory listing
+    (matching the lab-notebook ``YYYY-MM-DD`` convention). Decoupled from the
+    report *title* (which keeps its human "Meta-work SDR - week ending <date>"
+    heading) via the ``slug`` override on ``_generate``."""
+    return f"{week_ending.isoformat()}-meta-work-sdr"
+
+
 # --- time helpers (pure) ----------------------------------------------------
 
 def parse_iso(ts: Optional[str]) -> Optional[datetime]:
@@ -1122,12 +1131,15 @@ def _fmt_arrival(w: dict) -> str:
 # --- orchestration ----------------------------------------------------------
 
 def _generate(milestone: dict, issues: list[dict], metrics: dict,
-              out_dir: Path, dry_run: bool, mode: str) -> int:
-    """Shared metrics-print + seed + render path for both modes."""
+              out_dir: Path, dry_run: bool, mode: str,
+              slug: Optional[str] = None) -> int:
+    """Shared metrics-print + seed + render path for both modes. ``slug``
+    overrides the filename stem (default: slugified title); SDR mode passes a
+    date-prefixed slug so the report title heading and the filename can differ."""
     print_metrics(milestone, metrics)
     if dry_run:
         return 0
-    slug = slugify(milestone["title"])
+    slug = slug or slugify(milestone["title"])
     out_dir.mkdir(parents=True, exist_ok=True)
     sidecar = out_dir / f"{slug}.narrative.md"
     if not sidecar.exists():  # never overwrite author edits
@@ -1201,7 +1213,8 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
         "due_on": None,
         "description": None,
     }
-    return _generate(pseudo, week_issues, metrics, out_dir or DEFAULT_SDR_OUT_DIR, dry_run, "window")
+    return _generate(pseudo, week_issues, metrics, out_dir or DEFAULT_SDR_OUT_DIR, dry_run,
+                     "window", slug=sdr_slug(report_end.date()))
 
 
 def main() -> int:

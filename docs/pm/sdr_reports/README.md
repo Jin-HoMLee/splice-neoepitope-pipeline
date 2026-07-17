@@ -18,10 +18,14 @@ docs/pm/sdr_reports/<slug>.html          # generated artifact (committed)
 docs/pm/sdr_reports/<slug>.narrative.md   # author-owned sidecar (committed)
 ```
 
-`<slug>` = the report title lowercased with non-alphanumeric runs collapsed to
-hyphens, e.g. `meta-work-sdr-week-ending-2026-07-03`. Sections 1/2/trend/6 are
-script-generated on every run; the narrative (Deliverables / Carried-forward /
-Retrospective) is author-owned in the sidecar and never overwritten.
+`<slug>` for a weekly SDR is the **week-ending date as a prefix**, e.g.
+`2026-07-03-meta-work-sdr`, so reports sort chronologically in the directory
+(matching the lab-notebook `YYYY-MM-DD` convention). The filename is decoupled
+from the report *title*, which keeps its human "Meta-work SDR - week ending
+<date>" heading. (Milestone closure reports still slug from their title, e.g.
+`i5-s3-data-preparation`.) Sections 1/2/trend/6 are script-generated on every
+run; the narrative (Deliverables / Carried-forward / Retrospective) is
+author-owned in the sidecar and never overwritten.
 
 ## Cadence
 
