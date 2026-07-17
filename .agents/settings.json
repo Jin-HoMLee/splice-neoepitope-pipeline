@@ -19,6 +19,12 @@
           },
           {
             "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_created_by_footer.py",
+            "if": "Bash(gh *)",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.agents/hooks/check_board_query_pagination.py",
             "if": "Bash(gh api *)",
             "timeout": 5

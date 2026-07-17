@@ -137,6 +137,21 @@ CONTRACTS: dict[str, hc.HookContract] = {
         },
         notes="asks (fire-log) on an MM-shaped create into the project repo; the same shape into personas passes (explicit --repo, no gh call)",
     ),
+    "check_created_by_footer.py": hc.HookContract(
+        basename="check_created_by_footer.py",
+        observable=hc.DENY,
+        envelope_builder="pretooluse_bash",
+        fire_input={
+            "command": 'gh pr comment 5 --body "a plain comment with no footer"'
+        },
+        nofire_input={
+            "command": 'gh pr comment 5 --body "done. **Created by:** Developer"'
+        },
+        heredoc_fire_input={
+            "command": "gh issue comment 5 --body-file - <<'EOF'\na long body\nwith no footer\nEOF"
+        },
+        notes="denies a gh (pr|issue) comment with no **Created by:** footer, incl. the heredoc shape (pure string inspection, no gh call); a footered body passes",
+    ),
     "check_board_query_pagination.py": hc.HookContract(
         basename="check_board_query_pagination.py",
         observable=hc.DENY,
