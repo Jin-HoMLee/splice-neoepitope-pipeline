@@ -30,6 +30,18 @@ This whole thread started from a morning-news Zotero add whose *reference list*,
 Our curation was all forward-search and dedup-against-what-we-hold; backward-citation snowballing of the papers we add was never a step.
 Captured as a curation memory so it becomes routine.
 
+## 2026-07-15
+
+### 15:45 UTC - Editor: Scientist
+
+**Scope verdict: exon-TE junctions are in scope - as a discrimination problem, not a detection change** ([Issue #699](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/699), sub-issues [#1199](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1199) / [#1200](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1200) / [#1201](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1201))
+
+#699 asked whether detection should extend to exon-transposable-element splice junctions. Verdict: **in scope - and the reframe was the answer.** They already flow through our DAG. Re-verified against the live pipeline today (re-fetched the chr22 RepeatMasker track, rebuilt the annotated BED, recomputed the full filter-off tumor pool from committed inputs): 1,585 unannotated junctions, 98.7% repeat-anchored, **94.1% SINE/Alu**, 90.2% single-read. Detection is not the bottleneck; **discrimination is** - "flows through" is not "is real" when 9 in 10 are single-read. The post-it carried these numbers and I re-derived them anyway; they reproduced exactly, which is not a reason to have trusted the note.
+
+**The web cross-check earned its keep - it did not just confirm the direction, it sharpened the build.** EASTR (Nat Commun 2023) is the field-standard phantom-intron detector and uses **two** signals (flank homology + mappability); our [#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116) score reinvented signal 1 only, so sub-issue A is bigger than "wire #1116 in". And EASTR's authors concede "not all spliced alignments in these regions are erroneous" while erring toward removal - the field, in its own words, conceding our no-blunt-gate constraint. We borrow the signal and **invert the action: rank, never delete**, because for us the SINE-embedded junction is the target, not the noise.
+
+Filed A/B/C as thin `arc:aligner-junctions` Backlog items (not GitHub sub-issues, so #699 closes clean), added EASTR + Portcullis to the Zotero shelf. The standing constraint - no repeat-based filter may resolve the artifact-vs-antigen ambiguity until calibrated on known positives - now spans the whole arc.
+
 ## 2026-07-14
 
 ### 22:20 UTC - Editor: Scientist
