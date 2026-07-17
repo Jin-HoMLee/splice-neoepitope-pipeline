@@ -986,6 +986,16 @@ def build_graph():
         sample = ", ".join(sorted({f"{e['source']}->{e['target']}" for e in dropped_edges})[:5])
         print(f"  ⚠ dropped {len(dropped_edges)} dangling edge(s): {sample}")
 
+    # ── Stable final sort (filesystem-order independence) ──
+    # os.walk and rglob() append nodes/edges in os.scandir order, which is NOT
+    # sorted and NOT portable across filesystems (dev machine != ext4 CI runner).
+    # Without this the committed artifact can never byte-match a fresh CI regen,
+    # so the project-map-freshness gate is unsatisfiable (#789). Both keys are
+    # already unique post-dedup (nodes by id at the dedup above, edges by
+    # source|target|type), so the sort is total and deterministic. degree is
+    # tallied order-independently above, so sorting last is safe.
+    nodes.sort(key=lambda n: n["id"])
+    unique_edges.sort(key=lambda e: (e["source"], e["target"], e["type"]))
     return {"nodes": nodes, "edges": unique_edges}
 
 
