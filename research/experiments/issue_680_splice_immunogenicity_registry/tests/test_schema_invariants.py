@@ -371,6 +371,17 @@ def test_candidate_positive_is_not_over_rejected(row, frame):
     assert violations(frame(dict(row, tier="candidate"))) == []
 
 
+def test_candidate_negative_labeled_positive_is_rejected(row, frame):
+    """Prefix-confusion guard (#1236 review). `candidate` (disputed POSITIVE, now
+    admitted) and `candidate-negative` (a soft NEGATIVE tier) share a prefix and have 0
+    rows each, so a future `.str.startswith("candidate")` refactor or a typo folding
+    `candidate-negative` into the allowed set would pass unnoticed at runtime. The
+    firewall uses exact set membership, so a positive label on `candidate-negative` must
+    still trip it - pin that here so the two tiers can never be conflated."""
+    _fails_with(frame(dict(row, tier="candidate-negative")),
+                "label 'positive' on tier 'candidate-negative'")
+
+
 def test_scorable_positive_mask_excludes_functional_nonscorable():
     """The canonical filter is stricter than the firewall: the *scored* set is
     functional-scorable positives only. A functional-nonscorable positive is a legal

@@ -89,8 +89,8 @@ def violations(df: pd.DataFrame) -> list[str]:
         # without a scorable sequence; the *scored* set is scorable_positive_mask.)
         if r["label"] == "positive" and r["tier"] not in POSITIVE_LABEL_TIERS:
             out.append(f"{rid}: label 'positive' on tier {r['tier']!r} - a positive label "
-                       f"may sit only on {sorted(POSITIVE_LABEL_TIERS)}; a presentation "
-                       f"row is presented-but-unassayed and must be 'untested'")
+                       f"may sit only on {sorted(POSITIVE_LABEL_TIERS)}; a presentation, "
+                       f"negative, or non-splice-control tier can never carry a positive label")
         # grade -> junction_id consistency (#1086). A `coords`/`event-id` grade asserts
         # the source published a junction identifier, so the column must carry it. The
         # converse block is deliberately gone: it used to forbid a `gene-mechanism`/
