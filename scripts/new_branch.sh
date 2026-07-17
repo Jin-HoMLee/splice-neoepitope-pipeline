@@ -135,10 +135,16 @@ DATA=$(fetch_issue "$ISSUE") || die "could not fetch issue #$ISSUE (gh error?)"
 IFS=$'\037' read -r TITLE ROLES SUBTOTAL <<<"$DATA"
 [ -n "$TITLE" ] || die "issue #$ISSUE not found"
 
-# parent guard (replicates the gh-issue-develop PreToolUse hook, which can't see
-# the nested gh call): refuse epics — branching off them auto-closes the parent.
+# parent advisory (Issue #1155): branching off a parent is a safe, reversible act,
+# so this WARNS rather than refuses. The real enforcement is the merge-time gate
+# (tools/ci/parent_child_gate.py in audit_and_merge.sh), which blocks a merge that
+# would auto-close a parent with open children. Mirrors the now-advisory
+# gh-issue-develop PreToolUse hook (which can't see this nested gh call).
 if [ "${SUBTOTAL:-0}" -gt 0 ]; then
-  die "issue #$ISSUE is a parent/epic ($SUBTOTAL sub-issues) — branch off a leaf sub-issue, or file a closure sub-issue under it"
+  echo "new_branch.sh: warning: issue #$ISSUE is a parent/epic ($SUBTOTAL sub-issues)." >&2
+  echo "  Branching is allowed, but the MERGE will be blocked until all its children are closed" >&2
+  echo "  (merging a PR that closes a parent orphans its open children). Consider branching off a" >&2
+  echo "  leaf sub-issue instead. Proceeding with the branch." >&2
 fi
 
 # type

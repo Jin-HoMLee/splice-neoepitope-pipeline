@@ -155,13 +155,20 @@ def test_no_title_type_no_override_errors():
     assert "type" in r.stderr.lower()
 
 
-# --- Case 7: parent issue → parent-refuse ------------------------------------
+# --- Case 7: parent issue → advisory warn, NOT refuse (Issue #1155) ----------
+# Branching off a parent is a safe, reversible act; the real enforcement moved to
+# the merge-time gate (tools/ci/parent_child_gate.py). So new_branch.sh now WARNS
+# and proceeds rather than refusing. The old rc==1 refusal must go red.
 
-def test_parent_issue_refused():
+def test_parent_issue_warns_but_proceeds():
     r = _run(["538", "branch-helper", "--dry-run"],
              title="feat(scripts): x", roles=("role:pm",), sub_total=3)
-    assert r.returncode == 1
+    # No longer refused: the branch is produced (dry-run prints the name, rc 0).
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "feat/pm/issue-538-branch-helper"
+    # But the warning is printed, naming the parent and the merge-time block.
     assert "parent" in r.stderr.lower() or "epic" in r.stderr.lower()
+    assert "merge" in r.stderr.lower()
 
 
 # --- Case 8: --no-issue fallback ---------------------------------------------

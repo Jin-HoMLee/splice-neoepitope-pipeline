@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-"""Pre-flight hook: refuse `gh issue develop <N>` when Issue N is a parent/epic
+"""Pre-flight hook: WARN on `gh issue develop <N>` when Issue N is a parent/epic
 (has ≥1 sub-issue).
 
-Parents don't get branches or PRs: a PR opened off a branch linked to a parent
-creates a `closingIssuesReferences` edge that auto-closes the epic on merge,
-silently orphaning its sub-issues. That bit PR #543 → Issue #538 (2026-05-28) —
-the memory rule ("parents have no branches/PRs", Reference-tier in
-memory/shared/feedback_parent_sub_issues.md) didn't load at the gh-develop
-target-pick moment, so this is the mechanism-over-memory escalation.
+Post-Issue #1155 this is ADVISORY (`ask`, warn-and-confirm), not a block. The real
+enforcement moved to a merge-time gate (tools/ci/parent_child_gate.py) that refuses
+a merge whose PR closes a parent with open children. Rationale: the harm (a PR
+auto-closing a parent and orphaning its open children - PR #543 → Issue #538,
+2026-05-28) lands at MERGE, so the branch-time ban was over-broad, banning the
+safe, reversible act of branching to prevent an unsafe, irreversible one. This
+hook now warns and points at the merge-time gate; branching proceeds on confirm.
 
-Sibling of `.agents/hooks/check_at_claude.py` (the @claude mention guard). Reads
-PreToolUse hook JSON on stdin, prints a deny decision on stdout when the guard
-fires, exits 0 silently otherwise (the harness treats no-output as allow).
+Sibling of `.agents/hooks/check_at_claude.py` (the @claude mention guard) and
+`check_gh_issue_create_repo.py` (the repo-guard, also an `ask`). Reads PreToolUse
+hook JSON on stdin, prints an `ask` decision on stdout when the guard fires, exits
+0 silently otherwise (the harness treats no-output as allow).
 
 Fails OPEN on any parse miss, missing issue number, untokenizable command, or
 `gh` error/timeout — a guard hook must never break the user's flow on a hiccup.
-The only path that denies is a *confirmed* parent (subIssuesSummary.total > 0).
+The only path that warns is a *confirmed* parent (subIssuesSummary.total > 0).
 
-See https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549.
+See https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/549 (original
+block) and https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1155
+(downgrade to advisory + merge-time gate).
 """
 from __future__ import annotations
 
@@ -135,21 +139,28 @@ def repo_from_args(args: list[str]) -> tuple[str, str] | None:
     return None
 
 
-def deny_payload(number: int, total: int) -> dict:
-    """The PreToolUse deny decision for a confirmed parent."""
+def warn_payload(number: int, total: int) -> dict:
+    """The PreToolUse advisory (warn-and-confirm) decision for a confirmed parent.
+
+    Post-Issue #1155 this is `ask`, not `deny`: branching off a parent is a safe,
+    reversible act, so the branch-time guard is advisory and the real enforcement
+    is the merge-time gate (tools/ci/parent_child_gate.py), which blocks a merge
+    that would auto-close a parent with open children. The message points there.
+    """
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
+            "permissionDecision": "ask",
             "permissionDecisionReason": (
-                f"Refusing `gh issue develop` on Issue #{number} — it has "
-                f"{total} sub-issue(s), so it is a parent/epic. Parents don't get "
-                "branches or PRs: the PR↔parent link auto-closes the epic on "
-                "merge and orphans its sub-issues (incident: PR #543 "
-                "accidentally closed epic Issue #538 on merge, 2026-05-28). "
-                "Branch off a leaf sub-issue instead, or file a "
-                "closure sub-issue (cf. Issue #548) and develop off that. Rule: "
-                "memory/shared/feedback_parent_sub_issues.md."
+                f"Issue #{number} is a parent/epic ({total} sub-issue(s)). "
+                "Branching off it is allowed - but the MERGE will be blocked "
+                "until all its children are closed, because merging a PR that "
+                "closes a parent auto-closes the epic and orphans its open "
+                "children (incident: PR #543 accidentally closed epic Issue #538 "
+                "on merge, 2026-05-28). The merge-time gate "
+                "(tools/ci/parent_child_gate.py) is the real enforcement now "
+                "(Issue #1155). Confirm to branch, or branch off a leaf "
+                "sub-issue instead. Rule: memory/shared/feedback_parent_sub_issues.md."
             ),
         }
     }
@@ -203,7 +214,7 @@ def _log_fire(number: int, repo: str, total: int) -> None:
         "hook": "check_gh_issue_develop_parent",
         "issue": number,
         "repo": repo,
-        "action": f"refused-parent-develop:sub_total={total}",
+        "action": f"warned-parent-develop:sub_total={total}",
     }
     line = json.dumps(payload, separators=(",", ":")) + "\n"
     try:
@@ -242,7 +253,7 @@ def main() -> int:
         return 0  # query failed (fail open) or a confirmed leaf → allow
 
     _log_fire(number, f"{owner}/{name}", total)
-    print(json.dumps(deny_payload(number, total)))
+    print(json.dumps(warn_payload(number, total)))
     return 0
 
 

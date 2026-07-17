@@ -14,6 +14,10 @@
 #      closingIssuesReferences — a silent unintended auto-close on merge, OR
 #   5. A role-tagged linked Issue lacks a `## <merge-date>` lab-notebook entry in
 #      research/lab_notebook/<role>.md referencing the PR/Issue (Issue #409).
+# A parent/child gate (7) refuses the merge if any linked closing Issue is a
+# parent with >= 1 open child (Issue #1155) - merging would auto-close the parent
+# and orphan its open children. It fails CLOSED (blocks) on an undetermined
+# parent/child state, unlike the fail-open siblings.
 # After those pass, a bot-review-offer gate (6) ensures a `@-claude review` was
 # offered on the PR before merging (interactive prompt, or block + --skip-review-offer
 # carve-out when non-interactive).
@@ -192,6 +196,29 @@ elif ! XR_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/cross_repo_ac_ga
     FAILED=1
 elif [[ -n "$XR_OUT" ]]; then
     printf '%s\n' "$XR_OUT" >&2   # fail-open warning (e.g. gh error); non-blocking
+fi
+
+# Gate 7: parent/child gate (Issue #1155). Refuses the merge if any Issue in the
+# PR's closingIssuesReferences is a PARENT (subIssuesSummary.total > 0) with >= 1
+# OPEN child - merging would auto-close the parent and orphan the open children
+# (the PR #543 -> Issue #538 harm). This is the merge-time replacement for the
+# branch-time parent guards (the gh-issue-develop hook + new_branch.sh), which are
+# now advisory: the harm lands at merge, so that is where we block.
+#
+# UNLIKE the sibling gates above, this one fails CLOSED: parent_child_gate.py exits
+# 1 (blocking) both on a real open-child parent AND when the parent/child state
+# cannot be determined (any gh/network error) - the orphaning harm is irreversible,
+# so a transient false-block is cheaper than a false-pass (fail-posture B, Issue
+# #1155, ratified 2026-07-17). A block is captured here as FAILED=1, same as the
+# blocking siblings. (No-python still skips, matching the siblings - a missing
+# interpreter is a broken environment, not a parent-state ambiguity.)
+if [[ -z "$PYTHON" ]]; then
+    echo "⚠ parent/child check skipped (no python on PATH)." >&2
+elif ! PC_OUT=$(REPO="$REPO" "$PYTHON" "$SCRIPT_DIR/../tools/ci/parent_child_gate.py" "$PR" 2>&1); then
+    printf '%s\n' "$PC_OUT" >&2
+    FAILED=1
+elif [[ -n "$PC_OUT" ]]; then
+    printf '%s\n' "$PC_OUT" >&2   # non-blocking diagnostic on a clean pass
 fi
 
 # Lint (Issue #730): NON-BLOCKING warning when a linked Issue has unticked boxes

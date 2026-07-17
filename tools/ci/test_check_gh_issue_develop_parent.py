@@ -123,17 +123,24 @@ class TestRepoFromArgs:
         assert h.repo_from_args(["549"]) is None
 
 
-# --- deny_payload: shape ---
+# --- warn_payload: shape (advisory, not deny) ---
+#
+# Issue #1155 moved the real enforcement to a merge-time gate
+# (tools/ci/parent_child_gate.py). Branching off a parent is a safe, reversible
+# act, so this branch-time hook is now ADVISORY: it emits `ask` (warn-and-confirm),
+# never `deny`, and its message points at the merge-time gate as the real block.
 
 
-def test_deny_payload_shape():
-    payload = h.deny_payload(538, 5)
+def test_warn_payload_shape():
+    payload = h.warn_payload(538, 5)
     out = payload["hookSpecificOutput"]
     assert out["hookEventName"] == "PreToolUse"
-    assert out["permissionDecision"] == "deny"
+    assert out["permissionDecision"] == "ask"
+    assert out["permissionDecision"] != "deny"
     reason = out["permissionDecisionReason"]
     assert "#538" in reason and "5 sub-issue" in reason
-    assert "feedback_parent_sub_issues.md" in reason
+    # The advisory must point at the merge-time gate as the real enforcement.
+    assert "merge" in reason.lower()
 
 
 # --- main(): orchestration (monkeypatched gh I/O, no network) ---
@@ -150,16 +157,27 @@ def _run_main(monkeypatch, capsys, cmd, *, repo=("Jin-HoMLee", "repo"), total):
     return rc, (json.loads(captured) if captured else None)
 
 
-def test_main_denies_parent(monkeypatch, capsys, tmp_path):
+def test_main_warns_on_parent(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
     rc, out = _run_main(monkeypatch, capsys, "gh issue develop 538", total=5)
     assert rc == 0
-    assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+    # Advisory, not a block: the branch is allowed to proceed (on confirm).
+    assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
     assert "#538" in out["hookSpecificOutput"]["permissionDecisionReason"]
-    # fire-log line written on deny
+    # fire-log line still written on the advisory
     logged = (tmp_path / "hook_fires.jsonl").read_text().strip()
     rec = json.loads(logged)
     assert rec["hook"] == "check_gh_issue_develop_parent" and rec["issue"] == 538
+
+
+def test_main_never_denies_a_parent(monkeypatch, capsys, tmp_path):
+    # AC-5 (Issue #1155): the old deny behavior must go red. A parent branch is
+    # no longer blocked; the merge-time gate is the real enforcement.
+    monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
+    rc, out = _run_main(monkeypatch, capsys, "gh issue develop 538", total=5)
+    assert rc == 0
+    assert out is not None
+    assert out["hookSpecificOutput"]["permissionDecision"] != "deny"
 
 
 def test_main_allows_leaf(monkeypatch, capsys, tmp_path):
@@ -232,10 +250,13 @@ class TestHeredocForm:
     Same defect class as `matches_pr_create` (Issue #1130); both now normalize the
     command through `_shell_parse.normalize_command` before tokenizing.
 
-    Matched pair: the SAME command must deny at a command start AND after a heredoc.
+    Matched pair: the SAME command must fire at a command start AND after a
+    heredoc. Post-#1155 the fire is an advisory `ask`, not a `deny`, but the
+    multi-line MATCHER must still recognize the invocation - a downgrade that
+    silently stopped matching multi-line commands would re-open the #1142 hole.
     """
 
-    def test_parent_denied_after_heredoc(self, monkeypatch, capsys, tmp_path):
+    def test_parent_warned_after_heredoc(self, monkeypatch, capsys, tmp_path):
         monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
         cmd = (
             "cat > /tmp/plan.md <<'EOF'\n"
@@ -245,23 +266,23 @@ class TestHeredocForm:
         )
         rc, out = _run_main(monkeypatch, capsys, cmd, total=5)
         assert rc == 0
-        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
         assert "#538" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
-    def test_parent_denied_at_command_start(self, monkeypatch, capsys, tmp_path):
+    def test_parent_warned_at_command_start(self, monkeypatch, capsys, tmp_path):
         # Control half of the matched pair.
         monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
         rc, out = _run_main(monkeypatch, capsys,
                             "gh issue develop 538 --name feat/x --checkout", total=5)
         assert rc == 0
-        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
 
-    def test_parent_denied_after_plain_newline(self, monkeypatch, capsys, tmp_path):
+    def test_parent_warned_after_plain_newline(self, monkeypatch, capsys, tmp_path):
         monkeypatch.setattr(h, "LOG_PATH", tmp_path / "hook_fires.jsonl")
         rc, out = _run_main(monkeypatch, capsys,
                             "git fetch origin\ngh issue develop 538", total=5)
         assert rc == 0
-        assert out["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert out["hookSpecificOutput"]["permissionDecision"] == "ask"
 
     def test_leaf_after_heredoc_still_allowed(self, monkeypatch, capsys, tmp_path):
         # The fix must not turn the guard into an over-blocker.
