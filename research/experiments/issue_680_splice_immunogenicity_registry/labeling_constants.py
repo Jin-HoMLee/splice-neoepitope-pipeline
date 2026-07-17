@@ -34,6 +34,34 @@ PEPTIDE_NULL_STATUSES = PEPTIDE_STATUSES - {PEPTIDE_STATUS_PRESENT}
 # set (LABELING_SCHEME.md section 4's consumer note).
 SCORABLE_TIER = "functional-scorable"
 
+# The tiers a `label == "positive"` row may occupy (#1178). Positivity means a
+# *measured* functional T-cell response, so it lives only on the two functional tiers:
+# `functional-scorable` (a scorable sequence in hand) and `functional-nonscorable`
+# (measured positive, but no published sequence to key on). A `presentation-prevalence`
+# row is presented-but-never-assayed and is `label == "untested"`, never `positive` - so
+# a consumer that filters on `label` alone can never pull a presentation row into the
+# positive set. validate_registry.py enforces this; see LABELING_SCHEME.md section 4.
+#
+# NB this is deliberately *not* `{SCORABLE_TIER}` alone: the 4 functional-nonscorable
+# rows are genuinely positive (a real assay), they simply lack a sequence to score, so
+# a "reject any positive that is not functional-scorable" rule would wrongly reject them.
+# The invariant guards the dangerous case (an *unassayed* presentation row wearing a
+# positive label), not the harmless one (a positive with no scorable sequence).
+POSITIVE_LABEL = "positive"
+FUNCTIONAL_POSITIVE_TIERS = {"functional-scorable", "functional-nonscorable"}
+
+
+def scorable_positive_mask(df):
+    """Canonical boolean mask for the scorable positive set (#1178).
+
+    The single source of truth for the LABELING_SCHEME.md section-4 rule: a scorable
+    positive is `label == "positive" AND tier == "functional-scorable"`, never `label`
+    alone (which also admits the functional-nonscorable positives, which have no
+    sequence to score). Every consumer that needs the scored positive set should call
+    this rather than re-spelling the two-column filter, so the discipline cannot drift.
+    """
+    return (df["label"] == POSITIVE_LABEL) & (df["tier"] == SCORABLE_TIER)
+
 # Controlled vocabulary for the #823 assay_context column. Captures *which
 # immunological system* produced the functional readout, so a scoring run can
 # weight rows by assay realism (patient ex-vivo detection > healthy-donor IVS

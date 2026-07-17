@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-17
 
+### 19:24 UTC - Editor: Scientist - tier-not-label firewall review disposition; candidate-tier reconciliation deferred
+
+**The firewall PR was sound; the review found a *latent* contradiction in the tier the firewall didn't cover** ([Issue #1178](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1178), [PR #1232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1232), follow-up [Issue #1233](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1233))
+
+#1178 enforces the tier-not-label firewall on the scorable positive set: `label=="positive"` may sit only on a functional tier (`functional-scorable` / `functional-nonscorable`), so a `presentation-prevalence` row can never wear a positive label. CI green (6/6), tests rigorous (matched pair + over-reach control). The bot review approved overall and raised one substantive finding.
+
+**Note 1 (the real one): the firewall's allowed set omits a third positive-labelled tier the doc documents.** `FUNCTIONAL_POSITIVE_TIERS` admits two tiers, but `LABELING_SCHEME.md` §4 names a `candidate` tier (a disputed positive that failed a second verify pass) that per the doc *keeps* `label=positive`, held out of the scored set by tier not label. The firewall would falsely reject exactly that row. Latent, not live: **0** `candidate`-tier rows in the registry today, so nothing fails now.
+
+**Decision (direction A, deferred).** Resolve by demoting a `candidate` row to `label=untested` rather than admitting it to the positive set - aligns with the firewall's own thesis that a positive label means a *confirmed, measured* functional response, and matches the reviewer's implied lean (so this resolves *with* the review, not against it). Rejected the alternative (add `candidate` to the allowed set) - it keeps the doc but weakens the firewall and mis-names the constant. Because it is a labeling-scheme change with zero live pressure, carved to [#1233](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1233) rather than widening #1232's scope. Notes 2 (one-directional invariant; an `na`-labelled presentation row mislabeled `negative` slips both the firewall and the negative-subtype checks) and 3 (docstring omits `candidate`) folded into #1233; Note 4 (no controlled-vocab check on `tier`) acknowledged as fail-safe + pre-existing, no action.
+
+Posted the full per-finding disposition on the PR ([comment](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1232#issuecomment-5006749778)). #1232 left mergeable at the gate for a human merge; nothing here blocks it.
+
+Process note: opened the session believing #1178 had already merged (its fix commit was the tip of the checked-out branch, not on `main`) - verified state before touching the board and caught it. The "ahead of origin looks merged" trap, exactly as the memory rule warns.
+
 ### 13:06 UTC - Editor: Scientist
 
 **The #737 sparsity recompute landed exactly as predicted - but the note about *why* was half-wrong, and my sweep had a blind spot** ([Issue #1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069), [PR #1226](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1226))
