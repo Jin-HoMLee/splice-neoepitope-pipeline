@@ -61,17 +61,20 @@ def matches_comment(cmd: str) -> bool:
     return bool(_COMMENT_RE.search(_shell_parse.normalize_command(cmd)))
 
 
-def extract_heredoc_body(cmd: str) -> str | None:
-    """The body of the FIRST heredoc in `cmd`, or None if there is none.
+def extract_heredoc_bodies(cmd: str) -> list[str]:
+    """Every heredoc body in `cmd`, in order (inverse of `strip_heredoc_bodies`).
 
-    Inverse of `_shell_parse.strip_heredoc_bodies`: collect the lines between the
-    `<<DELIM` opener and the closing `DELIM`. For a `gh comment --body-file - <<EOF`
-    the sole heredoc is the comment body.
+    Collects the lines between each `<<DELIM` opener and its closing `DELIM`. The
+    caller uses the COUNT: a `--body-file -` comment binds to the heredoc only when
+    there is exactly one (unambiguous); a second, earlier heredoc (e.g. a scratch
+    `cat > f <<EOF` before the `gh comment`) makes the binding ambiguous, so the
+    caller fails open rather than read the wrong body (PR #1229 finding 1).
     """
     lines = cmd.splitlines()
+    bodies: list[str] = []
     i = 0
     while i < len(lines):
-        m = _shell_parse._HEREDOC_RE.search(lines[i])
+        m = _shell_parse.HEREDOC_RE.search(lines[i])
         i += 1
         if not m:
             continue
@@ -80,19 +83,25 @@ def extract_heredoc_body(cmd: str) -> str | None:
         while i < len(lines) and lines[i].strip() != delimiter:
             body.append(lines[i])
             i += 1
-        return "\n".join(body)
-    return None
+        bodies.append("\n".join(body))
+        i += 1  # skip the closing delimiter line
+    return bodies
 
 
 def extract_body(cmd: str) -> str | None:
     """The comment body if it is INSPECTABLE, else None (caller fails open).
 
     Inspectable: an inline `--body`/`-b` value, or a heredoc feeding `--body-file -`
-    / `-F -`. Not inspectable (-> None): a real `--body-file <path>` (content is in a
-    file we do not read, per the #1197 accept-the-hole posture), no body flag, or an
-    untokenizable command.
+    / `-F -` **when it is the only heredoc** (see below). Not inspectable (-> None):
+    a real `--body-file <path>` (content is in a file we do not read, per the #1197
+    accept-the-hole posture), no body flag, an untokenizable command, or an
+    AMBIGUOUS `--body-file -` where more than one heredoc is present - the comment
+    body is the heredoc on the `gh` line, but a chained command may open an earlier
+    scratch heredoc, so binding to "the first" would read the wrong body and
+    false-positive-deny a compliant comment (PR #1229 finding 1). Ambiguity ->
+    fail open.
     """
-    heredoc = extract_heredoc_body(cmd)
+    heredocs = extract_heredoc_bodies(cmd)
     try:
         tokens = shlex.split(_shell_parse.strip_heredoc_bodies(cmd))
     except ValueError:
@@ -108,7 +117,9 @@ def extract_body(cmd: str) -> str | None:
         elif tok.startswith("--body-file="):
             body_file = tok.split("=", 1)[1]
     if body_file == "-":
-        return heredoc  # None if no heredoc present -> fail open
+        # Exactly one heredoc -> unambiguously the comment body. Zero (stdin we
+        # cannot see) or more than one (ambiguous) -> fail open.
+        return heredocs[0] if len(heredocs) == 1 else None
     return None  # real --body-file <path>, or no body flag
 
 

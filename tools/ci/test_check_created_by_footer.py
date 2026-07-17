@@ -85,6 +85,16 @@ class TestExtractBody:
     def test_no_body_flag_not_inspectable(self):
         assert h.extract_body("gh pr comment 5") is None
 
+    def test_multi_heredoc_body_file_dash_fails_open(self):
+        # Finding 1 (PR #1229 review): a scratch heredoc BEFORE the gh comment's own
+        # `--body-file -` heredoc. Binding to the FIRST heredoc would read the
+        # scratch body (no footer) and false-positive-DENY a compliant comment.
+        # Ambiguous (>1 heredoc) -> not inspectable -> None (caller fails open).
+        cmd = ("cat > /tmp/scratch.md <<'EOF'\nscratch notes no footer\nEOF\n"
+               "gh issue comment 5 --body-file - <<'BODY'\nReal comment.\n"
+               "**Created by:** Developer\nBODY")
+        assert h.extract_body(cmd) is None
+
 
 # --- is_exempt: From-opener + bare review trigger ---
 
@@ -188,6 +198,16 @@ def test_real_body_file_fails_open(monkeypatch, capsys, tmp_path):
     # Not inspectable -> must NOT deny (a compliant file-bodied comment exists).
     rc = _run("gh pr comment 5 --body-file /tmp/real.md",
               tmp_log=tmp_path / "f.jsonl", monkeypatch=monkeypatch)
+    assert rc == 0 and _deny_out(capsys) is None
+
+
+def test_multi_heredoc_compliant_comment_not_denied(monkeypatch, capsys, tmp_path):
+    # Finding 1 end-to-end: the ambiguous multi-heredoc shape must not deny a
+    # comment that (in its own heredoc) carries the footer.
+    cmd = ("cat > /tmp/scratch.md <<'EOF'\nscratch notes no footer\nEOF\n"
+           "gh issue comment 5 --body-file - <<'BODY'\nReal comment.\n"
+           "**Created by:** Developer\nBODY")
+    rc = _run(cmd, tmp_log=tmp_path / "f.jsonl", monkeypatch=monkeypatch)
     assert rc == 0 and _deny_out(capsys) is None
 
 

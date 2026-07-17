@@ -39,8 +39,10 @@ import re
 PUNCT = set("();<>|&")
 
 # A heredoc redirection: `<<EOF`, `<<'EOF'`, `<<"EOF"`, and the `<<-` tab-stripping
-# form. The delimiter is captured so the body can be skipped up to it.
-_HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# form. The delimiter is captured so the body can be skipped up to it. Public
+# because a sibling hook (check_created_by_footer) also parses heredoc bodies and
+# must stay in-sync-by-construction with strip_heredoc_bodies (PR #1229 nit 3).
+HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 
 
 def strip_heredoc_bodies(cmd: str) -> str:
@@ -56,7 +58,7 @@ def strip_heredoc_bodies(cmd: str) -> str:
     while i < len(lines):
         line = lines[i]
         out.append(line)
-        match = _HEREDOC_RE.search(line)
+        match = HEREDOC_RE.search(line)
         i += 1
         if not match:
             continue
