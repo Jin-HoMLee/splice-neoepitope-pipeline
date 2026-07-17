@@ -7,12 +7,16 @@ the native blockedBy graph, and reports or wires the missing edges.
 Usage:
   scripts/pm/scan_prose_deps.py                 # --report (default): drift table
   scripts/pm/scan_prose_deps.py --issue N       # single-issue scope
-  scripts/pm/scan_prose_deps.py --check         # exit 2 if any drift
+  scripts/pm/scan_prose_deps.py --check         # exit 1 if any drift
   scripts/pm/scan_prose_deps.py --apply         # wire all needs-wiring records
   scripts/pm/scan_prose_deps.py --apply --only 745 594   # wire only these dependents
 
-Exits 0 clean / 2 drift-present (--check) / 1 on error or incomplete scan
-(a transient per-issue lookup failure, which takes precedence over 2).
+Exit-code convention (shared with scan_unblocked.py, aligned in Issue #1179):
+0 = ran fine, nothing to act on; 1 = ran fine, --check gate tripped (drift
+present); 2 = could-not-run (a transient per-issue lookup failure / incomplete
+scan, which takes precedence over 1). 2 == could-not-run matches argparse's own
+exit-2-for-usage-error, so a routine shelling several PM sweeps can treat the
+codes uniformly: 1 = a finding, 2 = did not execute.
 """
 import argparse
 import json
@@ -294,7 +298,7 @@ def main():
     parser.add_argument("--report", action="store_true",
                         help="print the drift table (default action; explicit form)")
     parser.add_argument("--check", action="store_true",
-                        help="exit 2 if any needs-wiring drift, 1 if any lookup failed (incomplete scan)")
+                        help="exit 1 if any needs-wiring drift, 2 if any lookup failed (incomplete scan)")
     parser.add_argument("--apply", action="store_true", help="wire the needs-wiring edges")
     parser.add_argument("--only", type=int, nargs="*", default=None,
                         help="with --apply: wire only these dependent issue numbers")
@@ -316,12 +320,15 @@ def main():
 
     print(render_report(records), end="")
     if args.check:
-        # A partially-failed scan can't be trusted to have found all drift, so an
-        # incomplete lookup signals "error" (1, this script's error code) and
-        # takes precedence over the drift code (2). Re-running clears a transient.
+        # Exit-code convention, shared with scan_unblocked.py (aligned in Issue
+        # #1179): 1 = ran fine, gate tripped (drift found); 2 = could-not-run
+        # (incomplete lookup). 2 takes precedence - a partially-failed scan can't
+        # be trusted to have found all drift - and 2 == could-not-run matches
+        # argparse's own exit-2-for-usage-error, so a routine shelling several PM
+        # sweeps can read a 2 from any of them as "this did not execute".
         if lookup_failed:
-            return 1
-        return 2 if needs else 0
+            return 2
+        return 1 if needs else 0
     return 0
 
 
