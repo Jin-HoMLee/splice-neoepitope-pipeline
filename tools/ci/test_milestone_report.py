@@ -73,6 +73,18 @@ class TestSlugify:
         assert not s.startswith("-") and not s.endswith("-")
 
 
+class TestSdrSlug:
+    def test_date_is_a_prefix(self):
+        from datetime import date
+        assert mr.sdr_slug(date(2026, 7, 17)) == "2026-07-17-meta-work-sdr"
+
+    def test_sorts_chronologically(self):
+        from datetime import date
+        earlier = mr.sdr_slug(date(2026, 7, 3))
+        later = mr.sdr_slug(date(2026, 7, 17))
+        assert earlier < later  # lexical sort == chronological with a date prefix
+
+
 # --- cycle time -------------------------------------------------------------
 
 class TestLeadTime:

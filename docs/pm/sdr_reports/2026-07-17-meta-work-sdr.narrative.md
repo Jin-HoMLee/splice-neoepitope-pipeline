@@ -1,0 +1,41 @@
+<!-- Author-owned narrative for Meta-work SDR - week ending 2026-07-17. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+## Deliverables (Review layer)
+
+A very high-throughput week (51 delivered) with the work concentrating in three streams: the aligner-junctions arc cleared two long-standing bottlenecks, the board-governance guard layer was hardened after two self-inflicted misses, and PM tooling caught up on its own measurement debt.
+
+- **Aligner-junctions arc - two bottlenecks cleared.** The containerized linux-64 STAR path now runs the chr22 test **end-to-end locally** ([Issue #1162](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1162)), so STAR is finally a working local aligner and the arm64-build dead-end is moot. In the same window the unsound `NH==1` hard-gate was retired for a junction **uniqueness score** validated on chr22 ([Issue #1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)) - closing the [Issue #1122](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1122) finding that per-arm read-gating could manufacture a false `tumor_exclusive` candidate.
+- **Governance guards - hardened after real misses.** The [Issue #1142](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1142) subcommand-split blindness (a newline merging two commands past the matcher) was fixed across all five `gh`/`git` hooks; the [Issue #1150](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1150) mechanism-class ruling (guardrails vs. controls, Jin-Ho ratified) drew the line between best-effort hooks and the entry-point/server-side controls we actually rely on; hook-liveness **contract tests** now drive each hook's real trigger and assert the artifact ([Issue #1140](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1140)); and first-pass bot review is now **auto-requested** on non-trivial PRs ([Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073)), widening the human-review gate that caps team throughput.
+- **PM tooling - measurement debt paid down.** Board-governance conventions were extracted out of `CLAUDE.md` to the shared-memory home that loads in both repos ([Issue #769](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/769)); native auto-archive replaced the never-run manual archive runbook ([Issue #1152](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1152), board 1,228 -> 479); the SDR itself learned to separate **cycle time from lead time** ([Issue #1138](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1138)); the inbox coordination scan was unified into one skill definition after a three-week silent drift ([Issue #1114](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1114)); and `dispatch_digest` stopped manufacturing phantom role shortfalls by bucketing multi-role items under every role ([Issue #1139](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1139)).
+- **Scientist.** The dry hard-negative determination (the registry's scarcest reagent) was documented ([Issue #911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)), and the exon-TE junction scope question was settled as a **discrimination** problem rather than a detection change ([Issue #699](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/699)).
+
+Per-role delivered: developer 28, scientist 13, PM 12. These pills sum to 53, not the 51 distinct delivered, because two dual-role Issues ([#1112](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1112), [#699](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/699), both scientist+developer) are counted under each of their roles. The distinct partition is developer-only 26 + scientist-only 11 + PM-only 12 + dual(sci+dev) 2 = 51. Full itemized list in the Inventory appendix.
+
+## Descoped (closed NOT_PLANNED)
+
+Three closed NOT_PLANNED (2026-07-14 and -17), each subject overtaken - two by other landed work, one by the infrastructure teardown:
+
+- [#1158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1158) `dispatch_digest _role_slug` buckets by the first role label only (last site of the #1153 class) - _superseded by [#1139](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1139) / PR #1187, which fixed the multi-role bucketing across `dispatch_digest` in one change; this narrower single-site fix became redundant._
+- [#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095) whole-genome loci-loss check for the NH-uniqueness junction filter - _the `NH==1` hard-gate this test targeted was itself retired for a uniqueness **score** ([#1116](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1116)); with the hard-gate gone, the loci-loss check lost its subject._
+- [#310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) hybrid T4/L4 GPU fallback in `run_cloud_gpu.sh` (blocked on a T4 quota grant) - _premise superseded by the GCP infrastructure teardown: the Issue assumes a GCP hybrid-GPU strategy that no longer holds once GCP was decommissioned. Surfaced in the Friday stale-Issue self-review (2026-07-17) and closed with a full written rationale._
+
+**Process note:** two of the three ([#1158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1158), [#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)) carried no human closing comment - only the closure-audit bot fired (flagging unticked ACs); [#310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310) closed correctly with a written rationale. A NOT_PLANNED close should carry a one-line closing rationale + supersession pointer *before* the close (closure ritual). Folded into the retrospective below.
+
+## Carried-forward & routing
+
+- _(none carried forward - every committed item this week closed within the window)_
+
+## Retrospective (process/health)
+
+**Flow is healthy and accelerating.** Throughput held high (51 delivered; four-week trend 12 -> 22 -> 61 -> 51), with cycle-time median 1.7d and lead-time median 3.0d. Nothing carried forward and no item aged past threshold in an active WIP column.
+
+**The binding constraint remains human review bandwidth, not authoring.** The week's guard work ([Issue #1073](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1073) auto-request bot review) is the right lever - it widens the gate that caps everything downstream. The In-review column carrying 8 PRs at week's end is that constraint made visible, not a stall.
+
+**Two measurement caveats to read the numbers honestly:**
+
+- **63% of delivered work never crossed Backlog -> Ready** (32 of 51), so its cycle time is *undefined*, not zero. Under late-commitment Kanban for flow/meta work, much lands direct - this is expected, not drift. But it means the throughput number is dominated by uncommitted flow, and cycle-time medians describe only the committed minority.
+- **The `unplanned` marker is 0% labelled vs 63% observably-unplanned.** The marker simply is not in use repo-wide yet - which is exactly the fidelity gap [Issue #1188](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1188) / [Issue #1144](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1144) closed this week. Next week's SDR should begin to show real arrival classification, and the "unclassifiable" trend row should start resolving.
+
+**One process slip to correct:** two of the three NOT_PLANNED descopes ([#1158](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1158), [#1095](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1095)) closed with no human closing comment; the third ([#310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/310)) followed the ritual. The closure-ritual rule (a direct close posts its rationale first) held for merging-PR closes and for #310 but slipped on those two direct closes. Low-stakes here (all three were clean supersessions), but worth a reminder rather than a mechanism.
