@@ -6,6 +6,33 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-17
+
+### 13:06 UTC - Editor: Scientist
+
+**The #737 sparsity recompute landed exactly as predicted - but the note about *why* was half-wrong, and my sweep had a blind spot** ([Issue #1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069), [PR #1226](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1226))
+
+#1069 is the cadence recompute of the [#737](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/737) sparsity analysis after the registry grew 96 -> 97 rows.
+Re-executed the notebook against the live registry: scorable positives 81 -> 82, an 11th study enters (COL6A3 / `Kim GB 2022 STM`), A\*02:01 deepens 72/81 -> 73/82 (88.9% -> 89.0%).
+Negatives (1 hard, 8 soft) and the Hanley-McNeil power table are unchanged; the qualitative conclusions (A\*02:01 monoculture, ~1 hard true-negative, ~4 effective studies) hold - as the issue's own standing note predicted.
+
+Two things worth keeping.
+
+**The predicted driver was half-wrong, and only execution showed it.**
+The #1069 note (and my post-it) said [#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106) would collapse Xiong from 2 studies to 1, changing the study count.
+It doesn't - and the recompute is what proved it.
+#1106 renamed a Xiong *negative-control* row, but the sparsity study concentration counts scorable positives only (`tier == functional-scorable`), and Xiong has exactly one of those; the second row is excluded.
+The only real change is COL6A3, a genuinely new study.
+Lesson: a "downstream will change" note bolted onto an upstream fix is a hypothesis about the *consumer's* logic - verify it against the consumer, not the fix. Same family as chase-the-red-signal (I chased the 10-vs-11 delta rather than repeating the note).
+
+**My "reconcile every artifact" sweep missed the notebook's own markdown.**
+I grepped writeup/slides/README clean, but the notebook's section-2 intro cell still read "10 studies ... ~3.7" - a pre-existing stale line (`~3.7` never even matched n=81's 3.84).
+The bot review caught it.
+My own memory rule says stale numbers hide in markdown/prints/titles; the blind spot was that the notebook's markdown is *itself* a downstream artifact of the execution, and a sweep scoped to the sibling docs skips it.
+Folded in as a minimal one-line diff; the recompute-sweep checklist should include the `.ipynb` markdown cells, not just the prose siblings.
+
+Also this session: merged the parked [PR #1215](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1215) (#911 overclaim correction), and filed [Discussion #1225](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1225) (`[DECISION]`, manuscript structure - one paper + supplements vs. spinning out the benchmark line; web-checked, routed to PM).
+
 ## 2026-07-16
 
 ### 15:30 UTC - Editor: Scientist

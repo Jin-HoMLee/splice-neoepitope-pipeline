@@ -3,7 +3,7 @@ title: "How thin is splice-neoantigen immunogenicity ground truth?"
 subtitle: "Quantifying sparsity in the field-wide registry · Issue #737 (of #680)"
 author: "Jin-Ho Lee"
 institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
-date: 2026-06-30
+date: 2026-07-17
 date-format: "YYYY-MM-DD"
 format:
   revealjs:
@@ -56,10 +56,10 @@ A peptide enters the registry only if it clears **both**:
 
 . . .
 
-Of **96** registry rows, **94** pass both gates; **81 are scorable** - a published sequence + an HLA restriction + a positive readout.
+Of **97** registry rows, **95** pass both gates; **82 are scorable** - a published sequence + an HLA restriction + a positive readout.
 
 ::: {.callout-tip}
-81 peptides is the entire field-wide positive base. We then ask: how concentrated is it?
+82 peptides is the entire field-wide positive base. We then ask: how concentrated is it?
 :::
 
 ## Concentration, three ways
@@ -72,19 +72,19 @@ For each axis (study / allele / mechanism) we report:
 | **HHI** (Σ pᵢ²) | 1/k if perfectly spread, 1.0 for a monopoly |
 | **Effective number** (1 / HHI) | how many *equally-weighted* contributors the diversity is worth |
 
-The effective number is the honest headline: **10 studies that are really worth ~3.8.**
+The effective number is the honest headline: **11 studies that are really worth ~3.9.**
 
 ## Result 1 - a few-study assembly
 
 ![](outputs/fig_study_pareto.png){width="78%"}
 
-Top study (Bigot SF3B1-UM [@bigot2021sf3b1]) = **43%**; top two (+ Kim leukemia [@kim2025sfmutant]) = **65%**. Effective ≈ **3.8** independent studies.
+Top study (Bigot SF3B1-UM [@bigot2021sf3b1]) = **43%**; top two (+ Kim leukemia [@kim2025sfmutant]) = **65%**. Effective ≈ **3.9** independent studies.
 
 ## Result 2 - an HLA-A\*02:01 monoculture
 
 ![](outputs/fig_allele_mechanism.png){width="92%"}
 
-**72/81 (89%) are A\*02:01** - effective ≈ **1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2). Any allele-stratified result collapses to an A2 result.
+**73/82 (89%) are A\*02:01** - effective ≈ **1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2). Any allele-stratified result collapses to an A2 result.
 
 ## Result 3 - the negative set is the binding constraint
 
@@ -114,8 +114,8 @@ Adding more A2 positives to an already-saturated axis does **not** improve the b
 
 ## Caveats {.smaller}
 
-- **Source-string hygiene.** SNAF/IRIS carry split source strings; collapsed to 10 canonical studies (collapsing *strengthens* the clustering finding).
-- **81 is a floor.** Sequence-blocked gate-passers (e.g. Zhao 2025) excluded pending retrieval; folding them doesn't relieve the A2 / negative constraints.
+- **Source-string hygiene.** Source strings canonicalized to one-per-study ([#1106](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1106)); 11 studies among the scorable positives (collapsing *strengthens* the clustering finding).
+- **82 is a floor.** Sequence-blocked gate-passers (e.g. Zhao 2025) excluded pending retrieval; folding them doesn't relieve the A2 / negative constraints.
 - **Soft ≠ tested-negative.** The 8 IR-CRC soft negatives must never pool with the 1 hard negative as equal strength ([`LABELING_SCHEME.md`](../LABELING_SCHEME.md) §7).
 - **Power calc is illustrative.** Hanley-McNeil sizing sets the order of magnitude of the negative requirement, not an exact stratified-design target.
 
