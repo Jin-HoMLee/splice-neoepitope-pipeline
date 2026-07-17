@@ -103,34 +103,60 @@ def _gh(*args, timeout=15):
 
 
 def _fetch_parent_state(number, repo):
-    """Return (sub_total, children) for one Issue via a single GraphQL call.
+    """Return (sub_total, children) for one Issue, paginating over ALL sub-issues.
 
-    `children` is a list of {"number": int, "state": "OPEN"|"CLOSED"}. Raises on
-    any gh/JSON error (the caller maps that to an 'undetermined' fail-closed
-    resolution).
+    `children` is a list of {"number": int, "state": "OPEN"|"CLOSED"} covering
+    every child (the `subIssues` connection is walked to exhaustion via its
+    `pageInfo` cursor - a single `first:100` page would miss the open children of
+    a parent with >100 sub-issues, a silent false-PASS). `sub_total` is
+    `subIssuesSummary.total`. Raises on any gh/JSON error (the caller maps that to
+    an 'undetermined' fail-closed resolution).
     """
     owner, name = repo.split("/", 1)
     query = (
-        "query($o:String!,$n:String!,$num:Int!){"
+        "query($o:String!,$n:String!,$num:Int!,$after:String){"
         "repository(owner:$o,name:$n){issue(number:$num){"
         "subIssuesSummary{total}"
-        "subIssues(first:100){nodes{number state}}}}}"
+        "subIssues(first:100,after:$after){"
+        "pageInfo{hasNextPage endCursor}"
+        "nodes{number state}}}}}"
     )
-    res = _gh("api", "graphql", "-f", f"query={query}",
-              "-f", f"o={owner}", "-f", f"n={name}", "-F", f"num={number}")
-    data = json.loads(res.stdout)
-    issue = data["data"]["repository"]["issue"]
-    total = int(issue["subIssuesSummary"]["total"])
-    nodes = issue["subIssues"]["nodes"]
-    children = [{"number": int(c["number"]), "state": c["state"]} for c in nodes]
+    children = []
+    total = 0
+    after = None
+    while True:
+        extra = ["-f", f"after={after}"] if after is not None else []
+        res = _gh("api", "graphql", "-f", f"query={query}",
+                  "-f", f"o={owner}", "-f", f"n={name}", "-F", f"num={number}",
+                  *extra)
+        data = json.loads(res.stdout)
+        issue = data["data"]["repository"]["issue"]
+        total = int(issue["subIssuesSummary"]["total"])
+        conn = issue["subIssues"]
+        children.extend({"number": int(c["number"]), "state": c["state"]}
+                        for c in conn["nodes"])
+        page = conn["pageInfo"]
+        if page["hasNextPage"]:
+            after = page["endCursor"]
+        else:
+            break
     return total, children
 
 
-def resolve(number, repo):
+def resolve(number, repo, closing_set=frozenset()):
     """Classify one linked closing Issue into a resolution dict.
 
-    Fail-CLOSED: any gh/JSON error while fetching parent/child state yields
-    status 'undetermined' (which `gate_decision` treats as a block).
+    Fail-CLOSED on:
+      - any gh/JSON error while fetching parent/child state, and
+      - an incomplete child fetch (`len(children) < total`) - we could not see
+        every child, so we cannot prove there is no open one. This should be
+        unreachable given `_fetch_parent_state` paginates fully, but it is a
+        defensive net against the false-PASS the gate forbids (bot review #1224).
+
+    `closing_set` is the PR's full set of closing Issue numbers. An open child
+    that the SAME PR closes is excluded before deciding `open_children`: at
+    pre-merge it is still OPEN, but the merge closes it too, so it is not orphaned
+    (bot review #1224). A sibling open child NOT in `closing_set` still blocks.
     """
     try:
         total, children = _fetch_parent_state(number, repo)
@@ -138,7 +164,10 @@ def resolve(number, repo):
         return {"number": number, "status": "undetermined"}
     if total == 0:
         return {"number": number, "status": "leaf"}
-    open_kids = [c["number"] for c in children if c["state"] == "OPEN"]
+    if len(children) < total:
+        return {"number": number, "status": "undetermined"}
+    open_kids = [c["number"] for c in children
+                 if c["state"] == "OPEN" and c["number"] not in closing_set]
     if open_kids:
         return {"number": number, "status": "open_children", "open": open_kids}
     return {"number": number, "status": "clean"}
@@ -193,7 +222,8 @@ def main():
     if not linked:
         return 0  # nothing to check
 
-    resolutions = [resolve(n, repo) for n in linked]
+    closing_set = set(linked)
+    resolutions = [resolve(n, repo, closing_set) for n in linked]
     blocked, messages = gate_decision(resolutions)
     for m in messages:
         print(m, file=sys.stderr)

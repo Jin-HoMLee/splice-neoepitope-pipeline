@@ -112,6 +112,41 @@ class TestResolve:
         monkeypatch.setattr(gate, "_fetch_parent_state", boom)
         assert gate.resolve(538, "o/r") == {"number": 538, "status": "undetermined"}
 
+    def test_incomplete_page_fails_closed(self, monkeypatch):
+        # Finding 1 (bot review PR #1224): subIssuesSummary.total says 150 but only
+        # 100 children were fetched - we cannot see the other 50, so we cannot
+        # prove there is no open child. Fail CLOSED, never `clean` (that would be
+        # the exact false-PASS the whole gate forbids).
+        monkeypatch.setattr(
+            gate, "_fetch_parent_state",
+            lambda n, repo: (150, [{"number": i, "state": "CLOSED"}
+                                   for i in range(100)]),
+        )
+        assert gate.resolve(999, "o/r") == {"number": 999, "status": "undetermined"}
+
+    def test_open_child_in_pr_closing_set_is_excluded(self, monkeypatch):
+        # Finding 2 (bot review PR #1224): a PR that closes the parent AND its last
+        # open child #101 together. #101 is still OPEN at pre-merge, but the merge
+        # closes it too, so nothing is orphaned - it must not block.
+        monkeypatch.setattr(
+            gate, "_fetch_parent_state",
+            lambda n, repo: (2, [{"number": 100, "state": "CLOSED"},
+                                 {"number": 101, "state": "OPEN"}]),
+        )
+        assert gate.resolve(1031, "o/r", closing_set={1031, 101})["status"] == "clean"
+
+    def test_open_child_not_in_closing_set_still_blocks(self, monkeypatch):
+        # The exclusion must not open a hole: a sibling open child #102 that the PR
+        # does NOT close would be orphaned, so it must still block.
+        monkeypatch.setattr(
+            gate, "_fetch_parent_state",
+            lambda n, repo: (2, [{"number": 100, "state": "CLOSED"},
+                                 {"number": 101, "state": "OPEN"},
+                                 {"number": 102, "state": "OPEN"}]),
+        )
+        r = gate.resolve(1031, "o/r", closing_set={1031, 101})
+        assert r["status"] == "open_children" and r["open"] == [102]
+
 
 # --- main(): the two-directional falsifier pair (AC-3) + exit codes ---
 
@@ -121,7 +156,8 @@ def _run_main(monkeypatch, *, linked, resolutions, tmp_path=None):
     monkeypatch.setattr(gate.sys, "argv", ["parent_child_gate.py", "999"])
     monkeypatch.setattr(gate, "fetch_closing_issues", lambda pr, repo: linked)
     by_num = {r["number"]: r for r in resolutions}
-    monkeypatch.setattr(gate, "resolve", lambda n, repo: by_num[n])
+    monkeypatch.setattr(gate, "resolve",
+                        lambda n, repo, closing_set=frozenset(): by_num[n])
     if tmp_path is not None:
         monkeypatch.setattr(gate, "LOG_PATH", tmp_path / "hook_fires.jsonl")
     return gate.main()
@@ -170,6 +206,22 @@ def test_undetermined_parent_state_fails_closed(monkeypatch, tmp_path):
         tmp_path=tmp_path,
     )
     assert rc == 1
+
+
+def test_main_threads_pr_closing_set_into_resolve(monkeypatch):
+    # Finding 2: main() must hand the PR's full closing set to resolve() so an
+    # open child that the same PR closes can be excluded.
+    seen = {}
+    monkeypatch.setattr(gate.sys, "argv", ["parent_child_gate.py", "999"])
+    monkeypatch.setattr(gate, "fetch_closing_issues", lambda pr, repo: [1031, 101])
+
+    def fake_resolve(n, repo, closing_set=frozenset()):
+        seen[n] = set(closing_set)
+        return {"number": n, "status": "leaf"}
+
+    monkeypatch.setattr(gate, "resolve", fake_resolve)
+    gate.main()
+    assert seen[1031] == {1031, 101}
 
 
 def test_pr_fetch_error_fails_closed(monkeypatch):
