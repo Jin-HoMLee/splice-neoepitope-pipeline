@@ -73,22 +73,35 @@ def _ensure_running(studio: Studio, machine, allow_gpu: bool) -> bool:
 
 
 def _drive_usage(studio: Studio) -> None:
-    """Print persistent Drive usage vs the free cap. $HOME is the billable mount."""
-    out = studio.run(
-        "du -sm $HOME 2>/dev/null | cut -f1; "
-        "du -sh $HOME/.torch $HOME/tfold 2>/dev/null"
-    )
-    lines = out.splitlines()
+    """Print persistent Drive usage vs the free cap. $HOME is the billable mount.
+
+    A usage readout must never fail a real run, so the remote command is forced to
+    exit 0 (missing dirs are normal before prestage) and any error here is swallowed.
+    """
     try:
-        used_mb = int(lines[0].strip())
+        out = studio.run(
+            "echo \"USED_MB=$(du -sm $HOME 2>/dev/null | cut -f1)\"; "
+            "echo \"TORCH=$(du -sh $HOME/.torch 2>/dev/null | cut -f1)\"; "
+            "echo \"TFOLD=$(du -sh $HOME/tfold 2>/dev/null | cut -f1)\"; "
+            "true"
+        )
+    except Exception as e:  # readout is best-effort, never fatal
+        print(f"  Drive: (usage readout unavailable: {e})")
+        return
+    fields = dict(
+        l.split("=", 1) for l in out.splitlines() if "=" in l
+    )
+    try:
+        used_mb = int(fields.get("USED_MB", "").strip())
         pct = 100.0 * used_mb / (FREE_STORAGE_GB * 1024)
         flag = "  <-- OVER FREE CAP" if used_mb > FREE_STORAGE_GB * 1024 else ""
         print(f"  Drive: {used_mb} MB / {FREE_STORAGE_GB} GB free ({pct:.0f}%){flag}")
-    except (ValueError, IndexError):
-        print("  Drive: (could not parse usage)\n" + out)
-    for l in lines[1:]:
-        if l.strip():
-            print(f"    {l}")
+    except (ValueError, TypeError):
+        print(f"  Drive: (could not parse usage: {fields})")
+    for label in ("TORCH", "TFOLD"):
+        val = fields.get(label, "").strip()
+        if val:
+            print(f"    {label.lower()} cache: {val}")
 
 
 def cmd_status(args) -> None:
