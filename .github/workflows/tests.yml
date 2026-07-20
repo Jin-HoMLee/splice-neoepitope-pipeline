@@ -208,3 +208,51 @@ jobs:
             exit 1
           fi
           echo "All workflow/envs/*.yaml solve cleanly."
+
+  project-map-freshness:
+    # Regenerate the committed project-map atlas artifacts and fail if they
+    # drift from the checked-in copies. graph.json and project_map.html are
+    # generated (extract_graph.py -> graph.json, build_html.py ->
+    # project_map.html) but had no auto-regeneration, so they silently went
+    # stale as repo structure changed (Issue #789: graph.json was committed at
+    # 335 nodes vs 678 from a fresh generation). Standard committed-generated-
+    # file pattern: regenerate in CI, then `git diff` against the committed copies.
+    #
+    # Runs always (not path-filtered): the atlas covers the whole repo tree, so
+    # almost any PR can change it, and the regen is cheap (stdlib + vendored D3,
+    # no pip deps, no network). The offline render check (verify_render.mjs) is
+    # deliberately NOT run here - it drives a real browser and is timing-flaky
+    # on shared runners (see tools/project_map/README.md); it stays a local
+    # pre-merge check.
+    #
+    # Python 3.11 matches ci-tools-pytest so the byte-for-byte output is
+    # consistent with the extractor's test job. extract_graph.py discovers files
+    # via `git ls-files`, so actions/checkout (which provides a git tree) is a
+    # precondition; build_html.py needs the regenerated graph.json plus the
+    # vendored D3, both in-repo.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Regenerate atlas artifacts
+        run: |
+          python tools/project_map/extract_graph.py
+          python tools/project_map/build_html.py
+
+      - name: Fail on drift vs committed artifacts
+        run: |
+          if ! git diff --quiet -- tools/project_map/graph.json tools/project_map/project_map.html; then
+            echo "::error::project-map atlas artifacts are stale vs the repo tree. Regenerate and commit them:"
+            echo "  python tools/project_map/extract_graph.py"
+            echo "  python tools/project_map/build_html.py"
+            git diff --stat -- tools/project_map/graph.json tools/project_map/project_map.html
+            exit 1
+          fi
+          echo "project-map atlas artifacts are up to date."

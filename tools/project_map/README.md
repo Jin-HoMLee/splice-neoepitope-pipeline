@@ -76,7 +76,15 @@ python tools/project_map/build_html.py       # graph.json + D3 → project_map.h
 
 Both scripts are **idempotent** — safe to re-run. `build_html.py` strips any prior
 inlined data/D3 blocks before re-inserting, so the output never accumulates
-duplicates.
+duplicates (the strip is the exact inverse of the insert, including the leading
+newline before the D3 block, so repeated builds are byte-stable, Issue #789).
+
+The `project-map-freshness` CI job (`.github/workflows/tests.yml`) enforces this on
+every PR: it regenerates both artifacts and fails if they differ from the committed
+copies. So after any change that shifts the repo structure the atlas covers, re-run
+the two commands above and commit the refreshed `graph.json` + `project_map.html`,
+or the gate reds the PR (Issue #789). The offline `verify_render.mjs` check stays a
+local-only step (it is browser-timing-flaky on CI runners, see **Test** above).
 
 ## Notes
 
