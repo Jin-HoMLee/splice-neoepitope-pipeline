@@ -12,7 +12,7 @@ Lightning-AI free tier, per its [billing FAQ](https://lightning.ai/docs/overview
 - **15 credits/month, no credit card required** - but **phone verification IS required** (so "$0" is not zero-friction).
 - **L4 IS selectable, but pricier than the Issue assumed.** The machine picker offers CPU (free), **T4 $0.19/hr**, **L4 $1.58/hr**, **L40S $2.89/hr**, **RTX PRO 6000 $4.64/hr**, **A100 $2.19/hr**, **H100 $4.50/hr**, **H200 $6.53/hr** - all free-tier selectable (no card; drawn from the monthly credits). This *corrects* the Issue's premise twice: A100/H100/H200 are **not** paid-gated, and **L4 is $1.58/hr, not the assumed ~$0.60-0.70** -> **~9.5 free L4-hr/mo, not 21-25**.
   - Credit->hour (15 credits/mo, 1 credit ~ $1): T4 ~79 hr, **L4 ~9.5 hr**, **L40S ~5 hr**, A100 ~7 hr, H100 ~3 hr.
-- **The right pick is L40S/A100, and the L4 is moot** - see the [card-fit finding](#live-run-findings-2026-07-20---complete): tFold-TCR peaks at **26 GB/complex**, so it **OOMs the 24 GB L4** (and the 16 GB T4). L40S (48 GB, bf16 + FP8) is both capable and has the VRAM headroom; A100 (40 GB) also fits.
+- **The right pick is L40S/A100, and the L4 is moot** - see the [card-fit finding](#live-run-findings-2026-07-20---complete): tFold-TCR peaks at **26 GB/complex**, so it **OOMs the 24 GB L4** (and the 16 GB T4). L40S (48 GB, bf16 + FP8-capable) is both capable and has the VRAM headroom; A100 (40 GB, bf16, no FP8) also fits tFold-TCR (which needs bf16, not FP8).
 - tFold-TCR runs in **seconds/complex** on the GPU, so L40S's ~5 free hr/mo is ample (~2,100 complexes/mo at $0).
 
 ## The two open gaps #601 flagged
@@ -56,7 +56,7 @@ python projects/tfold_tcr/predict.py \
 
 ## Input
 
-A TCR-pMHC complex needs five chains, each `{"id": ..., "sequence": ...}`: `A` TCR-alpha, `B` TCR-beta, `M` MHC-I heavy, `N` beta-2 microglobulin, `P` peptide.
+The input is a **top-level JSON array** of complexes (`[ { "name": ..., "chains": [...] } ]`), even for a single complex. Each complex needs five chains, each `{"id": ..., "sequence": ...}`: `A` TCR-alpha, `B` TCR-beta, `M` MHC-I heavy, `N` beta-2 microglobulin, `P` peptide. (The local template `input/tcr_pmhc.template.json` mirrors this array shape.)
 `examples/tcr_pmhc_example.json` (bundled in the repo) is the **runnability probe input** - guaranteed well-formed, and it isolates "does the tool run on the free GPU" from input-construction risk (and does not burn free hours on a malformed hand-built file).
 
 ### Why NOT a hand-built "real patient" complex (yet)
@@ -83,7 +83,7 @@ Setup notes: signup needed no card (phone verification only); env is Python 3.12
 | GPU utilisation | n/a | 100% during inference |
 | Model load (cached weights) | - | ~16 s |
 
-- **bf16/FP8 path engaged:** the `torch.cuda.amp.custom_fwd` autocast path fires (mixed precision on CUDA).
+- **bf16 mixed-precision path engaged:** the `torch.cuda.amp.custom_fwd` autocast path fires. That is bf16/fp16 autocast, **not FP8** - FP8 needs explicit `float8` dtypes / Transformer-Engine, which tFold-TCR does not use. L40S/Ada is FP8-*capable* hardware, but this run exercised **bf16**.
 - **Weights cache survives a machine swap:** the CPU-run download persisted to the Studio filesystem; the L40S re-run loaded from cache (no 2.43 GB re-download), so the 8.4 s is pure inference, directly comparable to the CPU number.
 - **Output:** a valid 5-chain complex PDB (`6zkw_E_D_A_B_C_Complex.pdb`).
 
@@ -97,9 +97,9 @@ Setup notes: signup needed no card (phone verification only); env is Python 3.12
 
 ## Verdict (feeds Issue #601)
 
-Free Lightning-AI **L40S clears the AF3-class hardware bar at a true $0**: bf16/FP8 + 48 GB + 8.4 s/complex, comfortably inside the 15-credit/mo free budget (~2,100 complexes/mo). The #601 park rationale ("wait until we can afford an L4-class Ada GPU, >=24 GB, bf16+FP8") no longer holds - that hardware is free-selectable today.
+Free Lightning-AI **L40S clears the AF3-class hardware bar at a true $0**: **bf16** mixed-precision (on FP8-capable Ada hardware) + 48 GB + 8.4 s/complex, comfortably inside the 15-credit/mo free budget (~2,100 complexes/mo). The #601 park rationale ("wait until we can afford an L4-class Ada GPU, >=24 GB, bf16+FP8") no longer holds - that hardware is free-selectable today. (tFold-TCR itself runs **bf16, not FP8**; FP8 was the constraint for ESMFold2 in #601's list, and L40S/Ada supports it whereas the A100 fallback - Ampere - does not.)
 
-**One amendment to the park's framing:** tFold-TCR specifically needs **>=~28 GB**, so the working free card is **L40S/A100-40G, not the literal 24 GB L4** the Issue named. The L4 premise was wrong on two counts (price: $1.58 not ~$0.65/hr; VRAM: 24 GB OOMs) - but the *spirit* (a free Ada-class GPU unlocks the AF3-class frontier at $0) is **confirmed via L40S**.
+**One amendment to the park's framing:** tFold-TCR's **measured peak is 26 GB**, so the 24 GB L4 OOMs and the working free card is **L40S/A100-40G, not the literal 24 GB L4** the Issue named (pick a card with real headroom above the 26 GB peak). The L4 premise was wrong on two counts (price: $1.58 not ~$0.65/hr; VRAM: 24 GB OOMs) - but the *spirit* (a free Ada-class GPU unlocks the AF3-class frontier at $0) is **confirmed via L40S**.
 
 **Recommendation to #601:** re-trigger the AF3-class backend re-eval - the $0 hardware constraint that forced PARK is lifted. Weight/code license was the other #601 gap; for tFold specifically it is PolyForm Noncommercial (fine for our research/portfolio use, bars commercial productization) - see the gaps table above. Note this is a *runnability* result on a curated example, not an accuracy re-eval; the accuracy/DockQ comparison and CDR3-pLDDT reranking transfer remain #601's scientific scope.
 

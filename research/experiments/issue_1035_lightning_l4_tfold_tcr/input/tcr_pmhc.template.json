@@ -1,11 +1,13 @@
-{
-  "_comment": "tFold-TCR 5-chain input TEMPLATE. Replace every REPLACE_* value with a real, sourced amino-acid sequence (IMGT/UniProt/stitchr) before running. Do NOT run as-is. See ../README.md 'Two probe inputs'.",
-  "name": "chr22_neoepitope_DMF5_HLA-A0201",
-  "chains": [
-    { "id": "A", "sequence": "REPLACE_TCR_ALPHA_FULL_SEQUENCE__stitchr(TRAV12-2,TRAJ21,CDR3a=CAVNFGGGKLI)" },
-    { "id": "B", "sequence": "REPLACE_TCR_BETA_FULL_SEQUENCE__stitchr(TRBV6-5,TRBJ2-7,CDR3b=CASSLAGGRPEQYF)" },
-    { "id": "M", "sequence": "REPLACE_HLA-A0201_MATURE_HEAVY_CHAIN__UniProt_P01892" },
-    { "id": "N", "sequence": "REPLACE_HUMAN_B2M_MATURE__UniProt_P61769" },
-    { "id": "P", "sequence": "REPLACE_CHR22_NEOEPITOPE_PEPTIDE__from_results_local_mhcflurry_presentation_tsv" }
-  ]
-}
+[
+  {
+    "_comment": "tFold-TCR 5-chain input TEMPLATE. Top level is a JSON ARRAY of complexes (predict.py expects a list, matching examples/tcr_pmhc_example.json). Replace every REPLACE_* value with a real, sourced amino-acid sequence (IMGT/UniProt/stitchr) and drop this _comment before running. Do NOT run as-is. See ../README.md '## Input'. The TCR must be HLA-matched to the patient allele, NOT DMF5 (A*02:01-restricted) for our A*02:01-negative patient - that pairing is what #1245 exists to resolve.",
+    "name": "REPLACE_complex_name__eg_chr22neo_<HLA-matched-TCR>_<patient-allele>",
+    "chains": [
+      { "id": "A", "sequence": "REPLACE_TCR_ALPHA_FULL_SEQUENCE__stitchr(HLA-matched-TCR-alpha; NOT DMF5)" },
+      { "id": "B", "sequence": "REPLACE_TCR_BETA_FULL_SEQUENCE__stitchr(HLA-matched-TCR-beta; NOT DMF5)" },
+      { "id": "M", "sequence": "REPLACE_MHC_I_MATURE_HEAVY_CHAIN__UniProt (match a patient allele: A*26:01/A*33:03/B*15:01/B*18:20/C*03:02/C*07:01)" },
+      { "id": "N", "sequence": "REPLACE_HUMAN_B2M_MATURE__UniProt_P61769" },
+      { "id": "P", "sequence": "REPLACE_CHR22_NEOEPITOPE_PEPTIDE__from_results_local_mhcflurry_presentation_tsv" }
+    ]
+  }
+]
