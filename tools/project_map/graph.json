@@ -1824,7 +1824,49 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 16
+      "degree": 17
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "label": "issue_1035_lightning_l4_tfold_tcr",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr",
+      "size": 1,
+      "issue": 1035,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 1035,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
+      "label": "input",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/input",
+      "size": 1,
+      "issue": 1035,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input__tcr_pmhc_template_json",
+      "label": "tcr_pmhc.template.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/input/tcr_pmhc.template.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1035,
+      "degree": 1
     },
     {
       "id": "research__experiments__issue_1048_pvactools_mhcflurry_spike",
@@ -8909,6 +8951,30 @@
     {
       "source": "research__experiments",
       "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__README_md",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input__tcr_pmhc_template_json",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
       "type": "contained_in",
       "label": ""
     },
