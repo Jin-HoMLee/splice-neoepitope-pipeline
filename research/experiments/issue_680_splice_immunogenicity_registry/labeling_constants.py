@@ -34,34 +34,41 @@ PEPTIDE_NULL_STATUSES = PEPTIDE_STATUSES - {PEPTIDE_STATUS_PRESENT}
 # set (LABELING_SCHEME.md section 4's consumer note).
 SCORABLE_TIER = "functional-scorable"
 
-# The tiers a `label == "positive"` row may legally occupy (#1178, #1233). Per
-# LABELING_SCHEME.md section 4 this is THREE tiers, not two:
-#   - `functional-scorable`    - measured positive, scorable sequence in hand
-#   - `functional-nonscorable` - measured positive, but no published sequence to key on
-#   - `candidate`              - a proposed positive whose second adversarial-verify pass
-#                                did not confirm the label; it KEEPS `label=positive` and
-#                                is held out of the *scored* set by its tier, not by
-#                                overwriting its label (section 4.3).
-# The firewall's job is to catch a positive label on a tier where it is NEVER legal - a
-# `presentation-prevalence` row (presented-but-never-assayed, must be `untested`), a
-# negative tier, or a non-splice control - so a consumer that filters on `label` alone
-# can never pull one of those into the positive set. validate_registry.py enforces it.
+# The full `tier -> legal-label(s)` table (#1237): the single authoritative source for which
+# `label` each `tier` may carry, enforced TWO-directionally by validate_registry.py. It
+# supersedes the hand-maintained positive-only firewall (#1178, #1233) and closes that guard's
+# mirror gap - an `untested`-only or control tier wearing `label=negative` was previously caught
+# by neither the firewall (fires on positive) nor the negative-subtype checks (which fire on
+# soft/hard/strong/weak and are blind to the `na` strength those tiers carry). Verified against
+# the live registry (no row violates it) and LABELING_SCHEME.md sections 2-4.
 #
-# The name is `POSITIVE_LABEL_TIERS`, not `FUNCTIONAL_POSITIVE_TIERS` (#1233): `candidate`
-# is a *disputed* positive, not a functional-confirmed one, so "functional" mis-described
-# the set. Direction chosen (#1233) over demoting `candidate` to `untested`: a candidate
-# WAS assayed, so `untested` (= no functional assay performed) would assert a falsehood
-# and conflate disputed-after-assay with never-assayed. Keeping the label and the
-# dispute-status on separate axes (`label=positive` + `tier=candidate`) is the standard
-# data-curation practice and matches #1178's own thesis that the tier, not the label,
-# carries the exclusion.
-#
-# NB this is deliberately *not* `{SCORABLE_TIER}` alone: the functional-nonscorable and
-# candidate positives are genuine `label=positive` rows that simply are not *scorable*, so
-# a "reject any positive that is not functional-scorable" rule would wrongly reject them.
-# The scored-set filter is `scorable_positive_mask` below, a strictly narrower thing.
+# Per LABELING_SCHEME.md section 4, each tier carries exactly one label class:
+#   - the three POSITIVE tiers keep `label=positive`. `candidate` is a *disputed* positive whose
+#     second adversarial-verify pass did not confirm the label; it KEEPS `label=positive` and is
+#     held out of the *scored* set by its tier, not by demoting its label (section 4.3). Demoting
+#     it to `untested` would assert a falsehood - a candidate WAS assayed - so the dispute lives
+#     on the tier axis, matching #1178's thesis that the tier, not the label, carries exclusion.
+#   - the two experimental NEGATIVE tiers and the non-splice control carry `label=negative`.
+#   - `presentation-prevalence` is presented-but-never-assayed, so `untested`-only. This is the
+#     row class the #1237 negative-side guard protects: it may never be `positive` OR `negative`.
 POSITIVE_LABEL = "positive"
-POSITIVE_LABEL_TIERS = {"functional-scorable", "functional-nonscorable", "candidate"}
+TIER_ALLOWED_LABELS = {
+    "functional-scorable":         {"positive"},
+    "functional-nonscorable":      {"positive"},
+    "candidate":                   {"positive"},
+    "candidate-negative":          {"negative"},
+    "hard-negative-true-splice":   {"negative"},
+    "negative-control-not-splice": {"negative"},
+    "presentation-prevalence":     {"untested"},
+}
+
+# The tiers a `label == "positive"` row may legally occupy, DERIVED from the table above so the
+# two can never drift (#1237 AC3; a hand-maintained literal through #1178/#1233). It is
+# deliberately NOT `{SCORABLE_TIER}` alone: the functional-nonscorable and candidate positives
+# are genuine `label=positive` rows that simply are not *scorable*, so a "positive must be
+# functional-scorable" rule would wrongly reject them. The scored-set filter is
+# `scorable_positive_mask` below, a strictly narrower thing.
+POSITIVE_LABEL_TIERS = {t for t, labels in TIER_ALLOWED_LABELS.items() if POSITIVE_LABEL in labels}
 
 
 def scorable_positive_mask(df):
