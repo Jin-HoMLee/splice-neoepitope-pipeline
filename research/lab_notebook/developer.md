@@ -6,6 +6,25 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-20
+
+### 14:07 UTC - Editor: Developer - Free Lightning L40S clears the AF3-class hardware bar at $0, and two capability claims my own re-read could not catch ([PR #1246](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1246) for [Issue #1035](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1035))
+
+**Headline:** The free-GPU spike landed a decisive result - tFold-TCR runs on a free Lightning-AI L40S at **8.4 s/complex** (vs 79 min CPU, ~567x), **26 GB peak VRAM**, valid PDB, inside the 15-credit/mo free tier (~2,100 complexes/mo at $0). That lifts the hardware constraint that forced the [Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) AF3-class PARK; verdict posted there, and the biologically-real complex is carved to Scientist as [Issue #1245](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1245).
+
+**The premise was wrong twice, and the live run was the falsifier.** The Issue is titled "free Lightning L4" and premised on an L4 at ~$0.60-0.70/hr (~21-25 free hr/mo). Reality, from the machine picker plus the live run: L4 is **$1.58/hr** (~9.5 free hr/mo), *and* tFold-TCR peaks at **26 GB**, which **OOMs the 24 GB L4**. So the exact card the whole Issue names is both pricier and too small - the working card is L40S/A100-40G. The spike still succeeds, but only because I ran on L40S rather than sipping credits on the L4 I had floated earlier in the session as the cheaper pick. My own "one complex will almost certainly fit 24 GB" guess was falsified by the 26 GB measurement. Desk-prep is a hypothesis until the live run - the second half of the same lesson the CPU-vs-GPU device confusion taught earlier today (the first 79-min "run" was silently on CPU).
+
+**Two claims the bot review caught that my re-read did not - both capability assertions I never actually verified:**
+
+- **"bf16/FP8 path engaged"** - I read the `torch.cuda.amp.custom_fwd` autocast warning as evidence of the FP8 path. Autocast is bf16/fp16; FP8 needs explicit `float8` dtypes. I asserted a capability from a proxy signal, and it had *already propagated into the #601 verdict comment* - a park/unpark decision record - before the review landed. Corrected in both the recipe and the #601 comment in place.
+- **The template schema** - `input/tcr_pmhc.template.json` was a bare object, but the real `examples/tcr_pmhc_example.json` (WebFetched to confirm) is a top-level **array**. I never ran the template (it is placeholders), so its well-formedness was unchecked - and I was about to hand it to Sci for the #1245 real run, where a malformed input burns the exact GPU hours this spike measured. The bot could not fetch the example to confirm; I could, and it was a real bug, not a nitpick.
+
+**What I make of it:** both misses are the post-it's "THE ONE THING" shape - a capability/correctness claim asserted from a plausible-but-insufficient signal, which my own re-read passed clean and an external probe caught. The FP8 one is sharper because it reached a decision record. The habit that would have caught both, 30s each: for any capability claim, write what I *observed* against what the claim *requires* - autocast is not FP8; "looks like the example" is not byte-checked against the example. No new memory file (the rule exists; [Issue #1135](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1135) tracks the mechanism).
+
+**Process:** commit -> push -> PR (#1246, auto-bot-review fired on open) -> review -> fixes (`4eac42f`) -> reviewer reply -> this entry -> merge gate. All 5 findings verified and addressed; none blocking. Stopping at the `gh pr merge` command per the gate for Jin-Ho's final look.
+
+---
+
 ## 2026-07-17
 
 ### 19:43 UTC - Editor: Developer - A freshness gate is only as good as the cross-machine check that proves it ([PR #1234](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1234) for [Issue #789](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/789))

@@ -1824,7 +1824,49 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 17
+      "degree": 18
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "label": "issue_1035_lightning_l4_tfold_tcr",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr",
+      "size": 1,
+      "issue": 1035,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 1035,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
+      "label": "input",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/input",
+      "size": 1,
+      "issue": 1035,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input__tcr_pmhc_template_json",
+      "label": "tcr_pmhc.template.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1035_lightning_l4_tfold_tcr/input/tcr_pmhc.template.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1035,
+      "degree": 1
     },
     {
       "id": "research__experiments__issue_1048_pvactools_mhcflurry_spike",
@@ -5444,8 +5486,8 @@
       "type": "pm_dir",
       "group": "infrastructure",
       "path": "scripts/pm",
-      "size": 14,
-      "degree": 16
+      "size": 15,
+      "degree": 17
     },
     {
       "id": "scripts__pm__apply_arc_labels_sh",
@@ -5483,6 +5525,16 @@
       "type": "resource",
       "group": "infrastructure",
       "path": "scripts/pm/check_closed_recent.py",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "scripts__pm__declared_role_py",
+      "label": "declared_role.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "scripts/pm/declared_role.py",
       "description": "Project file",
       "size": 1,
       "degree": 1
@@ -5692,8 +5744,8 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 11,
-      "degree": 12
+      "size": 12,
+      "degree": 13
     },
     {
       "id": "scripts__tests__test_apply_arc_labels_resync_py",
@@ -5781,6 +5833,16 @@
       "type": "script",
       "group": "infrastructure",
       "path": "scripts/tests/test_check_roadmap_health_role.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
+    },
+    {
+      "id": "scripts__tests__test_declared_role_py",
+      "label": "test_declared_role.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_declared_role.py",
       "description": "Python/shell script",
       "size": 2,
       "degree": 1
@@ -9073,6 +9135,30 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__README_md",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input__tcr_pmhc_template_json",
+      "target": "research__experiments__issue_1035_lightning_l4_tfold_tcr__input",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_1048_pvactools_mhcflurry_spike",
       "target": "research__experiments",
       "type": "contained_in",
@@ -11671,6 +11757,12 @@
       "label": ""
     },
     {
+      "source": "scripts__pm__declared_role_py",
+      "target": "scripts__pm",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "scripts__pm__dispatch_digest_py",
       "target": "scripts__pm",
       "type": "contained_in",
@@ -11846,6 +11938,12 @@
     },
     {
       "source": "scripts__tests__test_check_roadmap_health_role_py",
+      "target": "scripts__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_declared_role_py",
       "target": "scripts__tests",
       "type": "contained_in",
       "label": ""
