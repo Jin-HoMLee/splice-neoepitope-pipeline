@@ -40,6 +40,19 @@ def test_normalizes_ensembl_contig_and_reads_plus_strand(tmp_path):
     assert r.frame_shift is False
 
 
+def test_empty_frame_shift_stays_unknown_none(tmp_path):
+    # splice2neo may leave frame_shift blank/NA; the schema carries
+    # Optional[bool] = None for "unknown", which must not collapse to False.
+    tsv = tmp_path / "s2n.tsv"
+    tsv.write_text(
+        "junc_id\ttx_id\tframe_shift\tcts_seq_len\tpeptide_context\n"
+        "chr3:1-2:+\tENST00000000001\t\t10\tMEIC\n"
+        "chr3:3-4:+\tENST00000000002\tNA\t10\tMEIK\n"
+    )
+    records = parse_splice2neo(tsv, genome_build="hg19")
+    assert [r.frame_shift for r in records] == [None, None]
+
+
 def test_skips_rows_with_no_peptide(tmp_path):
     # splice2neo emits NA peptide_context for junctions with no in-frame peptide;
     # those are not neoepitope candidates and must not enter the schema.

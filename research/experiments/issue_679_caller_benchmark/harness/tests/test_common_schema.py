@@ -19,6 +19,13 @@ class TestNormalizeJunctionId:
         # passed first, so two tools that disagree on argument order still collide.
         assert normalize_junction_id("chr7", 200, 100, "-") == "chr7:100-200:-"
 
+    def test_ensembl_mt_maps_to_ucsc_chrm_not_chrmt(self):
+        # UCSC mitochondrial contig is "chrM"; Ensembl names it "MT". Bare
+        # prefixing would give "chrMT", so a tool emitting "MT" and one emitting
+        # "chrM" would not collide on one key. Normalize both to "chrM".
+        assert normalize_junction_id("MT", 100, 200, "+") == "chrM:100-200:+"
+        assert normalize_junction_id("chrM", 100, 200, "+") == "chrM:100-200:+"
+
 
 class TestParseJunctionString:
     def test_parses_splice2neo_style_string(self):

@@ -6,6 +6,8 @@ one common schema, and writes a unified TSV. Adding a caller is a one-line
 registry entry (the AC-5 extension point).
 """
 
+import argparse
+import csv
 import json
 import subprocess
 import sys
@@ -13,7 +15,14 @@ from pathlib import Path
 
 import pytest
 
-from collect import ADAPTERS, collect, get_adapter, records_to_tsv
+from collect import (
+    ADAPTERS,
+    _cell,
+    _parse_input_spec,
+    collect,
+    get_adapter,
+    records_to_tsv,
+)
 
 HARNESS_DIR = Path(__file__).resolve().parent.parent
 SPLICE2NEO_TSV = (
@@ -78,6 +87,33 @@ def test_records_to_tsv_writes_header_and_json_encoded_provenance(tmp_path):
     assert row["junction_id"] == "chr2:152389996-152392205:-"
     # provenance is a dict on the record; on disk it must round-trip as JSON.
     assert json.loads(row["provenance"])["source"] == "splice2neo"
+
+
+def test_unified_tsv_round_trips_through_a_tab_csv_reader(tmp_path):
+    # The provenance-as-JSON encoding is justified by the TSV reading back with
+    # a tab reader (no csv-quoting surprises). Pin that load-bearing claim: a
+    # real csv.DictReader must recover the JSON verbatim.
+    tsv = tmp_path / "s2n.tsv"
+    tsv.write_text(SPLICE2NEO_TSV)
+    out = tmp_path / "unified.tsv"
+    records_to_tsv(collect([("splice2neo", tsv)]), out)
+
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh, delimiter="\t"))
+    assert rows[0]["peptide"] == "INRHFKYATQLMNEIC"
+    assert json.loads(rows[0]["provenance"])["source"] == "splice2neo"
+
+
+def test_cell_rejects_a_value_with_an_embedded_tab():
+    # A tab inside a value would silently shift every downstream column, so the
+    # writer must refuse it loudly rather than corrupt the TSV.
+    with pytest.raises(ValueError):
+        _cell("pep\ttide")
+
+
+def test_parse_input_spec_rejects_a_token_without_a_colon():
+    with pytest.raises(argparse.ArgumentTypeError):
+        _parse_input_spec("splice2neo")  # no ":path"
 
 
 def test_main_writes_a_unified_tsv_end_to_end(tmp_path):

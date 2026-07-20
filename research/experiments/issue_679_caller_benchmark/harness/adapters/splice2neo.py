@@ -18,8 +18,16 @@ from common_schema import CommonRecord, normalize_junction_id, parse_junction_st
 CALLER = "splice2neo"
 
 
-def _to_bool(value: str) -> bool:
-    return value.strip().upper() == "TRUE"
+def _to_bool(value):
+    """Map splice2neo's ``frame_shift`` cell to a tri-state bool.
+
+    Blank / ``NA`` -> ``None`` ("unknown"), preserving the schema's
+    ``Optional[bool]`` rather than collapsing an absent value to ``False``.
+    """
+    v = (value or "").strip().upper()
+    if v in ("", "NA"):
+        return None
+    return v == "TRUE"
 
 
 def parse_splice2neo(path, genome_build: str = "hg19") -> list[CommonRecord]:

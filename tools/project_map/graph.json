@@ -1824,7 +1824,7 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 16
+      "degree": 17
     },
     {
       "id": "research__experiments__issue_1048_pvactools_mhcflurry_spike",
@@ -3203,6 +3203,166 @@
       "description": "Project file",
       "size": 1,
       "issue": 566,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark",
+      "label": "issue_679_caller_benchmark",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark",
+      "size": 1,
+      "issue": 679,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness",
+      "label": "harness",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness",
+      "size": 3,
+      "issue": 679,
+      "degree": 7
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__adapters",
+      "label": "adapters",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/adapters",
+      "size": 2,
+      "issue": 679,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__adapters____init___py",
+      "label": "__init__.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/adapters/__init__.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__adapters__splice2neo_py",
+      "label": "splice2neo.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/adapters/splice2neo.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__collect_py",
+      "label": "collect.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/collect.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__common_schema_py",
+      "label": "common_schema.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/common_schema.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__conftest_py",
+      "label": "conftest.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/conftest.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__outputs",
+      "label": "outputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/outputs",
+      "size": 1,
+      "issue": 679,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__outputs__unified_smoke_tsv",
+      "label": "unified_smoke.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/outputs/unified_smoke.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "label": "tests",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests",
+      "size": 3,
+      "issue": 679,
+      "degree": 4
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_collect_py",
+      "label": "test_collect.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_collect.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_common_schema_py",
+      "label": "test_common_schema.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_common_schema.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_splice2neo_adapter_py",
+      "label": "test_splice2neo_adapter.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_splice2neo_adapter.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
       "degree": 1
     },
     {
@@ -9725,6 +9885,96 @@
     {
       "source": "research__experiments__issue_566_asneo_crosscheck__run_asneo_chr22_sh",
       "target": "research__experiments__issue_566_asneo_crosscheck",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__README_md",
+      "target": "research__experiments__issue_679_caller_benchmark",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness",
+      "target": "research__experiments__issue_679_caller_benchmark",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__adapters",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__adapters____init___py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__adapters",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__adapters__splice2neo_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__adapters",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__collect_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__common_schema_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__conftest_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__outputs",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__outputs__unified_smoke_tsv",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_collect_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_common_schema_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_splice2neo_adapter_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
       "type": "contained_in",
       "label": ""
     },

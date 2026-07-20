@@ -28,6 +28,10 @@ def normalize_junction_id(chrom: str, start: int, end: int, strand: str) -> str:
     """
     if not chrom.startswith("chr"):
         chrom = f"chr{chrom}"
+    if chrom == "chrMT":
+        # UCSC names the mitochondrial contig "chrM"; Ensembl uses "MT". Without
+        # this a tool emitting "MT" and one emitting "chrM" never collide.
+        chrom = "chrM"
     lo, hi = (start, end) if start <= end else (end, start)
     return f"{chrom}:{lo}-{hi}:{strand}"
 
