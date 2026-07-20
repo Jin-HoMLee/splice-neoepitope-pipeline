@@ -169,7 +169,52 @@ def test_parse_discussions_extracts_rows():
     data = _disc_response([{"number": 910, "title": "t", "url": "u",
                             "author": {"login": "Jin-HoMLee"}}])
     rows = dd._parse_discussions_response(data)
-    assert rows == [{"number": 910, "title": "t", "author": "Jin-HoMLee", "url": "u"}]
+    assert rows == [{"number": 910, "title": "t", "author": "Jin-HoMLee",
+                     "url": "u", "raiser": None}]
+
+
+def test_parse_discussions_extracts_declared_raiser_from_body():
+    # Issue #1240: the raiser role comes from the body's From: line, not the login.
+    data = _disc_response([{"number": 910, "title": "t", "url": "u",
+                            "author": {"login": "Jin-HoMLee"},
+                            "body": "**From:** Scientist -> **To:** PM\n\nplease decide."}])
+    rows = dd._parse_discussions_response(data)
+    assert rows[0]["author"] == "Jin-HoMLee"   # login unchanged
+    assert rows[0]["raiser"] == "Scientist"     # declared raiser
+
+
+def test_parse_discussions_raiser_matched_pair_flip():
+    # Same GitHub author, only the From: role flipped -> reported raiser flips.
+    def raiser_for(role):
+        data = _disc_response([{"number": 1, "title": "t", "url": "u",
+                                "author": {"login": "Jin-HoMLee"},
+                                "body": f"**From:** {role} -> **To:** PM"}])
+        return dd._parse_discussions_response(data)[0]["raiser"]
+
+    assert raiser_for("Scientist") == "Scientist"
+    assert raiser_for("Developer") == "Developer"
+
+
+def test_parse_discussions_undeclared_body_raiser_none():
+    data = _disc_response([{"number": 1, "title": "t", "url": "u",
+                            "author": {"login": "Jin-HoMLee"}, "body": "no attribution"}])
+    assert dd._parse_discussions_response(data)[0]["raiser"] is None
+
+
+def test_render_discussions_shows_declared_raiser():
+    # AC1: the Discussions rollup shows the declared raiser role, not author.login.
+    discussions = [{"number": 910, "title": "narrative home",
+                    "author": "Jin-HoMLee", "raiser": "Scientist", "url": "u"}]
+    out = dd.render_digest([], discussions=discussions, now=NOW, stale_days=14)
+    assert "Scientist" in out
+
+
+def test_render_discussions_undeclared_raiser_fallback():
+    # AC4: no declared role -> fall back to the login with an "undeclared role" marker.
+    discussions = [{"number": 910, "title": "narrative home",
+                    "author": "Jin-HoMLee", "raiser": None, "url": "u"}]
+    out = dd.render_digest([], discussions=discussions, now=NOW, stale_days=14)
+    assert "Jin-HoMLee" in out and "undeclared role" in out
 
 
 def test_parse_discussions_null_nodes_list_coalesces_to_empty():

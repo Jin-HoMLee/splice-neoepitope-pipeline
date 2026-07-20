@@ -5326,8 +5326,8 @@
       "type": "pm_dir",
       "group": "infrastructure",
       "path": "scripts/pm",
-      "size": 14,
-      "degree": 16
+      "size": 15,
+      "degree": 17
     },
     {
       "id": "scripts__pm__apply_arc_labels_sh",
@@ -5365,6 +5365,16 @@
       "type": "resource",
       "group": "infrastructure",
       "path": "scripts/pm/check_closed_recent.py",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "scripts__pm__declared_role_py",
+      "label": "declared_role.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "scripts/pm/declared_role.py",
       "description": "Project file",
       "size": 1,
       "degree": 1
@@ -5574,8 +5584,8 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 11,
-      "degree": 12
+      "size": 12,
+      "degree": 13
     },
     {
       "id": "scripts__tests__test_apply_arc_labels_resync_py",
@@ -5663,6 +5673,16 @@
       "type": "script",
       "group": "infrastructure",
       "path": "scripts/tests/test_check_roadmap_health_role.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
+    },
+    {
+      "id": "scripts__tests__test_declared_role_py",
+      "label": "test_declared_role.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_declared_role.py",
       "description": "Python/shell script",
       "size": 2,
       "degree": 1
@@ -11526,6 +11546,12 @@
       "label": ""
     },
     {
+      "source": "scripts__pm__declared_role_py",
+      "target": "scripts__pm",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "scripts__pm__dispatch_digest_py",
       "target": "scripts__pm",
       "type": "contained_in",
@@ -11701,6 +11727,12 @@
     },
     {
       "source": "scripts__tests__test_check_roadmap_health_role_py",
+      "target": "scripts__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_declared_role_py",
       "target": "scripts__tests",
       "type": "contained_in",
       "label": ""
