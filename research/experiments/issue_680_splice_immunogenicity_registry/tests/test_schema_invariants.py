@@ -359,6 +359,29 @@ def test_functional_nonscorable_positive_is_not_over_rejected(row, frame):
     assert violations(frame(r)) == []
 
 
+def test_candidate_positive_is_not_over_rejected(row, frame):
+    """The #1233 over-reach control, and the matched partner of
+    `test_presentation_row_labeled_positive_is_rejected`. A `candidate` is a proposed
+    positive whose second adversarial-verify pass did not confirm the label
+    (LABELING_SCHEME.md section 4.3); per the doc it KEEPS `label=positive` and is held
+    below scorable by its *tier*, not by demoting its label. So the firewall must permit
+    it - only a tier that can NEVER carry a positive (presentation / negative / control)
+    is rejected. Same `label=positive`, different tier, opposite outcome from the
+    presentation row: that pair is the falsifier for the 3-tier allowed set."""
+    assert violations(frame(dict(row, tier="candidate"))) == []
+
+
+def test_candidate_negative_labeled_positive_is_rejected(row, frame):
+    """Prefix-confusion guard (#1236 review). `candidate` (disputed POSITIVE, now
+    admitted) and `candidate-negative` (a soft NEGATIVE tier) share a prefix and have 0
+    rows each, so a future `.str.startswith("candidate")` refactor or a typo folding
+    `candidate-negative` into the allowed set would pass unnoticed at runtime. The
+    firewall uses exact set membership, so a positive label on `candidate-negative` must
+    still trip it - pin that here so the two tiers can never be conflated."""
+    _fails_with(frame(dict(row, tier="candidate-negative")),
+                "label 'positive' on tier 'candidate-negative'")
+
+
 def test_scorable_positive_mask_excludes_functional_nonscorable():
     """The canonical filter is stricter than the firewall: the *scored* set is
     functional-scorable positives only. A functional-nonscorable positive is a legal
@@ -374,14 +397,16 @@ def test_scorable_positive_mask_excludes_functional_nonscorable():
     assert scorable_positive_mask(df).tolist() == [True, False, False]
 
 
-def test_live_registry_positives_are_all_on_functional_tiers():
-    """On the real artifact: every positive row sits on a functional tier, so the
-    firewall is green in production and a future presentation-row-as-positive fold
-    fails here rather than silently entering the scored set."""
-    from labeling_constants import FUNCTIONAL_POSITIVE_TIERS
+def test_live_registry_positives_are_all_on_positive_label_tiers():
+    """On the real artifact: every positive row sits on a tier that legally carries a
+    positive label, so the firewall is green in production and a future
+    presentation-row-as-positive fold fails here rather than silently entering the scored
+    set. (0 candidate rows today, so in practice every positive is on one of the two
+    functional tiers - but the enforced invariant is the 3-tier allowed set, #1233.)"""
+    from labeling_constants import POSITIVE_LABEL_TIERS
     from validate_registry import REGISTRY
 
     df = pd.read_csv(REGISTRY, sep="\t", dtype=str).fillna("")
     pos = df[df["label"] == "positive"]
-    bad = pos[~pos["tier"].isin(FUNCTIONAL_POSITIVE_TIERS)]
-    assert bad.empty, f"positive rows on non-functional tiers: {sorted(bad['tier'].unique())}"
+    bad = pos[~pos["tier"].isin(POSITIVE_LABEL_TIERS)]
+    assert bad.empty, f"positive rows on non-positive-label tiers: {sorted(bad['tier'].unique())}"

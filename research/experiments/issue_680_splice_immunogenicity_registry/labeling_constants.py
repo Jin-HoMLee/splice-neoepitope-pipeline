@@ -34,21 +34,34 @@ PEPTIDE_NULL_STATUSES = PEPTIDE_STATUSES - {PEPTIDE_STATUS_PRESENT}
 # set (LABELING_SCHEME.md section 4's consumer note).
 SCORABLE_TIER = "functional-scorable"
 
-# The tiers a `label == "positive"` row may occupy (#1178). Positivity means a
-# *measured* functional T-cell response, so it lives only on the two functional tiers:
-# `functional-scorable` (a scorable sequence in hand) and `functional-nonscorable`
-# (measured positive, but no published sequence to key on). A `presentation-prevalence`
-# row is presented-but-never-assayed and is `label == "untested"`, never `positive` - so
-# a consumer that filters on `label` alone can never pull a presentation row into the
-# positive set. validate_registry.py enforces this; see LABELING_SCHEME.md section 4.
+# The tiers a `label == "positive"` row may legally occupy (#1178, #1233). Per
+# LABELING_SCHEME.md section 4 this is THREE tiers, not two:
+#   - `functional-scorable`    - measured positive, scorable sequence in hand
+#   - `functional-nonscorable` - measured positive, but no published sequence to key on
+#   - `candidate`              - a proposed positive whose second adversarial-verify pass
+#                                did not confirm the label; it KEEPS `label=positive` and
+#                                is held out of the *scored* set by its tier, not by
+#                                overwriting its label (section 4.3).
+# The firewall's job is to catch a positive label on a tier where it is NEVER legal - a
+# `presentation-prevalence` row (presented-but-never-assayed, must be `untested`), a
+# negative tier, or a non-splice control - so a consumer that filters on `label` alone
+# can never pull one of those into the positive set. validate_registry.py enforces it.
 #
-# NB this is deliberately *not* `{SCORABLE_TIER}` alone: the 4 functional-nonscorable
-# rows are genuinely positive (a real assay), they simply lack a sequence to score, so
+# The name is `POSITIVE_LABEL_TIERS`, not `FUNCTIONAL_POSITIVE_TIERS` (#1233): `candidate`
+# is a *disputed* positive, not a functional-confirmed one, so "functional" mis-described
+# the set. Direction chosen (#1233) over demoting `candidate` to `untested`: a candidate
+# WAS assayed, so `untested` (= no functional assay performed) would assert a falsehood
+# and conflate disputed-after-assay with never-assayed. Keeping the label and the
+# dispute-status on separate axes (`label=positive` + `tier=candidate`) is the standard
+# data-curation practice and matches #1178's own thesis that the tier, not the label,
+# carries the exclusion.
+#
+# NB this is deliberately *not* `{SCORABLE_TIER}` alone: the functional-nonscorable and
+# candidate positives are genuine `label=positive` rows that simply are not *scorable*, so
 # a "reject any positive that is not functional-scorable" rule would wrongly reject them.
-# The invariant guards the dangerous case (an *unassayed* presentation row wearing a
-# positive label), not the harmless one (a positive with no scorable sequence).
+# The scored-set filter is `scorable_positive_mask` below, a strictly narrower thing.
 POSITIVE_LABEL = "positive"
-FUNCTIONAL_POSITIVE_TIERS = {"functional-scorable", "functional-nonscorable"}
+POSITIVE_LABEL_TIERS = {"functional-scorable", "functional-nonscorable", "candidate"}
 
 
 def scorable_positive_mask(df):
@@ -56,8 +69,8 @@ def scorable_positive_mask(df):
 
     The single source of truth for the LABELING_SCHEME.md section-4 rule: a scorable
     positive is `label == "positive" AND tier == "functional-scorable"`, never `label`
-    alone (which also admits the functional-nonscorable positives, which have no
-    sequence to score). Every consumer that needs the scored positive set should call
+    alone (which also admits the functional-nonscorable and candidate positives, neither
+    of which is scorable). Every consumer that needs the scored positive set should call
     this rather than re-spelling the two-column filter, so the discipline cannot drift.
     """
     return (df["label"] == POSITIVE_LABEL) & (df["tier"] == SCORABLE_TIER)

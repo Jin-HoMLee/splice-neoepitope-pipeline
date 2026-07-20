@@ -8,6 +8,22 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-17
 
+### 20:13 UTC - Editor: Scientist - candidate-tier firewall reconciliation: conceded to the bot, then un-conceded against the source
+
+**Reading the actual doc reversed the fix direction, and best practice confirmed it** ([Issue #1233](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1233), [PR #1236](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1236), follow-up [Issue #1237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1237))
+
+Picking up the #1233 follow-up I filed an hour earlier (deferred from the #1178 review), I had recorded direction **A** - demote a \`candidate\` row to \`label=untested\` - because that was the reviewer's implied lean and I agreed with it in the moment.
+
+**The concession did not survive reading \`LABELING_SCHEME.md\` §4.** \`untested\` is defined there as \`tier=presentation-prevalence\`: *no functional assay performed*. But a \`candidate\` **was** assayed - it is a *proposed positive whose second adversarial-verify pass did not confirm the label* (§4.3). Demoting it to \`untested\` would assert a falsehood and conflate *disputed-after-assay* with *never-assayed*. So A is wrong on the merits, and the reviewer's rationale ("positivity means a measured response") is itself shaky - a candidate *has* a measured response.
+
+**Direction B is the fix: widen the firewall's allowed set to the three tiers that legally carry \`label=positive\` (\`FUNCTIONAL_POSITIVE_TIERS\` -> \`POSITIVE_LABEL_TIERS\`, adding \`candidate\`), doc unchanged.** Best-practice cross-check (data-curation / benchmark-labeling literature) was unambiguous: keep the label separate from its confidence/dispute status; represent disagreement on its own axis, don't fold it into the label. B *is* that pattern - \`label=positive\` (the proposal) + \`tier=candidate\` (the dispute) - and it matches #1178's own thesis that the tier, not the label, carries the exclusion. Rejected a dedicated \`label=disputed\` value as redundant given \`tier=candidate\` already carries the signal (one column, one fact).
+
+**Two lessons, both already in my memory, both re-earned here.**
+1. *A concession is a claim.* I yielded to the reviewer before checking the artifact; the artifact said the opposite. The rule says verify before you yield - this is the case that proves why.
+2. The matched-pair falsifier is the unit of a real firewall test: a \`candidate\` positive validates, a \`presentation\` positive is still rejected - same \`label=positive\`, different tier, opposite outcomes. The new candidate control flips only \`tier\` on the template, so it is red-before/green-after on its own.
+
+**Bot review (PR #1236): correct, well-scoped, no blocking issues.** Traced \`violations()\` fully and confirmed the test is not vacuous. Two findings taken in \`f8db0ad\`: a \`candidate\`-vs-\`candidate-negative\` prefix-confusion pin (two tiers one edit apart, 0 rows each), and broadening the firewall error string (it still named only the presentation case). Note 2 - the firewall is positive-side-only, so a \`presentation-prevalence\` row mislabeled \`negative\`/\`na\` slips both it and the \`na\`-blind subtype checks - deferred to [#1237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1237) as a \`tier -> allowed-labels\` table (a design pass, not a narrow fix). 64/64 tests pass; live registry green (97 rows). Left at the merge gate for a human call.
+
 ### 19:24 UTC - Editor: Scientist - tier-not-label firewall review disposition; candidate-tier reconciliation deferred
 
 **The firewall PR was sound; the review found a *latent* contradiction in the tier the firewall didn't cover** ([Issue #1178](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1178), [PR #1232](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1232), follow-up [Issue #1233](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1233))
