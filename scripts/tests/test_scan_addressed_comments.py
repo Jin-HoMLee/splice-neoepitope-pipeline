@@ -119,6 +119,39 @@ class TestSelectPings:
         assert s.select_pings(None, s.display_names("pm"), since) == []
 
 
+class TestSelectPingsDeclaredRaiser:
+    """Issue #1240: the ping surfaces the declared raiser role, not author.login."""
+
+    def _c(self, body, login="Jin-HoMLee"):
+        return {"body": body, "created_at": "2026-07-04T10:00:00Z", "user": {"login": login}}
+
+    def test_raiser_role_from_declared_from_field(self):
+        # AC2: the raiser (index 1) is parsed from the body's From: line.
+        since = datetime(2026, 7, 3, 0, 0, tzinfo=UTC)
+        pings = s.select_pings(
+            [self._c("**From:** Developer -> **To:** PM\n\nreview")],
+            s.display_names("pm"), since,
+        )
+        assert pings[0][0] == "Jin-HoMLee"  # GitHub login unchanged (index 0)
+        assert pings[0][1] == "Developer"   # declared raiser (index 1)
+
+    def test_matched_pair_flip(self):
+        # Same GitHub author, only the From: role flipped -> reported raiser flips.
+        since = datetime(2026, 7, 3, 0, 0, tzinfo=UTC)
+        p_sci = s.select_pings(
+            [self._c("**From:** Scientist -> **To:** PM")], s.display_names("pm"), since)
+        p_dev = s.select_pings(
+            [self._c("**From:** Developer -> **To:** PM")], s.display_names("pm"), since)
+        assert p_sci[0][1] == "Scientist"
+        assert p_dev[0][1] == "Developer"
+
+    def test_undeclared_raiser_is_none(self):
+        # AC4: no From:/Created by: -> raiser is None (caller falls back to login).
+        since = datetime(2026, 7, 3, 0, 0, tzinfo=UTC)
+        pings = s.select_pings([self._c("**To:** PM\n\nno attribution")], s.display_names("pm"), since)
+        assert pings[0][1] is None
+
+
 class TestSnippet:
     def test_short_untouched(self):
         assert s.snippet("hello world") == "hello world"
@@ -213,12 +246,22 @@ class TestOrchestrationNoNetwork:
         out = s.render("pm", [], since)
         assert "(none)" in out
 
-    def test_render_groups(self):
+    def test_render_groups_shows_declared_raiser(self):
+        # AC2: render surfaces the declared raiser role, keeping the login visible.
         since = datetime(2026, 7, 4, 15, 0, tzinfo=UTC)
         groups = [({"number": 10, "title": "Alpha", "kind": "Issue"},
-                   [("dev", "2026-07-04T10:00:00Z", "review please")])]
+                   [("Jin-HoMLee", "Developer", "2026-07-04T10:00:00Z", "review please")])]
         out = s.render("pm", groups, since)
-        assert "#10 [Issue] Alpha" in out and "@dev" in out
+        assert "#10 [Issue] Alpha" in out
+        assert "Developer" in out and "@Jin-HoMLee" in out
+
+    def test_render_undeclared_raiser_fallback(self):
+        # AC4: no declared role -> show the login plus an "undeclared role" marker.
+        since = datetime(2026, 7, 4, 15, 0, tzinfo=UTC)
+        groups = [({"number": 10, "title": "Alpha", "kind": "Issue"},
+                   [("Jin-HoMLee", None, "2026-07-04T10:00:00Z", "review please")])]
+        out = s.render("pm", groups, since)
+        assert "@Jin-HoMLee" in out and "undeclared role" in out
 
 
 class TestCliGuards:
