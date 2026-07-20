@@ -24,13 +24,9 @@ ROLE_ALIASES = {
     "memory_manager": ["Memory Manager", "MM"],
 }
 
-# Canonical slug -> display name reported to the reader.
-ROLE_DISPLAY = {
-    "pm": "PM",
-    "scientist": "Scientist",
-    "developer": "Developer",
-    "memory_manager": "Memory Manager",
-}
+# Canonical slug -> display name reported to the reader. Derived from the single
+# source (the first, canonical alias) so it cannot drift from ROLE_ALIASES.
+ROLE_DISPLAY = {slug: aliases[0] for slug, aliases in ROLE_ALIASES.items()}
 
 # (alias_lower, slug) pairs, longest alias first so a multi-word alias
 # ("memory manager") is matched before any shorter one could partial-hit.
@@ -45,6 +41,9 @@ _CREATED_BY_MARKER = "Created by:**"
 # Separators after which the `**From:**` field's value ends (the To: recipient
 # must never leak in as the raiser).
 _FROM_TERMINATORS = ("->", "→", "To:**", "**To")
+# A `**Created by:**` footer names one role; cut at a trailing parenthetical so
+# `**Created by:** PM (reviewed by Developer)` reports PM, not the longest match.
+_CREATED_BY_TERMINATORS = ("(",)
 
 
 def _flatten(text):
@@ -84,18 +83,20 @@ def _field_value(body, marker, terminators=()):
 def parse_declared_role(body):
     """Display name of the declared raiser, or None when undeclared/unrecognized.
 
-    Precedence: the `**From:**` raiser wins over a `**Created by:**` attribution
-    (a coordination comment can carry both, and From: is the sender). Returns None
-    when neither field is present or its value is outside the role vocabulary, so
-    callers can fall back to `author.login` with an "undeclared role" marker.
+    Precedence: a present `**From:**` is authoritative - it is the raiser slot, so
+    it short-circuits (an unrecognized From: role returns None rather than falling
+    through to the author-attribution field, which would misreport). Only when no
+    From: field is present does the `**Created by:**` attribution stand in. Returns
+    None when neither field is present or the resolved value is outside the role
+    vocabulary, so callers can fall back to `author.login` with an "undeclared
+    role" marker.
     """
     for marker, terminators in (
         (_FROM_MARKER, _FROM_TERMINATORS),
-        (_CREATED_BY_MARKER, ()),
+        (_CREATED_BY_MARKER, _CREATED_BY_TERMINATORS),
     ):
         value = _field_value(body, marker, terminators)
         if value is not None:
             slug = _match_role(value)
-            if slug is not None:
-                return ROLE_DISPLAY[slug]
+            return ROLE_DISPLAY[slug] if slug is not None else None
     return None

@@ -60,6 +60,25 @@ class TestCreatedByFallback:
         assert dr.parse_declared_role(body) == "Developer"
 
 
+class TestFromFieldIsAuthoritativeWhenPresent:
+    """A present `**From:**` is the raiser slot; it short-circuits Created by."""
+
+    def test_present_but_unrecognized_from_does_not_fall_through(self):
+        # From: names an unknown role AND a Created by: footer is present. The
+        # From: field is the declared raiser slot, so an unrecognized value is
+        # "undeclared" (None), NOT the author-attribution role (would misreport).
+        body = "**From:** Marketing -> **To:** PM\n\n**Created by:** PM"
+        assert dr.parse_declared_role(body) is None
+
+
+class TestCreatedByTrailingText:
+    def test_trailing_parenthetical_does_not_leak(self):
+        # A footer with trailing text must report the declared author, not the
+        # longest role match anywhere in the tail.
+        body = "**Created by:** PM (reviewed by Developer)"
+        assert dr.parse_declared_role(body) == "PM"
+
+
 class TestUndeclared:
     def test_no_declared_role_returns_none(self):
         assert dr.parse_declared_role("just a plain comment, no attribution") is None
