@@ -1,0 +1,6 @@
+# Lightning AI SDK - programmatic Studio control for free-GPU tFold-TCR runs (Issue #1249).
+# One-time setup:
+#   uv venv --seed tools/lightning/.venv
+#   uv pip install --python tools/lightning/.venv/bin/python -r tools/lightning/requirements.txt
+#   tools/lightning/.venv/bin/lightning login   # stores creds in ~/.lightning/credentials.json
+lightning-sdk
