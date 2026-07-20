@@ -3,4 +3,7 @@
 #   uv venv --seed tools/lightning/.venv
 #   uv pip install --python tools/lightning/.venv/bin/python -r tools/lightning/requirements.txt
 #   tools/lightning/.venv/bin/lightning login   # stores creds in ~/.lightning/credentials.json
-lightning-sdk
+# Pinned to the version verified live in #1249 - the runner leans on specific SDK
+# behavior (the required org= kwarg, Machine.L40S, studio.status/machine, run() raising
+# on non-zero exit). An unpinned bump could shift any of those silently.
+lightning-sdk==2026.07.09.post0

@@ -17,6 +17,27 @@ tools/lightning/.venv/bin/lightning login          # browser sign-in; stores cre
 which the SDK reads automatically. No secrets go in the repo or in `.env`. The `.venv` is
 gitignored and per-clone.
 
+## Studio provisioning (one time, remote)
+
+The runner assumes the target Studio already has the tFold repo at `$HOME/tfold`
+(`REMOTE_TFOLD`) with `projects/tfold_tcr/predict.py` and its deps installed in the default
+`cloudspace` env. `pipeline-devbox` was provisioned once during the
+[Issue #1035](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1035) spike; if it
+is ever recreated, reproduce it from a terminal **inside the Studio** (recipe verified there,
+see `research/experiments/issue_1035_lightning_l4_tfold_tcr/README.md`):
+
+```bash
+cd $HOME
+git clone https://github.com/TencentAI4S/tfold.git      # PolyForm Noncommercial 1.0.0
+cd tfold
+pip install .                                            # into the default env - do NOT `conda env create` (Studios allow only 1 env)
+pip install termcolor biopython ml-collections dm-tree modelcif   # tFold deps, UNPINNED (its 3.8-era pins have no 3.12 wheels)
+```
+
+Notes: the default env is Python 3.12 with `torch 2.8.0+cu128` already present (`numpy`/`scipy`/`torch`
+are pre-installed - do not reinstall). The 2.43 GB ESM-650M weights are **not** cloned here; they
+download on first `prestage` into the persistent `TORCH_HOME` (below).
+
 ## Usage
 
 ```bash

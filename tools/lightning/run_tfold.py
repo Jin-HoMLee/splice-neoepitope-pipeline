@@ -24,6 +24,7 @@ import argparse
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 from lightning_sdk import Machine, Studio
 
@@ -47,7 +48,18 @@ def _connect() -> Studio:
 
 
 def _is_cpu(machine) -> bool:
+    # Doubles as the "is this machine free?" test. Sound for the only machines the runner
+    # ever requests (Machine.CPU is free; L40S is not). If Lightning ever adds a *billed*
+    # tier whose name contains "cpu", this heuristic would misclassify it as free and the
+    # --gpu guard would not fire on it (PR #1253 review nit).
     return machine == Machine.CPU or "cpu" in str(machine).lower()
+
+
+def _same_machine(a, b) -> bool:
+    """True if a and b are the same Lightning machine (for the CPU/L40S the runner uses)."""
+    if _is_cpu(a) or _is_cpu(b):
+        return _is_cpu(a) and _is_cpu(b)
+    return str(a).lower() == str(b).lower()
 
 
 def _ensure_running(studio: Studio, machine, allow_gpu: bool) -> bool:
@@ -63,8 +75,21 @@ def _ensure_running(studio: Studio, machine, allow_gpu: bool) -> bool:
         print(f"  starting on {machine} ...", flush=True)
         studio.start(machine)
         started = True
-    elif not _is_cpu(studio.machine) and not allow_gpu:
-        raise SystemExit(f"studio already running on paid GPU {studio.machine}; pass --gpu or stop it")
+    else:
+        # Already running. start() sets the machine only on the stopped path, and we
+        # deliberately do NOT switch a studio we didn't start: a switch to a paid GPU
+        # would leave started=False, so the caller's finally-stop never fires and the GPU
+        # bills idle. So a machine mismatch here is a hard abort with a clear message, not
+        # a silent run on the wrong machine (e.g. `predict --gpu` against an already-up CPU
+        # studio would otherwise run ~79 min on free CPU instead of the L40S). PR #1253 #1.
+        current = studio.machine
+        if not _is_cpu(current) and not allow_gpu:
+            raise SystemExit(f"studio already running on paid GPU {current}; stop it or pass --gpu")
+        if not _same_machine(current, machine):
+            raise SystemExit(
+                f"studio already running on {current}, but {machine} was requested; "
+                f"stop it first and re-run so it comes up on the right machine"
+            )
     got = studio.machine
     if not _is_cpu(got) and not allow_gpu:
         studio.stop()
@@ -80,10 +105,10 @@ def _drive_usage(studio: Studio) -> None:
     """
     try:
         out = studio.run(
-            "echo \"USED_MB=$(du -sm $HOME 2>/dev/null | cut -f1)\"; "
-            "echo \"TORCH=$(du -sh $HOME/.torch 2>/dev/null | cut -f1)\"; "
-            "echo \"TFOLD=$(du -sh $HOME/tfold 2>/dev/null | cut -f1)\"; "
-            "true"
+            f"echo \"USED_MB=$(du -sm $HOME 2>/dev/null | cut -f1)\"; "
+            f"echo \"TORCH=$(du -sh {REMOTE_TORCH_HOME} 2>/dev/null | cut -f1)\"; "
+            f"echo \"TFOLD=$(du -sh {REMOTE_TFOLD} 2>/dev/null | cut -f1)\"; "
+            f"true"
         )
     except Exception as e:  # readout is best-effort, never fatal
         print(f"  Drive: (usage readout unavailable: {e})")
@@ -125,10 +150,10 @@ def cmd_smoke(args) -> None:
         with tempfile.TemporaryDirectory() as d:
             up, down = os.path.join(d, "u.txt"), os.path.join(d, "d.txt")
             token = "run-tfold-smoke-roundtrip"
-            open(up, "w").write(token + "\n")
+            Path(up).write_text(token + "\n")
             studio.upload_file(up, remote_path="run_tfold_smoke.txt", progress_bar=False)
             studio.download_file("run_tfold_smoke.txt", down)
-            ok = os.path.exists(down) and open(down).read().strip() == token
+            ok = os.path.exists(down) and Path(down).read_text().strip() == token
             print(f"[smoke] upload/download round-trip byte-match: {ok}")
         studio.run("rm -f $HOME/run_tfold_smoke.txt")
         _drive_usage(studio)
@@ -176,13 +201,14 @@ def cmd_predict(args) -> None:
             f"export TORCH_HOME={REMOTE_TORCH_HOME} && cd {REMOTE_TFOLD} && "
             f"rm -rf $HOME/{remote_out} && mkdir -p $HOME/{remote_out} && "
             f"python projects/tfold_tcr/predict.py --json $HOME/{remote_in} "
-            f"--output $HOME/{remote_out}/ --model_version Complex && "
-            f"ls $HOME/{remote_out}/"
+            f"--output $HOME/{remote_out}/ --model_version Complex"
         )
         print("[predict] running predict.py ...")
-        out = studio.run(cmd)
-        print(out)
-        for name in [l.strip() for l in out.splitlines() if l.strip().endswith(".pdb")]:
+        print(studio.run(cmd))
+        # List the output dir in a SEPARATE call so a chatty predict.py log line ending in
+        # ".pdb" can't be misread as an output filename (PR #1253 review #2).
+        listing = studio.run(f"ls $HOME/{remote_out}/")
+        for name in [l.strip() for l in listing.splitlines() if l.strip().endswith(".pdb")]:
             local = os.path.join(args.output_dir, name)
             studio.download_file(f"{remote_out}/{name}", local)
             print(f"[predict] downloaded {local}")
