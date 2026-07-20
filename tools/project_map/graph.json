@@ -5714,7 +5714,7 @@
       "group": "infrastructure",
       "path": "tools",
       "size": 0,
-      "degree": 4
+      "degree": 5
     },
     {
       "id": "tools__ci",
@@ -6162,6 +6162,45 @@
       "group": "infrastructure",
       "path": "tools/ci/test_write_session_watermark.py",
       "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning",
+      "label": "lightning",
+      "type": "dir",
+      "group": "infrastructure",
+      "path": "tools/lightning",
+      "size": 3,
+      "degree": 4
+    },
+    {
+      "id": "tools__lightning__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "infrastructure",
+      "path": "tools/lightning/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning__requirements_txt",
+      "label": "requirements.txt",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "tools/lightning/requirements.txt",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning__run_tfold_py",
+      "label": "run_tfold.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "tools/lightning/run_tfold.py",
+      "description": "Project file",
       "size": 1,
       "degree": 1
     },
@@ -12029,6 +12068,30 @@
     {
       "source": "tools__ci__test_write_session_watermark_py",
       "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning",
+      "target": "tools",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__README_md",
+      "target": "tools__lightning",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__requirements_txt",
+      "target": "tools__lightning",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__run_tfold_py",
+      "target": "tools__lightning",
       "type": "contained_in",
       "label": ""
     },
