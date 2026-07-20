@@ -86,15 +86,19 @@ def violations(df: pd.DataFrame) -> list[str]:
         # (which fire on soft/hard/strong/weak and are blind to the `na` strength those tiers
         # carry). A label-only consumer could then pull an untested peptide into a scored set, or
         # a never-tested row into the negative set - silent corruption of the registry's whole
-        # product, in either direction. A tier absent from the table has an empty allowed set, so
-        # an unknown tier is rejected here too. Turns the section-4 rule from documented into
-        # enforced, both directions. (Not `!= SCORABLE_TIER`: functional-nonscorable and candidate
-        # positives are legitimate without a scorable sequence; the *scored* set is
-        # scorable_positive_mask.)
-        allowed = TIER_ALLOWED_LABELS.get(r["tier"], set())
-        if r["label"] not in allowed:
+        # product, in either direction. Turns the section-4 rule from documented into enforced,
+        # both directions. (Not `!= SCORABLE_TIER`: functional-nonscorable and candidate positives
+        # are legitimate without a scorable sequence; the *scored* set is scorable_positive_mask.)
+        # An unknown tier is reported distinctly from an illegal label on a known tier, so a typo'd
+        # tier - which used to pass silently, there being no standalone tier controlled-vocab check
+        # - fails legibly rather than as an opaque "may carry only []".
+        if r["tier"] not in TIER_ALLOWED_LABELS:
+            out.append(f"{rid}: unknown tier {r['tier']!r} - not in TIER_ALLOWED_LABELS "
+                       f"(add it there if legitimate; LABELING_SCHEME.md section 4)")
+        elif r["label"] not in TIER_ALLOWED_LABELS[r["tier"]]:
             out.append(f"{rid}: label {r['label']!r} on tier {r['tier']!r} - tier {r['tier']!r} "
-                       f"may carry only {sorted(allowed)} (LABELING_SCHEME.md section 4)")
+                       f"may carry only {sorted(TIER_ALLOWED_LABELS[r['tier']])} "
+                       f"(LABELING_SCHEME.md section 4)")
         # grade -> junction_id consistency (#1086). A `coords`/`event-id` grade asserts
         # the source published a junction identifier, so the column must carry it. The
         # converse block is deliberately gone: it used to forbid a `gene-mechanism`/

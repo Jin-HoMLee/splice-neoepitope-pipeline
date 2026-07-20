@@ -87,6 +87,12 @@ The peptide **fails the splice gate** (gate 1) - it is a constitutive / canonica
 It belongs to no benchmark score; it is retained for methodological transparency.
 `evidence_strength=na` for this tier.
 
+### Adding a tier (#1237)
+
+Which `label` each tier may legally carry is enforced by `TIER_ALLOWED_LABELS` in `labeling_constants.py`, checked two-directionally by `validate_registry.py`.
+A new tier therefore needs an explicit `TIER_ALLOWED_LABELS` entry, or **every row on it is rejected as an unknown tier**.
+This is deliberate (fail-closed): a new tier is a schema change that must be declared, never silently inferred from the data.
+
 ---
 
 ## 5. Confidence de-conflation

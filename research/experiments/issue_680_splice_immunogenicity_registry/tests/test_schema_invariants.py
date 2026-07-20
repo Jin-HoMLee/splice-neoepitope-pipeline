@@ -399,6 +399,28 @@ def test_presentation_row_labeled_negative_is_rejected(row, frame):
     _fails_with(frame(bad), "label 'negative' on tier 'presentation-prevalence'")
 
 
+@pytest.mark.parametrize("tier,label", [
+    ("functional-scorable", "negative"),         # a positive tier can never be negative
+    ("functional-scorable", "untested"),         # ... nor untested (old positive-only guard missed this)
+    ("hard-negative-true-splice", "positive"),   # a negative tier can never be positive
+])
+def test_illegal_label_on_known_tier_is_rejected(row, frame, tier, label):
+    """#1237 review note 2: the firewall now rejects ANY out-of-set label on a known tier, in
+    both directions - not only the presentation-prevalence pair. Pin a few so the added
+    strictness cannot silently regress to a positive-only short-circuit."""
+    _fails_with(frame(dict(row, tier=tier, label=label)),
+                f"label {label!r} on tier {tier!r}")
+
+
+def test_unknown_tier_is_rejected(row, frame):
+    """#1237 review note 1: a tier absent from TIER_ALLOWED_LABELS has an empty allowed set, and
+    is rejected with a distinct 'unknown tier' message (not 'may carry only []'), so a typo'd
+    tier on a non-positive row - previously unguarded by any tier controlled-vocab check - fails
+    loudly and legibly."""
+    _fails_with(frame(dict(row, tier="functional-scoreable")),
+                "unknown tier 'functional-scoreable'")
+
+
 def test_scorable_positive_mask_excludes_functional_nonscorable():
     """The canonical filter is stricter than the firewall: the *scored* set is
     functional-scorable positives only. A functional-nonscorable positive is a legal
