@@ -382,6 +382,45 @@ def test_candidate_negative_labeled_positive_is_rejected(row, frame):
                 "label 'positive' on tier 'candidate-negative'")
 
 
+# --- #1237: the firewall is TWO-directional - a control tier can never be `negative` -----
+#
+# The #1178/#1233 firewall guarded the POSITIVE side only. Its mirror gap: an `untested`-only
+# tier (presentation-prevalence) wearing `label=negative` was caught by neither the firewall
+# (fires on positive) nor the negative-subtype checks (fire on soft/hard/strong/weak, blind to
+# the `na` strength these control tiers carry). TIER_ALLOWED_LABELS enforces every tier's legal
+# label set in BOTH directions, closing it. Matched pair with test_presentation_row_untested_is_
+# green: same presentation row, label flipped untested->negative, opposite outcome.
+
+
+def test_presentation_row_labeled_negative_is_rejected(row, frame):
+    """The #1237 negative-side gap: presentation-prevalence is `untested`-only, so a
+    `label=negative` on it must trip the firewall - the mirror of the positive-side case."""
+    bad = dict(_presentation_row(row), label="negative")
+    _fails_with(frame(bad), "label 'negative' on tier 'presentation-prevalence'")
+
+
+@pytest.mark.parametrize("tier,label", [
+    ("functional-scorable", "negative"),         # a positive tier can never be negative
+    ("functional-scorable", "untested"),         # ... nor untested (old positive-only guard missed this)
+    ("hard-negative-true-splice", "positive"),   # a negative tier can never be positive
+])
+def test_illegal_label_on_known_tier_is_rejected(row, frame, tier, label):
+    """#1237 review note 2: the firewall now rejects ANY out-of-set label on a known tier, in
+    both directions - not only the presentation-prevalence pair. Pin a few so the added
+    strictness cannot silently regress to a positive-only short-circuit."""
+    _fails_with(frame(dict(row, tier=tier, label=label)),
+                f"label {label!r} on tier {tier!r}")
+
+
+def test_unknown_tier_is_rejected(row, frame):
+    """#1237 review note 1: a tier absent from TIER_ALLOWED_LABELS has an empty allowed set, and
+    is rejected with a distinct 'unknown tier' message (not 'may carry only []'), so a typo'd
+    tier on a non-positive row - previously unguarded by any tier controlled-vocab check - fails
+    loudly and legibly."""
+    _fails_with(frame(dict(row, tier="functional-scoreable")),
+                "unknown tier 'functional-scoreable'")
+
+
 def test_scorable_positive_mask_excludes_functional_nonscorable():
     """The canonical filter is stricter than the firewall: the *scored* set is
     functional-scorable positives only. A functional-nonscorable positive is a legal

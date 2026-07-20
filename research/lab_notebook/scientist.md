@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-20
+
+### 10:27 UTC - Editor: Scientist - the two-directional firewall, and the schema inconsistency a gut-check exposed
+
+**A "the tier names sound inconsistent" question turned into a faceted-model diagnosis; the narrow fix shipped, the refactor is captured as a proposal** ([Issue #1237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1237), [PR #1243](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1243))
+
+Picked up #1237 (the negative-side gap deferred from the #1236 review): the tier-not-label firewall guarded only the positive side, so a `presentation-prevalence` row mislabeled `label=negative` slipped both the positive firewall and the `na`-blind negative-subtype checks. The fix is a `TIER_ALLOWED_LABELS` table enforced two-directionally, with `POSITIVE_LABEL_TIERS` **derived** from it (no drift). TDD: the negative-side matched pair (same presentation row, `untested` validates / `negative` rejected) is red-before/green-after.
+
+**The load-bearing part of the session was a question, not the code.** Asked whether the tier names were consistent, I found they are not - and it is not cosmetic. The *positive* tiers are split on **scorability** (is the sequence in hand?), the *negative* tiers on **evidence-strength** (`hard`/`soft`). Two different axes, because each side's binding constraint differs: a positive's fate turns on "do we have the sequence to score it?", a negative's on "how much do we trust the non-immunogenicity?". That per-side axis switch is *why* the firewall came out one-directional in the first place - nothing in the tier guarded which labels a tier may wear. Grounding it against best practice named the pattern: this is **faceted classification** (orthogonal facets, composed) versus the flat enumerative `tier`, and the single-source-of-truth remedy is to make `tier` a **derived** view over the facet columns (`label`, `evidence_strength`, `peptide_status`, `splice_mechanism_canonical`). Verified those facets already exist, so `tier` is derivable today for all 6 live tiers - the only gap being the 0-row `candidate` tier's "disputed" facet, which has no column.
+
+**Scope discipline held.** The derive-`tier` refactor is a real direction but a scope widen I proposed *this* session, so it stays a proposal on the #1237 scope-note comment (suggested ACs marked "for discussion, not committed"), and the PR ships only the committed narrow scope. Forward-compatible either way: the table it adds becomes the faceted legal-combination matrix.
+
+**Bot review (PR #1243): LGTM, no blocking issues.** Independently cross-checked all 97 rows against the table (0 violations) and traced the AC3 derivation. Three optional notes, all adopted in `e8a4c73`: a distinct `unknown tier` message (versus the opaque `may carry only []`), a parametrized pin of the *other* newly-strict combinations (a positive tier wearing `negative`/`untested`, a negative tier wearing `positive`), and a `LABELING_SCHEME.md` note that a new tier needs a `TIER_ALLOWED_LABELS` entry or every row on it is rejected (fail-closed). 69 tests pass (+4); live registry green (97 rows). Left at the merge gate for a human call.
+
 ## 2026-07-17
 
 ### 20:13 UTC - Editor: Scientist - candidate-tier firewall reconciliation: conceded to the bot, then un-conceded against the source

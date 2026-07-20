@@ -16,7 +16,7 @@ from labeling_constants import (GRADES, STRENGTHS, ASSAY_CONTEXTS, VENUE_TYPES, 
                                 DETECTION, IVS_MARKER, VENUE_BY_SOURCE_SUBSTR,
                                 ZOTERO_COLLECTION, ZOTERO_ITEMTYPE_TO_VENUE, PREPRINT_MARKERS,
                                 PEPTIDE_STATUSES, PEPTIDE_STATUS_PRESENT, PEPTIDE_NULL_STATUSES,
-                                JUNCTION_EVIDENCE_GRADES, SCORABLE_TIER, POSITIVE_LABEL_TIERS,
+                                JUNCTION_EVIDENCE_GRADES, SCORABLE_TIER, TIER_ALLOWED_LABELS,
                                 IN_VIVO_MODELS, IN_VIVO_NONE, IN_VIVO_MARKERS)
 from registry_dedup import duplicate_keys, row_identity
 
@@ -78,19 +78,27 @@ def violations(df: pd.DataFrame) -> list[str]:
         # positive rows must not resolve to na evidence_strength
         if r["label"] == "positive" and r["evidence_strength"] == "na":
             out.append(f"{rid}: positive row resolved to na evidence_strength (needs manual review)")
-        # tier<->label firewall (#1178, #1233): a positive label may sit ONLY on a tier
-        # that legally carries one - the two functional tiers or `candidate` (a disputed
-        # positive that keeps label=positive per LABELING_SCHEME.md section 4). A
-        # `presentation-prevalence` row is presented-but-unassayed and must be `untested`;
-        # letting it wear a positive label would let a label-only consumer pull an untested
-        # peptide into the functional positive set - silent corruption of the registry's
-        # whole product. This turns the section-4 rule from documented into enforced. (Not
-        # `!= SCORABLE_TIER`: functional-nonscorable and candidate positives are legitimate
-        # without a scorable sequence; the *scored* set is scorable_positive_mask.)
-        if r["label"] == "positive" and r["tier"] not in POSITIVE_LABEL_TIERS:
-            out.append(f"{rid}: label 'positive' on tier {r['tier']!r} - a positive label "
-                       f"may sit only on {sorted(POSITIVE_LABEL_TIERS)}; a presentation, "
-                       f"negative, or non-splice-control tier can never carry a positive label")
+        # tier<->label firewall (#1178, #1233; made TWO-directional in #1237): every row's
+        # `label` must be in TIER_ALLOWED_LABELS for its `tier`. This subsumes the old
+        # positive-only guard AND closes its mirror gap - an `untested`-only tier
+        # (presentation-prevalence) or a control tier wearing `label=negative` was caught by
+        # neither the positive firewall (fired on positive) nor the negative-subtype checks
+        # (which fire on soft/hard/strong/weak and are blind to the `na` strength those tiers
+        # carry). A label-only consumer could then pull an untested peptide into a scored set, or
+        # a never-tested row into the negative set - silent corruption of the registry's whole
+        # product, in either direction. Turns the section-4 rule from documented into enforced,
+        # both directions. (Not `!= SCORABLE_TIER`: functional-nonscorable and candidate positives
+        # are legitimate without a scorable sequence; the *scored* set is scorable_positive_mask.)
+        # An unknown tier is reported distinctly from an illegal label on a known tier, so a typo'd
+        # tier - which used to pass silently, there being no standalone tier controlled-vocab check
+        # - fails legibly rather than as an opaque "may carry only []".
+        if r["tier"] not in TIER_ALLOWED_LABELS:
+            out.append(f"{rid}: unknown tier {r['tier']!r} - not in TIER_ALLOWED_LABELS "
+                       f"(add it there if legitimate; LABELING_SCHEME.md section 4)")
+        elif r["label"] not in TIER_ALLOWED_LABELS[r["tier"]]:
+            out.append(f"{rid}: label {r['label']!r} on tier {r['tier']!r} - tier {r['tier']!r} "
+                       f"may carry only {sorted(TIER_ALLOWED_LABELS[r['tier']])} "
+                       f"(LABELING_SCHEME.md section 4)")
         # grade -> junction_id consistency (#1086). A `coords`/`event-id` grade asserts
         # the source published a junction identifier, so the column must carry it. The
         # converse block is deliberately gone: it used to forbid a `gene-mechanism`/
