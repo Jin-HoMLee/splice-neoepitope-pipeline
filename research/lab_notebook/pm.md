@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-20
+
+### 18:09 UTC - Editor: PM
+
+**The bug I built the fix for was one I had committed myself, three hours earlier, in this same session.** [Issue #1240](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1240) -> [PR #1252](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1252). This morning's inbox scan reported all four open coordination Discussions as "by Jin-Ho" - three were Scientist->PM and one Developer->MM. The cause is structural: every persona posts under Jin-Ho's single GitHub account, so `author.login` is *always* `Jin-HoMLee` and carries zero role signal. The source of truth for who raised a thing is the declared `**From:**` / `**Created by:**` line in the body, which the scan tools were ignoring. So the fix is deterministic-first: one pure parser (`declared_role.py`) both board-scan tools call, single-sourcing the role vocabulary so the `To:` match and the `From:` parse can never drift.
+
+**The live smoke was the same shape I keep re-learning: unit tests validate my model of the input, the real system validates the input.** 187 green tests proved the parser does what I think a body looks like. What actually convinced me was running the digest against the live API and watching Discussion #949 flip from "by Jin-Ho" (this morning) to "**by Scientist**" - the exact item that was misattributed at the top of the session. The falsifier was the real bug reproduced end-to-end, not another fixture. This is why the boundary-touching change (I added `body` to the Discussions GraphQL query) got a live smoke and not just unit coverage.
+
+**A false "it's blocked" nearly derailed the freshness check, and the instrument was lying, not the board.** `gh issue view --json blockedBy --jq '.blockedBy|length'` returned **2** for #1240 - `blockedBy` is a `{nodes, totalCount}` object, so `|length` counts the two *keys*, not blockers. Raw JSON showed `totalCount: 0`. The lesson is the one already in my post-it in a different key: when an instrument disagrees with a second instrument (the `is:blocked` search had #1240 absent), suspect the instrument. Use `.blockedBy.totalCount`.
+
+**The bot review was LGTM, and all three non-blocking notes were worth taking - two of them reinforced the PR's own thesis.** The PR is *about* single-sourcing a vocabulary so it can't drift, and the review caught that I had left `ROLE_DISPLAY` as a hand-maintained parallel dict - a second copy of exactly the thing I was consolidating. Deriving it was the tone-consistent fix. The other two hardened the parser: a present-but-unrecognized `**From:**` now short-circuits (it is the authoritative raiser slot; an unknown value should return None, not fall through to the author-attribution field and misreport), and a `**Created by:** PM (reviewed by Developer)` footer is cut at the paren so it reports PM, not the longest match anywhere in the tail. Both got a pinning test.
+
+**At the merge gate now - Jin-Ho's call.**
+
 ## 2026-07-16
 
 ### 16:07 UTC - Editor: PM

@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_client import GhError, gh  # noqa: E402
+from declared_role import ROLE_ALIASES, parse_declared_role  # noqa: E402
 
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 MARKER_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "last_session_marker.json"
@@ -43,17 +44,11 @@ MARKER_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "last_
 OVERLAP_DAYS = 1
 FLOOR_DAYS = 7
 
-# Role -> display aliases as they appear in a `**To:** <Role>` field. Full names
-# plus the short forms the team uses on the board (Sci / Dev / MM). A `To: all` /
-# `To: team` broadcast is deliberately NOT matched: only a *named* addressee owes
-# an ack (per feedback_team_coordination.md), and surfacing every broadcast to
-# every role would be noise.
-ROLE_ALIASES = {
-    "pm": ["PM"],
-    "scientist": ["Scientist", "Sci"],
-    "developer": ["Developer", "Dev"],
-    "memory_manager": ["Memory Manager", "MM"],
-}
+# The role vocabulary (`ROLE_ALIASES`) is single-sourced from `declared_role` so
+# the `To:` addressee match here and the `From:`/`Created by:` raiser parse there
+# can never drift. A `To: all` / `To: team` broadcast is deliberately NOT matched:
+# only a *named* addressee owes an ack (per feedback_team_coordination.md), and
+# surfacing every broadcast to every role would be noise.
 
 # The literal marker after which the addressee list appears. Mirrors the proven
 # jq predicate `contains("To:** <Role>")`: the addressing convention bolds the
@@ -145,9 +140,12 @@ def parse_ts(ts):
 def select_pings(comments, names, since):
     """Filter raw REST comments to those created >= `since` AND addressing the role.
 
-    Returns [(login, created_at, snippet)], oldest first. A comment with an
-    unparseable/absent timestamp is kept (fail-open: better a stray line than a
-    dropped ping).
+    Returns [(login, raiser, created_at, snippet)], oldest first. `raiser` is the
+    declared role parsed from the body's `**From:**`/`**Created by:**` line (the
+    real sender - `login` is always Jin-Ho's shared account and carries no role
+    signal, Issue #1240), or None when undeclared so the caller can fall back to
+    the login. A comment with an unparseable/absent timestamp is kept (fail-open:
+    better a stray line than a dropped ping).
     """
     out = []
     for c in comments or []:
@@ -157,7 +155,8 @@ def select_pings(comments, names, since):
         if not body_addresses_role(c.get("body"), names):
             continue
         login = ((c.get("user") or {}).get("login")) or "?"
-        out.append((login, c.get("created_at") or "?", snippet(c.get("body"))))
+        raiser = parse_declared_role(c.get("body"))
+        out.append((login, raiser, c.get("created_at") or "?", snippet(c.get("body"))))
     return out
 
 
@@ -230,8 +229,9 @@ def render(role, groups, since):
         return "\n".join(lines) + "\n"
     for item, pings in groups:
         lines.append(f"\n#{item['number']} [{item['kind']}] {item['title']}")
-        for login, ts, snip in pings:
-            lines.append(f"  - @{login} {ts}: {snip}")
+        for login, raiser, ts, snip in pings:
+            who = f"{raiser} (@{login})" if raiser else f"@{login} [undeclared role]"
+            lines.append(f"  - {who} {ts}: {snip}")
     return "\n".join(lines) + "\n"
 
 

@@ -29,10 +29,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# board_open_items.py is a top-level module in scripts/; add scripts/ so the import
-# resolves whether this runs as a CLI (scripts/pm/) or is imported under pytest.
+# board_open_items.py is a top-level module in scripts/; declared_role.py is a
+# sibling in scripts/pm/. Add both so the imports resolve whether this runs as a
+# CLI (scripts/pm/) or is imported under pytest.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import board_open_items as boi  # noqa: E402
+from declared_role import parse_declared_role  # noqa: E402
 
 # The Team Coordination Discussions category on the project repo (constant id -
 # same one used in shared/feedback_team_coordination.md / the /inbox skill).
@@ -162,6 +165,10 @@ def _parse_discussions_response(data: dict[str, Any]) -> list[dict[str, Any]]:
             "title": n.get("title", ""),
             "author": (n.get("author") or {}).get("login", "?"),
             "url": n.get("url"),
+            # The declared raiser role (parsed from the body's From:/Created by:
+            # line), or None when undeclared. `author` is always Jin-Ho's shared
+            # login and carries no role signal (Issue #1240).
+            "raiser": parse_declared_role(n.get("body")),
         }
         for n in nodes
         if n
@@ -178,7 +185,7 @@ def fetch_discussions() -> list[dict[str, Any]]:
     query($owner: String!, $name: String!, $cat: ID!) {
       repository(owner: $owner, name: $name) {
         discussions(first: 30, categoryId: $cat, states: [OPEN]) {
-          nodes { number title url author { login } }
+          nodes { number title url author { login } body }
         }
       }
     }
@@ -263,8 +270,13 @@ def render_digest(
             num = d.get("number")
             url = d.get("url")
             label = f"[#{num}]({url})" if url else f"#{num}"
+            # Show the declared raiser role; fall back to the login (which is
+            # always Jin-Ho's shared account) with an "undeclared role" marker
+            # when the body carries no From:/Created by: line (Issue #1240).
+            raiser = d.get("raiser")
+            by = raiser if raiser else f"{d.get('author', '?')} [undeclared role]"
             lines.append(
-                f"- {label} {(d.get('title') or '').strip()} (by {d.get('author', '?')})"
+                f"- {label} {(d.get('title') or '').strip()} (by {by})"
             )
     else:
         lines.append("- (none)")
