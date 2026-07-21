@@ -21,14 +21,24 @@ import argparse
 import dataclasses
 import json
 import sys
+import tempfile
 
+from adapters.asneo import parse_asneo
 from adapters.splice2neo import parse_splice2neo
-from common_schema import CommonRecord
+from common_schema import CommonRecord, validate
+from runners.asneo import run_asneo
 
-# The caller registry: caller name -> a parse function returning CommonRecords.
-# One line per caller is the whole extension point (AC-5).
+# The adapter registry: caller name -> a parse function returning CommonRecords.
+# One line per caller is the whole ingest-side extension point (AC-5).
 ADAPTERS = {
     "splice2neo": parse_splice2neo,
+    "asneo": parse_asneo,
+}
+
+# The runner registry: caller name -> a function (sj_tab, workdir) -> output path.
+# One line per caller alongside its adapter extends AC-5 to the run step.
+RUNNERS = {
+    "asneo": run_asneo,
 }
 
 
@@ -50,11 +60,16 @@ def get_adapter(caller):
 def collect(specs):
     """Dispatch each ``(caller, path)`` spec to its adapter and merge results.
 
-    Returns one flat ``list[CommonRecord]`` across all inputs.
+    Every record is validated against the legal record_level / field
+    combinations before it is admitted, so an adapter bug fails loudly here
+    rather than writing a mislabeled row. Returns one flat
+    ``list[CommonRecord]`` across all inputs.
     """
     records = []
     for caller, path in specs:
-        records.extend(get_adapter(caller)(path))
+        for rec in get_adapter(caller)(path):
+            validate(rec)
+            records.append(rec)
     return records
 
 
@@ -111,17 +126,39 @@ def main(argv=None):
         "--input",
         dest="inputs",
         action="append",
-        required=True,
+        default=[],
         type=_parse_input_spec,
         metavar="CALLER:PATH",
-        help="a caller name and its output path (repeatable)",
+        help="a caller name and its pre-run output path to ingest (repeatable)",
+    )
+    parser.add_argument(
+        "--run",
+        dest="runs",
+        action="append",
+        default=[],
+        type=_parse_input_spec,
+        metavar="CALLER:SJ_TAB",
+        help="run a caller on an SJ.out.tab, then ingest its output (repeatable)",
     )
     parser.add_argument("--out", required=True, help="unified TSV output path")
     args = parser.parse_args(argv)
 
-    records = collect(args.inputs)
+    if not args.inputs and not args.runs:
+        parser.error("provide at least one --input or --run")
+
+    specs = list(args.inputs)
+    for caller, sj_tab in args.runs:
+        try:
+            runner = RUNNERS[caller]
+        except KeyError:
+            known = ", ".join(sorted(RUNNERS))
+            raise ValueError(f"no runner for {caller!r}; registered runners: {known}")
+        out_path = runner(sj_tab, tempfile.mkdtemp(prefix=f"{caller}_run_"))
+        specs.append((caller, out_path))
+
+    records = collect(specs)
     records_to_tsv(records, args.out)
-    print(f"collected {len(records)} records from {len(args.inputs)} input(s) -> {args.out}")
+    print(f"collected {len(records)} records from {len(specs)} input(s) -> {args.out}")
     return 0
 
 

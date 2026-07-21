@@ -139,3 +139,27 @@ def test_main_writes_a_unified_tsv_end_to_end(tmp_path):
     lines = out.read_text().splitlines()
     assert lines[0].startswith("caller\t")
     assert len(lines) == 2  # header + one record
+
+
+def test_collect_validates_records(monkeypatch):
+    # An adapter that emits an illegal record (peptide-level with a junction_id)
+    # must be caught at collect time, not silently written.
+    import collect as collect_mod
+    from common_schema import CommonRecord
+
+    def bad_adapter(path):
+        return [
+            CommonRecord(
+                caller="x", junction_id="chr1:1-2:+", genome_build="hg19",
+                strand="+", peptide="MEIC", record_level="peptide",
+            )
+        ]
+
+    monkeypatch.setitem(collect_mod.ADAPTERS, "bad", bad_adapter)
+    with pytest.raises(ValueError):
+        collect_mod.collect([("bad", "ignored")])
+
+
+def test_runners_registry_has_asneo():
+    import collect as collect_mod
+    assert "asneo" in collect_mod.RUNNERS
