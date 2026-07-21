@@ -358,3 +358,4 @@ tools/project_map/package-lock.json
 
 # regtools auto-generates the FASTA index for the annotate-flag canary fixture
 resources/test/annotate_canary/*.fai
+tools/lightning/.venv/

@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 20,
-      "degree": 21
+      "size": 21,
+      "degree": 22
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1003,13 +1003,23 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
+      "label": "2026-07-21-issue-966-ac1-asneo-runner.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-21-issue-966-ac1-asneo-runner.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__specs",
       "label": "specs",
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 26,
-      "degree": 27
+      "size": 27,
+      "degree": 28
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1270,6 +1280,16 @@
       "description": "Documentation",
       "size": 1,
       "degree": 2
+    },
+    {
+      "id": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
+      "label": "2026-07-21-issue-966-ac1-asneo-runner-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-21-issue-966-ac1-asneo-runner-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "docs_root",
@@ -3255,7 +3275,7 @@
       "path": "research/experiments/issue_679_caller_benchmark",
       "size": 1,
       "issue": 679,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark__README_md",
@@ -3276,7 +3296,7 @@
       "path": "research/experiments/issue_679_caller_benchmark/harness",
       "size": 3,
       "issue": 679,
-      "degree": 7
+      "degree": 8
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark__harness__adapters",
@@ -3284,9 +3304,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_679_caller_benchmark/harness/adapters",
-      "size": 2,
+      "size": 3,
       "issue": 679,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark__harness__adapters____init___py",
@@ -3294,6 +3314,17 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_679_caller_benchmark/harness/adapters/__init__.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__adapters__asneo_py",
+      "label": "asneo.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/adapters/asneo.py",
       "description": "Project file",
       "size": 1,
       "issue": 679,
@@ -3349,9 +3380,20 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_679_caller_benchmark/harness/outputs",
+      "size": 2,
+      "issue": 679,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__outputs__asneo_chr22_unified_tsv",
+      "label": "asneo_chr22_unified.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/outputs/asneo_chr22_unified.tsv",
+      "description": "Tabular data",
       "size": 1,
       "issue": 679,
-      "degree": 2
+      "degree": 1
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark__harness__outputs__unified_smoke_tsv",
@@ -3365,14 +3407,79 @@
       "degree": 1
     },
     {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__runners",
+      "label": "runners",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/runners",
+      "size": 3,
+      "issue": 679,
+      "degree": 4
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__runners____init___py",
+      "label": "__init__.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/runners/__init__.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__runners__asneo_py",
+      "label": "asneo.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/runners/asneo.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__runners__run_asneo_sh",
+      "label": "run_asneo.sh",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/runners/run_asneo.sh",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
       "id": "research__experiments__issue_679_caller_benchmark__harness__tests",
       "label": "tests",
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_679_caller_benchmark/harness/tests",
-      "size": 3,
+      "size": 5,
       "issue": 679,
-      "degree": 4
+      "degree": 6
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_asneo_adapter_py",
+      "label": "test_asneo_adapter.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_asneo_adapter.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_asneo_runner_py",
+      "label": "test_asneo_runner.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_asneo_runner.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark__harness__tests__test_collect_py",
@@ -3402,6 +3509,27 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_679_caller_benchmark/harness/tests/test_splice2neo_adapter.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 679,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__inputs",
+      "label": "inputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/inputs",
+      "size": 1,
+      "issue": 679,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_679_caller_benchmark__inputs__chr22_SRR2660032_SJ_out_tab",
+      "label": "chr22_SRR2660032.SJ.out.tab",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_679_caller_benchmark/inputs/chr22_SRR2660032.SJ.out.tab",
       "description": "Project file",
       "size": 1,
       "issue": 679,
@@ -3477,9 +3605,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research",
-      "size": 6,
+      "size": 7,
       "issue": 680,
-      "degree": 8
+      "degree": 9
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__README_md",
@@ -3542,6 +3670,17 @@
       "type": "doc",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research/run4_issue1176_noncanonical_search_scoping_2026-07-15.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run5_issue1049_classII_presentation_landscape_2026_07_20_md",
+      "label": "run5_issue1049_classII_presentation_landscape_2026-07-20.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research/run5_issue1049_classII_presentation_landscape_2026-07-20.md",
       "description": "Documentation",
       "size": 1,
       "issue": 680,
@@ -5894,7 +6033,7 @@
       "group": "infrastructure",
       "path": "tools",
       "size": 0,
-      "degree": 4
+      "degree": 5
     },
     {
       "id": "tools__ci",
@@ -6342,6 +6481,45 @@
       "group": "infrastructure",
       "path": "tools/ci/test_write_session_watermark.py",
       "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning",
+      "label": "lightning",
+      "type": "dir",
+      "group": "infrastructure",
+      "path": "tools/lightning",
+      "size": 3,
+      "degree": 4
+    },
+    {
+      "id": "tools__lightning__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "infrastructure",
+      "path": "tools/lightning/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning__requirements_txt",
+      "label": "requirements.txt",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "tools/lightning/requirements.txt",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__lightning__run_tfold_py",
+      "label": "run_tfold.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "tools/lightning/run_tfold.py",
+      "description": "Project file",
       "size": 1,
       "degree": 1
     },
@@ -8601,6 +8779,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__specs",
       "target": "docs__superpowers",
       "type": "contained_in",
@@ -8764,6 +8948,12 @@
     },
     {
       "source": "docs__superpowers__specs__2026_07_15_hook_liveness_contract_tests_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
       "label": ""
@@ -10005,6 +10195,12 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__adapters__asneo_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__adapters",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_679_caller_benchmark__harness__adapters__splice2neo_py",
       "target": "research__experiments__issue_679_caller_benchmark__harness__adapters",
       "type": "contained_in",
@@ -10035,14 +10231,56 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__outputs__asneo_chr22_unified_tsv",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_679_caller_benchmark__harness__outputs__unified_smoke_tsv",
       "target": "research__experiments__issue_679_caller_benchmark__harness__outputs",
       "type": "contained_in",
       "label": ""
     },
     {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__runners",
+      "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__runners____init___py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__runners",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__runners__asneo_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__runners",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__runners__run_asneo_sh",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__runners",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_679_caller_benchmark__harness__tests",
       "target": "research__experiments__issue_679_caller_benchmark__harness",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_asneo_adapter_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_asneo_runner_py",
+      "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
       "type": "contained_in",
       "label": ""
     },
@@ -10061,6 +10299,18 @@
     {
       "source": "research__experiments__issue_679_caller_benchmark__harness__tests__test_splice2neo_adapter_py",
       "target": "research__experiments__issue_679_caller_benchmark__harness__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__inputs",
+      "target": "research__experiments__issue_679_caller_benchmark",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_679_caller_benchmark__inputs__chr22_SRR2660032_SJ_out_tab",
+      "target": "research__experiments__issue_679_caller_benchmark__inputs",
       "type": "contained_in",
       "label": ""
     },
@@ -10186,6 +10436,12 @@
     },
     {
       "source": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run4_issue1176_noncanonical_search_scoping_2026_07_15_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run5_issue1049_classII_presentation_landscape_2026_07_20_md",
       "target": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research",
       "type": "contained_in",
       "label": ""
@@ -12311,6 +12567,30 @@
     {
       "source": "tools__ci__test_write_session_watermark_py",
       "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning",
+      "target": "tools",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__README_md",
+      "target": "tools__lightning",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__requirements_txt",
+      "target": "tools__lightning",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__lightning__run_tfold_py",
+      "target": "tools__lightning",
       "type": "contained_in",
       "label": ""
     },

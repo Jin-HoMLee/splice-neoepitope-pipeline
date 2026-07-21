@@ -17,6 +17,7 @@ Where a brief cites a `tasks/*.output` path or a `wf_*` / `w*` run ID, that is p
 | 2 | 2026-06-30 | #736 scoring-harness design | 27 agents, ~1.6M tok | Ship #736 as a **no-scalar ranking/enrichment benchmark on A\*02:01** with a power-ledger red-light headline; specificity is structurally unmeasurable at n=1 (winner: uncertainty-first) |
 | 3 | 2026-07-01 | Baseline-predictor landscape for #736 | 63 agents, ~0.56M tok (partial; usage-limit) | Core-5 CPU-only baseline set (MHCflurry, NetMHCpan-4.1, BigMHC_IM, PRIME 2.1, IEDB-Calis); leakage-circularity is the sharpest threat; a DTU publish-license clause touches 2 of the 5 |
 | 4 | 2026-07-15 | #1176 non-canonical public-spectra MS re-search scoping | 5 facets, `wf_38edaf38-46d` | Design/cohort front-half settled; cohort confirmed public (Courcelles CRC `PXD071022` CC0 + matched RNA-seq `GSE312236`); AC-6 (the run) blocked on the genome-wide junction FASTA ([#1204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1204)) |
+| 5 | 2026-07-20 | #1049 open class-II presentation-predictor landscape | 106 agents, ~6.85M tok, `wf_f1a9b274-0bc` | **Two BSD-3 winners** (AEGIS, CAPTAn) clear all three gates (license / MS-EL presentation / retrainable); recommend **retrain-an-open-architecture**, not build-our-own or wrap-a-blocked-tool. NetMHCIIpan / MixMHC2pred / BERTMHC / MHCnuggets-II all fail a hard gate. 21/21 confirmed claims unanimous 3-0 |
 
 ## Files
 - `run1_registry_enrichment_2026-06-30.md` - the 16 confirmed registry-ready rows, 4 needs-human-access PDFs, rejects, completeness critique.
@@ -24,6 +25,7 @@ Where a brief cites a `tasks/*.output` path or a `wf_*` / `w*` run ID, that is p
 - `run3_predictor_landscape_2026-07-01.md` - ranked baseline set, splice-admissibility + availability table (19 predictors), methodology implications, decision forks.
 - `run3_predictor_dossiers.json` - raw structured dossiers behind run #3 (per-predictor inputs, score semantics, availability, verify verdicts). **Partial / salvaged artifact:** run #3 hit the usage limit mid-run, so `brief` is `null`, the 5 benchmark papers are folded into the `dossiers` array (not a separate key), `n_predictors_deepdived: 25` is the raw pre-dedup count (vs 19 deduped in the run3 markdown table), and most `_verdict`s are `null` (verify pass truncated); one verdict string carries a serialization tag-leak. The hand-synthesized run3 markdown is the authoritative read - this JSON is provenance.
 - `run4_issue1176_noncanonical_search_scoping_2026-07-15.md` - the 5-facet scoping brief for the #1176 non-canonical MS re-search: cohort (Courcelles primary + Ely second), competing-target DB recipe, layered group-specific FDR + entrapment, tooling (FragPipe/Sage), PCPS framing. AC-1..AC-5 design-complete; AC-6 (the actual run) pending the #1204 genome-wide FASTA build.
+- `run5_issue1049_classII_presentation_landscape_2026-07-20.md` - the open class-II presentation-predictor landscape: three-gate scored table (9 candidates), the two BSD-3 build bases (AEGIS, CAPTAn), why the rest are blocked, caveats, 4 open questions, and the Zotero adds to confirm.
 - `workflow_scripts/` - the Workflow orchestration scripts for runs #2 and #3 (method transparency; paths inside are session-specific).
 
 ## Where each run feeds on the board
@@ -31,6 +33,7 @@ Where a brief cites a `tasks/*.output` path or a `wf_*` / `w*` run ID, that is p
 - **Run #2** -> [#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736) (the design it commits).
 - **Run #3** -> [#736](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/736) (baseline set) + [#926](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/926) (leakage-annotation prerequisite).
 - **Run #4** -> [#1176](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1176) (the design it settles) + [#1204](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1204) (genome-wide junction-FASTA prerequisite for AC-6).
+- **Run #5** -> [#1049](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1049) (the class-II landscape it answers) + [#1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) Layer B (the retrain-an-open-architecture recommendation + 4 open questions it hands forward).
 
 ## Strategic through-line
 More literature searching will not move the hard-negative constraint (run #1 proved the field is dry); the remaining yield is PDF-fetch + wet-lab, not more mining.
