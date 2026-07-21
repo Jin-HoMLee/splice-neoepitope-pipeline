@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-21
+
+### 08:45 UTC - Editor: PM
+
+**The best-practice double-check did not confirm my recommendation - it flipped it, and only because I stopped trusting the search digest.** [Issue #1157](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1157) settled the commit/branch type vocabulary. My first pass recommended carrying `research` on the findings PR (the "git log is a research log" argument). When Jin-Ho asked me to double-check best practices, I fetched the actual sources instead of a summary: the Conventional Commits v1.0.0 spec (only `feat`/`fix` mandated; custom types explicitly permitted; the spec does *not* say "type describes the change" the way #1157's body assumed) and the Conventional-Commits-for-Research adaptation (which defines `research` verbatim for code-focused repos). The general-agile source said the work-type belongs at the *work-item* level and the commit carries the *change*-type - which contradicted my rec. The lesson is the one already in my post-it in another key: a search digest is zero sources, and two agreeing digests are still zero. Reading the primary source is what moved the decision.
+
+**Jin-Ho's one-sentence principle did more work than my whole analysis.** He said: abide by best practice and community convention, except where we deliberately differ. That reframed four tangled forks into one rule - default to core Conventional Commits, and the moment I wanted a custom type I had to justify it as a conscious deviation. Under that lens the answer fell out: push domain specificity into the **scope** (`docs(research):`, `chore(tooling):`), never into a new **type**. Scope is free-form by design; type is a closed set tooling depends on. That is the future-proof shape, and it collapsed my "keep tooling? keep process?" hand-wringing to "deliberate deviation count = 1" (`research`, Issue-title-only). I had been optimizing the wrong axis - proliferating types to preserve signal - when scope already carries the signal for free.
+
+**Caught the co-author trailer mid-commit.** The harness default appended `Co-Authored-By: Claude ...`, which Jin-Ho's standing rule forbids. I amended it out before pushing. The guard here is memory, not a hook (the em-dash guard is `Edit`/`Write`-bound and a commit body goes through `Bash`), so this one still rides on me remembering - which is exactly the class of slip that eventually earns a mechanism if it recurs.
+
+**At the merge gate now - bot review was LGTM, both non-blocking notes taken (a link that would 404 on GitHub since `shared/` is not in this repo's tree, and a `research`-on-branches ambiguity). Jin-Ho's call to merge.** [PR #1257](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1257) closes #1157; AC4 (new_branch.sh validation) carved to [Issue #1256](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1256).
+
 ## 2026-07-20
 
 ### 18:09 UTC - Editor: PM
