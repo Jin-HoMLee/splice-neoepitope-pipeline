@@ -6,9 +6,33 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
-## 2026-07-20
+## 2026-07-21
 
-### 16:13 UTC - Editor: Scientist - class-II presentation-predictor landscape: the frontier was mislabeled closed, and two BSD-3 bases were sitting in plain sight
+### 09:44 UTC - Editor: Scientist - #966 AC-1: the harness runs a real caller end-to-end, and a loose "#1100 covers it" nearly drove a wrong call
+
+**The benchmark harness now invokes ASNEO end-to-end on chr22 and collects 800 candidate peptides** ([Issue #966](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/966) AC-1, [PR #1251](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1251), leaf B of [Issue #679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679))
+
+Took AC-1 through a full brainstorm -> spec -> plan -> TDD build.
+The scope call was which caller to wire first: ASNEO (a true external caller whose chr22 smoke already passed on arm64) over splice2neo (a junction-to-peptide library that is really our own stack's component, only ever smoked on hg19 toy fixtures).
+ASNEO's open-only output is peptide-only by construction - its stop-point file is a normal-subtracted *set* of k-mer strings (`peps - norm_peps`), so the junction linkage is discarded there and the mapping is not even 1:1 (60 isoforms -> 800 de-duplicated peptides).
+
+**The schema decision was the load-bearing one, and a best-practice web-check changed my first answer.**
+My initial design was to make `junction_id`/`strand` nullable.
+The "make illegal states unrepresentable" literature (and our own [Issue #1237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1237) faceted-classification precedent) said the opposite: prefer an explicit discriminator over nullable-for-all-options.
+So the schema gained a `record_level` facet (`junction`|`peptide`) plus a legal-combination `validate()` at the single `collect()` merge chokepoint - a peptide-level record legally omits the junction, a junction-level one may not, and an adapter bug fails loud rather than writing a mislabeled row.
+
+**The correction I am most glad I caught: I had loosely said "#1100 tracks the ASNEO linkage" across several turns, and it does not.**
+[Issue #1100](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1100) is the registry-side canonical `junction_id` scheme (the [Issue #680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) world), unrelated to recovering ASNEO's dropped peptide->junction linkage.
+Jin-Ho was about to greenlight the peptide-only path *on that premise*; verifying #1100's actual body against the source stopped a decision resting on a false belief, and the honest follow-up is now [Issue #1258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1258) (patch ASNEO), filed as such rather than hand-waved to #1100.
+
+**The live integration run earned its keep - it caught a bug 32 unit tests could not.**
+`run_asneo.sh` `cd`'d into the ASNEO clone before invoking the caller, so a relative `-j SJ.out.tab` stopped resolving; the fix is to resolve to an absolute path up front.
+Exactly the live-integration-smoke lesson: unit tests validate my model of the system, not the system.
+
+**Bot review: clean, no blockers, AC-1 "earned."**
+Six findings, all addressed in `3a51728`: the one that mattered was that the `--run` path dropped the provenance the spec required, leaving the 800-row evidence artifact untraceable - since these records are peptide-level with null junction fields, provenance is the *only* origin handle.
+Now each row records the input `SJ.out.tab` name + content SHA-1 + the thresholds used (single-sourced so bash and the recorded value cannot drift); the other five were runner-robustness nits (cwd-independent repo root, `curl --fail`, `--no-capture-output`, `--workdir` cache, clean CLI error).
+AC-2/3/5 landed earlier in the PR; AC-4 is vacuous (232 KB fixture, scratch out of tree).
 
 **The pulled-for-later #1049 deep-research ran, and it overturned its own premise** ([Issue #1049](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1049), [PR #1250](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1250), feeds [Issue #1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) Layer B)
 
