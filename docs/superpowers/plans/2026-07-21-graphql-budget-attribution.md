@@ -44,7 +44,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".agents" / "hooks"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / ".agents" / "hooks"))
 import graphql_meter as gm  # noqa: E402
 
 
@@ -224,7 +224,7 @@ git commit -m "feat(infra): graphql_meter single instrumentation point for budge
 # append to tools/ci/test_graphql_meter.py
 def test_board_query_carries_ratelimit_fragment():
     import importlib.util
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location("boi", root / "scripts" / "board_open_items.py")
     boi = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(boi)
