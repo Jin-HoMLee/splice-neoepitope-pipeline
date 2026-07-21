@@ -44,6 +44,9 @@ For each frame `f` in `{0,1,2}`:
 `>{junction_id}|{frame}|{chrom}:{start}-{end}:{strand}`, parsed from the contig header (`{junc_id}|{chrom}:{start}-{end}:{strand}|{sample_type}`, `sample_type` dropped).
 Headers stay traceable to `junction_id`/coords for the [#1176](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1176) AC-6 entrapment + RNA-seq cross-check.
 
+Stretches are deduplicated by header, not by sequence: two distinct junctions can emit the same peptide sequence under different IDs, and both are kept on purpose (distinct provenance IDs are the point).
+The MS engine deduplicates fragments internally, so this does not inflate the search; if DB size ever becomes a constraint, sequence-level dedup with a merged-provenance header is the lever.
+
 ## Decisions
 
 - **Fork 1 - flank width: decoupled (A).**

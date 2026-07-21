@@ -68,6 +68,11 @@ def _parse_fasta(fasta_path):
 def _orf_header(contig_header, frame):
     # contig header: {junction_id}|{chrom}:{start}-{end}:{strand}|{sample_type}
     fields = contig_header.split("|")
+    if len(fields) < 2:
+        raise ValueError(
+            f"malformed contig header {contig_header!r}: expected "
+            "'junction_id|chrom:start-end:strand|sample_type'"
+        )
     junction_id, coords = fields[0], fields[1]
     return f"{junction_id}|{frame}|{coords}"
 

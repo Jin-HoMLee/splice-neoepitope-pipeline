@@ -12,16 +12,6 @@ from orf_fasta_from_contigs import (
 )
 
 
-def _codon_seq(aas, frame=0, upstream_codons=10):
-    # Build a 60-nt contig whose frame-`frame` translation is `aas`.
-    # One unambiguous codon per residue; breakpoint at nt 30.
-    table = {"M": "ATG", "K": "AAA", "L": "CTG", "F": "TTT", "*": "TAA", "P": "CCC"}
-    body = "".join(table[a] for a in aas)
-    pad = "G" * frame
-    seq = (pad + body)
-    return (seq + "C" * 60)[:60]
-
-
 def test_clean_crossing_stretch_frame0():
     # 20 codons, no stop: one stretch spanning nt [0,60), crosses 30.
     contig = "".join(["AAA"] * 20)  # all Lys, no stop
@@ -55,6 +45,13 @@ def test_frame_offset_shifts_breakpoint_math():
 def test_orf_header_reformat():
     h = "JUNC1|chr7:100-200:+|tumor"
     assert _orf_header(h, 2) == "JUNC1|2|chr7:100-200:+"
+
+
+def test_orf_header_rejects_malformed():
+    import pytest
+
+    with pytest.raises(ValueError, match="malformed contig header"):
+        _orf_header("no-pipe-here", 0)
 
 
 def _write_fasta(path, records):
