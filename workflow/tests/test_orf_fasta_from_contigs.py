@@ -45,3 +45,38 @@ def test_frame_offset_shifts_breakpoint_math():
     # frame 1: codon i covers nt [1+3i, 1+3i+3); 19 codons over nt [1,58).
     contig = "G" + "".join(["AAA"] * 19)
     assert crossing_orf_stretch(contig, 1) == "K" * 19
+
+
+from orf_fasta_from_contigs import _orf_header, emit_orf_fasta
+
+
+def test_orf_header_reformat():
+    h = "JUNC1|chr7:100-200:+|tumor"
+    assert _orf_header(h, 2) == "JUNC1|2|chr7:100-200:+"
+
+
+def _write_fasta(path, records):
+    with open(path, "w") as fh:
+        for header, seq in records:
+            fh.write(f">{header}\n{seq}\n")
+
+
+def test_emit_drops_x_and_short_and_writes_headers(tmp_path):
+    contigs = tmp_path / "contigs.fa"
+    out = tmp_path / "orf.fa"
+    # J1: clean 20-Lys crossing stretch in frame 0.
+    clean = "".join(["AAA"] * 20)
+    # J2: contains an ambiguous base (N) inside a crossing run -> 'X' -> dropped.
+    ambig = "".join(["AAA"] * 9) + "ANA" + "".join(["AAA"] * 10)
+    _write_fasta(contigs, [
+        ("J1|chr1:10-20:+|tumor", clean),
+        ("J2|chr2:30-40:-|tumor", ambig),
+    ])
+    emit_orf_fasta(contigs, out, flank_nt=30, min_peptide_len=8)
+    text = out.read_text()
+    assert ">J1|0|chr1:10-20:+" in text
+    assert "K" * 20 in text
+    assert "J2|" not in text  # X-containing stretch dropped
+    # headers unique
+    headers = [ln for ln in text.splitlines() if ln.startswith(">")]
+    assert len(headers) == len(set(headers))
