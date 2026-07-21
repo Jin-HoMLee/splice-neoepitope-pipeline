@@ -1,19 +1,39 @@
-# Issue #1204 - Sage loadability smoke
+# Issue #1204 - Sage junction-peptide recovery smoke
 
 One-time pre-merge verification that the emitted ORF-stretch FASTA is consumable
-by a nonspecific MS search (AC-3).
-NOT run in CI; the CI-side check is the structural test in `workflow/tests/test_orf_fasta_from_contigs.py`.
+by a nonspecific MS search AND that a real junction peptide is recovered from it
+(AC-3). NOT run in CI; the CI-side check is the structural test in
+`workflow/tests/test_orf_fasta_from_contigs.py`.
 
-## Files
+## What it proves
+
+The concatenated FASTA (canonical proteome + our junction ORF partition) is the
+search *database*, not a sample: a nonspecific Sage search digests it in silico
+and matches candidate peptides against observed spectra. The canonical proteome
+is included as a *competing target* (per the #1176 run4 brief) so a junction
+peptide only wins when it out-scores any canonical explanation - it is not a
+pre-exclusion filter.
+
+The smoke exercises the full path end to end: build the DB, generate a
+theoretical spectrum for a **real junction peptide taken from the current
+FASTA**, run the search, and assert the junction peptide is recovered. The
+assertion can fail (a bogus peptide is not recovered), so a green run is
+evidence, not ceremony.
+
+## Files (committed)
 
 - `sage_config.json` - minimal nonspecific Sage config (no-enzyme cleavage,
   8-11 aa peptide length, decoys on).
-- `synthetic.mgf` - one synthetic MS2 spectrum. Precursor and fragment m/z
-  values correspond to `MKLPQRSTV`, a 9-mer substring of the canonical
-  decoy/target sequence in `workflow/tests/data/orf_fasta/canonical_tiny.fasta`,
-  so a hit is plausible but not required (see Pass criteria).
-- `run_sage_smoke.sh` - concatenates the canonical proteome with an emitted
-  `junction_orf.fasta` into `combined.fasta`, then invokes `sage` against it.
+- `make_spectrum.py` - picks a genuine junction ORF-stretch peptide (9-11 aa)
+  from the emitted FASTA and writes a theoretical MS2 spectrum (precursor +
+  full b/y ion ladder from monoisotopic masses). Deriving the target from the
+  current FASTA keeps the smoke valid as the junction set evolves - no
+  hand-computed masses, no hardcoded peptide that could drift out of the DB.
+- `run_sage_smoke.sh` - builds `combined.fasta`, generates the spectrum, runs
+  `sage`, and asserts recovery of the junction peptide.
+
+Run artifacts (`combined.fasta`, `synthetic.mgf`, `sage_out/`, logs) are
+regenerated on every run and gitignored.
 
 ## Run
 
@@ -22,22 +42,22 @@ NOT run in CI; the CI-side check is the structural test in `workflow/tests/test_
     bash research/experiments/issue_1204_orf_fasta/run_sage_smoke.sh \
         results/patient_001_test/ms_search_db/junction_orf.fasta
 
-Sage itself is not installed by this repo's conda envs; install it once
-locally before running the smoke (e.g. `brew install sage-proteomics`, or a
-release binary from `github.com/lazear/sage`, on PATH as `sage`).
+Sage itself is not installed by this repo's conda envs; install it once locally
+before running the smoke (the v0.14.7 aarch64-apple-darwin release binary from
+`github.com/lazear/sage`, on PATH as `sage`).
 
 ## Pass criteria
 
-Sage exits 0, writes `sage_out/`, and logs the loaded target+decoy count
-without a FASTA parse error. Recovering the synthetic peptide is a bonus, not
-required; the deliverable is loadability of the concatenated FASTA by a
-nonspecific search, not a confirmed hit (real hits against real spectra are
-#1176 AC-6).
+`SAGE SMOKE OK - recovered junction peptide <SEQ>` and exit 0: Sage loaded and
+digested the concatenated FASTA, searched the generated spectrum, and the
+junction peptide appears in `sage_out/results.sage.tsv` attributed to its
+junction protein ID. (Sage reports "0 at 1% FDR" on a single spectrum - FDR is
+undefined for n=1 - but the PSM itself is at rank 1; statistical significance
+against real spectra is #1176 AC-6, not this smoke.)
 
-This is a manual, one-time local check (see Task 5 / Step 6 in the design
-doc): run it once pre-merge and paste the `SAGE SMOKE OK` line into the PR
-Test plan. It is intentionally not wired into CI - Sage is a separate binary
-this repo does not manage, and the structural correctness of the emitted
-FASTA (headers, alphabet, no stop/X, no duplicate IDs against the canonical
-proteome) is already covered by
+This is a manual, one-time local check. Run it once pre-merge and paste the
+`SAGE SMOKE OK` line into the PR Test plan. It is intentionally not wired into
+CI - Sage is a separate binary this repo does not manage, and the structural
+correctness of the emitted FASTA (headers, alphabet, no stop/X, no duplicate IDs
+against the canonical proteome) is already covered by
 `workflow/tests/test_orf_fasta_from_contigs.py`.
