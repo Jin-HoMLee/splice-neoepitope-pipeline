@@ -26,7 +26,7 @@ from matplotlib.patches import FancyBboxPatch, Rectangle
 HERE = Path(__file__).resolve().parent
 EXP = HERE.parent
 sys.path.insert(0, str(EXP))
-from make_spectrum import _PROTON, _RESIDUE, _WATER, peptide_mass  # noqa: E402
+from make_spectrum import _PROTON, _RESIDUE, _WATER  # noqa: E402
 
 # Project palette (research/slides/custom.scss); blue/gold validated as a
 # categorical pair (dataviz validate_palette: CVD dE 28, normal dE 32).

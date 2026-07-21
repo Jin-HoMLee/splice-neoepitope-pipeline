@@ -61,13 +61,13 @@ Search **public tumor HLA-I immunopeptidome spectra** (peptides physically elute
 
 Junction contig → 3-frame translate → split at stop codons → keep the single **breakpoint-crossing** stretch → FASTA mini-protein.
 
-![](figures/emitter_schematic.png){width=88%}
+![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames, keeping the single stop-free stretch that crosses the breakpoint](figures/emitter_schematic.png){width=88%}
 
 ---
 
 ## Where it plugs in {.smaller}
 
-A **decoupled** 30-nt path (gold) reuses `assemble_contigs.py` at widened flanks and adds one new emitter rule. The production MHCflurry k-mer path (27-nt flanks, `peptide_lengths [8,9,10]`) is untouched.
+A **decoupled** 30-nt path (gold) adds two rules - a widened-flank `assemble_contigs` instance (reusing the existing script) plus the new `emit_orf_fasta` emitter. The production MHCflurry k-mer path (27-nt flanks, `peptide_lengths [8,9,10]`) is untouched.
 
 ![Real Snakemake rulegraph; the two gold rules are new](figures/dag_ms_search_db.png){width=42%}
 
@@ -93,7 +93,7 @@ Two of the three future consumers (MHC-II, MS) take protein FASTA **directly**. 
 
 On the chr22 test cohort the emitter produced **335** junction ORF stretches (frames balanced 110/113/112; 0 stop/X). Sage [@lazear2023sage] loaded and nonspecifically digested the combined DB to **49,432** peptides + decoys, and recovered the junction peptide below.
 
-![](figures/recovery_spectrum.png){width=74%}
+![Annotated b/y fragment spectrum of the recovered junction peptide LGLQVPTTTLG, b-ions in blue and y-ions in gold](figures/recovery_spectrum.png){width=74%}
 
 ::: {.callout-note appearance="simple" style="font-size:0.8em"}
 Recovery is the check (a bogus peptide fails it); statistical significance against real spectra is Issue #1176 AC-6, not this smoke.
