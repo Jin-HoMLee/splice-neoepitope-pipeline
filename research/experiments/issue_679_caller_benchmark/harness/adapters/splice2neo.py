@@ -51,6 +51,7 @@ def parse_splice2neo(path, genome_build: str = "hg19") -> list[CommonRecord]:
                     genome_build=genome_build,
                     strand=strand,
                     peptide=peptide,
+                    record_level="junction",
                     frame_shift=_to_bool(row.get("frame_shift", "")),
                     event_type="junction",
                     transcript_id=(row.get("tx_id") or None),

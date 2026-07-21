@@ -64,3 +64,14 @@ def test_skips_rows_with_no_peptide(tmp_path):
     )
     records = parse_splice2neo(tsv, genome_build="hg19")
     assert [r.peptide for r in records] == ["MEIC"]
+
+
+def test_splice2neo_records_are_junction_level(tmp_path):
+    tsv = tmp_path / "s2n.tsv"
+    tsv.write_text(
+        "junc_id\ttx_id\tframe_shift\tcts_seq_len\tpeptide_context\n"
+        "chr2:152389996-152392205:-\tENST00000409198\tTRUE\t400\tINRHFKYATQLMNEIC\n"
+    )
+    (r,) = parse_splice2neo(tsv, genome_build="hg19")
+    assert r.record_level == "junction"
+    assert r.junction_id is not None and r.strand is not None

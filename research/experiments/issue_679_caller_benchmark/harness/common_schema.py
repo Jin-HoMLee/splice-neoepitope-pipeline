@@ -56,10 +56,11 @@ class CommonRecord:
     """
 
     caller: str
-    junction_id: str
+    junction_id: Optional[str]
     genome_build: str
-    strand: str
+    strand: Optional[str]
     peptide: str
+    record_level: str  # "junction" | "peptide"; orthogonal to event_type
     frame_shift: Optional[bool] = None
     event_type: Optional[str] = None
     transcript_id: Optional[str] = None
@@ -67,3 +68,30 @@ class CommonRecord:
     presentation_score: Optional[float] = None
     presentation_percentile: Optional[float] = None
     provenance: dict = field(default_factory=dict)
+
+
+def validate(record: "CommonRecord") -> None:
+    """Enforce the legal record_level / field combinations.
+
+    A ``junction``-level record must carry junction coordinates; a
+    ``peptide``-level record must not (its junction linkage is unavailable by
+    construction - see #1258). Raise loudly on any illegal combination so an
+    adapter bug cannot smuggle a mislabeled record downstream.
+    """
+    if record.record_level == "junction":
+        if record.junction_id is None or record.strand is None:
+            raise ValueError(
+                f"junction-level record for {record.caller!r} needs junction_id "
+                f"and strand; got junction_id={record.junction_id!r}, strand={record.strand!r}"
+            )
+    elif record.record_level == "peptide":
+        if record.junction_id is not None or record.strand is not None:
+            raise ValueError(
+                f"peptide-level record for {record.caller!r} must have null junction_id "
+                f"and strand; got junction_id={record.junction_id!r}, strand={record.strand!r}"
+            )
+    else:
+        raise ValueError(
+            f"unknown record_level {record.record_level!r} for {record.caller!r}; "
+            f"expected 'junction' or 'peptide'"
+        )

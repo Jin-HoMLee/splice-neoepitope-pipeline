@@ -1,6 +1,44 @@
 """Tests for the benchmark harness common output schema (#966, AC-2)."""
 
-from common_schema import normalize_junction_id, parse_junction_string
+import pytest
+
+from common_schema import (
+    CommonRecord,
+    normalize_junction_id,
+    parse_junction_string,
+    validate,
+)
+
+
+def _peptide_record(**overrides):
+    base = dict(caller="asneo", junction_id=None, genome_build="hg19",
+                strand=None, peptide="LEQGTHPKFQ", record_level="peptide")
+    base.update(overrides)
+    return CommonRecord(**base)
+
+
+def test_validate_peptide_level_allows_null_junction():
+    validate(_peptide_record())  # must not raise
+
+
+def test_validate_junction_level_requires_junction_id():
+    # Matched pair: flip only record_level; opposite outcomes.
+    bad = _peptide_record(record_level="junction")   # junction_id/strand still None
+    with pytest.raises(ValueError):
+        validate(bad)
+    good = _peptide_record(record_level="junction",
+                           junction_id="chr22:100-200:+", strand="+")
+    validate(good)  # must not raise
+
+
+def test_validate_peptide_level_rejects_a_junction_id():
+    with pytest.raises(ValueError):
+        validate(_peptide_record(junction_id="chr22:100-200:+", strand="+"))
+
+
+def test_validate_unknown_record_level_raises():
+    with pytest.raises(ValueError):
+        validate(_peptide_record(record_level="isoform"))
 
 
 class TestNormalizeJunctionId:
