@@ -1,15 +1,15 @@
-caller	junction_id	genome_build	strand	peptide	frame_shift	event_type	transcript_id	presentation_class	presentation_score	presentation_percentile	provenance
-splice2neo	chr2:152389996-152392205:-	hg19	-	INRHFKYATQLMNEIC	True	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:152389996-152390729:-	hg19	-	RHLLAKTAGDQISQIC	True	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:152389955-152389956:-	hg19	-	DMLTALYNSHMWSQVMSDGM	False	junction	ENST00000397345				{"cts_seq_len": "1945", "source": "splice2neo"}
-splice2neo	chr2:152388410-152392205:-	hg19	-	INRHFKYATQLMNEIKYRKNYEKSKDKF	False	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179415981-179416357:-	hg19	-	PSDPSKFTLAVSPVAGTPDYIDVTRETIT	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179415987-179415988:-	hg19	-	PSDPSKFTLAVSPVGK	False	junction	ENST00000342992				{"cts_seq_len": "769", "source": "splice2neo"}
-splice2neo	chr2:179415000-179416357:-	hg19	-	PSDPSKFTLAVSPVVPPIVEFGPEYFDGL	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179445336-179446207:-	hg19	-	PSDVPDKHYPKDILSKYYQGDST	True	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179446225-179446226:-	hg19	-	PSDVPDKHYPKDILSKYYQGEYIRLFLLIIF	True	junction	ENST00000342992				{"cts_seq_len": "1289", "source": "splice2neo"}
-splice2neo	chr2:179445336-179446633:-	hg19	-	PSDASKAAYARDPQFPPEGELDADLRKTL	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179642044-179642187:-	hg19	-	PSDSGEWTVVAQNRLWNIR	True	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:179642146-179642147:-	hg19	-	RAGRSSISVILTVEGKMR	False	junction	ENST00000342992				{"cts_seq_len": "502", "source": "splice2neo"}
-splice2neo	chr2:179642044-179642431:-	hg19	-	VVGRPMPETFWFHDAVEHQVKPMFVEKLK	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
-splice2neo	chr2:152388410-152388411:-	hg19	-	DMLTALYNSHMWSQVMSDGM	False	junction	ENST00000397345				{"cts_seq_len": "1945", "source": "splice2neo"}
+caller	junction_id	genome_build	strand	peptide	record_level	frame_shift	event_type	transcript_id	presentation_class	presentation_score	presentation_percentile	provenance
+splice2neo	chr2:152389996-152392205:-	hg19	-	INRHFKYATQLMNEIC	junction	True	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:152389996-152390729:-	hg19	-	RHLLAKTAGDQISQIC	junction	True	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:152389955-152389956:-	hg19	-	DMLTALYNSHMWSQVMSDGM	junction	False	junction	ENST00000397345				{"cts_seq_len": "1945", "source": "splice2neo"}
+splice2neo	chr2:152388410-152392205:-	hg19	-	INRHFKYATQLMNEIKYRKNYEKSKDKF	junction	False	junction	ENST00000409198				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179415981-179416357:-	hg19	-	PSDPSKFTLAVSPVAGTPDYIDVTRETIT	junction	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179415987-179415988:-	hg19	-	PSDPSKFTLAVSPVGK	junction	False	junction	ENST00000342992				{"cts_seq_len": "769", "source": "splice2neo"}
+splice2neo	chr2:179415000-179416357:-	hg19	-	PSDPSKFTLAVSPVVPPIVEFGPEYFDGL	junction	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179445336-179446207:-	hg19	-	PSDVPDKHYPKDILSKYYQGDST	junction	True	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179446225-179446226:-	hg19	-	PSDVPDKHYPKDILSKYYQGEYIRLFLLIIF	junction	True	junction	ENST00000342992				{"cts_seq_len": "1289", "source": "splice2neo"}
+splice2neo	chr2:179445336-179446633:-	hg19	-	PSDASKAAYARDPQFPPEGELDADLRKTL	junction	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179642044-179642187:-	hg19	-	PSDSGEWTVVAQNRLWNIR	junction	True	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:179642146-179642147:-	hg19	-	RAGRSSISVILTVEGKMR	junction	False	junction	ENST00000342992				{"cts_seq_len": "502", "source": "splice2neo"}
+splice2neo	chr2:179642044-179642431:-	hg19	-	VVGRPMPETFWFHDAVEHQVKPMFVEKLK	junction	False	junction	ENST00000342992				{"cts_seq_len": "400", "source": "splice2neo"}
+splice2neo	chr2:152388410-152388411:-	hg19	-	DMLTALYNSHMWSQVMSDGM	junction	False	junction	ENST00000397345				{"cts_seq_len": "1945", "source": "splice2neo"}

@@ -7,6 +7,10 @@
 set -euo pipefail
 SJ_TAB="${1:?sj_out_tab required}"
 WORK="${2:?workdir required}"
+# Resolve the junction table to an absolute path BEFORE any `cd`: ASNEO runs
+# from its clone dir, so a relative -j would not resolve there.
+[ -f "$SJ_TAB" ] || { echo "ERROR: SJ.out.tab not found: $SJ_TAB" >&2; exit 1; }
+SJ_TAB="$(cd "$(dirname "$SJ_TAB")" && pwd)/$(basename "$SJ_TAB")"
 REPO="$(git rev-parse --show-toplevel)"
 PATCH="$REPO/research/experiments/issue_566_asneo_crosscheck/apply_optionB_patch.py"
 mkdir -p "$WORK" "$WORK/out"
