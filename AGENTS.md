@@ -434,11 +434,11 @@ This is the interim convention until the helper is habitual; the underlying "Iss
 
 ### Commit + branch type vocabulary
 
-The `<type>(<scope>):` prefix on Issue titles, branch names, and commit subjects draws from an **enumerated allow-list**, settled in [Issue #1157](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1157) (2026-07-21). The governing principle is **convention-max**: default to core Conventional Commits, and push domain specificity into the **scope**, never into a new type. (Cross-role commit contract: [`shared/feedback_commit_messages.md`](shared/feedback_commit_messages.md).)
+The `<type>(<scope>):` prefix on Issue titles, branch names, and commit subjects draws from an **enumerated allow-list**, settled in [Issue #1157](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1157) (2026-07-21). The governing principle is **convention-max**: default to core Conventional Commits, and push domain specificity into the **scope**, never into a new type. (Cross-role commit contract: `shared/feedback_commit_messages.md`.)
 
 **Allow-list - the only sanctioned types:** the core Conventional Commits set - `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` - plus exactly one deliberate addition:
 
-- **`research`** - a **work-type**, valid on **Issue titles only** (never on a commit/PR). Marks an investigation whose deliverable is a finding, not code; it drives `new_branch.sh` and board legibility, and is the one type the Conventional-Commits-for-Research adaptation sanctions for code-focused repos.
+- **`research`** - a **work-type**, valid on an **Issue title** (and the `research/<role>/...` branch `new_branch.sh` derives from it), **never on a commit/PR**. Marks an investigation whose deliverable is a finding, not code; it drives `new_branch.sh` and board legibility, and is the one type the Conventional-Commits-for-Research adaptation sanctions for code-focused repos.
 
 **Retired / folded - do not use:**
 
