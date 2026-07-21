@@ -388,6 +388,31 @@ class TestSeedNarrative:
         assert "#5" not in deliverables          # closed #5 not re-listed
         assert "Inventory appendix" in deliverables  # points there instead
 
+    def test_window_mode_forces_a_carrier_decision_in_both_sections(self):
+        # The weekly SDR (window mode) is milestone-free, so it has no
+        # milestone-close routing anchor: each Carried-forward / actionable
+        # Retrospective item must name a board carrier or be marked "observation
+        # only, no carrier", else it dead-letters in the read-only artifact
+        # (Issue #1223). Count the marker so dropping EITHER section's block fails
+        # (both blocks contain the shared substrings; a mere `in` check wouldn't).
+        md = mr.seed_narrative(
+            {"title": "Meta-work SDR", "created_at": None, "closed_at": None},
+            self.ISSUES, {}, mode="window",
+        )
+        assert md.count("observation only, no carrier") == 2
+        assert "Each carried-forward item MUST name a" in md          # Carried-forward block
+        assert "each ACTIONABLE retrospective finding MUST name a" in md  # Retrospective block
+
+    def test_milestone_mode_omits_the_carrier_forcing_prompt(self):
+        # Milestone mode has its own routing anchor (the milestone close), so the
+        # forcing prompt must NOT appear - the matched-pair control that proves
+        # the prompt is mode-scoped, not unconditionally emitted.
+        md = mr.seed_narrative(
+            {"title": "m", "created_at": None, "closed_at": None},
+            self.ISSUES, {}, mode="milestone",
+        )
+        assert "observation only" not in md
+
 
 class TestSeedScoping:
     """The seed is scoped to the milestone's own issues + lead role, and parses a
