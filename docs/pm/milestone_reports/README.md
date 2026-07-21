@@ -140,3 +140,33 @@ calibrate against; **revisit toward biweekly/monthly after ~4-6 instances**, onc
 the throughput/cycle-time baselines are legible. Generation runs in the
 **Friday-cleanup** morning-routine beat (a PM-routine step carried in the PM
 morning-routine memory, not a repo-committed hook).
+
+### Routing the SDR's residue - the merge-time routing act ([Issue #1223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1223))
+
+The milestone report has a natural routing anchor: the milestone close is itself the
+routing act (step 4 of the authoring flow above; the a/b/c/d closure-routing decision).
+The **weekly SDR is milestone-free, so that close event never fires** - and a
+Carried-forward item or an actionable Retrospective finding would otherwise dead-letter
+in a committed HTML file, which is a read-only mirror nothing pulls from
+(`shared/feedback_followup_tracking_homes.md`).
+
+The SDR mirrors the milestone close on the **SDR-PR merge** instead:
+
+1. **Authoring-time forcing function.** The window-mode seed
+   ([`seed_narrative`](../../../scripts/pm/milestone_report.py)) prompts a board-carrier
+   decision under both the Carried-forward and Retrospective sections: each actionable
+   item must name a **board carrier** - a new Issue, a comment on an open Issue, or a
+   Discussion - **or** be marked `observation only, no carrier`. An item with neither is
+   the dead-letter the forcing function exists to prevent. A pure health observation is
+   `observation only`; a finding that implies work needs a carrier so it is *pulled*, not
+   just *read*.
+2. **The routing act = the SDR-PR merge comment.** On merging the SDR PR, state the
+   routing outcome the same way the milestone close does: `routed <item> to <carrier>`
+   for each actionable item, or `no actionable residue this week` when both sections are
+   observation-only. Link that outcome from the PM lab-notebook entry, exactly as the
+   milestone-close routing act is linked from its entry.
+
+**Not a merge gate.** A blocking gate on an un-routed item is overkill for a weekly
+cadence whose residue is usually empty - start with the template forcing-function + the
+merge-comment convention, and escalate to a mechanism only if it slips
+(`shared/feedback_mechanism_over_memory.md`).

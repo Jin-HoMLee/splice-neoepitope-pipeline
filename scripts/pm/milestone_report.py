@@ -988,8 +988,17 @@ def _lab_notebook_seed(lead_roles: set[str], issue_numbers: set[int]) -> str:
     return "\n".join(bullets)
 
 
-def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
-    """First-draft narrative markdown for the author-owned sidecar."""
+def seed_narrative(milestone: dict, issues: list[dict], metrics: dict,
+                   mode: str = "milestone") -> str:
+    """First-draft narrative markdown for the author-owned sidecar.
+
+    In ``window`` (weekly SDR) mode the Carried-forward and Retrospective sections
+    carry a board-carrier forcing prompt: the SDR is milestone-free, so it has no
+    milestone-close routing anchor, and an actionable item would otherwise dead-letter
+    in the read-only HTML artifact (Issue #1223). Milestone mode omits the prompt - the
+    milestone close itself is its routing anchor.
+    """
+    forcing_prompt = mode == "window"
     # Scope the seed to the milestone's lead role(s) and its own delivered issues, not
     # every role over a raw date window (Issue #1005). Fall back to all involved roles
     # only when no delivered issue carries a role label (nothing for per_role_counts to
@@ -1037,6 +1046,15 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "     closure-routing decision (a/b/c/d). -->",
         "",
     ]
+    if forcing_prompt:
+        lines += [
+            "<!-- SDR routing (Issue #1223): the weekly SDR is milestone-free, so it has",
+            "     no milestone-close routing anchor. Each carried-forward item MUST name a",
+            "     board carrier - a new Issue, a comment on an open Issue, or a Discussion -",
+            "     OR be marked `observation only, no carrier`. An item with neither dead-letters",
+            "     in this read-only artifact. The routing act itself is the SDR-PR merge comment. -->",
+            "",
+        ]
     lines += [f"- [#{i['number']}]({i['url']}) {i['title']} - _route: TBD_" for i in carried] or ["- _(none carried forward)_"]
     lines += [
         "",
@@ -1045,6 +1063,14 @@ def seed_narrative(milestone: dict, issues: list[dict], metrics: dict) -> str:
         "<!-- PM: was it healthy? what to improve? WIP/aging observations. -->",
         "",
     ]
+    if forcing_prompt:
+        lines += [
+            "<!-- SDR routing (Issue #1223): each ACTIONABLE retrospective finding MUST name a",
+            "     board carrier (new Issue / comment on an open Issue / Discussion) OR be marked",
+            "     `observation only, no carrier`. A pure health observation is `observation only`; a",
+            "     finding that implies work needs a carrier so it is pulled, not just read. -->",
+            "",
+        ]
     return "\n".join(lines) + "\n"
 
 
@@ -1200,7 +1226,7 @@ def _generate(milestone: dict, issues: list[dict], metrics: dict,
     out_dir.mkdir(parents=True, exist_ok=True)
     sidecar = out_dir / f"{slug}.narrative.md"
     if not sidecar.exists():  # never overwrite author edits
-        sidecar.write_text(seed_narrative(milestone, issues, metrics), encoding="utf-8")
+        sidecar.write_text(seed_narrative(milestone, issues, metrics, mode=mode), encoding="utf-8")
         print(f"  seeded narrative -> {sidecar}")
     else:
         print(f"  narrative exists (preserved) -> {sidecar}")
