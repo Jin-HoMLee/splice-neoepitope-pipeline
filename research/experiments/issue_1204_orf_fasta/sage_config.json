@@ -1,0 +1,14 @@
+{
+  "database": {
+    "enzyme": { "cleave_at": "" },
+    "fragment_min_mz": 100.0,
+    "fragment_max_mz": 2000.0,
+    "peptide_min_len": 8,
+    "peptide_max_len": 11,
+    "generate_decoys": true,
+    "fasta": "combined.fasta"
+  },
+  "precursor_tol": { "ppm": [-20.0, 20.0] },
+  "fragment_tol": { "ppm": [-20.0, 20.0] },
+  "output_directory": "sage_out"
+}
