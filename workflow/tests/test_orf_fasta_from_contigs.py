@@ -4,7 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from orf_fasta_from_contigs import crossing_orf_stretch, _orf_header, emit_orf_fasta
+from orf_fasta_from_contigs import (
+    crossing_orf_stretch,
+    _orf_header,
+    emit_orf_fasta,
+    _parse_fasta,
+)
 
 
 def _codon_seq(aas, frame=0, upstream_codons=10):
@@ -124,3 +129,28 @@ def test_emit_skips_wrong_length_contig(tmp_path):
     text = out.read_text()
     assert "J1|" not in text  # wrong-length contig skipped, no record at all
     assert ">J2|0|chr2:30-40:-" in text  # valid contig still written
+
+
+_VALID_AA = set("ACDEFGHIKLMNPQRSTVWY")
+
+
+def test_multichr_capability_and_structural_validity(tmp_path):
+    data = Path(__file__).parent / "data" / "orf_fasta"
+    out = tmp_path / "orf.fa"
+    emit_orf_fasta(data / "contigs_multichr.fa", out, flank_nt=30, min_peptide_len=8)
+    records = _parse_fasta(out)  # reuse the emitter's parser
+
+    # AC-1: entries from all three chromosomes (not chr22-scoped).
+    chroms = {h.split("|")[2].split(":")[0] for h, _ in records}
+    assert {"chr1", "chr7", "chrX"} <= chroms
+
+    # Structural: unique headers, valid alphabet, no stop/X.
+    headers = [h for h, _ in records]
+    assert len(headers) == len(set(headers))
+    for _, seq in records:
+        assert set(seq) <= _VALID_AA
+
+    # Concatenation with the canonical proteome yields no duplicate IDs.
+    canon = _parse_fasta(data / "canonical_tiny.fasta")
+    all_ids = [h.split()[0] for h, _ in records + canon]
+    assert len(all_ids) == len(set(all_ids))
