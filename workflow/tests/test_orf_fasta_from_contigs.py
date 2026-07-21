@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from orf_fasta_from_contigs import crossing_orf_stretch
+from orf_fasta_from_contigs import crossing_orf_stretch, _orf_header, emit_orf_fasta
 
 
 def _codon_seq(aas, frame=0, upstream_codons=10):
@@ -47,9 +47,6 @@ def test_frame_offset_shifts_breakpoint_math():
     assert crossing_orf_stretch(contig, 1) == "K" * 19
 
 
-from orf_fasta_from_contigs import _orf_header, emit_orf_fasta
-
-
 def test_orf_header_reformat():
     h = "JUNC1|chr7:100-200:+|tumor"
     assert _orf_header(h, 2) == "JUNC1|2|chr7:100-200:+"
@@ -80,3 +77,50 @@ def test_emit_drops_x_and_short_and_writes_headers(tmp_path):
     # headers unique
     headers = [ln for ln in text.splitlines() if ln.startswith(">")]
     assert len(headers) == len(set(headers))
+
+
+def test_emit_drops_short_crossing_stretch(tmp_path):
+    contigs = tmp_path / "contigs.fa"
+    out = tmp_path / "orf.fa"
+    # J1 frame 0 translates to KKKKKK*KKKK*KKKKKKKK (20 codons):
+    #   codons 0-5   (nt [0,18))  -> run "KKKKKK", entirely upstream, dropped
+    #   codon 6      (nt [18,21)) -> stop
+    #   codons 7-10  (nt [21,33)) -> run "KKKK", crosses breakpoint nt 30
+    #                                 (21 < 30 < 33) but is only 4 aa
+    #   codon 11     (nt [33,36)) -> stop
+    #   codons 12-19 (nt [36,60)) -> run "KKKKKKKK", entirely downstream
+    # So the ONLY crossing stretch is the 4-aa run, below min_peptide_len=8
+    # -> dropped.
+    short_crossing = (
+        "".join(["AAA"] * 6) + "TAA" + "".join(["AAA"] * 4) + "TAA"
+        + "".join(["AAA"] * 8)
+    )
+    assert len(short_crossing) == 60
+    # J2 frame 0: clean 20-Lys crossing stretch (matched-pair control - same
+    # min_peptide_len=8 must NOT drop this long stretch, else the assertion
+    # on J1 would be vacuous).
+    long_crossing = "".join(["AAA"] * 20)
+    _write_fasta(contigs, [
+        ("J1|chr1:10-20:+|tumor", short_crossing),
+        ("J2|chr2:30-40:-|tumor", long_crossing),
+    ])
+    emit_orf_fasta(contigs, out, flank_nt=30, min_peptide_len=8)
+    text = out.read_text()
+    assert ">J1|0|chr1:10-20:+" not in text  # short crossing stretch dropped
+    assert ">J2|0|chr2:30-40:-" in text  # long crossing stretch kept
+    assert "K" * 20 in text
+
+
+def test_emit_skips_wrong_length_contig(tmp_path):
+    contigs = tmp_path / "contigs.fa"
+    out = tmp_path / "orf.fa"
+    wrong_length = "A" * 45  # != 2 * flank_nt (60) -> must be skipped
+    valid = "".join(["AAA"] * 20)  # 60 nt, clean frame-0 crossing stretch
+    _write_fasta(contigs, [
+        ("J1|chr1:10-20:+|tumor", wrong_length),
+        ("J2|chr2:30-40:-|tumor", valid),
+    ])
+    emit_orf_fasta(contigs, out, flank_nt=30, min_peptide_len=8)
+    text = out.read_text()
+    assert "J1|" not in text  # wrong-length contig skipped, no record at all
+    assert ">J2|0|chr2:30-40:-" in text  # valid contig still written
