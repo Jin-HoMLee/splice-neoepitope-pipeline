@@ -207,3 +207,16 @@ tcrdock:
   vdjdb_sha256: "0dce79ec55c109000da10b7bc72300e352ffb7df92d5de30682de20bab35a366"
   vdjdb_min_score: 2
   vdjdb_panel_size: 10
+
+# -----------------------------------------------------------------
+# MS search database (optional; junction-spanning ORF FASTA for #1176)
+# -----------------------------------------------------------------
+# Decoupled from the production MHC path (translation.peptide_lengths stays
+# [8, 9, 10] / 27-nt flanks). This path re-runs assemble_contigs.py at wider
+# 30-nt flanks (3 * (11 - 1), covering all class-I 8-11mers) and emits the
+# breakpoint-crossing ORF stretch as a FASTA for a nonspecific MS search.
+# Not part of `rule all` - build the optional target explicitly:
+#   snakemake --cores 4 --use-conda -- results/{patient_id}/ms_search_db/junction_orf.fasta
+ms_search_db:
+  flank_nt: 30            # 3 * (11 - 1); all class-I 8-11mers span the breakpoint
+  min_peptide_len: 8      # drop crossing stretches shorter than this

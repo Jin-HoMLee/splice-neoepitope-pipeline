@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 21,
-      "degree": 22
+      "size": 22,
+      "degree": 23
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1013,13 +1013,23 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_21_orf_fasta_emitter_md",
+      "label": "2026-07-21-orf-fasta-emitter.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-21-orf-fasta-emitter.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__specs",
       "label": "specs",
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 27,
-      "degree": 28
+      "size": 28,
+      "degree": 29
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1287,6 +1297,16 @@
       "type": "doc",
       "group": "docs",
       "path": "docs/superpowers/specs/2026-07-21-issue-966-ac1-asneo-runner-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "docs__superpowers__specs__2026_07_21_orf_fasta_emitter_design_md",
+      "label": "2026-07-21-orf-fasta-emitter-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-21-orf-fasta-emitter-design.md",
       "description": "Documentation",
       "size": 1,
       "degree": 1
@@ -1844,7 +1864,7 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 18
+      "degree": 19
     },
     {
       "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
@@ -2509,6 +2529,71 @@
       "description": "Tabular data",
       "size": 1,
       "issue": 1162,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta",
+      "label": "issue_1204_orf_fasta",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta",
+      "size": 5,
+      "issue": 1204,
+      "degree": 6
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta___gitignore",
+      "label": ".gitignore",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/.gitignore",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "label": "make_spectrum.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/make_spectrum.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__run_sage_smoke_sh",
+      "label": "run_sage_smoke.sh",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/run_sage_smoke.sh",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__sage_config_json",
+      "label": "sage_config.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/sage_config.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
       "degree": 1
     },
     {
@@ -6024,7 +6109,7 @@
       "path": "Snakefile",
       "description": "Main workflow entry point \u2014 includes all rule modules",
       "size": 4,
-      "degree": 13
+      "degree": 14
     },
     {
       "id": "tools",
@@ -6816,8 +6901,8 @@
       "type": "rules_dir",
       "group": "pipeline",
       "path": "workflow/rules",
-      "size": 12,
-      "degree": 13
+      "size": 13,
+      "degree": 14
     },
     {
       "id": "workflow__rules__alignment_smk",
@@ -6900,6 +6985,16 @@
       "degree": 6
     },
     {
+      "id": "workflow__rules__ms_search_db_smk",
+      "label": "ms_search_db.smk",
+      "type": "rule",
+      "group": "pipeline",
+      "path": "workflow/rules/ms_search_db.smk",
+      "description": "Snakemake rule module",
+      "size": 3,
+      "degree": 2
+    },
+    {
       "id": "workflow__rules__proteome_filter_smk",
       "label": "proteome_filter.smk",
       "type": "rule",
@@ -6945,8 +7040,8 @@
       "type": "scripts_dir",
       "group": "pipeline",
       "path": "workflow/scripts",
-      "size": 22,
-      "degree": 23
+      "size": 23,
+      "degree": 24
     },
     {
       "id": "workflow__scripts__aggregate_filtering_stats_py",
@@ -7300,6 +7395,16 @@
       "degree": 2
     },
     {
+      "id": "workflow__scripts__orf_fasta_from_contigs_py",
+      "label": "orf_fasta_from_contigs.py",
+      "type": "script",
+      "group": "pipeline",
+      "path": "workflow/scripts/orf_fasta_from_contigs.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 2
+    },
+    {
       "id": "workflow__scripts__proteome_filter_py",
       "label": "proteome_filter.py",
       "type": "script",
@@ -7543,8 +7648,8 @@
       "type": "tests_dir",
       "group": "pipeline",
       "path": "workflow/tests",
-      "size": 40,
-      "degree": 43
+      "size": 41,
+      "degree": 45
     },
     {
       "id": "workflow__tests__README_md",
@@ -7573,6 +7678,44 @@
       "group": "pipeline",
       "path": "workflow/tests/conftest.py",
       "description": "Test module",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "workflow__tests__data",
+      "label": "data",
+      "type": "tests_dir",
+      "group": "pipeline",
+      "path": "workflow/tests/data",
+      "size": 0,
+      "degree": 2
+    },
+    {
+      "id": "workflow__tests__data__orf_fasta",
+      "label": "orf_fasta",
+      "type": "tests_dir",
+      "group": "pipeline",
+      "path": "workflow/tests/data/orf_fasta",
+      "size": 2,
+      "degree": 3
+    },
+    {
+      "id": "workflow__tests__data__orf_fasta__canonical_tiny_fasta",
+      "label": "canonical_tiny.fasta",
+      "type": "resource",
+      "group": "pipeline",
+      "path": "workflow/tests/data/orf_fasta/canonical_tiny.fasta",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "workflow__tests__data__orf_fasta__contigs_multichr_fa",
+      "label": "contigs_multichr.fa",
+      "type": "resource",
+      "group": "pipeline",
+      "path": "workflow/tests/data/orf_fasta/contigs_multichr.fa",
+      "description": "Project file",
       "size": 1,
       "degree": 1
     },
@@ -7863,6 +8006,16 @@
       "description": "Test module",
       "size": 1,
       "degree": 1
+    },
+    {
+      "id": "workflow__tests__test_orf_fasta_from_contigs_py",
+      "label": "test_orf_fasta_from_contigs.py",
+      "type": "test",
+      "group": "pipeline",
+      "path": "workflow/tests/test_orf_fasta_from_contigs.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 2
     },
     {
       "id": "workflow__tests__test_proteome_filter_py",
@@ -8785,6 +8938,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_21_orf_fasta_emitter_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__specs",
       "target": "docs__superpowers",
       "type": "contained_in",
@@ -8954,6 +9113,12 @@
     },
     {
       "source": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__superpowers__specs__2026_07_21_orf_fasta_emitter_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
       "label": ""
@@ -9717,6 +9882,42 @@
     {
       "source": "research__experiments__issue_1162_star_container__star_on__SRR9143066_tumor_raw_junctions_tsv",
       "target": "research__experiments__issue_1162_star_container__star_on",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__README_md",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta___gitignore",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__run_sage_smoke_sh",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__sage_config_json",
+      "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
     },
@@ -12272,6 +12473,12 @@
     },
     {
       "source": "snakefile_main",
+      "target": "workflow__rules__ms_search_db_smk",
+      "type": "includes",
+      "label": "includes rule"
+    },
+    {
+      "source": "snakefile_main",
       "target": "workflow__rules__proteome_filter_smk",
       "type": "includes",
       "label": "includes rule"
@@ -12787,6 +12994,12 @@
       "label": ""
     },
     {
+      "source": "workflow__rules__ms_search_db_smk",
+      "target": "workflow__rules",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "workflow__rules__proteome_filter_smk",
       "target": "workflow__rules",
       "type": "contained_in",
@@ -12895,6 +13108,12 @@
       "label": ""
     },
     {
+      "source": "workflow__scripts__orf_fasta_from_contigs_py",
+      "target": "workflow__scripts",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "workflow__scripts__proteome_filter_py",
       "target": "workflow__scripts",
       "type": "contained_in",
@@ -12969,6 +13188,30 @@
     {
       "source": "workflow__tests__conftest_py",
       "target": "workflow__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__data",
+      "target": "workflow__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__data__orf_fasta",
+      "target": "workflow__tests__data",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__data__orf_fasta__canonical_tiny_fasta",
+      "target": "workflow__tests__data__orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__data__orf_fasta__contigs_multichr_fa",
+      "target": "workflow__tests__data__orf_fasta",
       "type": "contained_in",
       "label": ""
     },
@@ -13214,6 +13457,18 @@
     },
     {
       "source": "workflow__tests__test_no_future_imports_in_scripts_py",
+      "target": "workflow__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__test_orf_fasta_from_contigs_py",
+      "target": "workflow__scripts__orf_fasta_from_contigs_py",
+      "type": "test_of",
+      "label": "tests"
+    },
+    {
+      "source": "workflow__tests__test_orf_fasta_from_contigs_py",
       "target": "workflow__tests",
       "type": "contained_in",
       "label": ""

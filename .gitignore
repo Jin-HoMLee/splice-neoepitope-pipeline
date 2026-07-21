@@ -235,6 +235,10 @@ logs/
 !docs/features/**/data/
 !docs/features/**/data/*.tsv
 
+# Exempt: committed pytest fixtures (tiny, intentional - not pipeline output)
+!workflow/tests/data/
+!workflow/tests/data/**
+
 # Snakemake
 .snakemake/
 # Pipeline outputs (Snakemake-rule outputs)
