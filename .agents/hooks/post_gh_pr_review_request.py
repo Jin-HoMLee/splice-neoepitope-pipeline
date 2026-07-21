@@ -46,6 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _shell_parse  # noqa: E402
+import graphql_meter  # noqa: E402
 
 # Project #9 ("JH M Lee Lab") - user-level project, IDs stable + repo-independent
 # (same values as post_gh_pr_create.py / recheck_dispatch.py).
@@ -275,6 +276,11 @@ def _set_status(item_id: str, option_id: str) -> None:
         "-f", f"p={PROJECT_ID}", "-f", f"i={item_id}",
         "-f", f"f={STATUS_FIELD_ID}", "-f", f"o={option_id}",
     )
+    try:
+        probe = json.loads(_gh("api", "graphql", "-f", f"query={graphql_meter.RATE_LIMIT_PROBE_QUERY}").stdout)
+        graphql_meter.log_graphql_probe("post_gh_pr_review_request", probe, query_name="status_mutation")
+    except Exception:
+        pass
 
 
 def _log_fire(pr: int | None, issues: list[int], repo: str) -> None:
