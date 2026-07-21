@@ -140,25 +140,36 @@ def main(argv=None):
         metavar="CALLER:SJ_TAB",
         help="run a caller on an SJ.out.tab, then ingest its output (repeatable)",
     )
+    parser.add_argument(
+        "--workdir",
+        default=None,
+        help="scratch dir for --run callers (default: a fresh temp dir per run; "
+             "reuse one dir to cache the caller clone + reference downloads)",
+    )
     parser.add_argument("--out", required=True, help="unified TSV output path")
     args = parser.parse_args(argv)
 
     if not args.inputs and not args.runs:
         parser.error("provide at least one --input or --run")
 
-    specs = list(args.inputs)
-    for caller, sj_tab in args.runs:
-        try:
-            runner = RUNNERS[caller]
-        except KeyError:
-            known = ", ".join(sorted(RUNNERS))
-            raise ValueError(f"no runner for {caller!r}; registered runners: {known}")
-        out_path = runner(sj_tab, tempfile.mkdtemp(prefix=f"{caller}_run_"))
-        specs.append((caller, out_path))
+    # --input: ingest a pre-run output file (no run-provenance to record).
+    records = collect(list(args.inputs))
 
-    records = collect(specs)
+    # --run: invoke the caller, then ingest its output with the runner's
+    # provenance (the only origin handle for peptide-level, null-junction rows).
+    for caller, sj_tab in args.runs:
+        if caller not in RUNNERS:
+            known = ", ".join(sorted(RUNNERS))
+            parser.error(f"no runner for {caller!r}; registered runners: {known}")
+        workdir = args.workdir or tempfile.mkdtemp(prefix=f"{caller}_run_")
+        out_path, provenance = RUNNERS[caller](sj_tab, workdir)
+        for rec in get_adapter(caller)(out_path, provenance=provenance):
+            validate(rec)
+            records.append(rec)
+
     records_to_tsv(records, args.out)
-    print(f"collected {len(records)} records from {len(specs)} input(s) -> {args.out}")
+    n_inputs = len(args.inputs) + len(args.runs)
+    print(f"collected {len(records)} records from {n_inputs} input(s) -> {args.out}")
     return 0
 
 

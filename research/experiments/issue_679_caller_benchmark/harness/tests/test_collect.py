@@ -163,3 +163,31 @@ def test_collect_validates_records(monkeypatch):
 def test_runners_registry_has_asneo():
     import collect as collect_mod
     assert "asneo" in collect_mod.RUNNERS
+
+
+def test_run_path_threads_runner_provenance(monkeypatch, tmp_path):
+    # The --run path must record the runner's provenance on the ingested rows
+    # (the only origin handle for peptide-level, null-junction records).
+    import collect as collect_mod
+
+    pep = tmp_path / "putative_peptide.txt"
+    pep.write_text("LEQGTHPKFQ\nILQPKPVD\n")
+
+    def fake_runner(sj_tab, workdir):
+        return str(pep), {"sj_tab": "x.tab", "sj_tab_sha1": "deadbeef",
+                          "thresholds": {"reads": 2, "psi": 0.05}}
+
+    monkeypatch.setitem(collect_mod.RUNNERS, "asneo", fake_runner)
+    out = tmp_path / "u.tsv"
+    collect_mod.main(["--run", "asneo:whatever.tab", "--out", str(out)])
+    data_rows = out.read_text().splitlines()[1:]
+    assert len(data_rows) == 2
+    assert all("deadbeef" in row for row in data_rows)
+
+
+def test_run_path_unknown_caller_is_a_clean_cli_error(tmp_path):
+    import collect as collect_mod
+
+    out = tmp_path / "u.tsv"
+    with pytest.raises(SystemExit):  # parser.error, not a bare ValueError traceback
+        collect_mod.main(["--run", "nosuch:whatever.tab", "--out", str(out)])

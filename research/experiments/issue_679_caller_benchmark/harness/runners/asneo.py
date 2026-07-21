@@ -1,17 +1,25 @@
 """ASNEO runner (#966, AC-1).
 
 Invokes the open-only (option-B patched) ASNEO caller on a chr22-scale
-SJ.out.tab in the ``asneo`` conda env, returning the path to the produced
-putative_peptide.txt. The clone / patch / genome / run sequence lives in the
-proven ``run_asneo.sh`` (adapted from the #965 smoke); this module shells out
-to it and validates the result. Command orchestration is bash; the output
-contract is checked here in pure, unit-tested Python.
+SJ.out.tab in the ``asneo`` conda env. The clone / patch / genome / run
+sequence lives in the proven ``run_asneo.sh`` (adapted from the #965 smoke);
+this module shells out to it and validates the result.
+
+Runner contract: ``run_asneo(sj_tab, workdir) -> (output_path, provenance)``.
+The provenance dict is the only handle tying ASNEO's peptide-level (null
+junction) records back to their origin, so it carries the input SJ.out.tab
+name + a content digest + the thresholds used. ``DEFAULT_THRESHOLDS`` is the
+single source for those thresholds - passed to the bash script AND recorded in
+provenance, so the two cannot drift.
 """
 
+import hashlib
 import subprocess
 from pathlib import Path
 
 _SCRIPT = Path(__file__).with_name("run_asneo.sh")
+
+DEFAULT_THRESHOLDS = {"reads": 2, "psi": 0.05, "lengths": "8,9,10,11"}
 
 
 def peptide_output_path(workdir: str) -> str:
@@ -30,9 +38,28 @@ def validate_output(path: str) -> None:
         raise ValueError(f"ASNEO output {path} has 0 candidate peptides")
 
 
-def run_asneo(sj_tab: str, workdir: str) -> str:
-    """Run patched ASNEO on ``sj_tab``; return the putative_peptide.txt path."""
-    subprocess.run(["bash", str(_SCRIPT), sj_tab, workdir], check=True)
+def _sha1(path: str) -> str:
+    return hashlib.sha1(Path(path).read_bytes()).hexdigest()
+
+
+def run_asneo(sj_tab: str, workdir: str, thresholds: dict = None):
+    """Run patched ASNEO on ``sj_tab``; return ``(peptide_path, provenance)``.
+
+    ``provenance`` records the input basename + content SHA-1 + the thresholds
+    used, so the (peptide-level, null-junction) records stay traceable to their
+    origin - the recoverability the design spec asks for pending #1258.
+    """
+    t = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+    subprocess.run(
+        ["bash", str(_SCRIPT), sj_tab, workdir,
+         str(t["reads"]), str(t["psi"]), str(t["lengths"])],
+        check=True,
+    )
     out = peptide_output_path(workdir)
     validate_output(out)
-    return out
+    provenance = {
+        "sj_tab": Path(sj_tab).name,
+        "sj_tab_sha1": _sha1(sj_tab),
+        "thresholds": dict(t),
+    }
+    return out, provenance

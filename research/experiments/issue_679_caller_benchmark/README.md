@@ -57,8 +57,10 @@ python collect.py --run asneo:../inputs/chr22_SRR2660032.SJ.out.tab \
 ```
 
 The runner clones + patches ASNEO and fetches the hg19 chr22 FASTA into an out-of-tree scratch dir (no >100 MB artifact committed), runs the caller through `conda run -n asneo`, and ingests its peptide-only output.
+Pass `--workdir <dir>` to reuse a scratch dir across runs (caches the clone + FASTA download); the default is a fresh temp dir per run.
 The committed `outputs/asneo_chr22_unified.tsv` is that run: 6194 chr22 junctions -> 110 pass filters -> 60 novel isoforms -> **800 candidate peptides**.
 ASNEO records are `record_level=peptide` with null junction fields (its candidate-peptide set discards the junction linkage; recovery tracked in [#1258](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1258)).
+Because those records carry no junction, provenance is their only origin handle: each row records the input `SJ.out.tab` name + content SHA-1 + the thresholds used, so the committed output is traceable to exactly what produced it.
 
 ### chr22-scale smoke run (splice2neo ingest)
 
