@@ -61,3 +61,12 @@ def test_log_is_fail_open_on_malformed_response(tmp_path, monkeypatch):
     gm.log_graphql_spend("x", {"garbage": True})  # no rateLimit; must not raise
     rec = json.loads(log.read_text().splitlines()[0])
     assert rec["cost"] is None and rec["remaining"] is None
+
+
+def test_board_query_carries_ratelimit_fragment():
+    import importlib.util
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location("boi", root / "scripts" / "board_open_items.py")
+    boi = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(boi)
+    assert "rateLimit { cost remaining }" in boi.QUERY
