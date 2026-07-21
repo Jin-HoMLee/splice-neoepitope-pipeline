@@ -15,8 +15,8 @@ The park was **hardware-gated**, and that gate is now down (Dev's [#1035](https:
 
 | Axis | #316 verdict (parked) | Now (2026-07-21) |
 |---|---|---|
-| **Hardware** | AF3-class blocked on P100 (no bf16, 16 GB < 24 GB) | Lifted. Free L40S (48 GB) / A100 (40 GB) run tFold-TCR at $0 ([#1035](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1035)). Real limiter is **VRAM ~40 GB**, not FP8: tFold-TCR's 26 GB peak OOMs a 24 GB L4. |
-| **License** | AF3 non-redistributable; Chai-1/Protenix Apache; ESMFold2 MIT | Unchanged and re-confirmed: **AF3 weights non-redistributable** (manual-grant, non-commercial); **Boltz-2 MIT for code AND weights** (commercial-OK); **Chai-1 Apache-2.0 for code + weights** (since Nov 2024); **tFold-TCR PolyForm-Noncommercial** (research/portfolio OK, bars commercial productization). |
+| **Hardware** | AF3-class blocked on P100 (no bf16, 16 GB < 24 GB) | Lifted. Free L40S (48 GB) / A100 (40 GB) run tFold-TCR at $0 ([#1035](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1035)). Limiter is **VRAM, not FP8**. tFold-TCR's *measured* peak is **26 GB** (OOMs a 24 GB L4; a ~32 GB card should suffice). The 40 GB A100 is the *smallest free card we validated*, not the requirement - the true floor is bounded to **(24, 40] GB**, so a 28-32 GB free option is not pre-excluded. |
+| **License** | AF3 non-redistributable; Chai-1/Protenix Apache; ESMFold2 MIT | Unchanged and re-confirmed: **AF3 weights non-redistributable** (manual-grant, non-commercial); **Boltz-2 MIT for code AND weights** (commercial-OK); **Chai-1 Apache-2.0 for code AND weights** (Chai Discovery announcement Nov 2024 explicitly Apache-2.0'd the *weights*, not just code, for broad commercial use - the load-bearing half re-verified against the vendor primary); **tFold-TCR PolyForm-Noncommercial** (research/portfolio OK, bars commercial productization). |
 | **Accuracy** | AF3 best DockQ (Lu et al.); AF2 lags | Still AF3-first, but the *open* picture is nuanced (see below). |
 
 ## Accuracy landscape (from our shelf + verified web)
@@ -24,7 +24,7 @@ The park was **hardware-gated**, and that gate is now down (Dev's [#1035](https:
 **Verified against our Zotero shelf (folder 4, TCR-pMHC structure & binding):**
 
 - **Lu et al. unified benchmark** (`3GS2FXXZ`, Briefings in Bioinformatics 2026, DOI `10.1093/bib/bbag289`; 10 methods, 70 unseen complexes, DockQ + interface): **AF3 leads, AF2 lags.** CDR3-pLDDT reranking adds +4.3% Top-1 and captures >80% affinity-impact mutations - but that signal is validated on **AF3 only** and (per #601's own note) does **not** transfer to AF2/TCRdock. tFold-TCR is one of the benchmarked methods.
-- **JCIM comparative** (`Z5AP3IT3`, 2025, DOI `10.1021/acs.jcim.5c00298`; 7 isolated-TCR + 6 TCR-pMHC tools, 40 alphabeta TCRs + 27 complexes): tFold-TCR + AF2/AF3 all excel on *overall TCR structure*; CDR3 loops + docking orientations remain hard for all; explicitly **"supports TCRdock retention where overall accuracy matters"** and flags a **"backbone concern for rescoring atop tFold-TCR."**
+- **JCIM comparative** (`Z5AP3IT3`, 2025, DOI `10.1021/acs.jcim.5c00298`; 7 isolated-TCR + 6 TCR-pMHC tools, 40 alphabeta TCRs + 27 complexes): tFold-TCR + AF2/AF3 all excel on *overall TCR structure*; CDR3 loops + docking orientations remain hard for all. Per our Zotero note on this item (our reading, not verbatim from the paper): it supports TCRdock retention where overall accuracy matters, and flags a backbone concern for any rescoring atop tFold-TCR.
 
 **From verified web (July 2026), corroborating the license axis and adding the open-model ranking:**
 
@@ -35,7 +35,7 @@ The park was **hardware-gated**, and that gate is now down (Dev's [#1035](https:
 
 1. **The strongest model is still license-blocked.** AF3 wins DockQ but its weights are non-redistributable - it cannot ship in our Docker image regardless of hardware. So "AF3 leads" does not translate into a shippable backend.
 2. **The runnable-at-$0 backend is not the accuracy winner.** Dev spiked **tFold-TCR** (because it's TCR-specific and packaged), but the shelf evidence has tFold-TCR at parity-or-below AF2/TCRdock for the thing we care about, and one benchmark puts it at acceptable-quality-only. Adopting it because it *runs* free would be optimizing for runnability, not accuracy.
-3. **The best-licensed open options are untested by us on both axes.** Boltz-2 (MIT) and Chai-1 (Apache) are the models that actually track AF3 - but (a) their TCR-pMHC-*specific* standing is weaker/mixed in the crystal benchmarks, and (b) their **free-tier runnability is unverified** (Dev: "Chai-1/Boltz-2 may fit 24 GB; untested"). We have a runnability result for the *wrong* model relative to the accuracy evidence.
+3. **The best-licensed open options are untested by us on both axes.** Boltz-2 (MIT) and Chai-1 (Apache) are the models that actually track AF3 - but (a) their TCR-pMHC-*specific* standing is mixed even in the verified web ranking (Chai-1-MSA is comparable to AF3 on class II but underperforms on class I), and (b) their **free-tier runnability is unverified** (Dev: "Chai-1/Boltz-2 may fit 24 GB; untested"). We have a runnability result for the *wrong* model relative to the accuracy evidence.
 4. **CDR3-pLDDT reranking (AC3) is AF3-class-coupled and does not transfer to AF2.** So its value only materializes *if* we actually move to an AF3-class backend - which circles back to picking one that both ships (license) and wins (accuracy).
 
 ## Verdict and recommended next step
@@ -50,7 +50,7 @@ The park was **hardware-gated**, and that gate is now down (Dev's [#1035](https:
 on **DockQ + interface metrics**, no patient data. Decision rule: migrate only to an open backend that (a) ships (MIT/Apache preferred; PolyForm-NC acceptable for research/portfolio) **and** (b) beats TCRdock/AF2 on DockQ by a margin worth the integration cost. If none does, TCRdock retention is the correct call and #601 re-parks on the AC3/AC4 legs.
 
 **AC dispositions after this verdict:**
-- **AC1** (GPU target): discharged by #1035 (working cards L40S/A100; real floor ~40 GB VRAM, not FP8).
+- **AC1** (GPU target): discharged by #1035 (working free cards L40S/A100; the limiter is VRAM not FP8; measured tFold-TCR peak 26 GB, smallest validated free card 40 GB A100, so the floor is bounded (24, 40] GB - do not set the #1265 runnability wall at 40).
 - **AC2** (this verdict): delivered. Verdict = unpark-to-benchmark, above.
 - **AC3** (deploy CDR3-pLDDT column + reranking): stays gated on an actual AF3-class backend move - which the recommended benchmark decides.
 - **AC4** (patient-specific spike): carved to [#1245](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1245) (needs HLA-matched TCR), blocked, unchanged.
