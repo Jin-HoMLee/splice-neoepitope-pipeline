@@ -274,7 +274,10 @@ def test_mutate_target_date_clear_success(monkeypatch):
         stderr = ""
 
     def fake_run(args, **k):
-        seen["query"] = args[args.index("-f") + 1]
+        # _mutate_target_date now issues a second gh call (the cost-0 rateLimit
+        # probe, Issue #1165) after the mutation; capture the FIRST query (the
+        # mutation), not the probe that overwrites it.
+        seen.setdefault("query", args[args.index("-f") + 1])
         return R()
     monkeypatch.setattr(rd.subprocess, "run", fake_run)
     assert rd._mutate_target_date("PVTI_x", None) is True

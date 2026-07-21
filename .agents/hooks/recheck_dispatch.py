@@ -27,6 +27,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import graphql_meter  # noqa: E402
+
 REPO = "Jin-HoMLee/splice-neoepitope-pipeline"
 SIZE_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHGiA"
 STATUS_FIELD_ID = "PVTSSF_lAHOB17eGc4BSomPzhAHFf8"
@@ -235,14 +238,21 @@ def lookup_milestone_number_by_title(title: str) -> int | None:
 
 
 def lookup_issue_for_item(item_id: str) -> int | None:
-    query = f'query {{ node(id: "{item_id}") {{ ... on ProjectV2Item {{ content {{ ... on Issue {{ number }} }} }} }} }}'
+    query = f'query {{ rateLimit {{ cost remaining }} node(id: "{item_id}") {{ ... on ProjectV2Item {{ content {{ ... on Issue {{ number }} }} }} }} }}'
     result = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={query}",
-         "--jq", ".data.node.content.number"],
+        ["gh", "api", "graphql", "-f", f"query={query}"],
         capture_output=True, text=True, check=False,
     )
-    out = result.stdout.strip()
-    return int(out) if out.isdigit() else None
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    graphql_meter.log_graphql_spend("recheck_dispatch", data, query_name="lookup_issue_for_item")
+    node = (data.get("data") or {}).get("node") or {}
+    num = (node.get("content") or {}).get("number")
+    return int(num) if isinstance(num, int) else None
 
 
 def get_issue_milestone(issue: int) -> tuple[str | None, str | None]:
@@ -272,7 +282,7 @@ def get_issue_target_date(issue: int) -> tuple[str | None, str | None]:
     (None, item_id) if the issue is on the board but Target date is unset.
     """
     query = (
-        'query { repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") '
+        'query { rateLimit { cost remaining } repository(owner: "Jin-HoMLee", name: "splice-neoepitope-pipeline") '
         '{ issue(number: ' + str(issue) + ') { projectItems(first: 10) { nodes { '
         'id project { number } fieldValues(first: 20) { nodes { '
         '... on ProjectV2ItemFieldDateValue { date field { ... on ProjectV2FieldCommon { name } } } '
@@ -288,6 +298,7 @@ def get_issue_target_date(issue: int) -> tuple[str | None, str | None]:
         data = json.loads(result.stdout)
     except json.JSONDecodeError:
         return (None, None)
+    graphql_meter.log_graphql_spend("recheck_dispatch", data, query_name="get_issue_target_date")
     issue_node = ((data.get("data") or {}).get("repository") or {}).get("issue") or {}
     items = (issue_node.get("projectItems") or {}).get("nodes") or []
     for item in items:
@@ -375,6 +386,14 @@ def _mutate_target_date(item_id: str, due_on: str | None) -> bool:
         data = json.loads(result.stdout)
     except json.JSONDecodeError:
         return False
+    try:
+        probe = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={graphql_meter.RATE_LIMIT_PROBE_QUERY}"],
+            capture_output=True, text=True, check=False,
+        )
+        graphql_meter.log_graphql_probe("recheck_dispatch", json.loads(probe.stdout), query_name="mutate_target_date")
+    except Exception:
+        pass
     return "errors" not in data
 
 
