@@ -419,7 +419,7 @@ Branches follow the canonical `<type>/<role>/issue-<N>-<slug>` pattern (Conventi
 ```bash
 scripts/new_branch.sh <issue#> <short-slug> [--type T] [--role R] [--dry-run]
 #   new_branch.sh 578 branch-helper              → feat/pm/issue-578-branch-helper
-#   new_branch.sh 578 branch-helper --type spike → spike/pm/issue-578-branch-helper
+#   new_branch.sh 578 branch-helper --type docs  → docs/pm/issue-578-branch-helper
 scripts/new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]   # issueless fallback
 ```
 
@@ -431,6 +431,31 @@ scripts/new_branch.sh --no-issue <type> <role> <short-slug> [--dry-run]   # issu
 - `--dry-run` prints the computed name and exits without any git/gh mutation.
 
 This is the interim convention until the helper is habitual; the underlying "Issue-tracked branches use `gh issue develop`, never `git checkout -b`" rule is unaffected by the #1155 downgrade (which changed only the parent posture, not the branch-creation path).
+
+### Commit + branch type vocabulary
+
+The `<type>(<scope>):` prefix on Issue titles, branch names, and commit subjects draws from an **enumerated allow-list**, settled in [Issue #1157](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1157) (2026-07-21). The governing principle is **convention-max**: default to core Conventional Commits, and push domain specificity into the **scope**, never into a new type. (Cross-role commit contract: [`shared/feedback_commit_messages.md`](shared/feedback_commit_messages.md).)
+
+**Allow-list - the only sanctioned types:** the core Conventional Commits set - `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` - plus exactly one deliberate addition:
+
+- **`research`** - a **work-type**, valid on **Issue titles only** (never on a commit/PR). Marks an investigation whose deliverable is a finding, not code; it drives `new_branch.sh` and board legibility, and is the one type the Conventional-Commits-for-Research adaptation sanctions for code-focused repos.
+
+**Retired / folded - do not use:**
+
+- `spike` → `research`. `spike` was never a Conventional Commits type (it is a sprint work-item word); the investigation work-type is `research`.
+- `process` → `docs` or `chore`, domain in the scope: a governance/convention change is `docs(governance):`. (`process` both deviates from core CC and collides with the research convention's `process` = "data processing".)
+- `tooling` → `chore` or `build`, domain in the scope: `chore(tooling):` / `build(tooling):`.
+
+**Work-type on the Issue, change-type on the commit** - the two axes are distinct and live in different places:
+
+- **Issue title** = what kind of *work* (`research(...)`, or a standard type when the deliverable is code).
+- **Commit / PR subject** = what kind of *change* (a standard change-type) + an expressive scope.
+
+So a **findings-only PR** - a lab-notebook diff, which every `research` Issue's closing PR structurally is - carries **`docs(<scope>):`** (e.g. `docs(research):`, `docs(scientist):`), **not** `research:`. The research-log signal is preserved by the scope + the lab notebook + the Issue's `research` type, without spending it against commit-message tooling convention (commit-lint / changelog / semantic-release all assume the standard type set).
+
+**Deliberate deviation count = 1** (`research`, Issue-only). Everything else is core Conventional Commits. Minimizing the type set is the point: each custom type is a standing decision that invites drift - the drift that produced #1157.
+
+**Validation:** `scripts/new_branch.sh` currently accepts any type. Soft-validation against this allow-list (warn on an unknown type, env escape hatch for a deliberate new one) is carved to [Issue #1256](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1256) (Developer sub-issue of #1157).
 
 ## Merge workflow
 
