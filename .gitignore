@@ -335,6 +335,7 @@ CLAUDE.local.md
 /.agents/memory
 /.claude/memory
 .agents/hook_fires.jsonl
+.agents/graphql_spend.jsonl
 .claude/hook_fires.jsonl
 # Last-session watermark — deterministic morning-routine window floor (Issue #820)
 .agents/last_session_marker.json
