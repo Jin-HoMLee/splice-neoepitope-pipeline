@@ -10,6 +10,8 @@ cat "$CANON" "$ORF_FASTA" > "$HERE/combined.fasta"
 # cd so the config's relative "fasta"/"output_directory" paths resolve here,
 # regardless of the caller's cwd or Sage's own relative-path convention.
 cd "$HERE"
+# Clean a stale output dir so a re-run does not read prior results.
+rm -rf sage_out
 # sage must be on PATH (brew install sage-proteomics, or the github.com/lazear/sage release binary)
 sage sage_config.json synthetic.mgf
 echo "SAGE SMOKE OK"
