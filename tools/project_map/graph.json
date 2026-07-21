@@ -2544,6 +2544,17 @@
       "degree": 1
     },
     {
+      "id": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "label": "make_spectrum.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/make_spectrum.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
       "id": "research__experiments__issue_1204_orf_fasta__run_sage_smoke_sh",
       "label": "run_sage_smoke.sh",
       "type": "resource",
@@ -2560,17 +2571,6 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta/sage_config.json",
-      "description": "Project file",
-      "size": 1,
-      "issue": 1204,
-      "degree": 1
-    },
-    {
-      "id": "research__experiments__issue_1204_orf_fasta__synthetic_mgf",
-      "label": "synthetic.mgf",
-      "type": "resource",
-      "group": "research",
-      "path": "research/experiments/issue_1204_orf_fasta/synthetic.mgf",
       "description": "Project file",
       "size": 1,
       "issue": 1204,
@@ -9604,6 +9604,12 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_1204_orf_fasta__run_sage_smoke_sh",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
@@ -9611,12 +9617,6 @@
     },
     {
       "source": "research__experiments__issue_1204_orf_fasta__sage_config_json",
-      "target": "research__experiments__issue_1204_orf_fasta",
-      "type": "contained_in",
-      "label": ""
-    },
-    {
-      "source": "research__experiments__issue_1204_orf_fasta__synthetic_mgf",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
