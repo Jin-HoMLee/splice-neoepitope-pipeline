@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 _CODON = 3
 
 
-def crossing_orf_stretch(contig_seq, frame, breakpoint_nt=30):
+def crossing_orf_stretch(contig_seq: str, frame: int, breakpoint_nt: int = 30) -> str | None:
     """Return the amino-acid string of the stop-free stretch crossing the
     breakpoint in this frame, or None.
 
