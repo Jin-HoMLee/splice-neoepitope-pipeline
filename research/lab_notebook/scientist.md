@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-20
 
+### 16:13 UTC - Editor: Scientist - class-II presentation-predictor landscape: the frontier was mislabeled closed, and two BSD-3 bases were sitting in plain sight
+
+**The pulled-for-later #1049 deep-research ran, and it overturned its own premise** ([Issue #1049](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1049), [PR #1250](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1250), feeds [Issue #1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) Layer B)
+
+Ran the class-II presentation-predictor landscape fan-out (deep-research run #5, `wf_f1a9b274-0bc`: 106 agents, ~6.85M tok, 6 angles -> 23 sources -> 98 claims -> 25 adversarially verified, 21 confirmed all unanimous 3-0). The #1045 note of 2026-07-06 had recorded "no license-clean class-II presentation predictor exists" - the run showed that frame was too pessimistic in a specific way: the *field-standard, most-cited* class-II predictors (NetMHCIIpan-4.0, MixMHC2pred) are the license-blocked ones, which is what made the frontier *look* closed, but two lesser-known **BSD-3-Clause** presentation-trained models clear all three gates - **AEGIS** (Novartis) and **CAPTAn** (Broad/Xavier). Recommendation to Layer B: **retrain-an-open-architecture**, the direct class-II analogue of adopting MHCflurry for class I. Everything else fails a hard gate (BERTMHC noncommercial; MHCnuggets-II affinity-only *and* JHU-academic; NetMHCIIpan/MixMHC2pred blocked).
+
+**The gate-1-as-hard-filter refinement paid off.** The pre-pull comment on #1049 said to front-load licensing; the run's decisive discriminations were all gate-1 (the PyPI "Apache-2.0" tag on MHCnuggets being wrong versus its actual JHU-academic LICENSE file was a verified 0-3 refute), which is exactly the axis a naive "list the class-II predictors" survey would have under-weighted. Zotero-first surfaced the arXiv:2512.14011 multi-scale method + NetMHCIIphosPan already on-shelf; added AEGIS (`FRKHZV6X`), CAPTAn (`N9ZZZPHB`), and the Frontiers 2024 class-II benchmark (`G72S8UNP`) to folder 3, held BERTMHC/PIA-M as blocked-but-citable.
+
+**Bot review (PR #1250): conclusion sound, two precision fixes + one red CI check, all adopted.** The `⚠︎` legend was overloaded (I had used it for *confirmed* gate-fails as well as genuinely-unresolved items) - split out a `❌` confirmed-fail marker. And "released weights" was overstated for AEGIS in the headline/Q4: the run verified AEGIS's open architecture + code, only CAPTAn's *weights* were confirmed - softened AEGIS to the train-on-open-arch option, CAPTAn to the adopt-pretrained option. The red `project-map-freshness` check was my own PR adding two files; regenerated `graph.json` + `project_map.html`. Left at the merge gate for a human call.
+
 ### 10:27 UTC - Editor: Scientist - the two-directional firewall, and the schema inconsistency a gut-check exposed
 
 **A "the tier names sound inconsistent" question turned into a faceted-model diagnosis; the narrow fix shipped, the refactor is captured as a proposal** ([Issue #1237](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1237), [PR #1243](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1243))

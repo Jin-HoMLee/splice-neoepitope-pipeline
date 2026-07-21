@@ -3317,9 +3317,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research",
-      "size": 6,
+      "size": 7,
       "issue": 680,
-      "degree": 8
+      "degree": 9
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__README_md",
@@ -3382,6 +3382,17 @@
       "type": "doc",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research/run4_issue1176_noncanonical_search_scoping_2026-07-15.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run5_issue1049_classII_presentation_landscape_2026_07_20_md",
+      "label": "run5_issue1049_classII_presentation_landscape_2026-07-20.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/deep_research/run5_issue1049_classII_presentation_landscape_2026-07-20.md",
       "description": "Documentation",
       "size": 1,
       "issue": 680,
@@ -9975,6 +9986,12 @@
     },
     {
       "source": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run4_issue1176_noncanonical_search_scoping_2026_07_15_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run5_issue1049_classII_presentation_landscape_2026_07_20_md",
       "target": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research",
       "type": "contained_in",
       "label": ""
