@@ -8,6 +8,16 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-22
 
+### 13:35 UTC - Editor: PM
+
+**Closed out the #265 SOTA-autonomy survey via its residual report, and the pre-merge double-check earned its keep twice.** [PR #1272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1272) lands `research/agent_frameworks_and_reliability_evals_2026-07.md` + its raw provenance JSON and closes [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265).
+The scope was legitimate to close: #265's six questions were delivered across two passes - the earlier governance report answered Q2/Q3/Q5/Q6, this residual answered Q1/Q4 (frameworks + reliability evals) - with follow-ups [#1273](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1273) (pass^k self-test) and [#1274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1274) (full-trace capture) filed. The earlier "deliberately did not close #265" note in this notebook referred to the governance report's *partial* coverage, correctly resolved here.
+
+**The double-check caught two things a bare `gh pr merge` would have walked past.** First, `project-map-freshness` was red on #1272 - the 6c02ac9 commit added the report + raw JSON without regenerating the committed atlas, so `graph.json` was stale; regenerated and committed.
+Second, #1272 had **no lab-notebook entry at all** (this one), which the `role:pm` lab-notebook gate would have blocked on - the frameworks report shipped its residual PR without the closure-ritual entry. Both are the same class of silent gap the merge gate exists to catch, and the reason "double-check, then merge" is one instruction, not two.
+
+**The tau-bench citation ([arXiv 2406.12045](https://arxiv.org/abs/2406.12045)) is the load-bearing primary** for the 61% pass@1 -> ~25% pass^8 headline; the two preprints only corroborate it. Verified the ID resolves to Yao et al. before landing it on this branch earlier today.
+
 ### 12:55 UTC - Editor: PM
 
 **A completed fan-out is only an input to delivery - the wind-down's own sharpest line, and the resume proved it right.** A prior session hit its usage limit the instant after writing the competitive-positioning report ([research/competitive_positioning_neoepitope_pipelines_2026-07.md](competitive_positioning_neoepitope_pipelines_2026-07.md)), before relaying, source-auditing, or giving it a carrier.
