@@ -132,6 +132,7 @@ Proposed as Backlog options under `arc:board-governance` (the follow-up Issues b
 - Microsoft AutoGen, Handoffs design pattern (primary) - https://microsoft.github.io/autogen/dev//user-guide/core-user-guide/design-patterns/handoffs.html
 - arXiv 2603.29231 - reliability metrics (RDC/VAF/GDS/MOP) + episodic-memory negative result (primary; preprint)
 - arXiv 2601.06112 - ReliabilityBench, R(k,epsilon,lambda) surface (primary; single-author preprint)
+- arXiv 2406.12045 - tau-bench (Yao et al., ICLR 2025), the peer-reviewed origin of the 61% pass@1 -> ~25% pass^8 headline number (primary; the two preprints above only corroborate it)
 - arXiv 2506.07982 / sierra-research/tau2-bench - dual-control agent benchmark (primary)
 - arXiv 2510.11977 - Holistic Agent Leaderboard (HAL) (primary; ICLR 2026)
 - arXiv 2604.22708 - TraceElephant, failure attribution with full traces (primary; ACL 2026)
