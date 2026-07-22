@@ -61,7 +61,7 @@ Search **public tumor HLA-I immunopeptidome spectra** (peptides physically elute
 
 Junction contig → 3-frame translate → split at stop codons → keep **each frame's breakpoint-crossing** stretch → FASTA mini-protein.
 
-![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames. Each frame independently keeps its stop-free stretch that crosses the breakpoint, so one contig yields up to three mini-proteins. Shown: one illustrative frame crossing (frame 0); the other two terminate on one side and drop.](figures/emitter_schematic.png){width=88%}
+![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames. Each frame keeps its stop-free stretch that crosses the breakpoint (up to three mini-proteins per contig). Stops are sparse in these short contigs: in the chr22 run 75% of junctions keep all three frames (mean 2.74/3), so most frames are kept; a one-sided drop (frame 2 here) happens only when a stop lands near the breakpoint.](figures/emitter_schematic.png){width=88%}
 
 ---
 

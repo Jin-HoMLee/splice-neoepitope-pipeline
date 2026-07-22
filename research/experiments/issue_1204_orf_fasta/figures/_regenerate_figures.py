@@ -97,9 +97,12 @@ def fig_emitter_schematic():
             ax.add_patch(Rectangle((x, y), 3, 0.7, facecolor="white", edgecolor="#cccccc", lw=0.6))
             x += 3
 
-    # Stop codons (red, "*") are what split each frame into stop-free stretches.
-    # A stretch is KEPT only if it is stop-free AND spans the breakpoint
-    # (nt_start < 30 < nt_end). Every box below is bounded by the stops drawn.
+    # Stop codons (red, "*") split each frame into stop-free stretches; a stretch
+    # is KEPT iff it spans the breakpoint (nt_start < 30 < nt_end). Stops are
+    # SPARSE in these short GC-leaning contigs (chr22 run: mean 2.74/3 frames
+    # kept, 75% of junctions keep all 3), so the representative picture is MOST
+    # frames kept - a one-sided drop happens only when a stop lands near the
+    # breakpoint. Shown: two frames kept, one dropped (the minority case).
     STOP = "#c0392b"
 
     def stop_cell(x, y):
@@ -108,29 +111,35 @@ def fig_emitter_schematic():
         ax.text(x + 1.5, y + 0.33, "*", ha="center", va="center", fontsize=13,
                 color="white", fontweight="bold", zorder=7)
 
-    # frame 0: stops at 15 & 42 bound a stop-free stretch (18-42) that spans 30 -> KEPT
-    stop_cell(15, 6.2)
-    stop_cell(42, 6.2)
-    ax.add_patch(FancyBboxPatch((18, 6.05), 24, 0.8, boxstyle="round,pad=0.02,rounding_size=0.3",
-                                facecolor=BLUE, edgecolor="none", alpha=0.85, zorder=4))
-    ax.text(30, 6.45, "kept: crosses breakpoint", ha="center", va="center", fontsize=8.5,
-            color="white", fontweight="bold", zorder=5)
+    def kept_box(x0, x1, y, label):
+        ax.add_patch(FancyBboxPatch((x0, y - 0.15), x1 - x0, 0.8,
+                                    boxstyle="round,pad=0.02,rounding_size=0.3",
+                                    facecolor=BLUE, edgecolor="none", alpha=0.85, zorder=4))
+        ax.text((x0 + x1) / 2, y + 0.25, label, ha="center", va="center", fontsize=8.5,
+                color="white", fontweight="bold", zorder=5)
 
-    # frame 1: stop at 28 ends the stop-free run before the breakpoint -> upstream-only
-    stop_cell(10, 4.7)
-    stop_cell(28, 4.7)
-    ax.add_patch(FancyBboxPatch((13, 4.55), 15, 0.8, boxstyle="round,pad=0.02,rounding_size=0.3",
-                                facecolor="#dcdcdc", edgecolor="none", alpha=0.9, zorder=4))
-    ax.text(20.5, 4.95, "✕ upstream-only → dropped", ha="center", va="center",
-            fontsize=8, color="#555555", zorder=5)
+    def dropped_box(x0, x1, y, label):
+        ax.add_patch(FancyBboxPatch((x0, y - 0.15), x1 - x0, 0.8,
+                                    boxstyle="round,pad=0.02,rounding_size=0.3",
+                                    facecolor="#dcdcdc", edgecolor="none", alpha=0.9, zorder=4))
+        ax.text((x0 + x1) / 2, y + 0.25, label, ha="center", va="center", fontsize=8,
+                color="#555555", zorder=5)
 
-    # frame 2: stop at 29 starts the stop-free run after the breakpoint -> downstream-only
+    # frame 0: stop-free across the whole window -> the full stretch crosses -> KEPT
+    kept_box(2, 58, 6.2, "kept: stop-free across the window")
+
+    # frame 1: a single stop far from the breakpoint still leaves a crossing stretch -> KEPT
+    stop_cell(6, 4.7)
+    kept_box(9, 58, 4.7, "kept: stop far from the breakpoint")
+
+    # frame 2 (the minority case): a stop straddling the breakpoint splits it into
+    #   two one-sided stretches, neither crossing -> DROPPED
     stop_cell(29, 3.2)
-    stop_cell(47, 3.2)
-    ax.add_patch(FancyBboxPatch((32, 3.05), 15, 0.8, boxstyle="round,pad=0.02,rounding_size=0.3",
-                                facecolor="#dcdcdc", edgecolor="none", alpha=0.9, zorder=4))
-    ax.text(39.5, 3.45, "✕ downstream-only → dropped", ha="center", va="center",
-            fontsize=8, color="#555555", zorder=5)
+    dropped_box(2, 29, 3.2, "✕ upstream-only")
+    dropped_box(32, 58, 3.2, "✕ downstream-only")
+    ax.text(30, 2.45, "frame 2: a stop at the breakpoint splits it, neither side "
+            "crosses → dropped (the minority case)", ha="center", va="center",
+            fontsize=7.5, color="#888888", zorder=5)
 
     # legend for the stop-codon cell
     ax.add_patch(Rectangle((0, 7.12), 1.5, 0.6, facecolor=STOP, edgecolor="white", lw=0.6))
