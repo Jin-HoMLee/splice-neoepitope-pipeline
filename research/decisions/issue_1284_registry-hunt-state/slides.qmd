@@ -74,7 +74,7 @@ The registry is **positive-saturated and negative-starved**. The asymmetry (86 :
 | Catalog | Gate 1: splice-derived | Gate 2: functional assay | Landed |
 |---|:--:|:--:|---|
 | Exitron [@wang2021exitron] | PASS | **FAIL** (MS + computed score) | MS tier ([#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)) |
-| Ovarian [@zhao2020ovarian] | PASS (aberrant) | **FAIL** (MS-eluted only) | MS tier (low-conf) |
+| Ovarian [@zhao2020ovarian] | PARTIAL (28/103 splice-adjacent) | **FAIL** (MS-eluted only) | MS tier (low-conf) |
 | U2AF1 [@biernacki2023u2af1] | **FAIL** (missense) | PASS (cloned TCR + tetramer) | out of scope |
 
 . . .
@@ -99,7 +99,7 @@ flowchart LR
   style F fill:#fef9c3,stroke:#eab308
 ```
 
-The discovery literature reliably proves **display** (MS) and rarely proves a **T-cell response**. So new catalogs feed #681 (82 entries this cycle alone), while the functional registry is left where earlier sweeps put it.
+The discovery literature reliably proves **display** (MS) and rarely proves a **T-cell response**. So new catalogs feed #681 (82 entries this cycle = 54 exitron + 28 ovarian-intronic; distinct from the 82 *scorable positives* on the prior slide), while the functional registry is left where earlier sweeps put it.
 
 ---
 
