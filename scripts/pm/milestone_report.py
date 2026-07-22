@@ -1032,9 +1032,9 @@ def _fmt_arrival(w: dict) -> str:
     """Render one weekly row's arrival split, or say it cannot be rendered.
 
     Mirrors the headline `arrival:` line. Without this the row printed the literal
-    ``[None+None]`` whenever the marker was not in use - not a fabrication (None is at
-    least honest), but a leak of an internal sentinel into a human-facing report, and
-    inconsistent with every other surface this fix touched.
+    ``[None+None]`` whenever the commitment history was unreadable (before #1211, whenever
+    the marker was not in use) - not a fabrication (None is at least honest), but a leak of
+    an internal sentinel into a human-facing report, and inconsistent with every other surface.
 
     Caught in review, and worth recording HOW it survived: the live check that was
     supposed to verify this fix grepped the output for `arrival` - i.e. for the line
