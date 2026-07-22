@@ -110,7 +110,7 @@ Even if mining found more *positives*, they are **not the bottleneck**:
 
 ::: {.incremental}
 - **Calibration ([#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585)) is gated by negatives**, and we have 10 (1 hard). A ranker learns the display->immunogenicity boundary from *both* classes; 86:10 (86:1 hard) is the imbalance that limits it.
-- **Literature *reference-mining* is exhausted for hard-negatives** ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), n=1 `VELEDHVML`) - **but** IEDB holds **~33K human-source T-cell *negative* assays** (~100% source-anchored), an untapped **sequence-remapping** source ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) that could feed this class computationally, before any wet-lab.
+- **Literature *reference-mining* is exhausted for hard-negatives** ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), n=1 `VELEDHVML`) - **but** IEDB holds **~33K human-source T-cell *negative* assays** (~100% source-anchored), an untapped **sequence-remapping** source ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) that could feed the **negative class** computationally, before any wet-lab.
 - **Mining does not even recover *our* candidates** - #1207 AC-4: all 54 exitron + 103 ovarian peptides vs our n=2156 candidate presenters -> **zero overlap** (ceiling-checked). Disjoint cohorts + HLA; no shared recurrent target.
 :::
 
@@ -121,7 +121,7 @@ Even if mining found more *positives*, they are **not the bottleneck**:
 | | Action | Marginal yield | Cost |
 |---|---|---|---|
 | **(a)** | Keep dedicating cycles to functional-positive literature mining | ~0 new functional positives (this cycle 0/3 catalogs) | recurring analyst cycles |
-| **(b)** | **Reverse-map IEDB by sequence** ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) - map ~33K human-source *negative* assays to neojunctions | untested yield, but the only **computational** path to the hard-negative class | low (compute) |
+| **(b)** | **Reverse-map IEDB by sequence** ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) - map ~33K human-source *negative* assays to neojunctions | untested yield, but the only **computational** path to the negative class | low (compute) |
 | **(c)** | Wet-lab / author-data for negatives ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) | moves the hard-negative count | high (outreach / bench) |
 | **(d)** | **Hybrid** (recommended): stop dedicated positive-mining, run (b) first, keep the passive #681 watch, wet-lab only for the residual | best expected value | low |
 
@@ -152,7 +152,7 @@ Stop *dedicated* positive-mining · reverse-map IEDB for negatives **first** · 
 2. **Positive-saturation is context-specific** - 86 is ample for some uses and thin for a rare HLA / mechanism; a targeted positive gap can still justify a cycle.
 3. **The MS tier keeps growing** - "stop dedicated cycles" applies to the *functional* registry, not to #681, which literature feeds for free.
 4. **Negative-first is an inference** - that hard-negatives gate #585 more than positives is argued from class balance, not yet demonstrated on a fitted calibrator.
-5. **The IEDB reverse-map yield is unproven** - feasibility passes (~33K anchored negatives), but how many hit genuine *neo*junctions vs canonical/normal sequence is unknown until [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) runs; most will span canonical sequence and be discarded.
+5. **The IEDB reverse-map yield *and grade* are unproven** - feasibility passes (~33K anchored negatives), but (i) how many hit genuine *neo*junctions vs canonical/normal sequence is unknown until [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) runs (most span canonical sequence and are discarded), and (ii) a T-cell *negative* alone gives a splice-derived functional-negative but **not** the MS-presentation a gold-standard *hard*-negative (`VELEDHVML`) also needs - so remapped hits likely land **candidate/soft-grade**, improving the 86:10 balance without necessarily adding hard-negatives.
 6. **Second decision-tier deck** (pilot: [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592)); the convention itself is still under evaluation.
 :::
 
