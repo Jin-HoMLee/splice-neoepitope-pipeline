@@ -2589,9 +2589,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta/figures",
-      "size": 5,
+      "size": 6,
       "issue": 1204,
-      "degree": 6
+      "degree": 7
     },
     {
       "id": "research__experiments__issue_1204_orf_fasta__figures___regenerate_figures_py",
@@ -2610,6 +2610,17 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta/figures/_rulegraph.dot",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
+      "label": "consumer_fanout.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/consumer_fanout.png",
       "description": "Project file",
       "size": 1,
       "issue": 1204,
@@ -10073,6 +10084,12 @@
     },
     {
       "source": "research__experiments__issue_1204_orf_fasta__figures___rulegraph_dot",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
       "target": "research__experiments__issue_1204_orf_fasta__figures",
       "type": "contained_in",
       "label": ""

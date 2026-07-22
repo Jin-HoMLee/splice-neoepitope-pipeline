@@ -59,9 +59,9 @@ Search **public tumor HLA-I immunopeptidome spectra** (peptides physically elute
 
 ## The instrument {.smaller}
 
-Junction contig → 3-frame translate → split at stop codons → keep the single **breakpoint-crossing** stretch → FASTA mini-protein.
+Junction contig → 3-frame translate → split at stop codons → keep **each frame's breakpoint-crossing** stretch → FASTA mini-protein.
 
-![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames, keeping the single stop-free stretch that crosses the breakpoint](figures/emitter_schematic.png){width=88%}
+![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames. Each frame independently keeps its stop-free stretch that crosses the breakpoint, so one contig yields up to three mini-proteins. Shown: one illustrative frame crossing (frame 0); the other two terminate on one side and drop.](figures/emitter_schematic.png){width=88%}
 
 ---
 
@@ -77,13 +77,7 @@ A **decoupled** 30-nt path (gold) adds two rules - a widened-flank `assemble_con
 
 The ORF-stretch FASTA is the **superset representation**. You can derive any k-mer set by substringing a stretch; never a stretch from k-mers.
 
-```{mermaid}
-flowchart LR
-  J[junction contig] --> O["ORF stretch (FASTA)<br/>canonical intermediate"]
-  O --> A["class-I windower<br/>8-11 → MHCflurry-I"]
-  O --> B["class-II<br/>13-25 → NetMHCIIpan"]
-  O --> C["pass-through<br/>→ MS search"]
-```
+![The ORF-stretch FASTA is the canonical intermediate; three future consumers each derive from it](figures/consumer_fanout.png){.nostretch width=64%}
 
 Two of the three future consumers (MHC-II, MS) take protein FASTA **directly**. Promotion to the canonical intermediate is trigger-gated on MHC-II: Issue #1255.
 
@@ -105,7 +99,7 @@ Recovery is the check (a bogus peptide fails it); statistical significance again
 
 - **Issue #1176 AC-6 - the real re-search:** the Courcelles CRC cohort (MS `PXD071022` CC0 + matched RNA-seq `GSE312236`), competing-target DB, subset FDR on the junction partition, entrapment + RNA-seq corroboration [@chong2020newance].
 - **Issue #1255 - architecture:** promote the ORF-stretch FASTA to the canonical peptide-generation intermediate when MHC-II lands.
-- **Honest claim throughout:** RNA-seq witnesses that the source *sequence exists*, not that the peptide is a presented ligand - the MS step still needs ordinary FDR discipline.
+- **Honest scope:** a junction in RNA-seq means the source *transcript exists*, not that its peptide is presented on MHC. Only the MS search speaks to presentation, and that hit still needs ordinary FDR control to count.
 
 ---
 

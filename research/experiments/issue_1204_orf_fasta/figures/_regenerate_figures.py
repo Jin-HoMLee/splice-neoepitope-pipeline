@@ -149,6 +149,63 @@ def fig_emitter_schematic():
     print("wrote emitter_schematic.png")
 
 
+def fig_consumer_fanout():
+    """The ORF-stretch FASTA as the superset intermediate feeding three future
+    consumers (class-I windower, class-II, MS pass-through).
+
+    Replaces a mermaid flowchart whose JS-measured node boxes overflowed their
+    text in reveal.js. A matplotlib figure sizes its boxes deterministically and
+    keeps the deck uniformly real-artifact (no lone mermaid).
+    """
+    fig, ax = plt.subplots(figsize=(10, 4.0))
+    ax.set_xlim(0, 100)
+    ax.set_ylim(5, 95)
+    ax.axis("off")
+
+    def box(cx, cy, w, h, lines, fill, edge):
+        ax.add_patch(FancyBboxPatch(
+            (cx - w / 2, cy - h / 2), w, h,
+            boxstyle="round,pad=0.4,rounding_size=2.2",
+            facecolor=fill, edgecolor=edge, lw=1.8, zorder=3))
+        n = len(lines)
+        # stack lines around the box centre; first line is the emphasised label
+        offsets = [(n - 1) / 2.0 - i for i in range(n)]
+        for (text, size, weight), off in zip(lines, offsets):
+            ax.text(cx, cy + off * (h * 0.28), text, ha="center", va="center",
+                    fontsize=size, color=INK, fontweight=weight, zorder=4)
+
+    def arrow(x0, y0, x1, y1):
+        ax.annotate("", xy=(x1, y1), xytext=(x0, y0),
+                    arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=1.7,
+                                    shrinkA=1, shrinkB=1), zorder=2)
+
+    # left -> middle -> three-way fan-out
+    box(13, 50, 22, 15, [("junction contig", 11, "normal")], LIGHT, BLUE)
+    box(44, 50, 26, 20,
+        [("ORF stretch (FASTA)", 11, "bold"),
+         ("canonical intermediate", 9.5, "normal")],
+        "#f6efe0", GOLD)  # gold = the pivotal superset node (matches slide 5 motif)
+    box(83, 76, 30, 15,
+        [("class-I windower", 10.5, "bold"),
+         ("8-11 → MHCflurry-I", 9.5, "normal")], LIGHT, BLUE)
+    box(83, 50, 30, 15,
+        [("class-II", 10.5, "bold"),
+         ("13-25 → NetMHCIIpan", 9.5, "normal")], LIGHT, BLUE)
+    box(83, 24, 30, 15,
+        [("pass-through", 10.5, "bold"),
+         ("→ MS search", 9.5, "normal")], LIGHT, BLUE)
+
+    arrow(24, 50, 31, 50)          # junction contig -> ORF stretch
+    arrow(57, 50, 68, 76)          # fan-out to class-I
+    arrow(57, 50, 68, 50)          # fan-out to class-II
+    arrow(57, 50, 68, 24)          # fan-out to MS search
+
+    fig.tight_layout()
+    fig.savefig(HERE / "consumer_fanout.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote consumer_fanout.png")
+
+
 def _by_ions(pep):
     b = []
     run = 0.0
@@ -201,5 +258,6 @@ def fig_recovery_spectrum():
 if __name__ == "__main__":
     fig_dag()
     fig_emitter_schematic()
+    fig_consumer_fanout()
     fig_recovery_spectrum()
     print("all figures regenerated")
