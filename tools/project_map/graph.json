@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 22,
-      "degree": 23
+      "size": 23,
+      "degree": 24
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1003,6 +1003,16 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "label": "2026-07-21-graphql-budget-attribution.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-21-graphql-budget-attribution.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "label": "2026-07-21-issue-966-ac1-asneo-runner.md",
       "type": "doc",
@@ -1028,8 +1038,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 28,
-      "degree": 29
+      "size": 29,
+      "degree": 30
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1290,6 +1300,16 @@
       "description": "Documentation",
       "size": 1,
       "degree": 2
+    },
+    {
+      "id": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
+      "label": "2026-07-21-graphql-budget-attribution-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-21-graphql-budget-attribution-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
@@ -6126,8 +6146,8 @@
       "type": "ci_dir",
       "group": "infrastructure",
       "path": "tools/ci",
-      "size": 44,
-      "degree": 45
+      "size": 45,
+      "degree": 46
     },
     {
       "id": "tools__ci___board_query_smoke_py",
@@ -6435,6 +6455,16 @@
       "type": "ci",
       "group": "infrastructure",
       "path": "tools/ci/test_gh_client.py",
+      "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__ci__test_graphql_meter_py",
+      "label": "test_graphql_meter.py",
+      "type": "ci",
+      "group": "infrastructure",
+      "path": "tools/ci/test_graphql_meter.py",
       "description": "CI automation tool",
       "size": 1,
       "degree": 1
@@ -8932,6 +8962,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "target": "docs__superpowers__plans",
       "type": "contained_in",
@@ -9107,6 +9143,12 @@
     },
     {
       "source": "docs__superpowers__specs__2026_07_15_hook_liveness_contract_tests_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
       "label": ""
@@ -12695,6 +12737,12 @@
     },
     {
       "source": "tools__ci__test_gh_client_py",
+      "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__ci__test_graphql_meter_py",
       "target": "tools__ci",
       "type": "contained_in",
       "label": ""
