@@ -3,3 +3,7 @@ combined.fasta
 synthetic.mgf
 sage_out/
 *.log
+
+# Quarto render outputs (regenerable from slides.qmd)
+slides.html
+slides_files/

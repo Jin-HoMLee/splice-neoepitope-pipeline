@@ -6,6 +6,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-22
+
+### 13:30 UTC - Editor: Scientist - #1207 snowball sweep: three catalogs, zero registry additions, and the negative is the finding
+
+**Backward-citation (snowball) mining of three human splice-neoantigen catalogs yielded zero functional-registry additions - registry stays at 97 rows** ([Issue #1207](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207), [PR #1279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1279), leaf of [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680))
+
+Two-gate verification (Gate 1 = genuinely splice-junction-derived; Gate 2 = per-peptide functional T-cell assay) + 3-vote adversarial refutation over Exitron (Wang 2021, Mol Cell), U2AF1 (Biernacki 2023, JITC), and proteogenomics-ovarian (Zhao 2020, CIR). Nothing cleared both gates, and the three failed on *opposite* sides - which is the substantive result, not a null.
+
+**The catalogs fail on opposite gates, and that is the point.**
+U2AF1 is the reverse of the other two: it *has* a functional assay (cloned TCR + tetramer) but fails Gate 1 - the epitope is the Q157R **missense** mutant-protein sequence, not an aberrant-junction peptide. Exitron and ovarian pass Gate 1 (genuinely splice/aberrant-junction-derived) but are MS-presentation-only. So "no functional splice positive" is not "the field has no functional assays" - it is that presentation and immunogenicity are different evidence tiers and the discovery literature mostly stops at presentation. This is the standing #680 finding restated with three more catalogs behind it.
+
+**Both Gate-2 FAILs are main-text-confirmed, and the sources say so in their own words.**
+Ovarian: the Discussion states the immunogenicity of the 103 TSAs "has to be addressed experimentally... in future studies" and only "speculate[s]" they will prove immunogenic, by analogy to a prior mouse study - no T-cell assay on these peptides. Exitron: I initially rested the call on the supplement, then pulled the main text (author manuscript via NCBI `PMC8141048`, after Europe PMC's REST endpoints returned empty for this non-OA Cell Press paper) - the "immunogenicity" there is a *computed score* benchmarked against a separate reference set of functionally-validated indel neoantigens (Litchfield 2020), and functional validation is named as future work. The lesson I keep relearning: a paper saying "immunogenic" is not a functional assay - it is often a score or an analogy, and the distinction is exactly what Gate 2 exists to hold.
+
+**Intronic named a genomic origin, not a splice mechanism - the correction I am most glad I caught.** The ovarian aeTSAs arise from aberrantly expressed nonexonic regions regulated by copy number + DNA methylation (transcriptional dysregulation), so the 28 intron-derived TSAs are low-confidence splice-*adjacent* candidates, not confirmed splice - routed to [#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) flagged low-confidence. Treating the supplement's "Intronic" label as Gate-1 proof would have over-claimed precisely where the curation is meant to be conservative.
+
+**AC-4 payoff: zero overlap, and it is a real negative.** Both catalogs' MS-presented peptides intersected against our n=2156 candidate presenters (patient_001 395 + patient_002 1761, R2) -> zero exact/substring overlap, with a ceiling control confirming the presenter set actually spans the class-I 8/9/10-mer lengths (so the null is meaningful, not vacuous). Expected: disjoint cohorts and HLA, no shared recurrent target.
+
+**Bot review (clean, non-blocking) caught a prose/artifact drift that resolved opposite to the implied read.** The README said the ovarian split was "20 mTSA + 83 aeTSA"; the committed TSV had 12 + 91. Reconciling against the paper the reviewer could not reach: the paper reports 12 mTSAs + 91 aeTSAs, so the **TSV was right and my prose was the typo** - the rows were never mislabeled. Also generalized the AC-4 script to read both catalog TSVs live (the ovarian half had been run ad-hoc), normalized whitespace (incl. a non-breaking space that would have silently split a #681 exact-match), and folded in the Exitron main-text provenance. All in `a325e50`; per-finding reply posted.
+
+**Net product:** zero functional rows, but 82 MS-presented splice/splice-adjacent entries (54 Exitron + 28 ovarian intron-derived) captured in `issue_1207_snowball/` for the #681 immunopeptidome tier - flagged for PM to fold into a #681 leaf, not epic-dumped. Snowballing the reference lists of the papers we add is a source class our forward-search curation had been missing; now a routine step.
+
 ## 2026-07-21
 
 ### 09:44 UTC - Editor: Scientist - #966 AC-1: the harness runs a real caller end-to-end, and a loose "#1100 covers it" nearly drove a wrong call

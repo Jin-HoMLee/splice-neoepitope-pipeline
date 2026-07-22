@@ -1,0 +1,55 @@
+peptide	gene	chr	start	end	sample	cohort_or_mhc	table	mhc_class	gate1_splice_derived	gate2_functional_assay	route	provenance
+MTRAAWPLM	ARVCF	chr22	19981341	19981603	TCGA-61-1907-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+RAAWPLMTR	ARVCF	chr22	19981341	19981603	TCGA-61-1907-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+HGRAESAPR	DTX2	chr7	76482754	76482816	TCGA-61-1907-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+MAWRMTRAA	ARVCF	chr22	19981341	19981603	TCGA-61-1907-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+RMTRAAWPL	ARVCF	chr22	19981341	19981603	TCGA-61-1907-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+MAVPLLRRM	CTAG2	chrX	154653345	154653496	TCGA-61-1741-01A-02R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+WMMRKTWMK	CCDC34	chr11	27362975	27363120	TCGA-29-1697-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+SLKVECMPK	CDH11	chr16	64982087	64982256	TCGA-29-1774-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+MTMDMGRFK	KHDRBS1	chr1	32037905	32037990	TCGA-29-1774-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+QSSWPCTFK	ZNF219	chr14	21090795	21090835	TCGA-13-1492-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+FQCAFLHRL	LRRK1	chr15	101065771	101065998	TCGA-24-1435-01A-01R-1566-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+FYFGGPQYL	MYCN	chr2	15942179	15942814	TCGA-24-1435-01A-01R-1566-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+RAAAAAGVR	AEBP2	chr12	19439858	19439919	TCGA-25-1316-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+AAAAGVRRR	AEBP2	chr12	19439858	19439919	TCGA-25-1316-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+AAAAAGVRR	AEBP2	chr12	19439858	19439919	TCGA-25-1316-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+KMRAAAAAG	AEBP2	chr12	19439858	19439919	TCGA-25-1316-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+EMAPSWVLK	MYL6	chr12	56159988	56160073	TCGA-25-1319-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+KEMAPSWVL	MYL6	chr12	56159988	56160073	TCGA-25-1319-01A-01R-1565-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+ERRRSLNSF	NCL	chr2	231455442	231455524	TCGA-25-2399-01A-01R-1569-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+SAFPFPFER	NCL	chr2	231455442	231455524	TCGA-25-2399-01A-01R-1569-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+SFCPSAFPF	NCL	chr2	231455442	231455524	TCGA-25-2399-01A-01R-1569-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+SSRSWMLVR	EMILIN2	chr18	2892048	2892154	TCGA-25-2399-01A-01R-1569-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+MRCWRTTRM	ZBTB46	chr20	63747061	63747212	TCGA-59-2351-01A-01R-1569-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+ATPYSFLSL	VWA5A	chr11	124123723	124123790	TCGA-61-1914-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+LMQATPYSF	VWA5A	chr11	124123723	124123790	TCGA-61-1914-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+MQATPYSFL	VWA5A	chr11	124123723	124123790	TCGA-61-1914-01A-01R-1567-13	OV	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+IQTPPHDTL	HNRNPD	chr4	82373506	82373588	TCGA-AR-A0TT-01A-31R-A084-07	BRCA	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+TMWKNHYQK	WWC2	chr4	183261269	183261363	TCGA-A2-A0T7-01A-21R-A084-07	BRCA	S4	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S4 (CPTAC MS); Zotero HTUR4MKR
+WGRLLSEY	BTN3A1	chr6	26406024	26406142	OvCa48	classI	S5	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+VTSMKKPW	BTN3A2	chr6	26368680	26368798	OvCa48	classI	S5	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+MEMKMRKL	PTMA	chr2	231711925	231711947	OvCa48	classI	S5	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KPEQDGDKQ	HLCS	chr21	36936676	36937275	OvCa84	classI	S5	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+QQKVPRSA	FGD5	chr3	14897954	14898025	OvCa104	classI	S5	I	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+TMVSSSPTRLSGLWMT	PRPF8	chr17	1658603	1658682	OvCa58	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+VARLPLCRREPEP	WDR97	chr8	144109435	144109926	OvCa58	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+LVEDCLPNGGAQ	WDR97	chr8	144109435	144109926	OvCa58	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+MKANPALTMVSSSPTRL	PRPF8	chr17	1658603	1658682	OvCa65	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KFSILTKHKAFNRS	ZNF208	chr19	21972981	21973953	OvCa70	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+ILTKHKAYNTFSIL	ZNF208	chr19	21972477	21973953	OvCa70	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KFSILTKHKAYNT	ZNF208	chr19	21972477	21973953	OvCa70	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+LTKHKKIHTGETPYK	ZNF208	chr19	21972057	21972477	OvCa84	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+DTSSSSTGHATPL	MUC4	chr3	195781609	195783385	OvCa84	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KFSILTKHKSFSTF	ZNF208	chr19	21972057	21973953	OvCa84	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+LHPHPQGAEAAAGLLQRAR	HSPA1B	chr6	31828262	31828846	OvCa99	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+RGEGSARRQAGQGPDSRPG	HSPA1B	chr6	31828262	31828846	OvCa99	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+GRGLHPHPQGAEAAAGLL	HSPA1B	chr6	31828262	31828846	OvCa99	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+LTKHKAYNTFSIL	ZNF208	chr19	21972477	21972981	OvCa104	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+NPITVRNVGKPFGTAQ	ZNF485	chr10	43616923	43617050	OvCa109	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+NPALTMVSSSPTRLSGL	PRPF8	chr17	1658603	1658682	OvCa109	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+ANPALTMVSSSPTRLSGL	PRPF8	chr17	1658603	1658682	OvCa109	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+PALTMVSSSPTRLSGLW	PRPF8	chr17	1658603	1658682	OvCa109	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KPFGTAQALLNIRD	ZNF485	chr10	43616923	43617050	OvCa109	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KFSILTKHKAYNTF	ZNF208	chr19	21972477	21973953	OvCa114	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
+KIMKANPALTMV	PRPF8	chr17	1658603	1658682	OvCa114	classII	S5	II	True	False	issue_681_ms_only	Wang 2021 Mol Cell Table S5 (Schuster OvCa immunopeptidome); Zotero HTUR4MKR
