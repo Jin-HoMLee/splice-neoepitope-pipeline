@@ -43,8 +43,6 @@ DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "pm" / "milestone_reports"
 DEFAULT_SDR_OUT_DIR = REPO_ROOT / "docs" / "pm" / "sdr_reports"
 DEFAULT_TREND_WEEKS = 4
 TEMPLATE_PATH = HERE / "templates" / "milestone_report.html.j2"
-# Arrival marker (Issue #811): the item shipped without crossing Backlog -> Ready.
-UNPLANNED_LABEL = "unplanned"
 
 
 # --- slug -------------------------------------------------------------------
@@ -118,96 +116,62 @@ def delivered_issues(issues: list[dict]) -> list[dict]:
     return [i for i in issues if i.get("state") == "CLOSED" and not is_descoped(i)]
 
 
-def is_unplanned(issue: dict) -> bool:
-    """True when the issue shipped without crossing the Backlog -> Ready commitment.
-
-    This is the **arrival** axis, not urgency (Issue #811). Priority (P0-P3) says
-    how costly delay is; it cannot say whether the item was committed or barged
-    in mid-session, so a P2 same-day fix and a P1 committed item are
-    indistinguishable by band. The marker is the only thing that separates them,
-    which is why the throughput split cannot be derived from priority.
-    """
-    return UNPLANNED_LABEL in issue.get("labels", [])
-
-
-def unplanned_issues(issues: list[dict]) -> list[dict]:
-    return [i for i in issues if is_unplanned(i)]
-
-
-def committed_issues(issues: list[dict]) -> list[dict]:
-    return [i for i in issues if not is_unplanned(i)]
-
-
-def is_marker_in_use(repo_label_count: int) -> bool:
-    """Is the arrival marker actually in use, repo-wide? Pure given the count.
-
-    The whole point of the arrival axis is to be falsifiable, and this is the fact
-    that makes it so. Split out as a pure function over an injected count (rather than
-    doing the ``gh`` call inline) so the fabricating case is unit-testable without a
-    network, which is exactly the property the metric was missing.
-
-    A count of 0 means the label has never been applied to anything - so the arrival
-    axis is **not in use**, and no delivered item can be classified by it. See
-    ``throughput_breakdown`` for why that must not render as 0%.
-    """
-    return repo_label_count > 0
-
-
-def throughput_breakdown(issues: list[dict], *, marker_in_use: bool) -> dict[str, Any]:
+def throughput_breakdown(issues: list[dict]) -> dict[str, Any]:
     """Split *delivered* work by arrival: committed vs unplanned.
 
     The Kanban Throughput Breakdown Chart, reduced to the one split we actually
     need. Keyed off delivered (not raw closed) for the same reason throughput and
     cycle time are: a descoped issue is not shipped work.
 
+    **Arrival is the OBSERVED commitment act, not a hand-applied label (Issue #1211).**
+    The ``unplanned`` label was retired as the arrival source of truth: it had never
+    been applied repo-wide, while half of delivered work observably never crossed
+    ``Backlog -> Ready``. So the split is derived from the commitment history GitHub
+    records for free and nobody can forget - a delivered item with a ``committed_at`` is
+    committed; one without it is unplanned (``never_committed_issues``).
+
     **Two degenerate cases, both of which must NOT print a confident zero.**
 
     1. *Empty window* - no delivered issues at all. ``pct_unplanned`` is None (not
-       0.0), so a zero-ship week reads as "no data". This guard already existed.
+       0.0), so a zero-ship week reads as "no data".
 
-    2. *The marker is not in use* (``marker_in_use=False``) - i.e. the ``unplanned``
-       label has never been applied to anything, repo-wide. This returned **0.0**,
-       and 0.0 is indistinguishable from a real, hard-won, measured zero:
+    2. *The commitment history could not be read* (``commitments_available`` is False,
+       set by the fetchers on a GraphQL failure). This must NOT render as 0%: from the
+       list alone, "no delivered item has a commitment act" is information-theoretically
+       identical whether nobody committed or the fetch died -
 
            | we genuinely absorbed no unplanned work | -> 0% |
-           | nobody ever applied the label           | -> 0% |
-           | the label-reading code is broken        | -> 0% |
+           | the commitment fetch failed             | -> 0% |
 
-       Three different worlds, one confident output. The number could only ever come
-       back one way. That is not a measurement, it is a fabrication wearing a
-       measurement's clothes - the most dangerous state for a metric (Issue #1180).
+       one confident output for two different worlds: a fabrication wearing a
+       measurement's clothes, the most dangerous state for a metric (Issue #1180). When
+       the history is unreadable, **nothing delivered can be classified by arrival**, so
+       ``n_committed`` / ``n_unplanned`` are None and the delivered count is reported as
+       ``n_unclassifiable`` instead - a degraded input made *visible*, not silently absorbed.
 
-       When the marker is not in use, **nothing delivered can be classified by
-       arrival at all**, so ``n_committed`` is None too. Printing "25 committed"
-       would be exactly the same false assertion as "0% unplanned", one column over.
-       The delivered count is reported as ``n_unclassifiable`` instead, so a degraded
-       input is *visible* rather than silently absorbed.
-
-    ``marker_in_use`` is a **required keyword**, deliberately: it cannot be derived
-    from ``issues`` (from that list alone, "no delivered issue carries the label" is
-    information-theoretically identical in both worlds), and a default would let a
-    caller silently fall back into the fabricating behavior. Making it required means
-    a new call site must *decide*.
+    Unlike the retired ``marker_in_use`` guard, ``commitments_available`` is *derived from
+    the issues themselves* (each carries the per-fetch flag), so it needs no required
+    keyword: a new call site cannot silently fall into the fabricating behavior.
     """
     delivered = delivered_issues(issues)
     n_delivered = len(delivered)
 
-    if not marker_in_use:
+    if not commitments_available(issues):
         return {
             "n_committed": None,
             "n_unplanned": None,
             "n_unclassifiable": n_delivered,
             "pct_unplanned": None,
-            "marker_in_use": False,
+            "commitments_available": False,
         }
 
-    n_unplanned = len(unplanned_issues(delivered))
+    n_unplanned = len(never_committed_issues(issues))
     return {
         "n_committed": n_delivered - n_unplanned,
         "n_unplanned": n_unplanned,
         "n_unclassifiable": 0,
         "pct_unplanned": (100.0 * n_unplanned / n_delivered) if n_delivered else None,
-        "marker_in_use": True,
+        "commitments_available": True,
     }
 
 
@@ -284,9 +248,9 @@ def never_committed_issues(issues: list[dict]) -> list[dict]:
     """Closed issues that never crossed into `Ready` - no observable commitment act.
 
     Their cycle time is undefined. They are also, by *observation* rather than by anyone
-    remembering a label, the **unplanned** arrivals - which is the independent source the
-    `unplanned` marker's fidelity check (Issue #1144) needs. Surfaced here; the slip-rate
-    cross-check itself belongs to that Issue.
+    remembering a label, the **unplanned** arrivals: since the hand-applied `unplanned`
+    label was retired (Issue #1211) this observed set IS the arrival source of truth that
+    `throughput_breakdown` splits on, not merely a cross-check against a label.
     """
     if not commitments_available(issues):
         # We could not read the commitment history, so we do NOT know which items crossed
@@ -296,87 +260,6 @@ def never_committed_issues(issues: list[dict]) -> list[dict]:
         # The caller renders this as unknown; see ``n_never_committed`` below.
         return []
     return [i for i in delivered_issues(issues) if not i.get("committed_at")]
-
-
-def marker_slip(issues: list[dict]) -> dict[str, Any]:
-    """Cross-check the hand-applied ``unplanned`` label against the OBSERVED arrival
-    signal, and surface their disagreement as the slip rate. Issue #1188.
-
-    Two independent measures of the same fact - "did this delivered item arrive unplanned?":
-
-    - **observed**: it has no ``committed_at`` - it never crossed into `Ready`. Recorded by
-      GitHub as a ``ProjectV2ItemStatusChangedEvent``, for free, and cannot be forgotten
-      (see ``never_committed_issues`` / ``first_ready_at``).
-    - **labelled**: someone applied the ``unplanned`` label at close (see ``is_unplanned``).
-      Hand-maintained, and a forgotten label is indistinguishable from committed work - so
-      the label can only ever bias the unplanned share DOWNWARD.
-
-    The disagreement is the whole point (that is why this is not just two shares side by
-    side):
-
-    - ``n_slip``:        observed-unplanned AND unlabelled - the under-report #1144 predicted
-                         would dominate. Each of these is an item the label silently counted
-                         as committed work.
-    - ``n_mislabelled``: labelled AND observably committed - the opposite error (a label on an
-                         item that DID cross the commitment act).
-    - ``n_agree``:       observed-unplanned AND labelled.
-
-    Both shares are reported over *delivered* (``observed_pct`` / ``labelled_pct``) so they
-    are directly comparable, per AC1 - but note that the two aggregate shares agreeing does
-    NOT mean the label is right per item (they can match while ``n_slip`` and
-    ``n_mislabelled`` are both nonzero), which is exactly why the per-item counts exist.
-
-    **The unknown case is load-bearing.** When the commitment history could not be read
-    (``commitments_available`` is False), the observed axis is unknown for every item, so
-    the slip is unknown too. It is reported as ``available=False`` with None buckets - never
-    zero, never the whole population. Folding an unreadable fetch into "everything slipped"
-    (or into "nothing slipped") is the one-output-for-three-worlds fabrication this module
-    exists to kill (#1180), one axis over. ``n_delivered`` stays known regardless: we know
-    WHAT shipped even when we cannot see HOW it arrived.
-
-    Note there is no ``marker_in_use`` guard here, deliberately: ``is_unplanned`` reads the
-    per-issue labels directly, so when the marker has never been applied repo-wide every
-    observed-unplanned item simply falls into ``n_slip`` and ``n_labelled_unplanned`` is 0.
-    That is not a degenerate case to suppress - it is precisely the live 2026-07 finding
-    (the label reports zero while half of delivered work observably never committed), and it
-    must render as total slip, not as "unclassifiable".
-    """
-    delivered = delivered_issues(issues)
-    n_delivered = len(delivered)
-
-    if not commitments_available(issues):
-        return {
-            "available": False,
-            "n_delivered": n_delivered,
-            "n_observed_unplanned": None,
-            "n_labelled_unplanned": None,
-            "observed_pct": None,
-            "labelled_pct": None,
-            "n_slip": None,
-            "n_mislabelled": None,
-            "n_agree": None,
-        }
-
-    # Single-source the observed-unplanned definition with `never_committed_issues`
-    # (both mean "delivered without a commitment act") so `n_observed_unplanned` and the
-    # SDR's `n_never_committed` can never drift. In this branch commitments are available,
-    # so it returns exactly the delivered-without-`committed_at` set. Review finding on PR #1212.
-    observed_unplanned = never_committed_issues(issues)
-    n_observed = len(observed_unplanned)
-    n_labelled = len(unplanned_issues(delivered))
-    n_slip = sum(1 for i in observed_unplanned if not is_unplanned(i))
-    n_mislabelled = sum(1 for i in delivered if is_unplanned(i) and i.get("committed_at"))
-    return {
-        "available": True,
-        "n_delivered": n_delivered,
-        "n_observed_unplanned": n_observed,
-        "n_labelled_unplanned": n_labelled,
-        "observed_pct": (100.0 * n_observed / n_delivered) if n_delivered else None,
-        "labelled_pct": (100.0 * n_labelled / n_delivered) if n_delivered else None,
-        "n_slip": n_slip,
-        "n_mislabelled": n_mislabelled,
-        "n_agree": n_observed - n_slip,
-    }
 
 
 def lead_times(issues: list[dict]) -> list[float]:
@@ -525,8 +408,7 @@ def closed_in_window(issues: list[dict], start: datetime, end: datetime) -> list
     return out
 
 
-def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
-                  *, marker_in_use: bool) -> list[dict]:
+def weekly_series(issues: list[dict], until: datetime, n_weeks: int) -> list[dict]:
     """Per-week throughput + median cycle-time trend over the trailing weeks.
 
     Each entry: ``{week_start, week_end, n_delivered, median_cycle_time_days}``
@@ -551,7 +433,7 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
         series.append({
             "week_start": _first_covered_day(start).isoformat(),
             "week_end": end.date().isoformat(),
-            **throughput_breakdown(in_window, marker_in_use=marker_in_use),
+            **throughput_breakdown(in_window),
             "n_delivered": len(delivered),
             "median_cycle_time_days": median_cycle_time(delivered),
             "median_lead_time_days": median_lead_time(delivered),
@@ -562,8 +444,7 @@ def weekly_series(issues: list[dict], until: datetime, n_weeks: int,
 
 
 def compute_window_metrics(
-    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int,
-    *, marker_in_use: bool
+    week_issues: list[dict], all_issues: list[dict], until: datetime, n_weeks: int
 ) -> dict[str, Any]:
     """Headline (reporting-week) metrics + the weekly trend for SDR window mode.
 
@@ -588,17 +469,15 @@ def compute_window_metrics(
         "median_lead_time_days": median_lead_time(delivered),
         "n_never_committed": (len(never_committed_issues(week_issues))
                               if commitments_available(week_issues) else None),
-        "commitments_available": commitments_available(week_issues),
         "per_role_counts": per_role_counts(week_issues),
-        **throughput_breakdown(week_issues, marker_in_use=marker_in_use),
-        "marker_slip": marker_slip(week_issues),
-        "weekly_series": weekly_series(all_issues, until, n_weeks,
-                                       marker_in_use=marker_in_use),
+        # throughput_breakdown contributes commitments_available (the arrival guard);
+        # no separate key needed.
+        **throughput_breakdown(week_issues),
+        "weekly_series": weekly_series(all_issues, until, n_weeks),
     }
 
 
-def compute_metrics(issues: list[dict], milestone: dict,
-                    *, marker_in_use: bool) -> dict[str, Any]:
+def compute_metrics(issues: list[dict], milestone: dict) -> dict[str, Any]:
     """Assemble the headline metrics block from the data layer."""
     closed = closed_issues(issues)
     delivered = delivered_issues(issues)
@@ -623,10 +502,10 @@ def compute_metrics(issues: list[dict], milestone: dict,
         "median_lead_time_days": median_lead_time(delivered),
         "n_never_committed": (len(never_committed_issues(issues))
                               if commitments_available(issues) else None),
-        "commitments_available": commitments_available(issues),
         "per_role_counts": per_role_counts(issues),
-        **throughput_breakdown(issues, marker_in_use=marker_in_use),
-        "marker_slip": marker_slip(issues),
+        # throughput_breakdown contributes commitments_available (the arrival guard);
+        # no separate key needed.
+        **throughput_breakdown(issues),
     }
 
 
@@ -826,24 +705,6 @@ def fetch_commitment_times(numbers: list[int]) -> tuple[dict[int, Optional[str]]
             events = ((node.get("timelineItems") or {}).get("nodes")) or []
             out[n] = first_ready_at(events)
     return out, True
-
-
-def fetch_marker_in_use() -> bool:
-    """Has the ``unplanned`` label EVER been applied, repo-wide?
-
-    The falsifier the arrival metric was missing. Deliberately repo-wide and
-    all-states: the question is not "did this window have unplanned work" (which the
-    issue list already answers, ambiguously) but "is the marker being used at all" -
-    a fact that no window of issues can supply about itself.
-
-    ``--limit 1`` because the count is irrelevant; only zero-vs-nonzero matters.
-    """
-    raw = _gh([
-        "issue", "list", "--repo", f"{OWNER}/{REPO}",
-        "--label", UNPLANNED_LABEL, "--state", "all", "--limit", "1",
-        "--json", "number",
-    ])
-    return is_marker_in_use(len(json.loads(raw)))
 
 
 def fetch_milestone_issues(name: str) -> list[dict]:
@@ -1113,16 +974,6 @@ def _fmt(v: Optional[float], unit: str = "") -> str:
     return "n/a" if v is None else f"{v:.1f}{unit}"
 
 
-def _pct(v: Optional[float]) -> str:
-    """A percentage as a whole number with a trailing % (n/a if None).
-
-    Matches the HTML report's ``%.0f%%`` so the same share reads identically on both
-    surfaces - the console had used ``_fmt(..., '%')`` (one decimal), a precision mismatch
-    caught in the PR #1212 review.
-    """
-    return "n/a" if v is None else f"{v:.0f}%"
-
-
 def print_metrics(milestone: dict, metrics: dict) -> None:
     state = milestone.get("state")
     if state and state != "n/a":  # milestone mode
@@ -1134,13 +985,13 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     print(f"  delivered / descoped (closed)    : "
           f"{metrics['n_delivered']} / {metrics['n_descoped']}")
     pct = metrics.get("pct_unplanned")
-    if not metrics.get("marker_in_use", True):
-        # The marker has never been applied repo-wide, so NOTHING delivered can be
+    if not metrics.get("commitments_available", True):
+        # The commitment history could not be read, so NOTHING delivered can be
         # classified by arrival. Printing "N / 0  (0% unplanned)" here would be a
-        # fabrication wearing a measurement's clothes (Issue #1180).
+        # fabrication wearing a measurement's clothes (Issue #1180 / #1211).
         print(f"  arrival: UNCLASSIFIABLE          : "
               f"{metrics['n_unclassifiable']} delivered, none classifiable "
-              f"(the `{UNPLANNED_LABEL}` marker is not in use repo-wide)")
+              f"(commitment history could not be read)")
     else:
         print(f"  arrival: committed / unplanned   : "
               f"{metrics['n_committed']} / {metrics['n_unplanned']}"
@@ -1167,22 +1018,6 @@ def print_metrics(milestone: dict, metrics: dict) -> None:
     elif metrics.get("n_never_committed"):
         print(f"  never crossed Backlog->Ready     : {metrics['n_never_committed']} delivered "
               f"(no commitment act -> cycle time UNDEFINED for these, not zero)")
-    # The `unplanned` LABEL cross-checked against the OBSERVED arrival axis (Issue #1188).
-    # Both shares are printed side by side so neither silently stands in for the other, and
-    # their per-item DISAGREEMENT is surfaced as the slip. A share comparison alone is not
-    # enough: the two shares can agree in aggregate while the label is wrong per item.
-    slip = metrics.get("marker_slip")
-    if slip and not slip["available"]:
-        print("  unplanned marker slip            : UNKNOWN - commitment history could not "
-              "be read, so the observed arrival axis cannot be cross-checked against the "
-              "label (NOT the same as 'no slip')")
-    elif slip:
-        print(f"  unplanned marker slip            : observed {slip['n_observed_unplanned']} "
-              f"({_pct(slip['observed_pct'])}) vs labelled {slip['n_labelled_unplanned']} "
-              f"({_pct(slip['labelled_pct'])}) of {slip['n_delivered']} delivered")
-        print(f"                                     -> {slip['n_slip']} slipped "
-              f"(observably unplanned, unlabelled), {slip['n_mislabelled']} mislabelled "
-              f"(labelled, observably committed), {slip['n_agree']} agree")
     print(f"  per-role (delivered)             : {metrics['per_role_counts']}")
     series = metrics.get("weekly_series")
     if series:
@@ -1240,7 +1075,7 @@ def _generate(milestone: dict, issues: list[dict], metrics: dict,
 def _run_milestone_mode(name: str, out_dir: Optional[Path], dry_run: bool) -> int:
     milestone = fetch_milestone(name)
     issues = fetch_milestone_issues(name)
-    metrics = compute_metrics(issues, milestone, marker_in_use=fetch_marker_in_use())
+    metrics = compute_metrics(issues, milestone)
     return _generate(milestone, issues, metrics, out_dir or DEFAULT_OUT_DIR, dry_run, "milestone")
 
 
@@ -1279,8 +1114,7 @@ def _run_window_mode(ap: argparse.ArgumentParser, since: Optional[str], until: O
 
     all_issues = fetch_window_issues(*fetch_span(until_dt, n_weeks))
     week_issues = closed_in_window(all_issues, report_start, report_end)
-    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks,
-                                     marker_in_use=fetch_marker_in_use())
+    metrics = compute_window_metrics(week_issues, all_issues, until_dt, n_weeks)
 
     if metrics["n_total"] == 0:  # nothing closed in the reporting week -> no artifact
         print(f"Meta-work SDR - week ending {report_end.date().isoformat()}: "
