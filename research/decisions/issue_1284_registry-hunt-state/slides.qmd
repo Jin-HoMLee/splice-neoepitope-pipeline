@@ -89,6 +89,7 @@ Both Gate-2 FAILs are **main-text-confirmed** (Exitron via NCBI PMC8141048; ovar
 
 ```{mermaid}
 %%| fig-width: 9
+%%{init: {'flowchart': {'padding': 22, 'nodeSpacing': 55, 'rankSpacing': 65}}}%%
 flowchart LR
   L[Literature<br/>discovery papers] --> M[MS immunopeptidomics<br/>peptide is DISPLAYED]
   M --> P[Presentation tier<br/>#681 - fills readily]
