@@ -110,7 +110,7 @@ Even if mining found more *positives*, they are **not the bottleneck**:
 
 ::: {.incremental}
 - **Calibration ([#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585)) is gated by negatives**, and we have 10 (1 hard). A ranker learns the display->immunogenicity boundary from *both* classes; 86:10 (86:1 hard) is the imbalance that limits it.
-- **Literature is separately exhausted for hard-negatives** - [#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911) documented the field-wide hard-negative count at n=1 (`VELEDHVML`); moving it needs wet-lab, not more mining.
+- **Literature *reference-mining* is exhausted for hard-negatives** ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), n=1 `VELEDHVML`) - **but** IEDB holds **~33K human-source T-cell *negative* assays** (~100% source-anchored), an untapped **sequence-remapping** source ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) that could feed this class computationally, before any wet-lab.
 - **Mining does not even recover *our* candidates** - #1207 AC-4: all 54 exitron + 103 ovarian peptides vs our n=2156 candidate presenters -> **zero overlap** (ceiling-checked). Disjoint cohorts + HLA; no shared recurrent target.
 :::
 
@@ -121,26 +121,27 @@ Even if mining found more *positives*, they are **not the bottleneck**:
 | | Action | Marginal yield | Cost |
 |---|---|---|---|
 | **(a)** | Keep dedicating cycles to functional-positive literature mining | ~0 new functional positives (this cycle 0/3 catalogs) | recurring analyst cycles |
-| **(b)** | Accept positive-saturation; redirect dedicated effort to the **negative bottleneck** (author-data [#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) + wet-lab) | can actually move the hard-negative count | author outreach / wet-lab |
-| **(c)** | **Hybrid**: stop dedicated positive-mining cycles, keep the passive Beat-1 watch (still feeds #681 + catches the rare functional positive), redirect dedicated effort to negatives | best expected value | low |
+| **(b)** | **Reverse-map IEDB by sequence** ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) - map ~33K human-source *negative* assays to neojunctions | untested yield, but the only **computational** path to the hard-negative class | low (compute) |
+| **(c)** | Wet-lab / author-data for negatives ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) | moves the hard-negative count | high (outreach / bench) |
+| **(d)** | **Hybrid** (recommended): stop dedicated positive-mining, run (b) first, keep the passive #681 watch, wet-lab only for the residual | best expected value | low |
 
 ---
 
 ## Decision {.smaller}
 
 ::: {style="text-align: center; font-size: 1.9em; font-weight: bold; margin-top: 0.1em;"}
-Recommended: (c) Hybrid
+Recommended: (d) Hybrid
 :::
 
 ::: {style="text-align: center; font-size: 1.05em; margin-top: 0.1em;"}
-Stop committing *dedicated* functional-positive mining cycles · keep the passive watch · redirect to the negative-class bottleneck
+Stop *dedicated* positive-mining · reverse-map IEDB for negatives **first** · wet-lab only for the residual
 :::
 
 . . .
 
 - **Positives are saturated for now** - 86 held, marginal cycle dry; the passive Beat-1 splice-immunogenicity watch still catches the occasional new one and feeds #681.
-- **The next real gain is negatives** - author-data requests ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) and wet-lab; these gate [#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585), positives do not.
-- **Routing:** this verdict -> Jin-Ho/PM as the #680 cycle-allocation call; #585 can pilot at 86:10 with the imbalance flagged, rather than waiting.
+- **The bottleneck is negatives, and the first move is computational, not wet-lab** - IEDB holds ~33K human-source *negative* assays, ~100% source-anchored ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)); reverse-map those before committing to author-data / wet-lab ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)).
+- **Routing:** this verdict -> Jin-Ho/PM as the #680 cycle-allocation call; [#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585) can pilot at 86:10 now, with [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) as the path to fix the imbalance.
 
 ---
 
@@ -151,7 +152,8 @@ Stop committing *dedicated* functional-positive mining cycles · keep the passiv
 2. **Positive-saturation is context-specific** - 86 is ample for some uses and thin for a rare HLA / mechanism; a targeted positive gap can still justify a cycle.
 3. **The MS tier keeps growing** - "stop dedicated cycles" applies to the *functional* registry, not to #681, which literature feeds for free.
 4. **Negative-first is an inference** - that hard-negatives gate #585 more than positives is argued from class balance, not yet demonstrated on a fitted calibrator.
-5. **Second decision-tier deck** (pilot: [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592)); the convention itself is still under evaluation.
+5. **The IEDB reverse-map yield is unproven** - feasibility passes (~33K anchored negatives), but how many hit genuine *neo*junctions vs canonical/normal sequence is unknown until [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) runs; most will span canonical sequence and be discarded.
+6. **Second decision-tier deck** (pilot: [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592)); the convention itself is still under evaluation.
 :::
 
 ---
