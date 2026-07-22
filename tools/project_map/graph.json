@@ -1369,8 +1369,8 @@
       "type": "dir",
       "group": "research",
       "path": "research",
-      "size": 8,
-      "degree": 18
+      "size": 10,
+      "degree": 20
     },
     {
       "id": "research__README_md",
@@ -1402,6 +1402,26 @@
       "degree": 1
     },
     {
+      "id": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "label": "agent_frameworks_and_reliability_evals_2026-07.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/agent_frameworks_and_reliability_evals_2026-07.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 3
+    },
+    {
+      "id": "research__agent_frameworks_reliability_2026_07_deepresearch_raw_json",
+      "label": "agent_frameworks_reliability_2026-07_deepresearch_raw.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/agent_frameworks_reliability_2026-07_deepresearch_raw.json",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "research__agent_team_governance_2026_07_deepresearch_raw_json",
       "label": "agent_team_governance_2026-07_deepresearch_raw.json",
       "type": "resource",
@@ -1419,7 +1439,7 @@
       "path": "research/agent_team_governance_research_2026-07.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "research__decisions",
@@ -4869,7 +4889,7 @@
       "path": "research/multi_agent_landscape.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "research__notebooks",
@@ -9162,6 +9182,30 @@
     {
       "source": "research___archive__news_log_2026_05_25_final_md",
       "target": "research___archive",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research__agent_team_governance_research_2026_07_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research__multi_agent_landscape_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__agent_frameworks_reliability_2026_07_deepresearch_raw_json",
+      "target": "research",
       "type": "contained_in",
       "label": ""
     },
