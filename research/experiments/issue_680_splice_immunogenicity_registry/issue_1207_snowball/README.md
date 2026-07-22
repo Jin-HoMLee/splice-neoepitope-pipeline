@@ -7,9 +7,9 @@ Method: two-gate verification (Gate 1 = genuinely splice-junction-derived; Gate 
 
 | Catalog | Zotero | Determination |
 |---|---|---|
-| Exitron pan-cancer (Wang et al., Mol Cell 2021) | `HTUR4MKR` | 54 exitron-derived splice neoantigens (Tables S4+S5), **all MS-presentation-only, no functional T-cell assay** -> Gate 1 PASS, Gate 2 FAIL. Zero functional rows; all 54 route to the MS-presented tier ([Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)). |
+| Exitron pan-cancer (Wang et al., Mol Cell 2021) | `HTUR4MKR` | 54 exitron-derived splice neoantigens (Tables S4+S5), **all MS-presentation-only, no functional T-cell assay** -> Gate 1 PASS, Gate 2 FAIL. Zero functional rows; all 54 route to the MS-presented tier ([Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)). **Gate-2 FAIL confirmed against the main text** (author manuscript via NCBI PMC `PMC8141048`): the neoantigens are characterized by MS-based immunopeptidomics + a computed *immunogenicity score* benchmarked against a separate reference set of functionally-validated indel neoantigens (Litchfield et al. 2020); the paper flags per-peptide functional validation as future work ("an important extension of the current work"), and no ELISpot/tetramer/IFN-g assay on the exitron peptides exists. |
 | U2AF1 neoantigens (Biernacki et al., JITC 2023) | `GUUF7E7H` | **Out of scope - Gate 1 FAIL.** The epitopes are the U2AF1 **Q157R missense** mutant-protein sequence (plus ScanProsite self-peptide controls), not aberrant-junction peptides. Functionally validated (cloned TCR, tetramer) but not splice-derived. |
-| Proteogenomics-ovarian (Zhao et al., Cancer Immunol Res 2020) | `3Z5UHGFQ` | 103 MS-eluted TSAs (Table S5: 20 mTSA + 83 aeTSA). A non-canonical / aberrant-expression repertoire, **not splice-junction-derived**. Per the main text (source-read), aeTSAs arise from *aberrantly expressed* nonexonic regions (intronic 29%, intergenic 22%) regulated by copy number + DNA methylation - **transcriptional dysregulation, not splicing**. The 28 Intronic aeTSAs are therefore **low-confidence splice-adjacent candidates only** (routed to [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) flagged low-confidence, not confirmed splice); the other 75 are out of splice scope. Gate-2 MS-only is **source-confirmed** (main text: "mass spectrometry pipeline", no T-cell assay) -> zero functional-registry rows. |
+| Proteogenomics-ovarian (Zhao et al., Cancer Immunol Res 2020) | `3Z5UHGFQ` | 103 MS-eluted TSAs (Table S5: **12 mTSAs + 91 aeTSAs**, matching the main text's reported split). A non-canonical / aberrant-expression repertoire, **not splice-junction-derived**. Per the main text (source-read), aeTSAs arise from *aberrantly expressed* nonexonic regions (intronic 29%, intergenic 22%) regulated by copy number + DNA methylation - **transcriptional dysregulation, not splicing**. The **28 intron-derived TSAs** (26 intronic aeTSAs + 2 intron mTSAs) are therefore **low-confidence splice-adjacent candidates only** (routed to [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) flagged low-confidence, not confirmed splice); the other 75 are out of splice scope. Gate-2 MS-only is **source-confirmed** (main text: MS immunopeptidomics pipeline; immunogenicity "has to be addressed experimentally" in future studies, no T-cell assay) -> zero functional-registry rows. |
 
 ## Artifact
 
@@ -17,11 +17,11 @@ Method: two-gate verification (Gate 1 = genuinely splice-junction-derived; Gate 
 
 ## AC-4 payoff cross-reference (against our n=2156 candidate presenters)
 
-Both catalogs' surviving MS-presented peptides were intersected against our n=2156 splice presentation scores (patient_001 n=395 + patient_002 n=1761, fetched from R2):
+Both catalogs' MS-presented peptides were intersected against our n=2156 splice presentation scores (patient_001 n=395 + patient_002 n=1761, fetched from R2), reading the peptide sets directly from the committed catalog TSVs:
 
-- **Exitron** - 33 class-I peptides -> **zero overlap** (exact + substring).
-- **Ovarian** - all 103 TSAs (class-I, allele-resolved) -> **zero overlap** (exact + substring).
+- **Exitron** - all 54 peptides (33 class-I + 21 class-II) -> **zero overlap** (exact + substring).
+- **Ovarian** - all 103 TSAs -> **zero overlap** (exact + substring).
 
-Verified as a real negative via a ceiling control (presenters span 8/9/10-mers, matching the catalogs' class-I lengths; positive control fires). Biologically expected: independent cohorts, disjoint HLA (our patients carry A\*31:01 / A\*26:01 / B\*18:01 / B\*15:63 / C\*07:01 / C\*03:03), no shared recurrent target.
+Verified as a real negative via a ceiling control (presenters span 8/9/10-mers, matching the catalogs' class-I lengths; the null is only meaningful because those lengths are present). Biologically expected: independent cohorts, disjoint HLA (our patients carry A\*31:01 / A\*26:01 / B\*18:01 / B\*15:63 / C\*07:01 / C\*03:03), no shared recurrent target.
 
-Reproduce: `xref_exitron_vs_presenters.py` (R2 creds from project-root `.env`, `research/.venv/bin/python`).
+Reproduce (both catalogs, end-to-end): `research/.venv/bin/python xref_catalogs_vs_presenters.py` (R2 creds from project-root `.env`). The script reads both catalog TSVs, so the peptide sets cannot drift from the artifacts.
