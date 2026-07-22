@@ -1,0 +1,18 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans,                 fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey];
+	0[label = "emit_orf_fasta", color = "0.38 0.6 0.85", style="rounded"];
+	1[label = "assemble_contigs_wide", color = "0.14 0.6 0.85", style="rounded"];
+	2[label = "filter_junctions", color = "0.43 0.6 0.85", style="rounded"];
+	3[label = "hisat2_align", color = "0.49 0.6 0.85", style="rounded"];
+	4[label = "hisat2_index", color = "0.52 0.6 0.85", style="rounded"];
+	5[label = "create_alignment_manifest", color = "0.20 0.6 0.85", style="rounded"];
+	6[label = "build_reference_junctions", color = "0.17 0.6 0.85", style="rounded"];
+	1 -> 0
+	2 -> 1
+	6 -> 2
+	5 -> 2
+	3 -> 2
+	4 -> 3
+}            

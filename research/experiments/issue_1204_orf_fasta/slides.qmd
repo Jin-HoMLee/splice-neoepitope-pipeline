@@ -1,0 +1,109 @@
+---
+title: "Junction neoantigens: from prediction to evidence"
+subtitle: "Issue #1204 · a junction-derived MS search database"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: today
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The gap {.smaller}
+
+Our pipeline **predicts** which splice-junction peptides should bind HLA (MHCflurry presentation score [@odonnell2020mhcflurry]).
+
+::: {.fragment}
+A prediction is a hypothesis, not evidence.
+:::
+
+::: {.fragment}
+**The question this sets up:** do tumor-specific splice-junction peptides *actually* get presented on real tumor cells?
+:::
+
+::: {.fragment}
+::: {.callout-note appearance="simple"}
+This deck is the **method + instrument + validation** chapter. The wet/compute re-search that answers the question is Issue #1176 AC-6.
+:::
+:::
+
+---
+
+## The idea {.smaller}
+
+Search **public tumor HLA-I immunopeptidome spectra** (peptides physically eluted off tumor MHC) against a **junction-derived protein database**.
+
+::: {.incremental}
+- The FASTA we build is the search **database** (candidate answers), not a sample.
+- The **canonical proteome enters as a *competing target***, not a pre-exclusion filter: a junction peptide is only called when it out-scores every canonical explanation of the same spectrum.
+- Keep the DB **RNA-seq-bounded** to the cohort - an unbounded catalog manufactures false candidates and inflates FDR [@nesvizhskii2016achilles].
+:::
+
+---
+
+## The instrument {.smaller}
+
+Junction contig → 3-frame translate → split at stop codons → keep **each frame's breakpoint-crossing** stretch → FASTA mini-protein.
+
+![ORF-stretch extraction: a 60-nt contig split at the junction breakpoint, translated in three reading frames. Each frame keeps its stop-free stretch that crosses the breakpoint (up to three mini-proteins per contig). Stops are sparse in these short contigs: in the chr22 run 75% of junctions keep all three frames (mean 2.74/3), so most frames are kept; a one-sided drop (frame 2 here) happens only when a stop lands near the breakpoint.](figures/emitter_schematic.png){width=88%}
+
+---
+
+## Where it plugs in {.smaller}
+
+A **decoupled** 30-nt path (gold) adds two rules - a widened-flank `assemble_contigs` instance (reusing the existing script) plus the new `emit_orf_fasta` emitter. The production MHCflurry k-mer path (27-nt flanks, `peptide_lengths [8,9,10]`) is untouched.
+
+![Real Snakemake rulegraph; the two gold rules are new](figures/dag_ms_search_db.png){width=42%}
+
+---
+
+## The deeper insight {.smaller}
+
+The ORF-stretch FASTA is the **superset representation**. You can derive any k-mer set by substringing a stretch; never a stretch from k-mers.
+
+![The ORF-stretch FASTA is the canonical intermediate; three future consumers each derive from it](figures/consumer_fanout.png){.nostretch width=64%}
+
+Two of the three future consumers (MHC-II, MS) take protein FASTA **directly**. Promotion to the canonical intermediate is trigger-gated on MHC-II: Issue #1255.
+
+---
+
+## Validation - it recovers a real junction peptide {.smaller}
+
+On the chr22 test cohort the emitter produced **335** junction ORF stretches (frames balanced 110/113/112; 0 stop/X). Sage [@lazear2023sage] loaded and nonspecifically digested the combined DB to **49,432** peptides + decoys, and recovered the junction peptide below.
+
+![Annotated b/y fragment spectrum of the recovered junction peptide LGLQVPTTTLG, b-ions in blue and y-ions in gold](figures/recovery_spectrum.png){width=74%}
+
+::: {.callout-note appearance="simple" style="font-size:0.8em"}
+Recovery is the check (a bogus peptide fails it); statistical significance against real spectra is Issue #1176 AC-6, not this smoke.
+:::
+
+---
+
+## What's next {.smaller}
+
+- **Issue #1176 AC-6 - the real re-search:** the Courcelles CRC cohort (MS `PXD071022` CC0 + matched RNA-seq `GSE312236`), competing-target DB, subset FDR on the junction partition, entrapment + RNA-seq corroboration [@chong2020newance].
+- **Issue #1255 - architecture:** promote the ORF-stretch FASTA to the canonical peptide-generation intermediate when MHC-II lands.
+- **Honest scope:** a junction in RNA-seq means the source *transcript exists*, not that its peptide is presented on MHC. Only the MS search speaks to presentation, and that hit still needs ordinary FDR control to count.
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::

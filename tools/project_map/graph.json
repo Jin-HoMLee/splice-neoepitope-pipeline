@@ -2597,9 +2597,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta",
-      "size": 5,
+      "size": 7,
       "issue": 1204,
-      "degree": 6
+      "degree": 11
     },
     {
       "id": "research__experiments__issue_1204_orf_fasta__README_md",
@@ -2624,12 +2624,120 @@
       "degree": 1
     },
     {
+      "id": "research__experiments__issue_1204_orf_fasta__figures",
+      "label": "figures",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures",
+      "size": 6,
+      "issue": 1204,
+      "degree": 7
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures___regenerate_figures_py",
+      "label": "_regenerate_figures.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/_regenerate_figures.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures___rulegraph_dot",
+      "label": "_rulegraph.dot",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/_rulegraph.dot",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
+      "label": "consumer_fanout.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/consumer_fanout.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__dag_ms_search_db_png",
+      "label": "dag_ms_search_db.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/dag_ms_search_db.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__emitter_schematic_png",
+      "label": "emitter_schematic.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/emitter_schematic.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__recovery_spectrum_png",
+      "label": "recovery_spectrum.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/recovery_spectrum.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
       "id": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
       "label": "make_spectrum.py",
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta/make_spectrum.py",
       "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__outputs",
+      "label": "outputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/outputs",
+      "size": 1,
+      "issue": 1204,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__outputs__orf_run_summary_json",
+      "label": "orf_run_summary.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/outputs/orf_run_summary.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__refs_bib",
+      "label": "refs.bib",
+      "type": "reference",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/refs.bib",
+      "description": "Bibliography / reference",
       "size": 1,
       "issue": 1204,
       "degree": 1
@@ -2655,6 +2763,17 @@
       "size": 1,
       "issue": 1204,
       "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__slides_qmd",
+      "label": "slides.qmd",
+      "type": "slide",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/slides.qmd",
+      "description": "Quarto slide deck",
+      "size": 2,
+      "issue": 1204,
+      "degree": 2
     },
     {
       "id": "research__experiments__issue_224_alphagenome_exp1",
@@ -10064,6 +10183,12 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1204_orf_fasta",
+      "target": "research__experiments__issue_1204_orf_fasta__slides_qmd",
+      "type": "references",
+      "label": "slide deck"
+    },
+    {
       "source": "research__experiments__issue_1204_orf_fasta__README_md",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
@@ -10076,7 +10201,67 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1204_orf_fasta__figures",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures___regenerate_figures_py",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures___rulegraph_dot",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__dag_ms_search_db_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__emitter_schematic_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__recovery_spectrum_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__outputs",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__outputs__orf_run_summary_json",
+      "target": "research__experiments__issue_1204_orf_fasta__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__refs_bib",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
@@ -10089,6 +10274,12 @@
     },
     {
       "source": "research__experiments__issue_1204_orf_fasta__sage_config_json",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__slides_qmd",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
