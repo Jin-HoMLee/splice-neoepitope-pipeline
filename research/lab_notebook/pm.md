@@ -6,6 +6,34 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-22
+
+### 13:35 UTC - Editor: PM
+
+**Closed out the #265 SOTA-autonomy survey via its residual report, and the pre-merge double-check earned its keep twice.** [PR #1272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1272) lands `research/agent_frameworks_and_reliability_evals_2026-07.md` + its raw provenance JSON and closes [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265).
+The scope was legitimate to close: #265's six questions were delivered across two passes - the earlier governance report answered Q2/Q3/Q5/Q6, this residual answered Q1/Q4 (frameworks + reliability evals) - with follow-ups [#1273](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1273) (pass^k self-test) and [#1274](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1274) (full-trace capture) filed. The earlier "deliberately did not close #265" note in this notebook referred to the governance report's *partial* coverage, correctly resolved here.
+
+**The double-check caught two things a bare `gh pr merge` would have walked past.** First, `project-map-freshness` was red on #1272 - the 6c02ac9 commit added the report + raw JSON without regenerating the committed atlas, so `graph.json` was stale; regenerated and committed.
+Second, #1272 had **no lab-notebook entry at all** (this one), which the `role:pm` lab-notebook gate would have blocked on - the frameworks report shipped its residual PR without the closure-ritual entry. Both are the same class of silent gap the merge gate exists to catch, and the reason "double-check, then merge" is one instruction, not two.
+
+**The tau-bench citation ([arXiv 2406.12045](https://arxiv.org/abs/2406.12045)) is the load-bearing primary** for the 61% pass@1 -> ~25% pass^8 headline; the two preprints only corroborate it. Verified the ID resolves to Yao et al. before landing it on this branch earlier today.
+
+### 12:55 UTC - Editor: PM
+
+**A completed fan-out is only an input to delivery - the wind-down's own sharpest line, and the resume proved it right.** A prior session hit its usage limit the instant after writing the competitive-positioning report ([research/competitive_positioning_neoepitope_pipelines_2026-07.md](competitive_positioning_neoepitope_pipelines_2026-07.md)), before relaying, source-auditing, or giving it a carrier.
+Codex's wind-down recovered the state faithfully (verified against git + the live board: report intact, #841 correctly restored to Backlog for the 3rd [#1248](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1248) recurrence), so this resume was pure delivery: carrier [Issue #1280](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1280), its own branch off clean main, [PR #1281](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1281), source audit, and this entry.
+
+**The "what is best practice?" check flipped my proposal from ordering to separation.** I had offered to "clean the #265 branch first, then move the report" - conflating branch-hygiene with sequencing.
+The web cross-check (GitHub Issues-vs-Discussions; one-concern-per-branch) said the load-bearing rule is not "land tau-bench first" but "the report must never ride the #265 branch at all" - extract, don't order.
+So the report got its own Issue-linked branch and the tau-bench edit stayed on [PR #1272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1272); the two never touched. Fourth session running where the best-practice check *changed* a decision rather than rubber-stamping it.
+
+**A stash-pop exposed a real coupling and I landed a parked item to unblock it.** Restoring the stashed tau-bench edit onto #265 then blocked the switch back to #1280 (the file differs from main).
+Rather than re-stash into a forget-loop, I verified the edit (arXiv 2406.12045 = tau-bench, Yao et al., confirmed the correct primary) and committed it to #265/#1272 - its sanctioned home per the post-it - which both preserved it and permanently unblocked the branch switch. Committing != merging; #1272's merge stays gated.
+
+**Bot review: LGTM, and its one real catch was a sourcing gap I could fix, not a defect I introduced.** It flagged the pVACtools row asserting "v6/v7 2026" with only a v6 source - correct, I had no v7 evidence, so I softened to v6.
+Its arXiv-venue worry I had already closed out-of-band (my WebFetch resolved 2606.26659 to the real pVACtools v6 paper; CI cannot run WebFetch, so it could not).
+Also added a vote-notation gloss and an inline calibrator qualifier. At the merge gate now; the merge is Jin-Ho's call.
+
 ## 2026-07-21
 
 ### 09:55 UTC - Editor: PM
