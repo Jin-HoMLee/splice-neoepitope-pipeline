@@ -9,7 +9,7 @@ Method: two-gate verification (Gate 1 = genuinely splice-junction-derived; Gate 
 |---|---|---|
 | Exitron pan-cancer (Wang et al., Mol Cell 2021) | `HTUR4MKR` | 54 exitron-derived splice neoantigens (Tables S4+S5), **all MS-presentation-only, no functional T-cell assay** -> Gate 1 PASS, Gate 2 FAIL. Zero functional rows; all 54 route to the MS-presented tier ([Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)). |
 | U2AF1 neoantigens (Biernacki et al., JITC 2023) | `GUUF7E7H` | **Out of scope - Gate 1 FAIL.** The epitopes are the U2AF1 **Q157R missense** mutant-protein sequence (plus ScanProsite self-peptide controls), not aberrant-junction peptides. Functionally validated (cloned TCR, tetramer) but not splice-derived. |
-| Proteogenomics-ovarian (Zhao et al., Cancer Immunol Res 2020) | `3Z5UHGFQ` | Pending - PDF paywalled, human fetch outstanding (AC-3). |
+| Proteogenomics-ovarian (Zhao et al., Cancer Immunol Res 2020) | `3Z5UHGFQ` | 103 MS-eluted TSAs (Table S5: 20 mTSA + 83 aeTSA). A non-canonical / aberrant-expression repertoire, **mostly not splice-junction-derived** (intergenic / ncRNA / UTR / antisense / annotated-ORF / mutation). The 28 **Intronic aeTSAs** (intron-retention, splice-adjacent) route to [Issue #681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681) as candidate splice-MS entries; the other 75 are out of splice scope. All MS-only (no per-peptide T-cell assay) -> zero functional-registry rows. |
 
 ## Artifact
 
@@ -17,6 +17,11 @@ Method: two-gate verification (Gate 1 = genuinely splice-junction-derived; Gate 
 
 ## AC-4 payoff cross-reference (against our n=2156 candidate presenters)
 
-The 33 class-I exitron peptides were intersected against our n=2156 splice presentation scores (patient_001 n=395 + patient_002 n=1761, fetched from R2). **Result: zero overlap** - no exact match, no substring overlap either direction. Verified as a real negative via a ceiling control (presenters span 8/9/10-mers, matching exitron class-I lengths; positive control fires). Biologically expected: independent cohorts, disjoint HLA (our patients carry A\*31:01 / A\*26:01 / B\*18:01 / B\*15:63 / C\*07:01 / C\*03:03, no A\*02:01), no shared recurrent exitron target.
+Both catalogs' surviving MS-presented peptides were intersected against our n=2156 splice presentation scores (patient_001 n=395 + patient_002 n=1761, fetched from R2):
 
-Reproduce: `xref_exitron_vs_presenters.py` (scratchpad copy; R2 creds from project-root `.env`, `research/.venv/bin/python`).
+- **Exitron** - 33 class-I peptides -> **zero overlap** (exact + substring).
+- **Ovarian** - all 103 TSAs (class-I, allele-resolved) -> **zero overlap** (exact + substring).
+
+Verified as a real negative via a ceiling control (presenters span 8/9/10-mers, matching the catalogs' class-I lengths; positive control fires). Biologically expected: independent cohorts, disjoint HLA (our patients carry A\*31:01 / A\*26:01 / B\*18:01 / B\*15:63 / C\*07:01 / C\*03:03), no shared recurrent target.
+
+Reproduce: `xref_exitron_vs_presenters.py` (R2 creds from project-root `.env`, `research/.venv/bin/python`).
