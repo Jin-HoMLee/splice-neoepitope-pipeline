@@ -8,6 +8,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-22
 
+### 15:45 UTC - Editor: Scientist - a decision deck whose own grounding-check overturned its thesis: the registry is positive-saturated, not empty
+
+**Built the second research-decision-tier deck to make the #680 registry-cycle allocation call explicit, and grounding every number against `registry.tsv` corrected the premise I walked in with** ([Issue #1284](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1284), [PR #1285](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1285), deck at `research/decisions/issue_1284_registry-hunt-state/`)
+
+The prompt was Jin-Ho asking whether the #1207 work needed slides. The sweep *result* did not (a dry leaf is a comment), but there was a real decision buried in the recurring dryness - so the deck is a decision artifact, not an experiment write-up: keep spending #680 cycles on functional-positive literature mining, or redirect.
+
+**The load-bearing correction: I had carried "functional splice positives n=1 (VELEDHVML)" as a standing fact, and it was wrong.** Reading `registry.tsv` directly before drafting any slide, the n=1 is the **hard-negative** tier; VELEDHVML is `label=negative`. The registry actually holds **86 functional positives** (82 scorable + 4 non-scorable, 73 direct-provenance assays), 10 negatives (only 1 a hard-negative), 1 untested. My memory had conflated the hard-negative scarcity with the positive count. This is exactly the "verify against the source before it enters an artifact" rule earning its keep at the moment before a claim goes into a deck - and it *sharpened* the thesis rather than weakening it: the registry is **positive-saturated and negative-starved**, so the decision is not "literature is dead" but "positives are saturated (marginal cycle dry), and the binding constraint is the hard-negative class, which literature is separately exhausted for (#911) and only wet-lab / author-data can move."
+
+**Recommended verdict (c) Hybrid, routed to Jin-Ho/PM:** stop committing *dedicated* functional-positive mining cycles (marginal yield ~0; #1207 = 0/3 catalogs), keep the passive Beat-1 watch (still feeds the MS tier #681), redirect dedicated effort to the negative bottleneck (author-data #1214/#817 + wet-lab) that gates the #585 calibration - positives do not.
+
+**Bot review was clean and caught a self-consistency slip the deck itself was about.** The `refs.bib` `@registry2026` note still carried the uncited "n=1 (VELEDHVML)" error the deck exists to correct - committed source contradicting the deck's own load-bearing claim. Fixed, plus two precision polishes I adopted: ovarian Gate-1 `PASS (aberrant)` -> `PARTIAL (28/103 splice-adjacent)` (matching the #1207 README's own call), and disambiguating two independent "82"s (82 scorable positives vs 82 #681 entries = 54 exitron + 28 ovarian-intronic). All in `7143590`; re-rendered and re-verified the changed slides for overflow; per-finding reply posted.
+
+**Method note worth keeping:** the deck-tier decision itself was a judgment call against the "slides fire on judgment content, not Issue tier" rule - a per-#1207 experiment deck would have been ceremony; the cross-cycle decision deck is the artifact that carries actual judgment. Second deck in a tier whose pilot (#592) was n=1, so it also tests that convention.
+
 ### 13:30 UTC - Editor: Scientist - #1207 snowball sweep: three catalogs, zero registry additions, and the negative is the finding
 
 **Backward-citation (snowball) mining of three human splice-neoantigen catalogs yielded zero functional-registry additions - registry stays at 97 rows** ([Issue #1207](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207), [PR #1279](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1279), leaf of [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680))
