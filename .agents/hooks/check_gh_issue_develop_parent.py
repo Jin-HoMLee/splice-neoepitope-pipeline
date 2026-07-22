@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _shell_parse  # noqa: E402
+import graphql_meter  # noqa: E402
 
 LOG_PATH = Path(__file__).resolve().parent.parent.parent / ".agents" / "hook_fires.jsonl"
 
@@ -194,6 +195,7 @@ def sub_issue_total(owner: str, name: str, number: int) -> int | None:
     """subIssuesSummary.total for the issue, or None on any error (→ fail open)."""
     query = (
         "query($o:String!,$n:String!,$num:Int!){"
+        "rateLimit{cost remaining}"
         "repository(owner:$o,name:$n){issue(number:$num){"
         "subIssuesSummary{total}}}}"
     )
@@ -201,6 +203,7 @@ def sub_issue_total(owner: str, name: str, number: int) -> int | None:
         res = _gh("api", "graphql", "-f", f"query={query}",
                   "-f", f"o={owner}", "-f", f"n={name}", "-F", f"num={number}")
         data = json.loads(res.stdout)
+        graphql_meter.log_graphql_spend("check_gh_issue_develop_parent", data, query_name="parent_check")
         return int(data["data"]["repository"]["issue"]["subIssuesSummary"]["total"])
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, ValueError):
