@@ -1389,8 +1389,8 @@
       "type": "dir",
       "group": "research",
       "path": "research",
-      "size": 9,
-      "degree": 19
+      "size": 10,
+      "degree": 20
     },
     {
       "id": "research__README_md",
@@ -1440,6 +1440,16 @@
       "description": "Documentation",
       "size": 1,
       "degree": 3
+    },
+    {
+      "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "label": "competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
@@ -9234,6 +9244,12 @@
       "target": "research__multi_agent_landscape_md",
       "type": "references",
       "label": "links to"
+    },
+    {
+      "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
     },
     {
       "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
