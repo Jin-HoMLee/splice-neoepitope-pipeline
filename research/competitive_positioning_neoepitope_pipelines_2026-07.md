@@ -9,7 +9,7 @@
 
 Our pipeline sits in a crowded but genuinely differentiable niche.
 Two direct splice-neoantigen tools bracket it, and two broader multi-source suites are ahead of us on presentation breadth.
-The things that make us distinct are real and mostly unmatched: matched-normal *junction-level* filtering, TCRdock structural TCR-pMHC validation, and a *measured*-immunogenicity registry/calibrator.
+The things that make us distinct are real and mostly unmatched: matched-normal *junction-level* filtering, TCRdock structural TCR-pMHC validation, and a *measured*-immunogenicity registry/calibrator (the last still being built - aspirational until it lands, see the differentiators section).
 The things we are behind on are also real: class-I-only presentation, single-source (splice only), and local-CPU chr22 scale.
 
 ## The comparable landscape
@@ -19,7 +19,7 @@ The things we are behind on are also real: class-I-only presentation, single-sou
 | **SNAF** (closest peer) | Sci Transl Med 2024, maintained (v0.7.0) | Alt splicing (junction-first) + B-cell surface-protein antigens | Class I (NetMHCpan / MHCflurry) | DeepImmuno (sequence ML) + BayesTS tumor-specificity ranker | **No** (has a non-structural sequence/ML TCR module) | Large normal panel: GTEx >2500 samples / >54 tissues + TCGA paratumor | Python workflow, PyPI |
 | **splice2neo** | Bioinformatics Adv 2024, maintained | Alt splicing only (5 event classes incl. intron retention, exitrons) | **None** (stops at peptide/ORF annotation) | None | None | Links junctions to causal somatic SNV/indel | R package |
 | **NeoSplice** | Bioinformatics Adv 2022, older | Alt splicing only | Class I only (NetMHCpan 4.0, <500 nM) | MS immunopeptidome presentation only, no functional assay | None | - | repo |
-| **pVACtools / pVACseq / pVACview** | Genome Med 2024 + v6/v7 2026, actively maintained | **Multi-source**: SNV/indel, fusions (pVACfuse), splicing (pVACsplice) | **Class I AND II** (MHCflurryEL, NetMHCpanEL, BigMHC-EL; NetMHCIIpanEL) | BigMHC_IM + DeepImmuno (off-the-shelf) | None | cis-splicing SNV-driven variants (not our RNA-seq junction detection) | Docker, field-standard |
+| **pVACtools / pVACseq / pVACview** | Genome Med 2024 + v6 2026 (arXiv preprint), actively maintained | **Multi-source**: SNV/indel, fusions (pVACfuse), splicing (pVACsplice) | **Class I AND II** (MHCflurryEL, NetMHCpanEL, BigMHC-EL; NetMHCIIpanEL) | BigMHC_IM + DeepImmuno (off-the-shelf) | None | cis-splicing SNV-driven variants (not our RNA-seq junction detection) | Docker, field-standard |
 | **OmniNeo** (strongest 2025 competitor) | Front Immunol 2025 | **Multi-source**: SNV/indel/frameshift/fusion/non-coding | **Class I AND II** (NetMHCpan 4.1 + NetMHCIIpan 4.0) | OmniNeo-CNN (self-reported AUC 0.88) | **Yes** - TCRmodel2 + PyMOL (demo case, not core step) | - | Nextflow |
 | **NeoPredPipe** | BMC Bioinf 2019, older | SNV/indel only | Class I focus (netMHCpan) | Luksza recognition potential (A x R, computational) | None | - | Python |
 | **ImmuneApp** | Nat Commun 2024 | (predictor building block, not a pipeline) | Class I only (CNN+LSTM+attention, 349,650 ligands) | AP sub-model (presentation) | None | - | web server + repo |
@@ -40,6 +40,8 @@ The things we are behind on are also real: class-I-only presentation, single-sou
 - **Local-CPU chr22 scale** while comparators ship container/workflow-managed genome-scale packaging (OmniNeo Nextflow, pVACtools Docker). Note: our Snakemake+conda packaging is itself reproducible-competitive; the gap is *scale*, not reproducibility discipline.
 
 ## Caveats (read before citing)
+
+*Vote notation reads confirm-refute out of 3 adversarial-verification votes: "1-2 refute" = 1 confirm / 2 refute, "2-1" = 2 confirm / 1 refute; a claim needed >=2 refutes to be killed.*
 
 - **Two claims were refuted on re-vote and must not be relied on:** (1) that pVACtools' pVACsplice uses RegTools junctions from paired WES/RNA the way we do (1-2 refute) - pVACsplice targets cis-splicing SNV-driven variants, a *different mechanism*; and (2) that NeoPredPipe's presentation is definitively class-I-only via netMHCpan on 8-10mers (0-3 refute) - treat its class specifics cautiously.
 - **Self-reported metrics:** OmniNeo-CNN's AUC 0.88 is from the tool's own paper on an internal held-out split, not external validation.
