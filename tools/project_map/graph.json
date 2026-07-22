@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 22,
-      "degree": 23
+      "size": 23,
+      "degree": 24
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1003,6 +1003,16 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "label": "2026-07-21-graphql-budget-attribution.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-21-graphql-budget-attribution.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "label": "2026-07-21-issue-966-ac1-asneo-runner.md",
       "type": "doc",
@@ -1028,8 +1038,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 28,
-      "degree": 29
+      "size": 29,
+      "degree": 30
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1292,6 +1302,16 @@
       "degree": 2
     },
     {
+      "id": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
+      "label": "2026-07-21-graphql-budget-attribution-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-21-graphql-budget-attribution-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
       "label": "2026-07-21-issue-966-ac1-asneo-runner-design.md",
       "type": "doc",
@@ -1369,8 +1389,8 @@
       "type": "dir",
       "group": "research",
       "path": "research",
-      "size": 10,
-      "degree": 20
+      "size": 12,
+      "degree": 22
     },
     {
       "id": "research__README_md",
@@ -1440,6 +1460,26 @@
       "description": "Documentation",
       "size": 1,
       "degree": 4
+    },
+    {
+      "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "label": "competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
+      "label": "competitive_positioning_neoepitope_pipelines_2026-07.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/competitive_positioning_neoepitope_pipelines_2026-07.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "research__decisions",
@@ -3648,7 +3688,7 @@
       "path": "research/experiments/issue_680_splice_immunogenicity_registry",
       "size": 15,
       "issue": 680,
-      "degree": 23
+      "degree": 24
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__LABELING_SCHEME_md",
@@ -3927,6 +3967,60 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/figures/fig_identity_matrix.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "label": "issue_1207_snowball",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball",
+      "size": 4,
+      "issue": 680,
+      "degree": 5
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__exitron_ms_presented_S4_S5_tsv",
+      "label": "exitron_ms_presented_S4_S5.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/exitron_ms_presented_S4_S5.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__ovarian_tsa_S5_tsv",
+      "label": "ovarian_tsa_S5.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/ovarian_tsa_S5.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__xref_catalogs_vs_presenters_py",
+      "label": "xref_catalogs_vs_presenters.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/xref_catalogs_vs_presenters.py",
       "description": "Project file",
       "size": 1,
       "issue": 680,
@@ -6146,8 +6240,8 @@
       "type": "ci_dir",
       "group": "infrastructure",
       "path": "tools/ci",
-      "size": 44,
-      "degree": 45
+      "size": 45,
+      "degree": 46
     },
     {
       "id": "tools__ci___board_query_smoke_py",
@@ -6455,6 +6549,16 @@
       "type": "ci",
       "group": "infrastructure",
       "path": "tools/ci/test_gh_client.py",
+      "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__ci__test_graphql_meter_py",
+      "label": "test_graphql_meter.py",
+      "type": "ci",
+      "group": "infrastructure",
+      "path": "tools/ci/test_graphql_meter.py",
       "description": "CI automation tool",
       "size": 1,
       "degree": 1
@@ -8952,6 +9056,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "target": "docs__superpowers__plans",
       "type": "contained_in",
@@ -9132,6 +9242,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
@@ -9226,6 +9342,18 @@
       "target": "research__multi_agent_landscape_md",
       "type": "references",
       "label": "links to"
+    },
+    {
+      "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
     },
     {
       "source": "research__decisions",
@@ -10778,6 +10906,36 @@
     {
       "source": "research__experiments__issue_680_splice_immunogenicity_registry__figures__fig_identity_matrix_png",
       "target": "research__experiments__issue_680_splice_immunogenicity_registry__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__README_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__exitron_ms_presented_S4_S5_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__ovarian_tsa_S5_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__xref_catalogs_vs_presenters_py",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
       "type": "contained_in",
       "label": ""
     },
@@ -12739,6 +12897,12 @@
     },
     {
       "source": "tools__ci__test_gh_client_py",
+      "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__ci__test_graphql_meter_py",
       "target": "tools__ci",
       "type": "contained_in",
       "label": ""
