@@ -281,3 +281,69 @@ class TestMinusStrandArmOrder:
         # upstream-arm (A) then downstream-arm (C).
         contig = self._contig_for_strand(tmp_path, monkeypatch, "+")
         assert contig == "A" * 27 + "C" * 27
+
+
+class TestMinusStrandIntegrationThroughTranslate:
+    """Issue #1278 integration guard: a minus-strand junction carried through
+    assemble_contigs THEN translate_peptides must yield the biologically-correct
+    junction-spanning peptide, not just correct arm order.
+
+    This is the guard the unit test cannot give. translate_peptides translates
+    forward frames only and assumes the contig is already in mRNA sense with the
+    breakpoint at ``upstream_nt`` - the exact assumption that made the bug silent.
+    Every prior fixture across both scripts used strand '+', so this whole class
+    of error (wrong peptides from a fabricated minus-strand junction) was untested
+    end to end. Recommended by the PR #1286 bot review.
+    """
+
+    def test_minus_strand_yields_transcript_correct_peptide(self, tmp_path, monkeypatch):
+        from translate_peptides import extract_spanning_peptides
+
+        junction_id = "chr22:201:300:-"
+        novel_tsv = tmp_path / "novel.tsv"
+        pd.DataFrame({
+            "junction_id": [junction_id],
+            "chrom": ["chr22"], "start": [200], "end": [300],
+            "strand": ["-"], "junction_origin": ["tumor_exclusive"],
+            "sample_id": ["s1"], "sample_type": ["tumor"],
+        }).to_csv(novel_tsv, sep="\t", index=False)
+
+        # getfasta -s returns each arm already in transcript sense. Codon-clean
+        # markers make the arm ORDER legible in the translated peptide:
+        #   upstream arm   = GCT*9 -> Ala ('A')
+        #   downstream arm = GGT*9 -> Gly ('G')
+        # Correct minus-strand contig is dn+up, so frame-0 translation is G*9 then
+        # A*9 and junction-spanning 8-mers read G...A. The buggy up+dn order would
+        # translate to A*9 then G*9 (A...G) - a different, wrong peptide set.
+        def fake_getfasta(bed_path, genome_fasta, out_fa, strand=True):
+            arm = "GCT" * 9 if "upstream" in str(bed_path) else "GGT" * 9
+            with open(out_fa, "w") as fh:
+                fh.write(f">{junction_id}\n{arm}\n")
+        monkeypatch.setattr("assemble_contigs._run_bedtools_getfasta", fake_getfasta)
+
+        fasta_out = tmp_path / "contigs.fa"
+        assemble_contigs(
+            novel_junctions_tsv=novel_tsv,
+            genome_fasta=tmp_path / "fake.fa",
+            output_fasta=fasta_out,
+            stats_output_path=tmp_path / "stats.tsv",
+        )
+        contig = [ln for ln in fasta_out.read_text().splitlines()
+                  if ln and not ln.startswith(">")][0]
+
+        peptides = {
+            pep for _, pep in extract_spanning_peptides(
+                contig, upstream_nt=27, peptide_lengths=[8, 9, 10], reading_frames=[0]
+            )
+        }
+
+        # Transcript order (dn+up) -> a G-then-A spanning peptide.
+        assert "GGGGGGGA" in peptides, (
+            "minus-strand junction did not translate to the transcript-correct "
+            f"spanning peptide; got {sorted(peptides)}"
+        )
+        # The buggy genomic order (up+dn) would produce an A-then-G peptide; it
+        # must never appear from a correctly-oriented minus-strand contig.
+        assert "AAAAAAAG" not in peptides, (
+            "minus-strand arms concatenated in genomic (buggy) order"
+        )
