@@ -366,3 +366,87 @@ def test_help_has_no_code_leak():
     assert r.returncode == 0, (r.returncode, r.stderr)
     assert "set -euo pipefail" not in r.stdout, r.stdout
     assert "SCRIPT_DIR=" not in r.stdout, r.stdout
+
+
+# ---------------------------------------------------------------------------
+# Body-gated Ready items (Issue #1248)
+#
+# The floor counted Ready DEPTH, not PULLABLE depth, so an Issue gated only in
+# its prose counted as healthy stock and got re-committed under floor pressure
+# (#841 swept in twice, #929 sat with unsettled decision ACs). Gated items are
+# now both excluded from the count and surfaced.
+# ---------------------------------------------------------------------------
+
+def _gated(number, *roles, reason="trigger-gated: body says 'build only if'",
+           status="Ready"):
+    it = _item(number, *roles, status=status)
+    it["not_pullable"] = reason
+    return it
+
+
+def test_gated_ready_item_is_excluded_from_the_pullable_count():
+    """5 Ready cards, 1 body-gated -> reads as 4, which is below floor."""
+    items = (_spread("pm", 4, 100) + [_gated(104, "pm")]
+             + _spread("pm", 3, 150, status="Backlog")
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+             + _spread("memory_manager", 5, 400))
+    r = _run(items)
+    assert "[REPLENISH pm: 4 < 5]" in r.stdout, r.stdout
+    assert r.returncode == 2, (r.returncode, r.stdout)
+
+
+def test_gated_ready_item_is_surfaced_with_number_and_reason():
+    items = (_spread("pm", 4, 100) + [_gated(104, "pm")]
+             + _spread("pm", 3, 150, status="Backlog")
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+             + _spread("memory_manager", 5, 400))
+    r = _run(items)
+    assert "[NOT-PULLABLE pm: 1]" in r.stdout, r.stdout
+    assert "#104" in r.stdout, r.stdout
+    assert "build only if" in r.stdout, r.stdout
+
+
+def test_exclude_and_surface_are_both_required():
+    """Matched-pair control on the two halves of the #1248 fix.
+
+    A queue stocked to floor ENTIRELY with gated items must fail in BOTH ways:
+    the count must drop to 0 (exclusion working) and the items must still be
+    named (surfacing working). Drop either half and exactly one of these
+    assertions goes red, which is what makes this a check rather than a ritual.
+    """
+    items = ([_gated(100 + i, "pm") for i in range(5)]
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+             + _spread("memory_manager", 5, 400))
+    r = _run(items)
+    assert "[GROOMING-GAP pm: 0 < 5]" in r.stdout, r.stdout   # exclusion half
+    assert "[NOT-PULLABLE pm: 5]" in r.stdout, r.stdout       # surfacing half
+    assert r.returncode == 2, (r.returncode, r.stdout)
+
+
+def test_ungated_queue_emits_no_not_pullable_line():
+    """The falsifier for the surfacing half: a clean board must stay silent."""
+    items = [_item(400 + i, "pm", "scientist", "developer", "memory_manager")
+             for i in range(5)]
+    r = _run(items)
+    assert "[NOT-PULLABLE" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout)
+
+
+def test_absent_not_pullable_key_reads_as_pullable():
+    """Backwards compatibility: pre-#1248 fixtures carry no `not_pullable` key."""
+    items = [_item(400 + i, "pm", "scientist", "developer", "memory_manager")
+             for i in range(5)]
+    assert all("not_pullable" not in it for it in items)
+    r = _run(items)
+    assert "healthy" in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout)
+
+
+def test_gated_item_in_backlog_is_not_flagged():
+    """The gate is about Ready. A gated Issue sitting in Backlog is correct."""
+    items = (_spread("pm", 5, 100) + [_gated(160, "pm", status="Backlog")]
+             + _spread("scientist", 5, 200) + _spread("developer", 5, 300)
+             + _spread("memory_manager", 5, 400))
+    r = _run(items)
+    assert "[NOT-PULLABLE" not in r.stdout, r.stdout
+    assert r.returncode == 0, (r.returncode, r.stdout)

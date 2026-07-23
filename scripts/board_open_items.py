@@ -49,6 +49,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".agents" / "hooks"))
 import graphql_meter  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "pm"))
+from not_pullable import scan_not_pullable  # noqa: E402
+
 OWNER = "Jin-HoMLee"
 PROJECT_NUMBER = 9
 
@@ -91,7 +94,7 @@ query($owner: String!, $number: Int!, $after: String) {
           content {
             __typename
             ... on Issue {
-              number title state url
+              number title state url body
               createdAt updatedAt closedAt
               subIssuesSummary { total }
               milestone { title }
@@ -274,6 +277,11 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "arc": arc,
         "arc_phase": arc_phase,
         "labels": labels,
+        # Body-only "not pullable" gate (Issue #1248): a short reason string, or
+        # None when the item is pullable. Derived, never stored, so it cannot
+        # drift from the body. PRs are always None - only the PullRequest
+        # fragment omits `body`, and a PR is not a Ready-queue candidate anyway.
+        "not_pullable": scan_not_pullable(content.get("body")),
         "created_at": content.get("createdAt"),
         "updated_at": content.get("updatedAt"),
         "closed_at": content.get("closedAt"),
