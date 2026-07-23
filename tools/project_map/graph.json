@@ -6007,8 +6007,8 @@
       "type": "pm_dir",
       "group": "infrastructure",
       "path": "scripts/pm",
-      "size": 15,
-      "degree": 17
+      "size": 16,
+      "degree": 18
     },
     {
       "id": "scripts__pm__apply_arc_labels_sh",
@@ -6086,6 +6086,16 @@
       "type": "resource",
       "group": "infrastructure",
       "path": "scripts/pm/milestone_report.py",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "scripts__pm__not_pullable_py",
+      "label": "not_pullable.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "scripts/pm/not_pullable.py",
       "description": "Project file",
       "size": 1,
       "degree": 1
@@ -7955,8 +7965,8 @@
       "type": "tests_dir",
       "group": "pipeline",
       "path": "workflow/tests",
-      "size": 41,
-      "degree": 45
+      "size": 42,
+      "degree": 46
     },
     {
       "id": "workflow__tests__README_md",
@@ -8310,6 +8320,16 @@
       "type": "test",
       "group": "pipeline",
       "path": "workflow/tests/test_no_future_imports_in_scripts.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "workflow__tests__test_not_pullable_py",
+      "label": "test_not_pullable.py",
+      "type": "test",
+      "group": "pipeline",
+      "path": "workflow/tests/test_not_pullable.py",
       "description": "Test module",
       "size": 1,
       "degree": 1
@@ -12737,6 +12757,12 @@
       "label": ""
     },
     {
+      "source": "scripts__pm__not_pullable_py",
+      "target": "scripts__pm",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "scripts__pm__recheck_milestone_py",
       "target": "scripts__pm",
       "type": "contained_in",
@@ -13962,6 +13988,12 @@
     },
     {
       "source": "workflow__tests__test_no_future_imports_in_scripts_py",
+      "target": "workflow__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__test_not_pullable_py",
       "target": "workflow__tests",
       "type": "contained_in",
       "label": ""
