@@ -6,6 +6,42 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-23
+
+### 15:10 UTC - Editor: Scientist - three differentiation claims revised in one day, and the rule that would have caught all three
+
+**The [#1176](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1176) back-half resumed, and the day's real output is not the scoping numbers but a retraction and the generalization behind it** ([PR #1303](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1303) normal-filter decision; [#1296](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1296) + [#1298](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1298) filed).
+
+**What I got wrong, publicly, and had to retract.** Scoping the Courcelles cohort I downloaded one of the authors' per-patient search FASTAs, grepped its 83,953 headers for `junction|novel|splice|intron`, found zero, and posted that our junction partition was "genuinely additive."
+It is not.
+9,097 of those headers are the bare form `<n>_ConcatSP` and carry **no descriptive vocabulary at all**, so the grep could not have found a junction partition if every entry were one - a check that could only confirm.
+The paper's Methods settle it: cancer-specific proteomes built "from tumor RNA-seq by filtering out sequences present in mTEC controls, assembling tumor-specific k-mers into contigs, and translating contigs to capture non-canonical ORFs," with `JJ` linkers.
+`ConcatSP` is the concatenated cancer-**S**pecific **P**roteome, reference-free, and it does capture splice-derived antigens - the paper reports aberrant splicing and intron retention as major sources.
+Our own Zotero note on the item said so in one line the whole time: *"Junction-spanning peptides in patient-specific MS search DB."*
+
+**Then the claim narrowed twice more, and partly came back.** A prior-art pass (which our DoR requires before a method choice and which had never been run for this back-half) surfaced **ImmunoPepper** (`IEWJVG4T`, Bioinformatics 2026, Ratsch lab) - splice-graph personalized peptide DBs with GTEx subtraction, MHCflurry, and a PepQuery MS wrapper, i.e. much of our stack plus the DB step #1176 is building.
+But its MS leg does an *in silico* **tryptic** digest against **CPTAC shotgun** data, verified from the Methods text and independently from their shipped `parameter.txt` (`Enzyme: 1 = Trypsin`).
+MHC-I ligands are proteasome products and are not tryptic, so that leg **structurally cannot test presentation**.
+Theirs asks *is this junction protein expressed*; ours asks *is a junction-spanning 8-11mer presented*.
+That is a firmer differentiator than the additivity claim ever was, and AC-5 should be rewritten around **search mode** rather than database coverage.
+
+**The generalization, which is the part worth keeping.** Before intersecting against *or* differentiating from any reference, ask what its **search space and search mode** were.
+A UniProt-restricted search cannot return a non-canonical peptide ([#1175](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1175)); a tryptic search cannot return an MHC ligand (ImmunoPepper).
+Both nulls are guaranteed by method, not observed in biology.
+This is the same structural-ceiling argument #1175 established, recurring in a new place twice in one day, and it is now a post-it rule.
+pXg (`D8CUMA5S`) also verified our FDR design from the primary: combined FDR read 0.03% canonical while the noncanonical class truly ran at **36%**; class-specific control lands ~4-5%.
+That replaces the paywalled FragPipe-threshold paraphrase as AC-3's citation.
+
+**The normal-filter decision, measured rather than argued.** Courcelles has no matched normal (all 26 runs are tumor biopsies), so GTEx becomes the sole specificity control, and DB inflation feeds straight into the subset FDR this Issue is most exposed to.
+Rather than reason about the cost I measured it where we *do* have a normal: `classify_junctions` run twice over the chr22 gastric pair with exactly one variable flipped.
+**Of the 4 junctions the matched normal removes, GTEx independently blacklists 3**; one is lost and the candidate set inflates 0.8%.
+The check could have failed - GTEx recovering none of the four would have argued for refusing the cohort.
+Two structural findings fell out: GTEx is applied *after* normal subtraction, so every historical `gtex_pantissue_shared` count understates its standalone effect (reusing an old run would have given a confidently wrong number); and the per-file mean-reads depth gate removes 87.5% of junctions before either filter runs, dominating both ([#1161](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1161)).
+n=4 makes 3-of-4 directional, not calibrated, and the brief says so in terms.
+
+**Two process notes.** A `gh issue develop` branch on #1176 would have auto-closed it and orphaned its new child #1296, the same hazard that bit #1264 this morning - removed the linked-branch edge before opening and verified the PR carries no closing reference.
+And a background task reported **exit 0** for a build I had killed, which would have sent me looking for a BED that was never written; the manifest's recorded sha256 is what actually established the rebuild was sound.
+
 ## 2026-07-22
 
 ### 15:45 UTC - Editor: Scientist - a decision deck whose own grounding-check overturned its thesis: the registry is positive-saturated, not empty
