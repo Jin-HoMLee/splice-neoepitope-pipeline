@@ -48,9 +48,6 @@ PERSONAS_REPO = "Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
 # written (Issue #784) to prevent.
 DEFAULT_REPOS = (PROJECT_REPO, PERSONAS_REPO)
 
-# Backwards-compatible alias: some callers/tests referenced the old constant.
-REPO = PROJECT_REPO
-
 UTC = timezone.utc
 
 
@@ -222,7 +219,10 @@ def render(rows, floor):
     for r in rows:
         when = r["when"][:16].replace("T", " ")
         ref = repo_ref(r["number"], r.get("repo", PROJECT_REPO))
-        lines.append(f"  {ref:<9} {r['kind']:<5} {when}  {r['title']}")
+        # Width 10 fits a 5-digit personas ref ("pers#12345") without shifting
+        # the kind/title columns, matching board_open_items.py's ref column so
+        # the two tools stay visually aligned.
+        lines.append(f"  {ref:<10} {r['kind']:<5} {when}  {r['title']}")
     lines.append(f"\n  {len(rows)} item(s).")
     return "\n".join(lines) + "\n"
 
@@ -241,7 +241,12 @@ def main():
               "(Issue #1276). Pass explicitly to narrow."),
     )
     args = parser.parse_args()
-    repos = tuple(args.repo) if args.repo else DEFAULT_REPOS
+    # Dedupe while preserving order: a repeated `--repo X --repo X` would
+    # otherwise fetch and render X twice, doubling its rows. In a *recap* a
+    # doubled row set is a silently wrong answer, which is the exact failure
+    # class this script exists to prevent (Issue #784), so idempotence is worth
+    # the one line even though it only guards user error.
+    repos = tuple(dict.fromkeys(args.repo)) if args.repo else DEFAULT_REPOS
 
     now = datetime.now(UTC)
     if args.since:

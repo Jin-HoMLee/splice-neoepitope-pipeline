@@ -248,3 +248,16 @@ class TestBothRepos:
         out = c.render(c.sort_rows(rows), floor)
         assert "pers#40" in out and "#30" in out, out
         assert all(r["kind"] == "PR" for r in rows)
+
+    def test_ref_column_fits_a_five_digit_personas_ref(self):
+        """Width must not shift the kind column once personas passes 9999.
+
+        board_open_items.py sizes its ref column for `pers#12345`; the two tools
+        should stay visually aligned rather than drifting apart at 5 digits.
+        """
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.collect(floor, [{"number": 12345, "title": "big personas number",
+                                  "closedAt": "2026-07-22T09:00:00Z"}], [],
+                         repo=self.PERSONAS)
+        line = [ln for ln in c.render(rows, floor).splitlines() if "pers#12345" in ln][0]
+        assert "pers#12345 Issue" in line, line
