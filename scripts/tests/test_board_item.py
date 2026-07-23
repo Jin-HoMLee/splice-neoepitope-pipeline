@@ -5,19 +5,27 @@
 # Two roles independently derived the same silent no-op within 24 hours, because
 # every failure mode of a board-item lookup returns EMPTY WITH EXIT 0:
 #
-#   1. the phantom key - `gh issue view N --json projectItems` has no `id` key at
-#      all, so `--jq '.projectItems[].id'` yields empty, exit 0;
+#   1. the phantom key - `gh issue view N --json projectItems` exposes only
+#      `status` and `title`, so `--jq '.projectItems[].id'` yields empty, exit 0;
 #   2. the item genuinely is not on the board;
-#   3. the board read was TRUNCATED (`gh project item-list` defaults to 30 rows
-#      against a board that held 286 items on 2026-07-23).
+#   3. the read did not cover the whole board.
 #
 # All three are indistinguishable at the call site, so a resolver that returns
 # None/empty hands a write a value it cannot vouch for. The helper must RAISE.
 #
-# The tests below are the two-directional falsifier the Issue's AC-3 demands: a
-# resolver that raised on everything, or returned a value for everything, must go
-# red. Fakes stand in for `gh` so the assertions are hermetic; the live-API schema
-# facts are pinned separately in the `live`-marked tests at the bottom.
+# WHY THE PER-ISSUE PATH (`Issue.projectItems`) RATHER THAN A BOARD SCAN:
+# `ProjectV2.items` defaults to `archivedStates: [NOT_ARCHIVED]` and its
+# `totalCount` is scoped to that same subset - so a board scan silently omits
+# archived cards AND its completeness assertion passes anyway. Measured on board
+# 9 (2026-07-23): 289 unarchived, 1,163 archived. The first draft of this helper
+# scanned the board and answered "#569 is not on project (complete read of 289
+# items)" for a card that exists. `Issue.projectItems` defaults
+# `includeArchived: true` and is per-issue, so there is no board-wide read to
+# truncate and no archived blind spot - both failure modes become
+# unrepresentable rather than asserted-against.
+#
+# The tests below are the two-directional falsifier AC-3 demands: a resolver that
+# raised on everything, or returned a value for everything, must go red.
 import importlib.util
 import json
 import os
@@ -48,29 +56,17 @@ bi = _load("board_item", "..", "pm", "board_item.py")
 REQUIRES_LIVE_GH = _load("_live_gh", "..", "..", "tools", "ci", "_live_gh.py").REQUIRES_LIVE_GH
 
 
-def _page(items, *, total, has_next=False, cursor=None):
-    """One projectV2 items page in the shape the real GraphQL query returns."""
+def _resp(nodes, *, has_next=False, issue_exists=True, kind="issue"):
+    """A `repository.<kind>.projectItems` payload in the real response shape."""
+    if not issue_exists:
+        return {"data": {"repository": {kind: None}}}
     return {
         "data": {
-            "user": {
-                "projectV2": {
-                    "items": {
-                        "totalCount": total,
-                        "pageInfo": {"hasNextPage": has_next, "endCursor": cursor},
-                        "nodes": [
-                            {
-                                "id": i["id"],
-                                "content": {
-                                    "number": i["number"],
-                                    "repository": {
-                                        "nameWithOwner": i.get(
-                                            "repo", "Jin-HoMLee/splice-neoepitope-pipeline"
-                                        )
-                                    },
-                                },
-                            }
-                            for i in items
-                        ],
+            "repository": {
+                kind: {
+                    "projectItems": {
+                        "pageInfo": {"hasNextPage": has_next, "endCursor": None},
+                        "nodes": nodes,
                     }
                 }
             }
@@ -78,129 +74,171 @@ def _page(items, *, total, has_next=False, cursor=None):
     }
 
 
-def _fake_gh(pages):
-    """A gh() stand-in that returns the given pages in order."""
-    calls = {"n": 0}
+def _item(item_id, project_number=9, archived=False, status=None):
+    field_values = []
+    if status is not None:
+        field_values.append({"name": status, "field": {"name": "Status"}})
+    return {
+        "id": item_id,
+        "isArchived": archived,
+        "project": {"number": project_number},
+        "fieldValues": {"nodes": field_values},
+    }
+
+
+def _fake_gh(response):
+    calls = {"n": 0, "args": []}
 
     def _gh(*args, **kwargs):
-        page = pages[calls["n"]]
         calls["n"] += 1
-        return page
+        calls["args"].append(args)
+        return response
 
     _gh.calls = calls
     return _gh
 
 
 def test_resolves_a_present_issue_to_its_board_item_id():
-    gh = _fake_gh([
-        _page([{"id": "PVTI_present", "number": 1151}], total=1),
-    ])
+    gh = _fake_gh(_resp([_item("PVTI_present")]))
 
     assert bi.resolve_board_item_id(1151, _gh=gh) == "PVTI_present"
 
 
-def test_raises_for_an_absent_issue_instead_of_returning_empty():
-    # The complete board was read (1 of 1) and 9999 simply is not on it. This is
-    # the ONLY case where "not on the board" is a trustworthy answer - and even
-    # here the helper raises rather than returning None, so the value can never
-    # reach a mutation.
-    gh = _fake_gh([
-        _page([{"id": "PVTI_other", "number": 1151}], total=1),
-    ])
+def test_resolves_an_archived_card():
+    # THE case that killed the board-scan design. #569 is archived on board 9 and
+    # a board scan reports it absent with a passing completeness check. A helper
+    # that cannot resolve an archived card is silently wrong for 1,163 of the
+    # board's 1,452 items.
+    gh = _fake_gh(_resp([_item("PVTI_archived", archived=True)]))
+
+    assert bi.resolve_board_item_id(569, _gh=gh) == "PVTI_archived"
+
+
+def test_raises_when_the_issue_has_no_card_on_this_board():
+    # The issue exists and carries project items, but none on board 9. This is
+    # the only trustworthy "no" - and even here it raises rather than returning
+    # None, so the value can never reach a mutation.
+    gh = _fake_gh(_resp([_item("PVTI_other_board", project_number=42)]))
 
     with pytest.raises(bi.BoardItemNotFound):
-        bi.resolve_board_item_id(9999, _gh=gh)
+        bi.resolve_board_item_id(1151, _gh=gh)
 
 
-def test_follows_pagination_to_find_an_item_beyond_the_first_page():
-    # THE case that motivated the Issue. #1135 sat at index 125 of 286 on the
-    # live board, so a single-page read answers "not on the board" with exit 0.
-    # A helper that only asserted non-emptiness would confidently return that
-    # wrong answer.
-    gh = _fake_gh([
-        _page([{"id": "PVTI_a", "number": 1151}], total=2, has_next=True, cursor="CUR1"),
-        _page([{"id": "PVTI_b", "number": 1135}], total=2),
-    ])
+def test_raises_when_the_issue_has_no_project_items_at_all():
+    gh = _fake_gh(_resp([]))
 
-    assert bi.resolve_board_item_id(1135, _gh=gh) == "PVTI_b"
-    assert gh.calls["n"] == 2, "must have fetched the second page"
+    with pytest.raises(bi.BoardItemNotFound):
+        bi.resolve_board_item_id(1151, _gh=gh)
 
 
-def test_incomplete_read_raises_incomplete_not_not_found():
-    # The distinction the whole Issue turns on. The API claims 286 items but
-    # delivered 1 and said there are no more pages - a degraded/truncated read.
-    # Reporting that as "not on the board" is the false answer that cost a 2h
-    # blackout, so it must be a DIFFERENT, louder error than a genuine absence.
-    gh = _fake_gh([
-        _page([{"id": "PVTI_a", "number": 1151}], total=286),
-    ])
+def test_truncated_project_items_raise_incomplete_not_not_found():
+    # projectItems is tiny in practice, but if the connection ever reports more
+    # pages we must not conclude absence from a partial list. Distinct from
+    # BoardItemNotFound: "I did not see it" is not "it is not there".
+    gh = _fake_gh(_resp([_item("PVTI_other_board", project_number=42)], has_next=True))
 
     with pytest.raises(bi.BoardReadIncomplete):
-        bi.resolve_board_item_id(9999, _gh=gh)
+        bi.resolve_board_item_id(1151, _gh=gh)
 
 
-def test_incomplete_read_is_not_masked_by_a_lucky_hit():
-    # Subtle: if the target happens to be on the page we did get, returning it is
-    # still correct - the id is real. Only the NEGATIVE conclusion needs a
-    # complete read. This pins that we do not over-raise and break every caller.
-    gh = _fake_gh([
-        _page([{"id": "PVTI_a", "number": 1151}], total=286),
-    ])
+def test_truncation_does_not_mask_a_hit():
+    # A hit from a partial list is still trustworthy - the id matched is real.
+    # Only the NEGATIVE conclusion needs completeness. Pins that we do not
+    # over-raise and break every caller.
+    gh = _fake_gh(_resp([_item("PVTI_present")], has_next=True))
 
-    assert bi.resolve_board_item_id(1151, _gh=gh) == "PVTI_a"
+    assert bi.resolve_board_item_id(1151, _gh=gh) == "PVTI_present"
+
+
+def test_missing_issue_raises_lookup_error_not_not_found():
+    # A wrong repo (or a PR number) returns issue: null. That is "I cannot
+    # answer", not "it has no card" - conflating them is how a cross-repo typo
+    # becomes a confident wrong answer.
+    gh = _fake_gh(_resp([], issue_exists=False))
+
+    with pytest.raises(bi.BoardLookupError) as exc:
+        bi.resolve_board_item_id(1151, _gh=gh)
+    assert not isinstance(exc.value, bi.BoardItemNotFound)
 
 
 def test_matched_node_without_an_id_raises_rather_than_yielding_none():
-    # The phantom key, at the node level: if a schema change ever drops `id` the
-    # match must fail LOUDLY. Returning node.get("id") here would hand None into
-    # a mutation - literally the #1151 defect, reintroduced inside its own fix.
-    gh = _fake_gh([{
-        "data": {"user": {"projectV2": {"items": {
-            "totalCount": 1,
-            "pageInfo": {"hasNextPage": False, "endCursor": None},
-            "nodes": [{"content": {"number": 1151}}],  # no "id"
-        }}}}
-    }])
+    # The phantom key at node level: returning node.get("id") would hand None
+    # into a mutation - the #1151 defect reintroduced inside its own fix.
+    gh = _fake_gh(_resp([{"isArchived": False, "project": {"number": 9}}]))
 
     with pytest.raises(bi.BoardLookupError):
         bi.resolve_board_item_id(1151, _gh=gh)
 
 
-def test_disambiguates_the_same_issue_number_in_two_repos():
-    # Board 9 spans TWO repos with independent numbering, and the collision is
-    # live: #183 and #193 each exist in both splice-neoepitope-pipeline and
-    # claude-personas-splice-neoepitope-pipeline, both carded on board 9
-    # (verified 2026-07-23). Matching on content.number alone returns whichever
-    # page-order happens to yield first - a silent wrong answer, which is the
-    # very defect this module exists to prevent.
-    gh = _fake_gh([
-        _page(
-            [
-                {"id": "PVTI_personas", "number": 183,
-                 "repo": "Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"},
-                {"id": "PVTI_pipeline", "number": 183,
-                 "repo": "Jin-HoMLee/splice-neoepitope-pipeline"},
-            ],
-            total=2,
-        ),
-    ])
+def test_query_is_scoped_to_the_named_repo():
+    # Board 9 spans two repos with INDEPENDENT numbering, and the collision is
+    # live: #183 and #193 exist in both, both carded. The per-issue path makes
+    # this structurally safe - the repo is in the query - but only if we
+    # actually thread it through, so pin that.
+    gh = _fake_gh(_resp([_item("PVTI_x")]))
 
-    got = bi.resolve_board_item_id(
-        183, repo="Jin-HoMLee/splice-neoepitope-pipeline", _gh=gh
-    )
+    bi.resolve_board_item_id(183, repo="Jin-HoMLee/claude-personas-splice-neoepitope-pipeline", _gh=gh)
 
-    assert got == "PVTI_pipeline", "must not return the personas-repo card for #183"
+    sent = " ".join(gh.calls["args"][0])
+    assert "claude-personas-splice-neoepitope-pipeline" in sent
+    assert "includeArchived" in sent, "archived cards must be in scope"
+
+
+def test_resolve_board_item_returns_id_and_status():
+    # The hooks need the current Status alongside the id (to stay idempotent and
+    # to avoid overwriting a parked Epic / terminal Done card). Serving that here
+    # is what lets them drop their own copy of this query.
+    gh = _fake_gh(_resp([_item("PVTI_x", status="In progress")]))
+
+    assert bi.resolve_board_item(1151, _gh=gh) == ("PVTI_x", "In progress")
+
+
+def test_resolve_board_item_reports_none_status_when_unset():
+    gh = _fake_gh(_resp([_item("PVTI_x")]))
+
+    assert bi.resolve_board_item(1151, _gh=gh) == ("PVTI_x", None)
+
+
+def test_pull_request_kind_queries_the_pull_request_field():
+    # A PR has its own card. `repository.issue(N)` is Issue-only, so the field
+    # name must switch - without this the hooks cannot delegate.
+    gh = _fake_gh(_resp([_item("PVTI_pr")], kind="pullRequest"))
+
+    assert bi.resolve_board_item(42, kind="pullRequest", _gh=gh) == ("PVTI_pr", None)
+    assert "pullRequest(number:" in " ".join(gh.calls["args"][0])
+
+
+def test_unknown_kind_is_rejected_rather_than_interpolated():
+    # `kind` reaches a GraphQL field name by string building; an allow-list keeps
+    # a caller typo (or anything worse) from being interpolated into the query.
+    with pytest.raises(ValueError):
+        bi.resolve_board_item(1, kind="issue) { x } #", _gh=_fake_gh(_resp([])))
+
+
+def test_gh_failure_surfaces_as_a_board_lookup_error():
+    # gh_client.GhError subclasses CalledProcessError. Without conversion the
+    # caller gets an exception that is NOT catchable as BoardLookupError, which
+    # breaks the module's single promise: every outcome is an id or a
+    # BoardLookupError. (Hermetic mirror of the live PR-number test.)
+    def _boom(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            1, "gh", stderr="Could not resolve to an Issue with the number of 183."
+        )
+
+    with pytest.raises(bi.BoardLookupError) as exc:
+        bi.resolve_board_item_id(183, _gh=_boom)
+
+    assert not isinstance(exc.value, bi.BoardItemNotFound)
+    assert "PR" in str(exc.value), "should hint at the issue/PR number-space overlap"
 
 
 def test_defaults_to_the_hardened_gh_client():
-    # Without this the helper is unusable outside tests. gh_client.gh carries the
-    # retry/backoff and the "no --jq inside gh" house rule (#1017) - re-rolling a
-    # bare subprocess call here would reintroduce the raw-jq path that produces
-    # the phantom-key empty-with-exit-0 in the first place.
+    # gh_client.gh carries the retry/backoff and the "no --jq inside gh" house
+    # rule (#1017); re-rolling a bare subprocess call here would reintroduce the
+    # raw-jq path that produces the phantom-key empty-with-exit-0.
     #
-    # Identity comparison is impossible across two by-path loads (each exec makes
-    # a fresh function object), so pin what actually matters: it resolves to
-    # gh_client's `gh`, not some locally re-rolled subprocess call.
+    # Identity comparison is impossible across two by-path loads, so pin what
+    # matters: it resolves to gh_client's `gh`.
     resolved = bi._default_gh()
 
     assert resolved.__name__ == "gh"
@@ -211,32 +249,46 @@ def test_defaults_to_the_hardened_gh_client():
     )
 
 
-def test_unexpected_response_shape_raises_a_board_lookup_error():
-    # A wrong owner/project number returns projectV2: null. Without this the
-    # caller gets a bare TypeError from deep inside a dict walk.
-    gh = _fake_gh([{"data": {"user": {"projectV2": None}}}])
-
-    with pytest.raises(bi.BoardLookupError):
-        bi.resolve_board_item_id(1151, _gh=gh)
-
-
 # ---------------------------------------------------------------------------
-# AC-4: pin the live-API schema facts this helper exists to work around.
-#
-# These are the facts that made the defect invisible. If GitHub ever changes
-# them the workaround should be revisited - in EITHER direction. If `id` starts
-# appearing under `gh issue view --json projectItems`, the one-call join gets
-# simpler and these tests should fail loudly to tell us so, rather than leaving
-# a now-unnecessary paginating helper in place forever.
-#
-# Live-gated: they skip without a `read:project`-scoped gh, matching the
-# tools/ci convention rather than inventing a second one.
+# AC-4: pin the live-API facts this helper depends on, so a schema change fails
+# loudly instead of silently. Live-gated, matching the tools/ci convention.
 # ---------------------------------------------------------------------------
 
 
 def _gh_json(*args):
     out = subprocess.run(["gh", *args], capture_output=True, text=True, check=True)
     return json.loads(out.stdout)
+
+
+@REQUIRES_LIVE_GH
+@pytest.mark.live
+def test_live_schema_archived_defaults_still_differ_between_the_two_paths():
+    # The fact the whole design rests on. If `ProjectV2.items` ever defaults to
+    # including archived, or `Issue.projectItems` stops doing so, revisit.
+    payload = _gh_json(
+        "api", "graphql", "-f",
+        'query={ i: __type(name:"Issue"){ fields{ name args{ name defaultValue } } } '
+        'p: __type(name:"ProjectV2"){ fields{ name args{ name defaultValue } } } }',
+    )
+
+    def _args(type_payload, field):
+        return {
+            a["name"]: a["defaultValue"]
+            for f in type_payload["fields"] if f["name"] == field
+            for a in f["args"]
+        }
+
+    issue_args = _args(payload["data"]["i"], "projectItems")
+    project_args = _args(payload["data"]["p"], "items")
+
+    assert issue_args.get("includeArchived") == "true", (
+        "Issue.projectItems no longer includes archived cards by default; "
+        "board_item.py would start missing archived items"
+    )
+    assert project_args.get("archivedStates") == "[NOT_ARCHIVED]", (
+        "ProjectV2.items archived default changed; the board-scan blind spot "
+        "documented in this module may no longer apply"
+    )
 
 
 @REQUIRES_LIVE_GH
@@ -250,43 +302,46 @@ def test_live_schema_gh_issue_view_still_has_no_board_item_id():
     keys = set(payload["projectItems"][0])
 
     assert "id" not in keys, (
-        "gh issue view --json projectItems now exposes 'id'. The phantom-key "
-        f"workaround in board_item.py may be simplifiable. Keys seen: {sorted(keys)}"
+        "gh issue view --json projectItems now exposes 'id'; the workaround in "
+        f"board_item.py may be simplifiable. Keys seen: {sorted(keys)}"
     )
 
 
 @REQUIRES_LIVE_GH
 @pytest.mark.live
-def test_live_schema_project_item_list_joins_item_id_to_issue_number():
-    payload = _gh_json(
-        "project", "item-list", "9",
-        "--owner", "Jin-HoMLee", "--format", "json", "--limit", "5",
-    )
-    item = payload["items"][0]
-
-    # The join that DOES work in one call (the Issue's correction to its parent).
-    assert "id" in item
-    assert "number" in item["content"]
-    # ...and the key that is genuinely phantom.
-    assert "id" not in item["content"], (
-        "gh project item-list now returns content.id; revisit board_item.py"
-    )
+def test_live_resolves_an_archived_card_the_board_scan_could_not():
+    # End-to-end proof against real data: #569 is archived on board 9.
+    assert bi.resolve_board_item_id(569) == "PVTI_lAHOB17eGc4BSomPzguPpXg"
 
 
 @REQUIRES_LIVE_GH
 @pytest.mark.live
-def test_live_resolver_agrees_with_an_independent_source():
-    # Differential oracle: resolve via our paginating GraphQL helper, and via the
-    # unrelated `gh project item-list` path. Two independent routes to the same
-    # id. A silent no-op in either shows up as disagreement rather than as a
-    # confident wrong answer.
-    ours = bi.resolve_board_item_id(1151)
-
-    payload = _gh_json(
-        "project", "item-list", "9",
-        "--owner", "Jin-HoMLee", "--format", "json", "--limit", "1000",
+def test_live_cross_repo_collision_resolves_distinctly():
+    # #37 exists as an ISSUE in both repos, both carded on board 9. A complete
+    # board read (1,453 items, archived included) found 56 such numbers - the
+    # collision is substantial, and invisible in an unarchived-only view.
+    #
+    # Note the number matters: an earlier draft used #183, which is an Issue in
+    # the pipeline repo but a PULL REQUEST in personas. Numbers are shared
+    # between issues and PRs, so a "collision" found by scanning board content
+    # numbers is not necessarily an Issue/Issue collision.
+    pipeline = bi.resolve_board_item_id(37, repo="Jin-HoMLee/splice-neoepitope-pipeline")
+    personas = bi.resolve_board_item_id(
+        37, repo="Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
     )
-    theirs = [i["id"] for i in payload["items"] if i["content"].get("number") == 1151]
 
-    assert theirs, "independent source could not find #1151; the oracle itself is broken"
-    assert ours == theirs[0]
+    assert pipeline != personas
+
+
+@REQUIRES_LIVE_GH
+@pytest.mark.live
+def test_live_pull_request_number_is_a_lookup_error_not_a_missing_card():
+    # repository.issue(N) is Issue-only, so a PR number cannot resolve. That must
+    # read as "I cannot answer" rather than "it has no card" - personas #183 is a
+    # PR and is genuinely carded on board 9.
+    with pytest.raises(bi.BoardLookupError) as exc:
+        bi.resolve_board_item_id(
+            183, repo="Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
+        )
+
+    assert not isinstance(exc.value, bi.BoardItemNotFound)

@@ -48,6 +48,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _shell_parse  # noqa: E402
 import graphql_meter  # noqa: E402
 
+
+def _load_board_item():
+    """Load the shared board-item resolver (Issue #1151) by explicit path.
+
+    Not via ``sys.path.insert``: ``scripts/pm`` holds names that collide with
+    other modules (``recheck_parent_status``), and prepending it here would
+    shadow them for anything this hook's process later imports.
+    """
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "pm" / "board_item.py"
+    spec = importlib.util.spec_from_file_location("board_item", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+board_item = _load_board_item()
+
 # Project #9 ("JH M Lee Lab") - user-level project, IDs stable + repo-independent
 # (same values as post_gh_pr_create.py / recheck_dispatch.py).
 PROJECT_ID = "PVT_kwHOB17eGc4BSomP"
@@ -246,25 +265,22 @@ def _item_and_status(
     same-numbered pipeline issue (`closingIssuesReferences` is same-repo-only, so
     a personas PR's linked numbers are personas numbers).
     """
-    query = (
-        'query { repository(owner: "' + owner + '", name: "' + repo + '") '
-        '{ ' + kind + '(number: ' + str(number) + ') { projectItems(first: 10) { nodes { '
-        'id project { number } fieldValues(first: 20) { nodes { '
-        '... on ProjectV2ItemFieldSingleSelectValue { name field { '
-        '... on ProjectV2FieldCommon { name } } } } } } } } } }'
-    )
-    res = _gh("api", "graphql", "-f", f"query={query}")
-    data = json.loads(res.stdout)
-    node = ((data.get("data") or {}).get("repository") or {}).get(kind) or {}
-    for item in (node.get("projectItems") or {}).get("nodes") or []:
-        if ((item.get("project") or {}).get("number")) != PROJECT_NUMBER:
-            continue
-        item_id = item.get("id")
-        for fv in (item.get("fieldValues") or {}).get("nodes") or []:
-            if fv and (fv.get("field") or {}).get("name") == "Status":
-                return item_id, fv.get("name")
-        return item_id, None
-    return None, None
+    # Delegates to the shared assert-before-write resolver (Issue #1151) rather
+    # than re-rolling this query, which is how two roles independently shipped
+    # the same silent no-op. The helper RAISES instead of returning empty, so a
+    # "not carded" answer can never be confused with "I could not tell".
+    #
+    # The (None, None) contract is preserved deliberately: a PostToolUse hook
+    # must FAIL OPEN. Every lookup failure degrades to "do not flip the card",
+    # exactly as before - the gain is that the helper cannot silently answer
+    # "no card" for an archived one, which the old first:10 query could not
+    # distinguish either.
+    try:
+        return board_item.resolve_board_item(
+            number, repo=f"{owner}/{repo}", kind=kind, project_number=PROJECT_NUMBER
+        )
+    except board_item.BoardLookupError:
+        return None, None
 
 
 def _set_status(item_id: str, option_id: str) -> None:
