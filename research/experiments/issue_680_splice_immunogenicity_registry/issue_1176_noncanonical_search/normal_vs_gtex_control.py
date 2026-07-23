@@ -83,8 +83,12 @@ def _run(tag, junction_files, manifest_rows):
     counts = {}
     with open(stats) as fh:
         for row in csv.DictReader(fh, delimiter="\t"):
-            # stats values are emitted as floats; the funnel is integral
-            counts[row["category"]] = int(float(row["count"]))
+            # Stats values are all emitted as floats. Only the FUNNEL categories
+            # are integral counts; the descriptive rows (min/mean/median/max
+            # reads) are genuinely fractional, so int-casting them would record a
+            # wrong number (mean_reads 1.205 -> 1).
+            value = float(row["count"])
+            counts[row["category"]] = int(value) if row["category"] in FUNNEL else value
     with open(out) as fh:
         rows = {r["junction_id"]: r for r in csv.DictReader(fh, delimiter="\t")}
     return counts, rows

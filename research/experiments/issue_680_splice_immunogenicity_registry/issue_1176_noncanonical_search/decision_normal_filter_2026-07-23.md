@@ -55,6 +55,7 @@ Two structural points worth carrying forward:
    Reading those historical counts as an estimate of standalone GTEx performance would have been wrong; that is why this measurement flips the arm rather than reusing an existing run.
 2. **On this data GTEx does roughly seven times more filtering work than the matched normal.**
    Of the 234 junctions surviving the depth gate, the matched normal removes 4 (1.7%) and GTEx removes 29 (12.4%).
+   Note this is a within-run-A partition, so the 29 is GTEx's *marginal* count with the normal also active; standalone in run B it is 32, per point 1 above.
    The matched normal is the finer instrument, not the heavier one.
 
 ## Honest limitations
