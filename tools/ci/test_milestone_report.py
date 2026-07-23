@@ -32,9 +32,10 @@ def _issue(number, state, created_at, closed_at, roles, state_reason=None, label
     ``state_reason`` mirrors GitHub's ``stateReason`` (COMPLETED / NOT_PLANNED /
     None for open issues); a closed issue with no reason is treated as delivered.
 
-    ``labels`` carries the raw label names; the arrival axis (Issue #811) reads the
-    ``unplanned`` marker off it. Defaults to empty, so an issue with no labels is
-    committed work - which is what every pre-#811 fixture in this file relies on.
+    ``labels`` carries the raw label names. The arrival axis (Issue #811) no longer
+    reads a label: since the ``unplanned`` marker was retired (Issue #1211) arrival is
+    read from the OBSERVED commitment act - a delivered issue with ``committed_at`` is
+    committed, one without it is unplanned. Set ``committed_at`` on a fixture directly.
     """
     return {
         "number": number,
@@ -206,7 +207,6 @@ class TestComputeMetrics:
         m = mr.compute_metrics(
             SAMPLE,
             {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
-            marker_in_use=True,
         )
         assert m["n_total"] == 4
         assert m["n_closed"] == 3
@@ -225,7 +225,6 @@ class TestComputeMetrics:
         m = mr.compute_metrics(
             MIXED,
             {"created_at": "2026-06-01T00:00:00Z", "closed_at": "2026-06-08T00:00:00Z"},
-            marker_in_use=True,
         )
         assert m["n_closed"] == 4
         assert m["n_delivered"] == 2
@@ -243,12 +242,11 @@ class TestComputeMetrics:
         # delivered + descoped always exactly partitions closed.
         m = mr.compute_metrics(
             MIXED, {"created_at": None, "closed_at": "2026-06-08T00:00:00Z"},
-            marker_in_use=True,
         )
         assert m["n_delivered"] + m["n_descoped"] == m["n_closed"]
 
     def test_empty_milestone_degrades(self):
-        m = mr.compute_metrics([], {"created_at": None, "closed_at": None}, marker_in_use=True)
+        m = mr.compute_metrics([], {"created_at": None, "closed_at": None})
         assert m["n_total"] == m["n_closed"] == m["n_carried_forward"] == 0
         assert m["n_delivered"] == m["n_descoped"] == 0
         assert m["duration_days"] is None
@@ -306,7 +304,7 @@ class TestClosedInWindow:
 
 class TestWeeklySeries:
     def test_trend_buckets_and_medians(self):
-        s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4, marker_in_use=True)
+        s = mr.weekly_series(WINDOW_ISSUES, UNTIL, 4)
         assert [w["n_delivered"] for w in s] == [1, 0, 1, 2]   # w1, w2(empty), w3, w4
         assert s[1]["median_lead_time_days"] is None          # empty week -> None
         assert s[0]["median_lead_time_days"] == pytest.approx(2.0)   # #5
@@ -321,7 +319,7 @@ class TestComputeWindowMetrics:
     def test_headline_over_reporting_week_plus_trend(self):
         week_issues = mr.closed_in_window(
             WINDOW_ISSUES, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
-        m = mr.compute_window_metrics(week_issues, WINDOW_ISSUES, UNTIL, 4, marker_in_use=True)
+        m = mr.compute_window_metrics(week_issues, WINDOW_ISSUES, UNTIL, 4)
         assert m["n_total"] == 3            # #1, #2, #4 closed in the reporting week
         assert m["n_delivered"] == 2        # #1, #2 (descoped #4 excluded)
         assert m["n_descoped"] == 1         # #4 NOT_PLANNED
@@ -337,7 +335,7 @@ class TestComputeWindowMetrics:
         old = [_issue(20, "CLOSED", "2026-06-08T00:00:00Z", "2026-06-10T00:00:00Z", ["role:pm"], "COMPLETED")]
         week_issues = mr.closed_in_window(
             old, datetime(2026, 6, 26, tzinfo=timezone.utc), UNTIL)
-        m = mr.compute_window_metrics(week_issues, old, UNTIL, 4, marker_in_use=True)
+        m = mr.compute_window_metrics(week_issues, old, UNTIL, 4)
         # main() gates the zero-ship skip on n_total == 0 (nothing closed in the
         # reporting week); delivered is 0 and cycle time is undefined.
         assert m["n_total"] == 0
@@ -501,87 +499,104 @@ class TestSeedScoping:
 # --- arrival axis: committed vs unplanned (Issue #811) -----------------------
 
 # The matched pair the AC asks for: same window, same delivered status, one
-# variable flipped (the `unplanned` marker) and opposite expected sides of the
-# split. Plus a descoped-and-unplanned issue, which must land on NEITHER side -
-# the breakdown keys off *delivered*, so a not-planned close is not shipped work
-# no matter how it arrived.
+# variable flipped (did it cross Backlog -> Ready) and opposite expected sides of
+# the split. Plus a descoped issue, which must land on NEITHER side - the breakdown
+# keys off *delivered*, so a not-planned close is not shipped work no matter how it
+# arrived.
+#
+# Arrival is read from the OBSERVED commitment act (`committed_at`), not the retired
+# hand-applied `unplanned` label (Issue #1211): a delivered item that crossed into
+# Ready is committed; one that never did is unplanned.
 ARRIVAL = [
     _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
-           ["role:pm"], "COMPLETED"),                                    # committed
+           ["role:pm"], "COMPLETED"),                                    # committed (committed_at set below)
     _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
-           ["role:pm"], "COMPLETED", ["unplanned"]),                     # unplanned
+           ["role:pm"], "COMPLETED"),                                    # unplanned: never committed
     _issue(3, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-04T00:00:00Z",
-           ["role:dev"], "NOT_PLANNED", ["unplanned"]),                  # descoped: neither
+           ["role:dev"], "NOT_PLANNED"),                                 # descoped: neither
     _issue(4, "OPEN", "2026-06-02T00:00:00Z", None, ["role:pm"]),        # open: neither
 ]
+ARRIVAL[0]["committed_at"] = "2026-06-02T00:00:00Z"                      # #1 crossed Backlog -> Ready
 
 
 class TestArrivalAxis:
     def test_matched_pair_lands_on_opposite_sides(self):
-        # Identical but for the marker -> opposite sides. This is the control:
-        # if the marker were ignored, both would land as committed and this fails.
-        b = mr.throughput_breakdown(ARRIVAL, marker_in_use=True)
+        # Identical but for the commitment act -> opposite sides. This is the control:
+        # if the observed axis were ignored, both would land the same and this fails.
+        b = mr.throughput_breakdown(ARRIVAL)
         assert b["n_committed"] == 1
         assert b["n_unplanned"] == 1
 
-    def test_descoped_unplanned_counts_on_neither_side(self):
-        # #3 carries the marker but closed NOT_PLANNED. It is not shipped work,
-        # so it must not inflate the unplanned count - otherwise the "unplanned
-        # share" would be measuring abandoned work, not absorbed capacity.
-        b = mr.throughput_breakdown(ARRIVAL, marker_in_use=True)
+    def test_descoped_counts_on_neither_side(self):
+        # #3 closed NOT_PLANNED. It is not shipped work, so it must not inflate either
+        # side - otherwise the split would be measuring abandoned work, not capacity.
+        b = mr.throughput_breakdown(ARRIVAL)
         assert b["n_committed"] + b["n_unplanned"] == len(mr.delivered_issues(ARRIVAL)) == 2
 
     def test_pct_unplanned(self):
-        assert mr.throughput_breakdown(ARRIVAL, marker_in_use=True)["pct_unplanned"] == pytest.approx(50.0)
+        assert mr.throughput_breakdown(ARRIVAL)["pct_unplanned"] == pytest.approx(50.0)
 
     def test_pct_is_none_not_zero_on_empty_window(self):
         # A zero-ship week must read as "no data", not as a truthful-looking 0%
         # unplanned - the latter would be a number the WIP retune could act on.
-        assert mr.throughput_breakdown([], marker_in_use=True)["pct_unplanned"] is None
+        assert mr.throughput_breakdown([])["pct_unplanned"] is None
 
-    def test_unlabelled_issue_is_committed(self):
-        # Guards the back-compat assumption every pre-#811 fixture leans on.
-        assert mr.is_unplanned(_issue(9, "CLOSED", None, None, [])) is False
+    def test_delivered_without_commitment_act_is_unplanned(self):
+        # The observed axis, directly: a delivered item that never crossed into Ready
+        # is unplanned; one that did is committed. No label involved (Issue #1211).
+        committed = _issue(8, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+                           ["role:pm"], "COMPLETED")
+        committed["committed_at"] = "2026-06-02T00:00:00Z"
+        barged = _issue(9, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+                        ["role:pm"], "COMPLETED")   # never committed
+        b = mr.throughput_breakdown([committed, barged])
+        assert (b["n_committed"], b["n_unplanned"]) == (1, 1)
 
-    def test_priority_cannot_substitute_for_the_marker(self):
-        # The whole premise of #811: urgency and arrival are orthogonal. A P2
-        # unplanned fix and a P1 committed item are indistinguishable by band,
-        # so the split must key off the marker and nothing else.
+    def test_priority_cannot_substitute_for_the_arrival_axis(self):
+        # The premise of #811, unchanged by #1211: urgency and arrival are orthogonal.
+        # A P2 unplanned fix and a P1 committed item are indistinguishable by band, so
+        # the split must key off the commitment act and nothing else.
         p1_committed = _issue(10, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z",
                               ["role:pm"], "COMPLETED", ["P1"])
+        p1_committed["committed_at"] = "2026-06-01T12:00:00Z"
         p2_unplanned = _issue(11, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z",
-                              ["role:pm"], "COMPLETED", ["P2", "unplanned"])
-        b = mr.throughput_breakdown([p1_committed, p2_unplanned], marker_in_use=True)
+                              ["role:pm"], "COMPLETED", ["P2"])   # never committed
+        b = mr.throughput_breakdown([p1_committed, p2_unplanned])
         assert (b["n_committed"], b["n_unplanned"]) == (1, 1)
 
     def test_metrics_carry_the_split(self):
-        m = mr.compute_metrics(ARRIVAL, {"closed_at": None, "created_at": None}, marker_in_use=True)
+        m = mr.compute_metrics(ARRIVAL, {"closed_at": None, "created_at": None})
         assert m["n_committed"] == 1 and m["n_unplanned"] == 1
         assert m["pct_unplanned"] == pytest.approx(50.0)
 
     def test_weekly_series_carries_the_split(self):
         until = datetime(2026, 6, 8, tzinfo=timezone.utc)
-        series = mr.weekly_series(ARRIVAL, until, 1, marker_in_use=True)
+        series = mr.weekly_series(ARRIVAL, until, 1)
         assert series[0]["n_committed"] == 1
         assert series[0]["n_unplanned"] == 1
         # Conservation: the split must exactly partition the delivered count.
         assert series[0]["n_committed"] + series[0]["n_unplanned"] == series[0]["n_delivered"]
 
 
-# --- the marker's OWN falsifier (Issue #1180) --------------------------------
+# --- the arrival axis's OWN falsifier (Issue #1180, preserved through #1211) --
 
-# A window of delivered work in which NOT ONE issue carries the marker. From this
-# list alone, two completely different worlds are information-theoretically
-# identical:
-#   (a) the marker IS in use, and we genuinely absorbed no unplanned work -> a real 0%
-#   (b) the marker was NEVER applied to anything                          -> 0% is a fiction
-# The list cannot tell them apart. Only the injected `marker_in_use` fact can.
-NO_MARKER_ANYWHERE = [
-    _issue(1, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
-           ["role:pm"], "COMPLETED"),
-    _issue(2, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
-           ["role:dev"], "COMPLETED"),
-]
+# Two delivered items that BOTH crossed Backlog -> Ready (they carry ``committed_at``).
+# Since the hand-applied ``unplanned`` label was retired (#1211), the guard is no longer
+# "is the label in use?" but "could we READ the commitment history?" - and the same #1180
+# fabrication lurks one axis over. From the list alone, two worlds are identical:
+#   (a) history readable, both committed  -> a real 0% unplanned
+#   (b) the commitment fetch failed        -> 0% is a fiction
+# Only the per-issue ``commitments_available`` flag can tell them apart.
+def _committed_delivered(n, available):
+    i = _issue(n, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-03T00:00:00Z",
+               ["role:pm"], "COMPLETED")
+    i["committed_at"] = "2026-06-02T00:00:00Z"
+    i["commitments_available"] = available
+    return i
+
+
+ALL_COMMITTED = [_committed_delivered(1, True), _committed_delivered(2, True)]
+COMMITMENTS_UNREADABLE = [_committed_delivered(1, False), _committed_delivered(2, False)]
 
 # Built from codepoints, not typed: this file must CONTAIN no em/en dash (the repo
 # guard rejects one on sight) while still asserting their absence elsewhere.
@@ -589,67 +604,62 @@ EM_DASH = chr(0x2014)
 EN_DASH = chr(0x2013)
 
 
-class TestMarkerNotInUse:
-    """The metric's own falsifier: a 0% that could only ever come back one way.
+class TestCommitmentsUnavailableIsUnclassifiable:
+    """The arrival axis's own falsifier: a 0% that could only ever come back one way.
 
-    Before Issue #1180 the SDR printed a clean, confident `25 / 0 (0% unplanned)` on
-    every weekly row - while `gh issue list --label unplanned --state all` returned
-    ZERO issues repo-wide. The label had never been applied to anything. The
-    measurement shipped; the thing being measured did not.
+    The ``unplanned`` label is gone (#1211); arrival is read from the observed commitment
+    history. So the #1180 disease moves one axis over: when that history cannot be READ, a
+    confident ``2 committed / 0 unplanned (0%)`` would again be a measurement wearing a
+    fabrication's clothes. The guard is now the derived ``commitments_available``, not an
+    injected ``marker_in_use`` - it is read from the data, so a new call site cannot forget
+    to decide (the reason the old kwarg was required is now structural).
     """
 
-    def test_matched_pair_real_zero_vs_fabricated_zero(self):
+    def test_matched_pair_real_zero_vs_unreadable_history(self):
         """THE test. Identical input, one fact flipped, opposite outputs.
 
         Without this pair the fix is unfalsifiable - which is precisely the disease
         being cured, so shipping the cure without it would be self-refuting.
         """
-        real_zero = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=True)
-        fabricated = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=False)
+        real_zero = mr.throughput_breakdown(ALL_COMMITTED)
+        fabricated = mr.throughput_breakdown(COMMITMENTS_UNREADABLE)
 
-        # In use + nobody was unplanned -> a genuine, hard-won zero. Report it.
+        # History readable + both committed -> a genuine, hard-won zero. Report it.
         assert real_zero["pct_unplanned"] == pytest.approx(0.0)
         assert real_zero["n_committed"] == 2
         assert real_zero["n_unclassifiable"] == 0
+        assert real_zero["commitments_available"] is True
 
-        # Not in use -> the SAME list means nothing. Refuse to print a number.
+        # History unreadable -> the SAME list means nothing. Refuse to print a number.
         assert fabricated["pct_unplanned"] is None
         assert fabricated["n_committed"] is None, (
             "'2 committed' is the same false assertion as '0% unplanned', one column over"
         )
         assert fabricated["n_unplanned"] is None
         assert fabricated["n_unclassifiable"] == 2, "the degraded input must be VISIBLE"
-
-    def test_marker_in_use_is_zero_vs_nonzero_on_the_repo_count(self):
-        assert mr.is_marker_in_use(0) is False
-        assert mr.is_marker_in_use(1) is True
+        assert fabricated["commitments_available"] is False
 
     def test_the_two_none_worlds_stay_distinguishable(self):
-        """`pct_unplanned is None` now has two causes; they must not collapse.
+        """`pct_unplanned is None` has two causes; they must not collapse.
 
-        Empty window (no delivered work) and marker-not-in-use both yield None, but
-        they are different failures and the report says different things about them -
-        so the `marker_in_use` flag has to survive into the metrics dict.
+        Empty window (no delivered work) and unreadable-history both yield None, but they
+        are different failures and the report says different things about them - so the
+        `commitments_available` flag has to survive into the metrics dict.
         """
-        empty_window = mr.throughput_breakdown([], marker_in_use=True)
+        empty_window = mr.throughput_breakdown([])
         assert empty_window["pct_unplanned"] is None
-        assert empty_window["marker_in_use"] is True
+        assert empty_window["commitments_available"] is True
         assert empty_window["n_committed"] == 0     # honestly zero: there IS no work
 
-        not_in_use = mr.throughput_breakdown(NO_MARKER_ANYWHERE, marker_in_use=False)
-        assert not_in_use["pct_unplanned"] is None
-        assert not_in_use["marker_in_use"] is False
-        assert not_in_use["n_committed"] is None    # unknowable: there IS work, unclassified
-
-    def test_marker_in_use_is_a_required_keyword(self):
-        """A default would let a new call site silently fabricate. It must decide."""
-        with pytest.raises(TypeError):
-            mr.throughput_breakdown(NO_MARKER_ANYWHERE)
+        unreadable = mr.throughput_breakdown(COMMITMENTS_UNREADABLE)
+        assert unreadable["pct_unplanned"] is None
+        assert unreadable["commitments_available"] is False
+        assert unreadable["n_committed"] is None    # unknowable: there IS work, unclassified
 
     def test_weekly_series_propagates_unclassifiable(self):
-        """The fabricated 0% appeared in EVERY trend row, not just the headline card."""
+        """The fabricated 0% would appear in EVERY trend row, not just the headline card."""
         until = datetime(2026, 6, 8, tzinfo=timezone.utc)
-        series = mr.weekly_series(NO_MARKER_ANYWHERE, until, 1, marker_in_use=False)
+        series = mr.weekly_series(COMMITMENTS_UNREADABLE, until, 1)
         assert series[0]["pct_unplanned"] is None
         assert series[0]["n_committed"] is None
         assert series[0]["n_unclassifiable"] == 2
@@ -657,32 +667,26 @@ class TestMarkerNotInUse:
     def test_console_trend_row_never_leaks_a_none_sentinel(self):
         """The RENDERED row, not just the metrics dict.
 
-        `n_committed=None` is honest in the data, but the console loop f-stringed it
-        straight out as the literal `[None+None]` on every row. Asserting on the dict
-        (the test above) passes happily while the human-facing output is garbage - so
-        this one asserts on what a person actually reads.
-
-        It survived my own live check because that check grepped the output for
-        `arrival` - the line I had just fixed. A verification aimed only at what you
-        changed cannot show you what you missed.
+        `n_committed=None` is honest in the data, but the console loop f-strings it
+        straight out as the literal `[None+None]`. Asserting on the dict passes happily
+        while the human-facing output is garbage - so this asserts on what a person reads.
         """
         until = datetime(2026, 6, 8, tzinfo=timezone.utc)
-        series = mr.weekly_series(NO_MARKER_ANYWHERE, until, 1, marker_in_use=False)
+        series = mr.weekly_series(COMMITMENTS_UNREADABLE, until, 1)
 
         rendered = mr._fmt_arrival(series[0])
         assert "None" not in rendered, "internal sentinel leaked into a human-facing row"
         assert rendered == "unclassifiable"
 
-    def test_console_trend_row_still_shows_the_split_when_in_use(self):
-        """Matched pair: same row, marker in use -> the real split, not 'unclassifiable'."""
+    def test_console_trend_row_shows_the_split_when_history_readable(self):
+        """Matched pair: same row, history readable -> the real split, not 'unclassifiable'."""
         until = datetime(2026, 6, 8, tzinfo=timezone.utc)
-        series = mr.weekly_series(ARRIVAL, until, 1, marker_in_use=True)
+        series = mr.weekly_series(ARRIVAL, until, 1)
         assert mr._fmt_arrival(series[0]) == "1+1"
 
     def test_compute_metrics_propagates_unclassifiable(self):
-        m = mr.compute_metrics(NO_MARKER_ANYWHERE, {"closed_at": None, "created_at": None},
-                               marker_in_use=False)
-        assert m["marker_in_use"] is False
+        m = mr.compute_metrics(COMMITMENTS_UNREADABLE, {"closed_at": None, "created_at": None})
+        assert m["commitments_available"] is False
         assert m["pct_unplanned"] is None
         assert m["n_unclassifiable"] == 2
         # The delivered headline is unaffected - we know WHAT shipped, not how it arrived.
@@ -784,7 +788,7 @@ class TestCommitmentFetchFailureIsUnknownNotZero:
     def test_metrics_render_never_committed_as_none_when_unavailable(self):
         m = mr.compute_metrics(
             [self._delivered(1, available=False)],
-            {"closed_at": None, "created_at": None}, marker_in_use=True)
+            {"closed_at": None, "created_at": None})
         assert m["commitments_available"] is False
         assert m["n_never_committed"] is None, "a count here would be a fabricated caveat"
         assert m["avg_cycle_time_days"] is None, "cycle time is unknown too, not zero"
@@ -793,7 +797,7 @@ class TestCommitmentFetchFailureIsUnknownNotZero:
         """Matched pair to the above: same shape, fetch succeeded -> report the number."""
         m = mr.compute_metrics(
             [self._delivered(1, available=True)],
-            {"closed_at": None, "created_at": None}, marker_in_use=True)
+            {"closed_at": None, "created_at": None})
         assert m["commitments_available"] is True
         assert m["n_never_committed"] == 1
 
@@ -809,138 +813,6 @@ class TestCommitmentFetchFailureIsUnknownNotZero:
         """
         mixed = [self._delivered(1, available=True), self._delivered(2, available=False)]
         assert mr.commitments_available(mixed) is False
-
-
-class TestMarkerSlip:
-    """The hand-applied `unplanned` LABEL cross-checked against the OBSERVED arrival
-    signal (never crossed Backlog -> Ready). Issue #1188.
-
-    Two independent measures of the same fact - "did this delivered item arrive
-    unplanned?":
-      - observed:  it has no ``committed_at`` (never entered `Ready`) - recorded by
-                   GitHub for free, cannot be forgotten.
-      - labelled:  someone applied the ``unplanned`` label at close - hand-maintained.
-
-    A forgotten label is indistinguishable from committed work, so the label biases the
-    unplanned share DOWNWARD. Their DISAGREEMENT is the deliverable:
-      - ``n_slip``:        observed-unplanned AND unlabelled (the under-report #1144 predicted).
-      - ``n_mislabelled``: labelled AND observably committed (the opposite error).
-      - ``n_agree``:       observed-unplanned AND labelled.
-    """
-
-    def _d(self, n, committed=None, unplanned=False, available=True):
-        labels = ["unplanned"] if unplanned else []
-        i = _issue(n, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
-                   ["role:pm"], "COMPLETED", labels)
-        if committed:
-            i["committed_at"] = committed
-        i["commitments_available"] = available
-        return i
-
-    def test_matched_pair_agree_vs_slip(self):
-        """THE control: two observably-unplanned items, ONLY the label flipped.
-
-        Both never crossed `Ready`, so both are observably unplanned. One carries the
-        label (agree), one does not (the slip). If the cross-check ignored the label,
-        both would land the same and this fails.
-        """
-        agree = self._d(1, committed=None, unplanned=True)
-        slip = self._d(2, committed=None, unplanned=False)
-        m = mr.marker_slip([agree, slip])
-        assert m["available"] is True
-        assert m["n_observed_unplanned"] == 2   # both never committed
-        assert m["n_labelled_unplanned"] == 1   # only #1 carries the label
-        assert m["n_slip"] == 1                  # #2: observed-unplanned but unlabelled
-        assert m["n_agree"] == 1                 # #1: observed-unplanned and labelled
-        assert m["n_mislabelled"] == 0
-
-    def test_mislabelled_is_labelled_but_observably_committed(self):
-        """The symmetric error: the label is applied, but the item DID cross the commitment act."""
-        mislabelled = self._d(1, committed="2026-06-02T00:00:00Z", unplanned=True)
-        clean = self._d(2, committed="2026-06-02T00:00:00Z", unplanned=False)
-        m = mr.marker_slip([mislabelled, clean])
-        assert m["n_observed_unplanned"] == 0   # both committed
-        assert m["n_mislabelled"] == 1          # #1: labelled yet committed
-        assert m["n_slip"] == 0
-        assert m["n_agree"] == 0
-
-    def test_aggregate_share_agreement_does_not_mean_per_item_fidelity(self):
-        """Why the cross-check earns its keep: the two shares can MATCH while the label
-        is wrong on every item.
-
-        4 delivered: #1 observed-unplanned+labelled (agree), #2 observed-unplanned+unlabelled
-        (slip), #3 committed+labelled (mislabelled), #4 committed+unlabelled (clean). Observed
-        share = 2/4 = labelled share = 2/4 - identical in aggregate, yet two of the four items
-        are classified WRONGLY by the label. A share comparison alone would call this clean.
-        """
-        issues = [
-            self._d(1, committed=None, unplanned=True),
-            self._d(2, committed=None, unplanned=False),
-            self._d(3, committed="2026-06-02T00:00:00Z", unplanned=True),
-            self._d(4, committed="2026-06-02T00:00:00Z", unplanned=False),
-        ]
-        m = mr.marker_slip(issues)
-        assert m["n_delivered"] == 4
-        assert m["observed_pct"] == pytest.approx(50.0)
-        assert m["labelled_pct"] == pytest.approx(50.0)
-        assert m["n_slip"] == 1        # #2
-        assert m["n_mislabelled"] == 1 # #3
-        assert m["n_agree"] == 1       # #1
-
-    def test_marker_never_applied_is_total_slip(self):
-        """The live 2026-07 finding, as a fixture: observed-unplanned items exist, but NOT
-        ONE carries the label -> every one is a slip and the label reports zero."""
-        issues = [self._d(1, committed=None, unplanned=False),
-                  self._d(2, committed=None, unplanned=False),
-                  self._d(3, committed="2026-06-02T00:00:00Z", unplanned=False)]
-        m = mr.marker_slip(issues)
-        assert m["n_observed_unplanned"] == 2
-        assert m["n_labelled_unplanned"] == 0   # the label reports zero...
-        assert m["n_slip"] == 2                  # ...while two observably slipped
-        assert m["n_agree"] == 0
-
-    def test_unavailable_commitments_is_unknown_never_folded(self):
-        """Matched pair to ``test_matched_pair_agree_vs_slip``: same issues, but the
-        commitment fetch failed. The observed axis is then unknown, so slip is unknown -
-        NOT zero, NOT the whole population (the #1180 / #1185 fabrication class)."""
-        died = [self._d(1, committed=None, unplanned=True, available=False),
-                self._d(2, committed=None, unplanned=False, available=False)]
-        m = mr.marker_slip(died)
-        assert m["available"] is False
-        assert m["n_observed_unplanned"] is None
-        assert m["n_labelled_unplanned"] is None
-        assert m["n_slip"] is None
-        assert m["n_mislabelled"] is None
-        assert m["n_agree"] is None
-        assert m["observed_pct"] is None
-        assert m["labelled_pct"] is None
-        # delivered is still known - we know WHAT shipped, not how it arrived.
-        assert m["n_delivered"] == 2
-
-    def test_descoped_never_counted(self):
-        """Keys off DELIVERED: a descoped close is not shipped work, however it arrived."""
-        descoped = _issue(9, "CLOSED", "2026-06-01T00:00:00Z", "2026-06-05T00:00:00Z",
-                          ["role:pm"], "NOT_PLANNED", ["unplanned"])
-        descoped["commitments_available"] = True
-        m = mr.marker_slip([descoped])
-        assert m["n_delivered"] == 0
-        assert m["n_observed_unplanned"] == 0
-        assert m["n_slip"] == 0
-
-    def test_metrics_carry_the_cross_check(self):
-        agree = self._d(1, committed=None, unplanned=True)
-        slip = self._d(2, committed=None, unplanned=False)
-        m = mr.compute_metrics([agree, slip], {"closed_at": None, "created_at": None},
-                               marker_in_use=True)
-        assert m["marker_slip"]["n_slip"] == 1
-        assert m["marker_slip"]["n_agree"] == 1
-
-    def test_window_metrics_carry_the_cross_check(self):
-        agree = self._d(1, committed=None, unplanned=True)
-        slip = self._d(2, committed=None, unplanned=False)
-        week = [agree, slip]
-        m = mr.compute_window_metrics(week, week, UNTIL, 1, marker_in_use=True)
-        assert m["marker_slip"]["n_slip"] == 1
 
 
 class TestNegativeCycleTimeIsDropped:

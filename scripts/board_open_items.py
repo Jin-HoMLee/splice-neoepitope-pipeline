@@ -44,6 +44,10 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from typing import Any
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".agents" / "hooks"))
+import graphql_meter  # noqa: E402
 
 OWNER = "Jin-HoMLee"
 PROJECT_NUMBER = 9
@@ -78,6 +82,7 @@ def ref_cell(item: dict) -> str:
 
 QUERY = """
 query($owner: String!, $number: Int!, $after: String) {
+  rateLimit { cost remaining }
   user(login: $owner) {
     projectV2(number: $number) {
       items(first: 100, after: $after) {
@@ -166,6 +171,7 @@ def fetch_all_items() -> list[dict[str, Any]]:
             print(r.stderr, file=sys.stderr)
             sys.exit(r.returncode)
         data = json.loads(r.stdout)
+        graphql_meter.log_graphql_spend("board_open_items", data, query_name="board_page")
         if errs := data.get("errors"):
             print(f"GraphQL errors: {errs}", file=sys.stderr)
             sys.exit(1)

@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 22,
-      "degree": 23
+      "size": 23,
+      "degree": 24
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1003,6 +1003,16 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "label": "2026-07-21-graphql-budget-attribution.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-21-graphql-budget-attribution.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "label": "2026-07-21-issue-966-ac1-asneo-runner.md",
       "type": "doc",
@@ -1028,8 +1038,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 28,
-      "degree": 29
+      "size": 29,
+      "degree": 30
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1292,6 +1302,16 @@
       "degree": 2
     },
     {
+      "id": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
+      "label": "2026-07-21-graphql-budget-attribution-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-21-graphql-budget-attribution-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
       "label": "2026-07-21-issue-966-ac1-asneo-runner-design.md",
       "type": "doc",
@@ -1369,8 +1389,8 @@
       "type": "dir",
       "group": "research",
       "path": "research",
-      "size": 8,
-      "degree": 18
+      "size": 12,
+      "degree": 22
     },
     {
       "id": "research__README_md",
@@ -1402,6 +1422,26 @@
       "degree": 1
     },
     {
+      "id": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "label": "agent_frameworks_and_reliability_evals_2026-07.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/agent_frameworks_and_reliability_evals_2026-07.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 3
+    },
+    {
+      "id": "research__agent_frameworks_reliability_2026_07_deepresearch_raw_json",
+      "label": "agent_frameworks_reliability_2026-07_deepresearch_raw.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/agent_frameworks_reliability_2026-07_deepresearch_raw.json",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "research__agent_team_governance_2026_07_deepresearch_raw_json",
       "label": "agent_team_governance_2026-07_deepresearch_raw.json",
       "type": "resource",
@@ -1419,7 +1459,27 @@
       "path": "research/agent_team_governance_research_2026-07.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 4
+    },
+    {
+      "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "label": "competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/competitive_positioning_neoepitope_pipelines_2026-07_deepresearch_raw.json",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
+      "label": "competitive_positioning_neoepitope_pipelines_2026-07.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/competitive_positioning_neoepitope_pipelines_2026-07.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "research__decisions",
@@ -1428,7 +1488,39 @@
       "group": "research",
       "path": "research/decisions",
       "size": 0,
-      "degree": 2
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state",
+      "label": "issue_1284_registry-hunt-state",
+      "type": "decisions_dir",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state",
+      "size": 2,
+      "issue": 1284,
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "label": "refs.bib",
+      "type": "reference",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/refs.bib",
+      "description": "Bibliography / reference",
+      "size": 1,
+      "issue": 1284,
+      "degree": 1
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "label": "slides.qmd",
+      "type": "slide",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/slides.qmd",
+      "description": "Quarto slide deck",
+      "size": 2,
+      "issue": 1284,
+      "degree": 1
     },
     {
       "id": "research__decisions__issue_592",
@@ -2537,9 +2629,9 @@
       "type": "experiments_dir",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta",
-      "size": 5,
+      "size": 7,
       "issue": 1204,
-      "degree": 6
+      "degree": 11
     },
     {
       "id": "research__experiments__issue_1204_orf_fasta__README_md",
@@ -2564,12 +2656,120 @@
       "degree": 1
     },
     {
+      "id": "research__experiments__issue_1204_orf_fasta__figures",
+      "label": "figures",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures",
+      "size": 6,
+      "issue": 1204,
+      "degree": 7
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures___regenerate_figures_py",
+      "label": "_regenerate_figures.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/_regenerate_figures.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures___rulegraph_dot",
+      "label": "_rulegraph.dot",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/_rulegraph.dot",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
+      "label": "consumer_fanout.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/consumer_fanout.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__dag_ms_search_db_png",
+      "label": "dag_ms_search_db.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/dag_ms_search_db.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__emitter_schematic_png",
+      "label": "emitter_schematic.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/emitter_schematic.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__figures__recovery_spectrum_png",
+      "label": "recovery_spectrum.png",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/figures/recovery_spectrum.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
       "id": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
       "label": "make_spectrum.py",
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_1204_orf_fasta/make_spectrum.py",
       "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__outputs",
+      "label": "outputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/outputs",
+      "size": 1,
+      "issue": 1204,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__outputs__orf_run_summary_json",
+      "label": "orf_run_summary.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/outputs/orf_run_summary.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1204,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__refs_bib",
+      "label": "refs.bib",
+      "type": "reference",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/refs.bib",
+      "description": "Bibliography / reference",
       "size": 1,
       "issue": 1204,
       "degree": 1
@@ -2595,6 +2795,17 @@
       "size": 1,
       "issue": 1204,
       "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1204_orf_fasta__slides_qmd",
+      "label": "slides.qmd",
+      "type": "slide",
+      "group": "research",
+      "path": "research/experiments/issue_1204_orf_fasta/slides.qmd",
+      "description": "Quarto slide deck",
+      "size": 2,
+      "issue": 1204,
+      "degree": 2
     },
     {
       "id": "research__experiments__issue_224_alphagenome_exp1",
@@ -3660,7 +3871,7 @@
       "path": "research/experiments/issue_680_splice_immunogenicity_registry",
       "size": 15,
       "issue": 680,
-      "degree": 23
+      "degree": 24
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__LABELING_SCHEME_md",
@@ -3939,6 +4150,60 @@
       "type": "resource",
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/figures/fig_identity_matrix.png",
+      "description": "Project file",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "label": "issue_1207_snowball",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball",
+      "size": 4,
+      "issue": 680,
+      "degree": 5
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__exitron_ms_presented_S4_S5_tsv",
+      "label": "exitron_ms_presented_S4_S5.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/exitron_ms_presented_S4_S5.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__ovarian_tsa_S5_tsv",
+      "label": "ovarian_tsa_S5.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/ovarian_tsa_S5.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__xref_catalogs_vs_presenters_py",
+      "label": "xref_catalogs_vs_presenters.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1207_snowball/xref_catalogs_vs_presenters.py",
       "description": "Project file",
       "size": 1,
       "issue": 680,
@@ -4901,7 +5166,7 @@
       "path": "research/multi_agent_landscape.md",
       "description": "Documentation",
       "size": 1,
-      "degree": 3
+      "degree": 4
     },
     {
       "id": "research__notebooks",
@@ -6158,8 +6423,8 @@
       "type": "ci_dir",
       "group": "infrastructure",
       "path": "tools/ci",
-      "size": 44,
-      "degree": 45
+      "size": 45,
+      "degree": 46
     },
     {
       "id": "tools__ci___board_query_smoke_py",
@@ -6467,6 +6732,16 @@
       "type": "ci",
       "group": "infrastructure",
       "path": "tools/ci/test_gh_client.py",
+      "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__ci__test_graphql_meter_py",
+      "label": "test_graphql_meter.py",
+      "type": "ci",
+      "group": "infrastructure",
+      "path": "tools/ci/test_graphql_meter.py",
       "description": "CI automation tool",
       "size": 1,
       "degree": 1
@@ -8964,6 +9239,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_21_graphql_budget_attribution_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__plans__2026_07_21_issue_966_ac1_asneo_runner_md",
       "target": "docs__superpowers__plans",
       "type": "contained_in",
@@ -9144,6 +9425,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__specs__2026_07_21_graphql_budget_attribution_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__specs__2026_07_21_issue_966_ac1_asneo_runner_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
@@ -9198,6 +9485,30 @@
       "label": ""
     },
     {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research__agent_team_governance_research_2026_07_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__agent_frameworks_and_reliability_evals_2026_07_md",
+      "target": "research__multi_agent_landscape_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__agent_frameworks_reliability_2026_07_deepresearch_raw_json",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__agent_team_governance_2026_07_deepresearch_raw_json",
       "target": "research",
       "type": "contained_in",
@@ -9216,8 +9527,38 @@
       "label": "links to"
     },
     {
+      "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_deepresearch_raw_json",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__competitive_positioning_neoepitope_pipelines_2026_07_md",
+      "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__decisions",
       "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state",
+      "target": "research__decisions",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
       "type": "contained_in",
       "label": ""
     },
@@ -9924,6 +10265,12 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1204_orf_fasta",
+      "target": "research__experiments__issue_1204_orf_fasta__slides_qmd",
+      "type": "references",
+      "label": "slide deck"
+    },
+    {
       "source": "research__experiments__issue_1204_orf_fasta__README_md",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
@@ -9936,7 +10283,67 @@
       "label": ""
     },
     {
+      "source": "research__experiments__issue_1204_orf_fasta__figures",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures___regenerate_figures_py",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures___rulegraph_dot",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__consumer_fanout_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__dag_ms_search_db_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__emitter_schematic_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__figures__recovery_spectrum_png",
+      "target": "research__experiments__issue_1204_orf_fasta__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__experiments__issue_1204_orf_fasta__make_spectrum_py",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__outputs",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__outputs__orf_run_summary_json",
+      "target": "research__experiments__issue_1204_orf_fasta__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__refs_bib",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
@@ -9949,6 +10356,12 @@
     },
     {
       "source": "research__experiments__issue_1204_orf_fasta__sage_config_json",
+      "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1204_orf_fasta__slides_qmd",
       "target": "research__experiments__issue_1204_orf_fasta",
       "type": "contained_in",
       "label": ""
@@ -10790,6 +11203,36 @@
     {
       "source": "research__experiments__issue_680_splice_immunogenicity_registry__figures__fig_identity_matrix_png",
       "target": "research__experiments__issue_680_splice_immunogenicity_registry__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__README_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__exitron_ms_presented_S4_S5_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__ovarian_tsa_S5_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball__xref_catalogs_vs_presenters_py",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1207_snowball",
       "type": "contained_in",
       "label": ""
     },
@@ -12751,6 +13194,12 @@
     },
     {
       "source": "tools__ci__test_gh_client_py",
+      "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__ci__test_graphql_meter_py",
       "target": "tools__ci",
       "type": "contained_in",
       "label": ""

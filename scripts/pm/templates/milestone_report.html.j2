@@ -78,17 +78,18 @@
   </div>
 
   <!-- Throughput breakdown by arrival (Issue #811): committed = crossed Backlog -> Ready;
-       unplanned = barged in mid-session. Arrival, not urgency - priority cannot express it.
+       unplanned = never crossed it. Arrival, not urgency - priority cannot express it. Read
+       from the OBSERVED commitment act since the `unplanned` label was retired (Issue #1211).
 
-       The marker-not-in-use branch (Issue #1180) is load-bearing, not cosmetic: if the
-       `unplanned` label has never been applied repo-wide, NOTHING delivered can be
-       classified by arrival, and rendering "N committed / 0 unplanned / 0%" would be a
-       fabrication that looks exactly like a measurement. This card sits ABOVE the
-       narrative, so no prose caveat can outrank it - only the generator can. -->
+       The commitments-unavailable branch (Issue #1180) is load-bearing, not cosmetic: if the
+       commitment history could not be read, NOTHING delivered can be classified by arrival,
+       and rendering "N committed / 0 unplanned / 0%" would be a fabrication that looks exactly
+       like a measurement. This card sits ABOVE the narrative, so no prose caveat can outrank
+       it - only the generator can. -->
   <div class="rolebar">
-    {% if metrics.marker_in_use is defined and not metrics.marker_in_use %}
+    {% if metrics.commitments_available is defined and not metrics.commitments_available %}
     <span class="pill">arrival · <strong>unclassifiable</strong></span>
-    <span class="sub">{{ metrics.n_unclassifiable }} delivered, none classifiable - the <code>unplanned</code> marker is not in use repo-wide, so a 0% here would be fabricated, not measured</span>
+    <span class="sub">{{ metrics.n_unclassifiable }} delivered, none classifiable - the commitment history could not be read, so a 0% here would be fabricated, not measured</span>
     {% else %}
     <span class="pill">committed · <strong>{{ metrics.n_committed }}</strong></span>
     <span class="pill">unplanned · <strong>{{ metrics.n_unplanned }}</strong></span>
@@ -101,29 +102,6 @@
     {% endif %}
   </div>
 
-  <!-- Unplanned marker slip cross-check (Issue #1188): the hand-applied `unplanned` LABEL
-       vs the OBSERVED arrival axis (never crossed Backlog -> Ready, recorded by GitHub for
-       free and impossible to forget). A forgotten label reads as committed, biasing the
-       unplanned share downward, so the DISAGREEMENT is the deliverable - not the two shares
-       side by side. The two shares can even MATCH in aggregate while the label is wrong on
-       every item, which is why the per-item slip/mislabelled counts, not the shares, are the
-       fidelity signal. When the commitment history is unreadable the slip is UNKNOWN, never
-       zero (the #1180 one-output-for-three-worlds fabrication, one axis over). -->
-  {% if metrics.marker_slip is defined and metrics.marker_slip %}
-  {% set slip = metrics.marker_slip %}
-  <div class="rolebar">
-    {% if not slip.available %}
-    <span class="pill">marker slip · <strong>unknown</strong></span>
-    <span class="sub">commitment history could not be read, so the observed arrival axis cannot be cross-checked against the label - this is NOT the same as "no slip"</span>
-    {% else %}
-    <span class="pill">observed unplanned · <strong>{{ slip.n_observed_unplanned }}</strong>{% if slip.observed_pct is not none %} ({{ "%.0f%%"|format(slip.observed_pct) }}){% endif %}</span>
-    <span class="pill">labelled unplanned · <strong>{{ slip.n_labelled_unplanned }}</strong>{% if slip.labelled_pct is not none %} ({{ "%.0f%%"|format(slip.labelled_pct) }}){% endif %}</span>
-    <span class="pill">slip · <strong>{{ slip.n_slip }}</strong></span>
-    {% if slip.n_mislabelled %}<span class="pill">mislabelled · <strong>{{ slip.n_mislabelled }}</strong></span>{% endif %}
-    <span class="sub">of {{ slip.n_delivered }} delivered: <strong>{{ slip.n_slip }}</strong> observably unplanned but unlabelled (the label undercounts), {{ slip.n_mislabelled }} labelled yet observably committed, {{ slip.n_agree }} agree. Aggregate shares can match while the label is wrong per item, so the counts are the fidelity signal.</span>
-    {% endif %}
-  </div>
-  {% endif %}
   <div class="rolebar">
     {% for role, count in metrics.per_role_counts.items() %}
       <span class="pill">{{ role }} · <strong>{{ count }}</strong></span>

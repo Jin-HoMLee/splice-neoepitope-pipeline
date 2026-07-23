@@ -10,6 +10,24 @@ _HOOKS_DIR = Path(__file__).resolve().parents[2] / ".agents" / "hooks"
 sys.path.insert(0, str(_HOOKS_DIR))
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_graphql_spend_log(tmp_path, monkeypatch):
+    """Redirect the shared per-user GraphQL spend log to a temp path.
+
+    Any test that exercises a metered call site (e.g. the cost-0 rateLimit
+    probe in _mutate_target_date, Issue #1165) would otherwise write into the
+    real .agents/graphql_spend.jsonl - the very telemetry stream #1165's
+    follow-up analyzes. Autouse keeps the whole module hermetic by construction
+    so a future metered-path test cannot silently re-contaminate it.
+    """
+    import recheck_dispatch
+    monkeypatch.setattr(
+        recheck_dispatch.graphql_meter,
+        "SPEND_LOG_PATH",
+        tmp_path / "graphql_spend.jsonl",
+    )
+
+
 def test_log_fire_jsonl_append(tmp_path, monkeypatch):
     """_log_fire appends one valid JSONL line per call; metadata kwargs preserved."""
     import recheck_dispatch
@@ -274,7 +292,10 @@ def test_mutate_target_date_clear_success(monkeypatch):
         stderr = ""
 
     def fake_run(args, **k):
-        seen["query"] = args[args.index("-f") + 1]
+        # _mutate_target_date now issues a second gh call (the cost-0 rateLimit
+        # probe, Issue #1165) after the mutation; capture the FIRST query (the
+        # mutation), not the probe that overwrites it.
+        seen.setdefault("query", args[args.index("-f") + 1])
         return R()
     monkeypatch.setattr(rd.subprocess, "run", fake_run)
     assert rd._mutate_target_date("PVTI_x", None) is True

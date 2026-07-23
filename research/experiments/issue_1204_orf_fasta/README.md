@@ -1,4 +1,14 @@
-# Issue #1204 - Sage junction-peptide recovery smoke
+# Issue #1204 - junction-ORF search-DB artifacts
+
+This experiment directory holds two artifacts for the junction-ORF search-DB work:
+
+- **Sage recovery smoke** (this file, below) - the AC-3 live verification (Issue #1204).
+- **Slide deck** `slides.qmd` - the experiment-tier deck (Issue #1262). Render with
+  `quarto render slides.qmd --to revealjs`; figures regenerate via
+  `figures/_regenerate_figures.py` (reads `outputs/orf_run_summary.json` and the cached
+  real rulegraph `figures/_rulegraph.dot`). Rendered `slides.html` is gitignored.
+
+## Sage junction-peptide recovery smoke
 
 One-time pre-merge verification that the emitted ORF-stretch FASTA is consumable
 by a nonspecific MS search AND that a real junction peptide is recovered from it

@@ -1,0 +1,164 @@
+---
+title: "Is literature-mining exhausted for the functional splice-neoantigen registry?"
+subtitle: "Research decision · Issue #1284 · gates #680 cycle allocation · 2026-07-22"
+author: "Jin-Ho Lee"
+institute: "Splice Neoepitope Pipeline · JH M Lee Lab"
+date: 2026-07-22
+date-format: "YYYY-MM-DD"
+format:
+  revealjs:
+    theme: [simple, ../../slides/custom.scss]
+    footer: "Splice Neoepitope Pipeline · JH M Lee Lab"
+    incremental: false
+    slide-number: c/t
+    progress: true
+    chalkboard: false
+    code-line-numbers: false
+    fig-align: center
+    fig-cap-location: bottom
+    transition: fade
+    background-transition: fade
+    width: 1280
+    height: 720
+# PDF (beamer) render disabled - same Quarto/pandoc longtable issue as the pilot deck.
+# HTML reveal.js is the primary delivery; "Print -> Save as PDF" in Chrome for handouts.
+bibliography: refs.bib
+csl: ../../slides/nature.csl
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+::: {style="text-align: center; font-size: 1.7em; font-weight: bold; line-height: 1.2; margin-top: 0.4em;"}
+We hold 86 functionally-validated splice positives\
+but only 1 hard-negative.\
+Is more literature-mining the path to a *usable* registry?
+:::
+
+. . .
+
+::: {.callout-note appearance="simple"}
+**Why now:** each registry-addition cycle (latest: [Issue #1207](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207)) is committed by reflex. This deck makes the effort-allocation call explicit - it gates how future [#680](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/680) cycles are spent, and whether the [#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585) calibration pilot waits on the registry or proceeds.
+:::
+
+::: {style="font-size: 0.6em; color: #777; margin-top: 0.4em;"}
+**Terminology:** "splice-junction-derived neoepitope" = a peptide translated across a tumor-specific neojunction (RNA-level aberrant exon-exon junction). "Functional" = a per-peptide T-cell readout (tetramer / ELISpot / cytotoxicity), as opposed to MS-presentation (the peptide is displayed, but not shown to provoke a T cell).
+:::
+
+---
+
+## Where the registry actually stands {.smaller}
+
+`registry.tsv` (n=97), grounded against the file - not recall:
+
+| Class | Count | Detail |
+|---|---:|---|
+| **Functional positives** | **86** | 82 scorable + 4 non-scorable; **73 direct-provenance** functional assays (patient tetramer, IFN-g ELISPOT, cytotoxicity) |
+| **Negatives** | **10** | **only 1 is a hard-negative-true-splice** (`VELEDHVML`, Fisher 2026); 8 candidate-negative + 1 not-splice control |
+| **Untested** | 1 | `TEFQTRRAM` (SNAF, presentation-prevalence) |
+
+. . .
+
+::: {.callout-important appearance="simple"}
+The registry is **positive-saturated and negative-starved**. The asymmetry (86 : 1 hard-negative), not the absolute size, is the load-bearing fact.
+:::
+
+---
+
+## The marginal cycle is dry {.smaller}
+
+[Issue #1207](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207) snowballed three human catalogs. **Zero functional positives** - and they failed on *opposite* gates:
+
+| Catalog | Gate 1: splice-derived | Gate 2: functional assay | Landed |
+|---|:--:|:--:|---|
+| Exitron [@wang2021exitron] | PASS | **FAIL** (MS + computed score) | MS tier ([#681](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/681)) |
+| Ovarian [@zhao2020ovarian] | PARTIAL (28/103 splice-adjacent) | **FAIL** (MS-eluted only) | MS tier (low-conf) |
+| U2AF1 [@biernacki2023u2af1] | **FAIL** (missense) | PASS (cloned TCR + tetramer) | out of scope |
+
+. . .
+
+::: {.callout-note appearance="simple"}
+Both Gate-2 FAILs are **main-text-confirmed** (Exitron via NCBI PMC8141048; ovarian Discussion defers immunogenicity to "future studies"). The 86 positives were harvested by earlier, higher-yield sweeps; the marginal cycle now returns MS-tier, not functional.
+:::
+
+---
+
+## Why the yield dropped: presentation != immunogenicity {.smaller}
+
+```{mermaid}
+%%| fig-width: 9
+%%{init: {'flowchart': {'padding': 18, 'nodeSpacing': 55, 'rankSpacing': 65}}}%%
+flowchart LR
+  L[Literature<br/>discovery papers] --> M[MS immunopeptidomics<br/>peptide is DISPLAYED]
+  M --> P[Presentation tier<br/>#681 - fills readily]
+  M -.rarely.-> F[Functional assay<br/>T cell RESPONDS]
+  F --> R[Functional registry<br/>#680 - 86 held, +0 this cycle]
+  style P fill:#dbeafe,stroke:#3b82f6
+  style R fill:#dcfce7,stroke:#22c55e
+  style F fill:#fef9c3,stroke:#eab308
+```
+
+The discovery literature reliably proves **display** (MS) and rarely proves a **T-cell response**. So new catalogs feed #681 (82 entries this cycle = 54 exitron + 28 ovarian-intronic; distinct from the 82 *scorable positives* on the prior slide), while the functional registry is left where earlier sweeps put it.
+
+---
+
+## The binding constraint is the negative class {.smaller}
+
+Even if mining found more *positives*, they are **not the bottleneck**:
+
+::: {.incremental}
+- **Calibration ([#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585)) is gated by negatives**, and we have 10 (1 hard). A ranker learns the display->immunogenicity boundary from *both* classes; 86:10 (86:1 hard) is the imbalance that limits it.
+- **Literature *reference-mining* is exhausted for hard-negatives** ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911), n=1 `VELEDHVML`) - **but** IEDB holds **~33K human-source T-cell *negative* assays** (~100% source-anchored), an untapped **sequence-remapping** source ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) that could feed the **negative class** computationally, before any wet-lab.
+- **Mining does not even recover *our* candidates** - #1207 AC-4: all 54 exitron + 103 ovarian peptides vs our n=2156 candidate presenters -> **zero overlap** (ceiling-checked). Disjoint cohorts + HLA; no shared recurrent target.
+:::
+
+---
+
+## Options {.smaller}
+
+| | Action | Marginal yield | Cost |
+|---|---|---|---|
+| **(a)** | Keep dedicating cycles to functional-positive literature mining | ~0 new functional positives (this cycle 0/3 catalogs) | recurring analyst cycles |
+| **(b)** | **Reverse-map IEDB by sequence** ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)) - map ~33K human-source *negative* assays to neojunctions | untested yield, but the only **computational** path to the negative class | low (compute) |
+| **(c)** | Wet-lab / author-data for negatives ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)) | moves the hard-negative count | high (outreach / bench) |
+| **(d)** | **Hybrid** (recommended): stop dedicated positive-mining, run (b) first, keep the passive #681 watch, wet-lab only for the residual | best expected value | low |
+
+---
+
+## Decision {.smaller}
+
+::: {style="text-align: center; font-size: 1.9em; font-weight: bold; margin-top: 0.1em;"}
+Recommended: (d) Hybrid
+:::
+
+::: {style="text-align: center; font-size: 1.05em; margin-top: 0.1em;"}
+Stop *dedicated* positive-mining · reverse-map IEDB for negatives **first** · wet-lab only for the residual
+:::
+
+. . .
+
+- **Positives are saturated for now** - 86 held, marginal cycle dry; the passive Beat-1 splice-immunogenicity watch still catches the occasional new one and feeds #681.
+- **The bottleneck is negatives, and the first move is computational, not wet-lab** - IEDB holds ~33K human-source *negative* assays, ~100% source-anchored ([#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290)); reverse-map those before committing to author-data / wet-lab ([#1214](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1214)/[#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817)).
+- **Routing:** this verdict -> Jin-Ho/PM as the #680 cycle-allocation call; [#585](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/585) can pilot at 86:10 now, with [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) as the path to fix the imbalance.
+
+---
+
+## Caveats - read before citing {.smaller}
+
+::: {.incremental}
+1. **"Exhausted" is *marginal*, not absolute** - it means the last cycle's yield was ~0, on a small sample of dedicated cycles (#733, #1207). New primary papers appear; the passive watch stays on.
+2. **Positive-saturation is context-specific** - 86 is ample for some uses and thin for a rare HLA / mechanism; a targeted positive gap can still justify a cycle.
+3. **The MS tier keeps growing** - "stop dedicated cycles" applies to the *functional* registry, not to #681, which literature feeds for free.
+4. **Negative-first is an inference** - that hard-negatives gate #585 more than positives is argued from class balance, not yet demonstrated on a fitted calibrator.
+5. **The IEDB reverse-map yield *and grade* are unproven** - feasibility passes (~33K anchored negatives), but (i) how many hit genuine *neo*junctions vs canonical/normal sequence is unknown until [#1290](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1290) runs (most span canonical sequence and are discarded), and (ii) a T-cell *negative* alone gives a splice-derived functional-negative but **not** the MS-presentation a gold-standard *hard*-negative (`VELEDHVML`) also needs - so remapped hits likely land **candidate/soft-grade**, improving the 86:10 balance without necessarily adding hard-negatives.
+6. **Second decision-tier deck** (pilot: [#592](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/592)); the convention itself is still under evaluation.
+:::
+
+---
+
+## References {.smaller}
+
+::: {#refs}
+:::
