@@ -125,3 +125,88 @@ class TestRender:
         out = c.render(rows, self.FLOOR)
         assert "#20" in out and "#10" in out
         assert "2 item(s)." in out
+
+
+class TestBothRepos:
+    """Issue #1276 - the recap must cover BOTH repos.
+
+    `REPO` was hard-coded to the project repo, so the entire Memory Manager
+    workstream (which lives in the personas repo) was invisible to the
+    mechanized recap. On 2026-07-22 a full two-day column of MM closes was
+    silently omitted until it was noticed by hand.
+
+    The load-bearing subtlety is NOT the loop over two repos - it is that the
+    two repos have COLLIDING issue numbers. A recap that prints a bare `#98`
+    is ambiguous between two different Issues, which is the same hazard the
+    board tooling already solves with a `pers#` prefix. Rendering must
+    disambiguate, or covering both repos trades a missing-data bug for a
+    wrong-attribution bug.
+    """
+
+    PROJECT = "Jin-HoMLee/splice-neoepitope-pipeline"
+    PERSONAS = "Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
+
+    def test_default_repos_covers_both(self):
+        assert c.PROJECT_REPO in c.DEFAULT_REPOS
+        assert c.PERSONAS_REPO in c.DEFAULT_REPOS
+        assert len(c.DEFAULT_REPOS) == 2
+
+    def test_collect_tags_each_row_with_its_repo(self):
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.collect(
+            floor,
+            [{"number": 5, "title": "project issue", "closedAt": "2026-07-22T10:00:00Z"}],
+            [],
+            repo=self.PROJECT,
+        )
+        assert rows[0]["repo"] == self.PROJECT
+
+    def test_rows_from_both_repos_merge_and_sort_newest_first(self):
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.collect(floor,
+                         [{"number": 1, "title": "older project",
+                           "closedAt": "2026-07-22T08:00:00Z"}],
+                         [], repo=self.PROJECT)
+        rows += c.collect(floor,
+                          [{"number": 2, "title": "newer personas",
+                            "closedAt": "2026-07-22T20:00:00Z"}],
+                          [], repo=self.PERSONAS)
+        merged = c.sort_rows(rows)
+        assert [r["number"] for r in merged] == [2, 1], merged
+
+    def test_render_disambiguates_colliding_numbers(self):
+        """The whole point: same number, two repos, must not render identically.
+
+        Without a repo-distinguishing prefix a reader cannot tell which #98 is
+        meant - and #98 is a real live collision on the board today.
+        """
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.sort_rows(
+            c.collect(floor, [{"number": 98, "title": "project ninety-eight",
+                               "closedAt": "2026-07-22T09:00:00Z"}], [],
+                      repo=self.PROJECT)
+            + c.collect(floor, [{"number": 98, "title": "personas ninety-eight",
+                                 "closedAt": "2026-07-22T10:00:00Z"}], [],
+                        repo=self.PERSONAS)
+        )
+        out = c.render(rows, floor)
+        assert "pers#98" in out, out
+        # The project row must NOT also carry the personas prefix.
+        assert out.count("pers#98") == 1, out
+        assert "#98 " in out.replace("pers#98", ""), out
+
+    def test_render_labels_personas_rows_only(self):
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.sort_rows(c.collect(
+            floor, [{"number": 7, "title": "project row",
+                     "closedAt": "2026-07-22T09:00:00Z"}], [], repo=self.PROJECT))
+        out = c.render(rows, floor)
+        assert "pers#" not in out, out
+
+    def test_repo_ref_prefix(self):
+        assert c.repo_ref(98, self.PERSONAS) == "pers#98"
+        assert c.repo_ref(98, self.PROJECT) == "#98"
+
+    def test_unknown_repo_still_renders_a_usable_ref(self):
+        """Fail-open: an unexpected repo must not crash a recap."""
+        assert "98" in c.repo_ref(98, "Jin-HoMLee/some-other-repo")
