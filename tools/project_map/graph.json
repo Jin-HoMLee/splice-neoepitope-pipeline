@@ -1488,7 +1488,39 @@
       "group": "research",
       "path": "research/decisions",
       "size": 0,
-      "degree": 2
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state",
+      "label": "issue_1284_registry-hunt-state",
+      "type": "decisions_dir",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state",
+      "size": 2,
+      "issue": 1284,
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "label": "refs.bib",
+      "type": "reference",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/refs.bib",
+      "description": "Bibliography / reference",
+      "size": 1,
+      "issue": 1284,
+      "degree": 1
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "label": "slides.qmd",
+      "type": "slide",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/slides.qmd",
+      "description": "Quarto slide deck",
+      "size": 2,
+      "issue": 1284,
+      "degree": 1
     },
     {
       "id": "research__decisions__issue_592",
@@ -9477,6 +9509,24 @@
     {
       "source": "research__decisions",
       "target": "research",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state",
+      "target": "research__decisions",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
       "type": "contained_in",
       "label": ""
     },
