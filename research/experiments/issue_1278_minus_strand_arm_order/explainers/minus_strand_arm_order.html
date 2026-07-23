@@ -1,0 +1,296 @@
+<title>Minus-strand arm-order bug (#1278)</title>
+<style>
+  :root {
+    --ink: #1b2230;
+    --paper: #f7f9fc;
+    --card: #ffffff;
+    --line: #dbe3ee;
+    --muted: #5c6a7e;
+    --blue: #1e5ba8;
+    --blue-soft: #e7eef8;
+    --gold: #9a7011;
+    --gold-soft: #f6efe0;
+    --bad: #c0392b;
+    --bad-soft: #fbeae7;
+    --good: #217a52;
+    --good-soft: #e5f2ec;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    --disp: "Segoe UI Semibold", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8edf5; --paper: #10151d; --card: #171e28; --line: #29323f;
+      --muted: #9aa7b8; --blue: #6ea8e6; --blue-soft: #1a2c42;
+      --gold: #d8ac54; --gold-soft: #2c2413; --bad: #e8776a; --bad-soft: #3a1f1c;
+      --good: #6cc79a; --good-soft: #16301f;
+    }
+  }
+  :root[data-theme="light"] {
+    --ink: #1b2230; --paper: #f7f9fc; --card: #ffffff; --line: #dbe3ee;
+    --muted: #5c6a7e; --blue: #1e5ba8; --blue-soft: #e7eef8; --gold: #9a7011;
+    --gold-soft: #f6efe0; --bad: #c0392b; --bad-soft: #fbeae7; --good: #217a52;
+    --good-soft: #e5f2ec;
+  }
+  :root[data-theme="dark"] {
+    --ink: #e8edf5; --paper: #10151d; --card: #171e28; --line: #29323f;
+    --muted: #9aa7b8; --blue: #6ea8e6; --blue-soft: #1a2c42; --gold: #d8ac54;
+    --gold-soft: #2c2413; --bad: #e8776a; --bad-soft: #3a1f1c; --good: #6cc79a;
+    --good-soft: #16301f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 3.2rem 1.4rem 4rem; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 0.9rem;
+    display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center;
+  }
+  .eyebrow a { color: var(--blue); text-decoration: none; font-weight: 600; }
+  .eyebrow .dot { color: var(--line); }
+  h1 {
+    font-family: var(--disp); font-weight: 650; font-size: clamp(1.7rem, 4.4vw, 2.6rem);
+    line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; margin: 0 0 1rem;
+  }
+  .lede {
+    font-size: clamp(1.02rem, 2.3vw, 1.2rem); color: var(--ink); max-width: 62ch;
+    margin: 0 0 0.4rem;
+  }
+  .lede b { color: var(--bad); font-weight: 650; }
+
+  section { margin-top: 3rem; }
+  h2 {
+    font-family: var(--disp); font-weight: 640; font-size: 1.18rem; letter-spacing: -0.01em;
+    margin: 0 0 0.3rem; display: flex; align-items: baseline; gap: 0.6rem;
+  }
+  h2 .n {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.12rem 0.5rem;
+    letter-spacing: 0.05em;
+  }
+  .sub { color: var(--muted); margin: 0 0 1.3rem; max-width: 66ch; font-size: 0.97rem; }
+
+  /* sequence diagram */
+  .diagram {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 1.5rem 1.4rem; overflow-x: auto;
+  }
+  .genome-row {
+    display: flex; align-items: stretch; gap: 0; font-family: var(--mono);
+    font-size: 0.9rem; min-width: 520px; margin-bottom: 0.5rem;
+  }
+  .arm {
+    display: flex; align-items: center; gap: 0.05rem; padding: 0.5rem 0.7rem;
+    border-radius: 8px; letter-spacing: 0.06em;
+  }
+  .arm.up { background: var(--blue-soft); color: var(--blue); border: 1px solid transparent; }
+  .arm.dn { background: var(--gold-soft); color: var(--gold); border: 1px solid transparent; }
+  .arm .lab {
+    font-family: var(--sans); font-size: 0.66rem; letter-spacing: 0.08em;
+    text-transform: uppercase; opacity: 0.85; margin-right: 0.5rem; font-weight: 600;
+  }
+  .intron {
+    flex: 1; align-self: center; text-align: center; color: var(--muted);
+    font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.05em;
+    border-top: 2px dashed var(--line); margin: 0 0.4rem; padding-top: 0.2rem;
+    min-width: 90px;
+  }
+  .jbase { position: relative; font-weight: 700; border-radius: 3px; padding: 0 0.05rem; }
+  .jbase.mark { outline: 2px solid currentColor; outline-offset: 1px; }
+  .strandline {
+    font-family: var(--sans); font-size: 0.74rem; color: var(--muted);
+    display: flex; align-items: center; gap: 0.5rem; margin: 0.9rem 0 0.2rem;
+  }
+  .strandline .arrow { color: var(--gold); font-weight: 700; letter-spacing: 0.1em; font-family: var(--mono); }
+
+  .concat-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.4rem;
+  }
+  @media (max-width: 640px) { .concat-grid { grid-template-columns: 1fr; } }
+  .concat {
+    border: 1px solid var(--line); border-radius: 12px; padding: 1.05rem 1rem; background: var(--card);
+  }
+  .concat h3 {
+    font-family: var(--mono); font-size: 0.82rem; margin: 0 0 0.15rem; letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .tag {
+    font-family: var(--sans); font-size: 0.64rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; padding: 0.14rem 0.5rem; border-radius: 999px;
+  }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .tag.good { background: var(--good-soft); color: var(--good); }
+  .concat .caption { font-size: 0.83rem; color: var(--muted); margin: 0.55rem 0 0; }
+  .seqrow {
+    display: flex; align-items: center; font-family: var(--mono); font-size: 0.92rem;
+    letter-spacing: 0.06em; margin-top: 0.7rem; overflow-x: auto;
+  }
+  .seqrow .up { color: var(--blue); }
+  .seqrow .dn { color: var(--gold); }
+  .boundary {
+    width: 0; border-left: 2px solid; height: 1.5em; margin: 0 0.28rem; align-self: center;
+  }
+  .boundary.bad { border-color: var(--bad); }
+  .boundary.good { border-color: var(--good); }
+  .meet { font-size: 0.7rem; font-family: var(--sans); margin-top: 0.5rem; font-weight: 600; }
+  .meet.bad { color: var(--bad); }
+  .meet.good { color: var(--good); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+  .chip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 0.75rem 0.95rem; font-size: 0.9rem; flex: 1 1 240px;
+  }
+  .chip b { display: block; font-family: var(--mono); font-size: 0.78rem; color: var(--bad); margin-bottom: 0.2rem; letter-spacing: 0.02em; }
+
+  /* code diff */
+  pre.diff {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 1.1rem 1.2rem; overflow-x: auto; font-family: var(--mono);
+    font-size: 0.86rem; line-height: 1.6; margin: 0;
+  }
+  pre.diff .del { color: var(--bad); }
+  pre.diff .add { color: var(--good); }
+  pre.diff .cmt { color: var(--muted); }
+
+  .verify { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  @media (max-width: 720px) { .verify { grid-template-columns: 1fr; } }
+  .vcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1.05rem 1rem; }
+  .vcard .k { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--good); font-weight: 700; margin-bottom: 0.35rem; }
+  .vcard p { margin: 0; font-size: 0.88rem; color: var(--ink); }
+  .vcard p .em { color: var(--muted); }
+
+  footer {
+    margin-top: 3.2rem; padding-top: 1.4rem; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 0.86rem; display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem;
+    align-items: center; justify-content: space-between;
+  }
+  footer .impact { color: var(--ink); }
+  footer .impact b { color: var(--bad); }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">
+    <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278">Issue #1278</a>
+    <span class="dot">/</span>
+    <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1286">PR #1286</a>
+    <span class="dot">/</span>
+    <span>fix(assemble_contigs)</span>
+  </p>
+
+  <h1>The minus-strand junction that was quietly a chimera</h1>
+  <p class="lede">
+    For every minus-strand splice junction <b>(roughly half of all junctions)</b>, the two
+    exon arms were joined in genomic order, fabricating the splice boundary that the rest of
+    the pipeline then translates across. The peptides it produced were nonsense - silently.
+  </p>
+
+  <section>
+    <h2><span class="n">1</span> How a contig is built</h2>
+    <p class="sub">
+      Two flanks are cut from the reference around the junction, then <code>bedtools getfasta -s</code>
+      reverse-complements each flank into transcript sense. It orients each arm - but it never
+      reorders the pair. The concatenation order is the script's job.
+    </p>
+
+    <div class="diagram">
+      <div class="genome-row">
+        <span class="arm up"><span class="lab">upstream arm</span>A C G T A<span class="jbase mark">C</span></span>
+        <span class="intron">intron (spliced out)<br>gene on the &minus; strand &larr;</span>
+        <span class="arm dn"><span class="lab">downstream arm</span><span class="jbase mark">G</span>G T C C A</span>
+      </div>
+      <div class="strandline">
+        <span class="arrow">&larr;</span>
+        On the minus strand the transcript reads 5&prime;&rarr;3&prime; from the high-coordinate
+        (downstream) arm into the low-coordinate (upstream) arm. The boxed base of each arm is the
+        one that actually sits at the junction.
+      </div>
+
+      <div class="genome-row">
+        <span class="arm up"><span class="lab">up_seq = revcomp(upstream)</span><span class="jbase mark">G</span>TACGT</span>
+        <span class="arm dn"><span class="lab">dn_seq = revcomp(downstream)</span>TGGAC<span class="jbase mark">C</span></span>
+      </div>
+      <div class="strandline">
+        <span class="arrow">&darr;</span>
+        This is what the script actually holds. Reverse-complementing each arm moves its junction
+        base to the <i>other</i> end: the boxed base is now first in <code>up_seq</code> and last in
+        <code>dn_seq</code>. That single fact is what makes the concatenation order decide whether
+        the junction is real or fabricated.
+      </div>
+
+      <div class="concat-grid">
+        <div class="concat">
+          <h3><span class="tag bad">old</span> up_seq + dn_seq</h3>
+          <div class="seqrow">
+            <span class="up">GTACG<b>T</b></span>
+            <span class="boundary bad"></span>
+            <span class="dn"><b>T</b>GGACC</span>
+          </div>
+          <p class="meet bad">boundary joins T | T - the two <i>outer</i> edges, ~54 nt apart in the genome</p>
+          <p class="caption">A fabricated junction. The bases that meet are the far ends of the two arms, which were never adjacent in the transcript. This is what shipped for every minus-strand junction.</p>
+        </div>
+        <div class="concat">
+          <h3><span class="tag good">fix</span> dn_seq + up_seq</h3>
+          <div class="seqrow">
+            <span class="dn">TGGAC<b>C</b></span>
+            <span class="boundary good"></span>
+            <span class="up"><b>G</b>TACGT</span>
+          </div>
+          <p class="meet good">boundary joins C | G - the two real junction-adjacent bases</p>
+          <p class="caption">The true spliced junction: C and G are the complements of the boxed genomic bases above. Each arm was already correctly reverse-complemented; only the order needed to follow the strand.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span> Why it stayed silent</h2>
+    <p class="sub">Two independent checks that should have caught it were both structurally blind to this exact shape.</p>
+    <div class="chips">
+      <div class="chip"><b>CI dry-run</b>The Snakemake dry-run walks the DAG but never executes the script, so the concatenation never actually ran under test.</div>
+      <div class="chip"><b>Unit fixtures</b>Every existing <code>assemble_contigs</code> fixture used strand <code>+</code>. The minus-strand path had zero coverage.</div>
+      <div class="chip"><b>Forward-only translation</b>Both downstream consumers translate forward frames only and trust the contig is already in mRNA sense - so a flipped contig just yields wrong peptides, no error.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span> The fix</h2>
+    <p class="sub">Order the arms by strand. Unknown strand <code>.</code> keeps genomic order (getfasta leaves those arms in forward sense and orientation cannot be inferred).</p>
+    <pre class="diff"><span class="cmt"># workflow/scripts/assemble_contigs.py</span>
+<span class="del">- contig = (up_seq + dn_seq).upper()</span>
+<span class="add">+ if row["strand"] == "-":</span>
+<span class="add">+     contig = (dn_seq + up_seq).upper()   # transcript 5'-&gt;3': downstream arm first</span>
+<span class="add">+ else:</span>
+<span class="add">+     contig = (up_seq + dn_seq).upper()   # plus strand, and '.' fallback</span></pre>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span> How we know it is right</h2>
+    <p class="sub">Three independent checks, each closing a gap the one before it could not.</p>
+    <div class="verify">
+      <div class="vcard">
+        <div class="k">unit &middot; RED then GREEN</div>
+        <p>A minus-strand fixture fails on the old order and passes on the fix, plus a plus-strand guard against an unconditional swap. <span class="em">Confirmed red before, green after.</span></p>
+      </div>
+      <div class="vcard">
+        <div class="k">real bedtools E2E</div>
+        <p>Actual <code>bedtools v2.31.1</code> on a chr22 minus-strand junction: the emitted contig equals the independently computed transcript-order sequence, and differs from the old order. <span class="em">Validates the getfasta -s assumption the stub cannot.</span></p>
+      </div>
+      <div class="vcard">
+        <div class="k">integration guard</div>
+        <p>A minus-strand junction carried through assembly then translation yields the transcript-correct peptide (<code>G&hellip;A</code>), never the chimeric one (<code>A&hellip;G</code>). <span class="em">Fails if the bug ever returns.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="impact">Impact: silently mistranslated <b>~half of all junctions</b>; the fix orients once, with no downstream double-correction.</span>
+    <span>Found by an adversarial bug-hunt, code-verified, and reviewed LGTM.</span>
+  </footer>
+</div>
