@@ -171,10 +171,14 @@ def test_matched_node_without_an_id_raises_rather_than_yielding_none():
 
 
 def test_query_is_scoped_to_the_named_repo():
-    # Board 9 spans two repos with INDEPENDENT numbering, and the collision is
-    # live: #183 and #193 exist in both, both carded. The per-issue path makes
-    # this structurally safe - the repo is in the query - but only if we
-    # actually thread it through, so pin that.
+    # Board 9 spans two repos with INDEPENDENT numbering: a complete read (1,453
+    # items, archived included) finds 56 numbers that are an Issue in BOTH repos,
+    # #37 among them. The per-issue path makes this structurally safe - the repo
+    # is in the query - but only if we actually thread it through, so pin that.
+    #
+    # Do not evidence the collision by scanning board content numbers: issues and
+    # PRs share a number space, so #183 reads as a collision while being an Issue
+    # in the pipeline repo and a PR in personas.
     gh = _fake_gh(_resp([_item("PVTI_x")]))
 
     bi.resolve_board_item_id(183, repo="Jin-HoMLee/claude-personas-splice-neoepitope-pipeline", _gh=gh)

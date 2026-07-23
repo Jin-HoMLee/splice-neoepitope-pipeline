@@ -29,8 +29,14 @@ Both failure modes become *unrepresentable* rather than asserted-against, which
 is the stronger fix. It is also one API call instead of three.
 
 The repo is part of the query, not decoration: board 9 spans two repos with
-independent numbering and the collision is live (#183 and #193 exist in both,
-both carded), so a number-only match returns a page-order-dependent card.
+independent numbering, and a complete read (1,453 items, archived included)
+finds **56** numbers that exist as an Issue in *both* repos - #37 among them. A
+number-only match returns whichever card page-order yields first.
+
+Do not evidence that collision by scanning board content numbers: issues and
+PRs share one number space, so such a scan overcounts. #183 looks like a
+collision and is not one - it is an Issue in the pipeline repo and a PULL
+REQUEST in personas.
 """
 
 import subprocess
@@ -95,8 +101,14 @@ class BoardReadIncomplete(BoardLookupError):
     """
 
 
+_GH_CACHE = None
+
+
 def _default_gh():
     """The hardened ``gh`` wrapper, loaded lazily so tests never need a live ``gh``.
+
+    Cached: the hook resolves one item per linked issue in a loop, and
+    re-``exec_module``-ing gh_client on every call is pure waste.
 
     Loaded by explicit path rather than ``sys.path.insert``: this module's own
     directory contains names that collide with other suites' modules (e.g.
@@ -104,6 +116,10 @@ def _default_gh():
     of the process. An importing test suite must not be able to break an
     unrelated one.
     """
+    global _GH_CACHE
+    if _GH_CACHE is not None:
+        return _GH_CACHE
+
     import importlib.util
     from pathlib import Path
 
@@ -111,7 +127,8 @@ def _default_gh():
     spec = importlib.util.spec_from_file_location("gh_client", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.gh
+    _GH_CACHE = module.gh
+    return _GH_CACHE
 
 
 def resolve_board_item_id(
@@ -171,6 +188,16 @@ def resolve_board_item(
         # non-zero, so without this the caller gets a CalledProcessError that is
         # NOT catchable as BoardLookupError, breaking the module's one promise:
         # every outcome is either an id or a BoardLookupError.
+        #
+        # KNOWN COST, accepted (PR #1300 review, finding 1): a GraphQL NOT_FOUND
+        # is an `errors` array on HTTP *200*, so gh_client's transient-detector
+        # (which matches an `HTTP 4xx` token in stderr) does not recognise it and
+        # RETRIES ~4x / ~14s of backoff before we get here. Deliberately not
+        # "fixed" by widening that detector: it is shared by every board script,
+        # and teaching it a GraphQL-specific string is the kind of denylist widen
+        # that does not converge. The error path is off the hot path - the hook's
+        # linked issues come from same-repo closingIssuesReferences and resolve -
+        # so the cost is bounded and paid only when something is already wrong.
         stderr = (getattr(exc, "stderr", "") or "")
         hint = ""
         if "Could not resolve to an Issue" in stderr:
@@ -208,17 +235,17 @@ def resolve_board_item(
 
     # A hit is trustworthy even from a partial list - the id matched is real.
     # Only the negative conclusion below needs the read to be complete.
-    for node in nodes:
-        if ((node.get("project") or {}).get("number")) != project_number:
+    for item in nodes:
+        if ((item.get("project") or {}).get("number")) != project_number:
             continue
-        item_id = node.get("id")
+        item_id = item.get("id")
         if not item_id:
             raise BoardLookupError(
                 f"board item for #{issue_number} has no 'id' - the schema "
                 "changed; refusing to return an unusable value"
             )
         status = None
-        for fv in (node.get("fieldValues") or {}).get("nodes") or []:
+        for fv in (item.get("fieldValues") or {}).get("nodes") or []:
             if fv and (fv.get("field") or {}).get("name") == "Status":
                 status = fv.get("name")
                 break

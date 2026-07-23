@@ -275,6 +275,14 @@ def _item_and_status(
     # exactly as before - the gain is that the helper cannot silently answer
     # "no card" for an archived one, which the old first:10 query could not
     # distinguish either.
+    #
+    # Timeout semantics changed, on purpose (PR #1300 review, finding 2): the
+    # old hook-local _gh passed timeout=15 per call; gh_client.gh sets no
+    # subprocess timeout, so the effective bound is now the harness's
+    # `timeout: 35` for the whole hook (.agents/settings.json). That is still a
+    # hard bound - a killed PostToolUse hook fails open - and the tradeoff buys
+    # gh_client's retry/backoff on genuinely transient failures, which the
+    # per-call timeout used to cut short. Recorded so it is a decision.
     try:
         return board_item.resolve_board_item(
             number, repo=f"{owner}/{repo}", kind=kind, project_number=PROJECT_NUMBER

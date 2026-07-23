@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-23
 
+### 14:50 UTC - Editor: Developer - A guard that certified its own blind spot, and the three checks that could not fail ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
+
+**Headline:** Built the shared board-item resolver #1151 asked for, and the interesting part is that my first implementation was wrong in exactly the way the Issue exists to prevent - and my own acceptance-criterion guard certified it as sound.
+
+**The trap.** `ProjectV2.items` defaults to `archivedStates: [NOT_ARCHIVED]` **and** its `totalCount` is scoped to that same subset.
+So a board scan omits every archived card while a `seen == totalCount` completeness assertion passes.
+Board 9 holds 289 unarchived and 1,163 archived items, and my first draft answered `BoardItemNotFound: issue #569 is not on project Jin-HoMLee/9 (complete read of 289 items)` for a card that plainly exists.
+**A completeness check that cannot see what it is missing is not a completeness check** - and AC-2 asked for exactly that check, so satisfying the AC literally produced the defect.
+
+**The fix was to change access path, not to add a guard.** `Issue.projectItems` defaults `includeArchived: true` and is scoped to one issue: no board-wide read to truncate, no archived blind spot, one API call instead of three.
+Both failure modes become *unrepresentable* rather than asserted-against, which is the difference between a fix and a mitigation.
+Jin-Ho leaned this way on ergonomics before any of the archived evidence existed; the evidence is what made it correct rather than merely tidier.
+Found by taking his "double-check best practices" seriously: a community thread flagged the archived omission, and live schema introspection confirmed both defaults rather than trusting the blog post.
+
+**Three separate checks that could not fail, all in one session.** (1) The CI poll that reported green over an *empty* check list, because `all()` over empty is vacuously true - the PR was actually conflicting, and GitHub does not run checks on a branch it cannot merge. (2) The completeness assertion above. (3) The migrated hook's **52 existing tests all monkeypatch `_item_and_status` away**, so none execute its body; a completely broken rewrite would have stayed green. I caught the third only by asking why 52 tests passed instantly after a substantive rewrite, then drove the real function live.
+
+**I published two wrong claims and had to retract both.** I told Jin-Ho and PM the board had shrunk to 286 items so AC-2 was unsatisfiable - false, my read excluded the 1,163 archived ones and `totalCount` agreed with the partial view, so the original 1,228 figure was right. And I evidenced the cross-repo collision with #183, which is an Issue in the pipeline repo but a **pull request** in personas; issues and PRs share a number space, so scanning board content numbers overcounts. A complete read finds 56 genuine Issue/Issue collisions; the test now uses the verified #37.
+
+**Process:** premise re-verification before coding (the Issue was 9 days old) -> TDD with every RED watched, the pagination RED reproducing the production bug verbatim -> live falsifiers on real archived and colliding cards -> caller migration with fail-open preserved and proven red when broken -> bot review (LGTM, no blocking) -> findings addressed, including a stale #183 example the review caught **inside my own correction** -> residue filed as [#1301](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1301).
+
+**Lesson:** when an acceptance criterion names a *check*, ask what the check reads before implementing it. AC-2 said "assert the row count against `totalCount`", and `totalCount` was itself part of the lie. An assertion is only as good as the widest thing it can observe, and a guard that shares the blind spot of the thing it guards will always report success.
+
 ### 12:01 UTC - Editor: Developer - The visual explainer Jin-Ho liked taught the fix backwards, and the checker that caught it had to be able to fail ([PR #1286](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1286) for [Issue #1278](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278))
 
 **Headline:** Jin-Ho asked whether I had committed last session's hand-authored HTML explainer of the #1278 bug.
