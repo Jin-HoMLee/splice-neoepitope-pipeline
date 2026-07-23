@@ -151,6 +151,15 @@ BACKLOG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Backlo
 # awaiting-review count.
 REVIEW_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select((.status == "Ready for review" or .status == "In review") and .kind == "PR")]' 2>/dev/null)"
 
+# NOTE the deliberate asymmetry with the per-role floor (Issue #1248): the floor
+# counts only PULLABLE items, but the cap counts EVERY Ready card, body-gated
+# ones included. That is intentional, not an oversight - the cap is a WIP limit
+# on buffer depth, and a gated card still occupies the buffer and still inflates
+# lead time, so it should count against over-deepening. Consequence to expect: a
+# run near the cap can print "[CAP] Ready at 23" while the per-role pullable
+# breakdown sums lower, with the [NOT-PULLABLE] lines reconciling the gap. (The
+# breakdown never summed to TOTAL anyway - a multi-role item counts toward each
+# of its roles - so this is legibility, not a correctness change.)
 TOTAL="$(printf '%s' "$READY_JSON" | jq 'length')"
 
 needs_attention=0

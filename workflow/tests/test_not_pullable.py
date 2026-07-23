@@ -115,6 +115,33 @@ def test_needs_design_decision_acs_trip():
     assert "design" in reason.lower() or "decision" in reason.lower()
 
 
+@pytest.mark.parametrize("verb", ["Decide", "Determine", "Choose"])
+def test_each_decision_verb_in_unticked_ac_trips(verb):
+    """Every live branch of the decision-verb alternation has direct coverage.
+
+    Bot review on PR #1292 caught that only `decide` was exercised (via
+    BODY_929), leaving the other branches able to be dropped from the regex
+    while the suite stayed green. `determine` matters most: it is the verb at
+    the centre of the #659 governance tension, so it is the branch most likely
+    to be re-tuned and was the least protected.
+    """
+    body = "## Acceptance criteria\n\n- [ ] {} the scope of the work.\n".format(verb)
+    assert scan_not_pullable(body) is not None, "verb not detected: {}".format(verb)
+
+
+@pytest.mark.parametrize("verb", ["Settle", "Pick"])
+def test_speculative_verbs_are_deliberately_not_matched(verb):
+    """`settle` / `pick` were trimmed from the alternation, on purpose.
+
+    They had no observed instance in any real Issue and are not among the
+    decision phrasings the DoR names, so each was unexercised false-positive
+    surface on a linter. This pins the trim so a future author does not
+    re-add them by reflex without an observed case to justify it.
+    """
+    body = "## Acceptance criteria\n\n- [ ] {} the scope of the work.\n".format(verb)
+    assert scan_not_pullable(body) is None
+
+
 @pytest.mark.parametrize(
     "marker",
     [

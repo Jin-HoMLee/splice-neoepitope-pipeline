@@ -29,6 +29,16 @@ spans), which is the same "using a directive vs talking about it" distinction
 that Issue #1126 had to draw for the `skip-lab-notebook` marker. An over-eager
 guard is worse than none: it gets disabled.
 
+WRITING ABOUT THIS MECHANISM? BACKTICK THE MARKER WORDS. The residual
+false-positive surface is narrower than "any mention": it is specifically a
+marker that OPENS A CLAUSE in un-quoted prose. A clause can begin after a colon
+or a sentence period, so a future Issue whose notes say "Trigger-gated items are
+excluded from the floor." reads as that Issue's own gate, and "Do not commit
+before reviewing the diff." reads as a date gate. Quoting the marker as `code`
+makes it invisible to the scan, which is the supported way to document a marker
+without invoking it. This is the self-trip Issue #1126 warned about, and Issue
+#1248's own body hit it before clause anchoring landed.
+
 Deliberately NOT a denylist widen. The marker set is small, specific, and
 matches phrasings we actually use; growing it on every near-miss is the
 non-convergent path the Issue #1150 posture warns about.
@@ -82,9 +92,14 @@ _CLAUSE_LEAD_RE = re.compile(r"^[\s>]*(?:[-*+]\s+)?[\s*_]*")
 _CLAUSE_SPLIT_RE = re.compile(r"(?<=[.!?:])\s+")
 
 # Verbs that, leading an unticked acceptance criterion, mean the scope is a
-# decision rather than a deliverable.
+# decision rather than a deliverable. Kept to three: the DoR in
+# shared/feedback_board_hygiene.md names decision phrasings ("must decide",
+# "decide whether", "which wins"), and these are the leading-verb forms we
+# actually observe. `settle` / `pick` were speculative additions with no observed
+# instance, and every extra branch is unexercised false-positive surface on a
+# linter, so they are out. Each surviving branch has a direct test.
 _DECISION_AC_RE = re.compile(
-    r"^\s*[-*]\s*\[ \]\s*(decide|determine|choose|settle|pick)\b",
+    r"^\s*[-*]\s*\[ \]\s*(decide|determine|choose)\b",
     re.IGNORECASE,
 )
 
@@ -154,7 +169,7 @@ def scan_not_pullable(body):
     for clause in iter_clauses(scannable):
         match = _TRIGGER_RE.match(clause)
         if match:
-            return "trigger-gated: body says {!r}".format(match.group(0).lower())
+            return "trigger-gated on {!r}".format(match.group(0).lower())
 
     for line in acceptance_criteria_lines(scannable):
         verb = _DECISION_AC_RE.match(line)
