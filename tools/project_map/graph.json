@@ -1956,7 +1956,7 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 20
+      "degree": 21
     },
     {
       "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
@@ -2806,6 +2806,37 @@
       "size": 2,
       "issue": 1204,
       "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1278_minus_strand_arm_order",
+      "label": "issue_1278_minus_strand_arm_order",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1278_minus_strand_arm_order",
+      "size": 0,
+      "issue": 1278,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1278_minus_strand_arm_order__explainers",
+      "label": "explainers",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1278_minus_strand_arm_order/explainers",
+      "size": 1,
+      "issue": 1278,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1278_minus_strand_arm_order__explainers__minus_strand_arm_order_html",
+      "label": "minus_strand_arm_order.html",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1278_minus_strand_arm_order/explainers/minus_strand_arm_order.html",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1278,
+      "degree": 1
     },
     {
       "id": "research__experiments__issue_224_alphagenome_exp1",
@@ -7465,7 +7496,7 @@
       "argparse_args": [
         "output"
       ],
-      "lines_of_code": 371,
+      "lines_of_code": 385,
       "size": 2,
       "degree": 3
     },
@@ -10383,6 +10414,24 @@
     {
       "source": "research__experiments__issue_1204_orf_fasta__slides_qmd",
       "target": "research__experiments__issue_1204_orf_fasta",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1278_minus_strand_arm_order",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1278_minus_strand_arm_order__explainers",
+      "target": "research__experiments__issue_1278_minus_strand_arm_order",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1278_minus_strand_arm_order__explainers__minus_strand_arm_order_html",
+      "target": "research__experiments__issue_1278_minus_strand_arm_order__explainers",
       "type": "contained_in",
       "label": ""
     },

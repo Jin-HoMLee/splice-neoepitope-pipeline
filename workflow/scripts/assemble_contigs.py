@@ -271,14 +271,28 @@ def assemble_contigs(
             # Take exactly the required number of nucleotides
             up_seq = up_seq[-upstream_nt:]
             dn_seq = dn_seq[:downstream_nt]
-            # Normalise case BEFORE the soft-clip check. Lower-case in a genome
-            # FASTA is repeat *soft-masking* (e.g. UCSC references), NOT an
-            # alignment soft-clip. These contigs are cut from the reference via
-            # bedtools getfasta, so they never contain alignment soft-clips;
-            # without upper-casing first, a soft-masked reference silently drops
-            # every contig. Production (GENCODE) is upper-case, so this only bit
-            # soft-masked references like the chr22 UCSC test fixture.
-            contig = (up_seq + dn_seq).upper()
+            # Concatenate the two exon arms in TRANSCRIPT order (Issue #1278).
+            # bedtools getfasta -s already reverse-complements each arm for a
+            # minus-strand junction, but it does NOT reorder them: on the minus
+            # strand the transcript reads 5'->3' from the downstream (higher-
+            # coordinate) arm into the upstream arm, so the correct order is
+            # dn_seq + up_seq. Emitting up_seq + dn_seq there fabricates the
+            # junction boundary (a chimera), silently mistranslating ~half of all
+            # junctions. On the plus strand, and for unknown strand '.' (where
+            # getfasta leaves the arms in genomic sense and orientation cannot be
+            # inferred), genomic order up_seq + dn_seq is correct.
+            #
+            # Normalise case at the same step. Lower-case in a genome FASTA is
+            # repeat *soft-masking* (e.g. UCSC references), NOT an alignment
+            # soft-clip. These contigs are cut from the reference via bedtools
+            # getfasta, so they never contain alignment soft-clips; without
+            # upper-casing, a soft-masked reference silently drops every contig.
+            # Production (GENCODE) is upper-case, so this only bit soft-masked
+            # references like the chr22 UCSC test fixture.
+            if row["strand"] == "-":
+                contig = (dn_seq + up_seq).upper()
+            else:
+                contig = (up_seq + dn_seq).upper()
 
             # Defensive only: genome-derived contigs have no alignment soft-clips,
             # so after upper-casing this never fires (kept as a guard + for the
