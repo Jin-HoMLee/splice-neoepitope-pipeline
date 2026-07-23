@@ -210,3 +210,41 @@ class TestBothRepos:
     def test_unknown_repo_still_renders_a_usable_ref(self):
         """Fail-open: an unexpected repo must not crash a recap."""
         assert "98" in c.repo_ref(98, "Jin-HoMLee/some-other-repo")
+
+    def test_two_repo_aggregation_preserves_the_inclusive_boundary(self):
+        """The `>=` boundary must survive the two-repo path, in BOTH repos.
+
+        The original off-by-one (Issue #784) was a bare `>` that excluded the
+        whole boundary day. Aggregating across repos adds a new place that bug
+        could reappear asymmetrically - e.g. a floor comparison applied to one
+        repo's rows but not the other's. Both repos get an item at exactly
+        00:00:00Z (the floor instant) and one a second BEFORE it; the boundary
+        items must be kept and the pre-floor ones dropped.
+        """
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.collect(
+            floor,
+            [{"number": 10, "title": "project at floor", "closedAt": "2026-07-22T00:00:00Z"},
+             {"number": 11, "title": "project before floor", "closedAt": "2026-07-21T23:59:59Z"}],
+            [], repo=self.PROJECT,
+        ) + c.collect(
+            floor,
+            [{"number": 20, "title": "personas at floor", "closedAt": "2026-07-22T00:00:00Z"},
+             {"number": 21, "title": "personas before floor", "closedAt": "2026-07-21T23:59:59Z"}],
+            [], repo=self.PERSONAS,
+        )
+        kept = sorted(r["number"] for r in rows)
+        assert kept == [10, 20], kept
+
+    def test_two_repo_aggregation_keeps_merged_prs_from_both(self):
+        """PR-side aggregation, since Issues and PRs take different code paths."""
+        floor = datetime(2026, 7, 22, 0, 0, tzinfo=UTC)
+        rows = c.collect(floor, [],
+                         [{"number": 30, "title": "project pr", "mergedAt": "2026-07-22T05:00:00Z"}],
+                         repo=self.PROJECT)
+        rows += c.collect(floor, [],
+                          [{"number": 40, "title": "personas pr", "mergedAt": "2026-07-22T06:00:00Z"}],
+                          repo=self.PERSONAS)
+        out = c.render(c.sort_rows(rows), floor)
+        assert "pers#40" in out and "#30" in out, out
+        assert all(r["kind"] == "PR" for r in rows)
