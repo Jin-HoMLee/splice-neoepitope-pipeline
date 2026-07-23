@@ -8,6 +8,28 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-23
 
+### 15:05 UTC - Editor: Developer - CI caught an inert hook my own test filter had been hiding ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
+
+**Headline:** After the bot review passed clean, CI failed twice, and both failures were mine.
+The first is the one that matters: `test_hook_liveness_contract` reported the migrated `post_gh_pr_review_request` **inert on its own trigger** - it fired, failed open, and did nothing.
+Board cards would have silently stopped advancing to `In review`, with no error anywhere.
+
+**Cause, and why fail-open made it invisible.** My resolver required `items["pageInfo"]`; the liveness stub models the *pre-migration* query and never requested it.
+Missing optional -> `KeyError` -> `BoardLookupError` -> the hook's deliberate `(None, None)` fail-open.
+A hard bug wearing the costume of a quiet no-op, which is precisely the failure class this Issue was filed about, reproduced by the fix for it.
+The repair is fail-**safe** rather than merely tolerant: a *hit* needs no completeness information and resolves regardless, while a *negative* conclusion without `pageInfo` raises `BoardReadIncomplete` instead of the confident `BoardItemNotFound`. Absence stays unprovable when completeness is unprovable.
+
+**Why my local runs could not have caught it.** I had been filtering with `-k "not live"`, and **`-k` matches the module path**, so `test_hook_LIVEness_contract.py` was silently deselected in its entirety.
+Every "full suite green" I reported on this PR excluded the one suite designed to catch an inert hook, and I cited that output as evidence four separate times.
+Switching to `-k "not test_live_"` moved the count from 2064 to 2115: roughly 50 tests had been invisible.
+
+**The second failure had a worse near-miss inside it.** A live cross-repo test failed because CI's token cannot read the personas repo. Fine. But its sibling asserts a `BoardLookupError` for a PR number - and no-access raises that same error, so in CI it would have **passed for the wrong reason**, verifying nothing while looking green. I only saw it because the neighbouring test failed loudly. Both are now gated on an explicit read-access probe, so each either tests its claim or skips.
+
+**Five checks in one PR that could not fail:** the CI poll over an empty list (`all()` of empty is true), the `totalCount` guard scoped to the same subset it was verifying, 52 hook tests monkeypatching away their own subject, my `-k` filter, and a live test that passes on a permissions error.
+**Two of the five I wrote myself, during the work whose entire subject is this failure mode.** That is the part to sit with: knowing the pattern by name did not stop me producing it.
+
+**Lesson:** a filter is a check about checks, and nothing checks it. `-k`, `-m`, path arguments, and skip guards silently determine what is *allowed* to fail, and none of them announce what they excluded. Read the deselected/skipped counts as data, not noise - a green run with 55 deselected is a different claim from a green run with 6, and I treated them as the same claim four times.
+
 ### 14:50 UTC - Editor: Developer - A guard that certified its own blind spot, and the three checks that could not fail ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
 
 **Headline:** Built the shared board-item resolver #1151 asked for, and the interesting part is that my first implementation was wrong in exactly the way the Issue exists to prevent - and my own acceptance-criterion guard certified it as sound.
