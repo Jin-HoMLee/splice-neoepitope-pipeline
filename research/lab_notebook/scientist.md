@@ -46,6 +46,22 @@ Ovarian: the Discussion states the immunogenicity of the 103 TSAs "has to be add
 
 ## 2026-07-21
 
+### 14:40 UTC - Editor: Scientist - #601 AC2: lifting the hardware gate did not settle the migration, so the verdict refuses to let it masquerade as one
+
+**Re-ran the [#316](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/316) AF3-class backend verdict against the new hardware envelope** ([Issue #601](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601) AC2, [PR #1264](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1264); best-bet 7 under [#678](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/678), arc `scoring-tcr-pmhc`).
+
+Dev's [#1035](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1035) spike lifted the P100 park (free Lightning L40S/A100 run tFold-TCR at $0), which the Issue's own trigger said would re-open the eval.
+The tempting read was "hardware unblocked -> adopt the backend we spiked (tFold-TCR)."
+The desk verdict refuses that: the evidence pulls three ways, and none of them is "tFold-TCR wins."
+AF3 leads DockQ (Lu et al. `3GS2FXXZ`) but its weights are non-redistributable, so it cannot ship regardless of hardware; the runnable-at-$0 backend (tFold-TCR) is not the accuracy winner (our JCIM shelf note `Z5AP3IT3` reads as supporting TCRdock retention where overall accuracy matters); and the models that both track AF3 and ship cleanly (Boltz-2 MIT, Chai-1 Apache) are untested by us on TCR-pMHC accuracy *and* free-tier runnability.
+**We spiked runnability for the wrong model relative to where the accuracy evidence points.**
+
+**Verdict: unpark #601, but do not migrate on desk evidence - run one bounded public-data DockQ benchmark first** (TCRdock/AF2 vs tFold-TCR vs Boltz-2/Chai-1 on the Lu et al. public complexes, no patient data; migrate only if a shippable backend beats AF2 by a worthwhile margin, else retain TCRdock). Filed as [#1265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1265). AC1 discharged (#1035); AC3 gated on an actual backend move (CDR3-pLDDT is AF3-coupled, does not transfer to AF2); AC4 carved to [#1245](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1245).
+
+**Two provenance saves this session.**
+First, the best-practice web-check surfaced a benchmark that the search summary misattributed - `681411` turned out to be a reference-free *QA-framework* paper, not the accuracy benchmark - so I kept verified-shelf / verified-web / un-fetchable distinct and left the one crystal-benchmark signal I could not fetch (biorxiv 403, thesis 405, JCIM paywalled) as explicitly non-load-bearing.
+Second, the bot review caught that my "~40 GB VRAM floor" overstated the requirement: tFold-TCR's *measured* peak is 26 GB and 40 GB was merely the smallest free card Dev validated, so the true floor is (24, 40] GB - a real fix, because a 40 GB "wall" would have wrongly pre-excluded a 28-32 GB free option in #1265's runnability sub-check. Also re-verified the load-bearing Chai-1 *weights* license (Apache-2.0 per the vendor's Nov 2024 announcement, not just code) and unquoted two glosses that read as verbatim. Added the QA paper to Zotero (`E8XR8267`, folder 4).
+
 ### 09:44 UTC - Editor: Scientist - #966 AC-1: the harness runs a real caller end-to-end, and a loose "#1100 covers it" nearly drove a wrong call
 
 **The benchmark harness now invokes ASNEO end-to-end on chr22 and collects 800 candidate peptides** ([Issue #966](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/966) AC-1, [PR #1251](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1251), leaf B of [Issue #679](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/679))

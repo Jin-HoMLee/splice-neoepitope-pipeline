@@ -1488,7 +1488,39 @@
       "group": "research",
       "path": "research/decisions",
       "size": 0,
-      "degree": 2
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state",
+      "label": "issue_1284_registry-hunt-state",
+      "type": "decisions_dir",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state",
+      "size": 2,
+      "issue": 1284,
+      "degree": 3
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "label": "refs.bib",
+      "type": "reference",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/refs.bib",
+      "description": "Bibliography / reference",
+      "size": 1,
+      "issue": 1284,
+      "degree": 1
+    },
+    {
+      "id": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "label": "slides.qmd",
+      "type": "slide",
+      "group": "research",
+      "path": "research/decisions/issue_1284_registry-hunt-state/slides.qmd",
+      "description": "Quarto slide deck",
+      "size": 2,
+      "issue": 1284,
+      "degree": 1
     },
     {
       "id": "research__decisions__issue_592",
@@ -1924,7 +1956,7 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 19
+      "degree": 20
     },
     {
       "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
@@ -3530,6 +3562,38 @@
       "size": 1,
       "issue": 566,
       "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_601_af3class_reeval",
+      "label": "issue_601_af3class_reeval",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_601_af3class_reeval",
+      "size": 2,
+      "issue": 601,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_601_af3class_reeval__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_601_af3class_reeval/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 601,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_601_af3class_reeval__verdict_af3class_reeval_2026_07_21_md",
+      "label": "verdict_af3class_reeval_2026-07-21.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_601_af3class_reeval/verdict_af3class_reeval_2026-07-21.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 601,
+      "degree": 2
     },
     {
       "id": "research__experiments__issue_679_caller_benchmark",
@@ -9481,6 +9545,24 @@
       "label": ""
     },
     {
+      "source": "research__decisions__issue_1284_registry_hunt_state",
+      "target": "research__decisions",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__refs_bib",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__decisions__issue_1284_registry_hunt_state__slides_qmd",
+      "target": "research__decisions__issue_1284_registry_hunt_state",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "research__decisions__issue_592",
       "target": "research__decisions",
       "type": "contained_in",
@@ -10725,6 +10807,30 @@
     {
       "source": "research__experiments__issue_566_asneo_crosscheck__run_asneo_chr22_sh",
       "target": "research__experiments__issue_566_asneo_crosscheck",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_601_af3class_reeval",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_601_af3class_reeval__README_md",
+      "target": "research__experiments__issue_601_af3class_reeval",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_601_af3class_reeval__README_md",
+      "target": "research__experiments__issue_601_af3class_reeval__verdict_af3class_reeval_2026_07_21_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__experiments__issue_601_af3class_reeval__verdict_af3class_reeval_2026_07_21_md",
+      "target": "research__experiments__issue_601_af3class_reeval",
       "type": "contained_in",
       "label": ""
     },
