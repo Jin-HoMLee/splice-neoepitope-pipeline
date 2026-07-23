@@ -1,0 +1,37 @@
+{
+  "A": {
+    "annotated_discarded": 79,
+    "gtex_pantissue_shared": 29,
+    "junctions_raw": 1872,
+    "max_reads": 34,
+    "mean_reads": 1,
+    "mean_reads_filtered": 1638,
+    "median_reads": 1,
+    "min_reads": 1,
+    "normal_shared": 4,
+    "normal_shared:Solid Tissue Normal": 4,
+    "tumor_exclusive": 122
+  },
+  "B": {
+    "annotated_discarded": 79,
+    "gtex_pantissue_shared": 32,
+    "junctions_raw": 1872,
+    "max_reads": 34,
+    "mean_reads": 1,
+    "mean_reads_filtered": 1638,
+    "median_reads": 1,
+    "min_reads": 1,
+    "normal_shared": 0,
+    "tumor_exclusive": 123
+  },
+  "delta_tumor_exclusive": 1,
+  "lost_to_tumor_exclusive": [
+    "chr22:35501382:35584228:+"
+  ],
+  "normal_shared_a": 4,
+  "recovered_by_gtex": [
+    "chr22:22905026:22906341:+",
+    "chr22:22915876:22919801:+",
+    "chr22:47571439:47579321:-"
+  ]
+}

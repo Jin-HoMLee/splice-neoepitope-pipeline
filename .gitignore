@@ -226,8 +226,12 @@ resources/test/chr22*
 resources/test/hisat2_index/
 resources/test/star_index/
 # GTEx pan-tissue panel BEDs are large + regenerable (build_gtex_pan_tissue_ref.py);
-# staged to GCS, tracked via resources/test/gtex_gtexv2_data_manifest.yaml (Issue #211).
+# tracked via resources/test/gtex_gtexv2_data_manifest.yaml (Issue #211). Recover by
+# REBUILD, not fetch: that manifest's gcs_path points at a bucket deleted in the June
+# GCP decommission. A rebuild reproduces the recorded sha256 exactly (verified 2026-07-23).
+# The .qc.json sidecar is a build artifact of the same run, so it is ignored alongside.
 resources/test/gtex_*pan_tissue_junctions*.bed
+resources/test/gtex_*pan_tissue_junctions*.qc.json
 data/
 logs/
 
