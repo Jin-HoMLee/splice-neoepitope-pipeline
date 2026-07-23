@@ -6,6 +6,27 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-23
+
+### 11:44 UTC - Editor: Developer - Closed out the minus-strand arm-order fix by re-earning its falsifier instead of trusting the note that said it was verified ([PR #1286](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1286) for [Issue #1278](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278))
+
+**Headline:** The fix, unit test, and atlas regen for #1278 were already committed, green, and bot-reviewed LGTM.
+What was left dangling was the integration guard the bot recommended, sitting uncommitted in the working tree across a session boundary because Jin-Ho asked to see it and then redirected to a visualization exploration.
+Committing it was the whole remaining task, and the only interesting decision was whether to take the previous session's word that it was falsifiable.
+
+**I re-ran the falsifier rather than inheriting the claim.** The post-it asserted the guard "passes with the fix, FAILS if reverted." That is exactly the kind of claim [[drive-the-real-trigger-not-a-synthetic-payload]] says to distrust, so I restored the buggy `up_seq + dn_seq` order in `assemble_contigs.py` and ran the suite.
+Both the unit test and the new guard went red, and the failure output printed the wrong peptide set (`AAAAAAAG...` instead of `GGGGGGGA`), which is the actual biological signature of the chimera rather than a generic assertion failure.
+Restored the fix with an inverse Edit, never `git checkout`, per [[git-checkout-discards-uncommitted-work]] - the working tree held the only copy of the guard.
+
+**The guard covers what the unit test structurally cannot.** The unit test pins arm order inside `assemble_contigs`; the guard carries a minus-strand junction through `translate_peptides` and asserts the junction-spanning peptide.
+That second hop matters because `translate_peptides` translates forward frames only and assumes the contig is already in mRNA sense with the breakpoint at `upstream_nt`, which is precisely the assumption that let the arm swap stay silent.
+Every prior fixture across both scripts used strand `+`, so the end-to-end failure mode had never been exercised.
+
+**AC verification was against the diff, not the PR body.** All four of #1278's ACs were unticked.
+Rather than tick them from the test-plan prose I read `git diff origin/main...HEAD` on `assemble_contigs.py` and confirmed the only functional change is the strand branch, with both length trims and the `.upper()` normalisation preserved at the same step (AC4), and the unknown-strand `.` case documented as a deliberate fall-through to genomic order rather than an accident (AC2).
+
+**Process:** falsifier re-run -> commit guard -> merge `origin/main` (branch was 2 behind, and atlas freshness is evaluated on the PR-merge tree per [[atlas-freshness-checks-pr-merge-tree]]) -> regenerate atlas after staging per [[atlas-regen-after-git-add]] -> full five-directory pytest sweep (2065 passed, 24 skipped) per [[ci-pytest-runs-five-dirs-not-just-tools-ci]] -> push -> tick ACs -> this entry -> stop at the merge gate for Jin-Ho's word.
+
 ## 2026-07-22
 
 ### 13:49 UTC - Editor: Developer - Human review drove the junction-ORF deck from plausible to true, and a figure I trusted turned out to contradict our own run ([PR #1263](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1263) for [Issue #1262](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1262))
