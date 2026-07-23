@@ -6,6 +6,49 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-23
+
+### 12:01 UTC - Editor: Developer - The visual explainer Jin-Ho liked taught the fix backwards, and the checker that caught it had to be able to fail ([PR #1286](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1286) for [Issue #1278](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278))
+
+**Headline:** Jin-Ho asked whether I had committed last session's hand-authored HTML explainer of the #1278 bug.
+I had not, and it had survived only in the previous session's scratchpad.
+Checking it before committing found that its central diagram inverted the PR's own claim, so what looked like a pure retrieval task was a correctness catch.
+
+**The defect.** Section 1 states in prose that `bedtools getfasta -s` reverse-complements each arm, then never applies it: both concatenation panels reuse the raw genomic letters.
+So the panel labelled *old / fabricated* showed boundary `C | G`, which is in fact the **correct** junction boundary, and the panel labelled *fix* showed `A | C`, a boundary that never occurs, having silently dropped a base from the upstream arm.
+The true values are `T | T` for the buggy order, the two outer edges roughly 54 nt apart that make it a chimera, and `C | G` for the fix.
+A reader following the diagram would learn the fix backwards.
+Sections 2 through 4 were accurate, including a code diff matching what shipped.
+
+**What fixed it was drawing the step the diagram skipped**, not relabelling the panels: reverse-complementing an arm moves its junction base to the *other* end, which is exactly why concatenation order decides real-versus-fabricated. Making that its own row turns the punchline into something the reader derives rather than is told.
+
+**Method note, and the part worth keeping.** I verified the correction by parsing the sequences back out of the HTML and checking them against an independently computed reverse-complement, rather than by looking at it.
+Then I ran the same checker against the original: 4 of 4 checks fail there, 7 of 7 pass on the correction.
+The first version of that checker mis-parsed an arm (its regex stopped at a nested `<span>`) and reported a failure that was the checker's fault, not the document's, which is its own reminder that a red result needs the same scrutiny as a green one.
+
+**The recurrence that makes this worth an entry.** This is the identical shape as yesterday's slide-4 catch: a figure that was liked, looked right, and contradicted the mechanism it illustrated.
+Twice in two days the failing check was a human asking, and the fix was computing the expected value instead of defending the drawing.
+Prose in these artifacts gets reviewed; the numbers inside the figure do not, unless something mechanical checks them. That asymmetry is the real lesson, and it is why the checker went in the record rather than staying a one-off.
+
+### 11:44 UTC - Editor: Developer - Closed out the minus-strand arm-order fix by re-earning its falsifier instead of trusting the note that said it was verified ([PR #1286](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1286) for [Issue #1278](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278))
+
+**Headline:** The fix, unit test, and atlas regen for #1278 were already committed, green, and bot-reviewed LGTM.
+What was left dangling was the integration guard the bot recommended, sitting uncommitted in the working tree across a session boundary because Jin-Ho asked to see it and then redirected to a visualization exploration.
+Committing it was the whole remaining task, and the only interesting decision was whether to take the previous session's word that it was falsifiable.
+
+**I re-ran the falsifier rather than inheriting the claim.** The post-it asserted the guard "passes with the fix, FAILS if reverted." That is exactly the kind of claim [[drive-the-real-trigger-not-a-synthetic-payload]] says to distrust, so I restored the buggy `up_seq + dn_seq` order in `assemble_contigs.py` and ran the suite.
+Both the unit test and the new guard went red, and the failure output printed the wrong peptide set (`AAAAAAAG...` instead of `GGGGGGGA`), which is the actual biological signature of the chimera rather than a generic assertion failure.
+Restored the fix with an inverse Edit, never `git checkout`, per [[git-checkout-discards-uncommitted-work]] - the working tree held the only copy of the guard.
+
+**The guard covers what the unit test structurally cannot.** The unit test pins arm order inside `assemble_contigs`; the guard carries a minus-strand junction through `translate_peptides` and asserts the junction-spanning peptide.
+That second hop matters because `translate_peptides` translates forward frames only and assumes the contig is already in mRNA sense with the breakpoint at `upstream_nt`, which is precisely the assumption that let the arm swap stay silent.
+Every prior fixture across both scripts used strand `+`, so the end-to-end failure mode had never been exercised.
+
+**AC verification was against the diff, not the PR body.** All four of #1278's ACs were unticked.
+Rather than tick them from the test-plan prose I read `git diff origin/main...HEAD` on `assemble_contigs.py` and confirmed the only functional change is the strand branch, with both length trims and the `.upper()` normalisation preserved at the same step (AC4), and the unknown-strand `.` case documented as a deliberate fall-through to genomic order rather than an accident (AC2).
+
+**Process:** falsifier re-run -> commit guard -> merge `origin/main` (branch was 2 behind, and atlas freshness is evaluated on the PR-merge tree per [[atlas-freshness-checks-pr-merge-tree]]) -> regenerate atlas after staging per [[atlas-regen-after-git-add]] -> full five-directory pytest sweep (2065 passed, 24 skipped) per [[ci-pytest-runs-five-dirs-not-just-tools-ci]] -> push -> tick ACs -> this entry -> stop at the merge gate for Jin-Ho's word.
+
 ## 2026-07-22
 
 ### 13:49 UTC - Editor: Developer - Human review drove the junction-ORF deck from plausible to true, and a figure I trusted turned out to contradict our own run ([PR #1263](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1263) for [Issue #1262](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1262))
