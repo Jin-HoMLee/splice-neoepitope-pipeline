@@ -227,7 +227,12 @@ def resolve_board_item(
     try:
         items = node["projectItems"]
         nodes = items["nodes"]
-        page_info = items["pageInfo"]
+        # pageInfo is tolerated-absent on purpose. A HIT needs no completeness
+        # information, and treating a missing optional as fatal made the migrated
+        # hook inert against a stub that modelled the pre-migration query. Absence
+        # is handled fail-SAFE below: it makes a negative conclusion unprovable,
+        # never a confident "no card".
+        page_info = items.get("pageInfo") or {}
     except (KeyError, TypeError) as exc:
         raise BoardLookupError(
             f"unexpected projectItems shape for #{issue_number} in {repo}: {exc}"
@@ -255,6 +260,12 @@ def resolve_board_item(
         raise BoardReadIncomplete(
             f"#{issue_number} in {repo} has more project items than were read; "
             f"cannot conclude it has no card on project {project_number}"
+        )
+    if "hasNextPage" not in page_info:
+        raise BoardReadIncomplete(
+            f"#{issue_number} in {repo}: response carried no pageInfo, so a "
+            f"complete read of its project items cannot be proven; refusing to "
+            f"report 'no card on project {project_number}'"
         )
 
     raise BoardItemNotFound(

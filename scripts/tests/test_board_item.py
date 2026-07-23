@@ -219,6 +219,35 @@ def test_unknown_kind_is_rejected_rather_than_interpolated():
         bi.resolve_board_item(1, kind="issue) { x } #", _gh=_fake_gh(_resp([])))
 
 
+def test_absent_page_info_still_resolves_a_hit():
+    # A response without `pageInfo` must not be fatal. This is not hypothetical:
+    # the hook-liveness stub models the pre-migration query and omits pageInfo,
+    # so requiring it made the migrated hook INERT on its own real trigger -
+    # caught by test_hook_liveness_contract, which is exactly what that suite is
+    # for. A hit needs no completeness information.
+    resp = {
+        "data": {"repository": {"issue": {"projectItems": {
+            "nodes": [_item("PVTI_x", status="Ready for review")],
+        }}}}
+    }
+
+    assert bi.resolve_board_item(1151, _gh=_fake_gh(resp)) == ("PVTI_x", "Ready for review")
+
+
+def test_absent_page_info_makes_a_NEGATIVE_conclusion_incomplete_not_not_found():
+    # Tolerance must not become laxity. Without pageInfo we cannot prove we saw
+    # every item, so "no card" is unprovable and must raise BoardReadIncomplete
+    # rather than the confident BoardItemNotFound. Fail-safe, not fail-open.
+    resp = {
+        "data": {"repository": {"issue": {"projectItems": {
+            "nodes": [_item("PVTI_other", project_number=42)],
+        }}}}
+    }
+
+    with pytest.raises(bi.BoardReadIncomplete):
+        bi.resolve_board_item(1151, _gh=_fake_gh(resp))
+
+
 def test_gh_failure_surfaces_as_a_board_lookup_error():
     # gh_client.GhError subclasses CalledProcessError. Without conversion the
     # caller gets an exception that is NOT catchable as BoardLookupError, which
