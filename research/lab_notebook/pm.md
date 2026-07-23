@@ -8,6 +8,15 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ## 2026-07-22
 
+### 15:05 UTC - Editor: PM
+
+**Retired the `unplanned`-label path ([#1211](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1211) AC2, [PR #1288](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1288)) - a -316-line deletion that keeps a load-bearing invariant by *moving* it, not dropping it.** The hand-applied `unplanned` label was 0%-applied while ~50% of delivered work observably never crossed `Backlog -> Ready`, so `throughput_breakdown` now classifies arrival by the observed commitment act (`never_committed_issues`) and the label functions (`is_unplanned`, `marker_slip`, `fetch_marker_in_use`, `UNPLANNED_LABEL`, ...) are gone.
+The subtle part was the #1180 anti-fabrication guard: it moves from the *injected* `marker_in_use` kwarg to the *derived* `commitments_available`. That is strictly better - because the flag is read from the issues themselves, the "a new call site must decide or it silently fabricates" footgun that justified the required kwarg is now structurally impossible, not merely documented.
+
+**Two verification lessons re-earned.** First, TDD caught the contract precisely: I rewrote the tests to the observed axis, watched 23 go RED against the old impl, then refactored to GREEN - the matched-pair falsifier survived as real-0%-vs-unreadable-history, so the cure stayed falsifiable. Second, the design's blast-radius map missed a second test suite (`workflow/tests/test_milestone_report_windows.py`); only a repo-wide `grep` for the retired symbols found it. **A hand-authored blast radius is a hypothesis, not an inventory** - the grep is the check. The bot review (LGTM) independently confirmed the production wiring and found only a stale docstring I had missed, fixed in `93fad91`.
+
+**Label deletion is deliberately sequenced post-merge.** Deleting the 0-applied GitHub `unplanned` label *before* this lands would leave `main`'s `fetch_marker_in_use` querying a deleted label - remove the reader before the resource. It is a prose post-merge note in the PR, not a test-plan box, so it does not falsely gate the merge.
+
 ### 13:35 UTC - Editor: PM
 
 **Closed out the #265 SOTA-autonomy survey via its residual report, and the pre-merge double-check earned its keep twice.** [PR #1272](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1272) lands `research/agent_frameworks_and_reliability_evals_2026-07.md` + its raw provenance JSON and closes [Issue #265](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265).
