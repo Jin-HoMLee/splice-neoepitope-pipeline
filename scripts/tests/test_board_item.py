@@ -55,6 +55,34 @@ def _load(name, *parts):
 bi = _load("board_item", "..", "pm", "board_item.py")
 REQUIRES_LIVE_GH = _load("_live_gh", "..", "..", "tools", "ci", "_live_gh.py").REQUIRES_LIVE_GH
 
+PERSONAS_REPO = "Jin-HoMLee/claude-personas-splice-neoepitope-pipeline"
+
+
+def _can_read_personas_repo():
+    """Probe read access to the personas repo (never raises).
+
+    REQUIRES_LIVE_GH only proves the token can read Projects v2; it says nothing
+    about *cross-repo* access, and CI's token cannot read the personas repo. Two
+    live tests below need it, and one of them expects a BoardLookupError - which
+    CI would raise anyway, for the wrong reason (no access rather than the
+    issue/PR number-space overlap). That test would then PASS while verifying
+    nothing, so both are gated on this probe rather than left to fail or, worse,
+    to succeed vacuously.
+    """
+    try:
+        return subprocess.run(
+            ["gh", "api", f"repos/{PERSONAS_REPO}", "--silent"],
+            capture_output=True, timeout=10, check=False,
+        ).returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+REQUIRES_PERSONAS_REPO = pytest.mark.skipif(
+    not _can_read_personas_repo(),
+    reason=f"requires gh read access to {PERSONAS_REPO} (CI's token has none)",
+)
+
 
 def _resp(nodes, *, has_next=False, issue_exists=True, kind="issue"):
     """A `repository.<kind>.projectItems` payload in the real response shape."""
@@ -348,6 +376,7 @@ def test_live_resolves_an_archived_card_the_board_scan_could_not():
 
 
 @REQUIRES_LIVE_GH
+@REQUIRES_PERSONAS_REPO
 @pytest.mark.live
 def test_live_cross_repo_collision_resolves_distinctly():
     # #37 exists as an ISSUE in both repos, both carded on board 9. A complete
@@ -367,6 +396,7 @@ def test_live_cross_repo_collision_resolves_distinctly():
 
 
 @REQUIRES_LIVE_GH
+@REQUIRES_PERSONAS_REPO
 @pytest.mark.live
 def test_live_pull_request_number_is_a_lookup_error_not_a_missing_card():
     # repository.issue(N) is Issue-only, so a PR number cannot resolve. That must
