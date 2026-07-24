@@ -188,6 +188,17 @@ CONTRACTS: dict[str, hc.HookContract] = {
         nofire_input={"command": "cd workflow"},
         notes="denies a cd outside the cwd subtree; a cd into a subdir passes",
     ),
+    "check_no_wordsplit.py": hc.HookContract(
+        basename="check_no_wordsplit.py",
+        observable=hc.DENY,
+        envelope_builder="pretooluse_bash",
+        fire_input={"command": "for x in $var; do echo $x; done"},
+        nofire_input={"command": 'for f in "${arr[@]}"; do echo "$f"; done'},
+        heredoc_fire_input={
+            "command": "cat > /tmp/note.txt <<'EOF'\nscratch\nEOF\nfor x in $var; do echo $x; done"
+        },
+        notes="denies an unquoted-scalar `for … in $var` / `set -- $var` (pure string inspection, no gh call), incl. the heredoc-then-command shape; the quoted-array form passes",
+    ),
     "check_memory_path_cwd_drift.py": hc.HookContract(
         basename="check_memory_path_cwd_drift.py",
         observable=hc.DENY,
