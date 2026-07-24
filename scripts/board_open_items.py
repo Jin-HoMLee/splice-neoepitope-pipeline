@@ -51,6 +51,7 @@ import graphql_meter  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "pm"))
 from not_pullable import scan_not_pullable  # noqa: E402
+from pullability import assess as assess_pullable  # noqa: E402
 
 OWNER = "Jin-HoMLee"
 PROJECT_NUMBER = 9
@@ -99,6 +100,7 @@ query($owner: String!, $number: Int!, $after: String) {
               subIssuesSummary { total }
               milestone { title }
               labels(first: 20) { nodes { name } }
+              blockedBy(first: 50) { nodes { number state } }
             }
             ... on PullRequest {
               number title state url isDraft
@@ -204,7 +206,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
     state = content.get("state")
     if state in ("CLOSED", "MERGED"):
         return None
-    status = size = priority = target_date = None
+    status = size = priority = target_date = start_date = None
     for fv in item["fieldValues"]["nodes"]:
         if not fv:
             continue
@@ -218,9 +220,12 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
             priority = fv.get("name")
         elif fname == "Target date":
             target_date = fv.get("date")
+        elif fname == "Start date":
+            start_date = fv.get("date")
     if status == "Done":
         return None
     labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
+    blocked_by = [b for b in (content.get("blockedBy") or {}).get("nodes", []) if b]
     # An Issue may carry several `role:` labels - the dual-role convention gives one
     # role the Lead/DRI and scopes individual ACs to the other. Keep the FULL set, for
     # the same reason `arcs` does (#1103): GitHub returns labels in an unstable order,
@@ -272,16 +277,24 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         "priority": priority,
         "size": size,
         "target_date": target_date,
+        "start_date": start_date,
+        "blocked_by": blocked_by,
         "role": role,
         "roles": role_labels,
         "arc": arc,
         "arc_phase": arc_phase,
         "labels": labels,
-        # Body-only "not pullable" gate (Issue #1248): a short reason string, or
-        # None when the item is pullable. Derived, never stored, so it cannot
-        # drift from the body. PRs are always None - only the PullRequest
-        # fragment omits `body`, and a PR is not a Ready-queue candidate anyway.
-        "not_pullable": scan_not_pullable(content.get("body")),
+        # "Not pullable" gate (Issue #1294): a short reason string, or None when
+        # the item is pullable. Computed from the one authoritative predicate
+        # (pullability.assess) over natively-owned sources - labels, blockedBy,
+        # Start date - never the prose scan. Derived, never stored, so it cannot
+        # drift from those sources. PRs are always None - only the PullRequest
+        # fragment omits body/blockedBy/Start date, and a PR is not a
+        # Ready-queue candidate anyway.
+        "not_pullable": assess_pullable(
+            {"labels": labels, "blocked_by": blocked_by, "start_date": start_date},
+            today=datetime.now(timezone.utc).date().isoformat(),
+        ),
         "created_at": content.get("createdAt"),
         "updated_at": content.get("updatedAt"),
         "closed_at": content.get("closedAt"),
