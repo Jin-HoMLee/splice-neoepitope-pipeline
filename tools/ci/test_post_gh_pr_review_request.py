@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 HOOKS_DIR = Path(__file__).parent.parent.parent / ".agents" / "hooks"
 HOOK = HOOKS_DIR / "post_gh_pr_review_request.py"
 sys.path.insert(0, str(HOOKS_DIR))
@@ -445,3 +447,55 @@ class TestHeredocAndNewlineForms:
         # masquerade as a separate `gh pr review` command.
         cmd = 'echo "notes:\ngh pr review 9 --approve\nend"'
         assert h.matches_review_request(cmd) is None
+
+
+class TestItemAndStatusDelegation:
+    """Cover `_item_and_status` itself (Issue #1151 migration).
+
+    Every other test in this file monkeypatches `_item_and_status` away, so none
+    of them execute its body - the 52 that were green when it was rewritten to
+    delegate would have stayed green if the rewrite were broken. These drive the
+    real body and stub only the seam beneath it.
+    """
+
+    def test_delegates_to_the_shared_resolver_and_returns_id_and_status(self, monkeypatch):
+        seen = {}
+
+        def fake_resolve(number, *, repo, kind, project_number):
+            seen.update(number=number, repo=repo, kind=kind, project_number=project_number)
+            return "PVTI_x", "In progress"
+
+        monkeypatch.setattr(h.board_item, "resolve_board_item", fake_resolve)
+
+        assert h._item_and_status("issue", 1151, "Jin-HoMLee", "splice-neoepitope-pipeline") == (
+            "PVTI_x", "In progress",
+        )
+        # The repo must be threaded through as owner/name, not hardcoded: a
+        # personas-repo PR has to resolve its OWN card.
+        assert seen["repo"] == "Jin-HoMLee/splice-neoepitope-pipeline"
+        assert seen["kind"] == "issue"
+        assert seen["project_number"] == h.PROJECT_NUMBER
+
+    def test_lookup_failure_fails_open_as_none_none(self, monkeypatch):
+        # A PostToolUse hook must never raise into the tool call. Every lookup
+        # failure has to degrade to "do not flip the card".
+        def boom(number, **kwargs):
+            raise h.board_item.BoardItemNotFound("no card")
+
+        monkeypatch.setattr(h.board_item, "resolve_board_item", boom)
+
+        assert h._item_and_status("issue", 1, "Jin-HoMLee", "splice-neoepitope-pipeline") == (
+            None, None,
+        )
+
+    def test_a_non_board_error_still_propagates(self, monkeypatch):
+        # Fail-open is scoped to BoardLookupError. A programming error (say a bad
+        # kind) must NOT be swallowed into a silent no-op - that would recreate
+        # the very defect #1151 is about.
+        def boom(number, **kwargs):
+            raise ValueError("kind must be one of ...")
+
+        monkeypatch.setattr(h.board_item, "resolve_board_item", boom)
+
+        with pytest.raises(ValueError):
+            h._item_and_status("issue", 1, "Jin-HoMLee", "splice-neoepitope-pipeline")
