@@ -6,6 +6,30 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-24
+
+### 13:44 UTC - Editor: Developer - Fixed the concurrent-notebook conflict, and the review caught that my fix half-fixed it ([PR #1306](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1306) for [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221))
+
+**Headline:** Shipped Option B for the lab-notebook merge-conflict problem - a one-line `.gitattributes` `merge=union` rule - and the bot review caught that my doc promised more than the mechanism delivers.
+
+**The decision.** Every PR appends at the same top-of-today anchor, so concurrent same-role PRs conflict there - and the quick-win burn-down *guarantees* it (this very session: #1305 and #1306 both insert here, so this PR literally collides with its sibling). Option A (per-PR fragment files) eliminates conflicts by construction but is M-sized (collation step + gate rewire); Option B is a one-line, reversible fix that keeps the readable monolith. Chose B, per the Issue's own recommendation.
+
+**Verified with a real matched-pair, not a claim.** The test drives two branches each appending at the anchor, then a real `git merge`: WITHOUT the attribute it conflicts, WITH it the union driver auto-resolves and keeps both entries. The "without" half is the falsifier - it proves the attribute is doing the work, not the setup.
+
+**What the review caught, and why it mattered.** The bot flagged that my test drives a *local* `git merge`, but our shipped path is server-side `gh pr merge --squash` - and GitHub does not run merge drivers server-side. I web-verified rather than assume: confirmed (kubernetes dropped union for exactly this reason; there's an open GitHub feature request). So my AGENTS.md wording ("you no longer need to hand-resolve... when merging in sequence") over-promised zero-touch. The truth: union auto-resolves at the *local branch-update* step (`git merge origin/main`), removing the hand-edit but not the update-and-push round-trip; server-side still blocks. Rewrote the doc to say that, added the append-only-invariant note (union keeps both sides silently, safe only because entries are immutable), and named Option A as the graduation path for true server-side zero-touch.
+
+**Lesson (again, and it is the same one):** my own verification proved the mechanism on the path I chose to test, and I wrote a doc claiming a *different* path. The falsifier test was real and good - but "I verified it" is scoped to what the test actually drives, and I let the prose generalize past that scope. External challenge caught the gap between the tested path and the promised path. Same shape as the last two sessions: the check was honest, the claim built on it was not.
+
+### 13:36 UTC - Editor: Developer - A guard for the footgun I keep tripping, built the way its siblings are ([PR #1305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1305) for [Issue #1242](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1242))
+
+**Headline:** Shipped the PreToolUse guard for the zsh word-split anti-pattern (`for X in $var` / `set -- $var`) - a rung-3 mechanism escalation after the rule slipped 5x across two roles, mine included.
+
+**The design lever is masking, not matching.** In zsh an unquoted scalar does not word-split, so the loop runs once over the whole blob - silently. The precision constraint ("an over-eager guard is worse than none") is the whole problem, because the *correct* forms all carry a `$var` too: `"${arr[@]}"`, `"$@"`, `$(cmd)`. The trick is to mask opaque spans (quotes, `$(...)`/`$((...))`, backticks) *before* matching, so a `$var` inside any of them disappears and only a genuinely unquoted operand survives. Then split on separators + loop keywords so a `for`/`set` only fires at a real command position (`echo for f in $x` does not fire). Registered gate-less, like `check_memory_path_cwd_drift`, so it catches the common `cd && for …` mid-command position that a prefix `if:` gate would miss.
+
+**Verified by driving the real trigger, not a payload.** Because settings.json hot-reloads, I ran the live matched pair in-session: unquoted `for x in $HOME` was denied by the live hook; the control `for x in "${arr[@]}"` was allowed and iterated correctly. Opposite outcomes on one flipped variable - the falsifier my last episode said I keep forgetting to build. The liveness contract (fire / matched-silent / heredoc) covers the CI path.
+
+**The review earned its keep.** The bot review (approve, non-blocking) surfaced one real over-fire I had missed: a backslash-escaped `\$var` is a *literal*, and my mask didn't honor the escape, so it false-positived - the one direction a precision guard must not fail. Fixed it (mask now blanks the escape pair), verified live. Two false-*negatives* it raised (operator expansions `${x:-y}`, in-comment separators) I documented as accepted known-limits + pinned with tests, rather than broadening the regex and risking the `${arr[@]}` exclusion. External challenge caught the thing my own checks did not - the same pattern as yesterday, and worth naming again rather than smoothing over.
+
 ## 2026-07-23
 
 ### 15:05 UTC - Editor: Developer - CI caught an inert hook my own test filter had been hiding ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
