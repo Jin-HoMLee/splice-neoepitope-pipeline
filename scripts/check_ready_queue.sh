@@ -34,25 +34,30 @@
 #   - [GROOMING-GAP role] : short AND the role has NO Backlog candidates at all
 #     -> nothing is committable; the remedy is intake/grooming, not commitment.
 #
-# BODY-GATED READY ITEMS (Issue #1248). The floor counted Ready *depth*, not
-# *pullable* depth, so an Issue gated only in its prose ("build only if it slips
-# a 2nd time") counted as healthy stock and got re-committed under floor
-# pressure - Issue #841 was swept into Ready twice this way, Issue #929 sat there
-# with unsettled decision-fork ACs. Each Ready item now carries a derived
-# `not_pullable` reason from board_open_items.py (a pure function of the body,
-# scripts/pm/not_pullable.py). Such items are BOTH excluded from the pullable
+# NOT-PULLABLE READY ITEMS (Issue #1248 shipped the first cut; Issue #1294
+# generalised it). The floor counts Ready *depth*, not *pullable* depth, so an
+# Issue that cannot actually be worked ("build only if it slips a 2nd time", an
+# unsettled decision fork, a date gate) must not count as healthy stock - Issue
+# #841 was swept into Ready twice this way, Issue #929 sat there with unsettled
+# decision-fork ACs. Each Ready item now carries a derived `not_pullable` reason
+# from board_open_items.py, computed by the pullability predicate
+# (scripts/pm/pullability.py) over natively-owned STRUCTURED sources - GitHub
+# `blockedBy`, the `needs-design` / `trigger-gated` labels, and the `Start date`
+# field - NOT the Issue body. Such items are BOTH excluded from the pullable
 # floor count AND surfaced as [NOT-PULLABLE role], because either alone leaves a
 # silent failure: exclude-only hides them, surface-only keeps the queue reading
 # healthy.
 #
-# HONEST LIMIT: this sees only gates written in the BODY. A gate that lives in a
-# role's post-it or in a verdict given in conversation is structurally invisible
-# here (Issue #876 is the standing example - its trigger lives in Jin-Ho's 07-04
-# decision, not in the Issue). A capability prerequisite phrased as "gated on X"
-# is likewise a different axis, covered by the capability-prerequisite body-read
-# convention. The marker set is deliberately small: growing it on every near-miss
-# is a denylist widen that never converges, and this is a linter, so a false
-# ALARM costs more than a miss.
+# ONE DECISION HOME. The gate reason comes from one predicate consulting one
+# authoritative source per cause; nothing is copied into a second store, so no
+# state can drift. The prose scan (scripts/pm/not_pullable.py -> propose_label)
+# is demoted to a low-recall PROPOSER that only SUGGESTS a label at the
+# Backlog->Ready commitment; a human applies it, and the label - not the prose -
+# is what the predicate reads. So a phrasing the proposer misses is a non-event
+# once the label is set. RESIDUAL LIMIT: a gate not yet marked with a label or
+# date (an un-backfilled Issue) is not seen until its marker is applied; the
+# capability-prerequisite axis ("gated on sequence access", Issue #817) is a
+# separate axis this predicate does not model.
 #
 # Why this shape: the original #754 fixed floor-5 fired a chronic "you're short"
 # nag that could not always be honestly satisfied (post-ship lulls, an
