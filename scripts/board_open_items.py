@@ -50,7 +50,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".agents" / "hooks"
 import graphql_meter  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "pm"))
-from not_pullable import scan_not_pullable  # noqa: E402
 from pullability import assess as assess_pullable  # noqa: E402
 
 OWNER = "Jin-HoMLee"
