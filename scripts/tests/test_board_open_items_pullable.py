@@ -52,3 +52,11 @@ def test_pr_with_gating_label_is_not_pullable_none():
     raw["content"]["isDraft"] = False
     it = boi.normalize(raw)
     assert it["not_pullable"] is None
+
+
+def test_future_start_date_sets_date_gated():
+    # Covers the `Start date` fieldValues extraction end to end through
+    # normalize() (the label and blocker paths are covered above; this pins the
+    # third source). Far-future date so the assertion is clock-robust.
+    it = boi.normalize(_raw(103, labels=["role:pm"], start="2099-01-01"))
+    assert it["not_pullable"] == "date-gated: 2099-01-01"

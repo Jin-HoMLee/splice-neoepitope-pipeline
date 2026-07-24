@@ -171,7 +171,7 @@ backlog_breakdown=""
 # carries (a role:pm + role:memory_manager item counts toward pm), so we test
 # label membership rather than a single role field.
 for role in "${FLOOR_ROLES[@]}"; do
-    # Split this role's Ready items into pullable vs body-gated (Issue #1248).
+    # Split this role's Ready items into pullable vs gated (Issue #1248 / #1294).
     # `not_pullable` is a derived reason string from board_open_items.py, or
     # null/absent when the item is workable. An absent key reads as pullable, so
     # older fixtures and non-Issue cards are unaffected.
@@ -191,7 +191,7 @@ for role in "${FLOOR_ROLES[@]}"; do
     inprog_breakdown+="${role}=${inprog_count} "
     backlog_breakdown+="${role}=${backlog_count} "
 
-    # Surface body-gated Ready items explicitly. Excluding them from the count
+    # Surface gated Ready items explicitly. Excluding them from the count
     # alone would fix the false-healthy read but make them INVISIBLE, which just
     # trades one silent failure for another; surfacing alone would leave the
     # queue still reading healthy, which is the original bug. Both halves are
@@ -201,7 +201,7 @@ for role in "${FLOOR_ROLES[@]}"; do
     # attention without the un-satisfiable-nag pathology described above.
     if [[ "$gated_count" -ge 1 ]]; then
         gated_detail="$(printf '%s' "$gated_json" | jq -r '[.[] | "#\(.number) (\(.not_pullable))"] | join(", ")')"
-        echo "[NOT-PULLABLE ${role}: ${gated_count}] - in Ready but body-gated, excluded from the pullable count: ${gated_detail}. Decommit to Backlog, or resolve the gate (see shared/feedback_board_hygiene.md)."
+        echo "[NOT-PULLABLE ${role}: ${gated_count}] - in Ready but gated (structured source), excluded from the pullable count: ${gated_detail}. Decommit to Backlog, or resolve the gate (see shared/feedback_board_hygiene.md)."
         needs_attention=1
     fi
     if [[ "$ready_count" -lt "$FLOOR" ]]; then
