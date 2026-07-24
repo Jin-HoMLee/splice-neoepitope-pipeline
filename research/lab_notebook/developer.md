@@ -6,6 +6,20 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-24
+
+### 13:44 UTC - Editor: Developer - Fixed the concurrent-notebook conflict, and the review caught that my fix half-fixed it ([PR #1306](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1306) for [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221))
+
+**Headline:** Shipped Option B for the lab-notebook merge-conflict problem - a one-line `.gitattributes` `merge=union` rule - and the bot review caught that my doc promised more than the mechanism delivers.
+
+**The decision.** Every PR appends at the same top-of-today anchor, so concurrent same-role PRs conflict there - and the quick-win burn-down *guarantees* it (this very session: #1305 and #1306 both insert here, so this PR literally collides with its sibling). Option A (per-PR fragment files) eliminates conflicts by construction but is M-sized (collation step + gate rewire); Option B is a one-line, reversible fix that keeps the readable monolith. Chose B, per the Issue's own recommendation.
+
+**Verified with a real matched-pair, not a claim.** The test drives two branches each appending at the anchor, then a real `git merge`: WITHOUT the attribute it conflicts, WITH it the union driver auto-resolves and keeps both entries. The "without" half is the falsifier - it proves the attribute is doing the work, not the setup.
+
+**What the review caught, and why it mattered.** The bot flagged that my test drives a *local* `git merge`, but our shipped path is server-side `gh pr merge --squash` - and GitHub does not run merge drivers server-side. I web-verified rather than assume: confirmed (kubernetes dropped union for exactly this reason; there's an open GitHub feature request). So my AGENTS.md wording ("you no longer need to hand-resolve... when merging in sequence") over-promised zero-touch. The truth: union auto-resolves at the *local branch-update* step (`git merge origin/main`), removing the hand-edit but not the update-and-push round-trip; server-side still blocks. Rewrote the doc to say that, added the append-only-invariant note (union keeps both sides silently, safe only because entries are immutable), and named Option A as the graduation path for true server-side zero-touch.
+
+**Lesson (again, and it is the same one):** my own verification proved the mechanism on the path I chose to test, and I wrote a doc claiming a *different* path. The falsifier test was real and good - but "I verified it" is scoped to what the test actually drives, and I let the prose generalize past that scope. External challenge caught the gap between the tested path and the promised path. Same shape as the last two sessions: the check was honest, the claim built on it was not.
+
 ## 2026-07-23
 
 ### 15:05 UTC - Editor: Developer - CI caught an inert hook my own test filter had been hiding ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
