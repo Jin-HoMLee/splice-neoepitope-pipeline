@@ -50,6 +50,22 @@ word-split inside a `bash -c '...'` string is masked away and not seen, by
 design - that runs bash, where the split may even be intended). The
 `.agents/hook_fires.jsonl` log is the detective backstop.
 
+Known limits, deliberately UNDER-fired to preserve precision (PR #1305 review):
+
+- **Parameter expansions with an operator pass unflagged** - `${name:-default}`,
+  `${list#pfx}`, `${files//a/b}` word-split in zsh exactly like `$name`, but the
+  scalar regex requires `}` immediately after the name (so it cannot match the
+  `${arr[@]}` array form), which also excludes the operator forms. Broadening to
+  catch them risks re-including arrays, so this is accepted as a false-negative
+  rather than a precision regression.
+- **A `#` comment is not stripped** - `normalize_command` turns newlines into
+  separators but leaves `#` comments in place, so a separator INSIDE a trailing
+  comment (`ls  # note; for x in $tmp`) can start a spurious segment. Contrived,
+  and comment-stripping is itself error-prone (a `#` inside `${x#foo}` or a quote
+  is not a comment), so it is left as a documented under-strip.
+
+Both fail toward NOT firing, matching the precision-first mandate.
+
 Reads PreToolUse hook JSON on stdin, prints a deny decision on stdout when the
 guard fires, exits 0 silently otherwise (the harness treats no-output as allow).
 Fails OPEN on any parse miss / unexpected shape - a guard must never break the
@@ -158,6 +174,14 @@ def mask_opaque(cmd: str) -> str:
             for k in range(i, min(j + 1, n)):
                 out[k] = " "
             i = j + 1
+        elif ch == "\\" and i + 1 < n:
+            # A backslash-escaped char outside any quote/substitution is a literal:
+            # `\$var` is the text "$var", not an expansion. Blank the escape pair so
+            # the escaped `$` cannot trip _BARE_SCALAR_RE - an over-fire is the one
+            # direction this high-precision guard must avoid (PR #1305 review).
+            out[i] = " "
+            out[i + 1] = " "
+            i += 2
         else:
             i += 1
     return "".join(out)

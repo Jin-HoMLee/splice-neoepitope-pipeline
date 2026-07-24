@@ -85,10 +85,37 @@ class TestPasses:
             'echo "for x in $var"',
             # the fixed streamed form
             'printf "%s\\n" "$blob" | while read -r x; do echo $x; done',
+            # PR #1305 review finding 2: a backslash-escaped `$` is a LITERAL, not
+            # an expansion, so it must not false-positive (the one over-fire edge).
+            "for x in \\$var; do echo $x; done",
         ],
     )
     def test_correct_form_passes(self, cmd):
         assert h.command_wordsplits(cmd) is False
+
+
+class TestKnownLimits:
+    """PR #1305 review findings 1 & 3: documented under-fires. Pinned here so a
+    future reader knows the current behavior is accepted, not an oversight -
+    broadening the guard to catch these would risk matching `${arr[@]}` (finding 1)
+    or mis-stripping a `${x#foo}` operator as a comment (finding 3)."""
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "for x in ${name:-default}; do echo $x; done",
+            "for f in ${list#prefix}; do echo $f; done",
+            "for f in ${files//a/b}; do echo $f; done",
+        ],
+    )
+    def test_operator_expansion_is_a_known_false_negative(self, cmd):
+        # These DO word-split in zsh but pass unflagged - documented known limit.
+        assert h.command_wordsplits(cmd) is False
+
+    def test_in_comment_separator_is_a_known_false_positive(self):
+        # A separator inside a trailing comment can start a spurious segment.
+        # Contrived; documented rather than fixed (comment-stripping is error-prone).
+        assert h.command_wordsplits("ls  # note; for x in $tmp") is True
 
 
 # --- mask_opaque unit coverage ---
