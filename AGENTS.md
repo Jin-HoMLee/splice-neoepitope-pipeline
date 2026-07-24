@@ -469,10 +469,17 @@ Defaults: `--squash --delete-branch`. The script audits the PR body Test plan + 
 
 This is the operational path for shipping; bare `gh pr merge` bypasses the closure-ritual gate and should not be used.
 
-### Lab-notebook merge conflicts auto-resolve (`.gitattributes` `merge=union`)
+### Lab-notebook merge conflicts auto-resolve on local branch-update (`.gitattributes` `merge=union`)
 
-Every PR appends a `### <time>` entry under the same top-of-today anchor in `research/lab_notebook/<role>.md`, so two concurrent **same-role** PRs used to collide there on merge - a conflict guaranteed by the quick-win burn-down, which parks several same-role PRs at the gate at once.
-Since [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221) a one-line `.gitattributes` rule (`research/lab_notebook/*.md merge=union`) makes git's built-in **union** driver auto-resolve those append conflicts by keeping **both** sides' entries - exactly the "keep both, entries are immutable" resolution the lab-notebook rule already prescribes.
-Keep appending your entry at the top-of-today anchor as before; you no longer need to hand-resolve a lab-notebook conflict when merging same-role PRs in sequence.
-The one caveat is cosmetic: a concurrent burst can land two entries slightly out of time-order (union does not guarantee ordering), but entries are timestamped and immutable, so a manual reorder is optional.
-The `merge=union` attribute activates the built-in driver on every clone with no per-clone `git config`, and the closure-ritual lab-notebook gate is unchanged (it still finds the `## <date>` entry in the merged monolith).
+Every PR appends a `### <time>` entry under the same top-of-today anchor in `research/lab_notebook/<role>.md`, so two concurrent **same-role** PRs collide there when the second is merged - a conflict guaranteed by the quick-win burn-down, which parks several same-role PRs at the gate at once.
+Since [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221) a one-line `.gitattributes` rule (`research/lab_notebook/*.md merge=union`) makes git's built-in **union** driver keep **both** sides' entries instead of erroring - exactly the "keep both, entries are immutable" resolution the lab-notebook rule already prescribes, applied automatically.
+
+**Where it applies - read this, because it is not zero-touch.** `union` is a **local git-CLI** driver: it engages when *you* update the feature branch locally (`git merge origin/main` / `git pull origin main` on the PR branch), where it resolves the notebook conflict with no hand-editing.
+GitHub's **server-side** merge does **not** run merge drivers ([community Discussion #9288](https://github.com/orgs/community/discussions/9288); [kubernetes/kubernetes#70576](https://github.com/kubernetes/kubernetes/pull/70576) dropped union for this reason), so `gh pr merge --squash` (and thus `scripts/audit_and_merge.sh`) will still report a **blocking** conflict for a second same-role PR that is behind `main`.
+So the workflow when two same-role notebook PRs stack: merge the first, then on the second run `git merge origin/main` locally (union auto-resolves, keeping both entries) and `git push`, then merge.
+What `union` removes is the **manual conflict edit**, not the local update-and-push round-trip. For true server-side zero-touch we would need Option A (per-PR fragment files); that is the documented graduation path if this friction grows.
+
+**Safe only because entries are append-only.** `union` keeps both sides of any conflicting hunk *silently*, which is correct for immutable append-only entries but means a genuine concurrent **edit to an existing entry** would be duplicated rather than flagged. Never edit a committed entry in place (the immutability rule already forbids this); write a new one.
+
+The one cosmetic caveat: a concurrent burst can land two entries slightly out of time-order (union does not guarantee ordering), but entries are timestamped and immutable, so a manual reorder is optional.
+The attribute activates on every clone with no per-clone `git config`, and the closure-ritual lab-notebook gate is unchanged (it still finds the `## <date>` entry in the merged monolith).

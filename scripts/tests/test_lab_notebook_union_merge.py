@@ -14,6 +14,14 @@ The load-bearing pair is the matched-pair control: WITH the union attribute a
 divergent-append merge auto-resolves and keeps both entries; WITHOUT it the exact
 same merge conflicts. If the "without" half did not conflict, the "with" half
 would prove nothing (the attribute would not be doing the work).
+
+SCOPE - this exercises the **local git-CLI** merge, which is where `union`
+applies (PR #1306 review). GitHub's server-side `gh pr merge --squash` does NOT
+run merge drivers, so a second same-role PR behind main still conflicts there
+until the branch is updated locally (`git merge origin/main`, where union
+resolves it) and pushed. See the AGENTS.md "Lab-notebook merge conflicts
+auto-resolve on local branch-update" note. These tests are correct for the path
+they cover; they deliberately do not claim the server-side path.
 """
 
 import os
