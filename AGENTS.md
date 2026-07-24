@@ -468,3 +468,11 @@ bash scripts/audit_and_merge.sh <PR_NUMBER> [--squash|--merge|--rebase] [--delet
 Defaults: `--squash --delete-branch`. The script audits the PR body Test plan + every linked Issue's Acceptance criteria for unticked `- [ ]` boxes, prints any gaps to stderr, exits 1 without merging if any remain. On a clean audit it then runs the bot-review-offer gate (offer a `@-claude review` first, or pass `--skip-review-offer` for a trivial PR) before forwarding to `gh pr merge` with the chosen flags.
 
 This is the operational path for shipping; bare `gh pr merge` bypasses the closure-ritual gate and should not be used.
+
+### Lab-notebook merge conflicts auto-resolve (`.gitattributes` `merge=union`)
+
+Every PR appends a `### <time>` entry under the same top-of-today anchor in `research/lab_notebook/<role>.md`, so two concurrent **same-role** PRs used to collide there on merge - a conflict guaranteed by the quick-win burn-down, which parks several same-role PRs at the gate at once.
+Since [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221) a one-line `.gitattributes` rule (`research/lab_notebook/*.md merge=union`) makes git's built-in **union** driver auto-resolve those append conflicts by keeping **both** sides' entries - exactly the "keep both, entries are immutable" resolution the lab-notebook rule already prescribes.
+Keep appending your entry at the top-of-today anchor as before; you no longer need to hand-resolve a lab-notebook conflict when merging same-role PRs in sequence.
+The one caveat is cosmetic: a concurrent burst can land two entries slightly out of time-order (union does not guarantee ordering), but entries are timestamped and immutable, so a manual reorder is optional.
+The `merge=union` attribute activates the built-in driver on every clone with no per-clone `git config`, and the closure-ritual lab-notebook gate is unchanged (it still finds the `## <date>` entry in the merged monolith).
