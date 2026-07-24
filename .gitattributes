@@ -1,0 +1,11 @@
+# Per-role lab notebooks are append-at-the-top journals: every PR inserts a
+# `### <time>` entry under the same top-of-today anchor, so two concurrent
+# same-role PRs collide there on merge. `merge=union` is git's built-in
+# "keep both sides' lines" driver - it auto-resolves those append conflicts by
+# retaining every entry instead of erroring, which is exactly the manual
+# resolution the immutable-entries rule already prescribes. No per-clone
+# `git config` is needed; the attribute alone activates the built-in driver.
+# Ordering is not guaranteed (a concurrent burst may land two entries slightly
+# out of time-order), but entries are timestamped and immutable, so that is
+# cosmetic. See Issue #1221 (Option B).
+research/lab_notebook/*.md merge=union

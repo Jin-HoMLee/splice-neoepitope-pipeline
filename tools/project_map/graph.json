@@ -6446,8 +6446,8 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 13,
-      "degree": 14
+      "size": 14,
+      "degree": 15
     },
     {
       "id": "scripts__tests__test_apply_arc_labels_resync_py",
@@ -6565,6 +6565,16 @@
       "type": "script",
       "group": "infrastructure",
       "path": "scripts/tests/test_dispatch_digest_role.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
+    },
+    {
+      "id": "scripts__tests__test_lab_notebook_union_merge_py",
+      "label": "test_lab_notebook_union_merge.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_lab_notebook_union_merge.py",
       "description": "Python/shell script",
       "size": 2,
       "degree": 1
@@ -13227,6 +13237,12 @@
     },
     {
       "source": "scripts__tests__test_dispatch_digest_role_py",
+      "target": "scripts__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_lab_notebook_union_merge_py",
       "target": "scripts__tests",
       "type": "contained_in",
       "label": ""
