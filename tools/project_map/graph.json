@@ -6168,8 +6168,8 @@
       "type": "pm_dir",
       "group": "infrastructure",
       "path": "scripts/pm",
-      "size": 16,
-      "degree": 18
+      "size": 17,
+      "degree": 19
     },
     {
       "id": "scripts__pm__apply_arc_labels_sh",
@@ -6198,6 +6198,16 @@
       "group": "infrastructure",
       "path": "scripts/pm/arc_taxonomy.tsv",
       "description": "Tabular data",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "scripts__pm__board_item_py",
+      "label": "board_item.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "scripts/pm/board_item.py",
+      "description": "Project file",
       "size": 1,
       "degree": 1
     },
@@ -6436,8 +6446,8 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 12,
-      "degree": 13
+      "size": 13,
+      "degree": 14
     },
     {
       "id": "scripts__tests__test_apply_arc_labels_resync_py",
@@ -6445,6 +6455,16 @@
       "type": "script",
       "group": "infrastructure",
       "path": "scripts/tests/test_apply_arc_labels_resync.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
+    },
+    {
+      "id": "scripts__tests__test_board_item_py",
+      "label": "test_board_item.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_board_item.py",
       "description": "Python/shell script",
       "size": 2,
       "degree": 1
@@ -12990,6 +13010,12 @@
       "label": ""
     },
     {
+      "source": "scripts__pm__board_item_py",
+      "target": "scripts__pm",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "scripts__pm__check_closed_recent_py",
       "target": "scripts__pm",
       "type": "contained_in",
@@ -13135,6 +13161,12 @@
     },
     {
       "source": "scripts__tests__test_apply_arc_labels_resync_py",
+      "target": "scripts__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_board_item_py",
       "target": "scripts__tests",
       "type": "contained_in",
       "label": ""

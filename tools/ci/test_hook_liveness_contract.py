@@ -61,7 +61,7 @@ if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
       *updateProjectV2ItemFieldValue*) echo '{"data":{"updateProjectV2ItemFieldValue":{"projectV2Item":{"id":"x"}}}}'; exit 0;;
     esac
   done
-  echo '{"data":{"repository":{"pullRequest":{"projectItems":{"nodes":[{"id":"ITEM1","project":{"number":9},"fieldValues":{"nodes":[{"name":"Ready for review","field":{"name":"Status"}}]}}]}},"issue":{"projectItems":{"nodes":[{"id":"ITEM2","project":{"number":9},"fieldValues":{"nodes":[{"name":"Ready for review","field":{"name":"Status"}}]}}]}}}}}'
+  echo '{"data":{"repository":{"pullRequest":{"projectItems":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"ITEM1","project":{"number":9},"fieldValues":{"nodes":[{"name":"Ready for review","field":{"name":"Status"}}]}}]}},"issue":{"projectItems":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"ITEM2","project":{"number":9},"fieldValues":{"nodes":[{"name":"Ready for review","field":{"name":"Status"}}]}}]}}}}}'
   exit 0
 fi
 exit 0
@@ -77,7 +77,7 @@ case "$args" in
     printf '%s' '{"errors":[{"message":"stub forced failure"}]}'
     ;;
   *projectItems*)
-    printf '%s' '{"data":{"repository":{"issue":{"projectItems":{"nodes":[{"id":"PVTI_stubitem123","project":{"number":9},"fieldValues":{"nodes":[{"date":"2026-07-01","field":{"name":"Target date"}}]}}]}}}}}'
+    printf '%s' '{"data":{"repository":{"issue":{"projectItems":{"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[{"id":"PVTI_stubitem123","project":{"number":9},"fieldValues":{"nodes":[{"date":"2026-07-01","field":{"name":"Target date"}}]}}]}}}}}'
     ;;
   *)
     printf '%s' '{}'
