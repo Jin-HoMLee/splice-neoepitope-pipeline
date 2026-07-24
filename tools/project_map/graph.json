@@ -799,8 +799,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/plans",
-      "size": 23,
-      "degree": 24
+      "size": 24,
+      "degree": 25
     },
     {
       "id": "docs__superpowers__plans__2026_05_19_issue_17_star_aligner_md",
@@ -1033,13 +1033,23 @@
       "degree": 1
     },
     {
+      "id": "docs__superpowers__plans__2026_07_24_pullability_predicate_md",
+      "label": "2026-07-24-pullability-predicate.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/plans/2026-07-24-pullability-predicate.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "docs__superpowers__specs",
       "label": "specs",
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/superpowers/specs",
-      "size": 29,
-      "degree": 30
+      "size": 30,
+      "degree": 31
     },
     {
       "id": "docs__superpowers__specs__2026_05_11_post_merge_critic_design_md",
@@ -1327,6 +1337,16 @@
       "type": "doc",
       "group": "docs",
       "path": "docs/superpowers/specs/2026-07-21-orf-fasta-emitter-design.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "docs__superpowers__specs__2026_07_24_pullability_predicate_design_md",
+      "label": "2026-07-24-pullability-predicate-design.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/superpowers/specs/2026-07-24-pullability-predicate-design.md",
       "description": "Documentation",
       "size": 1,
       "degree": 1
@@ -6038,8 +6058,8 @@
       "type": "pm_dir",
       "group": "infrastructure",
       "path": "scripts/pm",
-      "size": 17,
-      "degree": 19
+      "size": 18,
+      "degree": 20
     },
     {
       "id": "scripts__pm__apply_arc_labels_sh",
@@ -6137,6 +6157,16 @@
       "type": "resource",
       "group": "infrastructure",
       "path": "scripts/pm/not_pullable.py",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "scripts__pm__pullability_py",
+      "label": "pullability.py",
+      "type": "resource",
+      "group": "infrastructure",
+      "path": "scripts/pm/pullability.py",
       "description": "Project file",
       "size": 1,
       "degree": 1
@@ -6316,8 +6346,8 @@
       "type": "dir",
       "group": "infrastructure",
       "path": "scripts/tests",
-      "size": 13,
-      "degree": 14
+      "size": 14,
+      "degree": 15
     },
     {
       "id": "scripts__tests__test_apply_arc_labels_resync_py",
@@ -6365,6 +6395,16 @@
       "type": "script",
       "group": "infrastructure",
       "path": "scripts/tests/test_board_open_items_origin.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 1
+    },
+    {
+      "id": "scripts__tests__test_board_open_items_pullable_py",
+      "label": "test_board_open_items_pullable.py",
+      "type": "script",
+      "group": "infrastructure",
+      "path": "scripts/tests/test_board_open_items_pullable.py",
       "description": "Python/shell script",
       "size": 2,
       "degree": 1
@@ -8016,8 +8056,8 @@
       "type": "tests_dir",
       "group": "pipeline",
       "path": "workflow/tests",
-      "size": 42,
-      "degree": 46
+      "size": 43,
+      "degree": 47
     },
     {
       "id": "workflow__tests__README_md",
@@ -8404,6 +8444,16 @@
       "description": "Test module",
       "size": 1,
       "degree": 2
+    },
+    {
+      "id": "workflow__tests__test_pullability_py",
+      "label": "test_pullability.py",
+      "type": "test",
+      "group": "pipeline",
+      "path": "workflow/tests/test_pullability.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 1
     },
     {
       "id": "workflow__tests__test_recheck_dispatch_py",
@@ -9328,6 +9378,12 @@
       "label": ""
     },
     {
+      "source": "docs__superpowers__plans__2026_07_24_pullability_predicate_md",
+      "target": "docs__superpowers__plans",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "docs__superpowers__specs",
       "target": "docs__superpowers",
       "type": "contained_in",
@@ -9509,6 +9565,12 @@
     },
     {
       "source": "docs__superpowers__specs__2026_07_21_orf_fasta_emitter_design_md",
+      "target": "docs__superpowers__specs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__superpowers__specs__2026_07_24_pullability_predicate_design_md",
       "target": "docs__superpowers__specs",
       "type": "contained_in",
       "label": ""
@@ -12838,6 +12900,12 @@
       "label": ""
     },
     {
+      "source": "scripts__pm__pullability_py",
+      "target": "scripts__pm",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
       "source": "scripts__pm__recheck_milestone_py",
       "target": "scripts__pm",
       "type": "contained_in",
@@ -12971,6 +13039,12 @@
     },
     {
       "source": "scripts__tests__test_board_open_items_origin_py",
+      "target": "scripts__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "scripts__tests__test_board_open_items_pullable_py",
       "target": "scripts__tests",
       "type": "contained_in",
       "label": ""
@@ -14099,6 +14173,12 @@
     },
     {
       "source": "workflow__tests__test_proteome_filter_py",
+      "target": "workflow__tests",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "workflow__tests__test_pullability_py",
       "target": "workflow__tests",
       "type": "contained_in",
       "label": ""
