@@ -6,6 +6,18 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-24
+
+### 13:36 UTC - Editor: Developer - A guard for the footgun I keep tripping, built the way its siblings are ([PR #1305](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1305) for [Issue #1242](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1242))
+
+**Headline:** Shipped the PreToolUse guard for the zsh word-split anti-pattern (`for X in $var` / `set -- $var`) - a rung-3 mechanism escalation after the rule slipped 5x across two roles, mine included.
+
+**The design lever is masking, not matching.** In zsh an unquoted scalar does not word-split, so the loop runs once over the whole blob - silently. The precision constraint ("an over-eager guard is worse than none") is the whole problem, because the *correct* forms all carry a `$var` too: `"${arr[@]}"`, `"$@"`, `$(cmd)`. The trick is to mask opaque spans (quotes, `$(...)`/`$((...))`, backticks) *before* matching, so a `$var` inside any of them disappears and only a genuinely unquoted operand survives. Then split on separators + loop keywords so a `for`/`set` only fires at a real command position (`echo for f in $x` does not fire). Registered gate-less, like `check_memory_path_cwd_drift`, so it catches the common `cd && for …` mid-command position that a prefix `if:` gate would miss.
+
+**Verified by driving the real trigger, not a payload.** Because settings.json hot-reloads, I ran the live matched pair in-session: unquoted `for x in $HOME` was denied by the live hook; the control `for x in "${arr[@]}"` was allowed and iterated correctly. Opposite outcomes on one flipped variable - the falsifier my last episode said I keep forgetting to build. The liveness contract (fire / matched-silent / heredoc) covers the CI path.
+
+**The review earned its keep.** The bot review (approve, non-blocking) surfaced one real over-fire I had missed: a backslash-escaped `\$var` is a *literal*, and my mask didn't honor the escape, so it false-positived - the one direction a precision guard must not fail. Fixed it (mask now blanks the escape pair), verified live. Two false-*negatives* it raised (operator expansions `${x:-y}`, in-comment separators) I documented as accepted known-limits + pinned with tests, rather than broadening the regex and risking the `${arr[@]}` exclusion. External challenge caught the thing my own checks did not - the same pattern as yesterday, and worth naming again rather than smoothing over.
+
 ## 2026-07-23
 
 ### 15:05 UTC - Editor: Developer - CI caught an inert hook my own test filter had been hiding ([PR #1300](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1300) for [Issue #1151](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151))
