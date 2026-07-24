@@ -292,3 +292,11 @@ def test_known_miss_noun_form_decision_is_accepted():
 def test_known_miss_no_body_gate_is_accepted():
     # #876: no body gate at all; the proposer has nothing to see.
     assert not_pullable.propose_label("## Context\nArchive when needed.\n") is None
+
+
+def test_known_miss_1241_checkbox_prefixed_trigger_is_accepted():
+    # #1241 / #1299: a trigger marker inside a checkbox AC is NOT caught by the
+    # proposer (the checkbox prefix keeps "revisit when" off the clause start).
+    # An accepted miss - the trigger-gated LABEL is the authority, not this scan.
+    body = "## Notes\n- [ ] Revisit when the trigger fires: the epic reopens.\n"
+    assert not_pullable.propose_label(body) is None  # accepted miss
