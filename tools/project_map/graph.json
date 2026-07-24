@@ -6624,8 +6624,8 @@
       "type": "ci_dir",
       "group": "infrastructure",
       "path": "tools/ci",
-      "size": 45,
-      "degree": 46
+      "size": 46,
+      "degree": 47
     },
     {
       "id": "tools__ci___board_query_smoke_py",
@@ -6893,6 +6893,16 @@
       "type": "ci",
       "group": "infrastructure",
       "path": "tools/ci/test_check_no_force_push.py",
+      "description": "CI automation tool",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "tools__ci__test_check_no_wordsplit_py",
+      "label": "test_check_no_wordsplit.py",
+      "type": "ci",
+      "group": "infrastructure",
+      "path": "tools/ci/test_check_no_wordsplit.py",
       "description": "CI automation tool",
       "size": 1,
       "degree": 1
@@ -13507,6 +13517,12 @@
     },
     {
       "source": "tools__ci__test_check_no_force_push_py",
+      "target": "tools__ci",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "tools__ci__test_check_no_wordsplit_py",
       "target": "tools__ci",
       "type": "contained_in",
       "label": ""
