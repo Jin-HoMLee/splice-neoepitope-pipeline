@@ -20,7 +20,12 @@ TRIGGER_GATED_LABEL = "trigger-gated"
 def _open_blockers(item):
     """Issue numbers of the still-open native blockedBy edges."""
     out = []
-    for edge in item.get("blocked_by") or []:
+    blocked_by = item.get("blocked_by")
+    if not isinstance(blocked_by, list):
+        return out
+    for edge in blocked_by:
+        if not isinstance(edge, dict):
+            continue
         if (edge.get("state") or "").upper() != "CLOSED":
             num = edge.get("number")
             if num is not None:
@@ -28,7 +33,7 @@ def _open_blockers(item):
     return out
 
 
-def assess(item, today=None):
+def assess(item, *, today=None):
     # type: (dict, Optional[str]) -> Optional[str]
     """Return a short reason the Issue is not pullable now, or None if it is.
 

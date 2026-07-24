@@ -51,3 +51,11 @@ def test_ordering_blocker_wins_over_date():
 
 def test_fails_open_on_empty_item():
     assert pullability.assess({}, today="2026-07-24") is None
+
+
+def test_fails_open_on_non_dict_blocker_element():
+    assert pullability.assess({"blocked_by": [42]}, today="2026-07-24") is None
+
+
+def test_fails_open_on_non_list_blocked_by():
+    assert pullability.assess({"blocked_by": "oops"}, today="2026-07-24") is None
