@@ -44,3 +44,11 @@ def test_clean_issue_is_pullable():
 def test_open_blocker_sets_not_pullable():
     it = boi.normalize(_raw(102, labels=["role:pm"], blocked=[{"number": 5, "state": "OPEN"}]))
     assert it["not_pullable"] == "blocked-by-issue: #5"
+
+
+def test_pr_with_gating_label_is_not_pullable_none():
+    raw = _raw(200, labels=["role:pm", "needs-design"])
+    raw["content"]["__typename"] = "PullRequest"
+    raw["content"]["isDraft"] = False
+    it = boi.normalize(raw)
+    assert it["not_pullable"] is None

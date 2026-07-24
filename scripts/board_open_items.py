@@ -259,6 +259,7 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         (l.removeprefix("arc-phase:") for l in labels if l.startswith("arc-phase:")),
         None,
     )
+    is_issue = content.get("__typename") != "PullRequest"
     return {
         "arcs": arc_labels,
         "number": content.get("number"),
@@ -288,12 +289,17 @@ def normalize(item: dict[str, Any]) -> dict[str, Any] | None:
         # the item is pullable. Computed from the one authoritative predicate
         # (pullability.assess) over natively-owned sources - labels, blockedBy,
         # Start date - never the prose scan. Derived, never stored, so it cannot
-        # drift from those sources. PRs are always None - only the PullRequest
-        # fragment omits body/blockedBy/Start date, and a PR is not a
-        # Ready-queue candidate anyway.
-        "not_pullable": assess_pullable(
-            {"labels": labels, "blocked_by": blocked_by, "start_date": start_date},
-            today=datetime.now(timezone.utc).date().isoformat(),
+        # drift from those sources. PRs are always None - forced by the `is_issue`
+        # guard below, because a PR is not a Ready-queue candidate anyway (not
+        # because the PullRequest fragment omits any of those fields - Start date
+        # is a fieldValues entry common to every project item, PR included).
+        "not_pullable": (
+            assess_pullable(
+                {"labels": labels, "blocked_by": blocked_by, "start_date": start_date},
+                today=datetime.now(timezone.utc).date().isoformat(),
+            )
+            if is_issue
+            else None
         ),
         "created_at": content.get("createdAt"),
         "updated_at": content.get("updatedAt"),
