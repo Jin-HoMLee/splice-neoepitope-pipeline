@@ -3902,7 +3902,7 @@
       "path": "research/experiments/issue_680_splice_immunogenicity_registry",
       "size": 15,
       "issue": 680,
-      "degree": 24
+      "degree": 25
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__LABELING_SCHEME_md",
@@ -4032,7 +4032,7 @@
       "description": "Documentation",
       "size": 1,
       "issue": 680,
-      "degree": 1
+      "degree": 2
     },
     {
       "id": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run5_issue1049_classII_presentation_landscape_2026_07_20_md",
@@ -4182,6 +4182,136 @@
       "group": "research",
       "path": "research/experiments/issue_680_splice_immunogenicity_registry/figures/fig_identity_matrix.png",
       "description": "Project file",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "label": "issue_1176_noncanonical_search",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search",
+      "size": 3,
+      "issue": 680,
+      "degree": 5
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 3
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__decision_normal_filter_2026_07_23_md",
+      "label": "decision_normal_filter_2026-07-23.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/decision_normal_filter_2026-07-23.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 680,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__normal_vs_gtex_control_py",
+      "label": "normal_vs_gtex_control.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/normal_vs_gtex_control.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "label": "outputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs",
+      "size": 7,
+      "issue": 680,
+      "degree": 8
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__classified_A_with_normal_tsv",
+      "label": "classified_A_with_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/classified_A_with_normal.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__classified_B_no_normal_tsv",
+      "label": "classified_B_no_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/classified_B_no_normal.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__manifest_A_with_normal_tsv",
+      "label": "manifest_A_with_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/manifest_A_with_normal.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__manifest_B_no_normal_tsv",
+      "label": "manifest_B_no_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/manifest_B_no_normal.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__normal_vs_gtex_json",
+      "label": "normal_vs_gtex.json",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/normal_vs_gtex.json",
+      "description": "Project file",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__stats_A_with_normal_tsv",
+      "label": "stats_A_with_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/stats_A_with_normal.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 680,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__stats_B_no_normal_tsv",
+      "label": "stats_B_no_normal.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_680_splice_immunogenicity_registry/issue_1176_noncanonical_search/outputs/stats_B_no_normal.tsv",
+      "description": "Tabular data",
       "size": 1,
       "issue": 680,
       "degree": 1
@@ -11292,6 +11422,90 @@
     {
       "source": "research__experiments__issue_680_splice_immunogenicity_registry__figures__fig_identity_matrix_png",
       "target": "research__experiments__issue_680_splice_immunogenicity_registry__figures",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__README_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__deep_research__run4_issue1176_noncanonical_search_scoping_2026_07_15_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__README_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__README_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__decision_normal_filter_2026_07_23_md",
+      "type": "references",
+      "label": "links to"
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__decision_normal_filter_2026_07_23_md",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__normal_vs_gtex_control_py",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__classified_A_with_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__classified_B_no_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__manifest_A_with_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__manifest_B_no_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__normal_vs_gtex_json",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__stats_A_with_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs__stats_B_no_normal_tsv",
+      "target": "research__experiments__issue_680_splice_immunogenicity_registry__issue_1176_noncanonical_search__outputs",
       "type": "contained_in",
       "label": ""
     },

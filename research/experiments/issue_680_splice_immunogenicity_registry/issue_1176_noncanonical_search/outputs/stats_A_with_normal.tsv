@@ -1,0 +1,12 @@
+sample_id	sample_type	category	count
+SRR9143066_test	Primary Tumor	junctions_raw	1872.0
+SRR9143066_test	Primary Tumor	mean_reads_filtered	1638.0
+SRR9143066_test	Primary Tumor	annotated_discarded	79.0
+SRR9143066_test	Primary Tumor	normal_shared	4.0
+SRR9143066_test	Primary Tumor	gtex_pantissue_shared	29.0
+SRR9143066_test	Primary Tumor	tumor_exclusive	122.0
+SRR9143066_test	Primary Tumor	min_reads	1.0
+SRR9143066_test	Primary Tumor	mean_reads	1.205128205128205
+SRR9143066_test	Primary Tumor	median_reads	1.0
+SRR9143066_test	Primary Tumor	max_reads	34.0
+SRR9143066_test	Primary Tumor	normal_shared:Solid Tissue Normal	4.0
