@@ -81,6 +81,7 @@ These are the reasons this decision is "proceed with a stated cost" rather than 
 - A measured `tumor_exclusive` count on Courcelles that is implausibly large relative to the chr22 scaling, which would suggest the private-junction fraction grows with depth rather than staying near 1%.
 - Any recovered hit whose only support is a junction that GTEx would not have blacklisted and that has no independent RNA-seq witness in a second patient.
 - Discovery of a matched normal arm for this cohort, or a suitable colon-specific normal panel, either of which is strictly better than the pan-tissue substitute.
+- Adoption of the source cohort's own **mTEC controls** as an additional shared normal junction reference ([#1304](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1304)). Courcelles filtered against eight mTEC controls (Perreault/IRIC aeTSA lineage, Laumont et al. 2018), which are public RNA-seq (GEO `GSE127825` + `GSE127826`). Running that same control would align our specificity filter with theirs and make a recovery-rate comparison apples-to-apples. It does **not** supersede this decision: mTEC is a complementary tolerance-axis panel, not a matched normal (the authors themselves note GTEx/TCGA/mTEC "cannot fully substitute for paired normal tissue from the same individuals"), so it still would not recover a patient-private junction like `chr22:35501382:35584228:+`.
 
 ## Consequence for the write-up
 
