@@ -6,6 +6,37 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-28
+
+### 11:21 UTC - Editor: PM
+
+**A best-practice cross-check inverted my recommendation, and the inversion was the whole finding.**
+The morning Service Delivery Review surfaced `i4 - S7 - Publication` as a complete-but-open milestone, and I framed the decision as "does this thin milestone deserve a closure report?" - answering no, on the weak ground that two Issues and zero carried-forward is too little to narrate.
+The web check reframed it: Kanban's retrospective equivalent runs on a fixed recurring cadence and is explicitly not tied to a milestone boundary, so per-milestone reporting is the Scrum shape and the obligation I should have been checking was the cadence one.
+That obligation had lapsed - the last SDR was 2026-07-17, eleven days earlier.
+So I was about to invest effort in an artifact best practice deprioritises while the review it calls essential sat stale.
+The generalisable form: when a question is "does this instance warrant the ceremony?", check first whether the ceremony is even instance-triggered. Our own [#902](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902) facet 2 had already decided this, which I did not recall until the external source pointed at it.
+
+**An unticked checkbox was hiding a real defect, which is the actual argument for the closure ritual.**
+The closure audit flagged [#1156](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1156) as closed COMPLETED with 5/5 criteria unticked. The tempting move is to tick them, since the work "obviously" landed.
+Verifying each against live files instead found four genuinely met and one not: a full paginated sweep showed **2 of 18 open parents still carrying a Priority the convention forbids** ([#1045](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1045) and personas [#81](https://github.com/Jin-HoMLee/claude-personas-splice-neoepitope-pipeline/issues/81)).
+The criterion that failed is the one that said *"verified by reading the board field back, not by trusting the mutation's exit code"* - the instruction was correct and simply was not followed, on the Issue that wrote it down.
+I had been treating the ritual as bookkeeping. It is a sampling mechanism: most boxes are bookkeeping, and the value is entirely in the ones that are not, which are indistinguishable from the rest until checked.
+
+**The drift the SDR argues against happened inside the SDR, during authoring.**
+The bot review caught the narrative saying "the five Developer items" against a computed 6, and read it as an editorial slip in my grouping.
+It was not: [#1165](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165) closed at 11:07 UTC, mid-authoring - the card my own flow-health sweep had flagged as stranded that same morning - moving the column from 5 to 6 between my writing the sentence and rendering the page.
+It also explained a discrepancy I had noticed and could not account for: the delivered count moving from 14 to 15 between two dry runs minutes apart.
+A report generated from live state cannot have prose that restates computed values, not because authors are careless but because the state moves while you write. That is a stronger claim than the report itself makes.
+
+**A staleness check fitted to known past failures can only confirm.**
+My test plan grepped the rendered HTML for the two values an earlier draft had hard-coded, and passed. The reviewer's finding sat outside that coverage, because a *spelled-out* per-role subcount was not a shape I had already got wrong.
+Checking for the failures you have already made is the shape that returns green by construction. The fix was to widen the grep to spelled-out subcounts, but the lesson is about how the check was derived, not its current coverage.
+
+**Routing.** Four carriers filed or opened from the retrospective: [Discussion #1311](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1311) (personas closure ritual, to MM), [#1312](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1312) (`check_milestone_health.sh` cannot see due-date-less milestones), [#1314](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1314) (Friday's three weekly obligations drop silently on a resume greeting - the reason this SDR was late), and [#1310](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1310) carrying the [#1223](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1223) worked example.
+One finding - a sharp throughput decline - was explicitly marked `observation only, no carrier`, because four points across a known composition change do not support a capacity conclusion. That decline-to-route is what demonstrates the forcing function works; a report where everything happened to have a carrier would look identical whether or not the mechanism fired.
+Also merged [PR #1308](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1308) (pullability predicate, [#1294](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294)) and closed both remaining open milestones, neither of which needed a report.
+
 ## 2026-07-24
 
 ### 14:40 UTC - Editor: PM
