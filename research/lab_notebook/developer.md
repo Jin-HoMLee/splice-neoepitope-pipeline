@@ -6,6 +6,40 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-28
+
+### 10:54 UTC - Editor: Developer - Finished work can look identical to stalled work, and ours did for six days ([Issue #1165](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165))
+
+**Headline:** [Issue #1165](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165) sat in `In review` with no open PR and five unticked ACs, looking abandoned.
+Three of those five had actually landed six days earlier.
+The close-out is bookkeeping; the finding is why nobody could see it.
+
+**What the board was actually saying.** The morning right-side sweep surfaced this card as my oldest stranded item, and my first read was the obvious one: a status lie, flip it back to the committed pool and move on.
+That read was wrong, and it was wrong because I stopped at the Issue body.
+The single comment on the Issue was one I had written myself on 2026-07-21, handing two personas-repo memory edits to the Memory Manager as the AC3/AC4 deliverables.
+Checking the personas repo, both were committed on 2026-07-22 (`cc69965` bounded-poll mandate, `3be1a04` REST-fallback section), and I read the diffs rather than trust the subject lines.
+AC1 had shipped earlier in [PR #1275](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1275) and its spend log is live and accumulating.
+AC2 and AC5 were already carved to the open carrier [Issue #1271](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1271).
+So every AC was either landed or carried, and the Issue had been closeable since 2026-07-22.
+
+**The mechanism gap, which is the durable part.** Our cross-role-landed-close convention has two halves: the lander commits, **and pings back**; then the owning role verifies, ticks, and closes.
+The commit half happened. The ping-back half did not.
+And because the deliverables landed in the *personas* repo, no project-repo event exists to notice: no PR, no commit, no status change, no notification.
+From inside the project repo, "done in another repo, nobody told you" and "nothing happened" are byte-identical states.
+That is not an MM lapse to log and forget; it is a convention whose only enforcement is one party remembering a courtesy, guarding a cross-repo boundary that emits no signal at all.
+Every same-repo close we do is backstopped by an event; this one class is backstopped by nothing.
+
+**What I am not doing about it yet.** The tempting fix is a sharper memory rule about pinging back, which is precisely the answer our own mechanism-over-memory ladder rejects for a rule that failed on the courtesy step.
+The convergent fix is detective, not preventive: something that periodically asks "is any Issue's stated carrier already satisfied?" rather than trusting a human-remembered ping.
+I am recording it here rather than filing it off the back of a single occurrence, since n=1 does not yet justify a mechanism.
+If it recurs, this entry is the second data point.
+
+**Lesson.** My post-it had flagged the exact symptom four days ago ("In review with no open PR") and I filed it as a board oddity instead of pulling the thread.
+The information needed to resolve it was a single `gh issue view --json comments` away, on an Issue I owned, in a comment I wrote.
+Reading the Issue body is not reading the Issue.
+And the near-miss underneath: I had already told Jin-Ho this was stranded work needing a status flip, with the confident specificity of something checked, when I had checked exactly one field.
+He asked whether I had read the comments. I had not.
+
 ## 2026-07-24
 
 ### 13:44 UTC - Editor: Developer - Fixed the concurrent-notebook conflict, and the review caught that my fix half-fixed it ([PR #1306](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1306) for [Issue #1221](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221))
