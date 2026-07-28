@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milestone closure report - Meta-work SDR - week ending 2026-07-28</title>
+<style>
+  :root { --fg:#1b1f24; --muted:#656d76; --line:#d0d7de; --accent:#0969da;
+          --ok:#1a7f37; --warn:#9a6700; --bg:#fff; --soft:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         color: var(--fg); background: var(--bg); margin: 0; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  header.report { border-bottom: 2px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 .6rem; padding-bottom: .25rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  .sub { color: var(--muted); font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: .75rem; margin: 1rem 0; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; }
+  .card .n { font-size: 1.5rem; font-weight: 600; }
+  .card .l { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .rolebar { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .pill { background: var(--soft); border: 1px solid var(--line); border-radius: 999px;
+          padding: .15rem .6rem; font-size: .82rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0; }
+  th, td { text-align: left; padding: .4rem .55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
+  tr.closed td:first-child { color: var(--ok); }
+  tr.open td:first-child { color: var(--warn); }
+  .badge { display: inline-block; border-radius: 999px; padding: .02rem .45rem; font-size: .72rem;
+           border: 1px solid var(--line); margin-left: .35rem; vertical-align: middle; }
+  .badge.descoped { color: var(--warn); border-color: var(--warn); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .narrative { margin-top: .5rem; }
+  .narrative table th { text-transform: none; }
+  code { background: var(--soft); padding: .1rem .3rem; border-radius: 4px; font-size: .85em; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="report">
+    <h1>Meta-work SDR - week ending 2026-07-28</h1>
+    <div class="sub">
+      
+      Weekly meta-work Service Delivery Review · week 2026-07-21 to 2026-07-28
+      
+      · arc:board-governance, arc:immunogenicity-benchmark, arc:memory-methodology
+    </div>
+  </header>
+
+  <!-- Section 2: At-a-glance (script-generated) -->
+  <h2>At a glance</h2>
+  <div class="cards">
+    <div class="card"><div class="n">15</div><div class="l">Delivered</div></div>
+    <div class="card"><div class="n">1</div><div class="l">Descoped</div></div>
+    <div class="card"><div class="n">0</div><div class="l">Carried forward</div></div>
+    <div class="card"><div class="n">15.0</div><div class="l">Delivered / week</div></div>
+    <!-- Cycle time (commitment -> close) and lead time (created -> close) are shown SIDE
+         BY SIDE, never one relabelled as the other (Issue #1138). The gap between them is
+         the uncommitted Backlog dwell - which late-commitment Kanban actively prescribes,
+         and which the old single "cycle time" number silently charged to delivery
+         performance. It penalized the very behavior the model is built on. -->
+    <div class="card"><div class="n">3.0</div><div class="l">Median cycle (days)<br><span class="sub">commit to close</span></div></div>
+    <div class="card"><div class="n">4.9</div><div class="l">Median lead (days)<br><span class="sub">created to close</span></div></div>
+    <div class="card"><div class="n">5.2</div><div class="l">Avg cycle (days)</div></div>
+    <div class="card"><div class="n">14.7</div><div class="l">Avg lead (days)</div></div>
+    <div class="card"><div class="n">27%</div><div class="l">Unplanned share</div></div>
+  </div>
+
+  <!-- Throughput breakdown by arrival (Issue #811): committed = crossed Backlog -> Ready;
+       unplanned = never crossed it. Arrival, not urgency - priority cannot express it. Read
+       from the OBSERVED commitment act since the `unplanned` label was retired (Issue #1211).
+
+       The commitments-unavailable branch (Issue #1180) is load-bearing, not cosmetic: if the
+       commitment history could not be read, NOTHING delivered can be classified by arrival,
+       and rendering "N committed / 0 unplanned / 0%" would be a fabrication that looks exactly
+       like a measurement. This card sits ABOVE the narrative, so no prose caveat can outrank
+       it - only the generator can. -->
+  <div class="rolebar">
+    
+    <span class="pill">committed · <strong>11</strong></span>
+    <span class="pill">unplanned · <strong>4</strong></span>
+    
+    
+    
+    <span class="sub">4 delivered never crossed <code>Backlog -&gt; Ready</code> - cycle time is <strong>undefined</strong> for those (not zero), so they are excluded from the cycle-time figures and counted here instead</span>
+    
+  </div>
+
+  <div class="rolebar">
+    
+      <span class="pill">role:pm · <strong>7</strong></span>
+    
+      <span class="pill">role:scientist · <strong>2</strong></span>
+    
+      <span class="pill">role:developer · <strong>6</strong></span>
+    
+  </div>
+
+  
+  <!-- Weekly trend (SDR window mode; script-generated) -->
+  <h2>Weekly trend</h2>
+  <table>
+    <thead><tr><th>Week ending</th><th>Delivered</th><th>Committed</th><th>Unplanned</th><th>Unplanned %</th><th>Median cycle (d)</th><th>Median lead (d)</th></tr></thead>
+    <tbody>
+      
+      <tr><td>2026-07-07</td><td>68</td><td>31</td><td>37</td><td>54%</td><td>0.8</td><td>2.4</td></tr>
+      
+      <tr><td>2026-07-14</td><td>39</td><td>18</td><td>21</td><td>54%</td><td>1.4</td><td>3.0</td></tr>
+      
+      <tr><td>2026-07-21</td><td>40</td><td>20</td><td>20</td><td>50%</td><td>1.8</td><td>3.8</td></tr>
+      
+      <tr><td>2026-07-28</td><td>15</td><td>11</td><td>4</td><td>27%</td><td>3.0</td><td>4.9</td></tr>
+      
+    </tbody>
+  </table>
+  
+
+  <!-- Sections 3/4/5: author-owned narrative (sidecar markdown injected) -->
+  <div class="narrative">
+    <!-- Author-owned narrative for Meta-work SDR - week ending 2026-07-28. Sections 3/4/5 only.
+     The script regenerates the HTML from this file + fresh board data;
+     it never overwrites this sidecar once it exists. -->
+
+<h2>Deliverables (Review layer)</h2>
+<p>One descope, everything else delivered (counts in the summary block above - this narrative deliberately does not restate them, since the report recomputes from live board data on every render and a hard-coded figure here would silently drift out of agreement with it).</p>
+<p>The week had an unusually clear spine: <strong>almost everything that shipped was about making a silent failure loud.</strong> That was not planned as a theme, and it is worth naming because it says something about where the system currently hurts.</p>
+<p><strong>The commitment-hygiene chain (PM).</strong> The week's largest piece closed a line of work that had been running for a fortnight. <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1248">Issue #1248</a> taught the Ready-floor guard to exclude body-gated Issues from the pullable count, and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294">Issue #1294</a> then consolidated four scattered "can this be worked?" checks into a single predicate over natively-owned sources (GitHub <code>blockedBy</code>, <code>needs-design</code> / <code>trigger-gated</code> labels, and the <code>Start date</code> field), with one enumerated reason taxonomy and the prose body-scan demoted to a deliberately low-recall proposer. The standalone bug fix <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1299">Issue #1299</a> was folded into that work rather than shipped on its own, which is the descope recorded below.</p>
+<p>The pattern under all three: gates that lived in prose, in a private post-it, or in a human's memory were moved into structured state a predicate can read. The failure being fixed was never "the gate was wrong", it was "the gate was invisible to every automated check".</p>
+<p><strong>Board and tooling correctness (Developer).</strong> Three of the Developer items are the same shape. <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151">Issue #1151</a> replaced a board mutation that could only ever report success with an assert-before-write resolver. <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1242">Issue #1242</a> added a lint for the zsh word-split anti-pattern, where a loop iterates once over an entire blob and silently does nothing. <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221">Issue #1221</a> removed a recurring manual merge-conflict step by giving the lab notebooks a <code>merge=union</code> driver. Each targets a defect that previously presented as a clean run.</p>
+<p>The rest of the Developer column: <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1262">Issue #1262</a> shipped the experiment-tier deck for the junction-ORF search-DB method, and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165">Issue #1165</a> (GraphQL budget attribution) closed <strong>during</strong> this review cycle, having been flagged as stranded by the flow-health sweep the same morning. That is a same-day loop closure between a finding and its fix, and it is also why any hard-coded count in this narrative would have gone stale mid-authoring.</p>
+<p><strong>One genuine science fix.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278">Issue #1278</a> corrected minus-strand junction contigs that were swapping their exon arms and fabricating the splice boundary. This is the only item this week that changed pipeline output rather than process, and it is a correctness bug that produced plausible-looking wrong answers.</p>
+<p><strong>Research and decision deliverables (Scientist, PM).</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1284">Issue #1284</a> settled whether the literature-mining route for functional splice positives is exhausted, and concluded it is, redirecting effort toward the negative class, and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207">Issue #1207</a> closed the snowball registry sweep that fed that conclusion. On the PM side, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1280">Issue #1280</a> (competitive positioning) and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265">Issue #265</a> (multi-agent autonomy SOTA) both closed as research artifacts, and <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/250">Issue #250</a> closed out the decision-telemetry mechanism with its first real signal.</p>
+<p><strong>Scope note (worth recording, since the first draft got it wrong).</strong> This is the <strong>meta-work</strong> SDR, and meta-work flows milestone-free per <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/902">Issue #902</a> facet 2. So a <strong>milestoned</strong> Issue is lifecycle work and is correctly absent from this report's inventory even when it closed inside the window. The first draft narrated <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/601">Issue #601</a> (AF3-class backend verdict) as a deliverable here; it closed on 2026-07-23 but carries the <code>i6 - S5 - Modeling</code> milestone, so it belongs to that milestone's own closure accounting, not to this cadence. Removed. A future author should treat "closed in-window" as necessary but not sufficient for inclusion.</p>
+<h2>Descoped (closed NOT_PLANNED)</h2>
+<ul>
+<li><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1299">Issue #1299</a> <code>fix(pm): not_pullable misses a trigger marker inside a checkbox AC</code> - <strong>descoped because the fix became the wrong shape, not because the bug was unreal.</strong> The bug reproduces exactly as filed. A best-practice cross-check on 2026-07-23 reframed <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294">Issue #1294</a> from "route each cause to its native home" to "one predicate over natively-owned sources, with the body scan demoted to a low-recall proposer". Under that reframe, sharpening a regex in the demoted scanner is work against the grain of the decision. <strong>Routed:</strong> the behavior is now covered by the <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294">Issue #1294</a> predicate reading a structured label, and the case survives as a regression fixture rather than a shipped fix. No residual need.</li>
+</ul>
+<h2>Carried-forward &amp; routing</h2>
+<p><strong>Nothing carried forward this week.</strong> Every item that entered the window closed within it, so there is no carry to route.</p>
+<p>This is worth one sentence of caution rather than celebration: a zero-carry week is as easily a symptom of low intake as of high completion, and this week's intake was low (see the throughput note below). It is not evidence of health on its own.</p>
+<h2>Retrospective (process/health)</h2>
+<p>Five findings. Four are actionable and carry a named board carrier; one is explicitly an observation with no carrier, recorded as such rather than quietly dropped.</p>
+<p><strong>1. The closure ritual holds in this repo and does not hold in the personas repo.</strong> The 2026-07-28 closure audit scanned all 31 Issues closed across both repos since 2026-07-21. Five closed <code>COMPLETED</code> with unticked acceptance criteria: two here, three in personas. The split matters - the project repo's <code>scripts/audit_and_merge.sh</code> blocks a merge on unticked boxes, and the personas merge path appears to have no equivalent, which would explain the asymmetry better than discipline does.
+<strong>Carrier:</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1311">Discussion #1311</a> (Memory Manager, asking whether to tick or whether personas deliberately runs a lighter ritual and my audit should be scoped out).</p>
+<p><strong>2. An unticked box was hiding a real defect, which is the argument for the ritual.</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1156">Issue #1156</a> closed <code>COMPLETED</code> with 5/5 criteria unticked and no closing PR. Verifying each against live files found four genuinely met and one not: a full paginated sweep showed <strong>2 of 18 open parents still carrying a Priority</strong> the convention forbids. Both were cleared and re-read to confirm. The criterion that failed is the one that explicitly said <em>"verified by reading the board field back, not by trusting the mutation's exit code"</em> - so the instruction was correct and simply was not followed, on the very Issue that wrote it down.
+<strong>Carrier:</strong> fixed inline this session; verification recorded on the Issue. No further carrier needed.</p>
+<p><strong>3. <code>check_milestone_health.sh</code> is structurally blind to an entire class.</strong> Line 50 filters on <code>select(.due_on != null)</code>, so a milestone with no due date is dropped from the input set and can never be reported however complete it is. The live instance, <code>i6 - S5 - Modeling</code>, had been finished and invisible; it surfaced only because I listed milestones directly while investigating a different one. The check has been passing cleanly every day while unable to see the class.
+<strong>Carrier:</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1312">Issue #1312</a>.</p>
+<p><strong>4. This report is 11 days late, and the reason is structural.</strong> The Friday-cleanup beat carries three weekly obligations - branch hygiene, the per-role stale-Issue review, and this SDR - and it hangs off the morning routine. Last Friday's session opened on a resume greeting, correctly ran the light resume routine, and dropped all three silently. A weekly obligation whose trigger is a property of one session's opening message is not really weekly.
+<strong>Carrier:</strong> <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1314">Issue #1314</a>.</p>
+<p><strong>5. Throughput is down sharply and I am declining to call it a problem - observation only, no carrier.</strong> See the weekly trend table above: delivered-per-week has fallen by roughly three quarters from the early-July peak, while median cycle time has risen from under a day to around three. Read naively that is a collapse. I do not think the data supports that reading yet, for three reasons: the earlier windows include large quick-win burn-down batches which inflate counts with small items; this window's last three days had zero closures because they were not worked; and the composition shifted toward fewer, larger items (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294">Issue #1294</a> alone was a multi-day build), which raises median cycle time without indicating a flow problem. Declaring a capacity trend from four points across a known composition change would be over-reading. <strong>Recorded as an observation to re-check next week</strong> rather than routed to a carrier; if the next window lands at a comparable level with a rising median, that is a third point on a consistent composition and worth an Issue then.</p>
+<h2>Routing summary</h2>
+<p>Four actionable findings, four named carriers (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/discussions/1311">Discussion #1311</a>, inline fix, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1312">Issue #1312</a>, <a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1314">Issue #1314</a>). One observation explicitly marked <code>observation only, no carrier</code> with the reasoning stated. Nothing in this report is left un-routed.</p>
+  </div>
+
+  <!-- Section 6: Inventory appendix (script-generated) -->
+  <h2>Inventory appendix</h2>
+  <table>
+    <thead><tr><th>#</th><th>Title</th><th>Status</th><th>Role</th><th>Size</th><th>Pri</th><th>Closed</th></tr></thead>
+    <tbody>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1299">#1299</a></td>
+        <td>fix(pm): not_pullable misses a trigger marker inside a checkbox AC (clause-lead strips the bullet, not the checkbox)</td>
+        <td>Done<span class="badge descoped">descoped</span></td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-23</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294">#1294</a></td>
+        <td>refactor(pm): one pullability predicate over natively-owned sources, replacing four independent detectors</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-28</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1284">#1284</a></td>
+        <td>research(scientist): is the literature-mining route exhausted for functional splice positives? (keep-mining vs pivot)</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1280">#1280</a></td>
+        <td>research(pm): competitive-positioning scan of cancer-neoepitope pipelines (2024-2026)</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1278">#1278</a></td>
+        <td>fix(assemble_contigs): minus-strand junction contigs swap exon arms, fabricating the splice boundary</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-23</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1276">#1276</a></td>
+        <td>chore(pm): check_closed_recent.py must scan BOTH repos so the recap shows MM/personas work</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-24</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1262">#1262</a></td>
+        <td>docs(slides): experiment-tier deck for the junction-ORF search-DB method + emitter (#1204)</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1248">#1248</a></td>
+        <td>feat(pm): ready-queue floor guard should exclude body-gated Issues (needs-design / trigger-gated) from the pullable count</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-23</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1242">#1242</a></td>
+        <td>feat(guards): PreToolUse lint for the zsh word-split anti-pattern in ad-hoc Bash commands</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-24</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1221">#1221</a></td>
+        <td>decision(tooling): eliminate lab-notebook merge conflicts on concurrent same-role PRs</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-24</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1211">#1211</a></td>
+        <td>decide(pm): retire the hand-applied `unplanned` label now the commitment act supersedes it</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1207">#1207</a></td>
+        <td>research(scientist): registry additions from a backward-citation (snowball) sweep</td>
+        <td>Done</td>
+        <td>scientist</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1165">#1165</a></td>
+        <td>fix(infra): GraphQL budget is per-USER and shared across all concurrent sessions - we misattribute exhaustion to the board</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-28</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1151">#1151</a></td>
+        <td>fix(tooling): a board-mutation that can only report success - assert-before-write helper (third child of #1135)</td>
+        <td>Done</td>
+        <td>developer</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-24</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/265">#265</a></td>
+        <td>research(workflow): SOTA on multi-agent autonomy + applicability to our PM/Sci/Dev setup</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-22</td>
+      </tr>
+      
+      <tr class="closed">
+        <td><a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/250">#250</a></td>
+        <td>feat(pm): log triage decisions + confidence + user-overrides for self-evaluation</td>
+        <td>Done</td>
+        <td>pm</td>
+        <td>n/a</td>
+        <td>n/a</td>
+        <td>2026-07-23</td>
+      </tr>
+      
+    </tbody>
+  </table>
+
+  <footer>
+    Generated by <code>scripts/pm/milestone_report.py</code> · as of 2026-07-28 · author-editor-critic closure report
+    (<a href="https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/752">Issue #752</a>).
+    Data sections + this appendix are script-generated; the narrative above is author-owned
+    (<code>Meta-work SDR - week ending 2026-07-28</code> sidecar).
+  </footer>
+
+</div>
+</body>
+</html>
