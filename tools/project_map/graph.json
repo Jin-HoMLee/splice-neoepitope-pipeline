@@ -593,8 +593,8 @@
       "type": "docs_dir",
       "group": "docs",
       "path": "docs/pm/sdr_reports",
-      "size": 5,
-      "degree": 6
+      "size": 7,
+      "degree": 8
     },
     {
       "id": "docs__pm__sdr_reports__2026_07_13_meta_work_sdr_html",
@@ -632,6 +632,26 @@
       "type": "doc",
       "group": "docs",
       "path": "docs/pm/sdr_reports/2026-07-17-meta-work-sdr.narrative.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "docs__pm__sdr_reports__2026_07_28_meta_work_sdr_html",
+      "label": "2026-07-28-meta-work-sdr.html",
+      "type": "resource",
+      "group": "docs",
+      "path": "docs/pm/sdr_reports/2026-07-28-meta-work-sdr.html",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
+      "id": "docs__pm__sdr_reports__2026_07_28_meta_work_sdr_narrative_md",
+      "label": "2026-07-28-meta-work-sdr.narrative.md",
+      "type": "doc",
+      "group": "docs",
+      "path": "docs/pm/sdr_reports/2026-07-28-meta-work-sdr.narrative.md",
       "description": "Documentation",
       "size": 1,
       "degree": 1
@@ -9199,6 +9219,18 @@
     },
     {
       "source": "docs__pm__sdr_reports__2026_07_17_meta_work_sdr_narrative_md",
+      "target": "docs__pm__sdr_reports",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__pm__sdr_reports__2026_07_28_meta_work_sdr_html",
+      "target": "docs__pm__sdr_reports",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "docs__pm__sdr_reports__2026_07_28_meta_work_sdr_narrative_md",
       "target": "docs__pm__sdr_reports",
       "type": "contained_in",
       "label": ""
