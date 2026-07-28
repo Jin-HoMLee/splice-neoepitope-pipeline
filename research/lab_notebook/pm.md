@@ -6,6 +6,35 @@ Format and rules unchanged from the unified notebook — see `shared/feedback_la
 
 ---
 
+## 2026-07-24
+
+### 14:40 UTC - Editor: PM
+
+**Built the pullability predicate ([#1294](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1294), [PR #1308](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/pull/1308)) via a full brainstorm -> spec -> plan -> subagent-driven build, and the most instructive part was which review layer caught which defect.**
+The refactor replaces four scattered "can this be worked?" checks with one `assess()` over natively-owned sources (GitHub `blockedBy`, a `needs-design` label, a new `trigger-gated` label, the `Start date` field), one enumerated reason taxonomy, nothing copied.
+Seven implementation tasks each passed a per-task spec+quality review; each came back clean or clean-after-one-fix.
+
+**The final whole-branch review earned its keep by catching exactly what no per-task review could.**
+It found a stale `check_ready_queue.sh` header still describing the superseded [#1248](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1248) body-scan design and asserting a now-false "HONEST LIMIT: sees only gates in the BODY" - which the #1294 structured gates directly invert (the backfill gives [#876](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/876) a `trigger-gated` label the predicate now reads).
+No per-task gate could have seen it: each is scoped to its own diff by construction, and the header staleness is a *consequence* of the Task 1-3 mechanism change surfacing in a comment Task 4 happened to sit next to.
+The generalisable bit: a per-task gate and a whole-branch gate catch different defect *classes* - coherence defects that span tasks are structurally invisible to the former. The tiering is not redundancy.
+
+**The backfill guarded a regression that was not actually live, and that reframing is the finding.**
+The plan's Task 5 existed to prevent gated Ready items leaking into the pullable count at cutover - but all eight standing gated Issues were in Backlog, so nothing was leaking.
+The real value was never cutover parity; it was moving each gate from prose or a private post-it (which the low-recall proposer may miss) into a structured label the predicate authoritatively reads.
+Lesson for any "migrate for parity" step: check whether the parity is actually at risk before assuming it, and state the real value when it is not.
+
+**The taxonomy's boundary is a feature: [#817](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/817) correctly stayed out.**
+Its gate is "sequence access" - a capability prerequisite, a different axis the predicate deliberately does not model.
+The clean move was to leave it ungated by this predicate rather than stretch the four-cause taxonomy to a fuzzy fifth; a predicate that models four causes well beats one that models five fuzzily, and the residual axis is documented rather than absorbed.
+
+**A demotion without a consumer is half a refactor - the bot review caught it, I had not.**
+The plan demoted the prose scan to a `propose_label` proposer but never wired a call site, so it is callable, tested, and invoked by nothing.
+Manual triage-time labeling is the working substitute (so it is not a defect), but a function with no caller is a loose end to track or remove, not leave as dead code - filed [#1309](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1309).
+
+**Predicate-first meant honest AC carving, not over-ticking.**
+The scope decision deferred the deep half of AC5 (writing #876's revival gate into its Issue body as structured state), so I carved [#1307](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1307) and ticked AC5 with the carrier link rather than claim it done: the label satisfies the queue's need now, the body-structured-state is a separate open commit-point. [[feedback-ac-gates-intent-not-proxy]] in its filing-the-follow-up-up-front form.
+
 ## 2026-07-23
 
 ### 15:20 UTC - Editor: PM

@@ -34,25 +34,30 @@
 #   - [GROOMING-GAP role] : short AND the role has NO Backlog candidates at all
 #     -> nothing is committable; the remedy is intake/grooming, not commitment.
 #
-# BODY-GATED READY ITEMS (Issue #1248). The floor counted Ready *depth*, not
-# *pullable* depth, so an Issue gated only in its prose ("build only if it slips
-# a 2nd time") counted as healthy stock and got re-committed under floor
-# pressure - Issue #841 was swept into Ready twice this way, Issue #929 sat there
-# with unsettled decision-fork ACs. Each Ready item now carries a derived
-# `not_pullable` reason from board_open_items.py (a pure function of the body,
-# scripts/pm/not_pullable.py). Such items are BOTH excluded from the pullable
+# NOT-PULLABLE READY ITEMS (Issue #1248 shipped the first cut; Issue #1294
+# generalised it). The floor counts Ready *depth*, not *pullable* depth, so an
+# Issue that cannot actually be worked ("build only if it slips a 2nd time", an
+# unsettled decision fork, a date gate) must not count as healthy stock - Issue
+# #841 was swept into Ready twice this way, Issue #929 sat there with unsettled
+# decision-fork ACs. Each Ready item now carries a derived `not_pullable` reason
+# from board_open_items.py, computed by the pullability predicate
+# (scripts/pm/pullability.py) over natively-owned STRUCTURED sources - GitHub
+# `blockedBy`, the `needs-design` / `trigger-gated` labels, and the `Start date`
+# field - NOT the Issue body. Such items are BOTH excluded from the pullable
 # floor count AND surfaced as [NOT-PULLABLE role], because either alone leaves a
 # silent failure: exclude-only hides them, surface-only keeps the queue reading
 # healthy.
 #
-# HONEST LIMIT: this sees only gates written in the BODY. A gate that lives in a
-# role's post-it or in a verdict given in conversation is structurally invisible
-# here (Issue #876 is the standing example - its trigger lives in Jin-Ho's 07-04
-# decision, not in the Issue). A capability prerequisite phrased as "gated on X"
-# is likewise a different axis, covered by the capability-prerequisite body-read
-# convention. The marker set is deliberately small: growing it on every near-miss
-# is a denylist widen that never converges, and this is a linter, so a false
-# ALARM costs more than a miss.
+# ONE DECISION HOME. The gate reason comes from one predicate consulting one
+# authoritative source per cause; nothing is copied into a second store, so no
+# state can drift. The prose scan (scripts/pm/not_pullable.py -> propose_label)
+# is demoted to a low-recall PROPOSER that only SUGGESTS a label at the
+# Backlog->Ready commitment; a human applies it, and the label - not the prose -
+# is what the predicate reads. So a phrasing the proposer misses is a non-event
+# once the label is set. RESIDUAL LIMIT: a gate not yet marked with a label or
+# date (an un-backfilled Issue) is not seen until its marker is applied; the
+# capability-prerequisite axis ("gated on sequence access", Issue #817) is a
+# separate axis this predicate does not model.
 #
 # Why this shape: the original #754 fixed floor-5 fired a chronic "you're short"
 # nag that could not always be honestly satisfied (post-ship lulls, an
@@ -151,15 +156,10 @@ BACKLOG_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select(.status == "Backlo
 # awaiting-review count.
 REVIEW_JSON="$(printf '%s' "$ITEMS_JSON" | jq '[.[] | select((.status == "Ready for review" or .status == "In review") and .kind == "PR")]' 2>/dev/null)"
 
-# NOTE the deliberate asymmetry with the per-role floor (Issue #1248): the floor
-# counts only PULLABLE items, but the cap counts EVERY Ready card, body-gated
-# ones included. That is intentional, not an oversight - the cap is a WIP limit
-# on buffer depth, and a gated card still occupies the buffer and still inflates
-# lead time, so it should count against over-deepening. Consequence to expect: a
-# run near the cap can print "[CAP] Ready at 23" while the per-role pullable
-# breakdown sums lower, with the [NOT-PULLABLE] lines reconciling the gap. (The
-# breakdown never summed to TOTAL anyway - a multi-role item counts toward each
-# of its roles - so this is legibility, not a correctness change.)
+# Cap counts ALL Ready cards (gated included); the floor counts only pullable
+# ones. This asymmetry is the documented Kanban WIP-limit convention - blocked
+# items still consume a WIP slot, so they count against the cap, but they cannot
+# satisfy the Ready floor because they are not workable. Not a local choice.
 TOTAL="$(printf '%s' "$READY_JSON" | jq 'length')"
 
 needs_attention=0
@@ -171,7 +171,7 @@ backlog_breakdown=""
 # carries (a role:pm + role:memory_manager item counts toward pm), so we test
 # label membership rather than a single role field.
 for role in "${FLOOR_ROLES[@]}"; do
-    # Split this role's Ready items into pullable vs body-gated (Issue #1248).
+    # Split this role's Ready items into pullable vs gated (Issue #1248 / #1294).
     # `not_pullable` is a derived reason string from board_open_items.py, or
     # null/absent when the item is workable. An absent key reads as pullable, so
     # older fixtures and non-Issue cards are unaffected.
@@ -191,7 +191,7 @@ for role in "${FLOOR_ROLES[@]}"; do
     inprog_breakdown+="${role}=${inprog_count} "
     backlog_breakdown+="${role}=${backlog_count} "
 
-    # Surface body-gated Ready items explicitly. Excluding them from the count
+    # Surface gated Ready items explicitly. Excluding them from the count
     # alone would fix the false-healthy read but make them INVISIBLE, which just
     # trades one silent failure for another; surfacing alone would leave the
     # queue still reading healthy, which is the original bug. Both halves are
@@ -201,7 +201,7 @@ for role in "${FLOOR_ROLES[@]}"; do
     # attention without the un-satisfiable-nag pathology described above.
     if [[ "$gated_count" -ge 1 ]]; then
         gated_detail="$(printf '%s' "$gated_json" | jq -r '[.[] | "#\(.number) (\(.not_pullable))"] | join(", ")')"
-        echo "[NOT-PULLABLE ${role}: ${gated_count}] - in Ready but body-gated, excluded from the pullable count: ${gated_detail}. Decommit to Backlog, or resolve the gate (see shared/feedback_board_hygiene.md)."
+        echo "[NOT-PULLABLE ${role}: ${gated_count}] - in Ready but gated (structured source), excluded from the pullable count: ${gated_detail}. Decommit to Backlog, or resolve the gate (see shared/feedback_board_hygiene.md)."
         needs_attention=1
     fi
     if [[ "$ready_count" -lt "$FLOOR" ]]; then

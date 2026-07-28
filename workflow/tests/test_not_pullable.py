@@ -27,6 +27,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "pm"))
 
 from not_pullable import scan_not_pullable  # noqa: E402
+import not_pullable  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -258,3 +259,44 @@ do not commit before
 @pytest.mark.parametrize("body", ["", None])
 def test_empty_or_missing_body_is_pullable(body):
     assert scan_not_pullable(body) is None
+
+
+# --------------------------------------------------------------------------
+# Proposer semantics (Issue #1294): `propose_label` maps a scan hit to the
+# label string `pullability.py` reads. Low recall is intended - the known-miss
+# fixtures below assert an accepted None, not a failure.
+# --------------------------------------------------------------------------
+
+def test_proposer_suggests_needs_design_for_decision_ac():
+    body = "## Acceptance criteria\n- [ ] Decide scope: A or B\n"
+    assert not_pullable.propose_label(body) == "needs-design"
+
+
+def test_proposer_suggests_trigger_gated_for_trigger_marker():
+    body = "## Notes\nBuild only if it slips a 2nd time.\n"
+    assert not_pullable.propose_label(body) == "trigger-gated"
+
+
+def test_proposer_returns_none_for_clean_body():
+    assert not_pullable.propose_label("## Acceptance criteria\n- [ ] Ship the thing\n") is None
+
+
+# Known-miss fixtures: accepted low-recall behavior. A miss is asserted as an
+# accepted non-event, because the label is the authority now (Issue #1294).
+def test_known_miss_noun_form_decision_is_accepted():
+    # #1111 / #353 noun-form: the proposer does NOT catch these, by design.
+    body = "## Acceptance criteria\n- [ ] A decision (A or B) is recorded here.\n"
+    assert not_pullable.propose_label(body) is None  # accepted miss
+
+
+def test_known_miss_no_body_gate_is_accepted():
+    # #876: no body gate at all; the proposer has nothing to see.
+    assert not_pullable.propose_label("## Context\nArchive when needed.\n") is None
+
+
+def test_known_miss_1241_checkbox_prefixed_trigger_is_accepted():
+    # #1241 / #1299: a trigger marker inside a checkbox AC is NOT caught by the
+    # proposer (the checkbox prefix keeps "revisit when" off the clause start).
+    # An accepted miss - the trigger-gated LABEL is the authority, not this scan.
+    body = "## Notes\n- [ ] Revisit when the trigger fires: the epic reopens.\n"
+    assert not_pullable.propose_label(body) is None  # accepted miss

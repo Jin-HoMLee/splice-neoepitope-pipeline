@@ -1,12 +1,28 @@
-"""Detect body-only "not pullable" gates on a board Issue.
+"""Suggest a "not pullable" label for a human to apply - a low-recall proposer.
 
-Issue #1248. The Ready-queue floor guard (`scripts/check_ready_queue.sh`) counts
-Ready *depth* - "has concrete ACs = pullable" - and is structurally blind to
-gates that exist only in an Issue's prose. So a decision-blocked or
-trigger-gated queue reads as healthy, and floor-pressure Replenishment
-re-commits Issues that look Ready but cannot actually be worked. Issue #841 was
-swept into Ready twice on exactly this shape; Issue #929 sat in Ready with two
-unsettled decision-fork ACs.
+Issue #1294. This module used to be the floor guard's authority; it is not
+anymore. The authority is now `scripts/pm/pullability.py`, which reads the
+`needs-design` / `trigger-gated` LABEL a human applied at triage. `propose_label`
+below is the nudge that suggests the label in the first place - a prose scan
+over the body, offered to a human, never consumed directly by the guard. A miss
+here is a non-event: the Issue just does not get the suggestion, and a human can
+still apply the label from reading the body themselves. Precision matters far
+more than recall for a suggestion a human will see and can ignore; growing the
+pattern set to chase completeness is the denylist-widen path Issue #1294 exists
+to avoid.
+
+The scan functions below (`scan_not_pullable` and friends) predate the demotion
+and are unchanged - `propose_label` just wraps `scan_not_pullable` and maps its
+free-text reason onto the fixed label vocabulary `pullability.py` reads.
+
+Issue #1248 (original authority-era framing, preserved for the scan mechanics).
+The Ready-queue floor guard (`scripts/check_ready_queue.sh`) counts Ready
+*depth* - "has concrete ACs = pullable" - and is structurally blind to gates
+that exist only in an Issue's prose. So a decision-blocked or trigger-gated
+queue reads as healthy, and floor-pressure Replenishment re-commits Issues that
+look Ready but cannot actually be worked. Issue #841 was swept into Ready twice
+on exactly this shape; Issue #929 sat in Ready with two unsettled decision-fork
+ACs.
 
 This is a pure function of the body, like the sibling tells it mirrors: no
 stored state to drift, any run re-derives it.
@@ -178,4 +194,23 @@ def scan_not_pullable(body):
                 verb.group(1).lower()
             )
 
+    return None
+
+
+def propose_label(body):
+    # type: (Optional[str]) -> Optional[str]
+    """Suggest a gate label for a human to apply at Backlog -> Ready.
+
+    LOW RECALL IS INTENDED, NOT A DEFECT. The label is the authority (read by
+    scripts/pm/pullability.py); this only nudges a human to set it. A missed
+    phrasing is a non-event, so never grow the pattern set to chase completeness
+    - that is the denylist widen Issue #1294 exists to avoid.
+    """
+    reason = scan_not_pullable(body)
+    if reason is None:
+        return None
+    if reason.startswith("trigger-gated"):
+        return "trigger-gated"
+    if reason.startswith("needs-design"):
+        return "needs-design"
     return None
