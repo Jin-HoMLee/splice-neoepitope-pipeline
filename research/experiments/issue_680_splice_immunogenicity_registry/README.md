@@ -14,12 +14,21 @@ A feasibility gate established that only ~tens of such peptides exist field-wide
 
 ## Sparsity analysis (#737)
 
-The scarcity is quantified rigorously in [`issue_737_sparsity/sparsity_writeup.md`](issue_737_sparsity/sparsity_writeup.md) (manuscript-ready prose), computed by [`issue_737_sparsity/notebook.ipynb`](issue_737_sparsity/notebook.ipynb) → [`issue_737_sparsity/outputs/`](issue_737_sparsity/outputs/), and condensed in the experiment deck [`issue_737_sparsity/slides.qmd`](issue_737_sparsity/slides.qmd). Headline numbers (on the **82 scorable positives**):
+The scarcity is quantified rigorously in [`issue_737_sparsity/sparsity_writeup.md`](issue_737_sparsity/sparsity_writeup.md) (manuscript-ready prose), computed by [`issue_737_sparsity/sparsity.py`](issue_737_sparsity/sparsity.py) → [`issue_737_sparsity/outputs/sparsity_stats.json`](issue_737_sparsity/outputs/sparsity_stats.json), and condensed in the experiment deck [`issue_737_sparsity/slides.qmd`](issue_737_sparsity/slides.qmd). Headline numbers (on the **82 scorable positives**):
 
 - **Few-study assembly:** 11 studies, but top study = 43%, top two = 65%, **effective ≈ 3.9** independent studies (inverse-Simpson of the per-study shares).
 - **A\*02:01 monoculture:** 73/82 (89%) are A\*02:01 → **effective ≈ 1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2).
 - **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime); a powered AUC probe needs **19-31** negatives (Hanley-McNeil), so field-wide specificity is currently unmeasurable.
 - The two rate-limiting reagents named by the analysis: non-A\*02:01 functionally-validated positives ([#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)) and measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).
+
+**Recompute cadence (every time the registry grows).** Run the tool, then the tests. Nothing above is hand-maintained:
+
+```bash
+research/.venv/bin/python research/experiments/issue_680_splice_immunogenicity_registry/issue_737_sparsity/sparsity.py
+research/.venv/bin/python -m pytest research/experiments/issue_680_splice_immunogenicity_registry/issue_737_sparsity/tests/ -q
+```
+
+`sparsity_stats.json` is the single source of truth. `sparsity.py --check` recomputes without writing and verifies that this README section, the writeup, and the deck all still agree with it, exiting non-zero and naming any claim that drifted. That replaces the [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069) step of re-executing the notebook and hand-reconciling the same headline numbers across four files, which is how a stale number reached review in the first place.
 
 **Category-absence ≠ data-absence (#734).** The no-splice-category finding holds at the *schema* level - you cannot retrieve splice-neoantigens as a class from any of the four DBs (even deposited ones, e.g. IRIS-CLASP1 and RCAN1-4 in IEDB, are filed as plain protein "isoforms"; the splice origin survives only in the free-text reference title). **But free-text/reference-title mining of IEDB's IQ-API *does* recover real splice-neoantigens the manual literature sweep missed** - most importantly the Bigot 2021 SF3B1-mutant uveal-melanoma panel (+35 rows, folded here). So the DBs hold recoverable splice-immunogenicity data; it is simply uncategorized. The thin-functional-base point still stands: most recovered rows are tetramer-detection-only (`medium`), not effector-confirmed.
 
