@@ -262,6 +262,12 @@ research/experiments/issue_547_immunogenicity_calibration/outputs/*.parquet
 # asneo_out/) written by run_asneo_chr22.sh — heavy + regenerable. Small committed
 # notebook artifacts (concordance tables/figures) live elsewhere under outputs/.
 research/experiments/issue_566_asneo_crosscheck/outputs/chr22_run/
+# Issue #1290 raw IEDB pull (15 MB) - network-derived, so it fails the "offline-regenerable"
+# tie-breaker in the 10-100 MB band. Unlike the #224 case it needs no key or quota: the IEDB
+# IQ-API is public and unauthenticated, so `fetch_iedb_tcell_assays.py` rebuilds it in ~1 min
+# and is the fetch path a fresh clone uses instead of an R2 mirror. The provenance sidecar
+# (row counts + sha256) IS committed, so the numbers stay auditable without the bytes.
+research/experiments/issue_680_splice_immunogenicity_registry/issue_1290_reverse_discovery/outputs/*.tsv
 
 # #1048 spike: reproduce.sh builds a ~1.4 GB pvactools venv + example data into its
 # default workdir. Regenerable via `bash reproduce.sh`; the committed record is env_lock.txt.

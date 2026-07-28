@@ -1,0 +1,39 @@
+{
+  "issue": 1290,
+  "stage": "1-fetch",
+  "fetched_at_utc": "2026-07-28T11:08:43Z",
+  "api_root": "https://query-api.iedb.org",
+  "endpoint": "tcell_search",
+  "filter": {
+    "parent_source_antigen_source_org_name": "ilike.*Homo sapiens*"
+  },
+  "order": "tcell_id.asc",
+  "page_size": 10000,
+  "columns": [
+    "tcell_id",
+    "linear_sequence",
+    "linear_sequence_length",
+    "structure_type",
+    "qualitative_measure",
+    "parent_source_antigen_name",
+    "parent_source_antigen_iri",
+    "parent_source_antigen_source_org_name",
+    "mhc_allele_name",
+    "mhc_class",
+    "mhc_allele_resolution",
+    "assay_names",
+    "host_organism_name",
+    "disease_names",
+    "pubmed_id",
+    "reference_id"
+  ],
+  "server_reported_total": 66358,
+  "counts": {
+    "total": 66358,
+    "positive": 33674,
+    "negative": 32684,
+    "with_source_antigen_anchor": 66353
+  },
+  "output_tsv": "iedb_human_source_tcell_assays.tsv",
+  "output_sha256": "bc970409999bd5a6efca47a7ff2eeb1e60e7b9fa3521cc45fe90622f0dfefa86"
+}
