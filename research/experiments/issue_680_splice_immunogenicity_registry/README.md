@@ -21,12 +21,16 @@ The scarcity is quantified rigorously in [`issue_737_sparsity/sparsity_writeup.m
 - **Negatives are the binding constraint:** exactly **1** hard true-negative field-wide (+ 8 soft failed-to-prime); a powered AUC probe needs **19-31** negatives (Hanley-McNeil), so field-wide specificity is currently unmeasurable.
 - The two rate-limiting reagents named by the analysis: non-A\*02:01 functionally-validated positives ([#839](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/839)) and measured true-negatives ([#911](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/911)).
 
-**Recompute cadence (every time the registry grows).** Run the tool, then the tests. Nothing above is hand-maintained:
+**Recompute cadence (every time the registry grows).** Run the tool, regenerate the figures, then the tests. Nothing above is hand-maintained:
 
 ```bash
-research/.venv/bin/python research/experiments/issue_680_splice_immunogenicity_registry/issue_737_sparsity/sparsity.py
-research/.venv/bin/python -m pytest research/experiments/issue_680_splice_immunogenicity_registry/issue_737_sparsity/tests/ -q
+E=research/experiments/issue_680_splice_immunogenicity_registry/issue_737_sparsity
+research/.venv/bin/python $E/sparsity.py                       # stats.json (canonical)
+research/.venv/bin/python $E/figures/_regenerate_figures.py    # the 3 deck figures
+research/.venv/bin/python -m pytest $E/tests/ -q               # 31 tests
 ```
+
+The figures are drawn from `stats.json`, never recomputed from `registry.tsv`, so they cannot disagree with the prose. That matters because a figure renders numbers as pixels, making it the one reader the text canary structurally cannot check. `notebook.ipynb` is a thin driver over both modules, kept for narrative; it computes nothing itself.
 
 `sparsity_stats.json` is the single source of truth. `sparsity.py --check` recomputes without writing and verifies that this README section, the writeup, and the deck all still agree with it, exiting non-zero and naming any claim that drifted. That replaces the [#1069](https://github.com/Jin-HoMLee/splice-neoepitope-pipeline/issues/1069) step of re-executing the notebook and hand-reconciling the same headline numbers across four files, which is how a stale number reached review in the first place.
 
