@@ -76,19 +76,19 @@ The effective number is the honest headline: **11 studies that are really worth 
 
 ## Result 1 - a few-study assembly
 
-![](outputs/fig_study_pareto.png){width="78%"}
+![](figures/fig_study_pareto.png){width="78%"}
 
 Top study (Bigot SF3B1-UM [@bigot2021sf3b1]) = **43%**; top two (+ Kim leukemia [@kim2025sfmutant]) = **65%**. Effective ≈ **3.9** independent studies.
 
 ## Result 2 - an HLA-A\*02:01 monoculture
 
-![](outputs/fig_allele_mechanism.png){width="92%"}
+![](figures/fig_allele_mechanism.png){width="92%"}
 
 **73/82 (89%) are A\*02:01** - effective ≈ **1.26 alleles**. Mechanism spread is healthier (effective ≈ 4.2). Any allele-stratified result collapses to an A2 result.
 
 ## Result 3 - the negative set is the binding constraint
 
-![](outputs/fig_negative_scarcity.png){width="74%"}
+![](figures/fig_negative_scarcity.png){width="74%"}
 
 **One** hard true-negative field-wide [@fisher2026corest] - and it's A\*11:01, not even the dominant A2 allele; 8 soft (failed-to-prime [@manoharan2026ircrc]). A powered AUC probe needs **19-31** negatives [@hanley1982roc]. Specificity is, today, **unmeasurable** (n = 1).
 
