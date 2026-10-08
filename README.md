@@ -57,7 +57,7 @@ These tumor-specific junctions can produce novel peptide sequences — **neoepit
 that are recognisable as foreign by the immune system and are candidate targets for
 cancer immunotherapy.
 
-<p align="center"><img src="assets/splice-junction.svg" alt="Splice junction: two exons joined at the splice site, with the excised intron shown below as a dashed arc" width="460"></p>
+<p align="center"><img src="assets/splice-junction.svg" alt="Splice junction: two single-stranded exons joined at the splice site, with the excised intron shown as a dashed arc" width="160"></p>
 
 This pipeline identifies those junctions from RNA-seq data, filters them against the
 matched normal sample, and predicts which resulting peptides are presented by MHC class I molecules.
