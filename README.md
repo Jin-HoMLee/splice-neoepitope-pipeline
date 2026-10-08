@@ -1,8 +1,31 @@
 # Splice Neoepitope Pipeline
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+**Discover tumor-specific neoepitopes from RNA-Seq splice junctions - reproducibly and end-to-end.**
+
 A modernised, reproducible reimplementation of the 2015 research pipeline for
 predicting cancer neoepitopes arising from alternative splicing detected by
-RNA-Seq.
+RNA-Seq. The pipeline aligns tumor and matched-normal RNA-Seq reads, isolates
+splice junctions unique to the tumor, assembles and translates the
+junction-spanning sequences, and scores each peptide for MHC class I
+presentation.
+
+**Key features**
+
+- **End-to-end and reproducible** - one Snakemake workflow from FASTQ to HTML report.
+- **Dual aligner support** - HISAT2 or STAR, selected per run.
+- **Matched-normal filtering** - keeps only `tumor_exclusive` junctions; annotated and normal-shared junctions are excluded.
+- **Patient-specific HLA typing** - OptiType resolves A/B/C alleles from the same samples (optional).
+- **MHC class I presentation scoring** - MHCflurry 2.x `Class1PresentationPredictor` ranks candidates as strong, weak, or non presenters.
+- **Optional structural validation** - TCRdock predicts the TCR-pMHC ternary complex for the top candidate on GPU.
+- **Interactive HTML report** - origin summary, HLA QC, top presenters, and an embedded Mol* 3D viewer.
+
+**Scope and honest boundary.** This is a *prediction* tool: it identifies and
+ranks neoepitope candidates only. It performs no experimental validation, makes
+no clinical or therapeutic recommendation, and is not intended for diagnostic
+or treatment decisions. Treat every result as a hypothesis for laboratory
+follow-up.
 
 > **Original work**: Jin-Ho Lee, Seoul National University, 2015.
 > *"Identification of Cancer-Specific Neoepitopes Arising from Alternative
@@ -35,7 +58,7 @@ that are recognisable as foreign by the immune system and are candidate targets 
 cancer immunotherapy.
 
 This pipeline identifies those junctions from RNA-seq data, filters them against the
-matched normal sample, and predicts which resulting peptides bind MHC class I molecules.
+matched normal sample, and predicts which resulting peptides are presented by MHC class I molecules.
 
 > For full biological background and study design, see [`docs/INTRODUCTION.md`](docs/INTRODUCTION.md).
 
@@ -72,7 +95,7 @@ RNA-Seq FASTQ files
   TCR-peptide-MHC ternary complex 3D structure (AlphaFold v2 backend)
         │
         ▼ Step 7: Report
-  Junction origin summary + HLA typing QC + top binders + Mol* 3D viewer HTML report
+  Junction origin summary + HLA typing QC + top presenters + Mol* 3D viewer HTML report
 ```
 
 ---
