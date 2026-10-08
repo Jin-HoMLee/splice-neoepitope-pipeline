@@ -1,6 +1,25 @@
 {
   "nodes": [
     {
+      "id": "assets",
+      "label": "assets",
+      "type": "dir",
+      "group": "docs",
+      "path": "assets",
+      "size": 1,
+      "degree": 2
+    },
+    {
+      "id": "assets__splice_junction_svg",
+      "label": "splice-junction.svg",
+      "type": "resource",
+      "group": "docs",
+      "path": "assets/splice-junction.svg",
+      "description": "Project file",
+      "size": 1,
+      "degree": 1
+    },
+    {
       "id": "config",
       "label": "config",
       "type": "config_dir",
@@ -1380,7 +1399,7 @@
       "description": "User guides, feature decks, architecture notes, superpower specs",
       "children": [],
       "size": 5,
-      "degree": 1
+      "degree": 2
     },
     {
       "id": "infrastructure_root",
@@ -8737,6 +8756,18 @@
     }
   ],
   "edges": [
+    {
+      "source": "assets",
+      "target": "docs_root",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "assets__splice_junction_svg",
+      "target": "assets",
+      "type": "contained_in",
+      "label": ""
+    },
     {
       "source": "config",
       "target": "config_root",
