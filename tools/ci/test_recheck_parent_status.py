@@ -450,12 +450,13 @@ class TestNotPlannedDrift:
         assert self.RENDERED in out
         assert "[[" not in out  # brackets owned solely by format_record
 
+    @patch("recheck_parent_status.all_sub_issues")
     @patch("recheck_parent_status.has_not_planned_child")
     @patch("recheck_parent_status.status_for_issue")
     @patch("recheck_parent_status.open_sub_issues")
     @patch("recheck_parent_status.parent_issue_number")
     def test_audit_chain_issue_path_emits_review(
-        self, mock_parent, mock_subs, mock_status, mock_np
+        self, mock_parent, mock_subs, mock_status, mock_np, mock_all
     ):
         # --issue path (the close-hook's production-critical route): closing
         # #86 walks to parent #24, whose children are all closed with one
@@ -464,33 +465,43 @@ class TestNotPlannedDrift:
         mock_subs.side_effect = lambda n: {24: []}[n]  # all #24 children closed
         mock_status.side_effect = lambda n: {24: "In progress"}.get(n)
         mock_np.return_value = True
+        mock_all.return_value = [
+            {"number": 192, "state": "closed", "state_reason": "not_planned"}
+        ]
 
         chain = rps.audit_parent_chain(86)
+        mock_all.assert_called_once_with(24)
         assert [r["issue"] for r in chain] == [24]
         assert chain[0]["drift"] == rps.NOT_PLANNED_REVIEW
         assert self.RENDERED in rps.format_record(chain[0])
 
+    @patch("recheck_parent_status.all_sub_issues")
     @patch("recheck_parent_status.has_not_planned_child")
     @patch("recheck_parent_status.status_for_issue")
     @patch("recheck_parent_status.open_sub_issues")
     @patch("recheck_parent_status.parent_issue_number")
     def test_audit_chain_all_completed_still_completion_drift(
-        self, mock_parent, mock_subs, mock_status, mock_np
+        self, mock_parent, mock_subs, mock_status, mock_np, mock_all
     ):
         mock_parent.side_effect = lambda n: {86: 24, 24: None}[n]
         mock_subs.side_effect = lambda n: {24: []}[n]
         mock_status.side_effect = lambda n: {24: "In progress"}.get(n)
         mock_np.return_value = False
+        mock_all.return_value = [
+            {"number": 192, "state": "closed", "state_reason": "completed"}
+        ]
 
         chain = rps.audit_parent_chain(86)
+        mock_all.assert_called_once_with(24)
         assert chain[0]["drift"] == "COMPLETION DRIFT"
 
+    @patch("recheck_parent_status.all_sub_issues")
     @patch("recheck_parent_status.has_not_planned_child")
     @patch("recheck_parent_status.status_for_issue")
     @patch("recheck_parent_status.open_sub_issues")
     @patch("recheck_parent_status.all_parent_issues")
     def test_all_mode_emits_review_for_not_planned(
-        self, mock_parents, mock_subs, mock_status, mock_np, capsys
+        self, mock_parents, mock_subs, mock_status, mock_np, mock_all, capsys
     ):
         # --all sweep (the second call site): same NOT_PLANNED parent must get
         # the REVIEW flag, proving run_all_mode is wired too.
@@ -498,24 +509,33 @@ class TestNotPlannedDrift:
         mock_subs.side_effect = lambda n: {24: []}[n]
         mock_status.side_effect = lambda n: "In progress"
         mock_np.return_value = True
+        mock_all.return_value = [
+            {"number": 192, "state": "closed", "state_reason": "not_planned"}
+        ]
 
         rc = rps.run_all_mode()
+        mock_all.assert_called_once_with(24)
         assert rc == 2  # REVIEW is a non-None drift → counted as a fire
         assert self.RENDERED in capsys.readouterr().out
 
+    @patch("recheck_parent_status.all_sub_issues")
     @patch("recheck_parent_status.has_not_planned_child")
     @patch("recheck_parent_status.status_for_issue")
     @patch("recheck_parent_status.open_sub_issues")
     @patch("recheck_parent_status.all_parent_issues")
     def test_all_mode_all_completed_still_completion_drift(
-        self, mock_parents, mock_subs, mock_status, mock_np, capsys
+        self, mock_parents, mock_subs, mock_status, mock_np, mock_all, capsys
     ):
         mock_parents.return_value = [24]
         mock_subs.side_effect = lambda n: {24: []}[n]
         mock_status.side_effect = lambda n: "In progress"
         mock_np.return_value = False
+        mock_all.return_value = [
+            {"number": 192, "state": "closed", "state_reason": "completed"}
+        ]
 
         rc = rps.run_all_mode()
+        mock_all.assert_called_once_with(24)
         assert rc == 2
         assert "Status: [COMPLETION DRIFT]" in capsys.readouterr().out
 
