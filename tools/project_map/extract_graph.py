@@ -142,6 +142,7 @@ def assign_group(rel_path):
     if rel_path.startswith("scripts") or rel_path.startswith("tools"): return "infrastructure"
     if rel_path.startswith("docker") or rel_path.startswith("resources"): return "infrastructure"
     if rel_path.startswith("models"): return "pipeline"  # committed ML artifacts consumed by the DAG (Issue #908)
+    if rel_path.startswith("assets"): return "docs"  # canonical repo assets (README figures)
     return "project"
 
 
