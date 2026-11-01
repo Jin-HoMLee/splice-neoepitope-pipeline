@@ -1,0 +1,9 @@
+panel	mode	threshold	raw_junctions	mean_reads	effective_threshold	below_min_reads	retained_junctions	classified_rows	annotated_discarded	normal_shared	gtex_pantissue_shared	tumor_exclusive	predicted_presenters
+hisat2_chr22	legacy_mean	2	1872	1.205128	2	1638	234	155	79	4	29	122	not_available
+hisat2_chr22	explicit_minimum	5	1872	1.205128	5	1860	12	3	9	1	1	1	not_available
+hisat2_chr22	explicit_minimum	10	1872	1.205128	10	1868	4	2	2	1	1	0	not_available
+hisat2_chr22	explicit_minimum	20	1872	1.205128	20	1871	1	1	0	1	0	0	not_available
+star_chr22	legacy_mean	3	3379	2.111276	3	2956	423	388	35	28	41	319	not_available
+star_chr22	explicit_minimum	5	3379	2.111276	5	3300	79	68	11	16	7	45	not_available
+star_chr22	explicit_minimum	10	3379	2.111276	10	3364	15	13	2	6	0	7	not_available
+star_chr22	explicit_minimum	20	3379	2.111276	20	3373	6	6	0	4	0	2	not_available

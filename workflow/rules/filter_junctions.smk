@@ -67,8 +67,8 @@ def _get_gtex_bed_input(wildcards):
 
 rule filter_junctions:
     """For each raw junction quantification file:
-      1. Keep junctions with read count > mean read count in that file
-         (removes low-read background noise).
+      1. Keep junctions with read count >= the configured minimum
+         (the same explicit floor is applied to tumor and matched-normal arms).
       2. Discard junctions present in the reference (GENCODE) junction list.
       3. Classify unannotated junctions by origin: normal_shared (matched
          normal) → gtex_pantissue_shared (GTEx pan-tissue population blacklist,
@@ -99,7 +99,7 @@ rule filter_junctions:
     log:
         os.path.join(_LOGS, "{patient_id}", "filter_junctions", "filter.log"),
     params:
-        min_normal_reads=config["filtering"]["min_normal_reads"],
+        min_junction_reads=config["filtering"]["min_junction_reads"],
     conda:
         "../envs/python.yaml"
     script:

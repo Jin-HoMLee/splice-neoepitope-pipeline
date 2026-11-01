@@ -39,8 +39,19 @@ See [`docs/data_preparation.md`](data_preparation.md) for aligner comparison.
 
 ```yaml
 filtering:
-  min_normal_reads: 2   # min reads in normal to classify a junction as normal_shared
+  min_junction_reads: 10   # fixed floor applied to tumor and matched-normal junctions
 ```
+
+`min_junction_reads` is an explicit integer floor: a junction is retained when
+`mapped_reads >= min_junction_reads`. The same floor is applied to the tumor and
+matched-normal arms, so the origin rule is explicit and comparable. Matched-normal
+evidence below the floor is intentionally not a `normal_shared` match; every
+retained match keeps its `normal_source` provenance. The production default is 10,
+matching the explicit
+junction-coverage cutoff used by pVACsplice. A 5-read floor is supported for
+deliberately selected shallow/local panels; `config/test_config.yaml` uses it for
+the 500K-read chr22 smoke fixture. The default is not a per-file mean: the raw
+`mean_reads` statistic remains descriptive only.
 
 ---
 

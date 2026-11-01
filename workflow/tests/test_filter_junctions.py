@@ -198,7 +198,7 @@ class TestAnnotatedFlagCrossCheck:
         tumor_f.parent.mkdir()
         self._write_3col(tumor_f, [
             ("chr22:201:300:+", 100, 1),  # STAR-annotated, absent from BED
-            ("chr22:401:500:+", 1, 0),    # noise — below mean, filtered out
+            ("chr22:401:500:+", 1, 0),    # noise — below minimum, filtered out
         ])
 
         manifest = tmp_path / "manifest.tsv"
@@ -233,7 +233,7 @@ class TestAnnotatedFlagCrossCheck:
         tumor_f.parent.mkdir()
         self._write_3col(tumor_f, [
             ("chr22:101:200:+", 100, 0),  # STAR-novel, but present in BED
-            ("chr22:401:500:+", 1, 0),    # noise — keeps the other above mean
+            ("chr22:401:500:+", 1, 0),    # noise — below minimum
         ])
 
         manifest = tmp_path / "manifest.tsv"
@@ -347,11 +347,11 @@ class TestClassifyJunctions:
         normal_f.parent.mkdir()
 
         # Junction only in tumor → tumor_exclusive.
-        # Add a low-read noise junction so the high-read one clears the mean filter
-        # (classify_junctions keeps junctions with reads > mean).
+        # Add a low-read noise junction so the high-read one clears the minimum
+        # (classify_junctions keeps junctions at or above the minimum).
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),  # unannotated, absent in normal
-            ("chr22:401:500:+", 1),    # noise — below mean, filtered out
+            ("chr22:401:500:+", 1),    # noise — below minimum, filtered out
         ])
         self._write_junction_file(normal_f, [])
 
@@ -378,6 +378,67 @@ class TestClassifyJunctions:
         # Issue #940: normal_source is empty for non-normal_shared rows.
         assert pd.isna(df.iloc[0]["normal_source"]) or df.iloc[0]["normal_source"] == ""
 
+    def test_fixed_minimum_is_not_raised_by_a_high_count_tail(self, tmp_path):
+        """A configured floor must not become a data-dependent mean threshold."""
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [
+            ("chr22:201:300:+", 5),
+            ("chr22:301:400:+", 5),
+            ("chr22:401:500:+", 1000),
+        ])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [("tumor", "Primary Tumor")])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+        output = tmp_path / "novel.tsv"
+        stats = tmp_path / "stats.tsv"
+
+        classify_junctions(
+            junction_files=[tumor_f],
+            manifest_path=manifest,
+            reference_bed=ref_bed,
+            output_path=output,
+            stats_output_path=stats,
+            min_junction_reads=5,
+        )
+
+        df = pd.read_csv(output, sep="\t")
+        assert len(df) == 3
+        stats_by_category = dict(zip(
+            pd.read_csv(stats, sep="\t")["category"],
+            pd.read_csv(stats, sep="\t")["count"],
+        ))
+        assert stats_by_category["min_reads_filtered"] == 0
+        assert stats_by_category["min_junction_reads_threshold"] == 5
+
+    def test_same_minimum_controls_tumor_and_normal(self, tmp_path):
+        tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
+        normal_f = tmp_path / "normal" / "raw_junctions.tsv"
+        tumor_f.parent.mkdir()
+        normal_f.parent.mkdir()
+        self._write_junction_file(tumor_f, [("chr22:201:300:+", 10)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        manifest = tmp_path / "manifest.tsv"
+        self._write_manifest(manifest, [
+            ("tumor", "Primary Tumor"), ("normal", "Solid Tissue Normal"),
+        ])
+        ref_bed = tmp_path / "ref.bed"
+        self._write_reference_bed(ref_bed, [])
+
+        for minimum, expected in ((5, "normal_shared"), (10, "tumor_exclusive")):
+            output = tmp_path / f"novel_{minimum}.tsv"
+            classify_junctions(
+                junction_files=[tumor_f, normal_f],
+                manifest_path=manifest,
+                reference_bed=ref_bed,
+                output_path=output,
+                min_junction_reads=minimum,
+            )
+            df = pd.read_csv(output, sep="\t")
+            assert len(df) == 1
+            assert df.iloc[0]["junction_origin"] == expected
+
     def test_normal_shared_labeled_correctly(self, tmp_path):
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         normal_f = tmp_path / "normal" / "raw_junctions.tsv"
@@ -387,9 +448,9 @@ class TestClassifyJunctions:
         # Same junction in both tumor and normal → normal_shared
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),
-            ("chr22:401:500:+", 1),  # noise — below mean, filtered out
+            ("chr22:401:500:+", 1),  # noise — below minimum, filtered out
         ])
-        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -424,17 +485,17 @@ class TestClassifyJunctions:
         for f in (tumor_f, solid_f, blood_f):
             f.parent.mkdir()
 
-        # Tumor junctions clearing the mean filter: one shared with blood only,
+        # Tumor junctions clearing the fixed minimum: one shared with blood only,
         # one with solid only, one with BOTH (exercises the sorted comma-join).
-        # Plus a noise junction below the mean.
+        # Plus a noise junction below the configured minimum.
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),   # shared with blood
             ("chr22:601:700:+", 100),   # shared with solid
             ("chr22:701:800:+", 100),   # shared with BOTH
             ("chr22:401:500:+", 1),     # noise, filtered out
         ])
-        self._write_junction_file(solid_f, [("chr22:601:700:+", 5), ("chr22:701:800:+", 5)])
-        self._write_junction_file(blood_f, [("chr22:201:300:+", 5), ("chr22:701:800:+", 5)])
+        self._write_junction_file(solid_f, [("chr22:601:700:+", 10), ("chr22:701:800:+", 10)])
+        self._write_junction_file(blood_f, [("chr22:201:300:+", 10), ("chr22:701:800:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -487,7 +548,7 @@ class TestClassifyJunctions:
             ("chr22:601:700:+", 100),   # absent in blood -> tumor_exclusive
             ("chr22:401:500:+", 1),     # noise, filtered out
         ])
-        self._write_junction_file(blood_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(blood_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -520,7 +581,7 @@ class TestClassifyJunctions:
 
         self._write_junction_file(tumor_f, [
             ("chr22:101:200:+", 100),
-            ("chr22:401:500:+", 1),  # noise — keeps annotated junction above mean
+            ("chr22:401:500:+", 1),  # noise — below minimum
         ])
         self._write_junction_file(normal_f, [])
 
@@ -551,7 +612,7 @@ class TestClassifyJunctions:
 
         self._write_junction_file(tumor_f, [
             ("chr22:201:300:+", 100),
-            ("chr22:401:500:+", 1),  # noise — below mean, filtered out
+            ("chr22:401:500:+", 1),  # noise — below minimum, filtered out
         ])
 
         manifest = tmp_path / "manifest.tsv"
@@ -625,7 +686,7 @@ class TestClassifyJunctions:
             ("chr22:201:300:+", 100),  # in BOTH normal and gtex
             ("chr22:901:1000:+", 1),   # noise
         ])
-        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -779,7 +840,7 @@ class TestClassifyJunctions:
             ("chr22:101:200:+", 100, 1),  # flag=1, in ref BED → agree → annotated, discarded
             ("chr22:201:300:+", 100, 0),  # flag=0, in GTEx → gtex_pantissue_shared (agree)
             ("chr22:301:400:+", 100, 1),  # flag=1 but NOT in ref → DISAGREE → warn; tumor_exclusive
-            ("chr22:901:1000:+", 1, 0),   # noise — below mean, filtered out
+            ("chr22:901:1000:+", 1, 0),   # noise — below minimum, filtered out
         ])
         self._write_junction_file(normal_f, [])
 
@@ -841,8 +902,8 @@ class TestClassifyJunctionsStats:
 
     def test_stats_tsv_schema_and_categories(self, tmp_path):
         # Tumor sample with one annotated, one unannotated tumor_exclusive,
-        # one unannotated normal_shared. Plus a noise junction below the mean
-        # filter so the high-read ones survive.
+        # one unannotated normal_shared. Plus a noise junction below the
+        # configured minimum so the high-read ones survive.
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         normal_f = tmp_path / "normal" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
@@ -852,9 +913,9 @@ class TestClassifyJunctionsStats:
             ("chr22:101:200:+", 100),  # annotated → discarded
             ("chr22:201:300:+", 100),  # unannotated, in normal → normal_shared
             ("chr22:301:400:+", 100),  # unannotated, NOT in normal → tumor_exclusive
-            ("chr22:901:1000:+", 1),   # noise — below mean, filtered out
+            ("chr22:901:1000:+", 1),   # noise — below minimum, filtered out
         ])
-        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -880,18 +941,19 @@ class TestClassifyJunctionsStats:
 
         # Long-format per tumor sample: 6 funnel rows (Issue #214 + the
         # gtex_pantissue_shared row from Issue #212, always emitted) +
-        # 4 descriptive distribution rows (Issue #215) + 1 per-normal-source
-        # breakdown row (Issue #940, one normal type removed a junction) = 11 total.
-        assert len(stats) == 11
+        # 5 descriptive distribution rows (Issue #215) + 1 per-normal-source
+        # breakdown row (Issue #940, one normal type removed a junction) = 12 total.
+        assert len(stats) == 12
         assert (stats["sample_id"] == "tumor").all()
         assert (stats["sample_type"] == "Primary Tumor").all()
 
         by_cat = dict(zip(stats["category"], stats["count"]))
-        # junctions_raw is BEFORE the mean-reads filter — all 4 rows
+        # junctions_raw is BEFORE the minimum-read filter - all 4 rows
         assert by_cat["junctions_raw"] == 4
-        # 1 noise junction was below the mean and got filtered out
-        assert by_cat["mean_reads_filtered"] == 1
-        # After mean filter, 3 junctions survive: 1 annotated, 1 normal_shared, 1 tumor_exclusive
+        # 1 noise junction was below the configured minimum and got filtered out
+        assert by_cat["min_reads_filtered"] == 1
+        assert by_cat["min_junction_reads_threshold"] == 10
+        # After the minimum filter, 3 junctions survive: 1 annotated, 1 normal_shared, 1 tumor_exclusive
         assert by_cat["annotated_discarded"] == 1
         assert by_cat["normal_shared"] == 1
         assert by_cat["tumor_exclusive"] == 1
@@ -907,15 +969,15 @@ class TestClassifyJunctionsStats:
         tumor_f.parent.mkdir()
         normal_f.parent.mkdir()
 
-        # Mix of high-read and low-read junctions to exercise the mean filter
+        # Mix of high-read and low-read junctions to exercise the fixed minimum
         self._write_junction_file(tumor_f, [
             ("chr22:101:200:+", 100),  # annotated, high read
             ("chr22:201:300:+", 100),  # unannotated, high read, in normal → normal_shared
             ("chr22:301:400:+", 100),  # unannotated, high read → tumor_exclusive
-            ("chr22:701:800:+", 1),    # noise → mean_reads_filtered
-            ("chr22:801:900:+", 1),    # noise → mean_reads_filtered
+            ("chr22:701:800:+", 1),    # noise → min_reads_filtered
+            ("chr22:801:900:+", 1),    # noise → min_reads_filtered
         ])
-        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -940,7 +1002,7 @@ class TestClassifyJunctionsStats:
         by_cat = dict(zip(stats["category"], stats["count"]))
         # The whole point of the funnel: raw == sum of downstream buckets
         assert by_cat["junctions_raw"] == (
-            by_cat["mean_reads_filtered"]
+            by_cat["min_reads_filtered"]
             + by_cat["annotated_discarded"]
             + by_cat["normal_shared"]
             + by_cat["gtex_pantissue_shared"]
@@ -959,9 +1021,9 @@ class TestClassifyJunctionsStats:
             ("chr22:201:300:+", 100),  # in normal → normal_shared
             ("chr22:301:400:+", 100),  # in GTEx, not normal → gtex_pantissue_shared
             ("chr22:401:500:+", 100),  # in neither → tumor_exclusive
-            ("chr22:901:1000:+", 1),   # noise → mean_reads_filtered
+            ("chr22:901:1000:+", 1),   # noise → min_reads_filtered
         ])
-        self._write_junction_file(normal_f, [("chr22:201:300:+", 5)])
+        self._write_junction_file(normal_f, [("chr22:201:300:+", 10)])
 
         manifest = tmp_path / "manifest.tsv"
         self._write_manifest(manifest, [
@@ -988,7 +1050,7 @@ class TestClassifyJunctionsStats:
         assert by_cat["gtex_pantissue_shared"] == 1
         assert by_cat["tumor_exclusive"] == 1
         assert by_cat["junctions_raw"] == (
-            by_cat["mean_reads_filtered"]
+            by_cat["min_reads_filtered"]
             + by_cat["annotated_discarded"]
             + by_cat["normal_shared"]
             + by_cat["gtex_pantissue_shared"]
@@ -1006,8 +1068,8 @@ class TestClassifyJunctionsStats:
             ("chr22:401:500:+", 1),
         ])
         self._write_junction_file(normal_f, [
-            ("chr22:201:300:+", 5),
-            ("chr22:601:700:+", 5),
+            ("chr22:201:300:+", 10),
+            ("chr22:601:700:+", 10),
         ])
 
         manifest = tmp_path / "manifest.tsv"
@@ -1068,9 +1130,9 @@ class TestClassifyJunctionsStats:
         )
 
         stats = pd.read_csv(stats_output, sep="\t")
-        # 10 categories per tumor sample (6 funnel incl. gtex_pantissue_shared +
-        # 4 distribution) × 2 samples = 20 rows
-        assert len(stats) == 20
+        # 11 categories per tumor sample (6 funnel incl. gtex_pantissue_shared +
+        # 5 distribution) × 2 samples = 22 rows
+        assert len(stats) == 22
         assert set(stats["sample_id"]) == {"tumor1", "tumor2"}
 
     def test_stats_tsv_optional(self, tmp_path):
@@ -1097,10 +1159,10 @@ class TestClassifyJunctionsStats:
         assert output.exists()
 
     def test_stats_tsv_includes_read_distribution(self, tmp_path):
-        """Issue #215 — 4 descriptive distribution rows on the raw read counts.
+        """Issue #215 - descriptive distribution rows on the raw read counts.
 
-        These rows let the Scientist sanity-check the silent per-file mean
-        threshold against the sample's actual read-count distribution.
+        These rows let the Scientist inspect the fixed threshold alongside
+        the sample's actual read-count distribution.
         """
         tumor_f = tmp_path / "tumor" / "raw_junctions.tsv"
         tumor_f.parent.mkdir()
@@ -1132,6 +1194,7 @@ class TestClassifyJunctionsStats:
         assert by_cat["median_reads"] == 7.5
         assert by_cat["mean_reads"] == 29.0
         assert by_cat["max_reads"] == 100
+        assert by_cat["min_junction_reads_threshold"] == 10
 
 
 # ---------------------------------------------------------------------------

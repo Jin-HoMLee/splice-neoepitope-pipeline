@@ -2015,7 +2015,7 @@
       "group": "research",
       "path": "research/experiments",
       "size": 0,
-      "degree": 21
+      "degree": 22
     },
     {
       "id": "research__experiments__issue_1035_lightning_l4_tfold_tcr",
@@ -2486,6 +2486,59 @@
       "description": "Project file",
       "size": 1,
       "issue": 1140,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1161_junction_depth",
+      "label": "issue_1161_junction_depth",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1161_junction_depth",
+      "size": 2,
+      "issue": 1161,
+      "degree": 4
+    },
+    {
+      "id": "research__experiments__issue_1161_junction_depth__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "research",
+      "path": "research/experiments/issue_1161_junction_depth/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "issue": 1161,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1161_junction_depth__analyze_depth_py",
+      "label": "analyze_depth.py",
+      "type": "resource",
+      "group": "research",
+      "path": "research/experiments/issue_1161_junction_depth/analyze_depth.py",
+      "description": "Project file",
+      "size": 1,
+      "issue": 1161,
+      "degree": 1
+    },
+    {
+      "id": "research__experiments__issue_1161_junction_depth__outputs",
+      "label": "outputs",
+      "type": "experiments_dir",
+      "group": "research",
+      "path": "research/experiments/issue_1161_junction_depth/outputs",
+      "size": 1,
+      "issue": 1161,
+      "degree": 2
+    },
+    {
+      "id": "research__experiments__issue_1161_junction_depth__outputs__depth_sensitivity_tsv",
+      "label": "depth_sensitivity.tsv",
+      "type": "data",
+      "group": "research",
+      "path": "research/experiments/issue_1161_junction_depth/outputs/depth_sensitivity.tsv",
+      "description": "Tabular data",
+      "size": 1,
+      "issue": 1161,
       "degree": 1
     },
     {
@@ -5878,7 +5931,7 @@
       "config_keys": [
         "reference.junction_bed",
         "reference.gencode_gtf",
-        "filtering.min_normal_reads",
+        "filtering.min_junction_reads",
         "reference",
         "filtering"
       ],
@@ -7940,7 +7993,7 @@
         "manifest",
         "output"
       ],
-      "lines_of_code": 663,
+      "lines_of_code": 674,
       "size": 2,
       "degree": 3
     },
@@ -7977,7 +8030,7 @@
         "predictions",
         "output"
       ],
-      "lines_of_code": 2022,
+      "lines_of_code": 2025,
       "size": 2,
       "degree": 3
     },
@@ -10493,6 +10546,36 @@
     {
       "source": "research__experiments__issue_1140_hook_liveness_contracts__workflow_agent_results_json",
       "target": "research__experiments__issue_1140_hook_liveness_contracts",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1161_junction_depth",
+      "target": "research__experiments",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1161_junction_depth__README_md",
+      "target": "research__experiments__issue_1161_junction_depth",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1161_junction_depth__analyze_depth_py",
+      "target": "research__experiments__issue_1161_junction_depth",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1161_junction_depth__outputs",
+      "target": "research__experiments__issue_1161_junction_depth",
+      "type": "contained_in",
+      "label": ""
+    },
+    {
+      "source": "research__experiments__issue_1161_junction_depth__outputs__depth_sensitivity_tsv",
+      "target": "research__experiments__issue_1161_junction_depth__outputs",
       "type": "contained_in",
       "label": ""
     },

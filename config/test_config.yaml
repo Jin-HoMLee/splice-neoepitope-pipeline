@@ -13,10 +13,11 @@
 # ============================================================
 
 # Only keys that differ from config.yaml are set here. Everything
-# else (aligner, assembly, mhcflurry, filtering) is inherited from
+# else (assembly and the non-overridden sections) is inherited from
 # config.yaml, which Snakemake loads first via the `configfile:`
 # directive in the Snakefile before merging this file on top
-# (recursive merge, per-key).
+# (recursive merge, per-key). The shallow chr22 panel deliberately overrides
+# filtering.min_junction_reads below.
 #
 # Outputs land in the same results/ and logs/ as production, namespaced
 # by patient_id=patient_001_test — nf-core style (no separate test output dir).
@@ -50,6 +51,12 @@ hla:
 
 mhcflurry:
   threads: 4      # M1 MacBook Air (8 GB RAM)
+
+# The committed 500K-read chr22 panel is a shallow local smoke fixture. Keep
+# its deliberately selected 5-read floor visible rather than inheriting the
+# production default of 10; production remains explicit and configurable.
+filtering:
+  min_junction_reads: 5
 
 # GTEx pan-tissue filter (Issue #212): point reference_bed at the local chr22
 # fixture so the gs:// download rule never fires for the test run. enabled: true is
