@@ -712,10 +712,13 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
     # ----- Per-sample junction-filter table -----
     junction_df = df[df["step"] == "junction-filter"].copy()
     funnel_cats = [
-        "junctions_raw", "mean_reads_filtered", "annotated_discarded",
+        "junctions_raw", "min_reads_filtered", "annotated_discarded",
         "normal_shared", "gtex_pantissue_shared", "tumor_exclusive",
     ]
-    dist_cats = ["min_reads", "median_reads", "mean_reads", "max_reads"]
+    dist_cats = [
+        "min_reads", "median_reads", "mean_reads", "max_reads",
+        "min_junction_reads_threshold",
+    ]
 
     if junction_df.empty:
         junction_html = "<p><em>No junction-filter stats available.</em></p>"
@@ -748,8 +751,8 @@ def _build_filtering_funnel_html(filtering_stats_tsv: str | Path | None) -> str:
             "<h3>Junction-level (per sample)</h3>"
             + _df_to_html(funnel_pivot)
             + "<h3>Raw read-count distribution (per sample, pre-filter)</h3>"
-            + "<p><small>Mean is the threshold used by the per-file noise filter; "
-            "min/median/max describe the input distribution.</small></p>"
+            + "<p><small>The configured minimum is the depth threshold; "
+            "mean/min/median/max describe the input distribution only.</small></p>"
             + _df_to_html(dist_pivot)
         )
         # normal_shared broken down by which normal sample_type removed each
@@ -1187,11 +1190,11 @@ def _build_report_tsv(
 
     When ``junction_filter_stats_tsv`` is supplied, four patient-level funnel
     totals are added under stage=``junction_filtering`` (Issue #214):
-    ``junctions_extracted_total``, ``junctions_mean_reads_filtered``,
+    ``junctions_extracted_total``, ``junctions_min_reads_filtered``,
     ``junctions_annotated_discarded``, ``junctions_unannotated_total``. These
     sum across tumor samples; normal samples are intentionally omitted from
     the funnel. The four rows reconcile arithmetically:
-    ``extracted_total = mean_reads_filtered + annotated_discarded + unannotated_total``.
+    ``extracted_total = min_reads_filtered + annotated_discarded + unannotated_total``.
     """
     import pandas as pd
 
@@ -1216,7 +1219,7 @@ def _build_report_tsv(
             by_cat = stats_df.groupby("category")["count"].sum()
             for metric, source_cats in (
                 ("junctions_extracted_total", ("junctions_raw",)),
-                ("junctions_mean_reads_filtered", ("mean_reads_filtered",)),
+                ("junctions_min_reads_filtered", ("min_reads_filtered",)),
                 ("junctions_annotated_discarded", ("annotated_discarded",)),
                 ("junctions_unannotated_total",
                  ("normal_shared", "gtex_pantissue_shared", "tumor_exclusive")),

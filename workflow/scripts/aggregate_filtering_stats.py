@@ -15,9 +15,9 @@ patient-level junction/peptide aggregate.
 
 The funnel categories are listed in Issue #215. Numeric values from the
 ``junction-filter`` distribution rows (``min_reads``, ``mean_reads``,
-``median_reads``, ``max_reads``) are descriptive and not part of the
-funnel sum — they coexist in the same long-format TSV under the
-``junction-filter`` step.
+``median_reads``, ``max_reads``, ``min_junction_reads_threshold``) are
+descriptive and not part of the funnel sum - they coexist in the same
+long-format TSV under the ``junction-filter`` step.
 
 Usage (Snakemake):
   Called automatically by the ``aggregate_filtering_stats`` rule.

@@ -92,8 +92,11 @@ alignment:
 # Junction read-count filtering
 # -----------------------------------------------------------------
 filtering:
-  # Minimum reads in the normal sample to trust a junction as patient-specific
-  min_normal_reads: 2
+  # Fixed minimum junction support applied to BOTH tumor and matched-normal arms.
+  # 10 is the default, matching pVACsplice's explicit junction-coverage cutoff.
+  # A lower 5-read floor is supported for shallow/local panels when deliberately
+  # selected in a config overlay; it is not a replacement default.
+  min_junction_reads: 10
 
 # -----------------------------------------------------------------
 # GTEx pan-tissue population-normal junction filter (Issue #211 builds the

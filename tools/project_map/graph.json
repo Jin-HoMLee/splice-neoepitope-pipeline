@@ -5878,7 +5878,7 @@
       "config_keys": [
         "reference.junction_bed",
         "reference.gencode_gtf",
-        "filtering.min_normal_reads",
+        "filtering.min_junction_reads",
         "reference",
         "filtering"
       ],
@@ -7940,7 +7940,7 @@
         "manifest",
         "output"
       ],
-      "lines_of_code": 663,
+      "lines_of_code": 674,
       "size": 2,
       "degree": 3
     },
@@ -7977,7 +7977,7 @@
         "predictions",
         "output"
       ],
-      "lines_of_code": 2022,
+      "lines_of_code": 2025,
       "size": 2,
       "degree": 3
     },

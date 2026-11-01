@@ -56,7 +56,7 @@ REF_BED = REPO / "resources/test/chr22_reference_junctions.bed"
 GTEX_BED = REPO / "resources/test/gtex_gtexv2_pan_tissue_junctions.chr22.bed"
 GTF = REPO / "resources/test/chr22.gtf.gz"
 
-FUNNEL = ["junctions_raw", "mean_reads_filtered", "annotated_discarded",
+FUNNEL = ["junctions_raw", "min_reads_filtered", "annotated_discarded",
           "normal_shared", "gtex_pantissue_shared", "tumor_exclusive"]
 
 
@@ -76,7 +76,9 @@ def _run(tag, junction_files, manifest_rows):
         reference_bed=str(REF_BED),
         output_path=str(out),
         stats_output_path=str(stats),
-        min_normal_reads=2,
+        # Keep the historical effective two-read floor so this control remains
+        # comparable with the pre-1161 experiment; production defaults to 10.
+        min_junction_reads=2,
         gencode_gtf=str(GTF),
         gtex_bed=str(GTEX_BED),
     )

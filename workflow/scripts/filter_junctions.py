@@ -283,7 +283,7 @@ def classify_junctions(
     reference_bed: str | Path,
     output_path: str | Path,
     stats_output_path: str | Path | None = None,
-    min_normal_reads: int = 2,
+    min_junction_reads: int = 10,
     gencode_gtf: str | Path | None = None,
     gtex_bed: str | Path | None = None,
 ) -> None:
@@ -307,19 +307,19 @@ def classify_junctions(
     per-tumor-sample stats TSV (Issue #214) with columns:
     ``sample_id, sample_type, category, count``. Categories form a funnel
     that reconciles arithmetically — ``junctions_raw`` (pre-filter raw
-    regtools output) equals the sum of ``mean_reads_filtered`` (noise removed
-    by the per-sample mean-reads filter) + ``annotated_discarded`` (in
-    GENCODE) + ``normal_shared`` + ``gtex_pantissue_shared`` +
+    regtools output) equals the sum of ``min_reads_filtered`` (rows below the
+    configured minimum) + ``annotated_discarded`` (in GENCODE) +
+    ``normal_shared`` + ``gtex_pantissue_shared`` +
     ``tumor_exclusive`` (the three unannotated classes). The
     ``gtex_pantissue_shared`` row is always emitted (count 0 when no GTEx
     blacklist is supplied) so the funnel schema is stable. Normal samples are
     omitted.
 
-    Issue #215 adds four descriptive (non-funnel) rows per tumor sample —
-    ``min_reads``, ``mean_reads``, ``median_reads``, ``max_reads`` — that
-    summarise the raw read-count distribution before the per-file mean
-    threshold is applied. Use these to sanity-check whether the silent
-    mean threshold was appropriate for the sample's depth.
+    Issue #215 adds descriptive (non-funnel) rows per tumor sample —
+    ``min_reads``, ``mean_reads``, ``median_reads``, ``max_reads``, and
+    ``min_junction_reads_threshold`` — that summarise the raw read-count
+    distribution and record the fixed threshold used. The mean is descriptive
+    only; it is never used as a filter.
 
     Args:
         junction_files:    List of raw junction quantification TSV paths.
@@ -328,7 +328,10 @@ def classify_junctions(
         output_path:       Destination TSV for classified junctions.
         stats_output_path: Optional destination TSV for per-tumor-sample funnel
                            counts. When None, no stats file is written.
-        min_normal_reads:  Minimum reads required to trust a normal junction.
+        min_junction_reads: Minimum reads required in both tumor and matched-normal
+                            junction files. The shared threshold makes the two arms
+                            comparable; retained normal_shared rows keep their
+                            normal_source provenance.
         gencode_gtf:       Optional path to GENCODE GTF for reading frame
                            annotation.  When None, reading_frame is always "".
         gtex_bed:          Optional path to the GTEx pan-tissue population-normal
@@ -338,6 +341,9 @@ def classify_junctions(
                            and excluded downstream. When None, the filter is a no-op.
     """
     import pandas as pd
+
+    if min_junction_reads < 1:
+        raise ValueError("min_junction_reads must be at least 1")
 
     ref_junctions = _load_reference_junctions(reference_bed)
     gtex_junctions = _load_reference_junctions(gtex_bed) if gtex_bed else frozenset()
@@ -371,7 +377,7 @@ def classify_junctions(
     # that contain it. Membership drives the normal_shared classification (unchanged);
     # the value set drives the normal_source provenance column (Issue #940).
     normal_junction_sources = _build_normal_junction_sources(
-        normal_files, ref_junctions, min_reads=min_normal_reads
+        normal_files, ref_junctions, min_reads=min_junction_reads
     )
 
     # Classify tumor junctions
@@ -386,19 +392,20 @@ def classify_junctions(
 
         n_raw = len(rows)
 
-        # Capture the raw read-count distribution before the per-file mean
-        # filter is applied — supports the "was the threshold appropriate?"
-        # diagnostic in the filtering audit trail (Issue #215).
+        # Capture the raw read-count distribution before the fixed minimum
+        # filter is applied. The mean is descriptive only; using it as a
+        # threshold made filtering silently depend on the file's right tail.
         raw_reads = [r for _, r, _ in rows]
         dist_min = float(min(raw_reads))
         dist_max = float(max(raw_reads))
         dist_median = float(statistics.median(raw_reads))
-
-        # Keep only junctions with read count above the per-file mean,
-        # reducing noise from low-evidence junctions.
         mean_reads = sum(raw_reads) / len(raw_reads)
-        rows = [(jid, r, ann) for jid, r, ann in rows if r > mean_reads]
-        n_mean_filtered = n_raw - len(rows)
+
+        # Apply the same explicit depth floor to tumor and matched-normal arms.
+        # This keeps origin classification comparable across samples and makes
+        # upstream filtering monotone: removing reads cannot lower the gate.
+        rows = [(jid, r, ann) for jid, r, ann in rows if r >= min_junction_reads]
+        n_min_filtered = n_raw - len(rows)
 
         n_annotated = n_normal_shared = n_gtex_shared = n_tumor_exclusive = 0
         # Per-normal-source breakdown of normal_shared (Issue #940). A junction seen
@@ -493,9 +500,11 @@ def classify_junctions(
             )
 
         log.info(
-            "Tumor sample %s: %d annotated (discarded), %d normal_shared, "
+            "Tumor sample %s (min_junction_reads=%d): %d below minimum, "
+            "%d annotated (discarded), %d normal_shared, "
             "%d gtex_pantissue_shared, %d tumor_exclusive",
-            sample_id, n_annotated, n_normal_shared, n_gtex_shared, n_tumor_exclusive,
+            sample_id, min_junction_reads, n_min_filtered, n_annotated,
+            n_normal_shared, n_gtex_shared, n_tumor_exclusive,
         )
 
         # Summary of the STAR annotated-flag cross-check (Issue #375). Only
@@ -511,7 +520,7 @@ def classify_junctions(
 
         for category, count in (
             ("junctions_raw", n_raw),
-            ("mean_reads_filtered", n_mean_filtered),
+            ("min_reads_filtered", n_min_filtered),
             ("annotated_discarded", n_annotated),
             ("normal_shared", n_normal_shared),
             # Always emitted (0 when no GTEx blacklist) so the funnel schema is stable.
@@ -522,6 +531,7 @@ def classify_junctions(
             ("mean_reads", mean_reads),
             ("median_reads", dist_median),
             ("max_reads", dist_max),
+            ("min_junction_reads_threshold", min_junction_reads),
         ):
             stats_rows.append({
                 "sample_id": sample_id,
@@ -601,7 +611,7 @@ def _snakemake_main() -> None:
         reference_bed=snakemake.input.reference_junctions,  # type: ignore[name-defined]  # noqa: F821
         output_path=snakemake.output.novel_junctions,  # type: ignore[name-defined]  # noqa: F821
         stats_output_path=snakemake.output.stats,  # type: ignore[name-defined]  # noqa: F821
-        min_normal_reads=snakemake.params.min_normal_reads,  # type: ignore[name-defined]  # noqa: F821
+        min_junction_reads=snakemake.params.min_junction_reads,  # type: ignore[name-defined]  # noqa: F821
         gencode_gtf=snakemake.input.gencode_gtf,  # type: ignore[name-defined]  # noqa: F821
         gtex_bed=gtex_bed,
     )
@@ -627,8 +637,9 @@ def _cli_main() -> None:
         help="Optional output TSV for per-tumor-sample funnel counts",
     )
     parser.add_argument(
-        "--min-normal-reads", type=int, default=2,
-        help="Minimum reads to trust a junction in the normal sample (default: 2)",
+        "--min-junction-reads", type=int, default=10,
+        help=("Minimum reads required in both tumor and matched-normal junction "
+              "files (default: 10)"),
     )
     parser.add_argument(
         "--gencode-gtf", default=None,
@@ -648,7 +659,7 @@ def _cli_main() -> None:
         reference_bed=args.reference_junctions,
         output_path=args.output,
         stats_output_path=args.stats_output,
-        min_normal_reads=args.min_normal_reads,
+        min_junction_reads=args.min_junction_reads,
         gencode_gtf=args.gencode_gtf,
         gtex_bed=args.gtex_bed,
     )

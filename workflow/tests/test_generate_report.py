@@ -286,15 +286,15 @@ class TestBuildReportTsv:
 
     def test_junction_funnel_totals_emitted_when_stats_provided(self, tmp_path):
         stats = tmp_path / "junction_filter_stats.tsv"
-        # Each sample has mean_reads_filtered too — the funnel must reconcile.
+        # Each sample has min_reads_filtered too - the funnel must reconcile.
         self._write_stats_tsv(stats, [
             ("S1", "Primary Tumor", "junctions_raw", 1000),
-            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "min_reads_filtered", 100),
             ("S1", "Primary Tumor", "annotated_discarded", 750),
             ("S1", "Primary Tumor", "normal_shared", 40),
             ("S1", "Primary Tumor", "tumor_exclusive", 110),
             ("S2", "Primary Tumor", "junctions_raw", 500),
-            ("S2", "Primary Tumor", "mean_reads_filtered", 50),
+            ("S2", "Primary Tumor", "min_reads_filtered", 50),
             ("S2", "Primary Tumor", "annotated_discarded", 370),
             ("S2", "Primary Tumor", "normal_shared", 20),
             ("S2", "Primary Tumor", "tumor_exclusive", 60),
@@ -314,7 +314,7 @@ class TestBuildReportTsv:
         jf = df[df["stage"] == "junction_filtering"].set_index("metric")["value"]
         # Patient-level totals are sums across the 2 tumor samples
         assert int(jf["junctions_extracted_total"]) == 1500
-        assert int(jf["junctions_mean_reads_filtered"]) == 150
+        assert int(jf["junctions_min_reads_filtered"]) == 150
         assert int(jf["junctions_annotated_discarded"]) == 1120
         # unannotated_total = normal_shared + tumor_exclusive across samples
         assert int(jf["junctions_unannotated_total"]) == 40 + 110 + 20 + 60
@@ -324,7 +324,7 @@ class TestBuildReportTsv:
         stats = tmp_path / "junction_filter_stats.tsv"
         self._write_stats_tsv(stats, [
             ("S1", "Primary Tumor", "junctions_raw", 1000),
-            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "min_reads_filtered", 100),
             ("S1", "Primary Tumor", "annotated_discarded", 750),
             ("S1", "Primary Tumor", "normal_shared", 40),
             ("S1", "Primary Tumor", "tumor_exclusive", 110),
@@ -342,9 +342,9 @@ class TestBuildReportTsv:
         )
         df = pd.read_csv(out, sep="\t")
         jf = df[df["stage"] == "junction_filtering"].set_index("metric")["value"]
-        # extracted_total == mean_reads_filtered + annotated_discarded + unannotated_total
+        # extracted_total == min_reads_filtered + annotated_discarded + unannotated_total
         assert int(jf["junctions_extracted_total"]) == (
-            int(jf["junctions_mean_reads_filtered"])
+            int(jf["junctions_min_reads_filtered"])
             + int(jf["junctions_annotated_discarded"])
             + int(jf["junctions_unannotated_total"])
         )
@@ -355,7 +355,7 @@ class TestBuildReportTsv:
         stats = tmp_path / "junction_filter_stats.tsv"
         self._write_stats_tsv(stats, [
             ("S1", "Primary Tumor", "junctions_raw", 1000),
-            ("S1", "Primary Tumor", "mean_reads_filtered", 100),
+            ("S1", "Primary Tumor", "min_reads_filtered", 100),
             ("S1", "Primary Tumor", "annotated_discarded", 750),
             ("S1", "Primary Tumor", "normal_shared", 40),
             ("S1", "Primary Tumor", "gtex_pantissue_shared", 30),
@@ -378,7 +378,7 @@ class TestBuildReportTsv:
         assert int(jf["junctions_unannotated_total"]) == 40 + 30 + 80
         # funnel still closed with the 3rd bucket present
         assert int(jf["junctions_extracted_total"]) == (
-            int(jf["junctions_mean_reads_filtered"])
+            int(jf["junctions_min_reads_filtered"])
             + int(jf["junctions_annotated_discarded"])
             + int(jf["junctions_unannotated_total"])
         )
@@ -400,7 +400,7 @@ class TestBuildReportTsv:
         df = pd.read_csv(out, sep="\t")
         metrics = set(df[df["stage"] == "junction_filtering"]["metric"])
         assert "junctions_extracted_total" not in metrics
-        assert "junctions_mean_reads_filtered" not in metrics
+        assert "junctions_min_reads_filtered" not in metrics
         assert "junctions_annotated_discarded" not in metrics
         assert "junctions_unannotated_total" not in metrics
 
@@ -409,7 +409,7 @@ class TestBuildReportTsv:
         stats = tmp_path / "junction_filter_stats.tsv"
         self._write_stats_tsv(stats, [
             ("S1", "Primary Tumor", "junctions_raw", 100),
-            ("S1", "Primary Tumor", "mean_reads_filtered", 10),
+            ("S1", "Primary Tumor", "min_reads_filtered", 10),
             ("S1", "Primary Tumor", "annotated_discarded", 70),
             ("S1", "Primary Tumor", "normal_shared", 5),
             ("S1", "Primary Tumor", "tumor_exclusive", 15),
@@ -428,7 +428,7 @@ class TestBuildReportTsv:
         df = pd.read_csv(out, sep="\t")
         totals = df[df["metric"].isin([
             "junctions_extracted_total",
-            "junctions_mean_reads_filtered",
+            "junctions_min_reads_filtered",
             "junctions_annotated_discarded",
             "junctions_unannotated_total",
         ])]
