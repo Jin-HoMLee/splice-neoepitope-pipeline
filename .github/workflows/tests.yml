@@ -80,7 +80,7 @@ jobs:
       - name: Compile and test the Phase 0 adapter contracts
         run: |
           python -m py_compile app/*.py app/tests/*.py
-          pytest app/tests/ -v
+          python -m pytest app/tests/ -v
 
   research-pytest:
     # Research-side suites were CI-invisible until now: research/requirements.txt

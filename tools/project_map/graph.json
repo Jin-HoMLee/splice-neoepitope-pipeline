@@ -1,6 +1,156 @@
 {
   "nodes": [
     {
+      "id": "app__README_md",
+      "label": "README.md",
+      "type": "doc",
+      "group": "project",
+      "path": "app/README.md",
+      "description": "Documentation",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app____init___py",
+      "label": "__init__.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/__init__.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__command_builder_py",
+      "label": "command_builder.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/command_builder.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__components__cytoscape_elk__frontend__package_json",
+      "label": "package.json",
+      "type": "config",
+      "group": "project",
+      "path": "app/components/cytoscape_elk/frontend/package.json",
+      "description": "Configuration file",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__config_contract_py",
+      "label": "config_contract.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/config_contract.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__dag_component_py",
+      "label": "dag_component.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/dag_component.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__demo__demo_json",
+      "label": "demo.json",
+      "type": "data",
+      "group": "project",
+      "path": "app/demo/demo.json",
+      "description": "Tabular data",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__demo__manifest_json",
+      "label": "manifest.json",
+      "type": "data",
+      "group": "project",
+      "path": "app/demo/manifest.json",
+      "description": "Tabular data",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__demo_data_py",
+      "label": "demo_data.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/demo_data.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__requirements_txt",
+      "label": "requirements.txt",
+      "type": "config",
+      "group": "project",
+      "path": "app/requirements.txt",
+      "description": "Configuration file",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__streamlit_app_py",
+      "label": "streamlit_app.py",
+      "type": "script",
+      "group": "project",
+      "path": "app/streamlit_app.py",
+      "description": "Python/shell script",
+      "size": 2,
+      "degree": 0
+    },
+    {
+      "id": "app__tests__test_command_builder_py",
+      "label": "test_command_builder.py",
+      "type": "test",
+      "group": "project",
+      "path": "app/tests/test_command_builder.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__tests__test_config_contract_py",
+      "label": "test_config_contract.py",
+      "type": "test",
+      "group": "project",
+      "path": "app/tests/test_config_contract.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__tests__test_dag_component_py",
+      "label": "test_dag_component.py",
+      "type": "test",
+      "group": "project",
+      "path": "app/tests/test_dag_component.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 0
+    },
+    {
+      "id": "app__tests__test_demo_data_py",
+      "label": "test_demo_data.py",
+      "type": "test",
+      "group": "project",
+      "path": "app/tests/test_demo_data.py",
+      "description": "Test module",
+      "size": 1,
+      "degree": 0
+    },
+    {
       "id": "assets",
       "label": "assets",
       "type": "dir",
