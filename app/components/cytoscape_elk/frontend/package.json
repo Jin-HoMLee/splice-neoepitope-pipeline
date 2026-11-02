@@ -1,0 +1,18 @@
+{
+  "name": "splice-cytoscape-elk-component",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "cytoscape": "3.33.1",
+    "elkjs": "0.11.0",
+    "streamlit-component-lib": "2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "7.2.2"
+  }
+}

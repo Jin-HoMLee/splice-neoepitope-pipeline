@@ -115,6 +115,19 @@ snakemake --cores 4 --use-conda --configfile config/test_config.yaml
 Expected output: ~372 unannotated junctions → ~75 contigs → ~147 strong presenters
 (best allele across 6 patient-specific HLA-A/B/C alleles).
 
+### Offline Streamlit workbench (synthetic Phase 0 demo)
+
+```bash
+python -m venv app/.venv
+app/.venv/bin/pip install -r app/requirements.txt
+app/.venv/bin/streamlit run app/streamlit_app.py --server.address 127.0.0.1
+```
+
+The bundled workbench demo is synthetic, read-only, offline, and prediction-only.
+Configure mode validates and previews a bounded native-HISAT2 run; Phase 0 does
+not start Snakemake. See [`app/README.md`](app/README.md) for scope and safety
+boundaries.
+
 ### Cloud run (full genome + TCRdock, ~4–6 hours)
 
 ```bash
