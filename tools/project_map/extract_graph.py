@@ -102,6 +102,8 @@ def classify_path(rel_path, is_dir=False):
     base = p.rsplit("/", 1)[-1]
 
     if q.endswith(".smk"): return "rule"
+    if q.endswith(".py") and "/app/tests/" in q: return "test"
+    if q.endswith(".py") and q.startswith("/app/"): return "script"
     if q.endswith((".py", ".sh")) and "/workflow/scripts/" in q: return "script"
     if q.endswith(".py") and "/scripts/" in q and "/pm/" not in q: return "script"
     if q.endswith(".yaml") and "/workflow/envs/" in q: return "env"
@@ -125,6 +127,8 @@ def classify_path(rel_path, is_dir=False):
     if q.endswith(".ini"): return "config"
     if base == "snakefile": return "rule"
     if base == "dockerfile.pipeline": return "docker"
+    if q.endswith(".json") and "/app/demo/" in q: return "data"
+    if q.endswith((".json", ".txt")) and q.startswith("/app/"): return "config"
     if q.endswith(".json") and "/scripts/" in q: return "config"
     if q.endswith((".csl", ".scss")): return "resource"
     if q.endswith(".bib"): return "reference"

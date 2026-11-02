@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "run_id": "demo-v2",
+    "demo_fixture": true,
+    "synthetic": true,
+    "prediction_status": "illustrative only; not a MHCflurry prediction",
+    "clinical_use": false,
+    "network_required": false
+  },
+  "funnel": [
+    {"stage": "junctions raw", "count": 124, "artifact": "raw_junctions.tsv", "rule": "hisat2_align"},
+    {"stage": "above depth", "count": 72, "artifact": "raw_junctions.tsv", "rule": "filter_junctions"},
+    {"stage": "tumor-exclusive", "count": 38, "artifact": "novel_junctions.tsv", "rule": "filter_junctions"},
+    {"stage": "peptides", "count": 16, "artifact": "peptides_novel.tsv", "rule": "translate_peptides"},
+    {"stage": "top presenters", "count": 6, "artifact": "presentation_calibrated.tsv", "rule": "run_mhcflurry"}
+  ],
+  "origins": [
+    {"origin": "tumor_exclusive", "policy": "keep", "count": 38},
+    {"origin": "normal_shared", "policy": "discard", "count": 21},
+    {"origin": "gtex_pantissue_shared", "policy": "discard", "count": 14},
+    {"origin": "annotated", "policy": "discard", "count": 11}
+  ],
+  "candidates": [
+    {"candidate": "SPJ-0008 / PEP-0041", "presentation_class": "strong", "best_allele": "HLA-A*02:01", "presentation_percentile": 0.3, "genotype_presentation_score": 0.942, "ic50_nM": 31.4, "sequence": "SLYNTVATL", "rank_tier": "winner"},
+    {"candidate": "SPJ-0012 / PEP-0017", "presentation_class": "strong", "best_allele": "HLA-B*07:02", "presentation_percentile": 0.8, "genotype_presentation_score": 0.887, "ic50_nM": 52.1, "sequence": "RPHERNGFT", "rank_tier": "strong"},
+    {"candidate": "SPJ-0030 / PEP-0090", "presentation_class": "strong", "best_allele": "HLA-A*03:01", "presentation_percentile": 1.7, "genotype_presentation_score": 0.741, "ic50_nM": 88.2, "sequence": "KLVVVGAGGV", "rank_tier": "strong"},
+    {"candidate": "SPJ-0019 / PEP-0022", "presentation_class": "weak", "best_allele": "HLA-C*07:02", "presentation_percentile": 4.9, "genotype_presentation_score": 0.641, "ic50_nM": 148.2, "sequence": "FQKQYGDLL", "rank_tier": "other"}
+  ],
+  "provenance": {
+    "depth": 10,
+    "aligner": "hisat2",
+    "engine": "Snakemake",
+    "structure": "not available",
+    "code_revision": "14b4560d682018a1a3103b10f86813c25ebb1edf"
+  }
+}
